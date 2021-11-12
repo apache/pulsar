@@ -207,6 +207,13 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         Integer max = admin.topics().getMaxUnackedMessagesOnConsumer(topicName, true);
         assertEquals(max.intValue(), pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer());
 
+        admin.namespaces().setMaxUnackedMessagesPerConsumer(myNamespace, 15);
+        Awaitility.await().untilAsserted(()
+                -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerConsumer(myNamespace).intValue(), 15));
+        admin.namespaces().removeMaxUnackedMessagesPerConsumer(myNamespace);
+        Awaitility.await().untilAsserted(()
+                -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerConsumer(myNamespace), null));
+
         admin.namespaces().setMaxUnackedMessagesPerConsumer(myNamespace, 10);
         Awaitility.await().untilAsserted(()
                 -> assertNotNull(admin.namespaces().getMaxUnackedMessagesPerConsumer(myNamespace)));
@@ -333,7 +340,5 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
     private void waitCacheInit(String topicName) throws Exception {
         pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub").subscribe().close();
         TopicName topic = TopicName.get(topicName);
-        Awaitility.await()
-                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(topic));
     }
 }

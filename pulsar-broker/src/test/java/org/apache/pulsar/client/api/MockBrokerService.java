@@ -58,6 +58,8 @@ import org.apache.pulsar.common.api.proto.CommandFlow;
 import org.apache.pulsar.common.api.proto.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
+import org.apache.pulsar.common.api.proto.CommandPing;
+import org.apache.pulsar.common.api.proto.CommandPong;
 import org.apache.pulsar.common.api.proto.CommandProducer;
 import org.apache.pulsar.common.api.proto.CommandSend;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
@@ -247,6 +249,16 @@ public class MockBrokerService {
             log.warn("Got exception", cause);
             ctx.close();
         }
+
+        @Override
+        final protected void handlePing(CommandPing ping) {
+            // Immediately reply success to ping requests
+            ctx.writeAndFlush(Commands.newPong());
+        }
+
+        @Override
+        final protected void handlePong(CommandPong pong) {
+        }
     }
 
     private final Server server;
@@ -276,7 +288,7 @@ public class MockBrokerService {
             log.info("Started web service on {}", getHttpAddress());
 
             startMockBrokerService();
-            log.info("Started mock Pulsar service on ", getBrokerAddress());
+            log.info("Started mock Pulsar service on {}", getBrokerAddress());
 
             lookupData = new LookupData(getBrokerAddress(), null,
                     getHttpAddress(), null);

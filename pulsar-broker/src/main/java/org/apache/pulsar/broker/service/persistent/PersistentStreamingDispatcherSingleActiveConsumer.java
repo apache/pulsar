@@ -28,6 +28,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
@@ -72,7 +73,7 @@ public class PersistentStreamingDispatcherSingleActiveConsumer extends Persisten
                         readMoreEntries(currentConsumer);
                     } else {
                         log.info("[{}-{}] Skipping read as we still havePendingRead {}", name,
-                                currentConsumer);
+                                currentConsumer, havePendingRead);
                     }
                 }
             }));
@@ -119,6 +120,8 @@ public class PersistentStreamingDispatcherSingleActiveConsumer extends Persisten
             readFailureBackoff.reduceToHalf();
             havePendingRead = false;
         }
+
+        isFirstRead = false;
 
         if (readBatchSize < serviceConfig.getDispatcherMaxReadBatchSize()) {
             int newReadBatchSize = Math.min(readBatchSize * 2, serviceConfig.getDispatcherMaxReadBatchSize());
@@ -179,9 +182,12 @@ public class PersistentStreamingDispatcherSingleActiveConsumer extends Persisten
         }
 
         if (!havePendingRead && consumer.getAvailablePermits() > 0) {
-            int messagesToRead = calculateNumOfMessageToRead(consumer);
+            Pair<Integer, Long> calculateResult = calculateToRead(consumer);
+            int messagesToRead = calculateResult.getLeft();
+            long bytesToRead = calculateResult.getRight();
 
-            if (-1 == messagesToRead) {
+
+            if (-1 == messagesToRead || bytesToRead == -1) {
                 // Skip read as topic/dispatcher has exceed the dispatch rate.
                 return;
             }
@@ -193,10 +199,10 @@ public class PersistentStreamingDispatcherSingleActiveConsumer extends Persisten
             havePendingRead = true;
 
             if (consumer.readCompacted()) {
-                topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, this, consumer);
+                topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, isFirstRead,
+                        this, consumer);
             } else {
-                streamingEntryReader.asyncReadEntries(messagesToRead, serviceConfig.getDispatcherMaxReadSizeBytes(),
-                        consumer);
+                streamingEntryReader.asyncReadEntries(messagesToRead, bytesToRead, consumer);
             }
         } else {
             if (log.isDebugEnabled()) {

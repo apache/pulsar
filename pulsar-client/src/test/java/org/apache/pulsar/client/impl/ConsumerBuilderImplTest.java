@@ -18,7 +18,12 @@
  */
 package org.apache.pulsar.client.impl;
 
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.BatchReceivePolicy;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
@@ -296,5 +301,13 @@ public class ConsumerBuilderImplTest {
     public void testConsumerMode() {
         consumerBuilderImpl.subscriptionMode(SubscriptionMode.NonDurable)
             .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
+    }
+
+    @Test
+    public void testNegativeAckRedeliveryBackoff() {
+        consumerBuilderImpl.negativeAckRedeliveryBackoff(NegativeAckRedeliveryExponentialBackoff.builder()
+                .minNackTimeMs(1000)
+                .maxNackTimeMs(10 * 1000)
+                .build());
     }
 }

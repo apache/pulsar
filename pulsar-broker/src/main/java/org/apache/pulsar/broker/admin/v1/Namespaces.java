@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin.v1;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import com.google.common.collect.Lists;
 import io.swagger.annotations.Api;
@@ -94,19 +93,19 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(hidden = true, value = "Get the list of all the namespaces for a certain property on single cluster.",
             response = String.class, responseContainer = "Set")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property or cluster doesn't exist")})
-    public List<String> getNamespacesForCluster(@PathParam("property") String property,
+            @ApiResponse(code = 404, message = "Tenant or cluster doesn't exist")})
+    public List<String> getNamespacesForCluster(@PathParam("property") String tenant,
             @PathParam("cluster") String cluster) {
-        validateTenantOperation(property, TenantOperation.LIST_NAMESPACES);
+        validateTenantOperation(tenant, TenantOperation.LIST_NAMESPACES);
         List<String> namespaces = Lists.newArrayList();
         if (!clusters().contains(cluster)) {
-            log.warn("[{}] Failed to get namespace list for property: {}/{} - Cluster does not exist", clientAppId(),
-                    property, cluster);
+            log.warn("[{}] Failed to get namespace list for tenant: {}/{} - Cluster does not exist", clientAppId(),
+                    tenant, cluster);
             throw new RestException(Status.NOT_FOUND, "Cluster does not exist");
         }
         try {
-            for (String namespace : clusterResources().getChildren(path(POLICIES, property, cluster))) {
-                namespaces.add(String.format("%s/%s/%s", property, cluster, namespace));
+            for (String namespace : clusterResources().getNamespacesForCluster(tenant, cluster)) {
+                namespaces.add(NamespaceName.get(tenant, cluster, namespace).toString());
             }
         } catch (NotFoundException e) {
             // NoNode means there are no namespaces for this property on the specified cluster, returning empty list
@@ -245,6 +244,22 @@ public class Namespaces extends NamespacesBase {
         return policies.auth_policies.getNamespaceAuthentication();
     }
 
+    @GET
+    @Path("/{property}/{cluster}/{namespace}/permissions/subscription")
+    @ApiOperation(value = "Retrieve the permissions for a subscription.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Namespace is not empty")})
+    public Map<String, Set<String>> getPermissionOnSubscription(@PathParam("property") String property,
+                                                                @PathParam("cluster") String cluster,
+                                                                @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, cluster, namespace);
+        validateNamespaceOperation(NamespaceName.get(property, namespace), NamespaceOperation.GET_PERMISSION);
+
+        Policies policies = getNamespacePolicies(namespaceName);
+        return policies.auth_policies.getSubscriptionAuthentication();
+    }
+
     @POST
     @Path("/{property}/{cluster}/{namespace}/permissions/{role}")
     @ApiOperation(hidden = true, value = "Grant a new permission to a role on a namespace.")
@@ -332,7 +347,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(hidden = true, value = "Get the message TTL for the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
-    public int getNamespaceMessageTTL(@PathParam("property") String property, @PathParam("cluster") String cluster,
+    public Integer getNamespaceMessageTTL(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
         validateNamespacePolicyOperation(NamespaceName.get(property, namespace), PolicyName.TTL, PolicyOperation.READ);
@@ -353,12 +368,24 @@ public class Namespaces extends NamespacesBase {
         internalSetNamespaceMessageTTL(messageTTL);
     }
 
+    @DELETE
+    @Path("/{property}/{cluster}/{namespace}/messageTTL")
+    @ApiOperation(value = "Set message TTL in seconds for namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 412, message = "Invalid TTL") })
+    public void removeNamespaceMessageTTL(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, cluster, namespace);
+        internalSetNamespaceMessageTTL(null);
+    }
+
     @GET
     @Path("/{property}/{cluster}/{namespace}/subscriptionExpirationTime")
     @ApiOperation(hidden = true, value = "Get the subscription expiration time for the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
-    public int getSubscriptionExpirationTime(@PathParam("property") String property,
+    public Integer getSubscriptionExpirationTime(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
         validateAdminAccessForTenant(property);
         validateNamespaceName(property, cluster, namespace);
@@ -379,6 +406,16 @@ public class Namespaces extends NamespacesBase {
         internalSetSubscriptionExpirationTime(expirationTime);
     }
 
+    @DELETE
+    @Path("/{property}/{cluster}/{namespace}/subscriptionExpirationTime")
+    @ApiOperation(hidden = true, value = "Remove subscription expiration time for namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
+    public void removeSubscriptionExpirationTime(@PathParam("property") String property,
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, cluster, namespace);
+        internalSetSubscriptionExpirationTime(null);
+    }
 
     @POST
     @Path("/{property}/{cluster}/{namespace}/antiAffinity")
@@ -437,6 +474,18 @@ public class Namespaces extends NamespacesBase {
             @PathParam("namespace") String namespace, boolean enableDeduplication) {
         validateNamespaceName(property, cluster, namespace);
         internalModifyDeduplication(enableDeduplication);
+    }
+
+    @GET
+    @Path("/{property}/{cluster}/{namespace}/autoTopicCreation")
+    @ApiOperation(value = "Get autoTopicCreation info in a namespace")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist")})
+    public AutoTopicCreationOverride getAutoTopicCreation(@PathParam("property") String property,
+                                                          @PathParam("cluster") String cluster,
+                                                          @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, cluster, namespace);
+        return internalGetAutoTopicCreation();
     }
 
     @POST
@@ -498,6 +547,18 @@ public class Namespaces extends NamespacesBase {
         } catch (Exception e) {
             asyncResponse.resume(new RestException(e));
         }
+    }
+
+    @GET
+    @Path("/{property}/{cluster}/{namespace}/autoSubscriptionCreation")
+    @ApiOperation(value = "Get autoSubscriptionCreation info in a namespace")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist")})
+    public AutoSubscriptionCreationOverride getAutoSubscriptionCreation(@PathParam("property") String property,
+                                                                        @PathParam("cluster") String cluster,
+                                                                        @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, cluster, namespace);
+        return internalGetAutoSubscriptionCreation();
     }
 
     @DELETE
@@ -943,6 +1004,18 @@ public class Namespaces extends NamespacesBase {
         internalSetSubscriptionAuthMode(subscriptionAuthMode);
     }
 
+    @GET
+    @Path("/{property}/{cluster}/{namespace}/subscriptionAuthMode")
+    @ApiOperation(value = "Get subscription auth mode in a namespace")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist")})
+    public SubscriptionAuthMode getSubscriptionAuthMode(@PathParam("property") String property,
+                                                        @PathParam("cluster") String cluster,
+                                                        @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, cluster, namespace);
+        return internalGetSubscriptionAuthMode();
+    }
+
     @POST
     @Path("/{property}/{cluster}/{namespace}/encryptionRequired")
     @ApiOperation(hidden = true, value = "Message encryption is required or not for all topics in a namespace")
@@ -953,6 +1026,19 @@ public class Namespaces extends NamespacesBase {
             @PathParam("namespace") String namespace, boolean encryptionRequired) {
         validateNamespaceName(property, cluster, namespace);
         internalModifyEncryptionRequired(encryptionRequired);
+    }
+
+    @GET
+    @Path("/{property}/{cluster}/{namespace}/encryptionRequired")
+    @ApiOperation(value = "Get message encryption required status in a namespace")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist")})
+    public Boolean getEncryptionRequired(@PathParam("property") String property,
+                                         @PathParam("cluster") String cluster,
+                                         @PathParam("namespace") String namespace) {
+        validateAdminAccessForTenant(property);
+        validateNamespaceName(property, cluster, namespace);
+        return internalGetEncryptionRequired();
     }
 
     @GET

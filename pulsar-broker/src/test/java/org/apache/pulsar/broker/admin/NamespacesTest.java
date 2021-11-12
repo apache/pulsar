@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -39,6 +38,7 @@ import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
+import java.time.Duration;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -85,7 +85,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -95,13 +94,11 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
-import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
-import org.apache.zookeeper.ZooDefs;
+import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
@@ -161,7 +158,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         namespaces = spy(new Namespaces());
         namespaces.setServletContext(new MockServletContext());
         namespaces.setPulsar(pulsar);
-        doReturn(mockZooKeeper).when(namespaces).localZk();
         doReturn(false).when(namespaces).isRequestHttps();
         doReturn("test").when(namespaces).clientAppId();
         doReturn(null).when(namespaces).originalPrincipal();
@@ -533,8 +529,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         // Sometimes watcher event consumes scheduled exception, so set to always fail to ensure exception is
         // thrown for api call.
         mockZooKeeperGlobal.setAlwaysFail(Code.SESSIONEXPIRED);
-        pulsar.getConfigurationCache().policiesCache().invalidate(AdminResource.path(POLICIES, this.testTenant,
-                "global", this.testGlobalNamespaces.get(0).getLocalName()));
+
         try {
             namespaces.setNamespaceReplicationClusters(this.testTenant, "global",
                     this.testGlobalNamespaces.get(0).getLocalName(), Lists.newArrayList("use"));
@@ -584,8 +579,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 return op == MockZooKeeper.Op.GET
                     && path.equals("/admin/policies/my-tenant/global/test-global-ns1");
             });
-
-        pulsar.getConfigurationCache().policiesCache().clear();
 
         policiesCache.invalidateAll();
         store.invalidateAll();
@@ -765,8 +758,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(namespaces.getTenantNamespaces(this.testTenant), nsList);
 
         testNs = this.testLocalNamespaces.get(1);
-        // ensure refreshed topics list in the cache
-        pulsar.getLocalZkCacheService().managedLedgerListCache().clearTree();
         // setup ownership to localhost
         doReturn(Optional.of(localWebServiceUrl)).when(nsSvc).getWebServiceUrl(testNs, options);
         doReturn(true).when(nsSvc).isServiceUnitOwned(testNs);
@@ -805,7 +796,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 return bundle.getNamespaceObject().equals(testNs);
             }
         }));
-        doReturn(Optional.of(new NamespaceEphemeralData())).when(nsSvc)
+        doReturn(Optional.of(mock(NamespaceEphemeralData.class))).when(nsSvc)
                 .getOwner(Mockito.argThat(new ArgumentMatcher<NamespaceBundle>() {
                     @Override
                     public boolean matches(NamespaceBundle bundle) {
@@ -1006,16 +997,13 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testValidateAdminAccessOnTenant() throws Exception {
         try {
-            final String property = "prop";
+            final String tenant = "prop";
             pulsar.getConfiguration().setAuthenticationEnabled(true);
             pulsar.getConfiguration().setAuthorizationEnabled(true);
-            final String path = PulsarWebResource.path(POLICIES, property);
-            final String data = ObjectMapperFactory.getThreadLocal().writeValueAsString(
+            pulsar.getPulsarResources().getTenantResources().createTenant(tenant,
                     new TenantInfoImpl(Sets.newHashSet(namespaces.clientAppId()), Sets.newHashSet("use")));
-            ZkUtils.createFullPathOptimistic(pulsar.getConfigurationCache().getZooKeeper(), path, data.getBytes(),
-                    ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 
-            namespaces.validateTenantOperation(property, null);
+            namespaces.validateTenantOperation(tenant, null);
         } finally {
             pulsar.getConfiguration().setAuthenticationEnabled(false);
             pulsar.getConfiguration().setAuthorizationEnabled(false);
@@ -1247,20 +1235,19 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         // Subscribe Rate Limiter is enabled, will limited by broker
         pulsarClient.updateServiceUrl(lookupUrl.toString());
-        Thread.sleep(1000L);
-        assertFalse(consumer.isConnected());
+        Awaitility.await().untilAsserted(() -> assertFalse(consumer.isConnected()));
 
         // Out of limit period
-        Thread.sleep(6000L);
         pulsarClient.updateServiceUrl(lookupUrl.toString());
-        assertTrue(consumer.isConnected());
+        Awaitility.await()
+                .pollDelay(Duration.ofSeconds(6))
+                .untilAsserted(() -> assertTrue(consumer.isConnected()));
 
         // Disable Subscribe Rate Limiter
         subscribeRate = new SubscribeRate(0, 10);
         admin.namespaces().setSubscribeRate(namespace, subscribeRate);
         pulsarClient.updateServiceUrl(lookupUrl.toString());
-        Thread.sleep(1000L);
-        assertTrue(consumer.isConnected());
+        Awaitility.await().untilAsserted(() -> assertTrue(consumer.isConnected()));
         pulsar.getConfiguration().setAuthorizationEnabled(true);
         admin.topics().deletePartitionedTopic(topicName, true);
         admin.namespaces().deleteNamespace(namespace);
@@ -1711,8 +1698,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
 
         // clear all namespace subType enabled, add failover to broker.conf and sub with shared will fail
-        subscriptionTypes.clear();
-        admin.namespaces().setSubscriptionTypesEnabled(namespace, subscriptionTypes);
+        admin.namespaces().removeSubscriptionTypesEnabled(namespace);
+        assertEquals(admin.namespaces().getSubscriptionTypesEnabled(namespace), Sets.newHashSet());
         consumerBuilder.subscriptionType(SubscriptionType.Shared);
         HashSet<String> subscriptions = new HashSet<>();
         subscriptions.add("Failover");

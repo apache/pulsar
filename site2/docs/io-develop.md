@@ -272,7 +272,7 @@ a bit of Java ClassLoader isolation.
 > For more information about **how NAR works**, see
 > [here](https://medium.com/hashmapinc/nifi-nar-files-explained-14113f7796fd). 
 
-Pulsar uses the same mechanism for packaging **all** [built-in connectors](io-connectors). 
+Pulsar uses the same mechanism for packaging **all** [built-in connectors](io-connectors.md). 
 
 The easiest approach to package a Pulsar connector is to create a NAR package using
 [nifi-nar-maven-plugin](https://mvnrepository.com/artifact/org.apache.nifi/nifi-nar-maven-plugin).
@@ -298,7 +298,7 @@ sourceClass: fully qualified class name (only if source connector)
 sinkClass: fully qualified class name (only if sink connector)
 ```
 
-If you are using the [Gradle NiFi plugin](https://github.com/sponiro/gradle-nar-plugin) you might need to create a directive to ensure your pulsar-io.yaml is [copied into the NAR file correctly](https://github.com/sponiro/gradle-nar-plugin/issues/5).
+For Gradle users, there is a [Gradle Nar plugin available on the Gradle Plugin Portal](https://plugins.gradle.org/plugin/io.github.lhotari.gradle-nar-plugin).
 
 > #### Tip
 > 

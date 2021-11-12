@@ -55,6 +55,7 @@
     <file><source>${basedir}/../../pulsar-io/jdbc/clickhouse/target/pulsar-io-jdbc-clickhouse-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/jdbc/postgres/target/pulsar-io-jdbc-postgres-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/data-generator/target/pulsar-io-data-generator-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/batch-data-generator/target/pulsar-io-batch-data-generator-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/aerospike/target/pulsar-io-aerospike-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/elastic-search/target/pulsar-io-elastic-search-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/kafka-connect-adaptor-nar/target/pulsar-io-kafka-connect-adaptor-${project.version}.nar</source></file>
@@ -69,6 +70,8 @@
     <file><source>${basedir}/../../pulsar-io/mongo/target/pulsar-io-mongo-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/debezium/mysql/target/pulsar-io-debezium-mysql-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/debezium/postgres/target/pulsar-io-debezium-postgres-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/debezium/oracle/target/pulsar-io-debezium-oracle-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/debezium/mssql/target/pulsar-io-debezium-mssql-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/debezium/mongodb/target/pulsar-io-debezium-mongodb-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/influxdb/target/pulsar-io-influxdb-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/redis/target/pulsar-io-redis-${project.version}.nar</source></file>

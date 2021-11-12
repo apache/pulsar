@@ -108,6 +108,7 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
         List<SinkSpec> specs = Arrays.asList(
                 new SinkSpec("test-kv-sink-input-string-" + randomName(8), Schema.STRING, "foo"),
                 new SinkSpec("test-kv-sink-input-avro-" + randomName(8), Schema.AVRO(Pojo.class), Pojo.builder().field1("a").field2(2).build()),
+                new SinkSpec("test-kv-sink-input-json-" + randomName(8), Schema.JSON(Pojo.class), Pojo.builder().field1("a").field2(2).build()),
                 new SinkSpec("test-kv-sink-input-kv-string-int-" + randomName(8),
                         Schema.KeyValue(Schema.STRING, Schema.INT32), new KeyValue<>("foo", 123)),
                 new SinkSpec("test-kv-sink-input-kv-avro-json-inl-" + randomName(8),
@@ -269,7 +270,7 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
         log.info("Run command : {}", StringUtils.join(commands, ' '));
         ContainerExecResult result = container.execCmd(commands);
         assertTrue(
-                result.getStdout().contains("\"Created successfully\""),
+                result.getStdout().contains("Created successfully"),
                 result.getStdout());
     }
 

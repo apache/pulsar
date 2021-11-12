@@ -53,6 +53,10 @@ function broker_client_impl() {
   $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='broker-impl'
 }
 
+function broker_jdk8() {
+  $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='broker-jdk8' -Dpulsar.allocator.pooled=true
+}
+
 # prints summaries of failed tests to console
 # by using the targer/surefire-reports files
 # works only when testForkCount > 1 since that is when surefire will create reports for individual test classes
@@ -86,12 +90,8 @@ function broker_flaky() {
   echo "::endgroup::"
   echo "::group::Running quarantined tests"
   $MVN_COMMAND test -pl pulsar-broker -Dgroups='quarantine' -DexcludedGroups='' -DfailIfNoTests=false \
-    -DtestForkCount=2 -Dexclude='**/Replicator*Test.java' ||
+    -DtestForkCount=2 ||
     print_testng_failures pulsar-broker/target/surefire-reports/testng-failed.xml "Quarantined test failure in" "Quarantined test failures"
-  # run quarantined Replicator tests separately
-  $MVN_COMMAND test -pl pulsar-broker -Dgroups='quarantine' -DexcludedGroups='' -DfailIfNoTests=false \
-    -DtestForkCount=2 -Dinclude='**/Replicator*Test.java' || \
-    print_testng_failures pulsar-broker/target/surefire-reports/testng-failed.xml "Quarantined test failure in" "Quarantined Replicator*Test failures"
   echo "::endgroup::"
   echo "::group::Running flaky tests"
   $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='flaky' -DtestForkCount=2
@@ -99,14 +99,12 @@ function broker_flaky() {
 }
 
 function proxy() {
-  echo "::endgroup::"
-  echo "::group::Running quarantined pulsar-proxy tests"
-  $MVN_COMMAND test -pl pulsar-proxy -Dgroups='quarantine' -DexcludedGroups='' -DfailIfNoTests=false ||
-    print_testng_failures pulsar-proxy/target/surefire-reports/testng-failed.xml "Quarantined test failure in" "Quarantined test failures"
-  echo "::endgroup::"
-  echo "::group::Running pulsar-proxy tests"
-  $MVN_TEST_COMMAND -pl pulsar-proxy
-  echo "::endgroup::"
+    echo "::group::Running pulsar-proxy tests"
+    $MVN_TEST_COMMAND -pl pulsar-proxy -Dtest="org.apache.pulsar.proxy.server.ProxyServiceTlsStarterTest"
+    $MVN_TEST_COMMAND -pl pulsar-proxy -Dtest="org.apache.pulsar.proxy.server.ProxyServiceStarterTest"
+    $MVN_TEST_COMMAND -pl pulsar-proxy -Dexclude='org.apache.pulsar.proxy.server.ProxyServiceTlsStarterTest,
+                                                  org.apache.pulsar.proxy.server.ProxyServiceStarterTest'
+    echo "::endgroup::"
 }
 
 function other() {
@@ -175,6 +173,10 @@ case $TEST_GROUP in
 
   OTHER)
     other
+    ;;
+
+  BROKER_JDK8)
+    broker_jdk8
     ;;
 
   *)

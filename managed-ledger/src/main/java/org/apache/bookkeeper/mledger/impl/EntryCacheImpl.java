@@ -76,7 +76,6 @@ public class EntryCacheImpl implements EntryCache {
             PooledByteBufAllocator.defaultNumDirectArena(), // nDirectArena
             PooledByteBufAllocator.defaultPageSize(), // pageSize
             PooledByteBufAllocator.defaultMaxOrder(), // maxOrder
-            PooledByteBufAllocator.defaultTinyCacheSize(), // tinyCacheSize
             PooledByteBufAllocator.defaultSmallCacheSize(), // smallCacheSize
             PooledByteBufAllocator.defaultNormalCacheSize(), // normalCacheSize,
             true // Use cache for all threads
@@ -159,8 +158,8 @@ public class EntryCacheImpl implements EntryCache {
         Pair<Integer, Long> removed = entries.removeRange(firstPosition, lastPosition, false);
         int entriesRemoved = removed.getLeft();
         long sizeRemoved = removed.getRight();
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Invalidated entries up to {} - Entries removed: {} - Size removed: {}", ml.getName(),
+        if (log.isTraceEnabled()) {
+            log.trace("[{}] Invalidated entries up to {} - Entries removed: {} - Size removed: {}", ml.getName(),
                     lastPosition, entriesRemoved, sizeRemoved);
         }
 

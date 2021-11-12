@@ -43,13 +43,11 @@ All messages produced in any of the three clusters are delivered to all subscrip
 
 ## Configure replication
 
-As stated in [Geo-replication and Pulsar properties](#geo-replication-and-pulsar-properties) section, geo-replication in Pulsar is managed at the [tenant](reference-terminology.md#tenant) level.
-
 The following example connects three clusters: **us-east**, **us-west**, and **us-cent**.
 
 ### Connect replication clusters
 
-To replicate data among clusters, you need to configure each cluster to connect to the other. You can use the [`pulsar-admin`](http://pulsar.apache.org/tools/pulsar-admin/) tool to create a connection.
+To replicate data among clusters, you need to configure each cluster to connect to the other. You can use the [`pulsar-admin`](https://pulsar.apache.org/tools/pulsar-admin/) tool to create a connection.
 
 **Example**
 
@@ -68,7 +66,8 @@ $ bin/pulsar-admin clusters create \
 
    > #### Tip
    >
-   > If you want to use a secure connection for a cluster, you can use the flags `--broker-url-secure` and `--url-secure`. For more information, see [pulsar-admin clusters create](http://pulsar.apache.org/tools/pulsar-admin/).
+   > - If you want to use a secure connection for a cluster, you can use the flags `--broker-url-secure` and `--url-secure`. For more information, see [pulsar-admin clusters create](https://pulsar.apache.org/tools/pulsar-admin/).
+   > - Different clusters may have different authentications. You can use the authentication flag `--auth-plugin` and `--auth-parameters` together to set cluster authentication, which overrides `brokerClientAuthenticationPlugin` and `brokerClientAuthenticationParameters` if `authenticationEnabled` sets to `true` in `broker.conf` and `standalone.conf`. For more information, see [authentication and authorization](concepts-authentication.md).
 
 2. Configure the connection from `us-west` to `us-cent`.
 
@@ -97,7 +96,11 @@ $ bin/pulsar-admin tenants create my-tenant \
 
 To update permissions of an existing tenant, use `update` instead of `create`.
 
-### Enable geo-replication namespaces
+### Enable geo-replication 
+
+You can enable geo-replication at **namespace** or **topic** level.
+
+#### Enable geo-replication at namespace level
 
 You can create a namespace with the following command sample.
 
@@ -112,11 +115,21 @@ $ bin/pulsar-admin namespaces set-clusters my-tenant/my-namespace \
   --clusters us-west,us-east,us-cent
 ```
 
-You can change the replication clusters for a namespace at any time, without disruption to ongoing traffic. Replication channels are immediately set up or stopped in all clusters as soon as the configuration changes.
+#### Enable geo-replication at topic level
+
+You can set geo-replication at topic level using the command `pulsar-admin topics set-replication-clusters`. For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/).
+
+```shell
+$ bin/pulsar-admin topics set-replication-clusters --clusters us-west,us-east,us-cent my-tenant/my-namespace/my-topic
+```
+
+> **Tip**
+> 
+> - You can change the replication clusters for a namespace at any time, without disruption to ongoing traffic. Replication channels are immediately set up or stopped in all clusters as soon as the configuration changes.
+>
+> - Once you create a geo-replication namespace, any topics that producers or consumers create within that namespace are replicated across clusters. Typically, each application uses the `serviceUrl` for the local cluster.
 
 ### Use topics with geo-replication
-
-Once you create a geo-replication namespace, any topics that producers or consumers create within that namespace is replicated across clusters. Typically, each application uses the `serviceUrl` for the local cluster.
 
 #### Selective replication
 
@@ -142,11 +155,21 @@ producer.newMessage()
 
 #### Topic stats
 
-Topic-specific statistics for geo-replication topics are available via the [`pulsar-admin`](reference-pulsar-admin.md) tool and {@inject: rest:REST:/} API:
+You can check topic-specific statistics for geo-replication topics using one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
+
+Use the [`pulsar-admin topics stats`](https://pulsar.apache.org/tools/pulsar-admin/) command.
 
 ```shell
-$ bin/pulsar-admin persistent stats persistent://my-tenant/my-namespace/my-topic
+$ bin/pulsar-admin topics stats persistent://my-tenant/my-namespace/my-topic
 ```
+
+<!--REST API-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/stats|operation/getStats?version=[[pulsar:version_number]]}
+
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 Each cluster reports its own local stats, including the incoming and outgoing replication rates and backlogs.
 

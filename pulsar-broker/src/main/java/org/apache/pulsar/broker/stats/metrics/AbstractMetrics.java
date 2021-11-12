@@ -214,11 +214,7 @@ abstract class AbstractMetrics {
     }
 
     protected void populateAggregationMap(Map<String, List<Double>> map, String mkey, double value) {
-        if (!map.containsKey(mkey)) {
-            map.put(mkey, Lists.newArrayList(value));
-        } else {
-            map.get(mkey).add(value);
-        }
+        map.computeIfAbsent(mkey, __ -> Lists.newArrayList()).add(value);
     }
 
     protected void populateAggregationMapWithSum(Map<String, Double> map, String mkey, double value) {
@@ -242,24 +238,11 @@ abstract class AbstractMetrics {
      */
     protected void populateDimensionMap(Map<Metrics, List<ManagedLedgerImpl>> ledgersByDimensionMap, Metrics metrics,
             ManagedLedgerImpl ledger) {
-        if (!ledgersByDimensionMap.containsKey(metrics)) {
-            // create new list
-            ledgersByDimensionMap.put(metrics, Lists.newArrayList(ledger));
-        } else {
-            // add to collection
-            ledgersByDimensionMap.get(metrics).add(ledger);
-        }
+        ledgersByDimensionMap.computeIfAbsent(metrics, __ -> Lists.newArrayList()).add(ledger);
     }
 
     protected void populateDimensionMap(Map<Metrics, List<TopicStats>> topicsStatsByDimensionMap,
             Metrics metrics, TopicStats destStats) {
-        if (!topicsStatsByDimensionMap.containsKey(metrics)) {
-            // create new list
-            topicsStatsByDimensionMap.put(metrics, Lists.newArrayList(destStats));
-        } else {
-            // add to collection
-            topicsStatsByDimensionMap.get(metrics).add(destStats);
-        }
-
+        topicsStatsByDimensionMap.computeIfAbsent(metrics, __ -> Lists.newArrayList()).add(destStats);
     }
 }

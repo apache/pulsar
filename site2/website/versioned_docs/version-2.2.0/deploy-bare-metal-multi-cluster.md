@@ -128,7 +128,7 @@ If you're deploying a [single-cluster](#single-cluster-pulsar-instance) instance
 
 If your Pulsar instance will consist of just one cluster, then you can deploy a configuration store on the same machines as the local ZooKeeper quorum but running on different TCP ports.
 
-To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers used by the local quorom to the configuration file in [`conf/global_zookeeper.conf`](reference-configuration.md#configuration-store) using the same method for [local ZooKeeper](#local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). Here's an example that uses port 2184 for a three-node ZooKeeper cluster:
+To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers used by the local quorum to the configuration file in [`conf/global_zookeeper.conf`](reference-configuration.md#configuration-store) using the same method for [local ZooKeeper](#local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). Here's an example that uses port 2184 for a three-node ZooKeeper cluster:
 
 ```properties
 clientPort=2184
@@ -242,7 +242,7 @@ BookKeeper bookies can be configured using the [`conf/bookkeeper.conf`](referenc
 
 You can start up a bookie in two ways: in the foreground or as a background daemon.
 
-To start up a bookie in the foreground, use the [`bookeeper`](reference-cli-tools.md#bookkeeper)
+To start up a bookie in the foreground, use the [`bookkeeper`](reference-cli-tools.md#bookkeeper)
 
 ```shell
 $ bin/pulsar-daemon start bookie

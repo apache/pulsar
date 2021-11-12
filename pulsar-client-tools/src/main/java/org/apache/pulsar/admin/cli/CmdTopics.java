@@ -24,10 +24,11 @@ import com.beust.jcommander.IUsageFormatter;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
-import com.beust.jcommander.converters.CommaParameterSplitter;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -52,6 +53,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -66,6 +68,7 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
+import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Parameters(commandDescription = "Operations on persistent topics")
@@ -112,6 +115,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("peek-messages", new PeekMessages());
         jcommander.addCommand("examine-messages", new ExamineMessages());
         jcommander.addCommand("get-message-by-id", new GetMessageById());
+        jcommander.addCommand("get-message-id", new GetMessageId());
         jcommander.addCommand("reset-cursor", new ResetCursor());
         jcommander.addCommand("terminate", new Terminate());
         jcommander.addCommand("compact", new Compact());
@@ -221,6 +225,13 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("set-subscribe-rate", new SetSubscribeRate());
         jcommander.addCommand("remove-subscribe-rate", new RemoveSubscribeRate());
 
+        jcommander.addCommand("set-replicated-subscription-status", new SetReplicatedSubscriptionStatus());
+        jcommander.addCommand("get-backlog-size", new GetBacklogSizeByMessageId());
+
+        jcommander.addCommand("get-replication-clusters", new GetReplicationClusters());
+        jcommander.addCommand("set-replication-clusters", new SetReplicationClusters());
+        jcommander.addCommand("remove-replication-clusters", new RemoveReplicationClusters());
+
         initDeprecatedCommands();
     }
 
@@ -281,7 +292,8 @@ public class CmdTopics extends CmdBase {
         @Parameter(names = "--role", description = "Client role to which grant permissions", required = true)
         private String role;
 
-        @Parameter(names = "--actions", description = "Actions to be granted (produce,consume)", required = true, splitter = CommaParameterSplitter.class)
+        @Parameter(names = "--actions", description = "Actions to be granted (produce,consume,sources,sinks," +
+                "functions,packages)", required = true)
         private List<String> actions;
 
         @Override
@@ -417,10 +429,14 @@ public class CmdTopics extends CmdBase {
                 "--partitions" }, description = "Number of partitions for the topic", required = true)
         private int numPartitions;
 
+        @Parameter(names = { "-f",
+                "--force" }, description = "Update forcefully without validating existing partitioned topic ", required = false)
+        private boolean force;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            getTopics().updatePartitionedTopic(topic, numPartitions);
+            getTopics().updatePartitionedTopic(topic, numPartitions, false, force);
         }
     }
 
@@ -456,10 +472,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            getTopics().deletePartitionedTopic(topic, force);
-            if (deleteSchema) {
-                getAdmin().schemas().deleteSchema(topic);
-            }
+            getTopics().deletePartitionedTopic(topic, force, deleteSchema);
         }
     }
 
@@ -480,10 +493,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            getTopics().delete(topic, force);
-            if (deleteSchema) {
-                getAdmin().schemas().deleteSchema(topic);
-            }
+            getTopics().delete(topic, force, deleteSchema);
         }
     }
 
@@ -590,7 +600,8 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            String result = getTopics().getInternalInfo(topic);
+            String internalInfo = getTopics().getInternalInfo(topic);
+            JsonObject result = JsonParser.parseString(internalInfo).getAsJsonObject();
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(result));
         }
@@ -767,7 +778,8 @@ public class CmdTopics extends CmdBase {
         private String resetTimeStr;
 
         @Parameter(names = { "--messageId",
-                "-m" }, description = "messageId to reset back to (ledgerId:entryId)", required = false)
+                "-m" }, description = "messageId to reset back to ('latest', 'earliest', or 'ledgerId:entryId')", required =
+                false)
         private String resetMessageIdStr;
 
         @Parameter(names = { "-e", "--exclude-reset-position" },
@@ -778,7 +790,14 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             if (isNotBlank(resetMessageIdStr)) {
-                MessageId messageId = validateMessageIdString(resetMessageIdStr);
+                MessageId messageId;
+                if ("earliest".equals(resetMessageIdStr)) {
+                    messageId = MessageId.earliest;
+                } else if ("latest".equals(resetMessageIdStr)) {
+                    messageId = MessageId.latest;
+                } else {
+                    messageId = validateMessageIdString(resetMessageIdStr);
+                }
                 if (excludeResetPosition) {
                     getTopics().resetCursor(persistentTopic, subName, messageId, true);
                 } else {
@@ -792,7 +811,7 @@ public class CmdTopics extends CmdBase {
                 getTopics().resetCursor(persistentTopic, subName, timestamp);
             } else {
                 throw new PulsarAdminException(
-                        "Either Timestamp (--time) or Position (--position) has to be provided to reset cursor");
+                        "Either Timestamp (--time) or messageId (--messageId) has to be provided to reset cursor");
             }
         }
     }
@@ -808,7 +827,7 @@ public class CmdTopics extends CmdBase {
 
             try {
                 MessageId lastMessageId = getTopics().terminateTopicAsync(persistentTopic).get();
-                System.out.println("Topic succesfully terminated at " + lastMessageId);
+                System.out.println("Topic successfully terminated at " + lastMessageId);
             } catch (InterruptedException | ExecutionException e) {
                 throw new PulsarAdminException(e);
             }
@@ -833,18 +852,36 @@ public class CmdTopics extends CmdBase {
             List<Message<byte[]>> messages = getTopics().peekMessages(persistentTopic, subName, numMessages);
             int position = 0;
             for (Message<byte[]> msg : messages) {
+                MessageImpl message = (MessageImpl) msg;
                 if (++position != 1) {
                     System.out.println("-------------------------------------------------------------------------\n");
                 }
-                if (msg.getMessageId() instanceof BatchMessageIdImpl) {
-                    BatchMessageIdImpl msgId = (BatchMessageIdImpl) msg.getMessageId();
+                if (message.getMessageId() instanceof BatchMessageIdImpl) {
+                    BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
                     System.out.println("Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":" + msgId.getBatchIndex());
                 } else {
                     MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
                     System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
                 }
-                if (msg.getProperties().size() > 0) {
-                    System.out.println("Tenants:");
+
+                System.out.println("Publish time: " + message.getPublishTime());
+                System.out.println("Event time: " + message.getEventTime());
+
+                if (message.getDeliverAtTime() != 0) {
+                    System.out.println("Deliver at time: " + message.getDeliverAtTime());
+                }
+
+                if (message.getBrokerEntryMetadata() != null) {
+                    if (message.getBrokerEntryMetadata().hasBrokerTimestamp()) {
+                        System.out.println("Broker entry metadata timestamp: " + message.getBrokerEntryMetadata().getBrokerTimestamp());
+                    }
+                    if (message.getBrokerEntryMetadata().hasIndex()) {
+                        System.out.println("Broker entry metadata index: " + message.getBrokerEntryMetadata().getIndex());
+                    }
+                }
+
+                if (message.getProperties().size() > 0) {
+                    System.out.println("Properties:");
                     print(msg.getProperties());
                 }
                 ByteBuf data = Unpooled.wrappedBuffer(msg.getData());
@@ -872,16 +909,38 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            Message<byte[]> messages = getTopics().examineMessage(persistentTopic, initialPosition, messagePosition);
-            MessageIdImpl msgId = (MessageIdImpl) messages.getMessageId();
-            System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
+            MessageImpl message =
+                    (MessageImpl) getTopics().examineMessage(persistentTopic, initialPosition, messagePosition);
 
-            if (messages.getProperties().size() > 0) {
-                System.out.println("Tenants:");
-                print(messages.getProperties());
+            if (message.getMessageId() instanceof BatchMessageIdImpl) {
+                BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
+                System.out.println("Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":" + msgId.getBatchIndex());
+            } else {
+                MessageIdImpl msgId = (MessageIdImpl) message.getMessageId();
+                System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
             }
 
-            ByteBuf data = Unpooled.wrappedBuffer(messages.getData());
+            System.out.println("Publish time: " + message.getPublishTime());
+            System.out.println("Event time: " + message.getEventTime());
+
+            if (message.getDeliverAtTime() != 0) {
+                System.out.println("Deliver at time: " + message.getDeliverAtTime());
+            }
+
+            if (message.getBrokerEntryMetadata() != null) {
+                if (message.getBrokerEntryMetadata().hasBrokerTimestamp()) {
+                    System.out.println("Broker entry metadata timestamp: " + message.getBrokerEntryMetadata().getBrokerTimestamp());
+                }
+                if (message.getBrokerEntryMetadata().hasIndex()) {
+                    System.out.println("Broker entry metadata index: " + message.getBrokerEntryMetadata().getIndex());
+                }
+            }
+
+            if (message.getProperties().size() > 0) {
+                System.out.println("Properties:");
+                print(message.getProperties());
+            }
+            ByteBuf data = Unpooled.wrappedBuffer(message.getData());
             System.out.println(ByteBufUtil.prettyHexDump(data));
         }
     }
@@ -905,13 +964,66 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
 
-            Message<byte[]> message = getTopics().getMessageById(persistentTopic, ledgerId, entryId);
+            MessageImpl message = (MessageImpl) getTopics().getMessageById(persistentTopic, ledgerId, entryId);
             if (message == null) {
                 System.out.println("Cannot find any messages based on ledgerId:"
                         + ledgerId + " entryId:" + entryId);
             } else {
+                if (message.getMessageId() instanceof BatchMessageIdImpl) {
+                    BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
+                    System.out.println("Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":" + msgId.getBatchIndex());
+                } else {
+                    MessageIdImpl msgId = (MessageIdImpl) message.getMessageId();
+                    System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
+                }
+
+                System.out.println("Publish time: " + message.getPublishTime());
+                System.out.println("Event time: " + message.getEventTime());
+
+                if (message.getDeliverAtTime() != 0) {
+                    System.out.println("Deliver at time: " + message.getDeliverAtTime());
+                }
+
+                if (message.getBrokerEntryMetadata() != null) {
+                    if (message.getBrokerEntryMetadata().hasBrokerTimestamp()) {
+                        System.out.println("Broker entry metadata timestamp: " + message.getBrokerEntryMetadata().getBrokerTimestamp());
+                    }
+                    if (message.getBrokerEntryMetadata().hasIndex()) {
+                        System.out.println("Broker entry metadata index: " + message.getBrokerEntryMetadata().getIndex());
+                    }
+                }
+
+                if (message.getProperties().size() > 0) {
+                    System.out.println("Properties:");
+                    print(message.getProperties());
+                }
                 ByteBuf date = Unpooled.wrappedBuffer(message.getData());
                 System.out.println(ByteBufUtil.prettyHexDump(date));
+            }
+        }
+    }
+
+    @Parameters(commandDescription = "Get message ID")
+    private class GetMessageId extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-d", "--datetime" },
+                description = "datetime at or before this messageId. This datetime is in format of ISO_OFFSET_DATE_TIME,"
+                        + " e.g. 2021-06-28T16:53:08Z or 2021-06-28T16:53:08.123456789+08:00",
+                required = true)
+        private String datetime;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+
+            long timestamp = DateFormatter.parse(datetime);
+            MessageId messageId = getTopics().getMessageIdByTimestamp(persistentTopic, timestamp);
+            if (messageId == null) {
+                System.out.println("Cannot find any messages based on timestamp " + timestamp);
+            } else {
+                print(messageId);
             }
         }
     }
@@ -1094,8 +1206,8 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-l", "--limit" }, description = "Size limit (eg: 10M, 16G)", required = true)
-        private String limitStr;
+        @Parameter(names = { "-l", "--limit" }, description = "Size limit (eg: 10M, 16G)")
+        private String limitStr = "-1";
 
         @Parameter(names = { "-lt", "--limitTime" }, description = "Time limit in second, non-positive number for disabling time limit.")
         private int limitTime = -1;
@@ -1103,6 +1215,9 @@ public class CmdTopics extends CmdBase {
         @Parameter(names = { "-p", "--policy" }, description = "Retention policy to enforce when the limit is reached. "
                 + "Valid options are: [producer_request_hold, producer_exception, consumer_backlog_eviction]", required = true)
         private String policyStr;
+
+        @Parameter(names = {"-t", "--type"}, description = "Backlog quota type to set")
+        private String backlogQuotaType = BacklogQuota.BacklogQuotaType.destination_storage.name();
 
         @Override
         void run() throws PulsarAdminException {
@@ -1123,7 +1238,8 @@ public class CmdTopics extends CmdBase {
                     .limitSize(limit)
                     .limitTime(limitTime)
                     .retentionPolicy(policy)
-                    .build());
+                    .build(),
+                    BacklogQuota.BacklogQuotaType.valueOf(backlogQuotaType));
         }
     }
 
@@ -1133,10 +1249,57 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = {"-t", "--type"}, description = "Backlog quota type to remove")
+        private String backlogQuotaType = BacklogQuota.BacklogQuotaType.destination_storage.name();
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getTopics().removeBacklogQuota(persistentTopic);
+            getTopics().removeBacklogQuota(persistentTopic, BacklogQuota.BacklogQuotaType.valueOf(backlogQuotaType));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the replication clusters for a topic")
+    private class GetReplicationClusters extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic")
+        private boolean applied = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(getTopics().getReplicationClusters(persistentTopic, applied));
+        }
+    }
+
+    @Parameters(commandDescription = "Set the replication clusters for a topic")
+    private class SetReplicationClusters extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--clusters",
+                "-c" }, description = "Replication Cluster Ids list (comma separated values)", required = true)
+        private String clusterIds;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            List<String> clusters = Lists.newArrayList(clusterIds.split(","));
+            getTopics().setReplicationClusters(persistentTopic, clusters);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove the replication clusters for a topic")
+    private class RemoveReplicationClusters extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopics().removeReplicationClusters(persistentTopic);
         }
     }
 
@@ -1568,7 +1731,7 @@ public class CmdTopics extends CmdBase {
         private int bookkeeperWriteQuorum;
 
         @Parameter(names = { "-a",
-                "--bookkeeper-ack-quorum" }, description = "Number of acks (garanteed copies) to wait for each entry", required = true)
+                "--bookkeeper-ack-quorum" }, description = "Number of acks (guaranteed copies) to wait for each entry", required = true)
         private int bookkeeperAckQuorum;
 
         @Parameter(names = { "-r",
@@ -1746,15 +1909,24 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--types",
-                "-t" }, description = "Subscription types enabled list (comma separated values)", required = true)
-        private String subTypes;
+        @Parameter(names = {"--types", "-t"}, description = "Subscription types enabled list (comma separated values)."
+                + " Possible values: (Exclusive, Shared, Failover, Key_Shared).", required = true)
+        private List<String> subTypes;
 
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             Set<SubscriptionType> types = new HashSet<>();
-            Lists.newArrayList(subTypes.split(",")).forEach(s -> types.add(SubscriptionType.valueOf(s)));
+            subTypes.forEach(s -> {
+                SubscriptionType subType;
+                try {
+                    subType = SubscriptionType.valueOf(s);
+                } catch (IllegalArgumentException exception) {
+                    throw new ParameterException(String.format("Illegal subscription type %s. Possible values: %s.", s,
+                            Arrays.toString(SubscriptionType.values())));
+                }
+                types.add(subType);
+            });
             getTopics().setSubscriptionTypesEnabled(persistentTopic, types);
         }
     }
@@ -2298,7 +2470,55 @@ public class CmdTopics extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Enable or disable a replicated subscription on a topic")
+    private class SetReplicatedSubscriptionStatus extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-s",
+                "--subscription" }, description = "Subscription name to enable or disable replication", required = true)
+        private String subName;
+
+        @Parameter(names = { "--enable", "-e" }, description = "Enable replication")
+        private boolean enable = false;
+
+        @Parameter(names = { "--disable", "-d" }, description = "Disable replication")
+        private boolean disable = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            if (enable == disable) {
+                throw new ParameterException("Need to specify either --enable or --disable");
+            }
+            getTopics().setReplicatedSubscriptionStatus(persistentTopic, subName, enable);
+        }
+    }
+
     private Topics getTopics() {
         return getAdmin().topics();
+    }
+
+    @Parameters(commandDescription = "Calculate backlog size by a message ID (in bytes).")
+    private class GetBacklogSizeByMessageId extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--messageId",
+                "-m" }, description = "messageId used to calculate backlog size. It can be (ledgerId:entryId).", required = false)
+        private String messagePosition = "-1:-1";
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            MessageId messageId;
+            if("-1:-1".equals(messagePosition)) {
+                messageId = MessageId.earliest;
+            } else {
+                messageId = validateMessageIdString(messagePosition);
+            }
+            print(getTopics().getBacklogSizeByMessageId(persistentTopic, messageId));
+
+        }
     }
 }

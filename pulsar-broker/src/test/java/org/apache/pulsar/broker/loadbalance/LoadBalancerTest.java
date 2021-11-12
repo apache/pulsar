@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -26,7 +25,6 @@ import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
-
 import com.google.common.collect.Lists;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -39,6 +37,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -46,18 +45,16 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.impl.PulsarResourceDescription;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.internal.NamespacesImpl;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataImpl;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
@@ -303,7 +300,7 @@ public class LoadBalancerTest {
      * bottleneck, for the 4/5th brokers CPU become bottleneck since memory is big enough - non-bundles assigned so all
      * idle resources are available for new bundle Check the broker rankings are the load percentage of each broker.
      */
-    @Test
+    @Test(timeOut = 30000)
     public void testBrokerRanking() throws Exception {
         for (int i = 0; i < BROKER_COUNT; i++) {
             LoadReport lr = new LoadReport();
@@ -321,8 +318,12 @@ public class LoadBalancerTest {
         }
 
         for (int i = 0; i < BROKER_COUNT; i++) {
-            Method updateRanking = Whitebox.getMethod(SimpleLoadManagerImpl.class, "updateRanking");
-            updateRanking.invoke(pulsarServices[0].getLoadManager().get());
+            Method method = Whitebox.getMethod(SimpleLoadManagerImpl.class, "getUpdateRankingHandle");
+            LoadManager loadManager = pulsarServices[i].getLoadManager().get();
+            Awaitility.await().until(() -> {
+                Object invoke = method.invoke(loadManager);
+                return invoke != null && ((Future) invoke).isDone();
+            });
         }
 
         // check the ranking result
@@ -356,7 +357,7 @@ public class LoadBalancerTest {
             defaultQuota.setBandwidthIn(20000);
             defaultQuota.setBandwidthOut(60000);
             defaultQuota.setMemory(87);
-            pulsarServices[i].getLocalZkCacheService().getResourceQuotaCache().setDefaultQuota(defaultQuota);
+            pulsarServices[i].getBrokerService().getBundlesQuotas().setDefaultResourceQuota(defaultQuota).join();
 
             LoadReport lr = new LoadReport();
             lr.setName(lookupAddresses[i]);
@@ -497,7 +498,7 @@ public class LoadBalancerTest {
             defaultQuota.setBandwidthIn(20000);
             defaultQuota.setBandwidthOut(60000);
             defaultQuota.setMemory(75);
-            pulsarServices[i].getLocalZkCacheService().getResourceQuotaCache().setDefaultQuota(defaultQuota);
+            pulsarServices[i].getBrokerService().getBundlesQuotas().setDefaultResourceQuota(defaultQuota).join();
         }
 
         // publish the initial load reports and wait for quotas be updated
@@ -573,8 +574,7 @@ public class LoadBalancerTest {
     private void createNamespace(PulsarService pulsar, String namespace, int numBundles) throws Exception {
         Policies policies = new Policies();
         policies.bundles = getBundles(numBundles);
-        String path = AdminResource.path(POLICIES, namespace);
-        pulsar.getPulsarResources().getNamespaceResources().create(path, policies);
+        pulsar.getPulsarResources().getNamespaceResources().createPolicies(NamespaceName.get(namespace), policies);
 
     }
 
@@ -763,13 +763,12 @@ public class LoadBalancerTest {
                 .build();
         policies.setPolicy("otherBrokerPolicy", policyData);
 
-        String path = AdminResource.path("clusters", "use", "namespaceIsolationPolicies");
         try {
-            pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies().create(path,
+            pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies().createIsolationData("use",
                     policies.getPolicies());
         } catch (BadVersionException e) {
             // isolation policy already exist
-            pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies().set(path,
+            pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies().setIsolationData("use",
                     data -> policies.getPolicies());
         }
     }

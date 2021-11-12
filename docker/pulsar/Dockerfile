@@ -31,30 +31,36 @@ COPY scripts/gen-yml-from-env.py /pulsar/bin
 COPY scripts/generate-zookeeper-config.sh /pulsar/bin
 COPY scripts/pulsar-zookeeper-ruok.sh /pulsar/bin
 COPY scripts/watch-znode.py /pulsar/bin
-COPY scripts/install-pulsar-client-37.sh /pulsar/bin
+COPY scripts/install-pulsar-client.sh /pulsar/bin
 
 RUN mkdir /pulsar/data
 
-### Create 2nd stage from OpenJDK image
-### and add Python dependencies (for Pulsar functions)
+### Create 2nd stage from Ubuntu image
+### and add OpenJDK and Python dependencies (for Pulsar functions)
 
-FROM openjdk:11-jdk-slim
+FROM ubuntu:20.04
+
+ARG DEBIAN_FRONTEND=noninteractive
 
 # Install some utilities
 RUN apt-get update \
-     && apt-get install -y netcat dnsutils less procps iputils-ping \
-                 python3.7 python3.7-dev python3-setuptools python3-yaml python3-kazoo \
+     && apt-get -y dist-upgrade \
+     && apt-get -y install openjdk-11-jdk-headless netcat dnsutils less procps iputils-ping \
+                 python3 python3-dev python3-setuptools python3-yaml python3-kazoo \
                  libreadline-gplv2-dev libncursesw5-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev \
                  curl \
+     && apt-get -y --purge autoremove \
+     && apt-get autoclean \
      && apt-get clean \
      && rm -rf /var/lib/apt/lists/*
 
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-RUN python3.7 get-pip.py
+RUN python3 get-pip.py
 
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 10
 
-RUN echo networkaddress.cache.ttl=1 >> $JAVA_HOME/conf/security/java.security
+ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64
+RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/java-11-openjdk-amd64/conf/security/java.security
 ADD target/python-client/ /pulsar/pulsar-client
 
 VOLUME  ["/pulsar/conf", "/pulsar/data"]
@@ -65,5 +71,4 @@ ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
 COPY --from=pulsar /pulsar /pulsar
 WORKDIR /pulsar
 
-RUN /pulsar/bin/install-pulsar-client-37.sh
-
+RUN /pulsar/bin/install-pulsar-client.sh

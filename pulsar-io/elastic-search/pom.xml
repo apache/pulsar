@@ -23,60 +23,72 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-io</artifactId>
-    <version>2.9.0-SNAPSHOT</version>
+    <version>2.10.0-SNAPSHOT</version>
   </parent>
   <artifactId>pulsar-io-elastic-search</artifactId>
   <name>Pulsar IO :: ElasticSearch</name>
-  
-  <repositories>
-    <repository>
-        <id>jcenter</id>
-        <url>https://jcenter.bintray.com/</url>
-    </repository>
-  </repositories>
 
   <dependencies>
-   
+
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>${guava.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>${commons-lang3.version}</version>
+    </dependency>
+
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-core</artifactId>
       <version>${project.version}</version>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
+      <version>${jackson.databind.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>com.fasterxml.jackson.dataformat</groupId>
-      <artifactId>jackson-dataformat-yaml</artifactId>
+      <groupId>org.apache.avro</groupId>
+      <artifactId>avro</artifactId>
+      <version>${avro.version}</version>
+      <scope>provided</scope>
     </dependency>
-    
+
     <dependency>
-      <groupId>org.apache.commons</groupId>
-      <artifactId>commons-lang3</artifactId>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client-original</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
     </dependency>
 
-  	<dependency>
-  		<groupId>org.elasticsearch.client</groupId>
-  		<artifactId>elasticsearch-rest-high-level-client</artifactId>
-  	</dependency>
-  	
-  	<dependency>
-        <groupId>net.andreinc.mockneat</groupId>
-        <artifactId>mockneat</artifactId>
-        <version>0.2.2</version>
-        <scope>test</scope>
+    <dependency>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
+      <scope>test</scope>
     </dependency>
 
-  	<dependency>
-  		<groupId>com.google.code.gson</groupId>
-  		<artifactId>gson</artifactId>
-  		<scope>test</scope>
-  	</dependency>
+    <dependency>
+      <groupId>org.elasticsearch.client</groupId>
+      <artifactId>elasticsearch-rest-high-level-client</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>elasticsearch</artifactId>
+      <version>1.15.3</version>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
-  
+
   <build>
     <plugins>
       <plugin>
@@ -85,5 +97,5 @@
       </plugin>
     </plugins>
   </build>
-  
+
 </project>

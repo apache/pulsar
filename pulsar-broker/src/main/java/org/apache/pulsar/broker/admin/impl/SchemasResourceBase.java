@@ -23,6 +23,7 @@ import static java.util.Objects.isNull;
 import static org.apache.commons.lang.StringUtils.defaultIfEmpty;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Clock;
 import java.util.List;
@@ -50,6 +51,8 @@ import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SchemasResourceBase extends AdminResource {
 
@@ -123,7 +126,8 @@ public class SchemasResourceBase extends AdminResource {
                                 .entity(DeleteSchemaResponse.builder().version(getLongSchemaVersion(version)).build())
                                 .build());
                     } else {
-                        response.resume(error);
+                        log.error("[{}] Failed to delete schema for topic {}", clientAppId(), topicName, error);
+                        response.resume(new RestException(error));
                     }
                     return null;
                 });
@@ -135,13 +139,23 @@ public class SchemasResourceBase extends AdminResource {
         getNamespacePoliciesAsync(namespaceName).thenAccept(policies -> {
             SchemaCompatibilityStrategy schemaCompatibilityStrategy = policies.schema_compatibility_strategy;
             if (schemaCompatibilityStrategy == SchemaCompatibilityStrategy.UNDEFINED) {
-                schemaCompatibilityStrategy = SchemaCompatibilityStrategy
-                        .fromAutoUpdatePolicy(policies.schema_auto_update_compatibility_strategy);
+                schemaCompatibilityStrategy =
+                        pulsar().getConfig().getSchemaCompatibilityStrategy();
+                if (schemaCompatibilityStrategy == SchemaCompatibilityStrategy.UNDEFINED) {
+                    schemaCompatibilityStrategy = SchemaCompatibilityStrategy
+                            .fromAutoUpdatePolicy(policies.schema_auto_update_compatibility_strategy);
+                }
             }
             byte[] data;
             if (SchemaType.KEY_VALUE.name().equals(payload.getType())) {
-                data = DefaultImplementation
-                        .convertKeyValueDataStringToSchemaInfoSchema(payload.getSchema().getBytes(Charsets.UTF_8));
+                try {
+                    data = DefaultImplementation.getDefaultImplementation()
+                            .convertKeyValueDataStringToSchemaInfoSchema(payload.getSchema().getBytes(Charsets.UTF_8));
+                } catch (IOException conversionError) {
+                    log.error("[{}] Failed to post schema for topic {}", clientAppId(), topicName, conversionError);
+                    response.resume(new RestException(conversionError));
+                    return;
+                }
             } else {
                 data = payload.getSchema().getBytes(Charsets.UTF_8);
             }
@@ -162,7 +176,8 @@ public class SchemasResourceBase extends AdminResource {
                             response.resume(Response.status(422, /* Unprocessable Entity */
                                     error.getMessage()).build());
                         } else {
-                            response.resume(Response.serverError().build());
+                            log.error("[{}] Failed to post schema for topic {}", clientAppId(), topicName, error);
+                            response.resume(new RestException(error));
                         }
                         return null;
                     });
@@ -173,7 +188,8 @@ public class SchemasResourceBase extends AdminResource {
                         .status(((RestException) error.getCause()).getResponse().getStatus(), error.getMessage())
                         .build());
             } else {
-                response.resume(Response.serverError().build());
+                log.error("[{}] Failed to post schema for topic {}", clientAppId(), topicName, error);
+                response.resume(new RestException(error));
             }
             return null;
         });
@@ -204,7 +220,7 @@ public class SchemasResourceBase extends AdminResource {
                                 .schemaCompatibilityStrategy(schemaCompatibilityStrategy.name()).build())
                         .build()))
                 .exceptionally(error -> {
-                    response.resume(Response.serverError().build());
+                    response.resume(new RestException(error));
                     return null;
                 });
     }
@@ -224,7 +240,8 @@ public class SchemasResourceBase extends AdminResource {
                 .thenAccept(version -> response.resume(Response.accepted()
                         .entity(LongSchemaVersionResponse.builder().version(version).build()).build()))
                 .exceptionally(error -> {
-                    response.resume(Response.serverError().build());
+                    log.error("[{}] Failed to get version by schema for topic {}", clientAppId(), topicName, error);
+                    response.resume(new RestException(error));
                     return null;
                 });
     }
@@ -235,30 +252,38 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     private static GetSchemaResponse convertSchemaAndMetadataToGetSchemaResponse(SchemaAndMetadata schemaAndMetadata) {
-        String schemaData;
-        if (schemaAndMetadata.schema.getType() == SchemaType.KEY_VALUE) {
-            schemaData = DefaultImplementation.convertKeyValueSchemaInfoDataToString(
-                    DefaultImplementation.decodeKeyValueSchemaInfo(schemaAndMetadata.schema.toSchemaInfo()));
-        } else {
-            schemaData = new String(schemaAndMetadata.schema.getData(), UTF_8);
+        try {
+            String schemaData;
+            if (schemaAndMetadata.schema.getType() == SchemaType.KEY_VALUE) {
+                schemaData = DefaultImplementation.getDefaultImplementation().convertKeyValueSchemaInfoDataToString(
+                        DefaultImplementation.getDefaultImplementation()
+                                .decodeKeyValueSchemaInfo(schemaAndMetadata.schema.toSchemaInfo()));
+            } else {
+                schemaData = new String(schemaAndMetadata.schema.getData(), UTF_8);
+            }
+            return GetSchemaResponse.builder().version(getLongSchemaVersion(schemaAndMetadata.version))
+                    .type(schemaAndMetadata.schema.getType()).timestamp(schemaAndMetadata.schema.getTimestamp())
+                    .data(schemaData).properties(schemaAndMetadata.schema.getProps()).build();
+        } catch (IOException conversionError) {
+            throw new RuntimeException(conversionError);
         }
-        return GetSchemaResponse.builder().version(getLongSchemaVersion(schemaAndMetadata.version))
-                .type(schemaAndMetadata.schema.getType()).timestamp(schemaAndMetadata.schema.getTimestamp())
-                .data(schemaData).properties(schemaAndMetadata.schema.getProps()).build();
     }
 
     private static void handleGetSchemaResponse(AsyncResponse response, SchemaAndMetadata schema, Throwable error) {
         if (isNull(error)) {
             if (isNull(schema)) {
-                response.resume(Response.status(Response.Status.NOT_FOUND).build());
+                response.resume(Response.status(
+                        Response.Status.NOT_FOUND.getStatusCode(), "Schema not found").build());
             } else if (schema.schema.isDeleted()) {
-                response.resume(Response.status(Response.Status.NOT_FOUND).build());
+                response.resume(Response.status(
+                        Response.Status.NOT_FOUND.getStatusCode(), "Schema is deleted").build());
             } else {
                 response.resume(Response.ok().encoding(MediaType.APPLICATION_JSON)
                         .entity(convertSchemaAndMetadataToGetSchemaResponse(schema)).build());
             }
         } else {
-            response.resume(error);
+            log.error("Failed to get schema", error);
+            response.resume(new RestException(error));
         }
 
     }
@@ -267,7 +292,8 @@ public class SchemasResourceBase extends AdminResource {
             Throwable error) {
         if (isNull(error)) {
             if (isNull(schemas)) {
-                response.resume(Response.status(Response.Status.NOT_FOUND).build());
+                response.resume(Response.status(
+                        Response.Status.NOT_FOUND.getStatusCode(), "Schemas not found").build());
             } else {
                 response.resume(Response.ok().encoding(MediaType.APPLICATION_JSON)
                         .entity(GetAllVersionsSchemaResponse.builder()
@@ -278,7 +304,8 @@ public class SchemasResourceBase extends AdminResource {
                         .build());
             }
         } else {
-            response.resume(error);
+            log.error("Failed to get all schemas", error);
+            response.resume(new RestException(error));
         }
     }
 
@@ -288,10 +315,12 @@ public class SchemasResourceBase extends AdminResource {
             validateTopicOwnership(topicName, authoritative);
         } catch (RestException e) {
             if (e.getResponse().getStatus() == Response.Status.UNAUTHORIZED.getStatusCode()) {
-                throw new RestException(Response.Status.NOT_FOUND, "Not Found");
+                throw new RestException(Response.Status.UNAUTHORIZED, e.getMessage());
             } else {
                 throw e;
             }
         }
     }
+
+    private static final Logger log = LoggerFactory.getLogger(SchemasResourceBase.class);
 }

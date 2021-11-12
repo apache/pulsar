@@ -19,10 +19,13 @@
 #
 
 from unittest import TestCase, main
+
+import fastavro
 import pulsar
 from pulsar.schema import *
 from enum import Enum
 import json
+from fastavro.schema import load_schema
 
 
 class SchemaTest(TestCase):
@@ -36,6 +39,7 @@ class SchemaTest(TestCase):
             blue = 3
 
         class Example(Record):
+            _sorted_fields = True
             a = String()
             b = Integer()
             c = Array(String())
@@ -45,7 +49,9 @@ class SchemaTest(TestCase):
             g = Double()
             h = Bytes()
             i = Map(String())
+            j = CustomEnum(Color)
 
+        fastavro.parse_schema(Example.schema())
         self.assertEqual(Example.schema(), {
             "name": "Example",
             "type": "record",
@@ -69,21 +75,31 @@ class SchemaTest(TestCase):
                 {"name": "i", "type": ["null", {
                     "type": "map",
                     "values": "string"}]
-                 },
+                },
+                {"name": "j", "type": ["null", "Color"]}
             ]
         })
 
     def test_complex(self):
+        class Color(Enum):
+            red = 1
+            green = 2
+            blue = 3
+
         class MySubRecord(Record):
+            _sorted_fields = True
             x = Integer()
             y = Long()
             z = String()
+            color = CustomEnum(Color)
 
         class Example(Record):
+            _sorted_fields = True
             a = String()
             sub = MySubRecord     # Test with class
             sub2 = MySubRecord()  # Test with instance
 
+        fastavro.parse_schema(Example.schema())
         self.assertEqual(Example.schema(), {
             "name": "Example",
             "type": "record",
@@ -93,19 +109,16 @@ class SchemaTest(TestCase):
                  "type": ["null", {
                      "name": "MySubRecord",
                      "type": "record",
-                     "fields": [{"name": "x", "type": ["null", "int"]},
-                                {"name": "y", "type": ["null", "long"]},
-                                {"name": "z", "type": ["null", "string"]}]
+                     "fields": [
+                        {'name': 'color', 'type': ['null', {'type': 'enum', 'name': 'Color', 'symbols':
+                            ['red', 'green', 'blue']}]},
+                        {"name": "x", "type": ["null", "int"]},
+                        {"name": "y", "type": ["null", "long"]},
+                        {"name": "z", "type": ["null", "string"]}]
                  }]
                  },
                  {"name": "sub2",
-                  "type": ["null", {
-                     "name": "MySubRecord",
-                     "type": "record",
-                     "fields": [{"name": "x", "type": ["null", "int"]},
-                                {"name": "y", "type": ["null", "long"]},
-                                {"name": "z", "type": ["null", "string"]}]
-                 }]
+                  "type": ["null", 'MySubRecord']
                  }
             ]
         })
@@ -305,7 +318,6 @@ class SchemaTest(TestCase):
         except TypeError:
             pass # Expected
 
-
     def test_serialize_json(self):
         class Example(Record):
             a = Integer()
@@ -351,6 +363,34 @@ class SchemaTest(TestCase):
         self.assertEqual(r2.__class__.__name__, 'Example')
         self.assertEqual(r2, r)
 
+    def test_non_sorted_fields(self):
+        class T1(Record):
+            a = Integer()
+            b = Integer()
+            c = Double()
+            d = String()
+
+        class T2(Record):
+            b = Integer()
+            a = Integer()
+            d = String()
+            c = Double()
+
+        self.assertNotEqual(T1.schema()['fields'], T2.schema()['fields'])
+
+    def test_sorted_fields(self):
+        class T1(Record):
+            _sorted_fields = True
+            a = Integer()
+            b = Integer()
+
+        class T2(Record):
+            _sorted_fields = True
+            b = Integer()
+            a = Integer()
+
+        self.assertEqual(T1.schema()['fields'], T2.schema()['fields'])
+
     def test_schema_version(self):
         class Example(Record):
             a = Integer()
@@ -363,7 +403,7 @@ class SchemaTest(TestCase):
 
         consumer = client.subscribe('my-avro-python-schema-version-topic', 'sub-1',
                                     schema=AvroSchema(Example))
-        
+
         r = Example(a=1, b=2)
         producer.send(r)
 
@@ -372,7 +412,7 @@ class SchemaTest(TestCase):
         self.assertIsNotNone(msg.schema_version())
 
         self.assertEquals(b'\x00\x00\x00\x00\x00\x00\x00\x00', msg.schema_version().encode())
-        
+
         self.assertEqual(r, msg.value())
 
         client.close()
@@ -410,6 +450,31 @@ class SchemaTest(TestCase):
         self.assertEqual(r.b, None)
         self.assertEqual(r.c, 'hello')
 
+    def test_none_value(self):
+        """
+        The objective of the test is to check that if no value is assigned to the attribute, the validation is returning
+        the expect default value as defined in the Field class
+        """
+        class Example(Record):
+            a = Null()
+            b = Boolean()
+            c = Integer()
+            d = Long()
+            e = Float()
+            f = Double()
+            g = Bytes()
+            h = String()
+
+        r = Example()
+
+        self.assertIsNone(r.a)
+        self.assertFalse(r.b)
+        self.assertIsNone(r.c)
+        self.assertIsNone(r.d)
+        self.assertIsNone(r.e)
+        self.assertIsNone(r.f)
+        self.assertIsNone(r.g)
+        self.assertIsNone(r.h)
     ####
 
     def test_json_schema(self):
@@ -427,7 +492,6 @@ class SchemaTest(TestCase):
         producer = client.create_producer(
                         'my-json-python-topic',
                         schema=JsonSchema(Example))
-
 
         # Validate that incompatible schema is rejected
         try:
@@ -460,6 +524,9 @@ class SchemaTest(TestCase):
         msg = consumer.receive()
 
         self.assertEqual(r, msg.value())
+
+        producer.close()
+        consumer.close()
         client.close()
 
     def test_string_schema(self):
@@ -492,13 +559,11 @@ class SchemaTest(TestCase):
         self.assertEqual(b"Hello", msg.data())
         client.close()
 
-
     def test_bytes_schema(self):
         client = pulsar.Client(self.serviceUrl)
         producer = client.create_producer(
                         'my-bytes-python-topic',
                         schema=BytesSchema())
-
 
         # Validate that incompatible schema is rejected
         try:
@@ -562,6 +627,9 @@ class SchemaTest(TestCase):
         msg = consumer.receive()
 
         self.assertEqual(r, msg.value())
+
+        producer.close()
+        consumer.close()
         client.close()
 
     def test_json_enum(self):
@@ -573,6 +641,8 @@ class SchemaTest(TestCase):
         class Example(Record):
             name = String()
             v = MyEnum
+            w = CustomEnum(MyEnum)
+            x = CustomEnum(MyEnum, required=True, default=MyEnum.A, required_default=True)
 
         topic = 'my-json-enum-topic'
 
@@ -584,13 +654,15 @@ class SchemaTest(TestCase):
         consumer = client.subscribe(topic, 'test',
                                     schema=JsonSchema(Example))
 
-        r = Example(name='test', v=MyEnum.C)
+        r = Example(name='test', v=MyEnum.C, w=MyEnum.B)
         producer.send(r)
 
         msg = consumer.receive()
 
         self.assertEqual('test', msg.value().name)
         self.assertEqual(MyEnum.C, MyEnum(msg.value().v))
+        self.assertEqual(MyEnum.B, MyEnum(msg.value().w))
+        self.assertEqual(MyEnum.A, MyEnum(msg.value().x))
         client.close()
 
     def test_avro_enum(self):
@@ -602,6 +674,8 @@ class SchemaTest(TestCase):
         class Example(Record):
             name = String()
             v = MyEnum
+            w = CustomEnum(MyEnum)
+            x = CustomEnum(MyEnum, required=True, default=MyEnum.B, required_default=True)
 
         topic = 'my-avro-enum-topic'
 
@@ -613,12 +687,14 @@ class SchemaTest(TestCase):
         consumer = client.subscribe(topic, 'test',
                                     schema=AvroSchema(Example))
 
-        r = Example(name='test', v=MyEnum.C)
+        r = Example(name='test', v=MyEnum.C, w=MyEnum.A)
         producer.send(r)
 
         msg = consumer.receive()
         msg.value()
         self.assertEqual(MyEnum.C, msg.value().v)
+        self.assertEqual(MyEnum.A, MyEnum(msg.value().w))
+        self.assertEqual(MyEnum.B, MyEnum(msg.value().x))
         client.close()
 
     def test_avro_map_array(self):
@@ -666,6 +742,7 @@ class SchemaTest(TestCase):
 
     def test_avro_required_default(self):
         class MySubRecord(Record):
+            _sorted_fields = True
             x = Integer()
             y = Long()
             z = String()
@@ -682,7 +759,9 @@ class SchemaTest(TestCase):
             i = Map(String())
             j = MySubRecord()
 
+
         class ExampleRequiredDefault(Record):
+            _sorted_fields = True
             a = Integer(required_default=True)
             b = Boolean(required=True, required_default=True)
             c = Long(required_default=True)
@@ -823,7 +902,6 @@ class SchemaTest(TestCase):
 
         client.close()
 
-
     def test_default_value(self):
         class MyRecord(Record):
             A = Integer()
@@ -851,6 +929,341 @@ class SchemaTest(TestCase):
 
         producer.close()
         consumer.close()
+        client.close()
+
+    def test_serialize_schema_complex(self):
+        class Color(Enum):
+            red = 1
+            green = 2
+            blue = 3
+
+        class NestedObj1(Record):
+            _sorted_fields = True
+            na1 = String()
+            nb1 = Double()
+
+        class NestedObj2(Record):
+            _sorted_fields = True
+            na2 = Integer()
+            nb2 = Boolean()
+            nc2 = NestedObj1()
+
+        class NestedObj3(Record):
+            _sorted_fields = True
+            color = CustomEnum(Color)
+            na3 = Integer()
+
+        class NestedObj4(Record):
+            _avro_namespace = 'xxx4'
+            _sorted_fields = True
+            na4 = String()
+            nb4 = Integer()
+
+        class ComplexRecord(Record):
+            _avro_namespace = 'xxx.xxx'
+            _sorted_fields = True
+            a = Integer()
+            b = Integer()
+            color = Color
+            color2 = Color
+            color3 = CustomEnum(Color, required=True, default=Color.red, required_default=True)
+            nested = NestedObj2()
+            nested2 = NestedObj2()
+            mapNested = Map(NestedObj3())
+            mapNested2 = Map(NestedObj3())
+            arrayNested = Array(NestedObj4())
+            arrayNested2 = Array(NestedObj4())
+
+        print('complex schema: ', ComplexRecord.schema())
+        self.assertEqual(ComplexRecord.schema(), {
+            "name": "ComplexRecord",
+            "namespace": "xxx.xxx",
+            "type": "record",
+            "fields": [
+                {"name": "a", "type": ["null", "int"]},
+                {'name': 'arrayNested', 'type': ['null', {'type': 'array', 'items':
+                    {'name': 'NestedObj4', 'namespace': 'xxx4', 'type': 'record', 'fields': [
+                        {'name': 'na4', 'type': ['null', 'string']},
+                        {'name': 'nb4', 'type': ['null', 'int']}
+                    ]}}
+                ]},
+                {'name': 'arrayNested2', 'type': ['null', {'type': 'array', 'items': 'xxx4.NestedObj4'}]},
+                {"name": "b", "type": ["null", "int"]},
+                {'name': 'color', 'type': ['null', {'type': 'enum', 'name': 'Color', 'symbols': [
+                    'red', 'green', 'blue']}]},
+                {'name': 'color2', 'type': ['null', 'Color']},
+                {'name': 'color3', 'default': 'red', 'type': 'Color'},
+                {'name': 'mapNested', 'type': ['null', {'type': 'map', 'values':
+                    {'name': 'NestedObj3', 'type': 'record', 'fields': [
+                        {'name': 'color', 'type': ['null', 'Color']},
+                        {'name': 'na3', 'type': ['null', 'int']}
+                    ]}}
+                ]},
+                {'name': 'mapNested2', 'type': ['null', {'type': 'map', 'values': 'NestedObj3'}]},
+                {"name": "nested", "type": ['null', {'name': 'NestedObj2', 'type': 'record', 'fields': [
+                    {'name': 'na2', 'type': ['null', 'int']},
+                    {'name': 'nb2', 'type': ['null', 'boolean']},
+                    {'name': 'nc2', 'type': ['null', {'name': 'NestedObj1', 'type': 'record', 'fields': [
+                        {'name': 'na1', 'type': ['null', 'string']},
+                        {'name': 'nb1', 'type': ['null', 'double']}
+                    ]}]}
+                ]}]},
+                {"name": "nested2", "type": ['null', 'NestedObj2']}
+            ]
+        })
+
+        def encode_and_decode(schema_type):
+            data_schema = AvroSchema(ComplexRecord)
+            if schema_type == 'json':
+                data_schema = JsonSchema(ComplexRecord)
+
+            nested_obj1 = NestedObj1(na1='na1 value', nb1=20.5)
+            nested_obj2 = NestedObj2(na2=22, nb2=True, nc2=nested_obj1)
+            r = ComplexRecord(a=1, b=2, color=Color.red, color2=Color.blue,
+                              nested=nested_obj2, nested2=nested_obj2,
+            mapNested={
+                'a': NestedObj3(na3=1, color=Color.green),
+                'b': NestedObj3(na3=2),
+                'c': NestedObj3(na3=3, color=Color.red)
+            }, mapNested2={
+                'd': NestedObj3(na3=4, color=Color.red),
+                'e': NestedObj3(na3=5, color=Color.blue),
+                'f': NestedObj3(na3=6)
+            }, arrayNested=[
+                NestedObj4(na4='value na4 1', nb4=100),
+                NestedObj4(na4='value na4 2', nb4=200)
+            ], arrayNested2=[
+                NestedObj4(na4='value na4 3', nb4=300),
+                NestedObj4(na4='value na4 4', nb4=400)
+            ])
+            data_encode = data_schema.encode(r)
+
+            data_decode = data_schema.decode(data_encode)
+            self.assertEqual(data_decode.__class__.__name__, 'ComplexRecord')
+            self.assertEqual(data_decode, r)
+            self.assertEqual(r.color3, Color.red)
+            self.assertEqual(r.mapNested['a'].color, Color.green)
+            self.assertEqual(r.mapNested['b'].color, None)
+            print('Encode and decode complex schema finish. schema_type: ', schema_type)
+
+        encode_and_decode('avro')
+        encode_and_decode('json')
+
+    def test_sub_record_set_to_none(self):
+        class NestedObj1(Record):
+            na1 = String()
+            nb1 = Double()
+
+        class NestedObj2(Record):
+            na2 = Integer()
+            nb2 = Boolean()
+            nc2 = NestedObj1()
+
+        data_schema = AvroSchema(NestedObj2)
+        r = NestedObj2(na2=1, nb2=True)
+
+        data_encode = data_schema.encode(r)
+        data_decode = data_schema.decode(data_encode)
+
+        self.assertEqual(data_decode.__class__.__name__, 'NestedObj2')
+        self.assertEqual(data_decode, r)
+        self.assertEqual(data_decode.na2, 1)
+        self.assertTrue(data_decode.nb2)
+
+    def test_produce_and_consume_complex_schema_data(self):
+        class Color(Enum):
+            red = 1
+            green = 2
+            blue = 3
+
+        class NestedObj1(Record):
+            na1 = String()
+            nb1 = Double()
+
+        class NestedObj2(Record):
+            na2 = Integer()
+            nb2 = Boolean()
+            nc2 = NestedObj1()
+
+        class NestedObj3(Record):
+            na3 = Integer()
+            color = CustomEnum(Color, required=True, required_default=True, default=Color.blue)
+
+        class NestedObj4(Record):
+            na4 = String()
+            nb4 = Integer()
+
+        class ComplexRecord(Record):
+            a = Integer()
+            b = Integer()
+            color = CustomEnum(Color)
+            nested = NestedObj2()
+            mapNested = Map(NestedObj3())
+            arrayNested = Array(NestedObj4())
+
+        client = pulsar.Client(self.serviceUrl)
+
+        def produce_consume_test(schema_type):
+            topic = "my-complex-schema-topic-" + schema_type
+
+            data_schema = AvroSchema(ComplexRecord)
+            if schema_type == 'json':
+                data_schema= JsonSchema(ComplexRecord)
+
+            producer = client.create_producer(
+                        topic=topic,
+                        schema=data_schema)
+
+            consumer = client.subscribe(topic, 'test', schema=data_schema)
+
+            nested_obj1 = NestedObj1(na1='na1 value', nb1=20.5)
+            nested_obj2 = NestedObj2(na2=22, nb2=True, nc2=nested_obj1)
+            r = ComplexRecord(a=1, b=2, nested=nested_obj2, mapNested={
+                'a': NestedObj3(na3=1, color=Color.red),
+                'b': NestedObj3(na3=2, color=Color.green),
+                'c': NestedObj3(na3=3)
+            }, arrayNested=[
+                NestedObj4(na4='value na4 1', nb4=100),
+                NestedObj4(na4='value na4 2', nb4=200)
+            ])
+            producer.send(r)
+
+            msg = consumer.receive()
+            value = msg.value()
+            self.assertEqual(value.__class__.__name__, 'ComplexRecord')
+            self.assertEqual(value, r)
+
+            print('Produce and consume complex schema data finish. schema_type', schema_type)
+
+        produce_consume_test('avro')
+        produce_consume_test('json')
+
+        client.close()
+
+    def custom_schema_test(self):
+
+        def encode_and_decode(schema_definition):
+            avro_schema = AvroSchema(None, schema_definition=schema_definition)
+
+            company = {
+                "name": "company-name",
+                "address": 'xxx road xxx street',
+                "employees": [
+                    {"name": "user1", "age": 25},
+                    {"name": "user2", "age": 30},
+                    {"name": "user3", "age": 35},
+                ],
+                "labels": {
+                    "industry": "software",
+                    "scale": ">100",
+                    "funds": "1000000.0"
+                },
+                "companyType": "companyType1"
+            }
+            data = avro_schema.encode(company)
+            company_decode = avro_schema.decode(data)
+            self.assertEqual(company, company_decode)
+
+        schema_definition = {
+            'doc': 'this is doc',
+            'namespace': 'example.avro',
+            'type': 'record',
+            'name': 'Company',
+            'fields': [
+                {'name': 'name', 'type': ['null', 'string']},
+                {'name': 'address', 'type': ['null', 'string']},
+                {'name': 'employees', 'type': ['null', {'type': 'array', 'items': {
+                    'type': 'record',
+                    'name': 'Employee',
+                    'fields': [
+                        {'name': 'name', 'type': ['null', 'string']},
+                        {'name': 'age', 'type': ['null', 'int']}
+                    ]
+                }}]},
+                {'name': 'labels', 'type': ['null', {'type': 'map', 'values': 'string'}]},
+                {'name': 'companyType', 'type': ['null', {'type': 'enum', 'name': 'CompanyType', 'symbols':
+                    ['companyType1', 'companyType2', 'companyType3']}]}
+            ]
+        }
+        encode_and_decode(schema_definition)
+        # Users could load schema from file by `fastavro.schema`
+        # Or use `avro.schema` like this `avro.schema.parse(open("examples/company.avsc", "rb").read()).to_json()`
+        encode_and_decode(load_schema("examples/company.avsc"))
+
+    def custom_schema_produce_and_consume_test(self):
+        client = pulsar.Client(self.serviceUrl)
+
+        def produce_and_consume(topic, schema_definition):
+            print('custom schema produce and consume test topic - ', topic)
+            example_avro_schema = AvroSchema(None, schema_definition=schema_definition)
+
+            producer = client.create_producer(
+                topic=topic,
+                schema=example_avro_schema)
+            consumer = client.subscribe(topic, 'test', schema=example_avro_schema)
+
+            for i in range(0, 10):
+                company = {
+                    "name": "company-name" + str(i),
+                    "address": 'xxx road xxx street ' + str(i),
+                    "employees": [
+                        {"name": "user" + str(i), "age": 20 + i},
+                        {"name": "user" + str(i), "age": 30 + i},
+                        {"name": "user" + str(i), "age": 35 + i},
+                    ],
+                    "labels": {
+                        "industry": "software" + str(i),
+                        "scale": ">100",
+                        "funds": "1000000.0"
+                    },
+                    "companyType": "companyType" + str((i % 3) + 1)
+                }
+                producer.send(company)
+
+            for i in range(0, 10):
+                msg = consumer.receive()
+                company = {
+                    "name": "company-name" + str(i),
+                    "address": 'xxx road xxx street ' + str(i),
+                    "employees": [
+                        {"name": "user" + str(i), "age": 20 + i},
+                        {"name": "user" + str(i), "age": 30 + i},
+                        {"name": "user" + str(i), "age": 35 + i},
+                    ],
+                    "labels": {
+                        "industry": "software" + str(i),
+                        "scale": ">100",
+                        "funds": "1000000.0"
+                    }
+                }
+                self.assertEqual(msg.value(), company)
+                consumer.acknowledge(msg)
+
+            consumer.close()
+            producer.close()
+
+        schema_definition = {
+            'doc': 'this is doc',
+            'namespace': 'example.avro',
+            'type': 'record',
+            'name': 'Company',
+            'fields': [
+                {'name': 'name', 'type': ['null', 'string']},
+                {'name': 'address', 'type': ['null', 'string']},
+                {'name': 'employees', 'type': ['null', {'type': 'array', 'items': {
+                    'type': 'record',
+                    'name': 'Employee',
+                    'fields': [
+                        {'name': 'name', 'type': ['null', 'string']},
+                        {'name': 'age', 'type': ['null', 'int']}
+                    ]
+                }}]},
+                {'name': 'labels', 'type': ['null', {'type': 'map', 'values': 'string'}]}
+            ]
+        }
+        produce_and_consume('custom-schema-test-1', schema_definition=schema_definition)
+        produce_and_consume('custom-schema-test-2', schema_definition=load_schema("examples/company.avsc"))
+
         client.close()
 
 if __name__ == '__main__':

@@ -20,6 +20,8 @@ package org.apache.pulsar.client.api;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Maps;
@@ -27,8 +29,10 @@ import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -43,6 +47,7 @@ import org.apache.pulsar.broker.authorization.AuthorizationProvider;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -51,6 +56,7 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TenantOperation;
@@ -174,6 +180,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         final String tenantRole = "tenant-role";
         final String subscriptionRole = "sub1-role";
         final String subscriptionName = "sub1";
+        final String subscriptionName2 = "sub2";
         final String namespace = "my-property/my-ns-sub-auth";
         final String topicName = "persistent://" + namespace + "/my-topic";
         Authentication adminAuthentication = new ClientAuthentication("superUser");
@@ -201,7 +208,18 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         superAdmin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet(tenantRole), Sets.newHashSet("test")));
         superAdmin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
-        tenantAdmin.namespaces().grantPermissionOnNamespace(namespace, subscriptionRole,
+
+        // subscriptionRole doesn't have topic-level authorization, so it will fail to get topic stats-internal info
+        try {
+            sub1Admin.topics().getInternalStats(topicName, true);
+            fail("should have failed with authorization exception");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().startsWith(
+                    "Unauthorized to validateTopicOperation for operation [GET_STATS]"));
+        }
+
+        // grant topic consume authorization to the subscriptionRole
+        tenantAdmin.topics().grantPermission(topicName, subscriptionRole,
                 Collections.singleton(AuthAction.consume));
 
         replacePulsarClient(PulsarClient.builder()
@@ -211,7 +229,17 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         // (1) Create subscription name
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .subscribe();
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName2)
+                .subscribe();
         consumer.close();
+        consumer2.close();
+
+        List<String> subscriptions = sub1Admin.topics().getSubscriptions(topicName);
+        assertEquals(subscriptions.size(), 2);
+
+        // now, subscriptionRole have consume authorization on topic, so it will successfully get topic internal stats
+        PersistentTopicInternalStats internalStats = superAdmin.topics().getInternalStats(topicName, true);
+        assertNotNull(internalStats);
 
         // verify tenant is able to perform all subscription-admin api
         tenantAdmin.topics().skipAllMessages(topicName, subscriptionName);
@@ -227,9 +255,23 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         tenantAdmin.topics().resetCursor(topicName, subscriptionName, 10);
         tenantAdmin.topics().resetCursor(topicName, subscriptionName, MessageId.earliest);
 
+        // subscriptionRole doesn't have namespace-level authorization, so it will fail to unsubscribe namespace
+        try {
+            sub1Admin.namespaces().unsubscribeNamespace(namespace, subscriptionName2);
+            fail("should have failed with authorization exception");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().startsWith(
+                    "Unauthorized to validateNamespaceOperation for operation [UNSUBSCRIBE]"));
+        }
+
         // grant namespace-level authorization to the subscriptionRole
         tenantAdmin.namespaces().grantPermissionOnNamespace(namespace, subscriptionRole,
                 Collections.singleton(AuthAction.consume));
+
+        // now, subscriptionRole have consume authorization on namespace, so it will successfully unsubscribe namespace
+        superAdmin.namespaces().unsubscribeNamespaceBundle(namespace, "0x00000000_0xffffffff", subscriptionName2);
+        subscriptions = sub1Admin.topics().getSubscriptions(topicName);
+        assertEquals(subscriptions.size(), 1);
 
         // subscriptionRole has namespace-level authorization
         sub1Admin.topics().resetCursor(topicName, subscriptionName, 10);
@@ -238,6 +280,9 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         String otherPrincipal = "Principal-1-to-access-sub";
         tenantAdmin.namespaces().grantPermissionOnSubscription(namespace, subscriptionName,
                 Collections.singleton(otherPrincipal));
+        TreeMap<String, Set<String>> permissionOnSubscription = new TreeMap<>();
+        permissionOnSubscription.put(subscriptionName, Collections.singleton(otherPrincipal));
+        Assert.assertEquals(tenantAdmin.namespaces().getPermissionOnSubscription(namespace), permissionOnSubscription);
 
         // now, subscriptionRole doesn't have subscription level access so, it will fail to access subscription
         try {
@@ -247,9 +292,20 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
             // Ok
         }
 
+        // reset on position
+        try {
+            sub1Admin.topics().resetCursor(topicName, subscriptionName, MessageId.earliest);
+            fail("should have fail with authorization exception");
+        } catch (org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException e) {
+            // Ok
+        }
+
         // now, grant subscription-access to subscriptionRole as well
         superAdmin.namespaces().grantPermissionOnSubscription(namespace, subscriptionName,
                 Sets.newHashSet(otherPrincipal, subscriptionRole));
+        TreeMap<String, Set<String>> permissionOnSubscription1 = new TreeMap<>();
+        permissionOnSubscription1.put(subscriptionName, Sets.newHashSet(otherPrincipal, subscriptionRole));
+        Assert.assertEquals(tenantAdmin.namespaces().getPermissionOnSubscription(namespace), permissionOnSubscription1);
 
         sub1Admin.topics().skipAllMessages(topicName, subscriptionName);
         sub1Admin.topics().skipMessages(topicName, subscriptionName, 1);
@@ -451,7 +507,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         }
 
         @Override
-        public void initialize(ServiceConfiguration conf, ConfigurationCacheService configCache) throws IOException {
+        public void initialize(ServiceConfiguration conf, PulsarResources pulsarResources) throws IOException {
             this.conf = conf;
             // No-op
         }
@@ -486,6 +542,11 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
 
         @Override
         public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<Boolean> allowConsumeOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
             return null;
         }
 

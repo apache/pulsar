@@ -18,8 +18,8 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
-
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
@@ -159,5 +159,24 @@ public interface ManagedLedgerFactory {
      * @throws ManagedLedgerException
      */
     void shutdown() throws InterruptedException, ManagedLedgerException;
+
+    /**
+     * This method tries it's best to releases all the resources maintained by the ManagedLedgerFactory.
+     * It will take longer time to shutdown than shutdown();
+     *
+     * @see #shutdown()
+     * @throws ManagedLedgerException
+     */
+    CompletableFuture<Void> shutdownAsync() throws ManagedLedgerException, InterruptedException;
+
+    /**
+     * Check managed ledger has been initialized before.
+     *
+     * @param ledgerName {@link String}
+     * @return a future represents the result of the operation.
+     *         an instance of {@link Boolean} is returned
+     *         if the operation succeeds.
+     */
+    CompletableFuture<Boolean> asyncExists(String ledgerName);
 
 }

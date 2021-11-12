@@ -56,9 +56,6 @@ jobs:
           distribution: 'adopt'
           java-version: 11
 
-      - name: Replace maven's wagon-http version
-        run: sudo ./build/replace_maven-wagon-http-version.sh
-
       - name: run install by skip tests
         run: mvn -q -B -ntp clean install -DskipTests
 

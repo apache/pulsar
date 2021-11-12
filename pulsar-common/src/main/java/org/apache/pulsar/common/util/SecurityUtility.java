@@ -62,7 +62,6 @@ import javax.net.ssl.TrustManagerFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.classification.InterfaceAudience;
-import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.common.tls.TlsHostnameVerifier;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 
@@ -118,7 +117,7 @@ public class SecurityUtility {
     private static Provider loadConscryptProvider() {
         Provider provider;
         try {
-            provider = (Provider) Class.forName(CONSCRYPT_PROVIDER_CLASS).newInstance();
+            provider = (Provider) Class.forName(CONSCRYPT_PROVIDER_CLASS).getDeclaredConstructor().newInstance();
         } catch (ReflectiveOperationException e) {
             log.warn("Unable to get security provider for class {}", CONSCRYPT_PROVIDER_CLASS, e);
             return null;
@@ -179,7 +178,7 @@ public class SecurityUtility {
             clazz = Class.forName(BC_FIPS_PROVIDER_CLASS);
         }
 
-        Provider provider = (Provider) clazz.newInstance();
+        Provider provider = (Provider) clazz.getDeclaredConstructor().newInstance();
         Security.addProvider(provider);
         if (log.isDebugEnabled()) {
             log.debug("Found and Instantiated Bouncy Castle provider in classpath {}", provider.getName());
@@ -422,11 +421,11 @@ public class SecurityUtility {
     }
 
     public static PrivateKey loadPrivateKeyFromPemFile(String keyFilePath) throws KeyManagementException {
-        PrivateKey privateKey = null;
-
         if (keyFilePath == null || keyFilePath.isEmpty()) {
-            return privateKey;
+            return null;
         }
+
+        PrivateKey privateKey;
 
         try (FileInputStream input = new FileInputStream(keyFilePath)) {
             privateKey = loadPrivateKeyFromPemStream(input);
@@ -438,11 +437,11 @@ public class SecurityUtility {
     }
 
     public static PrivateKey loadPrivateKeyFromPemStream(InputStream inStream) throws KeyManagementException {
-        PrivateKey privateKey = null;
-
         if (inStream == null) {
-            return privateKey;
+            return null;
         }
+
+        PrivateKey privateKey;
 
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(inStream, StandardCharsets.UTF_8))) {
             if (inStream.markSupported()) {

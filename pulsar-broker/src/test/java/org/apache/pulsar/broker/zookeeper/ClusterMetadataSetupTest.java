@@ -18,6 +18,14 @@
  */
 package org.apache.pulsar.broker.zookeeper;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import java.io.Closeable;
+import java.io.File;
+import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -28,10 +36,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.pulsar.PulsarClusterMetadataSetup;
 import org.apache.pulsar.PulsarInitialNamespaceSetup;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TenantResources;
-import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
@@ -42,16 +48,6 @@ import org.apache.zookeeper.server.ZooKeeperServer;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.io.Closeable;
-import java.io.File;
-import java.io.IOException;
-import java.net.InetSocketAddress;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
 
 @Slf4j
 @Test(groups = "broker")
@@ -83,7 +79,7 @@ public class ClusterMetadataSetupTest {
     @Test
     public void testSetupClusterInChrootMode() throws Exception {
         HashSet<String> firstLevelNodes = new HashSet<>(Arrays.asList(
-                "admin", "bookies", "ledgers", "managed-ledgers", "namespace", "pulsar", "stream"
+                "bookies", "ledgers", "pulsar", "stream", "admin"
         ));
         String rootPath = "/test-prefix";
         String[] args = {
@@ -184,9 +180,8 @@ public class ClusterMetadataSetupTest {
                 MetadataStoreConfig.builder().build())) {
             TenantResources tenantResources = new TenantResources(store,
                     PulsarResources.DEFAULT_OPERATION_TIMEOUT_SEC);
-            List<String> namespaces = tenantResources.getChildren(PulsarWebResource
-                    .path(ConfigurationCacheService.POLICIES, "test"));
-            assertEquals(new HashSet<>(namespaces), new HashSet<>(Arrays.asList("a", "b", "c")));
+            List<String> namespaces = tenantResources.getListOfNamespaces("test");
+            assertEquals(new HashSet<>(namespaces), new HashSet<>(Arrays.asList("test/a", "test/b", "test/c")));
         }
     }
 

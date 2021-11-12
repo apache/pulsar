@@ -21,12 +21,11 @@ package org.apache.pulsar.tests.integration.presto;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.base.Stopwatch;
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -175,7 +174,14 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
             queryAllDataSql = String.format("select * from pulsar.\"%s\".\"%s\";", namespace, topic);
         }
 
-        Awaitility.await().untilAsserted(
+        Awaitility.await()
+                // first poll immediately
+                .pollDelay(Duration.ofMillis(0))
+                // use relatively long poll interval so that polling doesn't consume too much resources
+                .pollInterval(Duration.ofSeconds(3))
+                // retry up to 15 seconds from first attempt
+                .atMost(Duration.ofSeconds(15))
+                .untilAsserted(
                 () -> {
                     ContainerExecResult containerExecResult = execQuery(queryAllDataSql);
                     assertThat(containerExecResult.getExitCode()).isEqualTo(0);
@@ -188,9 +194,6 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
         );
 
         // test predicate pushdown
-        String url = String.format("jdbc:presto://%s",  pulsarCluster.getPrestoWorkerContainer().getUrl());
-        Connection connection = DriverManager.getConnection(url, "test", null);
-
         String query = String.format("select * from pulsar" +
                 ".\"%s\".\"%s\" order by __publish_time__", namespace, topic);
         log.info("Executing query: {}", query);
@@ -259,11 +262,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
         log.info("Executing query: result for topic {} returnedTimestamps size: {}", topic, returnedTimestamps.size());
         assertThat(returnedTimestamps.size()).isEqualTo(0);
 
-        query = String.format("select count(*) from pulsar.\"%s\".\"%s\"", namespace, topic);
-        log.info("Executing query: {}", query);
-        res = connection.createStatement().executeQuery(query);
-        res.next();
-        int count = res.getInt("_col0");
+        int count = selectCount(namespace, topic);
         assertThat(count).isGreaterThan(messageNum - 2);
     }
 
@@ -296,5 +295,12 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
 
     }
 
+    protected int selectCount(String namespace, String tableName) throws SQLException {
+        String query = String.format("select count(*) from pulsar.\"%s\".\"%s\"", namespace, tableName);
+        log.info("Executing count query: {}", query);
+        ResultSet res = connection.createStatement().executeQuery(query);
+        res.next();
+        return res.getInt("_col0");
+    }
 
 }

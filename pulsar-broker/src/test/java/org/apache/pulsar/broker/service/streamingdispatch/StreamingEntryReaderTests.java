@@ -38,22 +38,14 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.core.classloader.annotations.*;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.lang.reflect.Method;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Stack;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -72,15 +64,7 @@ import static org.testng.Assert.assertEquals;
 /**
  * Tests for {@link StreamingEntryReader}
  */
-@PowerMockIgnore({
-        "javax.management.*",
-        "javax.xml.parsers.*",
-        "com.sun.org.apache.xerces.internal.jaxp.*",
-        "ch.qos.logback.*",
-        "org.slf4j.*",
-        "org.apache.logging.*"})
 @Test(groups = "flaky")
-@PrepareForTest({ManagedLedgerImpl.class})
 public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
 
     private static final Charset Encoding = Charsets.UTF_8;

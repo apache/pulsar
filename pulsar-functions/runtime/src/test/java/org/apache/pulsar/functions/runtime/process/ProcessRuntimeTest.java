@@ -298,29 +298,29 @@ public class ProcessRuntimeTest {
         String extraDepsEnv;
         int portArg;
         int metricsPortArg;
-        int totalArgCount = 41;
+        int totalArgCount = 42;
         if (webServiceUrl != null && config.isExposePulsarAdminClientEnabled()) {
-            totalArgCount += 2;
+            totalArgCount += 3;
         }
         if (null != depsDir) {
             assertEquals(args.size(), totalArgCount);
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir.toString();
             classpath = classpath + ":" + depsDir + "/*";
-            portArg = 24;
-            metricsPortArg = 26;
+            portArg = 25;
+            metricsPortArg = 27;
         } else {
             assertEquals(args.size(), totalArgCount-1);
             extraDepsEnv = "";
-            portArg = 23;
-            metricsPortArg = 25;
+            portArg = 24;
+            metricsPortArg = 26;
         }
         if (webServiceUrl != null && config.isExposePulsarAdminClientEnabled()) {
-            portArg += 2;
-            metricsPortArg += 2;
+            portArg += 3;
+            metricsPortArg += 3;
         }
 
         String pulsarAdminArg = webServiceUrl != null && config.isExposePulsarAdminClientEnabled() ?
-                " --web_serviceurl " + webServiceUrl : "";
+                " --web_serviceurl " + webServiceUrl + " --expose_pulsaradmin" : "";
 
         String expectedArgs = "java -cp " + classpath
                 + extraDepsEnv
@@ -328,6 +328,7 @@ public class ProcessRuntimeTest {
                 + " -Dlog4j.configurationFile=java_instance_log4j2.xml "
                 + "-Dpulsar.function.log.dir=" + logDirectory + "/functions/" + FunctionCommon.getFullyQualifiedName(config.getFunctionDetails())
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-" + config.getInstanceId()
+                + " -Dio.netty.tryReflectionSetAccessible=true"
                 + " org.apache.pulsar.functions.instance.JavaInstanceMain"
                 + " --jar " + userJarFile + " --instance_id "
                 + config.getInstanceId() + " --function_id " + config.getFunctionId()

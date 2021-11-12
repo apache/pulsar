@@ -66,18 +66,28 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         }
 
         if (++numMessagesInBatch == 1) {
-            // some properties are common amongst the different messages in the batch, hence we just pick it up from
-            // the first message
-            messageMetadata.setSequenceId(msg.getSequenceId());
-            lowestSequenceId = Commands.initBatchMessageMetadata(messageMetadata, msg.getMessageBuilder());
-            this.firstCallback = callback;
-            batchedMessageMetadataAndPayload = PulsarByteBufAllocator.DEFAULT
-                    .buffer(Math.min(maxBatchSize, ClientCnx.getMaxMessageSize()));
-            if (msg.getMessageBuilder().hasTxnidMostBits() && currentTxnidMostBits == -1) {
-                currentTxnidMostBits = msg.getMessageBuilder().getTxnidMostBits();
-            }
-            if (msg.getMessageBuilder().hasTxnidLeastBits() && currentTxnidLeastBits == -1) {
-                currentTxnidLeastBits = msg.getMessageBuilder().getTxnidLeastBits();
+            try {
+                // some properties are common amongst the different messages in the batch, hence we just pick it up from
+                // the first message
+                messageMetadata.setSequenceId(msg.getSequenceId());
+                lowestSequenceId = Commands.initBatchMessageMetadata(messageMetadata, msg.getMessageBuilder());
+                this.firstCallback = callback;
+                batchedMessageMetadataAndPayload = PulsarByteBufAllocator.DEFAULT
+                        .buffer(Math.min(maxBatchSize, ClientCnx.getMaxMessageSize()));
+                if (msg.getMessageBuilder().hasTxnidMostBits() && currentTxnidMostBits == -1) {
+                    currentTxnidMostBits = msg.getMessageBuilder().getTxnidMostBits();
+                }
+                if (msg.getMessageBuilder().hasTxnidLeastBits() && currentTxnidLeastBits == -1) {
+                    currentTxnidLeastBits = msg.getMessageBuilder().getTxnidLeastBits();
+                }
+            } catch (Throwable e) {
+                log.error("construct first message failed, exception is ", e);
+                if (batchedMessageMetadataAndPayload != null) {
+                    // if payload has been allocated release it
+                    batchedMessageMetadataAndPayload.release();
+                }
+                discard(new PulsarClientException(e));
+                return false;
             }
         }
 

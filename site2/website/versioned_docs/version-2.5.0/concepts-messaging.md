@@ -5,7 +5,7 @@ sidebar_label: Messaging
 original_id: concepts-messaging
 ---
 
-Pulsar is built on the [publish-subscribe](https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern) pattern, aka pub-sub. In this pattern, [producers](#producers) publish messages to [topics](#topics). [Consumers](#consumers) can then [subscribe](#subscription-modes) to those topics, process incoming messages, and send an acknowledgement when processing is complete.
+Pulsar is built on the [publish-subscribe](https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern) pattern, aka pub-sub. In this pattern, [producers](#producers) publish messages to [topics](#topics). [Consumers](#consumers) can then [subscribe](#subscription-types) to those topics, process incoming messages, and send an acknowledgement when processing is complete.
 
 Once a subscription has been created, all messages will be [retained](concepts-architecture-overview.md#persistent-storage) by Pulsar, even if the consumer gets disconnected. Retained messages will be discarded only when a consumer acknowledges that they've been successfully processed.
 
@@ -76,19 +76,19 @@ When a consumer has consumed a message successfully, the consumer sends an ackno
 Messages can be acknowledged either one by one or cumulatively. With cumulative acknowledgement, the consumer only needs to acknowledge the last message it received. All messages in the stream up to (and including) the provided message will not be re-delivered to that consumer.
 
 
-> Cumulative acknowledgement cannot be used with [shared subscription mode](#subscription-modes), because shared mode involves multiple consumers having access to the same subscription.
+> Cumulative acknowledgement cannot be used with [shared subscription type](#subscription-types), because shared mode involves multiple consumers having access to the same subscription.
 
-In the shared subscription mode, messages can be acknowledged individually.
+In Shared subscription type, messages can be acknowledged individually.
 
 ### Negative acknowledgement
 
 When a consumer does not consume a message successfully at a time, and wants to consume the message again, the consumer can send a negative acknowledgement to the broker, and then the broker will redeliver the message.
 
-Messages can be negatively acknowledged one by one or cumulatively, which depends on the consumption subscription mode.
+Messages can be negatively acknowledged either individually or cumulatively, depending on the consumption subscription type.
 
-In the exclusive and failover subscription modes, consumers only negatively acknowledge the last message they have received.
+In the exclusive and failover subscription types, consumers only negatively acknowledge the last message they have received.
 
-In the shared and Key_Shared subscription modes, you can negatively acknowledge messages individually.
+In the shared and Key_Shared subscription types, you can negatively acknowledge messages individually.
 
 Be aware that negative acknowledgment on ordered subscription types, such as Exclusive, Failover and Key_Shared, can cause failed messages to arrive consumers out of the original order.
 
@@ -139,8 +139,8 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
 
 Dead letter topic depends on message re-delivery. Messages are redelivered either due to [acknowledgement timeout](#acknowledgement-timeout) or [negative acknowledgement](#negative-acknowledgement). If you are going to use negative acknowledgement on a message, make sure it is negatively acknowledged before the acknowledgement timeout. 
 
-> Note    
-> Currently, dead letter topic is enabled only in the shared subscription mode.
+> **Note**    
+> Currently, dead letter topic is enabled only in Shared subscription type.
 
 ## Topics
 
@@ -167,25 +167,25 @@ Topic name component | Description
 
 A namespace is a logical nomenclature within a tenant. A tenant can create multiple namespaces via the [admin API](admin-api-namespaces.md#create). For instance, a tenant with different applications can create a separate namespace for each application. A namespace allows the application to create and manage a hierarchy of topics. The topic `my-tenant/app1` is a namespace for the application `app1` for `my-tenant`. You can create any number of [topics](#topics) under the namespace.
 
-## Subscription modes
+## Subscription types
 
-A subscription is a named configuration rule that determines how messages are delivered to consumers. There are three available subscription modes in Pulsar: [exclusive](#exclusive), [shared](#shared), and [failover](#failover). These modes are illustrated in the figure below.
+A subscription is a named configuration rule that determines how messages are delivered to consumers. There are three available subscription types in Pulsar: [exclusive](#exclusive), [shared](#shared), and [failover](#failover). These types are illustrated in the figure below.
 
-![Subscription modes](assets/pulsar-subscription-modes.png)
+![Subscription types](assets/pulsar-subscription-types.png)
 
 ### Exclusive
 
-In *exclusive* mode, only a single consumer is allowed to attach to the subscription. If more than one consumer attempts to subscribe to a topic using the same subscription, the consumer receives an error.
+In *exclusive* type, only a single consumer is allowed to attach to the subscription. If more than one consumer attempts to subscribe to a topic using the same subscription, the consumer receives an error.
 
 In the diagram below, only **Consumer A-0** is allowed to consume messages.
 
-> Exclusive mode is the default subscription mode.
+> Exclusive is the default subscription type.
 
 ![Exclusive subscriptions](assets/pulsar-exclusive-subscriptions.png)
 
 ### Failover
 
-In *failover* mode, multiple consumers can attach to the same subscription. A master consumer is picked for non-partitioned topic or each partition of partitioned topic and receives messages. When the master consumer disconnects, all (non-acknowledged and subsequent) messages are delivered to the next consumer in line.
+In *Failover* type, multiple consumers can attach to the same subscription. A master consumer is picked for non-partitioned topic or each partition of partitioned topic and receives messages. When the master consumer disconnects, all (non-acknowledged and subsequent) messages are delivered to the next consumer in line.
 
 For partitioned topics, broker will sort consumers by priority level and lexicographical order of consumer name. Then broker will try to evenly assigns topics to consumers with the highest priority level.
 
@@ -276,11 +276,11 @@ The diagram below illustrates this:
 
 Here, the topic **Topic1** has five partitions (**P0** through **P4**) split across three brokers. Because there are more partitions than brokers, two brokers handle two partitions a piece, while the third handles only one (again, Pulsar handles this distribution of partitions automatically).
 
-Messages for this topic are broadcast to two consumers. The [routing mode](#routing-modes) determines both which broker handles each partition, while the [subscription mode](#subscription-modes) determines which messages go to which consumers.
+Messages for this topic are broadcast to two consumers. The [routing mode](#routing-modes) determines both which broker handles each partition, while the [subscription type](#subscription-types) determines which messages go to which consumers.
 
-Decisions about routing and subscription modes can be made separately in most cases. In general, throughput concerns should guide partitioning/routing decisions while subscription decisions should be guided by application semantics.
+Decisions about routing and subscription types can be made separately in most cases. In general, throughput concerns should guide partitioning/routing decisions while subscription decisions should be guided by application semantics.
 
-There is no difference between partitioned topics and normal topics in terms of how subscription modes work, as partitioning only determines what happens between when a message is published by a producer and processed and acknowledged by a consumer.
+There is no difference between partitioned topics and normal topics in terms of how subscription types work, as partitioning only determines what happens between when a message is published by a producer and processed and acknowledged by a consumer.
 
 Partitioned topics need to be explicitly created via the [admin API](admin-api-overview.md). The number of partitions can be specified when creating the topic.
 
@@ -344,7 +344,7 @@ Non-persistent messaging is usually faster than persistent messaging because bro
 
 ### Client API
 
-Producers and consumers can connect to non-persistent topics in the same way as persistent topics, with the crucial difference that the topic name must start with `non-persistent`. All three subscription modes---[exclusive](#exclusive), [shared](#shared), and [failover](#failover)---are supported for non-persistent topics.
+Producers and consumers can connect to non-persistent topics in the same way as persistent topics, with the crucial difference that the topic name must start with `non-persistent`. All three subscription types---[exclusive](#exclusive), [shared](#shared), and [failover](#failover)---are supported for non-persistent topics.
 
 Here's an example [Java consumer](client-libraries-java.md#consumers) for a non-persistent topic:
 
@@ -387,7 +387,7 @@ The diagram below illustrates both concepts:
 
 ![Message retention and expiry](assets/retention-expiry.png)
 
-With message retention, shown at the top, a <span style="color: #89b557;">retention policy</span> applied to all topics in a namespace dicates that some messages are durably stored in Pulsar even though they've already been acknowledged. Acknowledged messages that are not covered by the retention policy are <span style="color: #bb3b3e;">deleted</span>. Without a retention policy, *all* of the <span style="color: #19967d;">acknowledged messages</span> would be deleted.
+With message retention, shown at the top, a <span style="color: #89b557;">retention policy</span> applied to all topics in a namespace dictates that some messages are durably stored in Pulsar even though they've already been acknowledged. Acknowledged messages that are not covered by the retention policy are <span style="color: #bb3b3e;">deleted</span>. Without a retention policy, *all* of the <span style="color: #19967d;">acknowledged messages</span> would be deleted.
 
 With message expiry, shown at the bottom, some messages are <span style="color: #bb3b3e;">deleted</span>, even though they <span style="color: #337db6;">haven't been acknowledged</span>, because they've expired according to the <span style="color: #e39441;">TTL applied to the namespace</span> (for example because a TTL of 5 minutes has been applied and the messages haven't been acknowledged but are 10 minutes old).
 
@@ -420,7 +420,7 @@ Message deduplication makes Pulsar an ideal messaging system to be used in conju
 ## Delayed message delivery
 Delayed message delivery enables you to consume a message later rather than immediately. In this mechanism, a message is stored in BookKeeper, `DelayedDeliveryTracker` maintains the time index(time -> messageId) in memory after published to a broker, and it is delivered to a consumer once the specific delayed time is passed.  
 
-Delayed message delivery only works well in Shared subscription mode. In Exclusive and Failover subscription mode, the delayed message is dispatched immediately.
+Delayed message delivery only works well In shared subscription type. In Exclusive and Failover subscription types, the delayed message is dispatched immediately.
 
 The diagram below illustrates the concept of delayed message delivery:
 

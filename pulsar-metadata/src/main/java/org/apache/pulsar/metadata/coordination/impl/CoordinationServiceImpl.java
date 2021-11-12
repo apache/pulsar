@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.metadata.coordination.impl;
 
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -26,9 +27,11 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
-
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.coordination.LeaderElection;
@@ -42,11 +45,15 @@ public class CoordinationServiceImpl implements CoordinationService {
 
     private final MetadataStoreExtended store;
 
-    private final Map<Class<?>, LockManager<?>> lockManagers = new ConcurrentHashMap<>();
+    private final Map<Object, LockManager<?>> lockManagers = new ConcurrentHashMap<>();
     private final Map<String, LeaderElection<?>> leaderElections = new ConcurrentHashMap<>();
+
+    private final ScheduledExecutorService executor;
 
     public CoordinationServiceImpl(MetadataStoreExtended store) {
         this.store = store;
+        this.executor = Executors.newSingleThreadScheduledExecutor(
+                new DefaultThreadFactory("metadata-store-coordination-service"));
     }
 
     @Override
@@ -70,11 +77,31 @@ public class CoordinationServiceImpl implements CoordinationService {
 
     @Override
     public <T> LockManager<T> getLockManager(Class<T> clazz) {
-        return (LockManager<T>) lockManagers.computeIfAbsent(clazz, k -> new LockManagerImpl<T>(store, clazz));
+        return (LockManager<T>) lockManagers.computeIfAbsent(clazz,
+                k -> new LockManagerImpl<T>(store, clazz, executor));
+    }
+
+    @Override
+    public <T> LockManager<T> getLockManager(MetadataSerde<T> serde) {
+        return (LockManager<T>) lockManagers.computeIfAbsent(serde,
+                k -> new LockManagerImpl<T>(store, serde, executor));
     }
 
     @Override
     public CompletableFuture<Long> getNextCounterValue(String path) {
+        return store.exists(path)
+                .thenCompose(exists -> {
+                    if (exists) {
+                        // The base path already exists
+                        return incrementCounter(path);
+                    } else {
+                        return store.put(path, new byte[0], Optional.empty())
+                                .thenCompose(__ -> incrementCounter(path));
+                    }
+                });
+    }
+
+    private CompletableFuture<Long> incrementCounter(String path) {
         String counterBasePath = path + "/-";
         return store
                 .put(counterBasePath, new byte[0], Optional.of(-1L),
@@ -91,6 +118,6 @@ public class CoordinationServiceImpl implements CoordinationService {
             Consumer<LeaderElectionState> stateChangesListener) {
 
         return (LeaderElection<T>) leaderElections.computeIfAbsent(path,
-                key -> new LeaderElectionImpl<T>(store, clazz, path, stateChangesListener));
+                key -> new LeaderElectionImpl<T>(store, clazz, path, stateChangesListener, executor));
     }
 }

@@ -26,7 +26,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentSkipListMap;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
+import org.apache.pulsar.client.api.Range;
 
 /**
  * This is a consumer selector based fixed hash range.
@@ -35,7 +35,7 @@ import org.apache.pulsar.common.util.Murmur3_32Hash;
  * 2.The whole range of hash value could be covered by all the consumers.
  * 3.Once a consumer is removed, the left consumers could still serve the whole range.
  *
- * Initializing with a fixed hash range, by default 2 << 5.
+ * Initializing with a fixed hash range, by default 2 << 15.
  * First consumer added, hash range looks like:
  *
  * 0 -> 65536(consumer-1)
@@ -103,8 +103,7 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
     }
 
     @Override
-    public Consumer select(byte[] stickyKey) {
-        int hash = Murmur3_32Hash.getInstance().makeHash(stickyKey);
+    public Consumer select(int hash) {
         if (rangeMap.size() > 0) {
             int slot = hash % rangeSize;
             return rangeMap.ceilingEntry(slot).getValue();
@@ -114,12 +113,12 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
     }
 
     @Override
-    public Map<String, List<String>> getConsumerKeyHashRanges() {
-        Map<String, List<String>> result = new HashMap<>();
+    public Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
+        Map<Consumer, List<Range>> result = new HashMap<>();
         int start = 0;
         for (Map.Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
-            result.computeIfAbsent(entry.getValue().consumerName(), key -> new ArrayList<>())
-                    .add("[" + start + ", " + entry.getKey() + "]");
+            result.computeIfAbsent(entry.getValue(), key -> new ArrayList<>())
+                    .add(Range.of(start, entry.getKey()));
             start = entry.getKey() + 1;
         }
         return result;

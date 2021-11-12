@@ -33,13 +33,14 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.BookKeeperClientFactoryImpl;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
 import org.apache.zookeeper.ZooKeeper;
@@ -57,6 +58,9 @@ public class CompactorTool {
 
         @Parameter(names = {"-h", "--help"}, description = "Show this help message")
         private boolean help = false;
+
+        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        private boolean generateDocs = false;
     }
 
     public static void main(String[] args) throws Exception {
@@ -68,6 +72,13 @@ public class CompactorTool {
         jcommander.parse(args);
         if (arguments.help) {
             jcommander.usage();
+            System.exit(-1);
+        }
+
+        if (arguments.generateDocs) {
+            CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
+            cmd.addCommand("compact-topic", arguments);
+            cmd.run(null);
             System.exit(-1);
         }
 
@@ -99,21 +110,17 @@ public class CompactorTool {
                     brokerConfig.getBrokerClientAuthenticationParameters());
         }
 
-
-        if (brokerConfig.getBrokerServicePortTls().isPresent()) {
-            log.info("Found `brokerServicePortTls` in configuration file. \n"
+        AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(brokerConfig);
+        if (internalListener.getBrokerServiceUrlTls() != null) {
+            log.info("Found a TLS-based advertised listener in configuration file. \n"
                     + "Will connect pulsar use TLS.");
             clientBuilder
-                    .serviceUrl(PulsarService.brokerUrlTls(
-                            ServiceConfigurationUtils.getAppliedAdvertisedAddress(brokerConfig, true),
-                            brokerConfig.getBrokerServicePortTls().get()))
+                    .serviceUrl(internalListener.getBrokerServiceUrlTls().toString())
                     .allowTlsInsecureConnection(brokerConfig.isTlsAllowInsecureConnection())
                     .tlsTrustCertsFilePath(brokerConfig.getTlsCertificateFilePath());
 
         } else {
-            clientBuilder.serviceUrl(PulsarService.brokerUrl(
-                    ServiceConfigurationUtils.getAppliedAdvertisedAddress(brokerConfig, true),
-                    brokerConfig.getBrokerServicePort().get()));
+            clientBuilder.serviceUrl(internalListener.getBrokerServiceUrl().toString());
         }
 
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(

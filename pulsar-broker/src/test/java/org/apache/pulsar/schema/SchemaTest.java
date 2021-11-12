@@ -29,9 +29,12 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
 
+import org.apache.avro.Schema.Parser;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Sets;
 
+import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
@@ -63,6 +66,7 @@ import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
+import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -598,8 +602,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
         Message<KeyValue<Schemas.PersonOne, Schemas.PersonTwo>> message = consumer.receive();
         Message<GenericRecord> message2 = consumer2.receive();
-        log.info("message: {}", message.getValue(), message.getValue().getClass());
-        log.info("message2: {}", message2.getValue().getNativeObject(), message2.getValue().getNativeObject().getClass());
+        log.info("message: {},{}", message.getValue(), message.getValue().getClass());
+        log.info("message2: {},{}", message2.getValue().getNativeObject(), message2.getValue().getNativeObject().getClass());
         KeyValue<GenericRecord, GenericRecord> keyValue2 = (KeyValue<GenericRecord, GenericRecord>) message2.getValue().getNativeObject();
         assertEquals(message.getValue().getKey().id, keyValue2.getKey().getField("id"));
         assertEquals(message.getValue().getValue().id, keyValue2.getValue().getField("id"));
@@ -654,9 +658,12 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         final Map<String, String> map = new HashMap<>();
         map.put("key", null);
         map.put(null, "value"); // null key is not allowed for JSON, it's only for test here
-        ((SchemaInfoImpl)Schema.INT32.getSchemaInfo()).setProperties(map);
 
-        final Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32).topic(topic)
+        // leave INT32 instance unchanged
+        final Schema<Integer> integerSchema = Schema.INT32.clone();
+        ((SchemaInfoImpl) integerSchema.getSchemaInfo()).setProperties(map);
+
+        final Consumer<Integer> consumer = pulsarClient.newConsumer(integerSchema).topic(topic)
                 .subscriptionName("sub")
                 .subscribe();
         consumer.close();
@@ -744,6 +751,13 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         producer.newMessage(Schema.BYTES).value("test".getBytes(StandardCharsets.UTF_8)).send();
         producer.newMessage(Schema.BYTES).value("test".getBytes(StandardCharsets.UTF_8)).send();
         producer.newMessage(Schema.BOOL).value(true).send();
+        
+        Schema<Schemas.PersonThree> personThreeSchema = Schema.AVRO(Schemas.PersonThree.class);
+        byte[] personThreeSchemaBytes = personThreeSchema.getSchemaInfo().getSchema();
+        org.apache.avro.Schema personThreeSchemaAvroNative = new Parser().parse(new ByteArrayInputStream(personThreeSchemaBytes));
+        AvroWriter<Schemas.PersonThree> writer = new AvroWriter<>(personThreeSchemaAvroNative);
+        byte[] content = writer.write(new Schemas.PersonThree(0, "ran"));
+        producer.newMessage(Schema.NATIVE_AVRO(personThreeSchemaAvroNative)).value(content).send();
 
         List<SchemaInfo> allSchemas = admin.schemas().getAllSchemas(topic);
         Assert.assertEquals(allSchemas.size(), 5);
@@ -789,6 +803,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         assertEquals("foo", message.getValue());
     }
 
+    @Test
     public void testConsumeMultipleSchemaMessages() throws Exception {
         final String namespace = "test-namespace-" + randomName(16);
         String ns = PUBLIC_TENANT + "/" + namespace;

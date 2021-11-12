@@ -27,9 +27,8 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
-import org.apache.pulsar.metadata.api.MetadataStoreException.InvalidImplementationException;
-import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl;
 
 /**
  * Extension of the {@link MetadataStore} interface that includes more methods which might not be supported by all
@@ -37,15 +36,9 @@ import org.apache.pulsar.metadata.api.Stat;
  */
 public interface MetadataStoreExtended extends MetadataStore {
 
-    public static MetadataStoreExtended create(String metadataURL, MetadataStoreConfig metadataStoreConfig)
+    static MetadataStoreExtended create(String metadataURL, MetadataStoreConfig metadataStoreConfig)
             throws MetadataStoreException {
-        MetadataStore store = MetadataStoreFactory.create(metadataURL, metadataStoreConfig);
-        if (!(store instanceof MetadataStoreExtended)) {
-            throw new InvalidImplementationException(
-                    "Implemetation does not comply with " + MetadataStoreExtended.class.getName());
-        }
-
-        return (MetadataStoreExtended) store;
+        return MetadataStoreFactoryImpl.createExtended(metadataURL, metadataStoreConfig);
     }
 
     /**

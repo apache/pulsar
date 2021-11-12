@@ -45,7 +45,6 @@ import java.util.UUID;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -203,8 +202,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                     semaphore.acquire();
                     countDownLatch = new CountDownLatch(1);
                     assignmentScheduler.chooseThread(ledgerId).submit(FileSystemWriter.create(ledgerEntriesOnce, dataWriter, semaphore,
-                            countDownLatch, haveOffloadEntryNumber, this)).addListener(() -> {
-                    }, Executors.newSingleThreadExecutor());
+                            countDownLatch, haveOffloadEntryNumber, this));
                     needToOffloadFirstEntryNumber = end + 1;
                 } while (needToOffloadFirstEntryNumber - 1 != readHandle.getLastAddConfirmed() && fileSystemWriteException == null);
                 countDownLatch.await();

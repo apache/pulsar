@@ -21,10 +21,8 @@ package org.apache.pulsar.admin.cli;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
-import com.beust.jcommander.converters.CommaParameterSplitter;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -125,7 +123,8 @@ public class CmdPersistentTopics extends CmdBase {
         @Parameter(names = "--role", description = "Client role to which grant permissions", required = true)
         private String role;
 
-        @Parameter(names = "--actions", description = "Actions to be granted (produce,consume)", required = true, splitter = CommaParameterSplitter.class)
+        @Parameter(names = "--actions", description = "Actions to be granted (produce,consume,sources,sinks," +
+                "functions,packages)", required = true)
         private List<String> actions;
 
         @Override
@@ -338,10 +337,13 @@ public class CmdPersistentTopics extends CmdBase {
         @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-gpb", "--get-precise-backlog" }, description = "Set true to get precise backlog")
+        private boolean getPreciseBacklog = false;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getPersistentTopics().getStats(persistentTopic));
+            print(persistentTopics.getStats(persistentTopic, getPreciseBacklog));
         }
     }
 
@@ -548,7 +550,7 @@ public class CmdPersistentTopics extends CmdBase {
 
             try {
                 MessageId lastMessageId = getPersistentTopics().terminateTopicAsync(persistentTopic).get();
-                System.out.println("Topic succesfully terminated at " + lastMessageId);
+                System.out.println("Topic successfully terminated at " + lastMessageId);
             } catch (InterruptedException | ExecutionException e) {
                 throw new PulsarAdminException(e);
             }

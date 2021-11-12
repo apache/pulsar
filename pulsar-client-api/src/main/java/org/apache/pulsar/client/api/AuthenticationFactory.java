@@ -41,7 +41,7 @@ public final class AuthenticationFactory {
      * @return the Authentication object initialized with the token credentials
      */
     public static Authentication token(String token) {
-        return DefaultImplementation.newAuthenticationToken(token);
+        return DefaultImplementation.getDefaultImplementation().newAuthenticationToken(token);
     }
 
     /**
@@ -52,7 +52,7 @@ public final class AuthenticationFactory {
      * @return the Authentication object initialized with the token credentials
      */
     public static Authentication token(Supplier<String> tokenSupplier) {
-        return DefaultImplementation.newAuthenticationToken(tokenSupplier);
+        return DefaultImplementation.getDefaultImplementation().newAuthenticationToken(tokenSupplier);
     }
 
     // CHECKSTYLE.OFF: MethodName
@@ -67,7 +67,7 @@ public final class AuthenticationFactory {
      * @return the Authentication object initialized with the TLS credentials
      */
     public static Authentication TLS(String certFilePath, String keyFilePath) {
-        return DefaultImplementation.newAuthenticationTLS(certFilePath, keyFilePath);
+        return DefaultImplementation.getDefaultImplementation().newAuthenticationTLS(certFilePath, keyFilePath);
     }
 
     // CHECKSTYLE.ON: MethodName
@@ -86,7 +86,7 @@ public final class AuthenticationFactory {
     public static Authentication create(String authPluginClassName, String authParamsString)
             throws UnsupportedAuthenticationException {
         try {
-            return DefaultImplementation.createAuthentication(authPluginClassName, authParamsString);
+            return DefaultImplementation.getDefaultImplementation().createAuthentication(authPluginClassName, authParamsString);
         } catch (Throwable t) {
             throw new UnsupportedAuthenticationException(t);
         }
@@ -103,7 +103,7 @@ public final class AuthenticationFactory {
     public static Authentication create(String authPluginClassName, Map<String, String> authParams)
             throws UnsupportedAuthenticationException {
         try {
-            return DefaultImplementation.createAuthentication(authPluginClassName, authParams);
+            return DefaultImplementation.getDefaultImplementation().createAuthentication(authPluginClassName, authParams);
         } catch (Throwable t) {
             throw new UnsupportedAuthenticationException(t);
         }

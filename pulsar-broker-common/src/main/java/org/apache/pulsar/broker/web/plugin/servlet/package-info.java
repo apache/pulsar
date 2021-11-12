@@ -18,6 +18,6 @@
  */
 
 /**
- * Pulsar proxy servlet plugin.
+ * Pulsar additional servlet plugin.
  */
 package org.apache.pulsar.broker.web.plugin.servlet;

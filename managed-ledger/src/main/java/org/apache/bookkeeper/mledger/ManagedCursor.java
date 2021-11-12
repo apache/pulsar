@@ -82,6 +82,16 @@ public interface ManagedCursor {
     Map<String, Long> getProperties();
 
     /**
+     * Add a property associated with the last stored position.
+     */
+    boolean putProperty(String key, Long value);
+
+    /**
+     * Remove a property associated with the last stored position.
+     */
+    boolean removeProperty(String key);
+
+    /**
      * Read entries from the ManagedLedger, up to the specified number. The returned list can be smaller.
      *
      * @param numberOfEntriesToRead
@@ -415,7 +425,11 @@ public interface ManagedCursor {
      * @param newReadPosition
      *            the position where to move the cursor
      */
-    void seek(Position newReadPosition);
+    default void seek(Position newReadPosition) {
+        seek(newReadPosition, false);
+    }
+
+    void seek(Position newReadPosition, boolean force);
 
     /**
      * Clear the cursor backlog.

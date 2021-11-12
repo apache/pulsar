@@ -43,6 +43,7 @@ import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -413,12 +414,15 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
      */
     @Test(dataProvider = "subscriptions", timeOut = 5000)
     public void testBytesRateLimitingReceiveAllMessagesAfterThrottling(SubscriptionType subscription) throws Exception {
+        conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(true);
         log.info("-- Starting {} test --", methodName);
 
         final String namespace = "my-property/throttling_ns";
         final String topicName = "persistent://" + namespace + "/throttlingAll";
+        final String subscriptionName = "my-subscriber-name";
 
-        final int byteRate = 100;
+        //
+        final int byteRate = 250;
         DispatchRate dispatchRate = DispatchRate.builder()
                 .dispatchThrottlingRateInMsg(-1)
                 .dispatchThrottlingRateInByte(byteRate)
@@ -426,47 +430,31 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
                 .build();
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
+        admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
         // create producer and topic
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
-        boolean isMessageRateUpdate = false;
-        int retry = 5;
-        for (int i = 0; i < retry; i++) {
-            if (topic.getDispatchRateLimiter().get().getDispatchRateOnByte() > 0) {
-                isMessageRateUpdate = true;
-                break;
-            } else {
-                if (i != retry - 1) {
-                    Thread.sleep(100);
-                }
-            }
-        }
-        Assert.assertTrue(isMessageRateUpdate);
+        Awaitility.await().until(() -> topic.getDispatchRateLimiter().get().getDispatchRateOnByte() > 0);
         Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
 
         final int numProducedMessages = 20;
-        final CountDownLatch latch = new CountDownLatch(numProducedMessages);
 
         final AtomicInteger totalReceived = new AtomicInteger(0);
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
+        for (int i = 0; i < numProducedMessages; i++) {
+            producer.send(new byte[99]);
+        }
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .subscriptionType(subscription).messageListener((c1, msg) -> {
                     Assert.assertNotNull(msg, "Message cannot be null");
                     String receivedMessage = new String(msg.getData());
                     log.debug("Received message [{}] in the listener", receivedMessage);
                     totalReceived.incrementAndGet();
-                    latch.countDown();
                 }).subscribe();
-        // deactive cursors
-        deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
 
-        // Asynchronously produce messages
-        for (int i = 0; i < numProducedMessages; i++) {
-            producer.send(new byte[byteRate / 10]);
-        }
-
-        latch.await();
-        Assert.assertEquals(totalReceived.get(), numProducedMessages);
+        Awaitility.await().atLeast(3, TimeUnit.SECONDS)
+                .atMost(5, TimeUnit.SECONDS).until(() -> totalReceived.get() > 6 && totalReceived.get() < 10);
 
         consumer.close();
         producer.close();
@@ -542,6 +530,84 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         // consumer should not have received all published message due to message-rate throttling
         Assert.assertNotEquals(totalReceived.get(), numProducedMessages);
+
+        consumer1.close();
+        consumer2.close();
+        consumer3.close();
+        consumer4.close();
+        consumer5.close();
+        producer.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test
+    public void testRateLimitingWithBatchMsgEnabled() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        conf.setDispatchThrottlingOnBatchMessageEnabled(true);
+
+        final String namespace = "my-property/throttling_ns";
+        final String topicName = "persistent://" + namespace + "/throttlingMultipleConsumers";
+
+        final int messageRate = 5;
+        DispatchRate dispatchRate = DispatchRate.builder().dispatchThrottlingRateInMsg(messageRate)
+                .dispatchThrottlingRateInByte(-1).ratePeriodInSecond(360).build();
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+        admin.namespaces().setDispatchRate(namespace, dispatchRate);
+
+        final int messagesPerBatch = 100;
+        final int numProducedMessages = messageRate * messagesPerBatch;
+        // create producer and topic
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(true)
+                .batchingMaxPublishDelay(1, TimeUnit.SECONDS).batchingMaxMessages(messagesPerBatch).create();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        boolean isMessageRateUpdate = false;
+        int retry = 5;
+        for (int i = 0; i < retry; i++) {
+            if (topic.getDispatchRateLimiter().get().getDispatchRateOnMsg() > 0) {
+                isMessageRateUpdate = true;
+                break;
+            } else {
+                if (i != retry - 1) {
+                    Thread.sleep(100);
+                }
+            }
+        }
+        Assert.assertTrue(isMessageRateUpdate);
+        Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
+
+        final AtomicInteger totalReceived = new AtomicInteger(0);
+
+        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared)
+                .messageListener((c1, msg) -> {
+                    Assert.assertNotNull(msg, "Message cannot be null");
+                    String receivedMessage = new String(msg.getData());
+                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    totalReceived.incrementAndGet();
+                });
+        Consumer<byte[]> consumer1 = consumerBuilder.subscribe();
+        Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
+        Consumer<byte[]> consumer3 = consumerBuilder.subscribe();
+        Consumer<byte[]> consumer4 = consumerBuilder.subscribe();
+        Consumer<byte[]> consumer5 = consumerBuilder.subscribe();
+
+        // deactive cursors
+        deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
+
+        // Asynchronously produce messages
+        CountDownLatch latch = new CountDownLatch(numProducedMessages);
+        for (int i = 0; i < numProducedMessages; i++) {
+            final String message = "my-message-" + i;
+            producer.sendAsync(message.getBytes()).thenAccept(__ -> latch.countDown());
+        }
+
+        latch.await();
+
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> totalReceived.get() == numProducedMessages);
+
+        // consumer should not have received all published message due to message-rate throttling
+        Assert.assertEquals(totalReceived.get(), numProducedMessages);
 
         consumer1.close();
         consumer2.close();

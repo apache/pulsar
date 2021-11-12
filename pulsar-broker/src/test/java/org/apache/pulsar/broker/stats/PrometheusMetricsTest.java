@@ -43,6 +43,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Random;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -63,10 +64,12 @@ import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.compaction.Compactor;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -1134,6 +1137,131 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         String sampleMetrics = IOUtils.toString(getClass().getClassLoader()
                 .getResourceAsStream("prometheus_metrics_sample.txt"), StandardCharsets.UTF_8);
         parseMetrics(sampleMetrics);
+    }
+
+    @Test
+    public void testCompaction() throws Exception {
+        final String topicName = "persistent://my-namespace/use/my-ns/my-compaction1";
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_compaction_removed_event_count");
+        assertEquals(cm.size(), 0);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_succeed_count");
+        assertEquals(cm.size(), 0);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_failed_count");
+        assertEquals(cm.size(), 0);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_duration_time_in_mills");
+        assertEquals(cm.size(), 0);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_read_throughput");
+        assertEquals(cm.size(), 0);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_write_throughput");
+        assertEquals(cm.size(), 0);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_compacted_entries_count");
+        assertEquals(cm.size(), 0);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_compacted_entries_size");
+        assertEquals(cm.size(), 0);
+        //
+        final int numMessages = 1000;
+        final int maxKeys = 10;
+        Random r = new Random(0);
+        for (int j = 0; j < numMessages; j++) {
+            int keyIndex = r.nextInt(maxKeys);
+            String key = "key"+keyIndex;
+            byte[] data = ("my-message-" + key + "-" + j).getBytes();
+            producer.newMessage()
+                    .key(key)
+                    .value(data)
+                    .send();
+        }
+        Compactor compactor = pulsar.getCompactor(true);
+        compactor.compact(topicName).get();
+        statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        metricsStr = statsOut.toString();
+        metrics = parseMetrics(metricsStr);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_removed_event_count");
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).value, 990);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_succeed_count");
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).value, 1);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_failed_count");
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).value, 0);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_duration_time_in_mills");
+        assertEquals(cm.size(), 1);
+        assertTrue(cm.get(0).value > 0);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_read_throughput");
+        assertEquals(cm.size(), 1);
+        assertTrue(cm.get(0).value > 0);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_write_throughput");
+        assertEquals(cm.size(), 1);
+        assertTrue(cm.get(0).value > 0);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_compacted_entries_count");
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).value, 10);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_compacted_entries_size");
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).value, 870);
+
+        pulsarClient.close();
+    }
+
+    @Test
+    public void testSplitTopicAndPartitionLabel() throws Exception {
+        String ns1 = "prop/ns-abc1";
+        String ns2 = "prop/ns-abc2";
+        admin.namespaces().createNamespace(ns1);
+        admin.namespaces().createNamespace(ns2);
+        String baseTopic1 = "persistent://" + ns1 + "/testMetricsTopicCount";
+        String baseTopic2 = "persistent://" + ns2 + "/testMetricsTopicCount";
+        for (int i = 0; i < 6; i++) {
+            admin.topics().createNonPartitionedTopic(baseTopic1 + UUID.randomUUID());
+        }
+        for (int i = 0; i < 3; i++) {
+            admin.topics().createPartitionedTopic(baseTopic2 + UUID.randomUUID(), 3);
+        }
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+                .topicsPattern("persistent://" + ns1 + "/.*")
+                .subscriptionName("sub")
+                .subscribe();
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
+                .topicsPattern("persistent://" + ns2 + "/.*")
+                .subscriptionName("sub")
+                .subscribe();
+        @Cleanup
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, true,  statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        Collection<Metric> metric = metrics.get("pulsar_consumers_count");
+        assertTrue(metric.size() >= 15);
+        metric.forEach(item -> {
+            if (ns1.equals(item.tags.get("namespace"))) {
+                assertEquals(item.tags.get("partition"), "-1");
+            }
+            if (ns2.equals(item.tags.get("namespace"))) {
+                System.out.println(item);
+                assertTrue(Integer.parseInt(item.tags.get("partition")) >= 0);
+            }
+        });
+        consumer1.close();
+        consumer2.close();
+    }
+
+    private void compareCompactionStateCount(List<Metric> cm, double count) {
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).tags.get("cluster"), "test");
+        assertEquals(cm.get(0).tags.get("broker"), "localhost");
+        assertEquals(cm.get(0).value, count);
     }
 
     /**

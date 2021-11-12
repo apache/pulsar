@@ -30,11 +30,9 @@ MultiTopicsConsumerImpl::MultiTopicsConsumerImpl(ClientImplPtr client, const std
       subscriptionName_(subscriptionName),
       topic_(topicName ? topicName->toString() : "EmptyTopics"),
       conf_(conf),
-      state_(Pending),
       messages_(conf.getReceiverQueueSize()),
       listenerExecutor_(client->getListenerExecutorProvider()->get()),
       messageListener_(conf.getMessageListener()),
-      pendingReceives_(),
       lookupServicePtr_(lookupServicePtr),
       numberTopicPartitions_(std::make_shared<std::atomic<int>>(0)),
       topics_(topics) {
@@ -83,8 +81,7 @@ void MultiTopicsConsumerImpl::start() {
 void MultiTopicsConsumerImpl::handleOneTopicSubscribed(Result result, Consumer consumer,
                                                        const std::string& topic,
                                                        std::shared_ptr<std::atomic<int>> topicsNeedCreate) {
-    int previous = topicsNeedCreate->fetch_sub(1);
-    assert(previous > 0);
+    (*topicsNeedCreate)--;
 
     if (result != ResultOk) {
         setState(Failed);
@@ -255,8 +252,7 @@ void MultiTopicsConsumerImpl::unsubscribeAsync(ResultCallback callback) {
 void MultiTopicsConsumerImpl::handleUnsubscribedAsync(Result result,
                                                       std::shared_ptr<std::atomic<int>> consumerUnsubed,
                                                       ResultCallback callback) {
-    int previous = consumerUnsubed->fetch_add(1);
-    assert(previous < numberTopicPartitions_->load());
+    (*consumerUnsubed)++;
 
     if (result != ResultOk) {
         setState(Failed);
@@ -320,8 +316,7 @@ void MultiTopicsConsumerImpl::unsubscribeOneTopicAsync(const std::string& topic,
 void MultiTopicsConsumerImpl::handleOneTopicUnsubscribedAsync(
     Result result, std::shared_ptr<std::atomic<int>> consumerUnsubed, int numberPartitions,
     TopicNamePtr topicNamePtr, std::string& topicPartitionName, ResultCallback callback) {
-    int previous = consumerUnsubed->fetch_add(1);
-    assert(previous < numberPartitions);
+    (*consumerUnsubed)++;
 
     if (result != ResultOk) {
         setState(Failed);
@@ -748,4 +743,17 @@ bool MultiTopicsConsumerImpl::isConnected() const {
         }
     }
     return true;
+}
+
+uint64_t MultiTopicsConsumerImpl::getNumberOfConnectedConsumer() {
+    Lock lock(mutex_);
+    uint64_t numberOfConnectedConsumer = 0;
+    const auto consumers = consumers_;
+    lock.unlock();
+    for (const auto& topicAndConsumer : consumers) {
+        if (topicAndConsumer.second->isConnected()) {
+            numberOfConnectedConsumer++;
+        }
+    }
+    return numberOfConnectedConsumer;
 }

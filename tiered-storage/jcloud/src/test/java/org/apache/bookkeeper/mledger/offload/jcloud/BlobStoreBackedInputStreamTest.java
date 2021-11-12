@@ -260,4 +260,27 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         toTest.seekForward(after);
         assertStreamsMatch(toTest, toCompare);
     }
+
+    @Test
+    public void testAvailable() throws IOException {
+        String objectKey = "testAvailable";
+        int objectSize = 2048;
+        RandomInputStream toWrite = new RandomInputStream(0, objectSize);
+        Payload payload = Payloads.newInputStreamPayload(toWrite);
+        payload.getContentMetadata().setContentLength((long)objectSize);
+        Blob blob = blobStore.blobBuilder(objectKey)
+            .payload(payload)
+            .contentLength(objectSize)
+            .build();
+        String ret = blobStore.putBlob(BUCKET, blob);
+        BackedInputStream bis = new BlobStoreBackedInputStreamImpl(
+            blobStore, BUCKET, objectKey, (k, md) -> {}, objectSize, 512);
+        Assert.assertEquals(bis.available(), objectSize);
+        bis.seek(500);
+        Assert.assertEquals(bis.available(), objectSize - 500);
+        bis.seek(1024);
+        Assert.assertEquals(bis.available(), 1024);
+        bis.seek(2048);
+        Assert.assertEquals(bis.available(), 0);
+    }
 }

@@ -95,7 +95,7 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
     private void init(ProducerConfigurationData conf) {
         ObjectMapper m = new ObjectMapper();
         m.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-        ObjectWriter w = m.writerWithDefaultPrettyPrinter();
+        ObjectWriter w = m.writer();
 
         try {
             log.info("Starting Pulsar producer perf with config: {}", w.writeValueAsString(conf));
@@ -111,49 +111,7 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
             }
 
             try {
-                long now = System.nanoTime();
-                double elapsed = (now - oldTime) / 1e9;
-                oldTime = now;
-
-                long currentNumMsgsSent = numMsgsSent.sumThenReset();
-                long currentNumBytesSent = numBytesSent.sumThenReset();
-                long currentNumSendFailedMsgs = numSendFailed.sumThenReset();
-                long currentNumAcksReceived = numAcksReceived.sumThenReset();
-
-                totalMsgsSent.add(currentNumMsgsSent);
-                totalBytesSent.add(currentNumBytesSent);
-                totalSendFailed.add(currentNumSendFailedMsgs);
-                totalAcksReceived.add(currentNumAcksReceived);
-
-                synchronized (ds) {
-                    latencyPctValues = ds.getQuantiles(PERCENTILES);
-                    ds.reset();
-                }
-
-                sendMsgsRate = currentNumMsgsSent / elapsed;
-                sendBytesRate = currentNumBytesSent / elapsed;
-
-                if ((currentNumMsgsSent | currentNumSendFailedMsgs | currentNumAcksReceived
-                        | currentNumMsgsSent) != 0) {
-
-                    for (int i = 0; i < latencyPctValues.length; i++) {
-                        if (Double.isNaN(latencyPctValues[i])) {
-                            latencyPctValues[i] = 0;
-                        }
-                    }
-
-                    log.info("[{}] [{}] Pending messages: {} --- Publish throughput: {} msg/s --- {} Mbit/s --- "
-                            + "Latency: med: {} ms - 95pct: {} ms - 99pct: {} ms - 99.9pct: {} ms - max: {} ms --- "
-                            + "Ack received rate: {} ack/s --- Failed messages: {}", producer.getTopic(),
-                            producer.getProducerName(), producer.getPendingQueueSize(),
-                            THROUGHPUT_FORMAT.format(sendMsgsRate),
-                            THROUGHPUT_FORMAT.format(sendBytesRate / 1024 / 1024 * 8),
-                            DEC.format(latencyPctValues[0]), DEC.format(latencyPctValues[2]),
-                            DEC.format(latencyPctValues[3]), DEC.format(latencyPctValues[4]),
-                            DEC.format(latencyPctValues[5]),
-                            THROUGHPUT_FORMAT.format(currentNumAcksReceived / elapsed), currentNumSendFailedMsgs);
-                }
-
+                updateStats();
             } catch (Exception e) {
                 log.error("[{}] [{}]: {}", producer.getTopic(), producer.getProducerName(), e.getMessage());
             } finally {
@@ -169,6 +127,51 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
 
     Timeout getStatTimeout() {
         return statTimeout;
+    }
+
+    protected void updateStats() {
+        long now = System.nanoTime();
+        double elapsed = (now - oldTime) / 1e9;
+        oldTime = now;
+
+        long currentNumMsgsSent = numMsgsSent.sumThenReset();
+        long currentNumBytesSent = numBytesSent.sumThenReset();
+        long currentNumSendFailedMsgs = numSendFailed.sumThenReset();
+        long currentNumAcksReceived = numAcksReceived.sumThenReset();
+
+        totalMsgsSent.add(currentNumMsgsSent);
+        totalBytesSent.add(currentNumBytesSent);
+        totalSendFailed.add(currentNumSendFailedMsgs);
+        totalAcksReceived.add(currentNumAcksReceived);
+
+        synchronized (ds) {
+            latencyPctValues = ds.getQuantiles(PERCENTILES);
+            ds.reset();
+        }
+
+        sendMsgsRate = currentNumMsgsSent / elapsed;
+        sendBytesRate = currentNumBytesSent / elapsed;
+
+        if ((currentNumMsgsSent | currentNumSendFailedMsgs | currentNumAcksReceived
+                | currentNumMsgsSent) != 0) {
+
+            for (int i = 0; i < latencyPctValues.length; i++) {
+                if (Double.isNaN(latencyPctValues[i])) {
+                    latencyPctValues[i] = 0;
+                }
+            }
+
+            log.info("[{}] [{}] Pending messages: {} --- Publish throughput: {} msg/s --- {} Mbit/s --- "
+                            + "Latency: med: {} ms - 95pct: {} ms - 99pct: {} ms - 99.9pct: {} ms - max: {} ms --- "
+                            + "Ack received rate: {} ack/s --- Failed messages: {}", producer.getTopic(),
+                    producer.getProducerName(), producer.getPendingQueueSize(),
+                    THROUGHPUT_FORMAT.format(sendMsgsRate),
+                    THROUGHPUT_FORMAT.format(sendBytesRate / 1024 / 1024 * 8),
+                    DEC.format(latencyPctValues[0]), DEC.format(latencyPctValues[2]),
+                    DEC.format(latencyPctValues[3]), DEC.format(latencyPctValues[4]),
+                    DEC.format(latencyPctValues[5]),
+                    THROUGHPUT_FORMAT.format(currentNumAcksReceived / elapsed), currentNumSendFailedMsgs);
+        }
     }
 
     @Override
@@ -296,7 +299,13 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
         return latencyPctValues[5];
     }
 
+    @Override
+    public int getPendingQueueSize() {
+        return producer.getPendingQueueSize();
+    }
+
     public void cancelStatsTimeout() {
+        this.updateStats();
         if (statTimeout != null) {
             statTimeout.cancel();
             statTimeout = null;

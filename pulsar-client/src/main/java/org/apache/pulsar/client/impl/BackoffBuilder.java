@@ -21,8 +21,6 @@ package org.apache.pulsar.client.impl;
 import java.time.Clock;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.annotations.VisibleForTesting;
-
 public class BackoffBuilder {
     private long initial;
     private TimeUnit unitInitial;
@@ -32,8 +30,7 @@ public class BackoffBuilder {
     private long mandatoryStop;
     private TimeUnit unitMandatoryStop;
     
-    @VisibleForTesting
-    BackoffBuilder() {
+    public BackoffBuilder() {
         this.initial = 0;
         this.max = 0;
         this.mandatoryStop = 0;

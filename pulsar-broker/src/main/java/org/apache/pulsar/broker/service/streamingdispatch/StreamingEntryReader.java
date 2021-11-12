@@ -37,7 +37,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSealedException;
+import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
 import org.apache.pulsar.client.impl.Backoff;
 
 /**
@@ -68,7 +68,7 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
     private static final AtomicReferenceFieldUpdater<StreamingEntryReader, State> STATE_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(StreamingEntryReader.class, State.class, "state");
 
-    private volatile int maxReadSizeByte;
+    private volatile long maxReadSizeByte;
 
     private final Backoff readFailureBackoff = new Backoff(10, TimeUnit.MILLISECONDS,
             1, TimeUnit.SECONDS, 0, TimeUnit.MILLISECONDS);
@@ -81,7 +81,7 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
      * @param maxReadSizeByte maximum byte will be read from ledger.
      * @param ctx Context send along with read request.
      */
-    public synchronized void asyncReadEntries(int numEntriesToRead, int maxReadSizeByte, Object ctx) {
+    public synchronized void asyncReadEntries(int numEntriesToRead, long maxReadSizeByte, Object ctx) {
         if (STATE_UPDATER.compareAndSet(this, State.Canceling, State.Canceled)) {
             internalCancelReadRequests();
         }
@@ -197,7 +197,7 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
         PositionImpl readPosition = pendingReadEntryRequest.position;
         pendingReadEntryRequest.retry++;
         long waitTimeMillis = readFailureBackoff.next();
-        if (exception.getCause() instanceof TransactionNotSealedException) {
+        if (exception.getCause() instanceof TransactionBufferException.TransactionNotSealedException) {
             waitTimeMillis = 1;
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Error reading transaction entries : {}, - Retrying to read in {} seconds",

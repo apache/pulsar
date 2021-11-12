@@ -18,20 +18,21 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.apache.pulsar.broker.web.PulsarWebResource.path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +42,7 @@ public abstract class AbstractReplicator {
     protected final String topicName;
     protected final String localCluster;
     protected final String remoteCluster;
+    protected final PulsarClientImpl replicationClient;
     protected final PulsarClientImpl client;
 
     protected volatile ProducerImpl producer;
@@ -63,18 +65,19 @@ public abstract class AbstractReplicator {
     }
 
     public AbstractReplicator(String topicName, String replicatorPrefix, String localCluster, String remoteCluster,
-                              BrokerService brokerService) throws NamingException {
-        validatePartitionedTopic(topicName, brokerService);
+                              BrokerService brokerService, PulsarClientImpl replicationClient)
+            throws PulsarServerException {
         this.brokerService = brokerService;
         this.topicName = topicName;
         this.replicatorPrefix = replicatorPrefix;
         this.localCluster = localCluster.intern();
         this.remoteCluster = remoteCluster.intern();
-        this.client = (PulsarClientImpl) brokerService.getReplicationClient(remoteCluster);
+        this.replicationClient = replicationClient;
+        this.client = (PulsarClientImpl) brokerService.pulsar().getClient();
         this.producer = null;
         this.producerQueueSize = brokerService.pulsar().getConfiguration().getReplicationProducerQueueSize();
 
-        this.producerBuilder = client.newProducer() //
+        this.producerBuilder = replicationClient.newProducer(Schema.AUTO_PRODUCE_BYTES()) //
                 .topic(topicName)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .enableBatching(false)
@@ -240,22 +243,18 @@ public abstract class AbstractReplicator {
      * @param topic
      * @param brokerService
      */
-    private void validatePartitionedTopic(String topic, BrokerService brokerService) throws NamingException {
+    public static CompletableFuture<Void> validatePartitionedTopicAsync(String topic, BrokerService brokerService) {
         TopicName topicName = TopicName.get(topic);
-        String partitionedTopicPath = path(AdminResource.PARTITIONED_TOPIC_PATH_ZNODE,
-                topicName.getNamespace(), topicName.getDomain().toString(),
-                topicName.getEncodedLocalName());
-        boolean isPartitionedTopic = false;
-        try {
-            isPartitionedTopic = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(partitionedTopicPath).isPresent();
-        } catch (Exception e) {
-            log.warn("Failed to verify partitioned topic {}-{}", topicName, e.getMessage());
-        }
-        if (isPartitionedTopic) {
-            throw new NamingException(
-                    topicName + " is a partitioned-topic and replication can't be started for partitioned-producer ");
-        }
+        return brokerService.pulsar().getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+            .partitionedTopicExistsAsync(topicName).thenCompose(isPartitionedTopic -> {
+                if (isPartitionedTopic) {
+                    String s = topicName
+                            + " is a partitioned-topic and replication can't be started for partitioned-producer ";
+                    log.error(s);
+                    return FutureUtil.failedFuture(new NamingException(s));
+                }
+                return CompletableFuture.completedFuture(null);
+            });
     }
 
     private static final Logger log = LoggerFactory.getLogger(AbstractReplicator.class);

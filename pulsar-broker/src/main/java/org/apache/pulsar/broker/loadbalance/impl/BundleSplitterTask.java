@@ -42,10 +42,8 @@ public class BundleSplitterTask implements BundleSplitStrategy {
     /**
      * Construct a BundleSplitterTask.
      *
-     * @param pulsar
-     *            Service to construct from.
      */
-    public BundleSplitterTask(final PulsarService pulsar) {
+    public BundleSplitterTask() {
         bundleCache = new HashSet<>();
     }
 
@@ -74,6 +72,10 @@ public class BundleSplitterTask implements BundleSplitStrategy {
             for (final Map.Entry<String, NamespaceBundleStats> entry : localData.getLastStats().entrySet()) {
                 final String bundle = entry.getKey();
                 final NamespaceBundleStats stats = entry.getValue();
+                if (stats.topics < 2) {
+                    log.info("The count of topics on the bundle {} is less than 2，skip split!", bundle);
+                    continue;
+                }
                 double totalMessageRate = 0;
                 double totalMessageThroughput = 0;
                 // Attempt to consider long-term message data, otherwise effectively ignore.

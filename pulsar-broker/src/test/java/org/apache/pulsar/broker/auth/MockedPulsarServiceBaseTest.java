@@ -20,12 +20,16 @@ package org.apache.pulsar.broker.auth;
 
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
+
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 
 import java.lang.reflect.Field;
 import io.netty.channel.EventLoopGroup;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
@@ -55,7 +59,6 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.tests.TestRetrySupport;
@@ -82,6 +85,8 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     protected PulsarService pulsar;
     protected PulsarAdmin admin;
     protected PulsarClient pulsarClient;
+    protected PortForwarder brokerGateway;
+    protected boolean enableBrokerGateway =  false;
     protected URL brokerUrl;
     protected URL brokerUrlTls;
 
@@ -95,6 +100,8 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     private SameThreadOrderedSafeExecutor sameThreadOrderedSafeExecutor;
     private OrderedExecutor bkExecutor;
+
+    protected boolean enableBrokerInterceptor = false;
 
     public MockedPulsarServiceBaseTest() {
         resetConfig();
@@ -114,6 +121,13 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         lookupUrl = new URI(brokerUrl.toString());
         if (isTcpLookup) {
             lookupUrl = new URI(pulsar.getBrokerServiceUrl());
+
+            // setup port forwarding from the advertised port to the listen port
+            if (enableBrokerGateway) {
+                InetSocketAddress gatewayAddress = new InetSocketAddress(lookupUrl.getHost(), lookupUrl.getPort());
+                InetSocketAddress brokerAddress = new InetSocketAddress("127.0.0.1", pulsar.getBrokerListenPort().get());
+                brokerGateway = new PortForwarder(gatewayAddress, brokerAddress);
+            }
         }
         pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
     }
@@ -191,6 +205,9 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
             pulsarClient.shutdown();
             pulsarClient = null;
         }
+        if (brokerGateway != null) {
+            brokerGateway.close();
+        }
         if (pulsar != null) {
             stopBroker();
             pulsar = null;
@@ -234,6 +251,10 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected abstract void cleanup() throws Exception;
 
+    protected void beforePulsarStartMocks(PulsarService pulsar) throws Exception {
+        // No-op
+    }
+
     protected void restartBroker() throws Exception {
         stopBroker();
         startBroker();
@@ -256,13 +277,15 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         }
         this.pulsar = startBroker(conf);
 
-        brokerUrl = new URL(pulsar.getWebServiceAddress());
-        brokerUrlTls = new URL(pulsar.getWebServiceAddressTls());
+        brokerUrl = pulsar.getWebServiceAddress() != null ? new URL(pulsar.getWebServiceAddress()) : null;
+        brokerUrlTls = pulsar.getWebServiceAddressTls() != null ? new URL(pulsar.getWebServiceAddressTls()) : null;
 
         if (admin != null) {
             admin.close();
         }
-        PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString());
+        PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(brokerUrl != null
+                ? brokerUrl.toString()
+                : brokerUrlTls.toString());
         customizeNewPulsarAdminBuilder(pulsarAdminBuilder);
         admin = spy(pulsarAdminBuilder.build());
     }
@@ -272,18 +295,22 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     protected PulsarService startBroker(ServiceConfiguration conf) throws Exception {
-
         return startBrokerWithoutAuthorization(conf);
     }
 
     protected PulsarService startBrokerWithoutAuthorization(ServiceConfiguration conf) throws Exception {
         conf.setBrokerShutdownTimeoutMs(0L);
-        PulsarService pulsar = spy(new PulsarService(conf));
+        PulsarService pulsar = spy(newPulsarService(conf));
         setupBrokerMocks(pulsar);
+        beforePulsarStartMocks(pulsar);
         pulsar.start();
         log.info("Pulsar started. brokerServiceUrl: {} webServiceAddress: {}", pulsar.getBrokerServiceUrl(),
                 pulsar.getWebServiceAddress());
         return pulsar;
+    }
+
+    protected PulsarService newPulsarService(ServiceConfiguration conf) throws Exception {
+        return new PulsarService(conf);
     }
 
     protected void setupBrokerMocks(PulsarService pulsar) throws Exception {
@@ -300,6 +327,17 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         doReturn(new CounterBrokerInterceptor()).when(pulsar).getBrokerInterceptor();
 
         doAnswer((invocation) -> spy(invocation.callRealMethod())).when(pulsar).newCompactor();
+        if (enableBrokerInterceptor) {
+            mockConfigBrokerInterceptors(pulsar);
+        }
+    }
+
+    private void mockConfigBrokerInterceptors(PulsarService pulsarService) {
+        ServiceConfiguration configuration = spy(conf);
+        Set<String> mockBrokerInterceptors = mock(Set.class);
+        when(mockBrokerInterceptors.isEmpty()).thenReturn(false);
+        when(configuration.getBrokerInterceptors()).thenReturn(mockBrokerInterceptors);
+        when(pulsarService.getConfig()).thenReturn(configuration);
     }
 
     protected void waitForZooKeeperWatchers() {
@@ -439,6 +477,8 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         configuration.setWebServicePortTls(Optional.of(0));
         configuration.setBookkeeperClientExposeStatsToPrometheus(true);
         configuration.setNumExecutorThreadPoolSize(5);
+        configuration.setBrokerMaxConnections(0);
+        configuration.setBrokerMaxConnectionsPerIp(0);
         return configuration;
     }
 

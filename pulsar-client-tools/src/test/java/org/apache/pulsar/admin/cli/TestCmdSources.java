@@ -261,7 +261,7 @@ public class TestCmdSources {
         );
     }
 
-    public void testCmdSourceCliMissingArgs(
+    private void testCmdSourceCliMissingArgs(
             String tenant,
             String namespace,
             String name,
@@ -426,36 +426,6 @@ public class TestCmdSources {
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
     
-    /*
-     * Test where the class name does not implement the BatchSourceTriggerer interface
-     */
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Invalid Discovery Triggerer specified")
-    public void testBatchSourceConfigInvalidDiscoveryTriggererClassName() throws Exception {
-    	SourceConfig testSourceConfig = getSourceConfig();
-    	BatchSourceConfig batchSourceConfig = getBatchSourceConfig();
-    	batchSourceConfig.setDiscoveryTriggererClassName("java.lang.String");
-    	testSourceConfig.setBatchSourceConfig(batchSourceConfig);
-    	
-    	SourceConfig expectedSourceConfig = getSourceConfig();
-        expectedSourceConfig.setBatchSourceConfig(batchSourceConfig);
-        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
-    }
-    
-    /*
-     * Test where the class name provided doesn't exist
-     */
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Invalid Discovery Triggerer specified")
-    public void testBatchSourceConfigDiscoveryTriggererClassNotFound() throws Exception {
-    	SourceConfig testSourceConfig = getSourceConfig();
-    	BatchSourceConfig batchSourceConfig = getBatchSourceConfig();
-    	batchSourceConfig.setDiscoveryTriggererClassName("com.foo.Bar");
-    	testSourceConfig.setBatchSourceConfig(batchSourceConfig);
-    	
-    	SourceConfig expectedSourceConfig = getSourceConfig();
-        expectedSourceConfig.setBatchSourceConfig(batchSourceConfig);
-        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
-    }
-    
     public void testCmdSourceConfigFile(SourceConfig testSourceConfig, SourceConfig expectedSourceConfig) throws Exception {
 
         File file = Files.createTempFile("", "").toFile();
@@ -530,7 +500,7 @@ public class TestCmdSources {
         );
     }
 
-    public void testMixCliAndConfigFile(
+    private void testMixCliAndConfigFile(
             String tenant,
             String namespace,
             String name,

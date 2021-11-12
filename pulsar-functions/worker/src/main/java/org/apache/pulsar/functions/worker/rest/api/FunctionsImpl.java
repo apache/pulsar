@@ -32,7 +32,6 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -64,7 +63,6 @@ import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.service.api.Functions;
-import org.apache.pulsar.packages.management.core.common.PackageType;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
 @Slf4j
@@ -154,7 +152,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             // validate parameters
             try {
                 if (isPkgUrlProvided) {
-                    if (hasPackageTypePrefix(functionPkgUrl)) {
+                    if (Utils.hasPackageTypePrefix(functionPkgUrl)) {
                         componentPackageFile = downloadPackageFile(functionPkgUrl);
                     } else {
                         if (!Utils.isFunctionPackageUrlSupported(functionPkgUrl)) {
@@ -323,7 +321,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             // validate parameters
             try {
                 if (isNotBlank(functionPkgUrl)) {
-                    if (hasPackageTypePrefix(functionPkgUrl)) {
+                    if (Utils.hasPackageTypePrefix(functionPkgUrl)) {
                         componentPackageFile = downloadPackageFile(functionName);
                     } else {
                         try {
@@ -757,10 +755,6 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         }
         return FunctionConfigUtils.convert(functionConfig, clsLoader);
 
-    }
-
-    private static boolean hasPackageTypePrefix(String destPkgUrl) {
-        return Arrays.stream(PackageType.values()).anyMatch(type -> destPkgUrl.startsWith(type.toString()));
     }
 
     private File downloadPackageFile(String packageName) throws IOException, PulsarAdminException {

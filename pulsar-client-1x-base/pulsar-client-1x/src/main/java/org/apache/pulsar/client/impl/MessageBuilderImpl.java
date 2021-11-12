@@ -29,7 +29,6 @@ import java.util.Map;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 
 @SuppressWarnings("deprecation")
@@ -40,7 +39,7 @@ public class MessageBuilderImpl implements MessageBuilder {
 
     @Override
     public Message<byte[]> build() {
-        return MessageImpl.create(msgMetadataBuilder, content, Schema.BYTES);
+        return MessageImpl.create(msgMetadataBuilder, content, Schema.BYTES, null);
     }
 
     @Override

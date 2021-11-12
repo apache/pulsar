@@ -26,8 +26,8 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import java.io.FileInputStream;
-import java.lang.management.BufferPoolMXBean;
-import java.lang.management.ManagementFactory;
+import java.io.FileOutputStream;
+import java.io.PrintStream;
 import java.nio.ByteBuffer;
 import java.text.DecimalFormat;
 import java.util.Collections;
@@ -38,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 
 import org.HdrHistogram.Histogram;
+import org.HdrHistogram.HistogramLogWriter;
 import org.HdrHistogram.Recorder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
@@ -48,7 +49,6 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.stats.JvmMetrics;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,17 +82,17 @@ public class PerformanceConsumer {
         @Parameter(description = "persistent://prop/ns/my-topic", required = true)
         public List<String> topic;
 
-        @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics")
+        @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics", validateWith = PositiveNumberParameterValidator.class)
         public int numTopics = 1;
 
-        @Parameter(names = { "-n", "--num-consumers" }, description = "Number of consumers (per subscription), only one consumer is allowed when subscriptionType is Exclusive")
+        @Parameter(names = { "-n", "--num-consumers" }, description = "Number of consumers (per subscription), only one consumer is allowed when subscriptionType is Exclusive", validateWith = PositiveNumberParameterValidator.class)
         public int numConsumers = 1;
 
-        @Parameter(names = { "-ns", "--num-subscriptions" }, description = "Number of subscriptions (per topic)")
+        @Parameter(names = { "-ns", "--num-subscriptions" }, description = "Number of subscriptions (per topic)", validateWith = PositiveNumberParameterValidator.class)
         public int numSubscriptions = 1;
 
-        @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix")
-        public String subscriberName = "sub";
+        @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix", hidden = true)
+        public String subscriberName;
 
         @Parameter(names = { "-ss", "--subscriptions" }, description = "A list of subscriptions to consume on (e.g. sub1,sub2)")
         public List<String> subscriptions = Collections.singletonList("sub");
@@ -118,6 +118,10 @@ public class PerformanceConsumer {
         @Parameter(names = { "--acks-delay-millis" }, description = "Acknowledgements grouping delay in millis")
         public int acknowledgmentsGroupingDelayMillis = 100;
 
+        @Parameter(names = {"-m",
+                "--num-messages"}, description = "Number of messages to consume in total. If <= 0, it will keep consuming")
+        public long numMessages = 0;
+
         @Parameter(names = { "-c",
                 "--max-connections" }, description = "Max number of TCP connections to a single broker")
         public int maxConnections = 100;
@@ -129,7 +133,10 @@ public class PerformanceConsumer {
         @Parameter(names = { "-u", "--service-url" }, description = "Pulsar Service URL")
         public String serviceURL;
 
-        @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name")
+        @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name", hidden = true)
+        public String deprecatedAuthPluginClassName;
+
+        @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name")
         public String authPluginClassName;
 
         @Parameter(names = { "--listener-name" }, description = "Listener name for the broker.")
@@ -166,21 +173,24 @@ public class PerformanceConsumer {
         public String encKeyFile = null;
 
         @Parameter(names = { "-time",
-                "--test-duration" }, description = "Test duration in secs. If 0, it will keep consuming")
+                "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep consuming")
         public long testTime = 0;
 
         @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be " +
                 "used for handling connections to brokers, default is 1 thread")
         public int ioThreads = 1;
-    
+
         @Parameter(names = {"--batch-index-ack" }, description = "Enable or disable the batch index acknowledgment")
         public boolean batchIndexAck = false;
 
-        @Parameter(names = { "-pm", "--pool-messages" }, description = "Use the pooled message")
+        @Parameter(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = 1)
         private boolean poolMessages = true;
 
         @Parameter(names = {"-bw", "--busy-wait"}, description = "Enable Busy-Wait on the Pulsar client")
         public boolean enableBusyWait = false;
+
+        @Parameter(names = { "--histogram-file" }, description = "HdrHistogram output file")
+        public String histogramFile = null;
     }
 
     public static void main(String[] args) throws Exception {
@@ -201,10 +211,14 @@ public class PerformanceConsumer {
             PerfClientUtils.exit(-1);
         }
 
+        if (isBlank(arguments.authPluginClassName) && !isBlank(arguments.deprecatedAuthPluginClassName)) {
+            arguments.authPluginClassName = arguments.deprecatedAuthPluginClassName;
+        }
+
         if (arguments.topic != null && arguments.topic.size() != arguments.numTopics) {
             // keep compatibility with the previous version
             if (arguments.topic.size() == 1) {
-                String prefixTopicName = TopicName.get(arguments.topic.get(0)).toString();
+                String prefixTopicName = TopicName.get(arguments.topic.get(0)).toString().trim();
                 List<String> defaultTopics = Lists.newArrayList();
                 for (int i = 0; i < arguments.numTopics; i++) {
                     defaultTopics.add(String.format("%s-%d", prefixTopicName, i));
@@ -223,18 +237,19 @@ public class PerformanceConsumer {
             PerfClientUtils.exit(-1);
         }
 
-        if (arguments.subscriptionType != SubscriptionType.Exclusive &&
-                arguments.subscriptions != null &&
-                arguments.subscriptions.size() != arguments.numConsumers) {
+        if (arguments.subscriptions != null && arguments.subscriptions.size() != arguments.numSubscriptions) {
             // keep compatibility with the previous version
             if (arguments.subscriptions.size() == 1) {
+                if (arguments.subscriberName == null) {
+                    arguments.subscriberName = arguments.subscriptions.get(0);
+                }
                 List<String> defaultSubscriptions = Lists.newArrayList();
                 for (int i = 0; i < arguments.numSubscriptions; i++) {
                     defaultSubscriptions.add(String.format("%s-%d", arguments.subscriberName, i));
                 }
                 arguments.subscriptions = defaultSubscriptions;
             } else {
-                System.out.println("The size of subscriptions list should be equal to --num-consumers when subscriptionType isn't Exclusive");
+                System.out.println("The size of subscriptions list should be equal to --num-subscriptions");
                 jc.usage();
                 PerfClientUtils.exit(-1);
             }
@@ -287,10 +302,15 @@ public class PerformanceConsumer {
         MessageListener<ByteBuffer> listener = (consumer, msg) -> {
             if (arguments.testTime > 0) {
                 if (System.nanoTime() > testEndTime) {
-                    log.info("------------------- DONE -----------------------");
+                    log.info("------------- DONE (reached the maximum duration: [{} seconds] of consumption) --------------", arguments.testTime);
                     printAggregatedStats();
                     PerfClientUtils.exit(0);
                 }
+            }
+            if (arguments.numMessages > 0 && totalMessagesReceived.sum() >= arguments.numMessages) {
+                log.info("------------- DONE (reached the maximum number: [{}] of consumption) --------------", arguments.numMessages);
+                printAggregatedStats();
+                PerfClientUtils.exit(0);
             }
             messagesReceived.increment();
             bytesReceived.add(msg.size());
@@ -392,7 +412,19 @@ public class PerformanceConsumer {
         long oldTime = System.nanoTime();
 
         Histogram reportHistogram = null;
+        HistogramLogWriter histogramLogWriter = null;
 
+        if (arguments.histogramFile != null) {
+            String statsFileName = arguments.histogramFile;
+            log.info("Dumping latency stats to {}", statsFileName);
+
+            PrintStream histogramLog = new PrintStream(new FileOutputStream(statsFileName), false);
+            histogramLogWriter = new HistogramLogWriter(histogramLog);
+
+            // Some log header bits
+            histogramLogWriter.outputLogFormatVersion();
+            histogramLogWriter.outputLegend();
+        }
 
         while (true) {
             try {
@@ -416,6 +448,10 @@ public class PerformanceConsumer {
                     reportHistogram.getValueAtPercentile(50), reportHistogram.getValueAtPercentile(95),
                     reportHistogram.getValueAtPercentile(99), reportHistogram.getValueAtPercentile(99.9),
                     reportHistogram.getValueAtPercentile(99.99), reportHistogram.getMaxValue());
+
+            if (histogramLogWriter != null) {
+                histogramLogWriter.outputIntervalHistogram(reportHistogram);
+            }
 
             reportHistogram.reset();
             oldTime = now;

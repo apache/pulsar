@@ -45,6 +45,7 @@ class ProducerImplBase {
     virtual void triggerFlush() = 0;
     virtual void flushAsync(FlushCallback callback) = 0;
     virtual bool isConnected() const = 0;
+    virtual uint64_t getNumberOfConnectedProducer() = 0;
 };
 }  // namespace pulsar
 #endif  // PULSAR_PRODUCER_IMPL_BASE_HEADER

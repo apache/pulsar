@@ -71,7 +71,8 @@ public class JvmMetrics {
         JvmGCMetricsLogger gcLoggerImpl = null;
         if (StringUtils.isNotBlank(gcLoggerImplClassName)) {
             try {
-                gcLoggerImpl = (JvmGCMetricsLogger) Class.forName(gcLoggerImplClassName).newInstance();
+                gcLoggerImpl = (JvmGCMetricsLogger) Class.forName(gcLoggerImplClassName)
+                        .getDeclaredConstructor().newInstance();
             } catch (Exception e) {
                 log.error("Failed to initialize jvmGCMetricsLogger {} due to {}", jvmGCMetricsLoggerClassName,
                         e.getMessage(), e);

@@ -32,7 +32,7 @@ After the command is executed, the test data is continuously output on the Conso
 19:54:44.336 [Thread-1] INFO  org.apache.pulsar.testclient.PerformanceProducer - Aggregated latency stats --- Latency: mean:   3.383 ms - med:   3.293 - 95pct:   4.610 - 99pct:   5.059 - 99.9pct:   5.588 - 99.99pct:   5.837 - 99.999pct:   6.609 - Max:   6.609
 ```
 
-From the above test data, you can get the throughput statistics and the write latency statistics. The aggregated statistics is printed when the Pulsar Perf is stopped. You can press **Ctrl**+**C** to stop the Pulsar Perf. After the Pulsar Perf is stopped, the [HdrHistogram](http://hdrhistogram.github.io/HdrHistogram/) formatted test result appears under your directory. The document looks like `perf-producer-1589370810837.hgrm`. You can also check the test result through [HdrHistogram Plotter](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html). For details about how to check the test result through [HdrHistogram Plotter](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html), see [HdrHistogram Plotter](#hdrhistogram-plotter).
+From the above test data, you can get the throughput statistics and the write latency statistics. The aggregated statistics is printed when the Pulsar Perf is stopped. You can press **Ctrl**+**C** to stop the Pulsar Perf. If you specify a filename with the `--histogram-file` parameter, a file with the [HdrHistogram](http://hdrhistogram.github.io/HdrHistogram/) formatted test result appears under your directory after Pulsar Perf is stopped. You can also check the test result through [HdrHistogram Plotter](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html). For details about how to check the test result through [HdrHistogram Plotter](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html), see [HdrHistogram Plotter](#hdrhistogram-plotter).
 
 ### Configuration options for `pulsar-perf produce`
 
@@ -42,34 +42,49 @@ The following table lists configuration options available for the `pulsar-perf p
 
 | Option | Description | Default value|
 |----|----|----|
+| access-mode | Set the producer access mode. Valid values are `Shared`, `Exclusive` and `WaitForExclusive`. | Shared |
+| admin-url | Set the Pulsar admin URL. | N/A |
 | auth-params | Set the authentication parameters, whose format is determined by the implementation of the `configure` method in the authentication plugin class, such as "key1:val1,key2:val2" or "{"key1":"val1","key2":"val2"}". | N/A |
-| auth_plugin | Set the authentication plugin class name. | N/A |
+| auth-plugin | Set the authentication plugin class name. | N/A |
+| listener-name | Set the listener name for the broker. | N/A |
 | batch-max-bytes | Set the maximum number of bytes for each batch. | 4194304 |
 | batch-max-messages | Set the maximum number of messages for each batch. | 1000 |
 | batch-time-window | Set a window for a batch of messages. | 1 ms |
+| busy-wait | Enable or disable Busy-Wait on the Pulsar client. | false |
+| chunking | Configure whether to split the message and publish in chunks if message size is larger than allowed max size. | false |
 | compression | Compress the message payload. | N/A |
 | conf-file | Set the configuration file. | N/A |
 | delay | Mark messages with a given delay. | 0s |
 | encryption-key-name | Set the name of the public key used to encrypt the payload. | N/A |
 | encryption-key-value-file | Set the file which contains the public key used to encrypt the payload. | N/A |
 | exit-on-failure | Configure whether to exit from the process on publish failure. | false |
+| format-class | Set the custom formatter class name. | org.apache.pulsar.testclient.DefaultMessageFormatter |
+| format-payload | Configure whether to format %i as a message index in the stream from producer and/or %t as the timestamp nanoseconds. | false |
 | help | Configure the help message. | false |
+| histogram-file | HdrHistogram output file | N/A |
 | max-connections | Set the maximum number of TCP connections to a single broker. | 100 |
 | max-outstanding | Set the maximum number of outstanding messages. | 1000 |
 | max-outstanding-across-partitions | Set the maximum number of outstanding messages across partitions. | 50000 |
+| message-key-generation-mode | Set the generation mode of message key. Valid options are `autoIncrement`, `random`. | N/A |
+| num-io-threads | Set the number of threads to be used for handling connections to brokers. | 1 |
 | num-messages | Set the number of messages to be published in total. If it is set to 0, it keeps publishing messages. | 0 |
 | num-producers | Set the number of producers for each topic. | 1 |
 | num-test-threads |  Set the number of test threads. | 1 |
 | num-topic | Set the number of topics. | 1 |
+| partitions | Configure whether to create partitioned topics with the given number of partitions. | N/A |
 | payload-delimiter | Set the delimiter used to split lines when using payload from a file. | \n |
 | payload-file | Use the payload from an UTF-8 encoded text file and a payload is randomly selected when messages are published. | N/A |
+| producer-name | Set the producer name. | N/A |
 | rate | Set the publish rate of messages across topics. | 100 |
+| send-timeout | Set the sendTimeout. | 0 |
+| separator | Set the separator between the topic and topic number. | - |
 | service-url | Set the Pulsar service URL. | |
 | size | Set the message size. | 1024 bytes |
 | stats-interval-seconds | Set the statistics interval. If it is set to 0, statistics is disabled. | 0 |
 | test-duration | Set the test duration. If it is set to 0, it keeps publishing tests. | 0s |
 | trust-cert-file | Set the path for the trusted TLS certificate file. | <empty string> |
 | warmup-time | Set the warm-up time. | 1s |
+| tls-allow-insecure | Set the allowed insecure TLS connection. | N/A |
 
 ## Consume messages
 
@@ -108,23 +123,36 @@ The following table lists configuration options available for the `pulsar-perf c
 |----|----|----|
 | acks-delay-millis | Set the acknowledgment grouping delay in milliseconds. | 100 ms |
 | auth-params | Set the authentication parameters, whose format is determined by the implementation of the `configure` method in the authentication plugin class, such as "key1:val1,key2:val2" or "{"key1":"val1","key2":"val2"}". | N/A |
-| auth_plugin | Set the authentication plugin class name. | N/A |
+| auth-plugin | Set the authentication plugin class name. | N/A |
+| auto_ack_chunk_q_full | Configure whether to automatically ack for the oldest message in receiver queue if the queue is full. | false |
+| listener-name | Set the listener name for the broker. | N/A |
+| batch-index-ack | Enable or disable the batch index acknowledgment. | false |
+| busy-wait | Enable or disable Busy-Wait on the Pulsar client. | false |
 | conf-file | Set the configuration file. | N/A |
 | encryption-key-name | Set the name of the public key used to encrypt the payload. | N/A |
 | encryption-key-value-file | Set the file which contains the public key used to encrypt the payload. | N/A |
 | help | Configure the help message. | false |
+| histogram-file | HdrHistogram output file | N/A |
+| expire_time_incomplete_chunked_messages | Set the expiration time for incomplete chunk messages (in milliseconds). | 0 |
 | max-connections | Set the maximum number of TCP connections to a single broker. | 100 |
+| max_chunked_msg | Set the max pending chunk messages. | 0 |
 | num-consumers | Set the number of consumers for each topic. | 1 |
+| num-io-threads |Set the number of threads to be used for handling connections to brokers. | 1 |
+| num-subscriptions | Set the number of subscriptions (per topic). | 1 |
 | num-topic | Set the number of topics. | 1 |
+| pool-messages | Configure whether to use the pooled message. | true |
 | rate | Simulate a slow message consumer (rate in msg/s). | 0.0 |
 | receiver-queue-size | Set the size of the receiver queue. | 1000 |
+| receiver-queue-size-across-partitions | Set the max total size of the receiver queue across partitions. | 50000 |
 | replicated | Configure whether the subscription status should be replicated. | false |
 | service-url | Set the Pulsar service URL. | |
 | stats-interval-seconds | Set the statistics interval. If it is set to 0, statistics is disabled. | 0 |
-| subscriber-name | Set the subscriber name prefix. | sub |
+| subscriber-name | Set the subscriber name prefix. |  |
+| subscription-position | Set the subscription position. Valid values are `Latest`, `Earliest`.| Latest |
 | subscription-type | Set the subscription type. <li> Exclusive <li> Shared <li> Failover <li> Key_Shared | Exclusive |
+| test-duration | Set the test duration (in seconds). If the value is 0 or smaller than 0, it keeps consuming messages. | 0 |
+| tls-allow-insecure | Set the allowed insecure TLS connection. | N/A |
 | trust-cert-file | Set the path for the trusted TLS certificate file. | <empty string> |
-| batch-index-ack | Enable or disable the batch index acknowledgment. | false |
 
 ## Configurations
 

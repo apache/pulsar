@@ -50,7 +50,6 @@ import io.prestosql.spi.type.RealType;
 import io.prestosql.spi.type.RowType;
 import io.prestosql.spi.type.RowType.Field;
 import io.prestosql.spi.type.SmallintType;
-import io.prestosql.spi.type.TimestampType;
 import io.prestosql.spi.type.TinyintType;
 import io.prestosql.spi.type.Type;
 import io.prestosql.spi.type.VarbinaryType;

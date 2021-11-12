@@ -47,26 +47,21 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
       subscription_(subscriptionName),
       originalSubscriptionName_(subscriptionName),
       messageListener_(config_.getMessageListener()),
+      eventListener_(config_.getConsumerEventListener()),
       hasParent_(hasParent),
       consumerTopicType_(consumerTopicType),
       subscriptionMode_(subscriptionMode),
       startMessageId_(startMessageId),
       // This is the initial capacity of the queue
       incomingMessages_(std::max(config_.getReceiverQueueSize(), 1)),
-      pendingReceives_(),
       availablePermits_(0),
       receiverQueueRefillThreshold_(config_.getReceiverQueueSize() / 2),
       consumerId_(client->newConsumerId()),
       consumerName_(config_.getConsumerName()),
-      partitionIndex_(-1),
-      consumerCreatedPromise_(),
       messageListenerRunning_(true),
       batchAcknowledgementTracker_(topic_, subscriptionName, (long)consumerId_),
-      brokerConsumerStats_(),
-      consumerStatsBasePtr_(),
       negativeAcksTracker_(client, *this, conf),
       ackGroupingTrackerPtr_(std::make_shared<AckGroupingTracker>()),
-      msgCrypto_(),
       readCompacted_(conf.isReadCompacted()),
       lastMessageInBroker_(Optional<MessageId>::of(MessageId())) {
     std::stringstream consumerStrStream;
@@ -170,6 +165,10 @@ void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
         return;
     }
 
+    // Register consumer so that we can handle other incomming commands (e.g. ACTIVE_CONSUMER_CHANGE) after
+    // sending the subscribe request.
+    cnx->registerConsumer(consumerId_, shared_from_this());
+
     Optional<MessageId> firstMessageInQueue = clearReceiveQueue();
     unAckedMessageTrackerPtr_->clear();
     batchAcknowledgementTracker_.clear();
@@ -187,7 +186,8 @@ void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
     SharedBuffer cmd = Commands::newSubscribe(
         topic_, subscription_, consumerId_, requestId, getSubType(), consumerName_, subscriptionMode_,
         startMessageId_, readCompacted_, config_.getProperties(), config_.getSchema(), getInitialPosition(),
-        config_.isReplicateSubscriptionStateEnabled(), config_.getKeySharedPolicy());
+        config_.isReplicateSubscriptionStateEnabled(), config_.getKeySharedPolicy(),
+        config_.getPriorityLevel());
     cnx->sendRequestWithId(cmd, requestId)
         .addListener(
             std::bind(&ConsumerImpl::handleCreateConsumer, shared_from_this(), cnx, std::placeholders::_1));
@@ -222,7 +222,6 @@ void ConsumerImpl::handleCreateConsumer(const ClientConnectionPtr& cnx, Result r
             Lock lock(mutex_);
             connection_ = cnx;
             incomingMessages_.clear();
-            cnx->registerConsumer(consumerId_, shared_from_this());
             state_ = Ready;
             backoff_.reset();
             // Complicated logic since we don't have a isLocked() function for mutex
@@ -391,6 +390,25 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
         while (numOfMessageReceived--) {
             listenerExecutor_->postWork(std::bind(&ConsumerImpl::internalListener, shared_from_this()));
         }
+    }
+}
+
+void ConsumerImpl::activeConsumerChanged(bool isActive) {
+    if (eventListener_) {
+        listenerExecutor_->postWork(
+            std::bind(&ConsumerImpl::internalConsumerChangeListener, shared_from_this(), isActive));
+    }
+}
+
+void ConsumerImpl::internalConsumerChangeListener(bool isActive) {
+    try {
+        if (isActive) {
+            eventListener_->becameActive(Consumer(shared_from_this()), partitionIndex_);
+        } else {
+            eventListener_->becameInactive(Consumer(shared_from_this()), partitionIndex_);
+        }
+    } catch (const std::exception& e) {
+        LOG_ERROR(getName() << "Exception thrown from event listener " << e.what());
     }
 }
 
@@ -774,6 +792,7 @@ inline proto::CommandSubscribe_SubType ConsumerImpl::getSubType() {
         case ConsumerKeyShared:
             return proto::CommandSubscribe_SubType_Key_Shared;
     }
+    BOOST_THROW_EXCEPTION(std::logic_error("Invalid ConsumerType enumeration value"));
 }
 
 inline proto::CommandSubscribe_InitialPosition ConsumerImpl::getInitialPosition() {
@@ -785,6 +804,7 @@ inline proto::CommandSubscribe_InitialPosition ConsumerImpl::getInitialPosition(
         case InitialPositionEarliest:
             return proto::CommandSubscribe_InitialPosition::CommandSubscribe_InitialPosition_Earliest;
     }
+    BOOST_THROW_EXCEPTION(std::logic_error("Invalid InitialPosition enumeration value"));
 }
 
 void ConsumerImpl::statsCallback(Result res, ResultCallback callback, proto::CommandAck_AckType ackType) {
@@ -1156,7 +1176,7 @@ void ConsumerImpl::hasMessageAvailableAsync(HasMessageAvailableCallback callback
         return;
     }
 
-    getLastMessageIdAsync([this, lastDequed, callback](Result result, MessageId messageId) {
+    getLastMessageIdAsync([lastDequed, callback](Result result, MessageId messageId) {
         if (result == ResultOk) {
             if (messageId > lastDequed && messageId.entryId() != -1) {
                 callback(ResultOk, true);
@@ -1232,5 +1252,7 @@ bool ConsumerImpl::isConnected() const {
     Lock lock(mutex_);
     return !getCnx().expired() && state_ == Ready;
 }
+
+uint64_t ConsumerImpl::getNumberOfConnectedConsumer() { return isConnected() ? 1 : 0; }
 
 } /* namespace pulsar */

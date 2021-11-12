@@ -24,29 +24,30 @@ The following types of metrics are available:
 
 - [Counter](https://prometheus.io/docs/concepts/metric_types/#counter): a cumulative metric that represents a single monotonically increasing counter. The value increases by default. You can reset the value to zero or restart your cluster.
 - [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge): a metric that represents a single numerical value that can arbitrarily go up and down.
-- [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram): a histogram samples observations (usually things like request durations or response sizes) and counts them in configurable buckets.
+- [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram): a histogram samples observations (usually things like request durations or response sizes) and counts them in configurable buckets. The `_bucket` suffix is the number of observations within a histogram bucket, configured with parameter `{le="<upper inclusive bound>"}`. The `_count` suffix is the number of observations, shown as a time series and behaves like a counter. The `_sum` suffix is the sum of observed values, also shown as a time series and behaves like a counter. These suffixes are together denoted by `_*` in this doc.
 - [Summary](https://prometheus.io/docs/concepts/metric_types/#summary): similar to a histogram, a summary samples observations (usually things like request durations and response sizes). While it also provides a total count of observations and a sum of all observed values, it calculates configurable quantiles over a sliding time window.
 
 ## ZooKeeper
 
-The ZooKeeper metrics are exposed under "/metrics" at port `8000`. You can use a different port by configuring the `metricsProvider.httpPort` in conf/zookeeper.conf. 
+The ZooKeeper metrics are exposed under "/metrics" at port `8000`. You can use a different port by configuring the `metricsProvider.httpPort` in conf/zookeeper.conf.
 
 ### Server metrics
 
 | Name | Type | Description |
 |---|---|---|
-| zookeeper_server_znode_count | Gauge | The number of z-nodes stored. |
-| zookeeper_server_data_size_bytes | Gauge | The total size of all of z-nodes stored. |
-| zookeeper_server_connections | Gauge | The number of currently opened connections. |
-| zookeeper_server_watches_count | Gauge | The number of watchers registered. |
-| zookeeper_server_ephemerals_count | Gauge | The number of ephemeral z-nodes. |
+| znode_count | Gauge | The number of z-nodes stored. |
+| approximate_data_size | Gauge | The approximate size of all of z-nodes stored. |
+| num_alive_connections | Gauge | The number of currently lived connections. |
+| watch_count | Gauge | The number of watchers registered. |
+| ephemerals_count | Gauge | The number of ephemeral z-nodes. |
 
 ### Request metrics
 
 | Name | Type | Description |
 |---|---|---|
-| zookeeper_server_requests | Counter | The total number of requests received by a particular server. |
-| zookeeper_server_requests_latency_ms | Summary | The requests latency calculated in milliseconds. <br> Available labels: *type* (write, read). <br> <ul><li>*write*: the requests that write data to ZooKeeper.</li><li>*read*: the requests that read data from ZooKeeper.</li></ul>|
+| request_commit_queued | Counter | The total number of requests already committed by a particular server. |
+| updatelatency | Summary | The update requests latency calculated in milliseconds. |
+| readlatency | Summary | The read requests latency calculated in milliseconds. |
 
 ## BookKeeper
 
@@ -62,8 +63,8 @@ in the `bookkeeper.conf` configuration file.
 | bookkeeper_server_READ_ENTRY_count | Counter | The total number of READ_ENTRY requests received at the bookie. The `success` label is used to distinguish successes and failures. |
 | bookie_WRITE_BYTES | Counter | The total number of bytes written to the bookie. |
 | bookie_READ_BYTES | Counter | The total number of bytes read from the bookie. |
-| bookkeeper_server_ADD_ENTRY_REQUEST | Summary | The summary of request latency of ADD_ENTRY requests at the bookie. The `success` label is used to distinguish successes and failures. | 
-| bookkeeper_server_READ_ENTRY_REQUEST | Summary | The summary of request latency of READ_ENTRY requests at the bookie. The `success` label is used to distinguish successes and failures. | 
+| bookkeeper_server_ADD_ENTRY_REQUEST | Summary | The summary of request latency of ADD_ENTRY requests at the bookie. The `success` label is used to distinguish successes and failures. |
+| bookkeeper_server_READ_ENTRY_REQUEST | Summary | The summary of request latency of READ_ENTRY requests at the bookie. The `success` label is used to distinguish successes and failures. |
 
 ### Journal metrics
 
@@ -119,6 +120,7 @@ The following metrics are available for broker:
   - [Token metrics](#token-metrics)
   - [Authentication metrics](#authentication-metrics)
   - [Connection metrics](#connection-metrics)
+  - [Jetty metrics](#jetty-metrics)
 - [Pulsar Functions](#pulsar-functions)
 - [Proxy](#proxy)
 - [Pulsar SQL Worker](#pulsar-sql-worker)
@@ -144,6 +146,7 @@ All the namespace metrics are labelled with the following labels:
 | pulsar_throughput_in | Gauge | The total throughput of the namespace coming into this broker (bytes/second). |
 | pulsar_throughput_out | Gauge | The total throughput of the namespace going out from this broker (bytes/second). |
 | pulsar_storage_size | Gauge | The total storage size of the topics in this namespace owned by this broker (bytes). |
+| pulsar_storage_logical_size | Gauge | The storage size of topics in the namespace owned by the broker without replicas (in bytes). |
 | pulsar_storage_backlog_size | Gauge | The total backlog size of the topics of this namespace owned by this broker (messages). |
 | pulsar_storage_offloaded_size | Gauge | The total amount of the data in this namespace offloaded to the tiered storage (bytes). |
 | pulsar_storage_write_rate | Gauge | The total message batches (entries) written to the storage for this namespace (message batches / second). |
@@ -165,6 +168,10 @@ All the replication metrics are also labelled with `remoteCluster=${pulsar_remot
 | pulsar_replication_throughput_in | Gauge | The total throughput of the namespace replicating from remote cluster (bytes/second). |
 | pulsar_replication_throughput_out | Gauge | The total throughput of the namespace replicating to remote cluster (bytes/second). |
 | pulsar_replication_backlog | Gauge | The total backlog of the namespace replicating to remote cluster (messages). |
+| pulsar_replication_rate_expired | Gauge | Total rate of messages expired (messages/second). |
+| pulsar_replication_connected_count | Gauge | The count of replication-subscriber up and running to replicate to remote cluster. |
+| pulsar_replication_delay_in_seconds | Gauge | Time in seconds from the time a message was produced to the time when it is about to be replicated. |
+
 
 ### Topic metrics
 
@@ -186,6 +193,7 @@ All the topic metrics are labelled with the following labels:
 | pulsar_throughput_in | Gauge | The total throughput of the topic coming into this broker (bytes/second). |
 | pulsar_throughput_out | Gauge | The total throughput of the topic going out from this broker (bytes/second). |
 | pulsar_storage_size | Gauge | The total storage size of the topics in this topic owned by this broker (bytes). |
+| pulsar_storage_logical_size | Gauge | The storage size of topics in the namespace owned by the broker without replicas (in bytes). |
 | pulsar_storage_backlog_size | Gauge | The total backlog size of the topics of this topic owned by this broker (messages). |
 | pulsar_storage_offloaded_size | Gauge | The total amount of the data in this topic offloaded to the tiered storage (bytes). |
 | pulsar_storage_backlog_quota_limit | Gauge | The total amount of the data in this topic that limit the backlog quota (bytes). |
@@ -194,10 +202,19 @@ All the topic metrics are labelled with the following labels:
 | pulsar_subscription_delayed | Gauge | The total message batches (entries) are delayed for dispatching. |
 | pulsar_storage_write_latency_le_* | Histogram | The entry rate of a topic that the storage write latency is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_storage_write_latency_le_0_5: <= 0.5ms </li><li>pulsar_storage_write_latency_le_1: <= 1ms</li><li>pulsar_storage_write_latency_le_5: <= 5ms</li><li>pulsar_storage_write_latency_le_10: <= 10ms</li><li>pulsar_storage_write_latency_le_20: <= 20ms</li><li>pulsar_storage_write_latency_le_50: <= 50ms</li><li>pulsar_storage_write_latency_le_100: <= 100ms</li><li>pulsar_storage_write_latency_le_200: <= 200ms</li><li>pulsar_storage_write_latency_le_1000: <= 1s</li><li>pulsar_storage_write_latency_le_overflow: > 1s</li></ul> |
 | pulsar_entry_size_le_* | Histogram | The entry rate of a topic that the entry size is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_entry_size_le_128: <= 128 bytes </li><li>pulsar_entry_size_le_512: <= 512 bytes</li><li>pulsar_entry_size_le_1_kb: <= 1 KB</li><li>pulsar_entry_size_le_2_kb: <= 2 KB</li><li>pulsar_entry_size_le_4_kb: <= 4 KB</li><li>pulsar_entry_size_le_16_kb: <= 16 KB</li><li>pulsar_entry_size_le_100_kb: <= 100 KB</li><li>pulsar_entry_size_le_1_mb: <= 1 MB</li><li>pulsar_entry_size_le_overflow: > 1 MB</li></ul> |
-| pulsar_in_bytes_total | Counter | The total number of bytes received for this topic |
-| pulsar_in_messages_total | Counter | The total number of messages received for this topic |
-| pulsar_out_bytes_total | Counter | The total number of bytes read from this topic |
-| pulsar_out_messages_total | Counter | The total number of messages read from this topic |
+| pulsar_in_bytes_total | Counter | The total number of messages in bytes received for this topic. |
+| pulsar_in_messages_total | Counter | The total number of messages received for this topic. |
+| pulsar_out_bytes_total | Counter | The total number of messages in bytes read from this topic. |
+| pulsar_out_messages_total | Counter | The total number of messages read from this topic. |
+| pulsar_compaction_removed_event_count | Gauge | The total number of removed events of the compaction. |
+| pulsar_compaction_succeed_count | Gauge | The total number of successes of the compaction. |
+| pulsar_compaction_failed_count | Gauge | The total number of failures of the compaction. |
+| pulsar_compaction_duration_time_in_mills | Gauge | The duration time of the compaction. |
+| pulsar_compaction_read_throughput | Gauge | The read throughput of the compaction. |
+| pulsar_compaction_write_throughput | Gauge | The write throughput of the compaction. |
+| pulsar_compaction_latency_le_* | Histogram | The compaction latency with given quantile. <br> Available thresholds: <br><ul><li>pulsar_compaction_latency_le_0_5: <= 0.5ms </li><li>pulsar_compaction_latency_le_1: <= 1ms</li><li>pulsar_compaction_latency_le_5: <= 5ms</li><li>pulsar_compaction_latency_le_10: <= 10ms</li><li>pulsar_compaction_latency_le_20: <= 20ms</li><li>pulsar_compaction_latency_le_50: <= 50ms</li><li>pulsar_compaction_latency_le_100: <= 100ms</li><li>pulsar_compaction_latency_le_200: <= 200ms</li><li>pulsar_compaction_latency_le_1000: <= 1s</li><li>pulsar_compaction_latency_le_overflow: > 1s</li></ul> |
+| pulsar_compaction_compacted_entries_count | Gauge | The total number of the compacted entries. |
+| pulsar_compaction_compacted_entries_size |Gauge  | The total size of the compacted entries. |
 
 #### Replication metrics
 
@@ -228,7 +245,6 @@ All the ManagedLedgerCache metrics are labelled with the following labels:
 | pulsar_ml_cache_pool_active_allocations_huge | Gauge | The number of currently active huge allocation in direct arena |
 | pulsar_ml_cache_pool_active_allocations_normal | Gauge | The number of currently active normal allocations in direct arena |
 | pulsar_ml_cache_pool_active_allocations_small | Gauge | The number of currently active small allocations in direct arena |
-| pulsar_ml_cache_pool_active_allocations_tiny | Gauge | The number of currently active tiny allocations in direct arena |
 | pulsar_ml_cache_pool_allocated | Gauge | The total allocated memory of chunk lists in direct arena |
 | pulsar_ml_cache_pool_used | Gauge | The total used memory of chunk lists in direct arena |
 | pulsar_ml_cache_used_size | Gauge | The size in byte used to store the entries payloads |
@@ -243,6 +259,7 @@ All the managedLedger metrics are labelled with the following labels:
 | Name | Type | Description |
 | --- | --- | --- |
 | pulsar_ml_AddEntryBytesRate | Gauge | The bytes/s rate of messages added |
+| pulsar_ml_AddEntryWithReplicasBytesRate | Gauge | The bytes/s rate of messages added with replicas |
 | pulsar_ml_AddEntryErrors | Gauge | The number of addEntry requests that failed |
 | pulsar_ml_AddEntryLatencyBuckets | Histogram | The add entry latency of a ledger with a given quantile (threshold).<br> Available quantile: <br><ul><li> quantile="0.0_0.5" is AddEntryLatency between (0.0ms, 0.5ms]</li> <li>quantile="0.5_1.0" is AddEntryLatency between (0.5ms, 1.0ms]</li><li>quantile="1.0_5.0" is AddEntryLatency between (1ms, 5ms]</li><li>quantile="5.0_10.0" is AddEntryLatency between (5ms, 10ms]</li><li>quantile="10.0_20.0" is AddEntryLatency between (10ms, 20ms]</li><li>quantile="20.0_50.0" is AddEntryLatency between (20ms, 50ms]</li><li>quantile="50.0_100.0" is AddEntryLatency between (50ms, 100ms]</li><li>quantile="100.0_200.0" is AddEntryLatency between (100ms, 200ms]</li><li>quantile="200.0_1000.0" is AddEntryLatency between (200ms, 1s]</li></ul>|
 | pulsar_ml_AddEntryLatencyBuckets_OVERFLOW | Gauge | The add entry latency > 1s |
@@ -279,25 +296,28 @@ brk_ml_cursor_persistLedgerErrors(namespace="", ledger_name="", cursor_name:"")|
 brk_ml_cursor_persistZookeeperSucceed(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of acknowledgment states that is persistent to ZooKeeper.
 brk_ml_cursor_persistZookeeperErrors(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of ledger errors occurred when acknowledgment states fail to be persistent to ZooKeeper.
 brk_ml_cursor_nonContiguousDeletedMessagesRange(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of non-contiguous deleted messages ranges.
+brk_ml_cursor_writeLedgerSize(namespace="", ledger_name="", cursor_name:"")|Gauge|The size of write to ledger.
+brk_ml_cursor_writeLedgerLogicalSize(namespace="", ledger_name="", cursor_name:"")|Gauge|The size of write to ledger (accounting for without replicas).
+brk_ml_cursor_readLedgerSize(namespace="", ledger_name="", cursor_name:"")|Gauge|The size of read from ledger.
 
 ### LoadBalancing metrics
 All the loadbalancing metrics are labelled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - broker: broker=${broker}. ${broker} is the IP address of the broker
-- metric: metric="loadBalancing". 
+- metric: metric="loadBalancing".
 
 | Name | Type | Description |
 | --- | --- | --- |
-| pulsar_lb_bandwidth_in_usage | Gauge | The broker bandwith in usage |
-| pulsar_lb_bandwidth_out_usage | Gauge | The broker bandwith out usage |
-| pulsar_lb_cpu_usage | Gauge | The broker cpu usage |
-| pulsar_lb_directMemory_usage | Gauge | The broker process direct memory usage |
-| pulsar_lb_memory_usage | Gauge | The broker process memory usage  |
+| pulsar_lb_bandwidth_in_usage | Gauge | The broker inbound bandwith usage (in percent). |
+| pulsar_lb_bandwidth_out_usage | Gauge | The broker outbound bandwith usage (in percent). |
+| pulsar_lb_cpu_usage | Gauge | The broker cpu usage (in percent). |
+| pulsar_lb_directMemory_usage | Gauge | The broker process direct memory usage (in percent). | 
+| pulsar_lb_memory_usage | Gauge | The broker process memory usage (in percent). |
 
 #### BundleUnloading metrics
 All the bundleUnloading metrics are labelled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
-- metric: metric="bundleUnloading". 
+- metric: metric="bundleUnloading".
 
 | Name | Type | Description |
 | --- | --- | --- |
@@ -307,7 +327,7 @@ All the bundleUnloading metrics are labelled with the following labels:
 #### BundleSplit metrics
 All the bundleUnloading metrics are labelled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
-- metric: metric="bundlesSplit". 
+- metric: metric="bundlesSplit".
 
 | Name | Type | Description |
 | --- | --- | --- |
@@ -418,6 +438,35 @@ All the connection metrics are labelled with the following labels:
 | pulsar_broker_throttled_connections | Gauge | The number of throttled connections. |
 | pulsar_broker_throttled_connections_global_limit | Gauge | The number of throttled connections because of per-connection limit. |
 
+### Jetty metrics
+
+> For a functions-worker running separately from brokers, its Jetty metrics are only exposed when `includeStandardPrometheusMetrics` is set to `true`.
+
+All the jetty metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
+
+| Name | Type | Description |
+|---|---|---|
+| jetty_requests_total | Counter | Number of requests. |
+| jetty_requests_active | Gauge | Number of requests currently active. |
+| jetty_requests_active_max | Gauge | Maximum number of requests that have been active at once. |
+| jetty_request_time_max_seconds | Gauge | Maximum time spent handling requests. |
+| jetty_request_time_seconds_total | Counter | Total time spent in all request handling. |
+| jetty_dispatched_total | Counter | Number of dispatches. |
+| jetty_dispatched_active | Gauge | Number of dispatches currently active. |
+| jetty_dispatched_active_max | Gauge | Maximum number of active dispatches being handled. |
+| jetty_dispatched_time_max | Gauge | Maximum time spent in dispatch handling. |
+| jetty_dispatched_time_seconds_total | Counter | Total time spent in dispatch handling. |
+| jetty_async_requests_total | Counter | Total number of async requests. |
+| jetty_async_requests_waiting | Gauge | Currently waiting async requests. |
+| jetty_async_requests_waiting_max | Gauge | Maximum number of waiting async requests. |
+| jetty_async_dispatches_total | Counter | Number of requested that have been asynchronously dispatched. |
+| jetty_expires_total | Counter | Number of async requests requests that have expired. |
+| jetty_responses_total | Counter | Number of responses, labeled by status code. The `code` label can be "1xx", "2xx", "3xx", "4xx", or "5xx". |
+| jetty_stats_seconds | Gauge | Time in seconds stats have been collected for. |
+| jetty_responses_bytes_total | Counter | Total number of bytes across all responses. |
+
 ## Pulsar Functions
 
 All the Pulsar Functions metrics are labelled with the following labels:
@@ -470,10 +519,10 @@ Connector metrics contain **source** metrics and **sink** metrics.
 
   | Name | Type | Description |
   |---|---|---|
-  pulsar_sink_written_total|Counter| The total number of records processed by a sink. 
+  pulsar_sink_written_total|Counter| The total number of records processed by a sink.
   pulsar_sink_written_total_1min|Counter| The total number of records processed by a sink in the last 1 minute.
-  pulsar_sink_received_total_1min|Counter| The total number of messages that a sink has received from Pulsar topics in the last 1 minute. 
-  pulsar_sink_received_total|Counter| The total number of records that a sink has received from Pulsar topics. 
+  pulsar_sink_received_total_1min|Counter| The total number of messages that a sink has received from Pulsar topics in the last 1 minute.
+  pulsar_sink_received_total|Counter| The total number of records that a sink has received from Pulsar topics.
   pulsar_sink_last_invocation|Gauge|The timestamp of the last invocation of the sink.
   pulsar_sink_sink_exception|Gauge|The exception from a sink.
   pulsar_sink_sink_exceptions_total|Counter|The total number of sink exceptions.

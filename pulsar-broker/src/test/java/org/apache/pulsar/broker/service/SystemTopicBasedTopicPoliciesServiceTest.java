@@ -18,15 +18,38 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
+import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertNotNull;
+import static org.testng.AssertJUnit.assertNull;
+import static org.testng.AssertJUnit.assertTrue;
 import com.google.common.collect.Sets;
+import java.lang.reflect.Field;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCacheNotInitException;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
+import org.apache.pulsar.broker.systopic.SystemTopicClient;
+import org.apache.pulsar.broker.systopic.TopicPoliciesSystemTopicClient;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.impl.Backoff;
+import org.apache.pulsar.client.impl.BackoffBuilder;
+import org.apache.pulsar.client.impl.ReaderImpl;
+import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.awaitility.Awaitility;
@@ -34,14 +57,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ExecutionException;
-import static org.testng.AssertJUnit.assertEquals;
-import static org.testng.AssertJUnit.assertNotNull;
-import static org.testng.AssertJUnit.assertNull;
 
 @Test(groups = "broker")
 public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServiceBaseTest {
@@ -191,8 +206,6 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         TopicName topicName = TopicName.get(topic);
         admin.topics().createPartitionedTopic(topic, 3);
         pulsarClient.newProducer().topic(topic).create().close();
-        Awaitility.await().untilAsserted(()
-                -> systemTopicBasedTopicPoliciesService.cacheIsInitialized(topicName));
         admin.topics().setMaxConsumers(topic, 1000);
         Awaitility.await().untilAsserted(() ->
                 assertNotNull(admin.topics().getMaxConsumers(topic)));
@@ -204,6 +217,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         assertNotNull(listMap.get(topicName).get(0));
 
         admin.topics().deletePartitionedTopic(topic, true);
+        admin.namespaces().unload(NAMESPACE1);
         assertNull(map.get(topicName));
         assertNull(listMap.get(topicName));
     }
@@ -223,5 +237,46 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         admin.lookups().lookupTopic(TOPIC6.toString());
         systemTopicFactory = new NamespaceEventsSystemTopicFactory(pulsarClient);
         systemTopicBasedTopicPoliciesService = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+    }
+
+    @Test
+    public void testGetPolicyTimeout() throws Exception {
+        SystemTopicBasedTopicPoliciesService service = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        Awaitility.await().untilAsserted(() -> assertTrue(service.policyCacheInitMap.get(TOPIC1.getNamespaceObject())));
+        service.policyCacheInitMap.put(TOPIC1.getNamespaceObject(), false);
+        long start = System.currentTimeMillis();
+        Backoff backoff = new BackoffBuilder()
+                .setInitialTime(500, TimeUnit.MILLISECONDS)
+                .setMandatoryStop(5000, TimeUnit.MILLISECONDS)
+                .setMax(1000, TimeUnit.MILLISECONDS)
+                .create();
+        try {
+            service.getTopicPoliciesAsyncWithRetry(TOPIC1, backoff, pulsar.getExecutor()).get();
+        } catch (Exception e) {
+            assertTrue(e.getCause().getCause() instanceof TopicPoliciesCacheNotInitException);
+        }
+        long cost = System.currentTimeMillis() - start;
+        assertTrue("actual:" + cost, cost >= 5000 - 1000);
+    }
+
+    @Test
+    public void testCreatSystemTopicClientWithRetry() throws Exception {
+        SystemTopicBasedTopicPoliciesService service =
+                spy((SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService());
+        Field field = SystemTopicBasedTopicPoliciesService.class
+                .getDeclaredField("namespaceEventsSystemTopicFactory");
+        field.setAccessible(true);
+        NamespaceEventsSystemTopicFactory factory = spy((NamespaceEventsSystemTopicFactory) field.get(service));
+        SystemTopicClient<PulsarEvent> client = mock(TopicPoliciesSystemTopicClient.class);
+        doReturn(client).when(factory).createTopicPoliciesSystemTopicClient(any());
+        field.set(service, factory);
+
+        SystemTopicClient.Reader<PulsarEvent> reader = mock(SystemTopicClient.Reader.class);
+        // Throw an exception first, create successfully after retrying
+        doThrow(new PulsarClientException("test")).doReturn(reader).when(client).newReader();
+
+        SystemTopicClient.Reader<PulsarEvent> reader1 = service.creatSystemTopicClientWithRetry(null).get();
+
+        assertEquals(reader1, reader);
     }
 }

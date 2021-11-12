@@ -254,8 +254,10 @@ enum ProtocolVersion {
     v14 = 14; // Add CommandAuthChallenge and CommandAuthResponse for mutual auth
               // Added Key_Shared subscription
     v15 = 15; // Add CommandGetOrCreateSchema and CommandGetOrCreateSchemaResponse
-    v16 = 16; // Add support for raw message metadata
+    v16 = 16; // Add support for broker entry metadata
     v17 = 17; // Added support ack receipt
+    v18 = 18; // Add client support for broker entry metadata
+    v19 = 19; // Add CommandTcClientConnectRequest and CommandTcClientConnectResponse
 }
 
 message CommandConnect {
@@ -481,6 +483,8 @@ message CommandProducer {
     // leave it empty and then it will always carry the same epoch number on
     // the subsequent reconnections.
     optional uint64 topic_epoch = 11;
+
+    optional bool txn_enabled = 12 [default = false];
 }
 
 message CommandSend {
@@ -493,6 +497,9 @@ message CommandSend {
     /// Add highest sequence id to support batch message with external sequence id
     optional uint64 highest_sequence_id = 6 [default = 0];
     optional bool is_chunk     =7 [default = false];
+
+    // Specify if the message being published is a Pulsar marker or not
+    optional bool marker = 8 [default = false];
 }
 
 message CommandSendReceipt {
@@ -758,6 +765,17 @@ enum TxnAction {
     ABORT = 1;
 }
 
+message CommandTcClientConnectRequest {
+    required uint64 request_id = 1;
+    required uint64 tc_id = 2 [default = 0];
+}
+
+message CommandTcClientConnectResponse {
+    required uint64 request_id = 1;
+    optional ServerError error  = 2;
+    optional string message     = 3;
+}
+
 message CommandNewTxn {
     required uint64 request_id = 1;
     optional uint64 txn_ttl_seconds = 2 [default = 0];
@@ -937,6 +955,8 @@ message BaseCommand {
 
         END_TXN_ON_SUBSCRIPTION = 60;
         END_TXN_ON_SUBSCRIPTION_RESPONSE = 61;
+        TC_CLIENT_CONNECT_REQUEST = 62;
+        TC_CLIENT_CONNECT_RESPONSE = 63;
 
     }
 
@@ -1012,4 +1032,6 @@ message BaseCommand {
     optional CommandEndTxnOnPartitionResponse endTxnOnPartitionResponse = 59;
     optional CommandEndTxnOnSubscription endTxnOnSubscription = 60;
     optional CommandEndTxnOnSubscriptionResponse endTxnOnSubscriptionResponse = 61;
+    optional CommandTcClientConnectRequest tcClientConnectRequest = 62;
+    optional CommandTcClientConnectResponse tcClientConnectResponse = 63;
 }

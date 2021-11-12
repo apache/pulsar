@@ -47,7 +47,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.exporter.HTTPServer;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
@@ -69,7 +68,6 @@ import org.apache.pulsar.functions.runtime.RuntimeUtils;
 import org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
-import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator;
 import org.apache.pulsar.functions.secretsproviderconfigurator.NameAndConfigBasedSecretsProviderConfigurator;
@@ -94,6 +92,7 @@ public class LocalRunner implements AutoCloseable {
     private final File narExtractionDirectoryCreated;
     private final String connectorsDir;
     private final Thread shutdownHook;
+    private final int instanceLivenessCheck;
     private ClassLoader userCodeClassLoader;
     private boolean userCodeClassLoaderCreated;
     private RuntimeFactory runtimeFactory;
@@ -150,6 +149,8 @@ public class LocalRunner implements AutoCloseable {
     protected SourceConfig sourceConfig;
     @Parameter(names = "--sinkConfig", description = "The json representation of SinkConfig", hidden = true, converter = SinkConfigConverter.class)
     protected SinkConfig sinkConfig;
+    @Parameter(names = "--stateStorageImplClass", description = "The implemenatation class state storage service (by default Apache BookKeeper)", hidden = true, required = false)
+    protected String stateStorageImplClass;
     @Parameter(names = "--stateStorageServiceUrl", description = "The URL for the state storage service (by default Apache BookKeeper)", hidden = true)
     protected String stateStorageServiceUrl;
     @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker", hidden = true)
@@ -178,6 +179,8 @@ public class LocalRunner implements AutoCloseable {
     protected String secretsProviderConfig;
     @Parameter(names = "--metricsPortStart", description = "The starting port range for metrics server. When running instances as threads, one metrics server is used to host the stats for all instances.", hidden = true)
     protected Integer metricsPortStart;
+    @Parameter(names = "--exitOnError", description = "The starting port range for metrics server. When running instances as threads, one metrics server is used to host the stats for all instances.", hidden = true)
+    protected boolean exitOnError;
 
     private static final String DEFAULT_SERVICE_URL = "pulsar://localhost:6650";
     private static final String DEFAULT_WEB_SERVICE_URL = "http://localhost:8080";
@@ -198,15 +201,17 @@ public class LocalRunner implements AutoCloseable {
     }
 
     @Builder
-    public LocalRunner(FunctionConfig functionConfig, SourceConfig sourceConfig, SinkConfig sinkConfig, String
-            stateStorageServiceUrl, String brokerServiceUrl, String clientAuthPlugin, String clientAuthParams,
+    public LocalRunner(FunctionConfig functionConfig, SourceConfig sourceConfig, SinkConfig sinkConfig,
+                       String stateStorageImplClass, String stateStorageServiceUrl, String brokerServiceUrl,
+                       String clientAuthPlugin, String clientAuthParams,
                        boolean useTls, boolean tlsAllowInsecureConnection, boolean tlsHostNameVerificationEnabled,
                        String tlsTrustCertFilePath, int instanceIdOffset, RuntimeEnv runtimeEnv,
                        String secretsProviderClassName, String secretsProviderConfig, String narExtractionDirectory,
-                       String connectorsDirectory, Integer metricsPortStart) {
+                       String connectorsDirectory, Integer metricsPortStart, boolean exitOnError) {
         this.functionConfig = functionConfig;
         this.sourceConfig = sourceConfig;
         this.sinkConfig = sinkConfig;
+        this.stateStorageImplClass = stateStorageImplClass;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.brokerServiceUrl = brokerServiceUrl;
         this.clientAuthPlugin = clientAuthPlugin;
@@ -236,6 +241,8 @@ public class LocalRunner implements AutoCloseable {
             this.connectorsDir = Paths.get(pulsarHome, "connectors").toString();
         }
         this.metricsPortStart = metricsPortStart;
+        this.exitOnError = exitOnError;
+        this.instanceLivenessCheck = exitOnError ? 0 : 30000;
         shutdownHook = new Thread(() -> {
             try {
                 LocalRunner.this.close();
@@ -259,13 +266,16 @@ public class LocalRunner implements AutoCloseable {
             stop();
         } finally {
             if (narExtractionDirectoryCreated != null) {
-                FileUtils.deleteFile(narExtractionDirectoryCreated, true);
+                if (narExtractionDirectoryCreated.exists()) {
+                    FileUtils.deleteFile(narExtractionDirectoryCreated, true);
+                }
             }
         }
     }
 
     public synchronized void stop() {
         if (running.compareAndSet(true, false)) {
+            this.notify();
             try {
                 Runtime.getRuntime().removeShutdownHook(shutdownHook);
             } catch (IllegalStateException e) {
@@ -472,9 +482,18 @@ public class LocalRunner implements AutoCloseable {
         }
 
         if (blocking) {
-            for (RuntimeSpawner spawner : local) {
-                spawner.join();
-                log.info("RuntimeSpawner quit because of", spawner.getRuntime().getDeathException());
+            if (exitOnError) {
+                for (RuntimeSpawner spawner : local) {
+                    spawner.join();
+                    log.info("RuntimeSpawner quit because of", spawner.getRuntime().getDeathException());
+                }
+                close();
+            } else  {
+                synchronized (this) {
+                    while (running.get()) {
+                        this.wait();
+                    }
+                }
             }
         }
     }
@@ -523,12 +542,13 @@ public class LocalRunner implements AutoCloseable {
                     instanceConfig.setExposePulsarAdminClientEnabled(functionConfig.getExposePulsarAdminClientEnabled());
                 }
             }
+
             RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
                     instanceConfig,
                     userCodeFile,
                     null,
                     runtimeFactory,
-                    30000);
+                    instanceLivenessCheck);
             spawners.add(runtimeSpawner);
             runtimeSpawner.start();
         }
@@ -547,7 +567,7 @@ public class LocalRunner implements AutoCloseable {
                     for (index = 0; index < futures.length; ++index) {
                         String json = futures[index].get();
                         Gson gson = new GsonBuilder().setPrettyPrinting().create();
-                        log.info(gson.toJson(new JsonParser().parse(json)));
+                        log.info(gson.toJson(JsonParser.parseString(json)));
                     }
                 } catch (TimeoutException | InterruptedException | ExecutionException e) {
                     log.error("Could not get status from all local instances");
@@ -596,6 +616,7 @@ public class LocalRunner implements AutoCloseable {
             }
             runtimeFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup",
                     serviceUrl,
+                    stateStorageImplClass,
                     stateStorageServiceUrl,
                     authConfig,
                     secretsProvider,
@@ -629,7 +650,7 @@ public class LocalRunner implements AutoCloseable {
                     userCodeFile,
                     null,
                     runtimeFactory,
-                    30000);
+                    instanceLivenessCheck);
             spawners.add(runtimeSpawner);
             runtimeSpawner.start();
         }

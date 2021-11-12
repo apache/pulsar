@@ -141,4 +141,9 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
     public void close() {
         buffer.release();
     }
+
+    @Override
+    public int available() throws IOException {
+        return (int)(objectLen - cursor) + buffer.readableBytes();
+    }
 }

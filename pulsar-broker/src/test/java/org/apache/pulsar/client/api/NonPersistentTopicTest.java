@@ -26,9 +26,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Sets;
-
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.Optional;
@@ -41,7 +39,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-
 import lombok.Cleanup;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -60,7 +57,6 @@ import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
 import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
@@ -170,8 +166,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         for (int i = 0; i < totalProduceMsg; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
-            Thread.sleep(10);
         }
+        producer.flush();
 
         Message<?> msg = null;
         Set<String> messageSet = Sets.newHashSet();
@@ -213,8 +209,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         for (int i = 0; i < totalProduceMsg; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
-            Thread.sleep(10);
         }
+        producer.flush();
 
         Message<?> msg = null;
         Set<String> messageSet = Sets.newHashSet();
@@ -269,8 +265,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         for (int i = 0; i < totalProduceMsg; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
-            Thread.sleep(10);
         }
+        producer.flush();
 
         Message<?> msg = null;
         Set<String> messageSet = Sets.newHashSet();
@@ -311,8 +307,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         for (int i = 0; i < totalProduceMsg; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
-            Thread.sleep(10);
         }
+        producer.flush();
 
         Message<?> msg = null;
         Set<String> messageSet = Sets.newHashSet();
@@ -421,8 +417,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         for (int i = 0; i < totalProduceMsg; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
-            Thread.sleep(10);
         }
+        producer.flush();
 
         // consume from shared-subscriptions
         Message<?> msg = null;
@@ -1007,17 +1003,17 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             // Provision the global namespace
             admin1.clusters().createCluster("r1", ClusterData.builder()
                     .serviceUrl(url1.toString())
-                    .brokerServiceUrl(pulsar1.getSafeBrokerServiceUrl())
+                    .brokerServiceUrl(pulsar1.getBrokerServiceUrl())
                     .brokerServiceUrlTls(pulsar1.getBrokerServiceUrlTls())
                     .build());
             admin1.clusters().createCluster("r2", ClusterData.builder()
                     .serviceUrl(url2.toString())
-                    .brokerServiceUrl(pulsar2.getSafeBrokerServiceUrl())
+                    .brokerServiceUrl(pulsar2.getBrokerServiceUrl())
                     .brokerServiceUrlTls(pulsar1.getBrokerServiceUrlTls())
                     .build());
             admin1.clusters().createCluster("r3", ClusterData.builder()
                     .serviceUrl(url3.toString())
-                    .brokerServiceUrl(pulsar3.getSafeBrokerServiceUrl())
+                    .brokerServiceUrl(pulsar3.getBrokerServiceUrl())
                     .brokerServiceUrlTls(pulsar1.getBrokerServiceUrlTls())
                     .build());
 
@@ -1031,9 +1027,9 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             assertEquals(admin2.clusters().getCluster("r1").getServiceUrl(), url1.toString());
             assertEquals(admin2.clusters().getCluster("r2").getServiceUrl(), url2.toString());
             assertEquals(admin2.clusters().getCluster("r3").getServiceUrl(), url3.toString());
-            assertEquals(admin2.clusters().getCluster("r1").getBrokerServiceUrl(), pulsar1.getSafeBrokerServiceUrl());
-            assertEquals(admin2.clusters().getCluster("r2").getBrokerServiceUrl(), pulsar2.getSafeBrokerServiceUrl());
-            assertEquals(admin2.clusters().getCluster("r3").getBrokerServiceUrl(), pulsar3.getSafeBrokerServiceUrl());
+            assertEquals(admin2.clusters().getCluster("r1").getBrokerServiceUrl(), pulsar1.getBrokerServiceUrl());
+            assertEquals(admin2.clusters().getCluster("r2").getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl());
+            assertEquals(admin2.clusters().getCluster("r3").getBrokerServiceUrl(), pulsar3.getBrokerServiceUrl());
             Thread.sleep(100);
             log.info("--- ReplicatorTestBase::setup completed ---");
 

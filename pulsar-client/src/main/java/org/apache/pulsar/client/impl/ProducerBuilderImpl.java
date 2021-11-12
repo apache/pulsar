@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.annotations.VisibleForTesting;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -45,7 +43,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.interceptor.ProducerInterceptor;
 import org.apache.pulsar.client.api.interceptor.ProducerInterceptorWrapper;
-import org.apache.pulsar.client.impl.DefaultCryptoKeyReader;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -62,7 +59,6 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     private Schema<T> schema;
     private List<ProducerInterceptor> interceptorList;
 
-    @VisibleForTesting
     public ProducerBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
         this(client, new ProducerConfigurationData(), schema);
     }
@@ -323,6 +319,12 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     @Override
     public ProducerBuilder<T> enableMultiSchema(boolean multiSchema) {
         conf.setMultiSchema(multiSchema);
+        return this;
+    }
+
+    @Override
+    public ProducerBuilder<T> enableLazyStartPartitionedProducers(boolean lazyStartPartitionedProducers) {
+        conf.setLazyStartPartitionedProducers(lazyStartPartitionedProducers);
         return this;
     }
 

@@ -27,7 +27,7 @@
     <parent>
         <groupId>org.apache.pulsar</groupId>
         <artifactId>pulsar-transaction-parent</artifactId>
-        <version>2.9.0-SNAPSHOT</version>
+        <version>2.10.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>pulsar-transaction-coordinator</artifactId>
@@ -57,7 +57,6 @@
         <dependency>
             <groupId>org.awaitility</groupId>
             <artifactId>awaitility</artifactId>
-            <version>${awaitility.version}</version>
             <scope>test</scope>
         </dependency>
 
@@ -65,8 +64,32 @@
     
     <build>
         <plugins>
-  	        <plugin>
-  		        <groupId>com.github.splunk.lightproto</groupId>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>properties-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>set-system-properties</goal>
+                        </goals>
+                        <configuration>
+                            <properties>
+                                <property>
+                                    <name>proto_path</name>
+                                    <value>${project.parent.parent.basedir}</value>
+                                </property>
+                                <property>
+                                    <name>proto_search_strategy</name>
+                                    <value>2</value>
+                                </property>
+                            </properties>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>com.github.splunk.lightproto</groupId>
                 <artifactId>lightproto-maven-plugin</artifactId>
                 <version>${lightproto-maven-plugin.version}</version>
                 <executions>

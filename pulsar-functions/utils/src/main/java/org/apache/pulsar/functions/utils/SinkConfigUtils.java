@@ -34,7 +34,6 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
-import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -46,6 +45,7 @@ import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -54,6 +54,7 @@ import java.util.Map;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.functions.utils.FunctionCommon.convertFromFunctionDetailsSubscriptionPosition;
 import static org.apache.pulsar.functions.utils.FunctionCommon.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getSinkType;
 
@@ -146,6 +147,7 @@ public class SinkConfigUtils {
                     bldr.setCryptoSpec(CryptoUtils.convert(spec.getCryptoConfig()));
                 }
                 bldr.putAllConsumerProperties(spec.getConsumerProperties());
+                bldr.setPoolMessages(spec.isPoolMessages());
                 sourceSpecBuilder.putInputSpecs(topic, bldr.build());
             });
         }
@@ -250,6 +252,7 @@ public class SinkConfigUtils {
         sinkConfig.setParallelism(functionDetails.getParallelism());
         sinkConfig.setProcessingGuarantees(FunctionCommon.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
         Map<String, ConsumerConfig> consumerConfigMap = new HashMap<>();
+        List<String> inputs = new ArrayList<>();
         for (Map.Entry<String, Function.ConsumerSpec> input : functionDetails.getSource().getInputSpecsMap().entrySet()) {
             ConsumerConfig consumerConfig = new ConsumerConfig();
             if (!isEmpty(input.getValue().getSerdeClassName())) {
@@ -266,8 +269,11 @@ public class SinkConfigUtils {
             }
             consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
             consumerConfig.setConsumerProperties(input.getValue().getConsumerPropertiesMap());
+            consumerConfig.setPoolMessages(input.getValue().getPoolMessages());
             consumerConfigMap.put(input.getKey(), consumerConfig);
+            inputs.add(input.getKey());
         }
+        sinkConfig.setInputs(inputs);
         sinkConfig.setInputSpecs(consumerConfigMap);
         if (!isEmpty(functionDetails.getSource().getSubscriptionName())) {
             sinkConfig.setSourceSubscriptionName(functionDetails.getSource().getSubscriptionName());
@@ -280,6 +286,11 @@ public class SinkConfigUtils {
             sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         }
         sinkConfig.setAutoAck(functionDetails.getAutoAck());
+
+        // Set subscription position
+        sinkConfig.setSourceSubscriptionPosition(
+                convertFromFunctionDetailsSubscriptionPosition(functionDetails.getSource().getSubscriptionPosition()));
+
         if (functionDetails.getSource().getTimeoutMs() != 0) {
             sinkConfig.setTimeoutMs(functionDetails.getSource().getTimeoutMs());
         }
@@ -387,7 +398,7 @@ public class SinkConfigUtils {
             sinkClass = sinkClassLoader.loadClass(sinkClassName);
         } catch (ClassNotFoundException e) {
             throw new IllegalArgumentException(
-                    String.format("Sink class %s not found in class loader", sinkClassName, e));
+                    String.format("Sink class %s not found in class loader", sinkClassName), e);
         }
 
         // extract type from sink class

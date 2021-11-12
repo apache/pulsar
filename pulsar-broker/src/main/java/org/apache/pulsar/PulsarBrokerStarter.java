@@ -26,6 +26,7 @@ import static org.apache.pulsar.common.configuration.PulsarConfigurationLoader.c
 import static org.apache.pulsar.common.configuration.PulsarConfigurationLoader.isComplete;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.Parameters;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
 import java.io.FileInputStream;
@@ -45,12 +46,14 @@ import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.bookkeeper.util.DirectMemoryUtils;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.util.datetime.FixedDateFormat;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
@@ -72,6 +75,7 @@ public class PulsarBrokerStarter {
     }
 
     @VisibleForTesting
+    @Parameters(commandDescription = "Options")
     private static class StarterArguments {
         @Parameter(names = {"-c", "--broker-conf"}, description = "Configuration file for Broker")
         private String brokerConfigFile =
@@ -97,6 +101,9 @@ public class PulsarBrokerStarter {
 
         @Parameter(names = {"-h", "--help"}, description = "Show this help message")
         private boolean help = false;
+
+        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        private boolean generateDocs = false;
     }
 
     private static ServerConfiguration readBookieConfFile(String bookieConfigFile) throws IllegalArgumentException {
@@ -134,7 +141,7 @@ public class PulsarBrokerStarter {
         private final WorkerService functionsWorkerService;
         private final WorkerConfig workerConfig;
 
-        BrokerStarter(String[] args) throws Exception{
+        BrokerStarter(String[] args) throws Exception {
             StarterArguments starterArguments = new StarterArguments();
             JCommander jcommander = new JCommander(starterArguments);
             jcommander.setProgramName("PulsarBrokerStarter");
@@ -143,6 +150,13 @@ public class PulsarBrokerStarter {
             jcommander.parse(args);
             if (starterArguments.help) {
                 jcommander.usage();
+                System.exit(-1);
+            }
+
+            if (starterArguments.generateDocs) {
+                CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
+                cmd.addCommand("broker", starterArguments);
+                cmd.run(null);
                 System.exit(-1);
             }
 
@@ -277,13 +291,13 @@ public class PulsarBrokerStarter {
             }
         }
 
-        public void shutdown() {
+        public void shutdown() throws Exception {
             if (null != functionsWorkerService) {
                 functionsWorkerService.stop();
                 log.info("Shut down functions worker service successfully.");
             }
 
-            pulsarService.getShutdownService().run();
+            pulsarService.close();
             log.info("Shut down broker service successfully.");
 
             if (bookieStatsProvider != null) {
@@ -303,7 +317,8 @@ public class PulsarBrokerStarter {
 
 
     public static void main(String[] args) throws Exception {
-        DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss,SSS");
+        DateFormat dateFormat = new SimpleDateFormat(
+            FixedDateFormat.FixedFormat.ISO8601_OFFSET_DATE_TIME_HHMM.getPattern());
         Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
             System.out.println(String.format("%s [%s] error Uncaught exception in thread %s: %s",
                     dateFormat.format(new Date()), thread.getContextClassLoader(),
@@ -314,8 +329,12 @@ public class PulsarBrokerStarter {
         BrokerStarter starter = new BrokerStarter(args);
         Runtime.getRuntime().addShutdownHook(
             new Thread(() -> {
-                starter.shutdown();
-            })
+                try {
+                    starter.shutdown();
+                } catch (Throwable t) {
+                    log.error("Error while shutting down Pulsar service", t);
+                }
+            }, "pulsar-service-shutdown")
         );
 
         PulsarByteBufAllocator.registerOOMListener(oomException -> {
@@ -323,7 +342,7 @@ public class PulsarBrokerStarter {
                 log.error("-- Received OOM exception: {}", oomException.getMessage(), oomException);
             } else {
                 log.error("-- Shutting down - Received OOM exception: {}", oomException.getMessage(), oomException);
-                starter.shutdown();
+                starter.pulsarService.shutdownNow();
             }
         });
 

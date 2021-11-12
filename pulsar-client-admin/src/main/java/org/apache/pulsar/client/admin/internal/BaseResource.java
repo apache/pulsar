@@ -22,6 +22,10 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ServerErrorException;
 import javax.ws.rs.ServiceUnavailableException;
@@ -249,7 +253,7 @@ public abstract class BaseResource {
     }
 
     public PulsarAdminException getApiException(Response response) {
-        if (response.getStatusInfo().equals(Response.Status.OK)) {
+        if (response.getStatus() == Response.Status.OK.getStatusCode()) {
             return null;
         }
         try {
@@ -280,6 +284,19 @@ public abstract class BaseResource {
                     return e.getMessage();
                 }
             }
+        }
+    }
+
+    protected <T> T sync(Supplier<CompletableFuture<T>> executor) throws PulsarAdminException {
+        try {
+            return executor.get().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+           throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+           Thread.currentThread().interrupt();
+          throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+          throw new PulsarAdminException.TimeoutException(e);
         }
     }
 }
