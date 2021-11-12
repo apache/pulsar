@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import static org.apache.pulsar.broker.PulsarService.isNotAllowedToCreateTopic;
+import static org.apache.pulsar.broker.PulsarService.isTransactionInternalName;
 import static org.apache.pulsar.broker.resources.PulsarResources.DEFAULT_OPERATION_TIMEOUT_SEC;
 import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsTransactionCoordinatorAssign;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -164,7 +164,7 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             return topicResources().listPersistentTopicsAsync(namespaceName).thenApply(topics ->
                     topics.stream().filter(topic ->
-                            !isNotAllowedToCreateTopic(TopicName.get(topic))).collect(Collectors.toList())).join();
+                            !isTransactionInternalName(TopicName.get(topic))).collect(Collectors.toList())).join();
         } catch (Exception e) {
             log.error("[{}] Failed to get topics list for namespace {}", clientAppId(), namespaceName, e);
             throw new RestException(e);
@@ -248,7 +248,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void validateCreateTopic(TopicName topicName) {
-        if (isNotAllowedToCreateTopic(topicName)) {
+        if (isTransactionInternalName(topicName)) {
             log.warn("Try to create a topic in the system topic format! {}", topicName);
             throw new RestException(Status.CONFLICT, "Cannot create topic in system topic format!");
         }

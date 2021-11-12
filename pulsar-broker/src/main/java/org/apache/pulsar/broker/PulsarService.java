@@ -1655,7 +1655,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 || topic.endsWith(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX);
     }
 
-    public static boolean isNotAllowedToCreateTopic(TopicName topicName) {
+    public static boolean isTransactionInternalName(TopicName topicName) {
         String topic = topicName.toString();
         return topic.startsWith(TRANSACTION_COORDINATOR_LOG.toString())
                 || topic.endsWith(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX);
