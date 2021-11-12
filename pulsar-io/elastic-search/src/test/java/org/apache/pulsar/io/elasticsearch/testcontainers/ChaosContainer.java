@@ -37,7 +37,7 @@ import java.util.function.Predicate;
 public class ChaosContainer<SELF extends ChaosContainer<SELF>> extends GenericContainer<SELF> {
 
     public static final String PUMBA_IMAGE = Optional.ofNullable(System.getenv("PUMBA_IMAGE"))
-            .orElse("gaiaadm/pumba:latest");
+            .orElse("gaiaadm/pumba:0.8.0");
 
     private final List<String> logs = new ArrayList<>();
     private Consumer<ChaosContainer> beforeStop;
