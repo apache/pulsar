@@ -136,7 +136,7 @@ public class NamespaceResources extends BaseResources<Policies> {
         final String namespacePath = joinPath(NAMESPACE_BASE_PATH, ns.toString());
         CompletableFuture<Void> future = new CompletableFuture<Void>();
         deleteAsync(namespacePath).whenComplete((ignore, ex) -> {
-            if (ex != null && ex.getCause().getCause() instanceof KeeperException.NoNodeException) {
+            if (ex != null && ex.getCause().getCause() instanceof KeeperException) {
                 future.complete(null);
             } else if (ex != null) {
                 future.completeExceptionally(ex);
@@ -153,7 +153,7 @@ public class NamespaceResources extends BaseResources<Policies> {
         final String tenantPath = joinPath(NAMESPACE_BASE_PATH, tenant);
         CompletableFuture<Void> future = new CompletableFuture<Void>();
         deleteAsync(tenantPath).whenComplete((ignore, ex) -> {
-            if (ex != null && ex.getCause().getCause() instanceof KeeperException.NoNodeException) {
+            if (ex != null && ex.getCause().getCause() instanceof KeeperException) {
                 future.complete(null);
             } else if (ex != null) {
                 future.completeExceptionally(ex);
@@ -261,12 +261,24 @@ public class NamespaceResources extends BaseResources<Policies> {
         public CompletableFuture<Void> clearPartitionedTopicMetadataAsync(NamespaceName namespaceName) {
             final String globalPartitionedPath = joinPath(PARTITIONED_TOPIC_PATH, namespaceName.toString());
 
-            return existsAsync(globalPartitionedPath).thenAccept(exist -> {
-                // check whether partitioned topics metadata node exist
-                if (exist) {
-                    deleteRecursiveAsync(this,globalPartitionedPath);
+            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+
+            deleteRecursiveAsync(this, globalPartitionedPath)
+                    .thenAccept(ignore -> {
+                        log.info("Clear partitioned topic metadata [{}] success.", namespaceName);
+                        completableFuture.complete(null);
+                    }).exceptionally(ex -> {
+                if (ex.getCause().getCause() instanceof KeeperException) {
+                    completableFuture.complete(null);
+                } else {
+                    log.error("Clear partitioned topic metadata failed.");
+                    completableFuture.completeExceptionally(ex.getCause());
+                    return null;
                 }
+                return null;
             });
+
+            return completableFuture;
         }
 
         public void clearPartitionedTopicMetadata(NamespaceName namespaceName) throws MetadataStoreException {

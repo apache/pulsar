@@ -196,6 +196,7 @@ public class BaseResources<T> {
         PathUtils.validatePath(pathRoot);
         List<String> tree = null;
         try {
+            // tree = /admin/partitioned-topics/{tenant}/{namespace}
             tree = listSubTreeBFS(resources, pathRoot);
         } catch (MetadataStoreException e) {
             // no-op

@@ -1326,7 +1326,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertTrue(admin.tenants().getTenants().contains(tenant));
 
         // create namespace
-        String namespace = tenant + "/test-ns-002";
+        String namespace = tenant + "/test-ns";
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         assertEquals(admin.namespaces().getNamespaces(tenant), Lists.newArrayList(namespace));
 
