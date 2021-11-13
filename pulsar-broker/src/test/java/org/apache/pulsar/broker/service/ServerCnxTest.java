@@ -649,6 +649,28 @@ public class ServerCnxTest {
     }
 
     @Test(timeOut = 30000)
+    public void testSendCommandBeforeCreatingProducer() throws Exception {
+        resetChannel();
+        setChannelConnected();
+
+        // test SEND before producer is created
+        MessageMetadata messageMetadata = new MessageMetadata()
+                .setPublishTime(System.currentTimeMillis())
+                .setProducerName("prod-name")
+                .setSequenceId(0);
+        ByteBuf data = Unpooled.buffer(1024);
+
+        ByteBuf clientCommand = ByteBufPair.coalesce(Commands.newSend(1, 0, 1,
+                ChecksumType.None, messageMetadata, data));
+        channel.writeInbound(Unpooled.copiedBuffer(clientCommand));
+        clientCommand.release();
+
+        // Then expect channel to close
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> !channel.isActive());
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
     public void testUseSameProducerName() throws Exception {
         resetChannel();
         setChannelConnected();

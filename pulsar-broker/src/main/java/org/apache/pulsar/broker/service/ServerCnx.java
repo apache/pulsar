@@ -1352,7 +1352,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         CompletableFuture<Producer> producerFuture = producers.get(send.getProducerId());
 
         if (producerFuture == null || !producerFuture.isDone() || producerFuture.isCompletedExceptionally()) {
-            log.warn("[{}] Producer had already been closed: {}", remoteAddress, send.getProducerId());
+            log.warn("[{}] Received message, but the producer is not ready : {}. Closing the connection.",
+                    remoteAddress, send.getProducerId());
+            close();
             return;
         }
 
