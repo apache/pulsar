@@ -200,7 +200,7 @@ public class BaseResources<T> {
         } catch (MetadataStoreException e) {
             // no-op
         }
-
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         if (tree != null) {
             log.debug("Deleting {} with size {}", tree, tree.size());
 
@@ -213,13 +213,13 @@ public class BaseResources<T> {
             FutureUtil.waitForAll(futures).handle((result, exception) -> {
                 if (exception != null) {
                     log.error("Failed to remove partitioned topics", exception);
-                    return null;
+                    return completableFuture.completeExceptionally(exception.getCause());
                 }
-                return null;
+                return completableFuture.complete(null);
             });
         }
 
-        return null;
+        return completableFuture;
     }
 
     protected static List<String> listSubTreeBFS(BaseResources resources, final String pathRoot)
