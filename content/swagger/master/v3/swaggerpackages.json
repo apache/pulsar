@@ -562,15 +562,15 @@
         "CompletableFuture": {
             "type": "object",
             "properties": {
-                "numberOfDependents": {
-                    "type": "integer",
-                    "format": "int32"
-                },
                 "done": {
                     "type": "boolean"
                 },
                 "cancelled": {
                     "type": "boolean"
+                },
+                "numberOfDependents": {
+                    "type": "integer",
+                    "format": "int32"
                 },
                 "completedExceptionally": {
                     "type": "boolean"
@@ -580,15 +580,15 @@
         "CompletableFutureClusterData": {
             "type": "object",
             "properties": {
-                "numberOfDependents": {
-                    "type": "integer",
-                    "format": "int32"
-                },
                 "done": {
                     "type": "boolean"
                 },
                 "cancelled": {
                     "type": "boolean"
+                },
+                "numberOfDependents": {
+                    "type": "integer",
+                    "format": "int32"
                 },
                 "completedExceptionally": {
                     "type": "boolean"
@@ -612,13 +612,13 @@
                     "type": "integer",
                     "format": "int32"
                 },
-                "symbol": {
+                "displayName": {
                     "type": "string"
                 },
                 "numericCodeAsString": {
                     "type": "string"
                 },
-                "displayName": {
+                "symbol": {
                     "type": "string"
                 }
             }
@@ -633,11 +633,11 @@
                 "numberFormat": {
                     "$ref": "#/definitions/NumberFormat"
                 },
-                "timeZone": {
-                    "$ref": "#/definitions/TimeZone"
-                },
                 "lenient": {
                     "type": "boolean"
+                },
+                "timeZone": {
+                    "$ref": "#/definitions/TimeZone"
                 }
             }
         },
@@ -675,11 +675,11 @@
                 "defaultVisibilityChecker": {
                     "$ref": "#/definitions/VisibilityCheckerObject"
                 },
-                "timeZone": {
-                    "$ref": "#/definitions/TimeZone"
-                },
                 "locale": {
                     "$ref": "#/definitions/Locale"
+                },
+                "timeZone": {
+                    "$ref": "#/definitions/TimeZone"
                 },
                 "typeFactory": {
                     "$ref": "#/definitions/TypeFactory"
@@ -707,11 +707,11 @@
         "DeserializationContext": {
             "type": "object",
             "properties": {
-                "timeZone": {
-                    "$ref": "#/definitions/TimeZone"
-                },
                 "locale": {
                     "$ref": "#/definitions/Locale"
+                },
+                "timeZone": {
+                    "$ref": "#/definitions/TimeZone"
                 },
                 "factory": {
                     "$ref": "#/definitions/DeserializerFactory"
@@ -916,6 +916,9 @@
                 "currentValue": {
                     "type": "object"
                 },
+                "outputContext": {
+                    "$ref": "#/definitions/JsonStreamContext"
+                },
                 "highestEscapedChar": {
                     "type": "integer",
                     "format": "int32"
@@ -926,9 +929,6 @@
                 "outputBuffered": {
                     "type": "integer",
                     "format": "int32"
-                },
-                "outputContext": {
-                    "$ref": "#/definitions/JsonStreamContext"
                 }
             }
         },
@@ -983,12 +983,12 @@
                     "type": "number",
                     "format": "double"
                 },
+                "booleanValue": {
+                    "type": "boolean"
+                },
                 "floatValue": {
                     "type": "number",
                     "format": "float"
-                },
-                "booleanValue": {
-                    "type": "boolean"
                 },
                 "longValue": {
                     "type": "integer",
@@ -1168,6 +1168,13 @@
                 "parent": {
                     "$ref": "#/definitions/JsonStreamContext"
                 },
+                "typeDesc": {
+                    "type": "string"
+                },
+                "currentIndex": {
+                    "type": "integer",
+                    "format": "int32"
+                },
                 "currentName": {
                     "type": "string"
                 },
@@ -1175,13 +1182,6 @@
                     "type": "object"
                 },
                 "entryCount": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "typeDesc": {
-                    "type": "string"
-                },
-                "currentIndex": {
                     "type": "integer",
                     "format": "int32"
                 }
@@ -1244,10 +1244,10 @@
                 "displayVariant": {
                     "type": "string"
                 },
-                "language": {
+                "displayName": {
                     "type": "string"
                 },
-                "displayName": {
+                "language": {
                     "type": "string"
                 }
             }
@@ -1515,6 +1515,9 @@
         "PublicKey": {
             "type": "object",
             "properties": {
+                "format": {
+                    "type": "string"
+                },
                 "algorithm": {
                     "type": "string"
                 },
@@ -1524,9 +1527,6 @@
                         "type": "string",
                         "format": "byte"
                     }
-                },
-                "format": {
-                    "type": "string"
                 }
             }
         },
@@ -1575,11 +1575,11 @@
                 "defaultVisibilityChecker": {
                     "$ref": "#/definitions/VisibilityCheckerObject"
                 },
-                "timeZone": {
-                    "$ref": "#/definitions/TimeZone"
-                },
                 "locale": {
                     "$ref": "#/definitions/Locale"
+                },
+                "timeZone": {
+                    "$ref": "#/definitions/TimeZone"
                 },
                 "typeFactory": {
                     "$ref": "#/definitions/TypeFactory"
@@ -1610,11 +1610,11 @@
         "SerializerProvider": {
             "type": "object",
             "properties": {
-                "timeZone": {
-                    "$ref": "#/definitions/TimeZone"
-                },
                 "locale": {
                     "$ref": "#/definitions/Locale"
+                },
+                "timeZone": {
+                    "$ref": "#/definitions/TimeZone"
                 },
                 "config": {
                     "$ref": "#/definitions/SerializationConfig"
@@ -1654,6 +1654,12 @@
         "TimeZone": {
             "type": "object",
             "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "displayName": {
+                    "type": "string"
+                },
                 "dstsavings": {
                     "type": "integer",
                     "format": "int32"
@@ -1661,12 +1667,6 @@
                 "rawOffset": {
                     "type": "integer",
                     "format": "int32"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "displayName": {
-                    "type": "string"
                 }
             }
         },
@@ -1752,6 +1752,26 @@
                 "issuerX500Principal": {
                     "$ref": "#/definitions/X500Principal"
                 },
+                "version": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "serialNumber": {
+                    "type": "integer"
+                },
+                "tbscertificate": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
+                },
+                "issuerDN": {
+                    "$ref": "#/definitions/Principal"
+                },
+                "subjectDN": {
+                    "$ref": "#/definitions/Principal"
+                },
                 "extendedKeyUsage": {
                     "type": "array",
                     "items": {
@@ -1813,26 +1833,6 @@
                         "items": {
                             "type": "object"
                         }
-                    }
-                },
-                "version": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "issuerDN": {
-                    "$ref": "#/definitions/Principal"
-                },
-                "subjectDN": {
-                    "$ref": "#/definitions/Principal"
-                },
-                "serialNumber": {
-                    "type": "integer"
-                },
-                "tbscertificate": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
                     }
                 },
                 "signature": {
