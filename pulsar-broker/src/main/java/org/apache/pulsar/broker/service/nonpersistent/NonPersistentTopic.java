@@ -149,9 +149,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                         isEncryptionRequired = false;
                     } else {
                         Policies policies = optPolicies.get();
+                        updateTopicPolicyByNamespacePolicy(policies);
                         isEncryptionRequired = policies.encryption_required;
                         isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
-                        topicPolicies.getInactiveTopicPolicies().updateNamespaceValue(policies.inactive_topic_policies);
                         setSchemaCompatibilityStrategy(policies);
                         schemaValidationEnforced = policies.schema_validation_enforced;
                     }

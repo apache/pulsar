@@ -319,14 +319,15 @@ public class PersistentTopic extends AbstractTopic
                     }
 
                     Policies policies = optPolicies.get();
+
+                    this.updateTopicPolicyByNamespacePolicy(policies);
+
                     this.isEncryptionRequired = policies.encryption_required;
 
                     setSchemaCompatibilityStrategy(policies);
                     isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
 
                     schemaValidationEnforced = policies.schema_validation_enforced;
-
-                    topicPolicies.getInactiveTopicPolicies().updateNamespaceValue(policies.inactive_topic_policies);
 
                     updateUnackedMessagesAppliedOnSubscription(policies);
                     updateUnackedMessagesExceededOnConsumer(policies);

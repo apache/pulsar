@@ -145,13 +145,6 @@ public abstract class AbstractTopic implements Topic {
 
         topicPolicies = new HierarchyTopicPolicies();
         updateTopicPolicyByBrokerConfig(topicPolicies, brokerService);
-        brokerService.pulsar().getPulsarResources().getNamespaceResources()
-                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
-                .thenAccept(optPolicies -> optPolicies.ifPresent(this::updateTopicPolicyByNamespacePolicy))
-                .exceptionally(throwable -> {
-                    log.error("[{}] updateTopicPolicyByNamespacePolicy error", topic, throwable);
-                    return null;
-                });
 
         this.topicMaxMessageSizeCheckIntervalMs = TimeUnit.SECONDS.toMillis(
                 config.getMaxMessageSizeCheckIntervalInSeconds());
