@@ -574,6 +574,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int brokerMaxConnectionsPerIp = 0;
 
     @FieldContext(
+        category = CATEGORY_POLICIES,
+        dynamic = true,
+        doc = "Allow schema to be auto updated. If this is disabled, 'is_allow_auto_update_schema' in namespace "
+            + "policy will be ignored. This is enabled by default."
+    )
+    private boolean isAllowAutoUpdateSchema = true;
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Enable check for minimum allowed client library version"
