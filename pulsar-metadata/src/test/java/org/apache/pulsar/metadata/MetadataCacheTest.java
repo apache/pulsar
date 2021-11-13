@@ -278,6 +278,34 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl")
+    public void insertionWithInvalidation(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataCache<MyClass> objCache = store.getMetadataCache(MyClass.class);
+
+        String key1 = newKey();
+
+        assertEquals(objCache.getIfCached(key1), Optional.empty());
+        assertEquals(objCache.get(key1).join(), Optional.empty());
+
+        MyClass value1 = new MyClass("a", 1);
+        store.put(key1, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(value1), Optional.of(-1L)).join();
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(objCache.getIfCached(key1), Optional.of(value1));
+            assertEquals(objCache.get(key1).join(), Optional.of(value1));
+        });
+
+        MyClass value2 = new MyClass("a", 2);
+        store.put(key1, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(value2), Optional.of(0L)).join();
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(objCache.getIfCached(key1), Optional.of(value2));
+            assertEquals(objCache.get(key1).join(), Optional.of(value2));
+        });
+    }
+
+    @Test(dataProvider = "impl")
     public void insertionOutsideCache(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());

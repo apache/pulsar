@@ -261,7 +261,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                         }
                     }
 
-                    metadataCaches.forEach(c -> c.invalidate(path));
+                    metadataCaches.forEach(c -> c.refresh(path));
                     return stat;
                 });
     }
