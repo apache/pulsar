@@ -37,7 +37,8 @@ public class ConnectionHandler {
     protected final Backoff backoff;
     private static final AtomicLongFieldUpdater<ConnectionHandler> EPOCH_UPDATER = AtomicLongFieldUpdater
             .newUpdater(ConnectionHandler.class, "epoch");
-    private volatile long epoch = 0L;
+    // Start with -1L because it gets incremented before sending on the first connection
+    private volatile long epoch = -1L;
     protected volatile long lastConnectionClosedTimestamp = 0L;
 
     interface Connection {
