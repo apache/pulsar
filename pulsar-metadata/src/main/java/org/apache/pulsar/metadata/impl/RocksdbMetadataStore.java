@@ -392,7 +392,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     protected CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion) {
         try (Transaction transaction = db.beginTransaction(optionSync)) {
             byte[] pathBytes = toBytes(path);
-            byte[] oldValueData = db.get(optionDontCache, pathBytes);
+            byte[] oldValueData = transaction.get(optionDontCache, pathBytes);
             MetaValue metaValue = MetaValue.parse(oldValueData);
             if (metaValue == null) {
                 throw new MetadataStoreException.NotFoundException(String.format("path %s not found.", path));
@@ -402,7 +402,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
                         String.format("Version mismatch, actual=%s, expect=%s", metaValue.getVersion(),
                                 expectedVersion.get()));
             }
-            db.delete(optionSync, pathBytes);
+            transaction.delete(pathBytes);
             transaction.commit();
             receivedNotification(new Notification(NotificationType.Deleted, path));
             notifyParentChildrenChanged(path);
@@ -417,7 +417,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
                                                EnumSet<CreateOption> options) {
         try (Transaction transaction = db.beginTransaction(optionSync)) {
             byte[] pathBytes = toBytes(path);
-            byte[] oldValueData = db.get(pathBytes);
+            byte[] oldValueData = transaction.get(optionDontCache, pathBytes);
             MetaValue metaValue = MetaValue.parse(oldValueData);
             if (expectedVersion.isPresent()) {
                 if (metaValue == null && expectedVersion.get() != -1 ||
@@ -439,7 +439,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
                 if (options.contains(CreateOption.Sequential)) {
                     path += sequentialIdGenerator.getAndIncrement();
                     pathBytes = toBytes(path);
-                    db.put(SEQUENTIAL_ID_KEY, toBytes(sequentialIdGenerator.get()));
+                    transaction.put(SEQUENTIAL_ID_KEY, toBytes(sequentialIdGenerator.get()));
                 }
                 created = true;
             } else {
@@ -451,7 +451,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
             metaValue.data = data;
 
             //handle Sequential
-            db.put(pathBytes, metaValue.serialize());
+            transaction.put(pathBytes, metaValue.serialize());
 
             transaction.commit();
 
