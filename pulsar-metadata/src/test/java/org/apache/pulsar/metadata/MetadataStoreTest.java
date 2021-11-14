@@ -29,11 +29,15 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import lombok.Cleanup;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -47,6 +51,7 @@ import org.apache.pulsar.metadata.api.Stat;
 import org.assertj.core.util.Lists;
 import org.testng.annotations.Test;
 
+@Slf4j
 public class MetadataStoreTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
@@ -387,15 +392,60 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
             // Memory is not persistent.
             return;
         }
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        String metadataUrl = urlSupplier.get();
+        MetadataStore store = MetadataStoreFactory.create(metadataUrl, MetadataStoreConfig.builder().build());
         byte[] data = "testPersistent".getBytes(StandardCharsets.UTF_8);
         store.put("/a/b/c", data, Optional.of(-1L)).join();
         store.close();
 
-        store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        store = MetadataStoreFactory.create(metadataUrl, MetadataStoreConfig.builder().build());
         Optional<GetResult> result = store.get("/a/b/c").get();
         assertTrue(result.isPresent());
         assertEquals(result.get().getValue(), data);
         store.close();
+    }
+
+    @Test(dataProvider = "impl")
+    public void testConcurrentPutGetOneKey(String provider, Supplier<String> urlSupplier) throws Exception {
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        byte[] data = new byte[]{0};
+        String path = newKey();
+        int maxValue = 100;
+        store.put(path, data, Optional.of(-1L));
+
+        AtomicInteger successWrites = new AtomicInteger(0);
+        Runnable task = new Runnable() {
+            @SneakyThrows
+            @Override
+            public void run() {
+                byte value;
+                while (true) {
+                    GetResult readResult = store.get(path).get().get();
+                    value = (byte) (readResult.getValue()[0] + 1);
+                    if (value <= maxValue) {
+                        CompletableFuture<Void> putResult =
+                                store.put(path, new byte[]{value}, Optional.of(readResult.getStat().getVersion()))
+                                        .thenRun(successWrites::incrementAndGet);
+                        try {
+                            putResult.get();
+                        } catch (Exception ignore) {
+                        }
+                        log.info("Put value {} success:{}. ", value, !putResult.isCompletedExceptionally());
+                    } else {
+                        break;
+                    }
+                }
+            }
+        };
+        CompletableFuture<Void> t1 = CompletableFuture.completedFuture(null).thenRunAsync(task);
+        CompletableFuture<Void> t2 = CompletableFuture.completedFuture(null).thenRunAsync(task);
+        task.run();
+        t1.join();
+        t2.join();
+        assertFalse(t1.isCompletedExceptionally());
+        assertFalse(t2.isCompletedExceptionally());
+
+        assertEquals(successWrites.get(), maxValue);
+        assertEquals(store.get(path).get().get().getValue()[0], maxValue);
     }
 }
