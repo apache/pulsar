@@ -392,7 +392,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     protected CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion) {
         try (Transaction transaction = db.beginTransaction(optionSync)) {
             byte[] pathBytes = toBytes(path);
-            byte[] oldValueData = transaction.get(optionDontCache, pathBytes);
+            byte[] oldValueData = transaction.getForUpdate(optionDontCache, pathBytes,false);
             MetaValue metaValue = MetaValue.parse(oldValueData);
             if (metaValue == null) {
                 throw new MetadataStoreException.NotFoundException(String.format("path %s not found.", path));
@@ -417,7 +417,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
                                                EnumSet<CreateOption> options) {
         try (Transaction transaction = db.beginTransaction(optionSync)) {
             byte[] pathBytes = toBytes(path);
-            byte[] oldValueData = transaction.get(optionDontCache, pathBytes);
+            byte[] oldValueData = transaction.getForUpdate(optionDontCache, pathBytes, false);
             MetaValue metaValue = MetaValue.parse(oldValueData);
             if (expectedVersion.isPresent()) {
                 if (metaValue == null && expectedVersion.get() != -1 ||
