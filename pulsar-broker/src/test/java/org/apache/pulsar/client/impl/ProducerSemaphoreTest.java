@@ -36,9 +36,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 @Test(groups = "broker-impl")
 public class ProducerSemaphoreTest extends ProducerConsumerBase {
 

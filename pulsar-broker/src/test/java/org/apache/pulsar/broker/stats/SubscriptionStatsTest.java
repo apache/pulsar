@@ -35,7 +35,6 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Test(groups = "broker")
