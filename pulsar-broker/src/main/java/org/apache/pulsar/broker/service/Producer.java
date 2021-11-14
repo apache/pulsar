@@ -142,7 +142,7 @@ public class Producer {
         if (isRemote) {
             String clusterName = producerName.split("\\.")[2];
             return clusterName.contains(REPL_PRODUCER_NAME_DELIMITER)
-                    ? clusterName.split(REPL_PRODUCER_NAME_DELIMITER)[1] : clusterName;
+                    ? clusterName.split(REPL_PRODUCER_NAME_DELIMITER)[0] : clusterName;
         }
         return null;
     }
