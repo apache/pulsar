@@ -19,13 +19,12 @@
 package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertTrue;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.io.File;
 import java.util.UUID;
 import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
-import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.tests.TestRetrySupport;
+import org.assertj.core.util.Files;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -33,14 +32,11 @@ import org.testng.annotations.DataProvider;
 public abstract class BaseMetadataStoreTest extends TestRetrySupport {
     protected TestZKServer zks;
 
-    private Path tempDir;
-
     @BeforeClass(alwaysRun = true)
     @Override
     public final void setup() throws Exception {
         incrementSetupNumber();
         zks = new TestZKServer();
-        tempDir = Files.createTempDirectory("BaseMetadataStoreTest");
     }
 
     @AfterClass(alwaysRun = true)
@@ -48,7 +44,12 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
     public final void cleanup() throws Exception {
         markCurrentSetupNumberCleaned();
         zks.close();
-        FileUtils.deleteQuietly(tempDir.toFile());
+    }
+
+    private static String createTempFolder() {
+        File temp = Files.newTemporaryFolder();
+        temp.deleteOnExit();
+        return temp.getAbsolutePath();
     }
 
     @DataProvider(name = "impl")
@@ -61,7 +62,7 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
         return new Object[][] {
                 { "ZooKeeper", stringSupplier(() -> zks.getConnectionString()) },
                 { "Memory", stringSupplier(() -> "memory://" + UUID.randomUUID()) },
-                { "RocksDB", stringSupplier(() -> "rocksdb://" + tempDir.toAbsolutePath()) },
+                { "RocksDB", stringSupplier(() -> "rocksdb://" + createTempFolder()) },
         };
     }
 
