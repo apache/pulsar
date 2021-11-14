@@ -48,8 +48,13 @@ import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
+import org.rocksdb.ColumnFamilyDescriptor;
+import org.rocksdb.ColumnFamilyHandle;
+import org.rocksdb.ConfigOptions;
+import org.rocksdb.DBOptions;
 import org.rocksdb.InfoLogLevel;
 import org.rocksdb.Options;
+import org.rocksdb.OptionsUtil;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
@@ -57,7 +62,6 @@ import org.rocksdb.RocksIterator;
 import org.rocksdb.Transaction;
 import org.rocksdb.TransactionDB;
 import org.rocksdb.TransactionDBOptions;
-import org.rocksdb.WriteBatch;
 import org.rocksdb.WriteOptions;
 
 /**
@@ -75,17 +79,15 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
 
     private final WriteOptions optionSync;
     private final WriteOptions optionDontSync;
-
     private final ReadOptions optionCache;
     private final ReadOptions optionDontCache;
-
-    private final WriteBatch emptyBatch;
 
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
-    private static class MetaValue {
-        private static final int HEADER_SIZE = 8 + 8 + 8 + 8 + 1;
+    static class MetaValue {
+        private static final int HEADER_SIZE = 4 + 4 + 8 + 8 + 8 + 8 + 1;
+        private static final int FORMAT_VERSION_V1 = 1;
 
         long version;
         long owner;
@@ -94,9 +96,14 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         boolean ephemeral;
         byte[] data;
 
+        /**
+         * Note: we can only add new fields, but not change or remove existing fields.
+         */
         public byte[] serialize() {
             byte[] result = new byte[HEADER_SIZE + data.length];
             ByteBuffer buffer = ByteBuffer.wrap(result);
+            buffer.putInt(HEADER_SIZE);
+            buffer.putInt(FORMAT_VERSION_V1);
             buffer.putLong(version);
             buffer.putLong(owner);
             buffer.putLong(createdTimestamp);
@@ -110,16 +117,28 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
             if (dataBytes == null) {
                 return null;
             }
-            if (dataBytes.length < HEADER_SIZE) {
-                throw new MetadataStoreException("Invalid MetaValue data");
+            if (dataBytes.length < 4) {
+                throw new MetadataStoreException("Invalid MetaValue data, size=" + dataBytes.length);
             }
             ByteBuffer buffer = ByteBuffer.wrap(dataBytes);
             MetaValue metaValue = new MetaValue();
-            metaValue.version = buffer.getLong();
-            metaValue.owner = buffer.getLong();
-            metaValue.createdTimestamp = buffer.getLong();
-            metaValue.modifiedTimestamp = buffer.getLong();
-            metaValue.ephemeral = buffer.get() > 0;
+            int headerSize = buffer.getInt();
+            if (dataBytes.length < headerSize) {
+                throw new MetadataStoreException(
+                        String.format("Invalid MetaValue data, no enough header data. expect %d, actual %d",
+                                headerSize, dataBytes.length));
+            }
+            int formatVersion = buffer.getInt();
+            if (formatVersion >= FORMAT_VERSION_V1) {
+                metaValue.version = buffer.getLong();
+                metaValue.owner = buffer.getLong();
+                metaValue.createdTimestamp = buffer.getLong();
+                metaValue.modifiedTimestamp = buffer.getLong();
+                metaValue.ephemeral = buffer.get() > 0;
+            } else {
+                throw new MetadataStoreException("Invalid MetaValue format version=" + formatVersion);
+            }
+            buffer.position(headerSize);
             metaValue.data = new byte[buffer.remaining()];
             buffer.get(metaValue.data);
             return metaValue;
@@ -159,52 +178,90 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
             throw new MetadataStoreException("Failed to load RocksDB JNI library", t);
         }
 
-        this.optionSync = new WriteOptions();
-        this.optionDontSync = new WriteOptions();
-        this.optionCache = new ReadOptions();
-        this.optionDontCache = new ReadOptions();
-        this.emptyBatch = new WriteBatch();
-
-        try (Options options = new Options()) {
-            options.setCreateIfMissing(true);
-
-            String dataDir = metadataURL.substring("rocksdb://".length());
-            Path dataPath = FileSystems.getDefault().getPath(dataDir);
+        String dataDir = metadataURL.substring("rocksdb://".length());
+        Path dataPath = FileSystems.getDefault().getPath(dataDir);
+        try {
             Files.createDirectories(dataPath);
-            configLog(options);
-            TransactionDBOptions transactionDBOptions = new TransactionDBOptions();
-            db = TransactionDB.open(options, transactionDBOptions, dataPath.toString());
-
-            sequentialIdGenerator = new AtomicLong(0);
-            byte[] value = db.get(SEQUENTIAL_ID_KEY);
-            if (value != null) {
-                sequentialIdGenerator.set(toLong(value));
-            } else {
-                db.put(INSTANCE_ID_KEY, toBytes(sequentialIdGenerator.get()));
-            }
-
-            value = db.get(INSTANCE_ID_KEY);
-            if (value != null) {
-                instanceId = toLong(value) + 1;
-            } else {
-                instanceId = 0;
-            }
-            db.put(INSTANCE_ID_KEY, toBytes(instanceId));
-
-
-        } catch (RocksDBException e) {
-            throw new MetadataStoreException("Error open RocksDB database", e);
-        } catch (MetadataStoreException e) {
-            throw e;
-        } catch (Throwable t) {
-            throw new MetadataStoreException(t);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
 
-        optionSync.setSync(true);
-        optionDontSync.setSync(false);
+        db = openDB(dataPath.toString(), metadataStoreConfig.getConfigFilePath());
 
-        optionCache.setFillCache(true);
-        optionDontCache.setFillCache(false);
+        this.optionSync = new WriteOptions().setSync(true);
+        this.optionDontSync = new WriteOptions().setSync(false);
+        this.optionCache = new ReadOptions().setFillCache(true);
+        this.optionDontCache = new ReadOptions().setFillCache(false);
+
+        try {
+            sequentialIdGenerator = loadSequentialIdGenerator();
+            instanceId = loadInstanceId();
+        } catch (RocksDBException exception) {
+            log.error("Error while init metastore state", exception);
+            close();
+            throw new MetadataStoreException("Error init metastore state", exception);
+        }
+    }
+
+    private long loadInstanceId() throws RocksDBException {
+        long instanceId;
+        byte[] value = db.get(optionDontCache, INSTANCE_ID_KEY);
+        if (value != null) {
+            instanceId = toLong(value) + 1;
+        } else {
+            instanceId = 0;
+        }
+        db.put(optionSync, INSTANCE_ID_KEY, toBytes(instanceId));
+        return instanceId;
+    }
+
+    private AtomicLong loadSequentialIdGenerator() throws RocksDBException {
+        AtomicLong generator = new AtomicLong(0);
+        byte[] value = db.get(optionDontCache, SEQUENTIAL_ID_KEY);
+        if (value != null) {
+            generator.set(toLong(value));
+        } else {
+            db.put(optionSync, INSTANCE_ID_KEY, toBytes(generator.get()));
+        }
+        return generator;
+    }
+
+    private TransactionDB openDB(String dataPath, String configFilePath) throws MetadataStoreException {
+        try (TransactionDBOptions transactionDBOptions = new TransactionDBOptions()) {
+            if (configFilePath != null) {
+                DBOptions dbOptions = new DBOptions();
+                ConfigOptions configOptions = new ConfigOptions();
+                List<ColumnFamilyDescriptor> cfDescriptors = new ArrayList<>();
+                OptionsUtil.loadOptionsFromFile(configOptions, configFilePath, dbOptions, cfDescriptors);
+                log.info("Load options from configFile({}), CF.size={},dbConfig={}", configFilePath,
+                        cfDescriptors.size(), dbOptions);
+                if (log.isDebugEnabled()) {
+                    for (ColumnFamilyDescriptor cfDescriptor : cfDescriptors) {
+                        log.debug("CF={},Options={}", cfDescriptor.getName(), cfDescriptor.getOptions().toString());
+                    }
+                }
+                List<ColumnFamilyHandle> cfHandles = new ArrayList<>();
+                try {
+                    return TransactionDB.open(dbOptions, transactionDBOptions, dataPath, cfDescriptors, cfHandles);
+                } finally {
+                    dbOptions.close();
+                    configOptions.close();
+                }
+            } else {
+                Options options = new Options();
+                options.setCreateIfMissing(true);
+                configLog(options);
+                try {
+                    return TransactionDB.open(options, transactionDBOptions, dataPath);
+                } finally {
+                    options.close();
+                }
+            }
+        } catch (RocksDBException e) {
+            throw new MetadataStoreException("Error open RocksDB database", e);
+        } catch (Throwable t) {
+            throw MetadataStoreException.wrap(t);
+        }
     }
 
     private void configLog(Options options) throws IOException {
@@ -242,21 +299,21 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    public void close() throws Exception {
-        db.close();
+    public void close() throws MetadataStoreException {
         optionSync.close();
         optionDontSync.close();
         optionCache.close();
         optionDontCache.close();
-        emptyBatch.close();
-        super.close();
+        db.close();
+        try {
+            super.close();
+        } catch (Throwable throwable) {
+            throw MetadataStoreException.wrap(throwable);
+        }
     }
 
     @Override
-    public CompletableFuture<Optional<GetResult>> get(String path) {
-        if (path.isEmpty()) {
-            return FutureUtil.failedFuture(new MetadataStoreException("Invalid path"));
-        }
+    public CompletableFuture<Optional<GetResult>> storeGet(String path) {
         try {
             byte[] value = db.get(optionCache, toBytes(path));
             if (value == null) {
@@ -282,15 +339,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    public CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion) {
-        return put(path, value, expectedVersion, EnumSet.noneOf(CreateOption.class));
-    }
-
-    @Override
     protected CompletableFuture<List<String>> getChildrenFromStore(String path) {
-        if (path.isEmpty()) {
-            return FutureUtil.failedFuture(new MetadataStoreException("Invalid path"));
-        }
         try (RocksIterator iterator = db.newIterator(optionDontCache)) {
             Set<String> result = new HashSet<>();
             String firstKey = path.equals("/") ? path : path + "/";
@@ -325,9 +374,6 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
 
     @Override
     protected CompletableFuture<Boolean> existsFromStore(String path) {
-        if (path.isEmpty()) {
-            return FutureUtil.failedFuture(new MetadataStoreException("Invalid path"));
-        }
         try {
             byte[] value = db.get(optionDontCache, toBytes(path));
             if (log.isDebugEnabled()) {
@@ -344,9 +390,6 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
 
     @Override
     protected CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion) {
-        if (path.isEmpty()) {
-            return FutureUtil.failedFuture(new MetadataStoreException("Invalid path"));
-        }
         try (Transaction transaction = db.beginTransaction(optionSync)) {
             byte[] pathBytes = toBytes(path);
             byte[] oldValueData = db.get(optionDontCache, pathBytes);

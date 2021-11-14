@@ -19,10 +19,8 @@
 package org.apache.pulsar.metadata.api;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 
 @Data
-@EqualsAndHashCode
 public final class Notification {
     /**
      * The type of the event being notified.

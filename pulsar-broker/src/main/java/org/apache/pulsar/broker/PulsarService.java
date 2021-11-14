@@ -331,6 +331,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 MetadataStoreConfig.builder()
                         .sessionTimeoutMillis((int) config.getZooKeeperSessionTimeoutMillis())
                         .allowReadOnlyOperations(false)
+                        .configFilePath(config.getMetadataStoreConfigPath())
                         .build());
     }
 
@@ -912,6 +913,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 MetadataStoreConfig.builder()
                         .sessionTimeoutMillis((int) config.getZooKeeperSessionTimeoutMillis())
                         .allowReadOnlyOperations(false)
+                        .configFilePath(config.getMetadataStoreConfigPath())
                         .build());
     }
 
