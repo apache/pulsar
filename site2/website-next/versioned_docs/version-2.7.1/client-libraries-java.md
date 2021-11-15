@@ -201,6 +201,7 @@ stringProducer.send("My message");
 > 
 > ```
 
+
 ### Configure producer
 
 If you instantiate a `Producer` object by specifying only a topic name as the example above, use the default configuration for producer. 

@@ -94,11 +94,11 @@ interface, which means you need to implement the {@inject: github:open:/pulsar-i
        `ack` |Acknowledge that the record is fully processed.
        `fail`|Indicate that the record fails to be processed.
 
-    :::tip
+:::tip
 
-    For more information about **how to create a source connector**, see {@inject: github:KafkaSource:/pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaAbstractSource.java}.
+For more information about **how to create a source connector**, see {@inject: github:KafkaSource:/pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaAbstractSource.java}.
 
-    :::
+:::
 
 ### Sink
 

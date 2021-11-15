@@ -30,6 +30,7 @@ All Pulsar command-line tools can be run from the `bin` directory of your [insta
 > 
 > ```
 
+
 ## `pulsar`
 
 The pulsar tool is used to start Pulsar components, such as bookies and ZooKeeper, in the foreground.
