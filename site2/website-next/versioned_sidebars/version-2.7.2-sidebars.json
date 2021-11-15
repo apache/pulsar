@@ -393,6 +393,24 @@
           "id": "version-2.7.2/security-bouncy-castle"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Adaptors",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.2/adaptors-kafka"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/adaptors-spark"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/adaptors-storm"
+        }
+      ]
     }
   ]
 }
