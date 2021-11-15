@@ -280,13 +280,5 @@ public class NamespaceResources extends BaseResources<Policies> {
 
             return completableFuture;
         }
-
-        public void clearPartitionedTopicMetadata(NamespaceName namespaceName) throws MetadataStoreException {
-            final String globalPartitionedPath = joinPath(PARTITIONED_TOPIC_PATH, namespaceName.toString());
-            // check whether partitioned topics metadata node exist
-            if (exists(globalPartitionedPath)) {
-                deleteRecursive(this, globalPartitionedPath);
-            }
-        }
     }
 }
