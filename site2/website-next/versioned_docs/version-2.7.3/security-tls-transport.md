@@ -171,7 +171,7 @@ For JDK 8, you can obtain a list of supported values from the documentation:
 
 Proxies need to configure TLS in two directions, for clients connecting to the proxy, and for the proxy connecting to brokers.
 
-```
+```properties
 
 # For clients connecting to the proxy
 tlsEnabledInProxy=true
@@ -187,7 +187,7 @@ brokerClientTrustCertsFilePath=/path/to/ca.cert.pem
 
 ## Client configuration
 
-When you enable the TLS transport encryption, you need to configure the client to use ```
+When you enable the TLS transport encryption, you need to configure the client to use ```https://``` and port 8443 for the web service URL, and ```pulsar+ssl://``` and port 6651 for the broker service URL.
 
 As the server certificate that you generated above does not belong to any of the default trust chains, you also need to either specify the path the **trust cert** (recommended), or tell the client to allow untrusted server certs.
 

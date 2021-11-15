@@ -16,35 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.metadata;
+package org.apache.pulsar.metadata.impl;
 
-import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 import lombok.Cleanup;
-import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
-import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
-import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
-import org.apache.pulsar.metadata.api.Notification;
-import org.apache.pulsar.metadata.api.NotificationType;
-import org.apache.pulsar.metadata.api.Stat;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
@@ -91,5 +73,16 @@ public class LocalMemoryMetadataStoreTest {
         Awaitility.await().untilAsserted(() -> {
             assertFalse(store1.exists("/test").join());
         });
+    }
+
+    @Test
+    public void testPathValid() {
+        assertFalse(AbstractMetadataStore.isValidPath(null));
+        assertFalse(AbstractMetadataStore.isValidPath(""));
+        assertFalse(AbstractMetadataStore.isValidPath(" "));
+        assertTrue(AbstractMetadataStore.isValidPath("/"));
+        assertTrue(AbstractMetadataStore.isValidPath("/test"));
+        assertFalse(AbstractMetadataStore.isValidPath("/test/"));
+        assertTrue(AbstractMetadataStore.isValidPath("/test/ABC"));
     }
 }
