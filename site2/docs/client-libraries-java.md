@@ -629,6 +629,36 @@ consumer2 will receive:
 >
 > If a topic is a partitioned topic, each partition has only one active consumer, messages of one partition are distributed to only one consumer, and messages of multiple partitions are distributed to multiple consumers. 
 
+When Key hash range change that can receive events.
+
+```java
+Consumer consumer = client.newConsumer()
+        .topic("my-topic")
+        .subscriptionName("my-subscription")
+        .subscriptionType(SubscriptionType.Key_Shared)
+        .consumerEventListener(new ConsumerEventListener(){
+            @Override
+            public void becameActive(Consumer<?> consumer, int partitionId) {
+                // This method only useful with subscription type: "Failover".
+                // Not useful in subscription type: "Key_Shared".
+                log.info("Partition: " + partitionId + " will be consumed by current consumer");
+            }
+            @Override
+            public void becameInactive(Consumer<?> consumer, int partitionId) {
+                // This method only useful with subscription type: "Failover".
+                // Not useful in subscription type: "Key_Shared".
+                log.info("Partition: " + partitionId + " will not be consumed by current consumer");
+            }
+            @Override
+            public void keySharedRuleChanged(Consumer<?> consumer, Predicate<String> keyPredicate) {
+                // This method only useful with subscription type: "Key_Shared".
+                // Not useful in subscription type: "Failover".
+
+            }
+        })
+        .subscribe();
+```
+
 #### Shared
 
 Create new consumers and subscribe with `Shared` subscription type.
@@ -733,6 +763,35 @@ Producer producer = client.newProducer()
 > Note:
 >
 > If the message key is not specified, messages without key are dispatched to one consumer in order by default.
+
+When Key hash range change that can receive events.
+
+```java
+Consumer consumer = client.newConsumer()
+        .topic("my-topic")
+        .subscriptionName("my-subscription")
+        .subscriptionType(SubscriptionType.Key_Shared)
+        .consumerEventListener(new ConsumerEventListener(){
+            @Override
+            public void becameActive(Consumer<?> consumer, int partitionId) {
+                // This method only useful with subscription type: "Failover".
+                // Not useful in subscription type: "Key_Shared".
+            }
+            @Override
+            public void becameInactive(Consumer<?> consumer, int partitionId) {
+                // This method only useful with subscription type: "Failover".
+                // Not useful in subscription type: "Key_Shared".
+            }
+            @Override
+            public void keySharedRuleChanged(Consumer<?> consumer, Predicate<String> keyPredicate) {
+                // This method only useful with subscription type: "Key_Shared".
+                // Not useful in subscription type: "Failover".
+                String anyKey = "anyKey";
+                log.info("Key " + anyKey + " will be consumed by current consumer ? " + keyPredicate.test(anyKey));
+            }
+        })
+        .subscribe();
+```
 
 ## Reader 
 
