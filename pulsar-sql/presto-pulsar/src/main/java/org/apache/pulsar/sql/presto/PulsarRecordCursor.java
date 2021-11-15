@@ -597,11 +597,11 @@ public class PulsarRecordCursor implements RecordCursor {
     /**
      * Get the schemaInfo of the message.
      *
-     * 1. If the schema type of pulsarSplit is NONE or BYTES, using BYTES schema.
-     * 2. If the schema type of pulsarSplit is BYTEBUFFER, using BYTEBUFFER schema.
-     * 3. If the schema version of the message is null, use the schemaInfo of pulsarSplit.
+     * 1. If the schema type of pulsarSplit is NONE or BYTES, use the BYTES schema.
+     * 2. If the schema type of pulsarSplit is BYTEBUFFER, use the BYTEBUFFER schema.
+     * 3. If the schema version of the message is null, use the schema info of pulsarSplit.
      * 4. If the schema version of the message is not null, get the specific version schema by PulsarAdmin.
-     * 5. If the final schema is null throw runtime exception.
+     * 5. If the final schema is null throw a runtime exception.
      */
     private SchemaInfo getSchemaInfo(PulsarSplit pulsarSplit) {
         SchemaInfo schemaInfo = getBytesSchemaInfo(pulsarSplit.getSchemaType(), pulsarSplit.getSchemaName());
