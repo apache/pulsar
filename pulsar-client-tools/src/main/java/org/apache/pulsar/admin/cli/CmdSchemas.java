@@ -139,10 +139,10 @@ public class CmdSchemas extends CmdBase {
                                     .withPojo(cls)
                                     .withAlwaysAllowNull(alwaysAllowNull)
                                     .build();
-            if (type.toLowerCase().equalsIgnoreCase("avro")) {
+            if (type.equalsIgnoreCase("avro")) {
                 input.setType("AVRO");
                 input.setSchema(SchemaExtractor.getAvroSchemaInfo(schemaDefinition));
-            } else if (type.toLowerCase().equalsIgnoreCase("json")){
+            } else if (type.equalsIgnoreCase("json")){
                 input.setType("JSON");
                 input.setSchema(SchemaExtractor.getJsonSchemaInfo(schemaDefinition));
             }
