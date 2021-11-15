@@ -1552,7 +1552,7 @@ public class PersistentTopic extends AbstractTopic
                         .thenApply(clusterData ->
                                 brokerService.getReplicationClient(remoteCluster, clusterData)))
                 .thenAccept(replicationClient -> {
-                    replicators.computeIfAbsent(remoteCluster, r -> {
+                    Replicator replicator = replicators.computeIfAbsent(remoteCluster, r -> {
                         try {
                             return new PersistentReplicator(PersistentTopic.this, cursor, localCluster,
                                     remoteCluster, brokerService, (PulsarClientImpl) replicationClient);
@@ -1563,8 +1563,8 @@ public class PersistentTopic extends AbstractTopic
                     });
 
                     // clean up replicator if startup is failed
-                    if (replicators.containsKey(remoteCluster) && replicators.get(remoteCluster) == null) {
-                        replicators.remove(remoteCluster);
+                    if (replicator == null) {
+                        replicators.removeNullValue(remoteCluster);
                     }
                 });
     }

@@ -20,6 +20,7 @@ package org.apache.pulsar.common.util.collections;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -41,6 +42,27 @@ public class ConcurrentOpenHashMap<K, V> {
 
     private static final Object EmptyKey = null;
     private static final Object DeletedKey = new Object();
+
+    /**
+     * This object is used to delete empty value in this map.
+     * EmptyValue.equals(null) = true.
+     */
+    private static final Object EmptyValue = new Object() {
+
+        @SuppressFBWarnings
+        @Override
+        public boolean equals(Object obj) {
+            return obj == null;
+        }
+
+        /**
+         * This is just for avoiding spotbugs errors
+         */
+        @Override
+        public int hashCode() {
+            return super.hashCode();
+        }
+    };
 
     private static final float MapFillFactor = 0.66f;
 
@@ -140,6 +162,10 @@ public class ConcurrentOpenHashMap<K, V> {
         checkNotNull(value);
         long h = hash(key);
         return getSection(h).remove(key, value, (int) h) != null;
+    }
+
+    public void removeNullValue(K key) {
+        remove(key, EmptyValue);
     }
 
     private Section<K, V> getSection(long hash) {
