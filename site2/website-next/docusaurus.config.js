@@ -101,6 +101,10 @@ module.exports = {
   customFields: {
     githubUrl,
   },
+  i18n: {
+    defaultLocale: "en",
+    locales: ["en", "zh"],
+  },
   themeConfig: {
     navbar: {
       title: "",
@@ -121,6 +125,10 @@ module.exports = {
           href: "https://github.com/apache/pulsar",
           label: "GitHub",
           position: "right",
+        },
+        {
+          type: "localeDropdown",
+          position: "left",
         },
         {
           label: "Version",
