@@ -497,6 +497,54 @@
           "id": "version-2.6.4/cookbooks-bookkeepermetadata"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Development",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.6.4/develop-tools"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.4/develop-binary-protocol"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.4/develop-schema"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.4/develop-load-manager"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.4/develop-cpp"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Reference",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.6.4/reference-terminology"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.4/reference-cli-tools"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.4/reference-configuration"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.4/reference-metrics"
+        }
+      ]
     }
   ]
 }
