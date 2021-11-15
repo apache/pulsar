@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Lists;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -30,7 +33,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.client.api.Range;
+import org.apache.pulsar.client.impl.StickyKeyConsumerPredicate;
+import org.apache.pulsar.client.impl.StickyKeyConsumerPredicate.Predicate4HashRangeExclusiveStickyKeyConsumerSelector;
 import org.apache.pulsar.common.api.proto.IntRange;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
@@ -39,6 +46,132 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
+
+    @Test
+    public void testEventListener() throws Exception{
+        final HashRangeExclusiveStickyKeyConsumerSelector selector =
+                new HashRangeExclusiveStickyKeyConsumerSelector(100);
+        // consumer count: 0 --> 1
+        Consumer consumer1 = mock(Consumer.class);
+        KeySharedMeta keySharedMeta1 = new KeySharedMeta();
+        IntRange intRange1 = new IntRange();
+        intRange1.setStart(0);
+        intRange1.setEnd(10);
+        keySharedMeta1.addAllHashRanges(Arrays.asList(intRange1));
+        when(consumer1.getKeySharedMeta()).thenReturn(keySharedMeta1);
+        AtomicInteger eventCount1 = new AtomicInteger();
+        doAnswer(invocation -> {
+            String props = invocation.getArgument(0);
+            StickyKeyConsumerPredicate predicate = StickyKeyConsumerPredicate.decode(props);
+            Assert.assertTrue(predicate instanceof Predicate4HashRangeExclusiveStickyKeyConsumerSelector);
+            eventCount1.incrementAndGet();
+            return null;
+        }).when(consumer1).notifyActiveConsumerChange(anyString());
+        selector.addConsumer(consumer1);
+        Assert.assertEquals(1, eventCount1.get());
+        // consumer count: 1 --> 2
+        Consumer consumer2 = mock(Consumer.class);
+        KeySharedMeta keySharedMeta2 = new KeySharedMeta();
+        IntRange intRange2 = new IntRange();
+        intRange2.setStart(11);
+        intRange2.setEnd(20);
+        keySharedMeta2.addAllHashRanges(Arrays.asList(intRange2));
+        when(consumer2.getKeySharedMeta()).thenReturn(keySharedMeta2);
+        AtomicInteger eventCount2 = new AtomicInteger();
+        doAnswer(invocation -> {
+            String props = invocation.getArgument(0);
+            StickyKeyConsumerPredicate predicate = StickyKeyConsumerPredicate.decode(props);
+            Assert.assertTrue(predicate instanceof Predicate4HashRangeExclusiveStickyKeyConsumerSelector);
+            eventCount2.incrementAndGet();
+            return null;
+        }).when(consumer2).notifyActiveConsumerChange(anyString());
+        selector.addConsumer(consumer2);
+        Assert.assertEquals(1, eventCount2.get());
+        Assert.assertEquals(2, eventCount1.get());
+        // consumer count: 2 --> 3
+        Consumer consumer3 = mock(Consumer.class);
+        KeySharedMeta keySharedMeta3 = new KeySharedMeta();
+        IntRange intRange3 = new IntRange();
+        intRange3.setStart(21);
+        intRange3.setEnd(30);
+        keySharedMeta3.addAllHashRanges(Arrays.asList(intRange3));
+        when(consumer3.getKeySharedMeta()).thenReturn(keySharedMeta3);
+        AtomicInteger eventCount3 = new AtomicInteger();
+        doAnswer(invocation -> {
+            String props = invocation.getArgument(0);
+            StickyKeyConsumerPredicate predicate = StickyKeyConsumerPredicate.decode(props);
+            Assert.assertTrue(predicate instanceof Predicate4HashRangeExclusiveStickyKeyConsumerSelector);
+            eventCount3.incrementAndGet();
+            return null;
+        }).when(consumer3).notifyActiveConsumerChange(anyString());
+        selector.addConsumer(consumer3);
+        Assert.assertEquals(eventCount1.get(), 3);
+        Assert.assertEquals(eventCount2.get(), 2);
+        Assert.assertEquals(eventCount3.get(), 1);
+        // consumer count: 3 --> 2
+        selector.removeConsumer(consumer1);
+        Assert.assertEquals(eventCount1.get(), 3);
+        Assert.assertEquals(eventCount2.get(), 3);
+        Assert.assertEquals(eventCount3.get(), 2);
+        // consumer count: 2 --> 1
+        selector.removeConsumer(consumer2);
+        Assert.assertEquals(eventCount1.get(), 3);
+        Assert.assertEquals(eventCount2.get(), 3);
+        Assert.assertEquals(eventCount3.get(), 3);
+        // consumer count: 1 --> 0
+        selector.removeConsumer(consumer3);
+        Assert.assertEquals(eventCount1.get(), 3);
+        Assert.assertEquals(eventCount2.get(), 3);
+        Assert.assertEquals(eventCount3.get(), 3);
+    }
+
+    @Test(dependsOnMethods = {"testConsumerSelect"})
+    public void testGenerateSpecialPredicate() throws Exception{
+        HashRangeExclusiveStickyKeyConsumerSelector selector = new HashRangeExclusiveStickyKeyConsumerSelector(30);
+        Consumer consumer1 = mock(Consumer.class);
+        KeySharedMeta keySharedMeta1 = new KeySharedMeta();
+        IntRange intRange1 = new IntRange();
+        intRange1.setStart(0);
+        intRange1.setEnd(10);
+        keySharedMeta1.addAllHashRanges(Arrays.asList(intRange1));
+        when(consumer1.getKeySharedMeta()).thenReturn(keySharedMeta1);
+        selector.addConsumer(consumer1);
+        Consumer consumer2 = mock(Consumer.class);
+        KeySharedMeta keySharedMeta2 = new KeySharedMeta();
+        IntRange intRange2 = new IntRange();
+        intRange2.setStart(11);
+        intRange2.setEnd(20);
+        keySharedMeta2.addAllHashRanges(Arrays.asList(intRange2));
+        when(consumer2.getKeySharedMeta()).thenReturn(keySharedMeta2);
+        selector.addConsumer(consumer2);
+        Consumer consumer3 = mock(Consumer.class);
+        KeySharedMeta keySharedMeta3 = new KeySharedMeta();
+        IntRange intRange3 = new IntRange();
+        intRange3.setStart(21);
+        intRange3.setEnd(30);
+        keySharedMeta3.addAllHashRanges(Arrays.asList(intRange3));
+        when(consumer3.getKeySharedMeta()).thenReturn(keySharedMeta3);
+        selector.addConsumer(consumer3);
+        // do test
+        Map<Consumer, StickyKeyConsumerPredicate> predicateMapping = new HashMap<>();
+        predicateMapping.put(consumer1,
+                StickyKeyConsumerPredicate.decode(selector.generateSpecialPredicate(consumer1).encode()));
+        predicateMapping.put(consumer2,
+                StickyKeyConsumerPredicate.decode(selector.generateSpecialPredicate(consumer2).encode()));
+        predicateMapping.put(consumer3,
+                StickyKeyConsumerPredicate.decode(selector.generateSpecialPredicate(consumer3).encode()));
+        for (int i = 0; i < 100; i++){
+            String randomKey = UUID.randomUUID().toString();
+            Consumer selectedConsumer = selector.select(randomKey.getBytes(StandardCharsets.UTF_8));
+            for (Map.Entry<Consumer, StickyKeyConsumerPredicate> entry : predicateMapping.entrySet()){
+                if (selectedConsumer == entry.getKey()){
+                    Assert.assertTrue(entry.getValue().test(randomKey));
+                } else {
+                    Assert.assertFalse(entry.getValue().test(randomKey));
+                }
+            }
+        }
+    }
 
     @Test
     public void testConsumerSelect() throws BrokerServiceException.ConsumerAssignException {

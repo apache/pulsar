@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
 import org.apache.pulsar.client.api.Range;
+import org.apache.pulsar.client.impl.StickyKeyConsumerPredicate;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 public interface StickyKeyConsumerSelector {
@@ -68,4 +69,10 @@ public interface StickyKeyConsumerSelector {
      * @return A map where key is a consumer name and value is list of hash range it receiving message for.
      */
     Map<Consumer, List<Range>> getConsumerKeyHashRanges();
+
+    /***
+     * Generate specify key-predicate for {@param consumer}.
+     * @return specify key-predicate.
+     */
+    StickyKeyConsumerPredicate generateSpecialPredicate(Consumer consumer);
 }

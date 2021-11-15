@@ -1020,18 +1020,30 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         stats.getStatTimeout().ifPresent(Timeout::cancel);
     }
 
-    void activeConsumerChanged(boolean isActive) {
+    void activeConsumerChanged(boolean isActive, StickyKeyConsumerPredicate keyPredicate) {
         if (consumerEventListener == null) {
             return;
         }
-
-        externalPinnedExecutor.execute(() -> {
-            if (isActive) {
-                consumerEventListener.becameActive(this, partitionIndex);
-            } else {
-                consumerEventListener.becameInactive(this, partitionIndex);
+        switch (this.getSubType()){
+            case Failover:{
+                externalPinnedExecutor.execute(() -> {
+                    if (isActive) {
+                        consumerEventListener.becameActive(this, partitionIndex);
+                    } else {
+                        consumerEventListener.becameInactive(this, partitionIndex);
+                    }
+                });
+                break;
             }
-        });
+            case Key_Shared:{
+                externalPinnedExecutor.execute(() -> {
+                    consumerEventListener.keySharedRuleChanged(this, keyPredicate);
+                });
+                break;
+            }
+            default : {}
+        }
+
     }
 
     protected boolean isBatch(MessageMetadata messageMetadata) {

@@ -49,6 +49,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import javax.net.ssl.SSLSession;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PulsarVersion;
@@ -469,7 +470,20 @@ public class ClientCnx extends PulsarHandler {
         }
         ConsumerImpl<?> consumer = consumers.get(change.getConsumerId());
         if (consumer != null) {
-            consumer.activeConsumerChanged(change.isIsActive());
+            switch (consumer.getSubType()){
+                case Failover:{
+                    consumer.activeConsumerChanged(change.isIsActive(), null);
+                    break;
+                }
+                case Key_Shared:{
+                    if (StringUtils.isNoneBlank(change.getKeySharedProps())) {
+                        consumer.activeConsumerChanged(true,
+                                StickyKeyConsumerPredicate.decode(change.getKeySharedProps()));
+                    }
+                    break;
+                }
+                default : {}
+            }
         }
     }
 

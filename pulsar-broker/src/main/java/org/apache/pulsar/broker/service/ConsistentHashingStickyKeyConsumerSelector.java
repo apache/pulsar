@@ -20,16 +20,23 @@ package org.apache.pulsar.broker.service;
 
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Collectors;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
 import org.apache.pulsar.client.api.Range;
+import org.apache.pulsar.client.impl.StickyKeyConsumerPredicate;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 /**
@@ -73,6 +80,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                     }
                 });
             }
+            notifyActiveConsumerChanged();
         } finally {
             rwLock.writeLock().unlock();
         }
@@ -98,6 +106,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                     }
                 });
             }
+            notifyActiveConsumerChanged();
         } finally {
             rwLock.writeLock().unlock();
         }
@@ -142,5 +151,34 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             rwLock.readLock().unlock();
         }
         return result;
+    }
+
+    Map<Integer, List<Consumer>> getRangeConsumer() {
+        return Collections.unmodifiableMap(hashRing);
+    }
+
+    @Override
+    public StickyKeyConsumerPredicate generateSpecialPredicate(final Consumer consumer){
+        NavigableMap<Integer, List<String>> cpHashRing = new ConcurrentSkipListMap<>();
+        for (Map.Entry<Integer, List<Consumer>> entry: hashRing.entrySet()) {
+            if (CollectionUtils.isEmpty(entry.getValue())) {
+                continue;
+            }
+            cpHashRing.put(entry.getKey(), entry.getValue()
+                    .stream()
+                    .map(v -> v == consumer ? StickyKeyConsumerPredicate.SPECIAL_CONSUMER_MARK
+                            : StickyKeyConsumerPredicate.OTHER_CONSUMER_MARK)
+                    .collect(Collectors.toList())
+            );
+        }
+        return new StickyKeyConsumerPredicate.Predicate4ConsistentHashingStickyKeyConsumerSelector(cpHashRing);
+    }
+
+    private void notifyActiveConsumerChanged() {
+        // TODO add configuration for this events in future
+        Set<Consumer> consumerSet = new HashSet<>(hashRing.values().stream()
+                .flatMap(list -> list.stream()).collect(Collectors.toSet()));
+        consumerSet.forEach(consumer ->
+                consumer.notifyActiveConsumerChange(generateSpecialPredicate(consumer).encode()));
     }
 }

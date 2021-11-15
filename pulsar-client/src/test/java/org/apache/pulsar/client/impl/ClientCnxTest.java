@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -37,11 +38,15 @@ import java.util.concurrent.ThreadFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.BrokerMetadataException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.common.api.proto.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.CommandError;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.mockito.ArgumentCaptor;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class ClientCnxTest {
@@ -151,5 +156,39 @@ public class ClientCnxTest {
         }
 
         eventLoop.shutdownGracefully();
+    }
+
+    @Test
+    public void testHandleActiveConsumerChange() throws Exception {
+        ThreadFactory threadFactory = new DefaultThreadFactory("testReceiveErrorAtSendConnectFrameState");
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, threadFactory);
+        ClientConfigurationData conf = new ClientConfigurationData();
+        ClientCnx cnx = new ClientCnx(conf, eventLoop);
+        Field fieldState = ClientCnx.class.getDeclaredField("state");
+        fieldState.setAccessible(true);
+        fieldState.set(cnx, ClientCnx.State.Ready);
+        ConsumerImpl consumer = mock(ConsumerImpl.class);
+        when(consumer.getSubType()).thenReturn(CommandSubscribe.SubType.Key_Shared);
+        // mock CommandActiveConsumerChange
+        ArgumentCaptor<StickyKeyConsumerPredicate> predicateCapture =
+                ArgumentCaptor.forClass(StickyKeyConsumerPredicate.class);
+        ArgumentCaptor<Boolean> activeCaptor = ArgumentCaptor.forClass(Boolean.class);
+        doNothing().when(consumer).activeConsumerChanged(activeCaptor.capture(), predicateCapture.capture());
+        // do test
+        cnx.registerConsumer(1, consumer);
+        CommandActiveConsumerChange commandActiveConsumerChange = new CommandActiveConsumerChange();
+        commandActiveConsumerChange.setKeySharedProps(
+                "{\"lowHash\":1,\"highHash\":100,\"predicateType\":1,\"rangeSize\":65535}");
+        commandActiveConsumerChange.setConsumerId(1);
+        cnx.handleActiveConsumerChange(commandActiveConsumerChange);
+        StickyKeyConsumerPredicate p = predicateCapture.getValue();
+        Assert.assertNotNull(p);
+        Assert.assertTrue(p
+                instanceof StickyKeyConsumerPredicate.Predicate4HashRangeAutoSplitStickyKeyConsumerSelector);
+        StickyKeyConsumerPredicate.Predicate4HashRangeAutoSplitStickyKeyConsumerSelector pInner =
+                (StickyKeyConsumerPredicate.Predicate4HashRangeAutoSplitStickyKeyConsumerSelector) p;
+        Assert.assertEquals(1, pInner.getLowHash());
+        Assert.assertEquals(100, pInner.getHighHash());
+        Assert.assertEquals(65535, pInner.getRangeSize());
     }
 }

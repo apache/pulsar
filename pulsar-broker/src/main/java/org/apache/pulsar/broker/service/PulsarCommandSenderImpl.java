@@ -196,6 +196,18 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     }
 
     @Override
+    public void sendActiveConsumerChange(long consumerId, String keySharedProps) {
+        // TODO implements
+        if (!Commands.peerSupportsActiveConsumerListener(cnx.getRemoteEndpointProtocolVersion())) {
+            // if the client is older than `v12`, we don't need to send consumer group changes.
+            return;
+        }
+        cnx.ctx().writeAndFlush(
+                Commands.newActiveConsumerChange(consumerId, keySharedProps),
+                cnx.ctx().voidPromise());
+    }
+
+    @Override
     public void sendSuccess(long requestId) {
         cnx.ctx().writeAndFlush(Commands.newSuccess(requestId));
     }

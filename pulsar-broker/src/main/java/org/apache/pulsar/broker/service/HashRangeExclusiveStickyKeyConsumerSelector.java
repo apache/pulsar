@@ -21,10 +21,13 @@ package org.apache.pulsar.broker.service;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListMap;
 import org.apache.pulsar.client.api.Range;
+import org.apache.pulsar.client.impl.StickyKeyConsumerPredicate;
 import org.apache.pulsar.common.api.proto.IntRange;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 
@@ -58,11 +61,13 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
             rangeMap.put(intRange.getStart(), consumer);
             rangeMap.put(intRange.getEnd(), consumer);
         }
+        notifyActiveConsumerChanged();
     }
 
     @Override
     public void removeConsumer(Consumer consumer) {
         rangeMap.entrySet().removeIf(entry -> entry.getValue().equals(consumer));
+        notifyActiveConsumerChanged();
     }
 
     @Override
@@ -144,6 +149,27 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
 
     Map<Integer, Consumer> getRangeConsumer() {
         return Collections.unmodifiableMap(rangeMap);
+    }
+
+    @Override
+    public StickyKeyConsumerPredicate generateSpecialPredicate(Consumer consumer){
+        ConcurrentSkipListMap<Integer, String> cpRangeMap = new ConcurrentSkipListMap<>();
+        for (Map.Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
+            String v = StickyKeyConsumerPredicate.OTHER_CONSUMER_MARK;
+            if (consumer == entry.getValue()){
+                v = StickyKeyConsumerPredicate.SPECIAL_CONSUMER_MARK;
+            }
+            cpRangeMap.put(entry.getKey(), v);
+        }
+        return new StickyKeyConsumerPredicate
+                .Predicate4HashRangeExclusiveStickyKeyConsumerSelector(cpRangeMap, rangeSize);
+    }
+
+    private void notifyActiveConsumerChanged() {
+        // TODO add configuration for s events
+        Set<Consumer> consumerSet = new HashSet<>(rangeMap.values());
+        consumerSet.forEach(consumer ->
+                consumer.notifyActiveConsumerChange(generateSpecialPredicate(consumer).encode()));
     }
 
 }

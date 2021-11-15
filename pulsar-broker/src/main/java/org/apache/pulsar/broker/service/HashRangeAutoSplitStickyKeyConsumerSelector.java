@@ -26,6 +26,7 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentSkipListMap;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
 import org.apache.pulsar.client.api.Range;
+import org.apache.pulsar.client.impl.StickyKeyConsumerPredicate;
 
 /**
  * This is a consumer selector based fixed hash range.
@@ -82,8 +83,15 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
             rangeMap.put(rangeSize, consumer);
             consumerRange.put(consumer, rangeSize);
         } else {
-            splitRange(findBiggestRange(), consumer);
+            // TODO "findBiggestEntry()" is better than "findBiggestRange()" for find effected consumer.
+            int biggestRange = findBiggestRange();
+            splitRange(biggestRange, consumer);
+            // notify change for effected consumer.
+            Consumer effectedConsumer = rangeMap.get(biggestRange);
+            effectedConsumer.notifyActiveConsumerChange(generateSpecialPredicate(effectedConsumer).encode());
         }
+        // notify new-active-consumer change
+        consumer.notifyActiveConsumerChange(generateSpecialPredicate(consumer).encode());
     }
 
     @Override
@@ -95,9 +103,20 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
                 rangeMap.put(removeRange, lowerEntry.getValue());
                 rangeMap.remove(lowerEntry.getKey());
                 consumerRange.put(lowerEntry.getValue(), removeRange);
+                // notify change for effected consumer
+                lowerEntry.getValue().notifyActiveConsumerChange(
+                        generateSpecialPredicate(lowerEntry.getValue()).encode());
             } else {
                 rangeMap.remove(removeRange);
+                // notify change for effected consumer.
+                Map.Entry<Integer, Consumer> lowerEntry = rangeMap.higherEntry(removeRange);
+                if (lowerEntry != null) {
+                    lowerEntry.getValue().notifyActiveConsumerChange(
+                            generateSpecialPredicate(lowerEntry.getValue()).encode());
+                }
             }
+//            // notify removed consumer change
+//            consumer.notifyActiveConsumerChange(StickyKeyConsumerPredicate.DENIED.encode());
         }
     }
 
@@ -158,5 +177,23 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
             return false;
         }
         return (num & num - 1) == 0;
+    }
+
+    Map<Integer, Consumer> getRangeConsumer() {
+        return Collections.unmodifiableMap(rangeMap);
+    }
+
+    @Override
+    public StickyKeyConsumerPredicate generateSpecialPredicate(Consumer consumer){
+        Integer highIndex = consumerRange.get(consumer);
+        if (highIndex == null) {
+            highIndex = -1;
+        }
+        Integer lowIndex = rangeMap.lowerKey(highIndex);
+        if (lowIndex == null){
+            lowIndex = -1;
+        }
+        return new StickyKeyConsumerPredicate
+                .Predicate4HashRangeAutoSplitStickyKeyConsumerSelector(lowIndex, highIndex, rangeSize);
     }
 }

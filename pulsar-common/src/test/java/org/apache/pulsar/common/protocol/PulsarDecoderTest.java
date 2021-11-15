@@ -60,5 +60,20 @@ public class PulsarDecoderTest {
             .handleActiveConsumerChange(any(CommandActiveConsumerChange.class));
     }
 
+    @Test
+    public void testChannelRead2() throws Exception {
+        long consumerId = 1234L;
+        ByteBuf changeBuf = Commands.newActiveConsumerChange(consumerId,
+                "{\"predicateType\":3,\"hashRing\":{\"0\":[\"__special_consumer_mark__\"],"
+                + "\"10\":[\"__special_consumer_mark__\"]},\"rangeSize\":65536}");
+        ByteBuf cmdBuf = changeBuf.slice(4, changeBuf.writerIndex() - 4);
+
+        doNothing().when(decoder).handleActiveConsumerChange(any(CommandActiveConsumerChange.class));
+        decoder.channelRead(mock(ChannelHandlerContext.class), cmdBuf);
+
+        verify(decoder, times(1))
+            .handleActiveConsumerChange(any(CommandActiveConsumerChange.class));
+    }
+
 
 }

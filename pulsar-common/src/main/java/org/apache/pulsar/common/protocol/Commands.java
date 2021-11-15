@@ -672,6 +672,15 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
+    public static ByteBuf newActiveConsumerChange(long consumerId, String keySharedProps) {
+        BaseCommand cmd = localCmd(Type.ACTIVE_CONSUMER_CHANGE);
+        cmd.setActiveConsumerChange()
+                .setConsumerId(consumerId)
+                .setKeySharedProps(keySharedProps)
+                .setIsActive(true);
+        return serializeWithSize(cmd);
+    }
+
     public static ByteBuf newSeek(long consumerId, long requestId,
                                   long ledgerId, long entryId, long[] ackSet) {
         BaseCommand cmd = localCmd(Type.SEEK);

@@ -572,6 +572,7 @@ message CommandAckResponse {
 message CommandActiveConsumerChange {
         required uint64 consumer_id    = 1;
         optional bool is_active     = 2 [default = false];
+        optional string key_shared_props    = 3;
 }
 
 message CommandFlow {

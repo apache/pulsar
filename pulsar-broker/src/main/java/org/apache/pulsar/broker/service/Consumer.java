@@ -209,6 +209,14 @@ public class Consumer {
         cnx.getCommandSender().sendActiveConsumerChange(consumerId, this == activeConsumer);
     }
 
+    void notifyActiveConsumerChange(String keySharedProps) {
+        if (log.isDebugEnabled()) {
+            log.debug("notify consumer {} - that [{}] for subscription {} has new keySharedProps: {}",
+                    consumerId, topicName, subscription.getName(), keySharedProps);
+        }
+        cnx.getCommandSender().sendActiveConsumerChange(consumerId, keySharedProps);
+    }
+
     public boolean readCompacted() {
         return readCompacted;
     }

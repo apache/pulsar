@@ -69,6 +69,8 @@ public interface PulsarCommandSender {
 
     void sendActiveConsumerChange(long consumerId, boolean isActive);
 
+    void sendActiveConsumerChange(long consumerId, String keySharedProps);
+
     void sendSuccess(long requestId);
 
     void sendError(long requestId, ServerError error, String message);

@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import java.io.Serializable;
+import java.util.function.Predicate;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -48,5 +49,18 @@ public interface ConsumerEventListener extends Serializable {
      *            the id of the partition that became inactive
      */
     void becameInactive(Consumer<?> consumer, int partitionId);
+
+
+    /**
+     * Notified when the consumer key_shared_rule is changed.
+     *
+     * @param consumer
+     *            the consumer that originated the event
+     * @param keyPredicate
+     *            Determine whether the key will be consumed by {@param consumer}
+     */
+    default void keySharedRuleChanged(Consumer<?> consumer, Predicate<String> keyPredicate) {
+
+    }
 
 }
