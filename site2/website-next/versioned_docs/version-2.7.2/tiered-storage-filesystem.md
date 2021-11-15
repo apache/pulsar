@@ -88,24 +88,26 @@ You can configure the filesystem offloader driver in the `broker.conf` or `stand
 
 - **Required** configurations are as below.
 
-    <!--DOCUSAURUS_CODE_TABS-->
-
-    <!--HDFS-->
-
-    Parameter | Description | Example value
-    |---|---|---
+    <Tabs
+    defaultValue="hdfs"
+    values={[
+        {label: 'HDFS', value: 'hdfs'},
+        {label: 'NFS', value: 'nfs'},
+    ]}>
+    <TabItem value="hdfs">
+    | Parameter | Description | Example value |
+    |---|---|--- |
     `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. | filesystem
     `fileSystemURI` | Connection address, which is the URI to access the default Hadoop distributed file system. | hdfs://127.0.0.1:9000
     `offloadersDirectory` | Hadoop profile path. The configuration file is stored in the Hadoop profile path. It contains various settings for Hadoop performance tuning. | ../conf/filesystem_offload_core_site.xml
-
-    <!--NFS-->
-  
-    Parameter | Description | Example value
-    |---|---|---
+    </TabItem>
+    <TabItem value="nfs">
+    | Parameter | Description | Example value |
+    |---|---|--- |
     `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. | filesystem
     `offloadersDirectory` | Offloader directory. The configuration file is stored in the offloader directory. It contains various settings for performance tuning. | ../conf/filesystem_offload_core_site.xml
-
-    <!--END_DOCUSAURUS_CODE_TABS-->
+    </TabItem>
+    </Tabs>;
 
 - **Optional** configurations are as below.
 
@@ -221,19 +223,29 @@ To manually trigger the filesystem offloader via CLI tools, you need to specify 
 
 This section provides step-by-step instructions on how to use the filesystem offloader to move data from Pulsar to Hadoop Distributed File System (HDFS) or Network File system (NFS).
 
-<!--DOCUSAURUS_CODE_TABS-->
-
-<!--HDFS-->
+<Tabs 
+  defaultValue="HDFS"
+  values={[
+  {
+    "label": "HDFS",
+    "value": "HDFS"
+  },
+  {
+    "label": "NFS",
+    "value": "NFS"
+  },
+]}>
+<TabItem value="HDFS">
 
 To move data from Pulsar to HDFS, follow these steps.
 
-### Step1: Prepare the HDFS environment
+### Step 1: Prepare the HDFS environment
 
 This tutorial sets up a Hadoop single node cluster and uses Hadoop 3.2.1.
 
 :::tip
 
-For more information about setting up a Hadoop single node cluster, see [here](https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-common/SingleCluster.html).
+For details about how to set up a Hadoop single node cluster, see [here](https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-common/SingleCluster.html).
 
 :::
 
@@ -328,7 +340,8 @@ managedLedgerMinLedgerRolloverTimeMinutes=1
 managedLedgerMaxEntriesPerLedger=100
 ```
 
-<!--NFS-->
+</TabItem>
+<TabItem value="NFS">
 
 :::note
 
@@ -395,7 +408,8 @@ As indicated in the [configuration](#configuration) section, you need to configu
     </property>
     ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+</Tabs>
 
 ### Step 4: Offload data from BookKeeper to filesystem
 

@@ -213,13 +213,13 @@ This section provides step-by-step instructions on how to use the filesystem off
 
 To move data from Pulsar to HDFS, follow these steps.
 
-### Step1: Prepare the HDFS environment
+### Step 1: Prepare the HDFS environment
 
 This tutorial sets up a Hadoop single node cluster and uses Hadoop 3.2.1.
 
 > **Tip**
 >
-> For more information about setting up a Hadoop single node cluster, see [here](https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-common/SingleCluster.html).
+> For details about how to set up a Hadoop single node cluster, see [here](https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-common/SingleCluster.html).
 
 1. Download and uncompress Hadoop 3.2.1. 
 
