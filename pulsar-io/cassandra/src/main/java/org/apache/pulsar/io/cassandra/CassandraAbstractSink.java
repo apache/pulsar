@@ -98,7 +98,7 @@ public abstract class CassandraAbstractSink<K, V> implements Sink<byte[]> {
             String[] hostPort = hosts[i].split(":");
             b.addContactPoint(hostPort[0]);
             if (hostPort.length > 1) {
-                b.withPort(Integer.valueOf(hostPort[1]));
+                b.withPort(Integer.parseInt(hostPort[1]));
             }
         }
         cluster = b.build();

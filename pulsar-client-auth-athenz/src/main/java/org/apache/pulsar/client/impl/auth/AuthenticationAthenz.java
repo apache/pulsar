@@ -159,7 +159,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         }
 
         this.keyId = authParams.getOrDefault("keyId", "0");
-        this.autoPrefetchEnabled = Boolean.valueOf(authParams.getOrDefault("autoPrefetchEnabled", "false"));
+        this.autoPrefetchEnabled = Boolean.parseBoolean(authParams.getOrDefault("autoPrefetchEnabled", "false"));
 
         if (isNotBlank(authParams.get("athenzConfPath"))) {
             System.setProperty("athenz.athenz_conf", authParams.get("athenzConfPath"));
