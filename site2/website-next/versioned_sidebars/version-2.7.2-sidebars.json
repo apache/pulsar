@@ -199,6 +199,11 @@
         {
           "type": "doc",
           "id": "version-2.7.2/helm-tools"
+        }
+      ]
+    },
+    {
+      "type": "category",
       "label": "Transactions",
       "items": [
         {
@@ -250,6 +255,11 @@
         {
           "type": "doc",
           "id": "version-2.7.2/administration-isolation"
+        }
+      ]
+    },
+    {
+      "type": "category",
       "label": "Deployment",
       "items": [
         {
@@ -279,6 +289,11 @@
         {
           "type": "doc",
           "id": "version-2.7.2/deploy-monitoring"
+        }
+      ]
+    },
+    {
+      "type": "category",
       "label": "Client Libraries",
       "items": [
         {
@@ -312,11 +327,21 @@
         {
           "type": "doc",
           "id": "version-2.7.2/client-libraries-dotnet"
+        }
+      ]
+    },
+    {
+      "type": "category",
       "label": "Performance",
       "items": [
         {
           "type": "doc",
           "id": "version-2.7.2/performance-pulsar-perf"
+        }
+      ]
+    },
+    {
+      "type": "category",
       "label": "Security",
       "items": [
         {
