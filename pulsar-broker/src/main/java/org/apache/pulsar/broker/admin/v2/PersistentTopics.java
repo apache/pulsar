@@ -275,7 +275,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             validatePartitionedTopicName(tenant, namespace, encodedTopic);
             validateTopicPolicyOperation(topicName, PolicyName.PARTITION, PolicyOperation.WRITE);
             validateCreateTopic(topicName);
-            internalCreatePartitionedTopic(asyncResponse, metadata.partitions, createLocalTopicOnly, metadata.topicMetadata);
+            internalCreatePartitionedTopic(asyncResponse, metadata.partitions, createLocalTopicOnly,
+                    metadata.topicMetadata);
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
             resumeAsyncResponseExceptionally(asyncResponse, e);
