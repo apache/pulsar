@@ -224,6 +224,71 @@ while True:
         consumer.negative_acknowledge(msg)
 ```
 
+### Using AVRO JSON schema definition
+
+Users also could use the AVRO JSON schema definition to generate an AvroSchema.
+
+Assume that there is a company AVRO JSON schema definition file `company.avsc`, like this:
+
+```json
+{
+    "doc": "this is doc",
+    "namespace": "example.avro",
+    "type": "record",
+    "name": "Company",
+    "fields": [
+        {"name": "name", "type": ["null", "string"]},
+        {"name": "address", "type": ["null", "string"]},
+        {"name": "employees", "type": ["null", {"type": "array", "items": {
+            "type": "record",
+            "name": "Employee",
+            "fields": [
+                {"name": "name", "type": ["null", "string"]},
+                {"name": "age", "type": ["null", "int"]}
+            ]
+        }}]},
+        {"name": "labels", "type": ["null", {"type": "map", "values": "string"}]}
+    ]
+}
+```
+
+Users could load schema definition from file by `avro.schema` or `fastavro.schema`
+> refer to [load_schema](https://fastavro.readthedocs.io/en/latest/schema.html#fastavro._schema_py.load_schema) or [Avro Schema](http://avro.apache.org/docs/current/gettingstartedpython.html)
+
+If using custom JSON definition schema, users need to use Python dict to produce and consume messages, this is different from using Record definition 
+and the `_record_cls` param should be None when generating `AvroSchema` object.
+
+```
+schema_definition = load_schema("examples/company.avsc")
+# schema_definition = avro.schema.parse(open("examples/company.avsc", "rb").read()).to_json()
+avro_schema = AvroSchema(None, schema_definition=schema_definition)
+
+producer = client.create_producer(
+    topic=topic,
+    schema=avro_schema)
+consumer = client.subscribe(topic, 'test', schema=avro_schema)
+
+company = {
+    "name": "company-name" + str(i),
+    "address": 'xxx road xxx street ' + str(i),
+    "employees": [
+        {"name": "user" + str(i), "age": 20 + i},
+        {"name": "user" + str(i), "age": 30 + i},
+        {"name": "user" + str(i), "age": 35 + i},
+    ],
+    "labels": {
+        "industry": "software" + str(i),
+        "scale": ">100",
+        "funds": "1000000.0"
+    }
+}
+producer.send(company)
+
+msg = consumer.receive()
+# Users could get a dict object by `value()` method.
+msg.value()
+```
+
 ### Supported schema types
 
 You can use different builtin schema types in Pulsar. All the definitions are in the `pulsar.schema` package.
