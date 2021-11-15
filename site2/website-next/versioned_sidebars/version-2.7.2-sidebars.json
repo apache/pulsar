@@ -192,6 +192,11 @@
     },
     {
       "type": "category",
+      "label": "Performance",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.2/performance-pulsar-perf"
       "label": "Security",
       "items": [
         {
