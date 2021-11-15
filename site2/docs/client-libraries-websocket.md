@@ -203,7 +203,7 @@ Server will push messages on the WebSocket session:
 }
 ```
 
-Below are the parameters in the WebSocket session.
+Below are the parameters in the WebSocket consumer response.
 
 - General parameters
 
@@ -231,7 +231,7 @@ Below are the parameters in the WebSocket session.
 
     Key | Type | Required? | Explanation
     :---|:-----|:----------|:-----------
-    `keyValue` | string | yes | Encryption key
+    `keyValue` | string | yes | Encryption key (Base64 encoding)
     `metadata` | key-value pairs | no | Application-defined metadata
 
 #### Acknowledging the message
