@@ -630,7 +630,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     callback.sendComplete((PulsarClientException.IncompatibleSchemaException) t);
                 }
             } else {
-                log.warn("[{}] [{}] GetOrCreateSchema succeed", topic, producerName);
+                log.info("[{}] [{}] GetOrCreateSchema succeed", topic, producerName);
                 SchemaHash schemaHash = SchemaHash.of(msg.getSchemaInternal());
                 schemaCache.putIfAbsent(schemaHash, v);
                 msg.getMessageBuilder().setSchemaVersion(v);
