@@ -128,7 +128,7 @@ public class Producer {
 
         this.isRemote = producerName
                 .startsWith(cnx.getBrokerService().pulsar().getConfiguration().getReplicatorPrefix());
-        this.remoteCluster = isRemote ? producerName.split("\\.")[2].split(REPL_PRODUCER_NAME_DELIMITER)[0] : null;
+        this.remoteCluster = parseRemoteClusterName(producerName, isRemote);
 
         this.isEncrypted = isEncrypted;
         this.schemaVersion = schemaVersion;
@@ -136,6 +136,15 @@ public class Producer {
         this.topicEpoch = topicEpoch;
 
         this.clientAddress = cnx.clientSourceAddress();
+    }
+
+    private String parseRemoteClusterName(String producerName, boolean isRemote) {
+        if (isRemote) {
+            String clusterName = producerName.split("\\.")[2];
+            return clusterName.contains(REPL_PRODUCER_NAME_DELIMITER)
+                    ? clusterName.split(REPL_PRODUCER_NAME_DELIMITER)[0] : clusterName;
+        }
+        return null;
     }
 
     /**
