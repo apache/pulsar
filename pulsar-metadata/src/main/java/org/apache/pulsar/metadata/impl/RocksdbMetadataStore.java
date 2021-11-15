@@ -201,6 +201,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
             close();
             throw new MetadataStoreException("Error init metastore state", exception);
         }
+        log.info("new RocksdbMetadataStore,url={},instanceId={}", metadataStoreConfig, instanceId);
     }
 
     private long loadInstanceId() throws RocksDBException {
@@ -300,6 +301,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
 
     @Override
     public void close() throws MetadataStoreException {
+        log.info("close.instanceId={}", instanceId);
         db.close();
         optionSync.close();
         optionDontSync.close();
@@ -314,6 +316,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
 
     @Override
     public CompletableFuture<Optional<GetResult>> storeGet(String path) {
+        log.info("getChildrenFromStore.path={},instanceId={}", path, instanceId);
         try {
             byte[] value = db.get(optionCache, toBytes(path));
             if (value == null) {
@@ -340,6 +343,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
 
     @Override
     protected CompletableFuture<List<String>> getChildrenFromStore(String path) {
+        log.info("getChildrenFromStore.path={},instanceId={}", path,instanceId);
         try (RocksIterator iterator = db.newIterator(optionDontCache)) {
             Set<String> result = new HashSet<>();
             String firstKey = path.equals("/") ? path : path + "/";
@@ -374,6 +378,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
 
     @Override
     protected CompletableFuture<Boolean> existsFromStore(String path) {
+        log.info("existsFromStore.path={},instanceId={}", path,instanceId);
         try {
             byte[] value = db.get(optionDontCache, toBytes(path));
             if (log.isDebugEnabled()) {
@@ -390,6 +395,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
 
     @Override
     protected CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion) {
+        log.info("storeDelete.path={},instanceId={}", path,instanceId);
         try (Transaction transaction = db.beginTransaction(optionSync)) {
             byte[] pathBytes = toBytes(path);
             byte[] oldValueData = transaction.getForUpdate(optionDontCache, pathBytes,false);
@@ -415,6 +421,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     @Override
     protected CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> expectedVersion,
                                                EnumSet<CreateOption> options) {
+        log.info("storePut.path={},instanceId={}", path, instanceId);
         try (Transaction transaction = db.beginTransaction(optionSync)) {
             byte[] pathBytes = toBytes(path);
             byte[] oldValueData = transaction.getForUpdate(optionDontCache, pathBytes, false);
