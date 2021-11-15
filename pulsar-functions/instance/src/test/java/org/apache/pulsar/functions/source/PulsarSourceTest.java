@@ -32,8 +32,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
 
 import lombok.Cleanup;
 import lombok.Getter;
@@ -59,8 +57,6 @@ import org.mockito.ArgumentMatcher;
 import static org.testng.Assert.assertSame;
 
 import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 

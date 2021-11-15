@@ -146,6 +146,12 @@ public class MetadataStoreException extends IOException {
         }
     }
 
+    public static class InvalidPathException extends MetadataStoreException {
+        public InvalidPathException(String path) {
+            super("Path(" + path + ") is invalid");
+        }
+    }
+
     public static MetadataStoreException unwrap(Throwable t) {
         if (t instanceof MetadataStoreException) {
             return (MetadataStoreException) t;
