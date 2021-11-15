@@ -215,7 +215,7 @@ Below are the parameters in the WebSocket session.
     `redeliveryCount` | number | yes | Number of times this message was already delivered
     `properties` | key-value pairs | no | Application-defined properties
     `key` | string | no |  Original routing key set by producer
-    `encryptionContext` | EncryptionContext | no | Encryption context that consumer can use to decrypt received messages
+    `encryptionContext` | EncryptionContext | no | Encryption context that consumers can use to decrypt received messages
     `param` | string | no | Initialization vector for cipher (Base64 encoding)
     `batchSize` | string | no | Number of entries in a message (if it it a batch message)
     `uncompressedMessageSize` | string | no | Message size before compression
