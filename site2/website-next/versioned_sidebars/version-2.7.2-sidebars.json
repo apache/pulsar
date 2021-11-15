@@ -217,6 +217,35 @@
     },
     {
       "type": "category",
+      "label": "Deployment",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.2/deploy-aws"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/deploy-kubernetes"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/deploy-bare-metal"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/deploy-bare-metal-multi-cluster"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/deploy-dcos"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/deploy-docker"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/deploy-monitoring"
       "label": "Client Libraries",
       "items": [
         {
