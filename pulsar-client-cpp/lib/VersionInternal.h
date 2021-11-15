@@ -20,7 +20,7 @@
 #define LIB_VERSION_INTERNAL_H_
 
 #ifndef _PULSAR_VERSION_INTERNAL_
-#define _PULSAR_VERSION_INTERNAL_ "1.17"
+#define _PULSAR_VERSION_INTERNAL_ "unknown"
 #endif
 
 #endif /* LIB_VERSION_INTERNAL_H_ */
