@@ -36,6 +36,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -76,11 +77,17 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     private final AtomicLong sequentialIdGenerator;
 
     private final TransactionDB db;
+    private final ReentrantReadWriteLock dbStateLock;
+    private volatile State state;
 
     private final WriteOptions optionSync;
     private final WriteOptions optionDontSync;
     private final ReadOptions optionCache;
     private final ReadOptions optionDontCache;
+
+    enum State {
+        RUNNING, CLOSED
+    }
 
     @Data
     @AllArgsConstructor
@@ -201,6 +208,8 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
             close();
             throw new MetadataStoreException("Error init metastore state", exception);
         }
+        state = State.RUNNING;
+        dbStateLock = new ReentrantReadWriteLock();
         log.info("new RocksdbMetadataStore,url={},instanceId={}", metadataStoreConfig, instanceId);
     }
 
@@ -301,16 +310,24 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
 
     @Override
     public void close() throws MetadataStoreException {
-        log.info("close.instanceId={}", instanceId);
-        db.close();
-        optionSync.close();
-        optionDontSync.close();
-        optionCache.close();
-        optionDontCache.close();
+        if (state == State.CLOSED) {
+            //already closed.
+            return;
+        }
         try {
+            dbStateLock.writeLock().lock();
+            state = State.CLOSED;
+            log.info("close.instanceId={}", instanceId);
+            db.close();
+            optionSync.close();
+            optionDontSync.close();
+            optionCache.close();
+            optionDontCache.close();
             super.close();
         } catch (Throwable throwable) {
             throw MetadataStoreException.wrap(throwable);
+        } finally {
+            dbStateLock.writeLock().unlock();
         }
     }
 
@@ -318,6 +335,10 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     public CompletableFuture<Optional<GetResult>> storeGet(String path) {
         log.info("getChildrenFromStore.path={},instanceId={}", path, instanceId);
         try {
+            dbStateLock.readLock().lock();
+            if (state == State.CLOSED) {
+                throw new MetadataStoreException.AlreadyClosedException("");
+            }
             byte[] value = db.get(optionCache, toBytes(path));
             if (value == null) {
                 return CompletableFuture.completedFuture(Optional.empty());
@@ -338,48 +359,62 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
             return CompletableFuture.completedFuture(Optional.of(result));
         } catch (Throwable e) {
             return FutureUtil.failedFuture(MetadataStoreException.wrap(e));
+        } finally {
+            dbStateLock.readLock().unlock();
         }
     }
 
     @Override
     protected CompletableFuture<List<String>> getChildrenFromStore(String path) {
-        log.info("getChildrenFromStore.path={},instanceId={}", path,instanceId);
-        try (RocksIterator iterator = db.newIterator(optionDontCache)) {
-            Set<String> result = new HashSet<>();
-            String firstKey = path.equals("/") ? path : path + "/";
-            String lastKey = path.equals("/") ? "0" : path + "0"; // '0' is lexicographically just after '/'
-            for (iterator.seek(toBytes(firstKey)); iterator.isValid(); iterator.next()) {
-                String currentPath = toString(iterator.key());
-                if (lastKey.compareTo(currentPath) <= 0) {
-                    //End of sub paths.
-                    break;
-                }
-                byte[] value = iterator.value();
-                if (value == null) {
-                    continue;
-                }
-                MetaValue metaValue = MetaValue.parse(value);
-                if (metaValue.ephemeral && metaValue.owner != instanceId) {
-                    delete(currentPath, Optional.empty());
-                    continue;
-                }
-                //check if it's direct child.
-                String relativePath = currentPath.substring(firstKey.length());
-                String child = relativePath.split("/", 2)[0];
-                result.add(child);
+        log.info("getChildrenFromStore.path={},instanceId={}", path, instanceId);
+        try {
+            dbStateLock.readLock().lock();
+            if (state == State.CLOSED) {
+                throw new MetadataStoreException.AlreadyClosedException("");
             }
-            List<String> arrayResult = new ArrayList<>(result);
-            arrayResult.sort(Comparator.naturalOrder());
-            return CompletableFuture.completedFuture(arrayResult);
+            try (RocksIterator iterator = db.newIterator(optionDontCache)) {
+                Set<String> result = new HashSet<>();
+                String firstKey = path.equals("/") ? path : path + "/";
+                String lastKey = path.equals("/") ? "0" : path + "0"; // '0' is lexicographically just after '/'
+                for (iterator.seek(toBytes(firstKey)); iterator.isValid(); iterator.next()) {
+                    String currentPath = toString(iterator.key());
+                    if (lastKey.compareTo(currentPath) <= 0) {
+                        //End of sub paths.
+                        break;
+                    }
+                    byte[] value = iterator.value();
+                    if (value == null) {
+                        continue;
+                    }
+                    MetaValue metaValue = MetaValue.parse(value);
+                    if (metaValue.ephemeral && metaValue.owner != instanceId) {
+                        delete(currentPath, Optional.empty());
+                        continue;
+                    }
+                    //check if it's direct child.
+                    String relativePath = currentPath.substring(firstKey.length());
+                    String child = relativePath.split("/", 2)[0];
+                    result.add(child);
+                }
+                List<String> arrayResult = new ArrayList<>(result);
+                arrayResult.sort(Comparator.naturalOrder());
+                return CompletableFuture.completedFuture(arrayResult);
+            }
         } catch (Throwable e) {
             return FutureUtil.failedFuture(MetadataStoreException.wrap(e));
+        } finally {
+            dbStateLock.readLock().unlock();
         }
     }
 
     @Override
     protected CompletableFuture<Boolean> existsFromStore(String path) {
-        log.info("existsFromStore.path={},instanceId={}", path,instanceId);
+        log.info("existsFromStore.path={},instanceId={}", path, instanceId);
         try {
+            dbStateLock.readLock().lock();
+            if (state == State.CLOSED) {
+                throw new MetadataStoreException.AlreadyClosedException("");
+            }
             byte[] value = db.get(optionDontCache, toBytes(path));
             if (log.isDebugEnabled()) {
                 if (value != null) {
@@ -390,31 +425,41 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
             return CompletableFuture.completedFuture(value != null);
         } catch (Throwable e) {
             return FutureUtil.failedFuture(MetadataStoreException.wrap(e));
+        } finally {
+            dbStateLock.readLock().unlock();
         }
     }
 
     @Override
     protected CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion) {
-        log.info("storeDelete.path={},instanceId={}", path,instanceId);
-        try (Transaction transaction = db.beginTransaction(optionSync)) {
-            byte[] pathBytes = toBytes(path);
-            byte[] oldValueData = transaction.getForUpdate(optionDontCache, pathBytes,false);
-            MetaValue metaValue = MetaValue.parse(oldValueData);
-            if (metaValue == null) {
-                throw new MetadataStoreException.NotFoundException(String.format("path %s not found.", path));
+        log.info("storeDelete.path={},instanceId={}", path, instanceId);
+        try {
+            dbStateLock.readLock().lock();
+            if (state == State.CLOSED) {
+                throw new MetadataStoreException.AlreadyClosedException("");
             }
-            if (expectedVersion.isPresent() && !expectedVersion.get().equals(metaValue.getVersion())) {
-                throw new MetadataStoreException.BadVersionException(
-                        String.format("Version mismatch, actual=%s, expect=%s", metaValue.getVersion(),
-                                expectedVersion.get()));
+            try (Transaction transaction = db.beginTransaction(optionSync)) {
+                byte[] pathBytes = toBytes(path);
+                byte[] oldValueData = transaction.getForUpdate(optionDontCache, pathBytes, false);
+                MetaValue metaValue = MetaValue.parse(oldValueData);
+                if (metaValue == null) {
+                    throw new MetadataStoreException.NotFoundException(String.format("path %s not found.", path));
+                }
+                if (expectedVersion.isPresent() && !expectedVersion.get().equals(metaValue.getVersion())) {
+                    throw new MetadataStoreException.BadVersionException(
+                            String.format("Version mismatch, actual=%s, expect=%s", metaValue.getVersion(),
+                                    expectedVersion.get()));
+                }
+                transaction.delete(pathBytes);
+                transaction.commit();
+                receivedNotification(new Notification(NotificationType.Deleted, path));
+                notifyParentChildrenChanged(path);
+                return CompletableFuture.completedFuture(null);
             }
-            transaction.delete(pathBytes);
-            transaction.commit();
-            receivedNotification(new Notification(NotificationType.Deleted, path));
-            notifyParentChildrenChanged(path);
-            return CompletableFuture.completedFuture(null);
         } catch (Throwable e) {
             return FutureUtil.failedFuture(MetadataStoreException.wrap(e));
+        } finally {
+            dbStateLock.readLock().unlock();
         }
     }
 
@@ -422,57 +467,65 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     protected CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> expectedVersion,
                                                EnumSet<CreateOption> options) {
         log.info("storePut.path={},instanceId={}", path, instanceId);
-        try (Transaction transaction = db.beginTransaction(optionSync)) {
-            byte[] pathBytes = toBytes(path);
-            byte[] oldValueData = transaction.getForUpdate(optionDontCache, pathBytes, false);
-            MetaValue metaValue = MetaValue.parse(oldValueData);
-            if (expectedVersion.isPresent()) {
-                if (metaValue == null && expectedVersion.get() != -1 ||
-                        metaValue != null && !expectedVersion.get().equals(metaValue.getVersion())) {
-                    throw new MetadataStoreException.BadVersionException(
-                            String.format("Version mismatch, actual=%s, expect=%s",
-                                    metaValue == null ? null : metaValue.getVersion(), expectedVersion.get()));
+        try {
+            dbStateLock.readLock().lock();
+            if (state == State.CLOSED) {
+                throw new MetadataStoreException.AlreadyClosedException("");
+            }
+            try (Transaction transaction = db.beginTransaction(optionSync)) {
+                byte[] pathBytes = toBytes(path);
+                byte[] oldValueData = transaction.getForUpdate(optionDontCache, pathBytes, false);
+                MetaValue metaValue = MetaValue.parse(oldValueData);
+                if (expectedVersion.isPresent()) {
+                    if (metaValue == null && expectedVersion.get() != -1 ||
+                            metaValue != null && !expectedVersion.get().equals(metaValue.getVersion())) {
+                        throw new MetadataStoreException.BadVersionException(
+                                String.format("Version mismatch, actual=%s, expect=%s",
+                                        metaValue == null ? null : metaValue.getVersion(), expectedVersion.get()));
+                    }
                 }
-            }
 
-            boolean created = false;
-            long timestamp = System.currentTimeMillis();
-            if (metaValue == null) {
-                // create new node
-                metaValue = new MetaValue();
-                metaValue.version = 0;
-                metaValue.createdTimestamp = timestamp;
-                metaValue.ephemeral = options.contains(CreateOption.Ephemeral);
-                if (options.contains(CreateOption.Sequential)) {
-                    path += sequentialIdGenerator.getAndIncrement();
-                    pathBytes = toBytes(path);
-                    transaction.put(SEQUENTIAL_ID_KEY, toBytes(sequentialIdGenerator.get()));
+                boolean created = false;
+                long timestamp = System.currentTimeMillis();
+                if (metaValue == null) {
+                    // create new node
+                    metaValue = new MetaValue();
+                    metaValue.version = 0;
+                    metaValue.createdTimestamp = timestamp;
+                    metaValue.ephemeral = options.contains(CreateOption.Ephemeral);
+                    if (options.contains(CreateOption.Sequential)) {
+                        path += sequentialIdGenerator.getAndIncrement();
+                        pathBytes = toBytes(path);
+                        transaction.put(SEQUENTIAL_ID_KEY, toBytes(sequentialIdGenerator.get()));
+                    }
+                    created = true;
+                } else {
+                    // update old node
+                    metaValue.version++;
                 }
-                created = true;
-            } else {
-                // update old node
-                metaValue.version++;
+                metaValue.modifiedTimestamp = timestamp;
+                metaValue.owner = instanceId;
+                metaValue.data = data;
+
+                //handle Sequential
+                transaction.put(pathBytes, metaValue.serialize());
+
+                transaction.commit();
+
+                receivedNotification(
+                        new Notification(created ? NotificationType.Created : NotificationType.Modified, path));
+                if (created) {
+                    notifyParentChildrenChanged(path);
+                }
+
+                return CompletableFuture.completedFuture(
+                        new Stat(path, metaValue.version, metaValue.createdTimestamp, metaValue.modifiedTimestamp,
+                                metaValue.ephemeral, true));
             }
-            metaValue.modifiedTimestamp = timestamp;
-            metaValue.owner = instanceId;
-            metaValue.data = data;
-
-            //handle Sequential
-            transaction.put(pathBytes, metaValue.serialize());
-
-            transaction.commit();
-
-            receivedNotification(
-                    new Notification(created ? NotificationType.Created : NotificationType.Modified, path));
-            if (created) {
-                notifyParentChildrenChanged(path);
-            }
-
-            return CompletableFuture.completedFuture(
-                    new Stat(path, metaValue.version, metaValue.createdTimestamp, metaValue.modifiedTimestamp,
-                            metaValue.ephemeral, true));
         } catch (Throwable e) {
             return FutureUtil.failedFuture(MetadataStoreException.wrap(e));
+        } finally {
+            dbStateLock.readLock().unlock();
         }
     }
 }
