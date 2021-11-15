@@ -140,7 +140,7 @@ public class Producer {
     }
 
     /**
-     * Producer name for replicator is in format:
+     * Producer name for replicator is in format.
      * "replicatorPrefix.localCluster" (old)
      * "replicatorPrefix.localCluster-->remoteCluster" (new)
      */
