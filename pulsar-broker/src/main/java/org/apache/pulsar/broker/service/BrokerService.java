@@ -88,8 +88,8 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoun
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.ImmutableTriple;
+import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -211,7 +211,8 @@ public class BrokerService implements Closeable {
             prepareDynamicConfigurationMap();
     private final ConcurrentOpenHashMap<String, Consumer<?>> configRegisteredListeners;
 
-    private final ConcurrentLinkedQueue<Pair<String, CompletableFuture<Optional<Topic>>>> pendingTopicLoadingQueue;
+    private final ConcurrentLinkedQueue<Triple<String, CompletableFuture<Optional<Topic>>, Map<String, String>>>
+            pendingTopicLoadingQueue;
 
     private AuthorizationService authorizationService = null;
     private final ScheduledExecutorService statsUpdater;
@@ -858,6 +859,11 @@ public class BrokerService implements Closeable {
     }
 
     public CompletableFuture<Optional<Topic>> getTopic(final String topic, boolean createIfMissing) {
+        return getTopic(topic, createIfMissing, null);
+    }
+
+    public CompletableFuture<Optional<Topic>> getTopic(final String topic, boolean createIfMissing,
+                                                       Map<String, String> topicMetadata) {
         try {
             CompletableFuture<Optional<Topic>> topicFuture = topics.get(topic);
             if (topicFuture != null) {
@@ -874,7 +880,7 @@ public class BrokerService implements Closeable {
                             return topicFuture.thenCompose(value -> {
                                 if (!value.isPresent()) {
                                     // retry and create topic
-                                    return getTopic(topic, createIfMissing);
+                                    return getTopic(topic, createIfMissing, topicMetadata);
                                 } else {
                                     // in-progress future completed successfully
                                     return CompletableFuture.completedFuture(value);
@@ -889,7 +895,7 @@ public class BrokerService implements Closeable {
             final boolean isPersistentTopic = TopicName.get(topic).getDomain().equals(TopicDomain.persistent);
             if (isPersistentTopic) {
                 return topics.computeIfAbsent(topic, (topicName) -> {
-                    return this.loadOrCreatePersistentTopic(topicName, createIfMissing);
+                    return this.loadOrCreatePersistentTopic(topicName, createIfMissing, topicMetadata);
                 });
             } else {
                 return topics.computeIfAbsent(topic, (name) -> {
@@ -1232,7 +1238,7 @@ public class BrokerService implements Closeable {
      * @throws RuntimeException
      */
     protected CompletableFuture<Optional<Topic>> loadOrCreatePersistentTopic(final String topic,
-            boolean createIfMissing) throws RuntimeException {
+            boolean createIfMissing, Map<String, String> topicMetadata) throws RuntimeException {
         final CompletableFuture<Optional<Topic>> topicFuture = FutureUtil.createFutureWithTimeout(
                 Duration.ofSeconds(pulsar.getConfiguration().getTopicLoadTimeoutSeconds()), executor(),
                 () -> FAILED_TO_LOAD_TOPIC_TIMEOUT_EXCEPTION);
@@ -1250,7 +1256,7 @@ public class BrokerService implements Closeable {
                     final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
 
                     if (topicLoadSemaphore.tryAcquire()) {
-                        createPersistentTopic(topic, createIfMissing, topicFuture);
+                        createPersistentTopic(topic, createIfMissing, topicFuture, topicMetadata);
                         topicFuture.handle((persistentTopic, ex) -> {
                             // release permit and process pending topic
                             topicLoadSemaphore.release();
@@ -1258,7 +1264,7 @@ public class BrokerService implements Closeable {
                             return null;
                         });
                     } else {
-                        pendingTopicLoadingQueue.add(new ImmutablePair<>(topic, topicFuture));
+                        pendingTopicLoadingQueue.add(new ImmutableTriple<>(topic, topicFuture, topicMetadata));
                         if (log.isDebugEnabled()) {
                             log.debug("topic-loading for {} added into pending queue", topic);
                         }
@@ -1272,7 +1278,8 @@ public class BrokerService implements Closeable {
     }
 
     private void createPersistentTopic(final String topic, boolean createIfMissing,
-                                       CompletableFuture<Optional<Topic>> topicFuture) {
+                                       CompletableFuture<Optional<Topic>> topicFuture,
+                                       Map<String, String> topicMetadata) {
 
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
         TopicName topicName = TopicName.get(topic);
@@ -1313,6 +1320,7 @@ public class BrokerService implements Closeable {
             }
 
             managedLedgerConfig.setCreateIfMissing(createIfMissing);
+            managedLedgerConfig.setTopicMetadata(topicMetadata);
 
             // Once we have the configuration, we can proceed with the async open operation
             managedLedgerFactory.asyncOpen(topicName.getPersistenceNamingEncoding(), managedLedgerConfig,
@@ -2330,17 +2338,18 @@ public class BrokerService implements Closeable {
      * permit if it was successful to acquire it.
      */
     private void createPendingLoadTopic() {
-        Pair<String, CompletableFuture<Optional<Topic>>> pendingTopic = pendingTopicLoadingQueue.poll();
+        Triple<String, CompletableFuture<Optional<Topic>>, Map<String, String>> pendingTopic =
+                pendingTopicLoadingQueue.poll();
         if (pendingTopic == null) {
             return;
         }
 
         final String topic = pendingTopic.getLeft();
         checkTopicNsOwnership(topic).thenRun(() -> {
-            CompletableFuture<Optional<Topic>> pendingFuture = pendingTopic.getRight();
+            CompletableFuture<Optional<Topic>> pendingFuture = pendingTopic.getMiddle();
             final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
             final boolean acquiredPermit = topicLoadSemaphore.tryAcquire();
-            createPersistentTopic(topic, true, pendingFuture);
+            createPersistentTopic(topic, true, pendingFuture, pendingTopic.getRight());
             pendingFuture.handle((persistentTopic, ex) -> {
                 // release permit and process next pending topic
                 if (acquiredPermit) {
@@ -2351,7 +2360,7 @@ public class BrokerService implements Closeable {
             });
         }).exceptionally(e -> {
             log.error("Failed to create pending topic {}", topic, e);
-            pendingTopic.getRight()
+            pendingTopic.getMiddle()
                     .completeExceptionally((e instanceof RuntimeException && e.getCause() != null) ? e.getCause() : e);
             // schedule to process next pending topic
             inactivityMonitor.schedule(this::createPendingLoadTopic, 100, TimeUnit.MILLISECONDS);

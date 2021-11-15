@@ -88,6 +88,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import org.testng.collections.Maps;
 
 @Slf4j
 @Test(groups = "broker")
@@ -404,6 +405,33 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         PartitionedTopicMetadata metadata = persistentTopics.getPartitionedMetadata(
                 testTenant, testNamespace, topicName, true, true);
         Assert.assertEquals(metadata.partitions, 0);
+        final String topicName2 = "standard-topic-partition-b";
+        Map<String, String> topicMetadata = Maps.newHashMap();
+        topicMetadata.put("key1", "value1");
+        persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName2, true, topicMetadata);
+        PartitionedTopicMetadata pMetadata2 = persistentTopics.getPartitionedMetadata(
+                testTenant, testNamespace, topicName2, true, false);
+        Assert.assertNull(pMetadata2.topicMetadata);
+    }
+
+    @Test
+    public void testCreatePartitionedTopic() {
+        AsyncResponse response = mock(AsyncResponse.class);
+        final String topicName = "standard-partitioned-topic-a";
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, topicName, 2, true);
+        PartitionedTopicMetadata pMetadata = persistentTopics.getPartitionedMetadata(
+                testTenant, testNamespace, topicName, true, false);
+        Assert.assertNull(pMetadata.topicMetadata);
+
+        final String topicName2 = "standard-partitioned-topic-b";
+        Map<String, String> topicMetadata = Maps.newHashMap();
+        topicMetadata.put("key1", "value1");
+        PartitionedTopicMetadata metadata = new PartitionedTopicMetadata(2, topicMetadata);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, topicName2, true, metadata);
+        PartitionedTopicMetadata pMetadata2 = persistentTopics.getPartitionedMetadata(
+                testTenant, testNamespace, topicName2, true, false);
+        Assert.assertEquals(pMetadata2.topicMetadata.size(), 1);
+        Assert.assertEquals(pMetadata2.topicMetadata, topicMetadata);
     }
 
     @Test(expectedExceptions = RestException.class)
@@ -671,7 +699,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setRetention("tenant-xyz/ns-abc", retention);
         final String topic = "persistent://tenant-xyz/ns-abc/topic-testPeekWithSubscriptionNameNotExist";
         final String subscriptionName = "sub";
-        ((TopicsImpl) admin.topics()).createPartitionedTopicAsync(topic, 3, true).get();
+        ((TopicsImpl) admin.topics()).createPartitionedTopicAsync(topic, 3, true, null).get();
 
         final String partitionedTopic = topic + "-partition-0";
 

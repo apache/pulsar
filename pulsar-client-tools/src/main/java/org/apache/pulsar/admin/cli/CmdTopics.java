@@ -34,9 +34,11 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -383,10 +385,28 @@ public class CmdTopics extends CmdBase {
                 "--partitions" }, description = "Number of partitions for the topic", required = true)
         private int numPartitions;
 
+        @Parameter(names = {"--topic-metadata", "-tm"}, description = "key value pair properties(a=a,b=b,c=c)",
+                required = true)
+        private java.util.List<String> topicMetadata;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            getTopics().createPartitionedTopic(topic, numPartitions);
+            Map<String, String> map = new HashMap<>();
+            for (String property : topicMetadata) {
+                if (!property.contains("=")) {
+                    throw new ParameterException(String.format("Invalid key value pair '%s', " +
+                            "valid format like 'a=a,b=b,c=c'.", property));
+                } else {
+                    String[] keyValue = property.split("=");
+                    if (keyValue.length != 2) {
+                        throw new ParameterException(String.format("Invalid key value pair '%s', " +
+                                "valid format like 'a=a,b=b,c=c'.", property));
+                    }
+                    map.put(keyValue[0], keyValue[1]);
+                }
+            }
+            getTopics().createPartitionedTopic(topic, numPartitions, map);
         }
     }
 

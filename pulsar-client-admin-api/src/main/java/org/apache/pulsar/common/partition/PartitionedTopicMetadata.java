@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.partition;
 
+import java.util.Map;
+
 /**
  * Metadata of a partitioned topic.
  */
@@ -26,12 +28,20 @@ public class PartitionedTopicMetadata {
     /* Number of partitions for the topic */
     public int partitions;
 
+    /* Topic metadata */
+    public Map<String, String> topicMetadata;
+
     public PartitionedTopicMetadata() {
         this.partitions = 0;
     }
 
     public PartitionedTopicMetadata(int partitions) {
         this.partitions = partitions;
+    }
+
+    public PartitionedTopicMetadata(int partitions, Map<String, String> topicMetadata) {
+        this.partitions = partitions;
+        this.topicMetadata = topicMetadata;
     }
 
     /**

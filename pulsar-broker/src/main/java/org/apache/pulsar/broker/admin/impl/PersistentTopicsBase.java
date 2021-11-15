@@ -357,7 +357,7 @@ public class PersistentTopicsBase extends AdminResource {
         revokePermissions(topicName.toString(), role);
     }
 
-    protected void internalCreateNonPartitionedTopic(boolean authoritative) {
+    protected void internalCreateNonPartitionedTopic(boolean authoritative, Map<String, String> topicMetadata) {
         validateNonPartitionTopicName(topicName.getLocalName());
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
@@ -378,7 +378,7 @@ public class PersistentTopicsBase extends AdminResource {
                 throw new RestException(Status.CONFLICT, "This topic already exists");
             }
 
-            Topic createdTopic = getOrCreateTopic(topicName);
+            Topic createdTopic = getOrCreateTopic(topicName, topicMetadata);
             log.info("[{}] Successfully created non-partitioned topic {}", clientAppId(), createdTopic);
         } catch (Exception e) {
             if (e instanceof RestException) {
@@ -3750,8 +3750,12 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private Topic getOrCreateTopic(TopicName topicName) {
-        return pulsar().getBrokerService().getTopic(
-                topicName.toString(), true).thenApply(Optional::get).join();
+        return getOrCreateTopic(topicName, null);
+    }
+
+    private Topic getOrCreateTopic(TopicName topicName, Map<String, String> topicMetadata) {
+        return pulsar().getBrokerService().getTopic(topicName.toString(), true, topicMetadata)
+                .thenApply(Optional::get).join();
     }
 
     /**

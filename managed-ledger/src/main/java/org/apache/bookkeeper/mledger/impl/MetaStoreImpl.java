@@ -22,6 +22,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -84,7 +85,7 @@ public class MetaStoreImpl implements MetaStore {
     }
 
     @Override
-    public void getManagedLedgerInfo(String ledgerName, boolean createIfMissing,
+    public void getManagedLedgerInfo(String ledgerName, boolean createIfMissing, Map<String, String> topicMetadata,
             MetaStoreCallback<ManagedLedgerInfo> callback) {
         // Try to get the content or create an empty node
         String path = PREFIX + ledgerName;
@@ -106,8 +107,17 @@ public class MetaStoreImpl implements MetaStore {
 
                             store.put(path, new byte[0], Optional.of(-1L))
                                     .thenAccept(stat -> {
-                                        ManagedLedgerInfo info = ManagedLedgerInfo.getDefaultInstance();
-                                        callback.operationComplete(info, stat);
+                                        ManagedLedgerInfo.Builder ledgerBuilder = ManagedLedgerInfo.newBuilder();
+                                        if (topicMetadata != null) {
+                                            topicMetadata.forEach((k, v) -> {
+                                                ledgerBuilder.addProperties(
+                                                        MLDataFormats.KeyValue.newBuilder()
+                                                                .setKey(k)
+                                                                .setValue(v)
+                                                                .build());
+                                            });
+                                        }
+                                        callback.operationComplete(ledgerBuilder.build(), stat);
                                     }).exceptionally(ex -> {
                                         callback.operationFailed(getException(ex));
                                         return null;

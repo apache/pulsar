@@ -368,9 +368,10 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public void createPartitionedTopic(String topic, int numPartitions) throws PulsarAdminException {
+    public void createPartitionedTopic(String topic, int numPartitions, Map<String, String> metadata)
+            throws PulsarAdminException {
         try {
-            createPartitionedTopicAsync(topic, numPartitions).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            createPartitionedTopicAsync(topic, numPartitions, metadata).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -382,9 +383,9 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public void createNonPartitionedTopic(String topic) throws PulsarAdminException {
+    public void createNonPartitionedTopic(String topic, Map<String, String> metadata) throws PulsarAdminException {
         try {
-            createNonPartitionedTopicAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            createNonPartitionedTopicAsync(topic, metadata).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -410,24 +411,26 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<Void> createNonPartitionedTopicAsync(String topic){
+    public CompletableFuture<Void> createNonPartitionedTopicAsync(String topic, Map<String, String> metadata){
         TopicName tn = validateTopic(topic);
-        WebTarget path = topicPath(tn);
-        return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+        WebTarget path = topicPath(tn, "topicMetadata");
+        return asyncPutRequest(path, Entity.entity(metadata, MediaType.APPLICATION_JSON));
     }
 
     @Override
-    public CompletableFuture<Void> createPartitionedTopicAsync(String topic, int numPartitions) {
-        return createPartitionedTopicAsync(topic, numPartitions, false);
+    public CompletableFuture<Void> createPartitionedTopicAsync(String topic, int numPartitions,
+                                                               Map<String, String> metadata) {
+        return createPartitionedTopicAsync(topic, numPartitions, false, metadata);
     }
 
     public CompletableFuture<Void> createPartitionedTopicAsync(
-            String topic, int numPartitions, boolean createLocalTopicOnly) {
+            String topic, int numPartitions, boolean createLocalTopicOnly, Map<String, String> topicMetadata) {
         checkArgument(numPartitions > 0, "Number of partitions should be more than 0");
         TopicName tn = validateTopic(topic);
-        WebTarget path = topicPath(tn, "partitions")
+        WebTarget path = topicPath(tn, "partitions/topicMetadata")
                 .queryParam("createLocalTopicOnly", Boolean.toString(createLocalTopicOnly));
-        return asyncPutRequest(path, Entity.entity(numPartitions, MediaType.APPLICATION_JSON));
+        PartitionedTopicMetadata metadata = new PartitionedTopicMetadata(numPartitions, topicMetadata);
+        return asyncPutRequest(path, Entity.entity(metadata, MediaType.APPLICATION_JSON));
     }
 
     @Override
