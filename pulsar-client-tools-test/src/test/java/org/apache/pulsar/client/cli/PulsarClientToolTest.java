@@ -21,7 +21,6 @@ package org.apache.pulsar.client.cli;
 import static org.testng.Assert.assertEquals;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
