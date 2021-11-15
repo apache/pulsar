@@ -68,7 +68,6 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
@@ -133,6 +132,7 @@ import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
@@ -1163,7 +1163,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
                 try {
-                    long entryTimestamp = MessageImpl.getEntryTimestamp(entry.getDataBuffer());
+                    long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
                     future.complete(entryTimestamp);
                 } catch (IOException e) {
                     log.error("Error deserializing message for message position {}", nextPos, e);

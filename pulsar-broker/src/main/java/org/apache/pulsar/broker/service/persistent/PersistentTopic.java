@@ -2563,7 +2563,7 @@ public class PersistentTopic extends AbstractTopic
                         @Override
                         public void readEntryComplete(Entry entry, Object ctx) {
                             try {
-                                long entryTimestamp = MessageImpl.getEntryTimestamp(entry.getDataBuffer());
+                                long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
                                 boolean expired = MessageImpl.isEntryExpired(backlogQuotaLimitInSecond, entryTimestamp);
                                 if (expired && log.isDebugEnabled()) {
                                     log.debug("Time based backlog quota exceeded, oldest entry in cursor {}'s backlog"
@@ -2652,7 +2652,7 @@ public class PersistentTopic extends AbstractTopic
         try {
             entry = cursor.getNthEntry(1, IndividualDeletedEntries.Include);
             if (entry != null) {
-                long entryTimestamp = MessageImpl.getEntryTimestamp(entry.getDataBuffer());
+                long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
                 isOldestMessageExpired = MessageImpl.isEntryExpired(
                         (int) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD), entryTimestamp);
             }
