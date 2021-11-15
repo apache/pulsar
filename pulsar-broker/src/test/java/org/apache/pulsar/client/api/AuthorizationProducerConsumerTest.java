@@ -46,7 +46,6 @@ import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authorization.AuthorizationProvider;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -54,7 +53,6 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -62,6 +60,7 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.RestException;
+import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -174,6 +173,8 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     public void testSubscriberPermission() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
+        conf.setEnablePackagesManagement(true);
+        conf.setPackagesManagementStorageProvider(MockedPackagesStorageProvider.class.getName());
         conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
         setup();
 
@@ -263,15 +264,33 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
             assertTrue(e.getMessage().startsWith(
                     "Unauthorized to validateNamespaceOperation for operation [UNSUBSCRIBE]"));
         }
+        try {
+            sub1Admin.namespaces().getTopics(namespace);
+            fail("should have failed with authorization exception");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().startsWith(
+                    "Unauthorized to validateNamespaceOperation for operation [GET_TOPICS]"));
+        }
+        try {
+            sub1Admin.packages().listPackages("function", namespace);
+            fail("should have failed with authorization exception");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().startsWith(
+                    "Role sub1-role has not the 'package' permission to do the packages operations"));
+        }
 
         // grant namespace-level authorization to the subscriptionRole
         tenantAdmin.namespaces().grantPermissionOnNamespace(namespace, subscriptionRole,
-                Collections.singleton(AuthAction.consume));
+                Sets.newHashSet(AuthAction.consume, AuthAction.packages));
 
         // now, subscriptionRole have consume authorization on namespace, so it will successfully unsubscribe namespace
         superAdmin.namespaces().unsubscribeNamespaceBundle(namespace, "0x00000000_0xffffffff", subscriptionName2);
         subscriptions = sub1Admin.topics().getSubscriptions(topicName);
         assertEquals(subscriptions.size(), 1);
+        List<String> topics = sub1Admin.namespaces().getTopics(namespace);
+        assertEquals(topics.size(), 1);
+        List<String> packages = sub1Admin.packages().listPackages("function", namespace);
+        assertEquals(packages.size(), 0);
 
         // subscriptionRole has namespace-level authorization
         sub1Admin.topics().resetCursor(topicName, subscriptionName, 10);

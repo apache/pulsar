@@ -22,7 +22,6 @@ import io.airlift.slice.Slices;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.decoder.FieldValueProvider;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.sql.presto.PulsarColumnHandle;
