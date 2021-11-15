@@ -300,7 +300,7 @@ public class TopicsBase extends PersistentTopicsBase {
                 produceMessageResults.get(index).setMessageId(messageId.toString());
             } catch (Exception e) {
                 if (log.isDebugEnabled()) {
-                    log.debug("Fail publish [{}] message with rest produce message request for topic  {}: {} ",
+                    log.debug("Fail publish [{}] message with rest produce message request for topic  {}",
                             index, topicName);
                 }
                 if (e instanceof BrokerServiceException.TopicNotFoundException) {
