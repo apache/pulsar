@@ -1058,7 +1058,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 existsFutures.put(i, topicResources().persistentTopicExists(topicName.getPartition(i)));
                             }
                             FutureUtil.waitForAll(Lists.newArrayList(existsFutures.values())).thenApply(__ ->
-                                    existsFutures.entrySet().stream().filter(e -> e.getValue().join().booleanValue())
+                                    existsFutures.entrySet().stream().filter(e -> e.getValue().join())
                                             .map(item -> topicName.getPartition(item.getKey()).toString())
                                             .collect(Collectors.toList())
                             ).thenAccept(topics -> {

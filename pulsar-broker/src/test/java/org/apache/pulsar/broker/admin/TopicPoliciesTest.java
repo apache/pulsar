@@ -1397,7 +1397,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCheckMaxConsumers() throws Exception {
-        Integer maxProducers = new Integer(-1);
+        Integer maxProducers = -1;
         log.info("MaxConsumers: {} will set to the topic: {}", maxProducers, testTopic);
         try {
             admin.topics().setMaxConsumers(testTopic, maxProducers);

@@ -79,12 +79,12 @@ public class PulsarPrimitiveRowDecoder implements PulsarRowDecoder {
                 primitiveColumn.put(columnHandle, booleanValueProvider(Boolean.valueOf((Boolean) value)));
             } else if (type instanceof TinyintType || type instanceof SmallintType || type instanceof IntegerType
                     || type instanceof BigintType) {
-                primitiveColumn.put(columnHandle, longValueProvider(Long.valueOf(value.toString())));
+                primitiveColumn.put(columnHandle, longValueProvider(Long.parseLong(value.toString())));
             } else if (type instanceof DoubleType) {
-                primitiveColumn.put(columnHandle, doubleValueProvider(Double.valueOf(value.toString())));
+                primitiveColumn.put(columnHandle, doubleValueProvider(Double.parseDouble(value.toString())));
             } else if (type instanceof RealType) {
                 primitiveColumn.put(columnHandle, longValueProvider(
-                        Float.floatToIntBits((Float.valueOf(value.toString())))));
+                        Float.floatToIntBits((Float.parseFloat(value.toString())))));
             } else if (type instanceof VarbinaryType) {
                 primitiveColumn.put(columnHandle, bytesValueProvider((byte[]) value));
             } else if (type instanceof VarcharType) {
