@@ -339,8 +339,13 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
 
                                     MessageMetadata messageMetadata =
                                             new MessageMetadata()
-                                                    .setProducerName("test-producer").setSequenceId(positions.get(topic))
+                                                    .setProducerName("test-producer")
+                                                    .setSequenceId(positions.get(topic))
                                                     .setPublishTime(System.currentTimeMillis());
+
+                                    if (i % 2 == 0) {
+                                        messageMetadata.setSchemaVersion(new LongSchemaVersion(1L).bytes());
+                                    }
 
                                     if (KeyValueEncodingType.SEPARATED.equals(schema.getKeyValueEncodingType())) {
                                         messageMetadata
@@ -396,7 +401,7 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
         PulsarSplit split = new PulsarSplit(0, pulsarConnectorId.toString(),
                 topicName.getNamespace(), topicName.getLocalName(), topicName.getLocalName(),
                 entriesNum,
-                new String(schema.getSchemaInfo().getSchema()),
+                new String(schema.getSchemaInfo().getSchema(),  "ISO8859-1"),
                 schema.getSchemaInfo().getType(),
                 0, entriesNum,
                 0, 0, TupleDomain.all(),
