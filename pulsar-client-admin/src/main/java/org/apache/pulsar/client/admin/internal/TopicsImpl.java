@@ -1602,7 +1602,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         } else {
             brokerEntryMetadata = new BrokerEntryMetadata();
             if (brokerEntryTimestamp != null) {
-                brokerEntryMetadata.setBrokerTimestamp(DateFormatter.parse(brokerEntryTimestamp.toString()));
+                brokerEntryMetadata.setBrokerTimestamp(DateFormatter.parse(brokerEntryTimestamp));
             }
 
             if (brokerEntryIndex != null) {

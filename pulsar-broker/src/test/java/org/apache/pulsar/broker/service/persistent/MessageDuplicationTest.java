@@ -31,7 +31,6 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Field;

@@ -16,31 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.tutorial;
 
-import java.io.IOException;
+package org.apache.pulsar.common.policies.data;
 
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
+import lombok.Getter;
 
-public class ContinuousProducer {
-    public static void main(String[] args) throws InterruptedException, IOException {
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("http://127.0.0.1:8080").build();
+/**
+ * Topic policy hierarchy value container
+ */
+@Getter
+public class HierarchyTopicPolicies {
+    final PolicyHierarchyValue<InactiveTopicPolicies> inactiveTopicPolicies;
+    final PolicyHierarchyValue<Integer> maxSubscriptionsPerTopic;
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-tenant/my-ns/my-topic")
-                .create();
-
-        while (true) {
-            try {
-                producer.send("my-message".getBytes());
-                Thread.sleep(1000);
-
-            } catch (Exception e) {
-                e.printStackTrace();
-                break;
-            }
-        }
-
-        pulsarClient.close();
+    public HierarchyTopicPolicies() {
+        inactiveTopicPolicies = new PolicyHierarchyValue<>();
+        maxSubscriptionsPerTopic = new PolicyHierarchyValue<>();
     }
 }

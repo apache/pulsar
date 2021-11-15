@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -367,6 +368,37 @@ public class ConcurrentOpenHashMapTest {
         assertEquals(map.remove(t1_b), "t1");
         assertNull(map.get(t1));
         assertNull(map.get(t1_b));
+    }
+
+    @Test
+    public void testNullValue() {
+        ConcurrentOpenHashMap<String, String> map = new ConcurrentOpenHashMap<>(16, 1);
+        String key = "a";
+        assertThrows(NullPointerException.class, () -> map.put(key, null));
+
+        //put a null value.
+        assertNull(map.computeIfAbsent(key, k -> null));
+        assertEquals(1, map.size());
+        assertEquals(1, map.keys().size());
+        assertEquals(1, map.values().size());
+        assertNull(map.get(key));
+        assertFalse(map.containsKey(key));
+
+        //test remove null value
+        map.removeNullValue(key);
+        assertTrue(map.isEmpty());
+        assertEquals(0, map.keys().size());
+        assertEquals(0, map.values().size());
+        assertNull(map.get(key));
+        assertFalse(map.containsKey(key));
+
+
+        //test not remove non-null value
+        map.put(key, "V");
+        assertEquals(1, map.size());
+        map.removeNullValue(key);
+        assertEquals(1, map.size());
+
     }
 
     static final int Iterations = 1;

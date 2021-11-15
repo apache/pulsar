@@ -19,10 +19,8 @@
 package org.apache.pulsar.common.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.ToString;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
-import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.stats.Metrics;
 import org.testng.Assert;
 import org.testng.annotations.Test;

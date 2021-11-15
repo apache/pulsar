@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.auth;
 import static org.testng.Assert.fail;
 
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.testng.annotations.AfterClass;
 
