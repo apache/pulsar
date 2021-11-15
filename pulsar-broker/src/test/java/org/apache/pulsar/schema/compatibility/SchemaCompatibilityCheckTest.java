@@ -395,6 +395,28 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
 
     }
 
+    @Test
+    public void testAutoProduceSchemaAlwaysCompatible() throws Exception {
+        final String tenant = PUBLIC_TENANT;
+        final String topic = "topic" + randomName(16);
+
+        String namespace = "test-namespace-" + randomName(16);
+        String topicName = TopicName.get(
+                TopicDomain.persistent.value(), tenant, namespace, topic).toString();
+        NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
+        admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet(CLUSTER_NAME));
+
+        // set ALWAYS_COMPATIBLE
+        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+
+        Producer producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName).create();
+        // should not fail
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).subscriptionName("my-sub").topic(topicName).subscribe();
+
+        producer.close();
+        consumer.close();
+    }
+
     @Test(dataProvider =  "CanReadLastSchemaCompatibilityStrategy")
     public void testConsumerWithNotCompatibilitySchema(SchemaCompatibilityStrategy schemaCompatibilityStrategy) throws Exception {
         final String tenant = PUBLIC_TENANT;

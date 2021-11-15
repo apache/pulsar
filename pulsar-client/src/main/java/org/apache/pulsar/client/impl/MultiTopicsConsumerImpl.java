@@ -1338,7 +1338,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 return FutureUtil.failedFuture(new NotSupportedException("not support shrink topic partitions"));
             }
         }).exceptionally(throwable -> {
-            log.warn("[{}] Failed to get partitions for topic to determine if new partitions are added", throwable);
+            log.warn("Failed to get partitions for topic to determine if new partitions are added", throwable);
             return null;
         });
     }

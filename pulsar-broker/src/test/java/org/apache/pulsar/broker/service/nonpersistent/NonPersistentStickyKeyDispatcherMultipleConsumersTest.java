@@ -71,7 +71,6 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
     private NonPersistentTopic topicMock;
     private NonPersistentSubscription subscriptionMock;
     private ServiceConfiguration configMock;
-    private ChannelPromise channelMock;
 
     private NonPersistentStickyKeyDispatcherMultipleConsumers nonpersistentDispatcher;
 
@@ -100,7 +99,6 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
         doReturn(brokerMock).when(topicMock).getBrokerService();
         doReturn(topicName).when(topicMock).getName();
 
-        channelMock = mock(ChannelPromise.class);
         subscriptionMock = mock(NonPersistentSubscription.class);
 
         PowerMockito.mockStatic(DispatchRateLimiter.class);
