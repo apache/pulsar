@@ -174,6 +174,31 @@
     },
     {
       "type": "category",
+      "label": "Kubernetes (Helm)",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.2/helm-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/helm-prepare"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/helm-install"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/helm-deploy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/helm-upgrade"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/helm-tools"
       "label": "Transactions",
       "items": [
         {
@@ -187,6 +212,160 @@
         {
           "type": "doc",
           "id": "version-2.7.2/transactions-api"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Administration",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.2/administration-zk-bk"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/administration-geo"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/administration-pulsar-manager"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/administration-stats"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/administration-load-balance"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/administration-proxy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/administration-upgrade"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/administration-isolation"
+      "label": "Deployment",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.2/deploy-aws"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/deploy-kubernetes"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/deploy-bare-metal"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/deploy-bare-metal-multi-cluster"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/deploy-dcos"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/deploy-docker"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/deploy-monitoring"
+      "label": "Client Libraries",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.2/client-libraries"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/client-libraries-java"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/client-libraries-go"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/client-libraries-python"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/client-libraries-cpp"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/client-libraries-node"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/client-libraries-websocket"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/client-libraries-dotnet"
+      "label": "Performance",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.2/performance-pulsar-perf"
+      "label": "Security",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.2/security-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/security-tls-transport"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/security-tls-authentication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/security-tls-keystore"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/security-jwt"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/security-athenz"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/security-kerberos"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/security-oauth2"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/security-authorization"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/security-encryption"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/security-extending"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/security-bouncy-castle"
         }
       ]
     }

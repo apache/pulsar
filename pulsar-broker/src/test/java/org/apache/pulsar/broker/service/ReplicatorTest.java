@@ -18,22 +18,19 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.apache.pulsar.broker.BrokerTestUtil.newUniqueName;
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Sets;
 import com.scurrilous.circe.checksum.Crc32cIntChecksum;
-
 import io.netty.buffer.ByteBuf;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -51,9 +48,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
 import lombok.Cleanup;
-
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -87,7 +82,6 @@ import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.schema.Schemas;
@@ -1246,21 +1240,44 @@ public class ReplicatorTest extends ReplicatorTestBase {
         String systemTopic = TopicName.get("persistent", NamespaceName.get(namespace),
                 EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME).toString();
         admin1.topics().createNonPartitionedTopic(topic);
-        admin1.topics().setRetention(topic, new RetentionPolicies(10, 10));
-        admin2.topics().setRetention(topic, new RetentionPolicies(20, 20));
-        admin3.topics().setRetention(topic, new RetentionPolicies(30, 30));
+        //wait until topic creation syncs to the other clusters.
+        Awaitility.await().untilAsserted(()-> Assert.assertTrue(admin2.namespaces().getTopics(namespace).contains(topic)));
+        Awaitility.await().untilAsserted(()-> Assert.assertTrue(admin3.namespaces().getTopics(namespace).contains(topic)));
 
+        admin1.topicPolicies().setRetention(topic, new RetentionPolicies(10, 10));
+        admin2.topicPolicies().setRetention(topic, new RetentionPolicies(20, 20));
+        admin3.topicPolicies().setRetention(topic, new RetentionPolicies(30, 30));
         Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(admin1.topics().getStats(systemTopic).getReplication().size(), 0);
             Assert.assertEquals(admin2.topics().getStats(systemTopic).getReplication().size(), 0);
             Assert.assertEquals(admin3.topics().getStats(systemTopic).getReplication().size(), 0);
         });
-
         Awaitility.await().untilAsserted(() -> {
-            Assert.assertEquals(admin1.topics().getRetention(topic).getRetentionSizeInMB(), 10);
-            Assert.assertEquals(admin2.topics().getRetention(topic).getRetentionSizeInMB(), 20);
-            Assert.assertEquals(admin3.topics().getRetention(topic).getRetentionSizeInMB(), 30);
+            Assert.assertEquals(admin1.topicPolicies().getRetention(topic).getRetentionSizeInMB(), 10);
+            Assert.assertEquals(admin2.topicPolicies().getRetention(topic).getRetentionSizeInMB(), 20);
+            Assert.assertEquals(admin3.topicPolicies().getRetention(topic).getRetentionSizeInMB(), 30);
         });
+    }
+
+    @Test
+    public void testLookupAnotherCluster() throws Exception {
+        log.info("--- Starting ReplicatorTest::testLookupAnotherCluster ---");
+
+        String namespace = "pulsar/r2/cross-cluster-ns";
+        admin1.namespaces().createNamespace(namespace);
+        final TopicName topicName = TopicName
+                .get("persistent://" + namespace + "/topic");
+
+        @Cleanup
+        PulsarClient client1 = PulsarClient.builder()
+                .serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        Producer<byte[]> producer = client1.newProducer().topic(topicName.toString())
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
+        
+        producer.close();
     }
 
     private void checkListContainExpectedTopic(PulsarAdmin admin, String namespace, List<String> expectedTopicList) {

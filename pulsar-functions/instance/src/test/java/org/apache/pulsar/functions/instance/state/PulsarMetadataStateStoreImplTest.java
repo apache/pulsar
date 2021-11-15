@@ -19,25 +19,11 @@
 package org.apache.pulsar.functions.instance.state;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyLong;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.*;
-import io.kubernetes.client.proto.Meta;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
+
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
-import lombok.SneakyThrows;
-import org.apache.bookkeeper.api.kv.Table;
-import org.apache.bookkeeper.api.kv.options.Options;
-import org.apache.bookkeeper.api.kv.result.DeleteResult;
-import org.apache.bookkeeper.common.concurrent.FutureUtils;
+
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;

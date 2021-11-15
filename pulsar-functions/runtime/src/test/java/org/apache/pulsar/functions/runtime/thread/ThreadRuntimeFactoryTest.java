@@ -26,7 +26,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.worker.ConnectorsManager;

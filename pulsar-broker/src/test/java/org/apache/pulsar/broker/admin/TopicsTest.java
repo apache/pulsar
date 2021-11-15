@@ -25,13 +25,11 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.io.JsonEncoder;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.avro.util.Utf8;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.admin.v2.PersistentTopics;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -70,7 +68,6 @@ import org.apache.pulsar.websocket.data.ProducerMessages;
 import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -97,7 +94,6 @@ import static org.powermock.api.mockito.PowerMockito.doReturn;
 import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.powermock.api.mockito.PowerMockito.spy;
 
-@PrepareForTest(PersistentTopics.class)
 public class TopicsTest extends MockedPulsarServiceBaseTest {
 
     private Topics topics;

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.auth;
 
-import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
