@@ -1,0 +1,98 @@
+{
+  "version-2.6.4/docsSidebar": [
+    {
+      "type": "category",
+      "label": "Get Started",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.6.4/pulsar-2.0"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.4/standalone"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.4/standalone-docker"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.4/kubernetes-helm"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.4/client-libraries"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Concepts and Architecture",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.6.4/concepts-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.4/concepts-messaging"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.4/concepts-architecture-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.4/concepts-clients"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.4/concepts-replication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.4/concepts-multi-tenancy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.4/concepts-authentication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.4/concepts-topic-compaction"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.4/concepts-tiered-storage"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.4/concepts-proxy-sni-routing"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar Schema",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.6.4/schema-get-started"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.4/schema-understand"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.4/schema-evolution-compatibility"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.4/schema-manage"
+        }
+      ]
+    }
+  ]
+}

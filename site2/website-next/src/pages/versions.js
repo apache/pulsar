@@ -22,7 +22,7 @@ export default function DenseTable() {
         <div className="my-12 container">
           <h1 className="mb-6">{siteConfig.title} Versions</h1>
           <h3 className="mb-4" id="latest">
-            Latest Stable Version
+            <Translate>Latest Stable Version</Translate>
           </h3>
           <p className="mb-2">Latest stable release of Apache Pulsar.</p>
           <VersionsTable
@@ -30,21 +30,25 @@ export default function DenseTable() {
             type="stable"
           ></VersionsTable>
           <h3 className="mt-8 mb-4" id="latest">
-            Latest Version
+            <Translate> Latest Version</Translate>
           </h3>
           <p className="mb-2">
-            Here you can find the latest documentation and unreleased code.
+            <Translate>
+              Here you can find the latest documentation and unreleased code.
+            </Translate>
           </p>
           <VersionsTable
             data={[{ name: "next" }]}
             type="stable"
           ></VersionsTable>
           <h3 className="mt-8 mb-4" id="latest">
-            Past Version
+            <Translate>Past Version</Translate>
           </h3>
           <p className="mb-2">
-            Here you can find documentation for previous versions of Apache
-            Pulsar.
+            <Translate>
+              Here you can find documentation for previous versions of Apache
+              Pulsar.
+            </Translate>
           </p>
           <VersionsTable
             data={versions
