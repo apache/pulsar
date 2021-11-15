@@ -192,6 +192,39 @@
     },
     {
       "type": "category",
+      "label": "Client Libraries",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.2/client-libraries"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/client-libraries-java"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/client-libraries-go"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/client-libraries-python"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/client-libraries-cpp"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/client-libraries-node"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/client-libraries-websocket"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/client-libraries-dotnet"
       "label": "Performance",
       "items": [
         {
