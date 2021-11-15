@@ -217,7 +217,7 @@ Below are the parameters in the WebSocket session.
     `key` | string | no |  Original routing key set by producer
     `encryptionContext` | EncryptionContext | no | Encryption context that consumers can use to decrypt received messages
     `param` | string | no | Initialization vector for cipher (Base64 encoding)
-    `batchSize` | string | no | Number of entries in a message (if it it a batch message)
+    `batchSize` | string | no | Number of entries in a message (if it is a batch message)
     `uncompressedMessageSize` | string | no | Message size before compression
     `compressionType` | string | no | Algorithm used to compress the message payload
 
