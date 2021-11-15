@@ -101,10 +101,10 @@ module.exports = {
   customFields: {
     githubUrl,
   },
-  i18n: {
-    defaultLocale: "en",
-    locales: ["en", "zh"],
-  },
+  // i18n: {
+  //   defaultLocale: "en",
+  //   locales: ["en", "zh"],
+  // },
   themeConfig: {
     navbar: {
       title: "",
@@ -126,10 +126,10 @@ module.exports = {
           label: "GitHub",
           position: "right",
         },
-        {
-          type: "localeDropdown",
-          position: "left",
-        },
+        // {
+        //   type: "localeDropdown",
+        //   position: "left",
+        // },
         {
           label: "Version",
           to: "docs",
