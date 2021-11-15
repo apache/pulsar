@@ -152,6 +152,7 @@ public class ConnectionHandler {
         switch (state) {
             case Uninitialized:
             case Connecting:
+            case RegisteringSchema:
             case Ready:
                 // Ok
                 return true;
