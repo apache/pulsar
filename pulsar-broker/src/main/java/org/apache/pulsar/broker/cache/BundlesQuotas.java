@@ -73,7 +73,7 @@ public class BundlesQuotas {
     }
 
     public CompletableFuture<ResourceQuota> getResourceQuota(String bundle) {
-        return resourceQuotaCache.get(RESOURCE_QUOTA_ROOT + "/" + bundle.toString())
+        return resourceQuotaCache.get(RESOURCE_QUOTA_ROOT + "/" + bundle)
                 .thenCompose(optResourceQuota -> {
                     if (optResourceQuota.isPresent()) {
                         return CompletableFuture.completedFuture(optResourceQuota.get());
