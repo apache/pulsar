@@ -300,11 +300,11 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
 
     @Override
     public void close() throws MetadataStoreException {
+        db.close();
         optionSync.close();
         optionDontSync.close();
         optionCache.close();
         optionDontCache.close();
-        db.close();
         try {
             super.close();
         } catch (Throwable throwable) {
