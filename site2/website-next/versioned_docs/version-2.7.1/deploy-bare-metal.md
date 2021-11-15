@@ -407,6 +407,7 @@ webServicePortTls=8443
 > 
 > ```
 
+
 ### Enable Pulsar Functions (optional)
 
 If you want to enable [Pulsar Functions](functions-overview), you can follow the instructions as below:
@@ -474,6 +475,7 @@ brokerServiceurl=pulsar://us-west.example.com:6650
 >
 > 
 > ```
+
 
 Once that is complete, you can publish a message to the Pulsar topic:
 
