@@ -29,7 +29,6 @@ import java.util.Optional;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.testng.Assert.assertEquals;
 
 // see https://www.elastic.co/guide/en/elasticsearch/reference/current/security-settings.html#ssl-tls-settings
 public class ElasticSearchClientSslTests {
