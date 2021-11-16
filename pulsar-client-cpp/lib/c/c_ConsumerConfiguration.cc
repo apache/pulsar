@@ -195,3 +195,13 @@ int pulsar_consumer_configuration_get_priority_level(
     pulsar_consumer_configuration_t *consumer_configuration) {
     return consumer_configuration->consumerConfiguration.getPriorityLevel();
 }
+
+int pulsar_consumer_is_replicate_subscription_state_enabled(
+    pulsar_consumer_configuration_t *consumer_configuration) {
+    return consumer_configuration->consumerConfiguration.isReplicateSubscriptionStateEnabled();
+}
+
+void pulsar_consumer_set_replicate_subscription_state_enabled(
+    pulsar_consumer_configuration_t *consumer_configuration, int enabled) {
+    consumer_configuration->consumerConfiguration.setReplicateSubscriptionStateEnabled(enabled);
+}

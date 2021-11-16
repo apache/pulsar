@@ -281,6 +281,24 @@ PULSAR_PUBLIC void pulsar_consumer_configuration_set_priority_level(
 PULSAR_PUBLIC int pulsar_consumer_configuration_get_priority_level(
     pulsar_consumer_configuration_t *consumer_configuration);
 
+/**
+ * Check whether the replicated subscription is enabled.
+ *
+ * @param consumer_configuration the consumer configuration object
+ * @return whether the replicated subscription is enabled.
+ */
+PULSAR_PUBLIC int pulsar_consumer_is_replicate_subscription_state_enabled(
+    pulsar_consumer_configuration_t *consumer_configuration);
+
+/**
+ * Enable or disable replicated subscription
+ *
+ * @param consumer_configuration the consumer configuration object
+ * @param enabled int parameter. 0 means disabling replicated subscriptions. 1 means enabling replicated subscriptions.
+ */
+PULSAR_PUBLIC void pulsar_consumer_set_replicate_subscription_state_enabled(
+    pulsar_consumer_configuration_t *consumer_configuration, int enabled);
+
 // const CryptoKeyReaderPtr getCryptoKeyReader()
 //
 // const;
@@ -298,3 +316,4 @@ PULSAR_PUBLIC int pulsar_consumer_configuration_get_priority_level(
 #ifdef __cplusplus
 }
 #endif
+
