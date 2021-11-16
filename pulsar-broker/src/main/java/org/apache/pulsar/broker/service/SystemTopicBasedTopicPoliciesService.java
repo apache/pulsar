@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -471,24 +470,26 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     @Override
     public void registerListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
-        listeners.compute(topicName, (k, oldValue) -> {
-            if (oldValue == null) {
-                oldValue = Lists.newCopyOnWriteArrayList();
+        listeners.compute(topicName, (k, topicListeners) -> {
+            if (topicListeners == null) {
+                topicListeners = Lists.newCopyOnWriteArrayList();
             }
-            oldValue.add(listener);
-            return oldValue;
+            topicListeners.add(listener);
+            return topicListeners;
         });
     }
 
     @Override
     public void unregisterListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
-        List<TopicPolicyListener<TopicPolicies>> topicListeners = listeners.get(topicName);
-        if (topicListeners != null && topicListeners.remove(listener)) {
-            //delete topic from listeners if it's empty.
-            if (topicListeners.isEmpty()) {
-                listeners.remove(topicName, Collections.emptyList());
+        listeners.compute(topicName, (k, topicListeners)->{
+            if (topicListeners != null){
+                topicListeners.remove(listener);
+                if (topicListeners.isEmpty()) {
+                    topicListeners = null;
+                }
             }
-        }
+            return topicListeners;
+        });
     }
 
     @Override
