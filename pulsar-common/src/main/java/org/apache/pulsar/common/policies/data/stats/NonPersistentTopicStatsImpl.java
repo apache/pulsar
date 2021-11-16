@@ -100,6 +100,8 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
     }
 
     public void setPublishers(List<? extends PublisherStats> statsList) {
+        this.nonPersistentPublishers.clear();
+        this.nonPersistentPublishersMap.clear();
         statsList.forEach(s -> addPublisher((NonPersistentPublisherStatsImpl) s));
     }
 

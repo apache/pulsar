@@ -136,6 +136,8 @@ public class TopicStatsImpl implements TopicStats {
     }
 
     public void setPublishers(List<? extends PublisherStats> statsList) {
+        this.publishers.clear();
+        this.publishersMap.clear();
         statsList.forEach(s -> addPublisher((PublisherStatsImpl) s));
     }
 
