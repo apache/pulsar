@@ -452,7 +452,7 @@
 <tr><td><code>--instance-id-offset</code></td><td>Start the instanceIds from this offset</td><td>0</td></tr>
 <tr><td><code>--inputs</code></td><td>The function's input topic or topics (multiple topics can be specified as a comma-separated list)</td><td></td></tr>
 <tr><td><code>--log-topic</code></td><td>The topic to which the function's logs are produced</td><td></td></tr>
-<tr><td><code>--jar</code></td><td>Path to the jar file for the function (if the function is written in Java). It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.</td><td></td></tr>
+<tr><td><code>--jar</code></td><td>該函數的 jar 文件的路徑（如果該函數是用Java編寫的）。 It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.</td><td></td></tr>
 <tr><td><code>--name</code></td><td>The function's name</td><td></td></tr>
 <tr><td><code>--namespace</code></td><td>The function's namespace</td><td></td></tr>
 <tr><td><code>--output</code></td><td>The function's output topic (If none is specified, no output is written)</td><td></td></tr>
@@ -465,7 +465,7 @@
 <tr><td><code>--sliding-interval-duration-ms</code></td><td>The time duration after which the window slides</td><td></td></tr>
 <tr><td><code>--state-storage-service-url</code></td><td>The URL for the state storage service. By default, it it set to the service URL of the Apache BookKeeper. This service URL must be added manually when the Pulsar Function runs locally.</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The function’s tenant</td><td></td></tr>
-<tr><td><code>--topics-pattern</code></td><td>The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)</td><td></td></tr>
+<tr><td><code>--topics-pattern</code></td><td>消費 topic 的匹配模版。 [--input] 與 [--topic-pattern] 是互斥的選項。 Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)</td><td></td></tr>
 <tr><td><code>--user-config</code></td><td>User-defined config key/values</td><td></td></tr>
 <tr><td><code>--window-length-count</code></td><td>The number of messages per window</td><td></td></tr>
 <tr><td><code>--window-length-duration-ms</code></td><td>The time duration of the window in milliseconds</td><td></td></tr>
@@ -502,7 +502,7 @@
 <tr><td><code>--function-config-file</code></td><td>The path to a YAML config file specifying the function's configuration</td><td></td></tr>
 <tr><td><code>--inputs</code></td><td>The function's input topic or topics (multiple topics can be specified as a comma-separated list)</td><td></td></tr>
 <tr><td><code>--log-topic</code></td><td>The topic to which the function's logs are produced</td><td></td></tr>
-<tr><td><code>--jar</code></td><td>Path to the jar file for the function (if the function is written in Java). It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.</td><td></td></tr>
+<tr><td><code>--jar</code></td><td>該函數的 jar 文件的路徑（如果該函數是用Java編寫的）。 It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.</td><td></td></tr>
 <tr><td><code>--name</code></td><td>The function's name</td><td></td></tr>
 <tr><td><code>--namespace</code></td><td>The function’s namespace</td><td></td></tr>
 <tr><td><code>--output</code></td><td>The function's output topic (If none is specified, no output is written)</td><td></td></tr>
@@ -514,7 +514,7 @@
 <tr><td><code>--sliding-interval-count</code></td><td>The number of messages after which the window slides</td><td></td></tr>
 <tr><td><code>--sliding-interval-duration-ms</code></td><td>The time duration after which the window slides</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The function’s tenant</td><td></td></tr>
-<tr><td><code>--topics-pattern</code></td><td>The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)</td><td></td></tr>
+<tr><td><code>--topics-pattern</code></td><td>消費 topic 的匹配模版。 [--input] 與 [--topic-pattern] 是互斥的選項。 Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)</td><td></td></tr>
 <tr><td><code>--user-config</code></td><td>User-defined config key/values</td><td></td></tr>
 <tr><td><code>--window-length-count</code></td><td>The number of messages per window</td><td></td></tr>
 <tr><td><code>--window-length-duration-ms</code></td><td>The time duration of the window in milliseconds</td><td></td></tr>
@@ -565,7 +565,7 @@
 <tr><td><code>--function-config-file</code></td><td>The path to a YAML config file specifying the function's configuration</td><td></td></tr>
 <tr><td><code>--inputs</code></td><td>The function's input topic or topics (multiple topics can be specified as a comma-separated list)</td><td></td></tr>
 <tr><td><code>--log-topic</code></td><td>The topic to which the function's logs are produced</td><td></td></tr>
-<tr><td><code>--jar</code></td><td>Path to the jar file for the function (if the function is written in Java). It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.</td><td></td></tr>
+<tr><td><code>--jar</code></td><td>該函數的 jar 文件的路徑（如果該函數是用Java編寫的）。 It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.</td><td></td></tr>
 <tr><td><code>--name</code></td><td>The function's name</td><td></td></tr>
 <tr><td><code>--namespace</code></td><td>The function’s namespace</td><td></td></tr>
 <tr><td><code>--output</code></td><td>The function's output topic (If none is specified, no output is written)</td><td></td></tr>
@@ -577,7 +577,7 @@
 <tr><td><code>--sliding-interval-count</code></td><td>The number of messages after which the window slides</td><td></td></tr>
 <tr><td><code>--sliding-interval-duration-ms</code></td><td>The time duration after which the window slides</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The function’s tenant</td><td></td></tr>
-<tr><td><code>--topics-pattern</code></td><td>The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)</td><td></td></tr>
+<tr><td><code>--topics-pattern</code></td><td>消費 topic 的匹配模版。 [--input] 與 [--topic-pattern] 是互斥的選項。 Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)</td><td></td></tr>
 <tr><td><code>--user-config</code></td><td>User-defined config key/values</td><td></td></tr>
 <tr><td><code>--window-length-count</code></td><td>The number of messages per window</td><td></td></tr>
 <tr><td><code>--window-length-duration-ms</code></td><td>The time duration of the window in milliseconds</td><td></td></tr>
