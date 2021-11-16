@@ -481,7 +481,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     @Override
     public void unregisterListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
-        listeners.compute(topicName, (k, topicListeners)->{
+        listeners.compute(topicName, (k, topicListeners) -> {
             if (topicListeners != null){
                 topicListeners.remove(listener);
                 if (topicListeners.isEmpty()) {

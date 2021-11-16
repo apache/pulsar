@@ -117,7 +117,8 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         }
 
         f.get();
-        Assert.assertTrue(systemTopicBasedTopicPoliciesService.listeners.isEmpty());
+        //Some system topics will be added to the listeners. Just check if it contains topicName.
+        Assert.assertFalse(systemTopicBasedTopicPoliciesService.listeners.containsKey(topicName));
     }
 
     @Test
