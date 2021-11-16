@@ -27,6 +27,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -375,16 +376,7 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public void createNonPartitionedTopic(String topic, Map<String, String> metadata) throws PulsarAdminException {
-        try {
-            createNonPartitionedTopicAsync(topic, metadata).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> createNonPartitionedTopicAsync(topic, metadata));
     }
 
     @Override
@@ -405,6 +397,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<Void> createNonPartitionedTopicAsync(String topic, Map<String, String> properties){
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "properties");
+        properties = properties == null ? new HashMap<>() : properties;
         return asyncPutRequest(path, Entity.entity(properties, MediaType.APPLICATION_JSON));
     }
 
