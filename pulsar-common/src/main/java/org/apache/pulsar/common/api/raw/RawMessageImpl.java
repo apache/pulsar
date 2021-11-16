@@ -83,7 +83,7 @@ public class RawMessageImpl implements RawMessage {
 
     public RawMessage updatePayloadForChunkedMessage(ByteBuf chunkedTotalPayload) {
         if (!msgMetadata.getMetadata().hasNumChunksFromMsg() || msgMetadata.getMetadata().getNumChunksFromMsg() <= 1) {
-            throw new RuntimeException("The update payload operation only support chunked messages.");
+            throw new RuntimeException("The update payload operation only support multi chunked messages.");
         }
         payload = chunkedTotalPayload;
         return this;

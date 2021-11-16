@@ -777,7 +777,7 @@ public class PulsarRecordCursor implements RecordCursor {
         ChunkedMessageCtx chunkedMsgCtx = chunkedMessagesMap.get(uuid);
         if (chunkedMsgCtx == null || chunkedMsgCtx.chunkedMsgBuffer == null
                 || chunkId != (chunkedMsgCtx.lastChunkedMessageId + 1) || chunkId >= numChunks) {
-            // Means we lost the first chunk, it will happens when the beginning chunk didn't belong to this split.
+            // Means we lost the first chunk, it will happen when the beginning chunk didn't belong to this split.
             log.info("Received unexpected chunk. messageId: %s, last-chunk-id: %s chunkId: %s, totalChunks: %s",
                     message.getMessageId(),
                     (chunkedMsgCtx != null ? chunkedMsgCtx.lastChunkedMessageId : null), chunkId,
@@ -810,6 +810,7 @@ public class PulsarRecordCursor implements RecordCursor {
         chunkedMessagesMap.remove(uuid);
         ByteBuf unCompressedPayload = chunkedMsgCtx.chunkedMsgBuffer;
         chunkedMsgCtx.recycle();
+        // The chunked message complete, we use the entire payload to instead of the last chunk payload.
         return ((RawMessageImpl) message).updatePayloadForChunkedMessage(unCompressedPayload);
     }
 
