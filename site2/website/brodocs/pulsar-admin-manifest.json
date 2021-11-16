@@ -28,6 +28,18 @@
       "filename": "topics.md"
     },
     {
+      "filename": "functions-worker.md"
+    },
+    {
+      "filename": "proxy-stats.md"
+    },
+    {
+      "filename": "resourcegroups.md"
+    },
+    {
+      "filename": "transactions.md"
+    },
+    {
       "filename": "tenants.md"
     },
     {
@@ -35,6 +47,9 @@
     },
     {
       "filename": "schemas.md"
+    },
+    {
+      "filename": "packages.md"
     }
   ],
   "title": "Docs",
