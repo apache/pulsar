@@ -334,7 +334,7 @@ All the bundleUnloading metrics are labelled with the following labels:
 | pulsar_lb_bundles_split_count | Counter | bundle split count in this bundle splitting check interval |
 
 #### Bundle metrics
-All the bunle metrics are labelled with the following labels:
+All the bundle metrics are labelled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - broker: broker=${broker}. ${broker} is the IP address of the broker
 - bundle: bundle=${bundle}. ${bundle} is the bundle range on this broker
