@@ -81,21 +81,18 @@ public class DefaultMessageFormatter implements IMessageFormatter {
 
     private String getStringValue(float size) {
         int s = (int) size;
-        if (size == 0) {
-            size = 20;
-        };
-        String result = "";
+        StringBuilder result = new StringBuilder();
         for(int i = 0; i < s; i++) {
-            result = result + (char) ((int) 'a' + (int) (r.nextFloat() * 26));
+            result.append((char) ((int) 'a' + (int) (r.nextFloat() * 26)));
         }
-        return result;
+        return result.toString();
     }
 
     private String getFloatValue(float size) {
         if (size == 0) {
             return String.valueOf(r.nextFloat());
         }
-        String format = "%" + String.valueOf(size) + "f";
+        String format = "%" + size + "f";
 
         return String.format(format, _getFloatValue(size));
     }
