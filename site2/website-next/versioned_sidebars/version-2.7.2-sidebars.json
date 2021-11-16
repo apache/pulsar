@@ -396,6 +396,27 @@
     },
     {
       "type": "category",
+      "label": "Development",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.2/develop-tools"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/develop-binary-protocol"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/develop-schema"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/develop-load-manager"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/develop-cpp"
       "label": "Cookbooks",
       "items": [
         {
