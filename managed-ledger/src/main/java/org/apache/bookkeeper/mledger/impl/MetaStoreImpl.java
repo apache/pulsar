@@ -85,7 +85,7 @@ public class MetaStoreImpl implements MetaStore {
     }
 
     @Override
-    public void getManagedLedgerInfo(String ledgerName, boolean createIfMissing, Map<String, String> topicMetadata,
+    public void getManagedLedgerInfo(String ledgerName, boolean createIfMissing, Map<String, String> properties,
             MetaStoreCallback<ManagedLedgerInfo> callback) {
         // Try to get the content or create an empty node
         String path = PREFIX + ledgerName;
@@ -108,8 +108,8 @@ public class MetaStoreImpl implements MetaStore {
                             store.put(path, new byte[0], Optional.of(-1L))
                                     .thenAccept(stat -> {
                                         ManagedLedgerInfo.Builder ledgerBuilder = ManagedLedgerInfo.newBuilder();
-                                        if (topicMetadata != null) {
-                                            topicMetadata.forEach((k, v) -> {
+                                        if (properties != null) {
+                                            properties.forEach((k, v) -> {
                                                 ledgerBuilder.addProperties(
                                                         MLDataFormats.KeyValue.newBuilder()
                                                                 .setKey(k)

@@ -1320,7 +1320,7 @@ public class BrokerService implements Closeable {
             }
 
             managedLedgerConfig.setCreateIfMissing(createIfMissing);
-            managedLedgerConfig.setTopicMetadata(topicMetadata);
+            managedLedgerConfig.setProperties(topicMetadata);
 
             // Once we have the configuration, we can proceed with the async open operation
             managedLedgerFactory.asyncOpen(topicName.getPersistenceNamingEncoding(), managedLedgerConfig,
@@ -1336,7 +1336,6 @@ public class BrokerService implements Closeable {
                                 CompletableFuture<Void> replicationFuture = persistentTopic
                                         .initialize()
                                         .thenCompose(__ -> persistentTopic.checkReplication());
-
 
                                 CompletableFuture.allOf(preCreateSubForCompaction, replicationFuture)
                                 .thenCompose(v -> {

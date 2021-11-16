@@ -65,11 +65,11 @@ public interface MetaStore {
      *            the name of the ManagedLedger
      * @param createIfMissing
      *            whether the managed ledger metadata should be created if it doesn't exist already
-     * @param topicMetadata
-     *            topic metadata
+     * @param properties
+     *            ledger properties
      * @throws MetaStoreException
      */
-    void getManagedLedgerInfo(String ledgerName, boolean createIfMissing, Map<String, String> topicMetadata,
+    void getManagedLedgerInfo(String ledgerName, boolean createIfMissing, Map<String, String> properties,
                               MetaStoreCallback<ManagedLedgerInfo> callback);
 
     /**

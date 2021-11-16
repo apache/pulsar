@@ -77,7 +77,7 @@ public class ManagedLedgerConfig {
     private int newEntriesCheckDelayInMillis = 10;
     private Clock clock = Clock.systemUTC();
     private ManagedLedgerInterceptor managedLedgerInterceptor;
-    private Map<String, String> topicMetadata;
+    private Map<String, String> properties;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -625,13 +625,13 @@ public class ManagedLedgerConfig {
     }
 
 
-    public Map<String, String> getTopicMetadata() {
-        return topicMetadata;
+    public Map<String, String> getProperties() {
+        return properties;
     }
 
 
-    public void setTopicMetadata(Map<String, String> topicMetadata) {
-        this.topicMetadata = topicMetadata;
+    public void setProperties(Map<String, String> properties) {
+        this.properties = properties;
     }
 
     public boolean isDeletionAtBatchIndexLevelEnabled() {
