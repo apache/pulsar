@@ -57,12 +57,8 @@ import org.apache.pulsar.common.schema.LongSchemaVersion;
 )
 public class SchemasResource extends SchemasResourceBase {
 
-    public SchemasResource() {
-        super();
-    }
-
     @VisibleForTesting
-    public SchemasResource(Clock clock) {
+    public SchemasResource() {
         super();
     }
 
