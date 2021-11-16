@@ -136,7 +136,7 @@ public class NamespaceResources extends BaseResources<Policies> {
         final String namespacePath = joinPath(NAMESPACE_BASE_PATH, ns.toString());
         CompletableFuture<Void> future = new CompletableFuture<Void>();
         deleteAsync(namespacePath).whenComplete((ignore, ex) -> {
-            if (ex != null && ex.getCause().getCause() instanceof KeeperException) {
+            if (ex != null && ex.getCause().getCause() instanceof KeeperException.NoNodeException) {
                 future.complete(null);
             } else if (ex != null) {
                 future.completeExceptionally(ex);
@@ -153,7 +153,7 @@ public class NamespaceResources extends BaseResources<Policies> {
         final String tenantPath = joinPath(NAMESPACE_BASE_PATH, tenant);
         CompletableFuture<Void> future = new CompletableFuture<Void>();
         deleteAsync(tenantPath).whenComplete((ignore, ex) -> {
-            if (ex != null && ex.getCause().getCause() instanceof KeeperException) {
+            if (ex != null && ex.getCause().getCause() instanceof KeeperException.NoNodeException) {
                 future.complete(null);
             } else if (ex != null) {
                 future.completeExceptionally(ex);
@@ -268,7 +268,7 @@ public class NamespaceResources extends BaseResources<Policies> {
                         log.info("Clear partitioned topic metadata [{}] success.", namespaceName);
                         completableFuture.complete(null);
                     }).exceptionally(ex -> {
-                if (ex.getCause().getCause() instanceof KeeperException) {
+                if (ex.getCause().getCause() instanceof KeeperException.NoNodeException) {
                     completableFuture.complete(null);
                 } else {
                     log.error("Clear partitioned topic metadata failed.");
