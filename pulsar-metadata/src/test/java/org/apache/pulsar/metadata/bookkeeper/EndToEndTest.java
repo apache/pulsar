@@ -22,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -29,10 +30,11 @@ import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.api.WriteHandle;
 import org.apache.pulsar.metadata.BaseMetadataStoreTest;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 /**
- * Test the zookeeper implementation of the ledger replication manager.
+ * Test the Bookie and Client end-to-end with MetadataStore backend
  */
 @Slf4j
 public class EndToEndTest extends BaseMetadataStoreTest {
@@ -73,8 +75,59 @@ public class EndToEndTest extends BaseMetadataStoreTest {
 
         @Cleanup
         LedgerEntries les = rh.read(0, 9);
+        int i = 0;
         for (LedgerEntry le : les) {
-            log.info("Read entry: {}", new String(le.getEntryBytes()));
+            Assert.assertEquals(new String(le.getEntryBytes()), "entry-" + i++);
+        }
+    }
+
+
+    @Test(dataProvider = "impl")
+    public void testWithLedgerRecovery(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        BKTestCluster bktc = new BKTestCluster(urlSupplier.get(), 3);
+
+        @Cleanup
+        BookKeeper bkc = bktc.newClient();
+
+        @Cleanup
+        WriteHandle wh = bkc.newCreateLedgerOp()
+                .withEnsembleSize(3)
+                .withWriteQuorumSize(2)
+                .withAckQuorumSize(2)
+                .withDigestType(DigestType.CRC32C)
+                .withPassword(new byte[0])
+                .execute()
+                .join();
+
+        for (int i = 0; i < 10; i++) {
+            wh.append(("entry-" + i).getBytes(StandardCharsets.UTF_8));
+        }
+
+        long ledgerId = wh.getId();
+
+        @Cleanup
+        ReadHandle rh = bkc.newOpenLedgerOp()
+                .withLedgerId(ledgerId)
+                .withPassword(new byte[0])
+                .withRecovery(true)
+                .execute()
+                .join();
+
+        Assert.assertEquals(rh.getLastAddConfirmed(), 9L);
+
+        @Cleanup
+        LedgerEntries les = rh.read(0, 9);
+        int i = 0;
+        for (LedgerEntry le : les) {
+            Assert.assertEquals(new String(le.getEntryBytes()), "entry-" + i++);
+        }
+
+        try {
+            wh.append("test".getBytes(StandardCharsets.UTF_8));
+            Assert.fail("should have failed since the ledger is fenced");
+        } catch (BKException.BKLedgerFencedException fe) {
+            // Expected
         }
     }
 }
