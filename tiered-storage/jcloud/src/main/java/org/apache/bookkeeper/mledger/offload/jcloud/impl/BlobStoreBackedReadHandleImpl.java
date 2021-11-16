@@ -19,9 +19,7 @@
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
 import java.io.DataInputStream;
-import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -125,32 +123,20 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                         + " seek to the first entry {} to avoid EOF exception", inputStream.available(), firstEntry);
                     inputStream.seek(index.getIndexEntryForEntry(firstEntry).getDataOffset());
                 }
-                inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
+
                 while (entriesToRead > 0) {
                     if (state == State.Closed) {
                         log.warn("Reading a closed read handler. Ledger ID: {}, Read range: {}-{}", ledgerId, firstEntry, lastEntry);
                         throw new BKException.BKUnexpectedConditionException();
                     }
-                    long entryId;
-                    int length;
-                    try {
-                        length = dataStream.readInt();
-                        if (length < 0) { // hit padding or new block
-                            inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
-                            continue;
-                        }
-                        entryId = dataStream.readLong();
-                    } catch (EOFException ioException) {
-                        //Some entries in this ledger may be filtered. If the last entry in this ledger was filtered,
-                        //we can`t read the next bytes.
-                        break;
+                    int length = dataStream.readInt();
+                    if (length < 0) { // hit padding or new block
+                        inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
+                        continue;
                     }
+                    long entryId = dataStream.readLong();
 
-                    if (entryId >= nextExpectedId && entryId <= lastEntry) {
-                        //Some transaction messages in this ledger have been filtered
-                        if(entryId > nextExpectedId){
-                            nextExpectedId = entryId;
-                        }
+                    if (entryId == nextExpectedId) {
                         ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(length, length);
                         entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
                         int toWrite = length;
@@ -159,12 +145,15 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                         }
                         entriesToRead--;
                         nextExpectedId++;
+                    } else if (entryId > nextExpectedId && entryId < lastEntry) {
+                        log.warn("The read entry {} is not the expected entry {} but in the range of {} - {},"
+                            + " seeking to the right position", entryId, nextExpectedId, nextExpectedId, lastEntry);
+                        inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
                     } else if (entryId < nextExpectedId
                         && !index.getIndexEntryForEntry(nextExpectedId).equals(index.getIndexEntryForEntry(entryId))) {
                         log.warn("Read an unexpected entry id {} which is smaller than the next expected entry id {}"
                         + ", seeking to the right position", entries, nextExpectedId);
                         inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
-                        continue;
                     } else if (entryId > lastEntry) {
                         // in the normal case, the entry id should increment in order. But if there has random access in
                         // the read method, we should allow to seek to the right position and the entry id should
@@ -175,17 +164,13 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                             continue;
                         }
                         log.info("Expected to read {}, but read {}, which is greater than last entry {}",
-                                nextExpectedId, entryId, lastEntry);
+                            nextExpectedId, entryId, lastEntry);
                         throw new BKException.BKUnexpectedConditionException();
                     } else {
                         long ignore = inputStream.skip(length);
                     }
                 }
-                if (entries.isEmpty()) {
-                    log.warn("Debug: The ledger {} does not exist", ledgerId);
-                    promise.completeExceptionally(new BKException.BKNoSuchEntryException());
-                    return;
-                }
+
                 promise.complete(LedgerEntriesImpl.create(entries));
             } catch (Throwable t) {
                 promise.completeExceptionally(t);

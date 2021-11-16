@@ -20,9 +20,7 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
 import java.io.DataInputStream;
-import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -155,35 +153,18 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
                 long entriesToRead = (groupedReader.lastEntry - groupedReader.firstEntry) + 1;
                 long nextExpectedId = groupedReader.firstEntry;
                 try {
-                    groupedReader.inputStream
-                            .seek(groupedReader.index
-                                    .getIndexEntryForEntry(groupedReader.ledgerId, nextExpectedId)
-                                    .getDataOffset());
                     while (entriesToRead > 0) {
-
-                        long entryId;
-                        int length;
-                        try {
-                            length = groupedReader.dataStream.readInt();
-                            if (length < 0) { // hit padding or new block
-                                groupedReader.inputStream
-                                        .seek(groupedReader.index
-                                                .getIndexEntryForEntry(groupedReader.ledgerId, nextExpectedId)
-                                                .getDataOffset());
-                                continue;
-                            }
-                            entryId = groupedReader.dataStream.readLong();
-                        } catch (EOFException ioException) {
-                            //Some entries in this ledger may be filtered. If the last entry in this ledger was filtered,
-                            //we can`t read the next bytes.
-                            break;
+                        int length = groupedReader.dataStream.readInt();
+                        if (length < 0) { // hit padding or new block
+                            groupedReader.inputStream
+                                    .seek(groupedReader.index
+                                            .getIndexEntryForEntry(groupedReader.ledgerId, nextExpectedId)
+                                            .getDataOffset());
+                            continue;
                         }
+                        long entryId = groupedReader.dataStream.readLong();
 
-                        if (entryId >= nextExpectedId && entryId <= lastEntry) {
-                            //Some transaction messages in this ledger have been filtered
-                            if(entryId > nextExpectedId){
-                                nextExpectedId = entryId;
-                            }
+                        if (entryId == nextExpectedId) {
                             ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(length, length);
                             entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
                             int toWrite = length;
@@ -192,6 +173,12 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
                             }
                             entriesToRead--;
                             nextExpectedId++;
+                        } else if (entryId > nextExpectedId) {
+                            groupedReader.inputStream
+                                    .seek(groupedReader.index
+                                            .getIndexEntryForEntry(groupedReader.ledgerId, nextExpectedId)
+                                            .getDataOffset());
+                            continue;
                         } else if (entryId < nextExpectedId
                                 && !groupedReader.index.getIndexEntryForEntry(groupedReader.ledgerId, nextExpectedId)
                                 .equals(
@@ -208,10 +195,6 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
                         } else {
                             val skipped = groupedReader.inputStream.skip(length);
                         }
-                    }
-                    if (entries.isEmpty()) {
-                        promise.completeExceptionally(new BKException.BKNoSuchEntryException());
-                        return;
                     }
                 } catch (Throwable t) {
                     promise.completeExceptionally(t);

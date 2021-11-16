@@ -117,6 +117,12 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
             Entry entry = entries.get(i);
             if (entry == null) {
                 continue;
+            } else if (entry.getLength() == 0) {
+                subscription.acknowledgeMessage(Collections.singletonList(entry.getPosition()), AckType.Individual,
+                        Collections.emptyMap());
+                entries.set(i, null);
+                entry.release();
+                continue;
             }
             totalEntries++;
             ByteBuf metadataAndPayload = entry.getDataBuffer();

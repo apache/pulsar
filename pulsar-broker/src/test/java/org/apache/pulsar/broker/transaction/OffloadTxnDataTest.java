@@ -33,6 +33,7 @@ import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
@@ -177,14 +178,14 @@ public class OffloadTxnDataTest extends TransactionTestBase{
         sendAndOffloadMessages(receiverQueueSize);
     }
 
-    @Test
-    public void testBlobStoreOffloadTxnData() throws Exception {
+    @Test(dataProvider = "receiverQueueSize")
+    public void testBlobStoreOffloadTxnData(int receiverQueueSize) throws Exception {
         BlobStoreManagedLedgerOffloader blobStoreManagedLedgerOffloader = buildBlobstoreOffloader();
         setMaxEntriesPerLedger(4);
         setLedgerOffloader(blobStoreManagedLedgerOffloader);
         setProperties(properties);
         setup();
-        sendAndOffloadMessages(7);
+        sendAndOffloadMessages(receiverQueueSize);
     }
 
     private void sendAndOffloadMessages(int receiverQueueSize) throws Exception {
@@ -199,12 +200,12 @@ public class OffloadTxnDataTest extends TransactionTestBase{
                 .topic(topic)
                 .create();
 
-        Consumer<String> consumer = buildConsumer(topic, receiverQueueSize);
-
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
                 .getBrokerService().getTopic(topic, false)
                 .get().get();
         persistentTopic.getManagedLedger().getConfig().setAutoSkipNonRecoverableData(true);
+        persistentTopic.getManagedLedger().getConfig().setRetentionSizeInMB(Integer.MAX_VALUE);
+        persistentTopic.getManagedLedger().getConfig().setRetentionTime(Integer.MAX_VALUE, TimeUnit.SECONDS);
         List<MessageIdImpl> messageIdList = new ArrayList<>();
         map.put("ManagedLedgerName", persistentTopic.getManagedLedger().getName());
 
@@ -216,7 +217,7 @@ public class OffloadTxnDataTest extends TransactionTestBase{
         messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 4").send());
 
         //Offload transaction messages. filter aborted messages and txn mark
-        //ledger 2
+        //ledger 2  Filter txn mark
         Transaction committedTxn= pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
@@ -234,34 +235,29 @@ public class OffloadTxnDataTest extends TransactionTestBase{
         producer.newMessage(abortedTxn).value("txn message abort").sendAsync().get();
         abortedTxn.abort().get();
 
-        //ledger 4, Ledger<null, null, message, message>
+        //ledger 4, Ledger<message, null, null, message>
+        messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 8").send());
         abortedTxn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
         producer.newMessage(abortedTxn).value("txn message abort").sendAsync().get();
         abortedTxn.abort().get();
-        messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 8").send());
         messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 9").send());
 
-        //ledger 5, Ledger<message, null, null, message>
+        //ledger 5, LedgerId = maxReadPosition can not be offload
         messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 10").send());
         abortedTxn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
-        producer.newMessage(abortedTxn).value("txn message abort").sendAsync().get();
-        abortedTxn.abort().get();
-        messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 11").send());
-
-        //ledger 6, LedgerId = maxReadPosition can not be offload
-        messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 12").send());
-        abortedTxn = pulsarClient.newTransaction()
-                .withTransactionTimeout(5, TimeUnit.SECONDS)
-                .build().get();
+        //offload will be started when a ledger is full.
+        producer.newMessage(abortedTxn).value("txn message abort").send();
+        producer.newMessage(abortedTxn).value("txn message abort").send();
 
         //Waiting until offloading completely.
         waitOffload(messageIdList.get(messageIdList.size() - 2), persistentTopic);
 
-        consumer = buildConsumer(topic, receiverQueueSize);
+        @Cleanup
+        Consumer<String> consumer = buildConsumer(topic, receiverQueueSize);
         for (int i = 0; i < messageIdList.size() - 1; i++) {
             Message message = consumer.receive();
             String[] msgs = message.getValue().toString().split(" ");
@@ -337,7 +333,7 @@ public class OffloadTxnDataTest extends TransactionTestBase{
                 .newConsumer(Schema.STRING)
                 .subscriptionName("testOffload" + RandomUtils.nextLong())
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .receiverQueueSize(3)
+                .receiverQueueSize(receiverQueueSize)
                 .topic(topic)
                 .subscribe();
     }

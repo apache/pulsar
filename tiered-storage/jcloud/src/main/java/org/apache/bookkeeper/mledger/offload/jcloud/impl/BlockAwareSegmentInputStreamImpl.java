@@ -127,10 +127,12 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
             Iterator<LedgerEntry> iterator = ledgerEntriesOnce.iterator();
             while (iterator.hasNext()) {
                 LedgerEntry entry = iterator.next();
-                if(!offloadFilter.checkIfNeedOffload(entry)){
-                    continue;
+                ByteBuf buf;
+                if (!offloadFilter.checkIfNeedOffload(entry)) {
+                    buf = PulsarByteBufAllocator.DEFAULT.buffer(0, 0);
+                } else  {
+                    buf = entry.getEntryBuffer().retain();
                 }
-                ByteBuf buf = entry.getEntryBuffer().retain();
                 int entryLength = buf.readableBytes();
                 long entryId = entry.getEntryId();
 
@@ -144,10 +146,6 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
             }
             return entries;
         } catch (InterruptedException | ExecutionException e) {
-            if (e.getCause() instanceof BKException.BKNoSuchLedgerExistsException) {
-                log.warn("The ledger {} does not exist {}", ledger.getId(), e.getCause());
-                return Lists.newLinkedList();
-            }
             log.error("Exception when get CompletableFuture<LedgerEntries>. ", e);
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
