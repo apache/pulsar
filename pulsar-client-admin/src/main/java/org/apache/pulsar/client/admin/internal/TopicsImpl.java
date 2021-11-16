@@ -427,7 +427,7 @@ public class TopicsImpl extends BaseResource implements Topics {
             String topic, int numPartitions, boolean createLocalTopicOnly, Map<String, String> topicMetadata) {
         checkArgument(numPartitions > 0, "Number of partitions should be more than 0");
         TopicName tn = validateTopic(topic);
-        WebTarget path = topicPath(tn, "partitions/topicMetadata")
+        WebTarget path = topicPath(tn, "partitions", "topicMetadata")
                 .queryParam("createLocalTopicOnly", Boolean.toString(createLocalTopicOnly));
         PartitionedTopicMetadata metadata = new PartitionedTopicMetadata(numPartitions, topicMetadata);
         return asyncPutRequest(path, Entity.entity(metadata, MediaType.APPLICATION_JSON));
