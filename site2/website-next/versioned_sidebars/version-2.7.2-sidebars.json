@@ -396,6 +396,35 @@
     },
     {
       "type": "category",
+      "label": "Cookbooks",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.2/cookbooks-compaction"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/cookbooks-deduplication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/cookbooks-non-persistent"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/cookbooks-retention-expiry"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/cookbooks-encryption"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/cookbooks-message-queue"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/cookbooks-bookkeepermetadata"
       "label": "Adaptors",
       "items": [
         {
