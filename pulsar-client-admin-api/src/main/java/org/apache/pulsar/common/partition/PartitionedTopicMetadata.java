@@ -28,8 +28,8 @@ public class PartitionedTopicMetadata {
     /* Number of partitions for the topic */
     public int partitions;
 
-    /* Topic metadata */
-    public Map<String, String> topicMetadata;
+    /* Topic properties */
+    public Map<String, String> properties;
 
     public PartitionedTopicMetadata() {
         this.partitions = 0;
@@ -39,9 +39,9 @@ public class PartitionedTopicMetadata {
         this.partitions = partitions;
     }
 
-    public PartitionedTopicMetadata(int partitions, Map<String, String> topicMetadata) {
+    public PartitionedTopicMetadata(int partitions, Map<String, String> properties) {
         this.partitions = partitions;
-        this.topicMetadata = topicMetadata;
+        this.properties = properties;
     }
 
     /**

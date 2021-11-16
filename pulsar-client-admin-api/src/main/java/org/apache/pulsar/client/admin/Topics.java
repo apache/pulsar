@@ -358,11 +358,11 @@ public interface Topics {
      *            Topic name
      * @param numPartitions
      *            Number of partitions to create of the topic
-     * @param metadata
-     *            Metadata of the topic
+     * @param properties
+     *            topic properties
      * @throws PulsarAdminException
      */
-    void createPartitionedTopic(String topic, int numPartitions, Map<String, String> metadata)
+    void createPartitionedTopic(String topic, int numPartitions, Map<String, String> properties)
             throws PulsarAdminException;
 
     /**
@@ -393,11 +393,12 @@ public interface Topics {
      *            Topic name
      * @param numPartitions
      *            Number of partitions to create of the topic
-     * @param metadata
-     *            Metadata of the topic
+     * @param properties
+     *            Topic properties
      * @return a future that can be used to track when the partitioned topic is created
      */
-    CompletableFuture<Void> createPartitionedTopicAsync(String topic, int numPartitions, Map<String, String> metadata);
+    CompletableFuture<Void> createPartitionedTopicAsync(String topic, int numPartitions,
+                                                        Map<String, String> properties);
 
     /**
      * Create a non-partitioned topic.
@@ -419,10 +420,10 @@ public interface Topics {
      * <p/>
      *
      * @param topic Topic name
-     * @param metadata Topic metadata
+     * @param properties Topic properties
      * @throws PulsarAdminException
      */
-    void createNonPartitionedTopic(String topic, Map<String, String> metadata) throws PulsarAdminException;
+    void createNonPartitionedTopic(String topic, Map<String, String> properties) throws PulsarAdminException;
 
     /**
      * Create a non-partitioned topic asynchronously.
@@ -437,9 +438,9 @@ public interface Topics {
      * Create a non-partitioned topic asynchronously.
      *
      * @param topic Topic name
-     * @param metadata Topic metadata
+     * @param properties Topic properties
      */
-    CompletableFuture<Void> createNonPartitionedTopicAsync(String topic, Map<String, String> metadata);
+    CompletableFuture<Void> createNonPartitionedTopicAsync(String topic, Map<String, String> properties);
 
     /**
      * Create missed partitions for partitioned topic.

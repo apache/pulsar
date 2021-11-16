@@ -385,14 +385,14 @@ public class CmdTopics extends CmdBase {
                 "--partitions" }, description = "Number of partitions for the topic", required = true)
         private int numPartitions;
 
-        @Parameter(names = {"--topic-metadata", "-tm"}, description = "key value pair properties(a=a,b=b,c=c)")
-        private java.util.List<String> topicMetadata;
+        @Parameter(names = {"--metadata", "-m"}, description = "key value pair properties(a=a,b=b,c=c)")
+        private java.util.List<String> metadata;
 
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
             Map<String, String> map = new HashMap<>();
-            for (String property : topicMetadata) {
+            for (String property : metadata) {
                 if (!property.contains("=")) {
                     throw new ParameterException(String.format("Invalid key value pair '%s', " +
                             "valid format like 'a=a,b=b,c=c'.", property));
@@ -430,14 +430,14 @@ public class CmdTopics extends CmdBase {
     	@Parameter(description = "persistent://tenant/namespace/topic", required = true)
     	private java.util.List<String> params;
 
-        @Parameter(names = {"--topic-metadata", "-tm"}, description = "key value pair properties(a=a,b=b,c=c)")
-        private java.util.List<String> topicMetadata;
+        @Parameter(names = {"--metadata", "-m"}, description = "key value pair properties(a=a,b=b,c=c)")
+        private java.util.List<String> metadata;
 
     	@Override
     	void run() throws Exception {
     		String topic = validateTopicName(params);
             Map<String, String> map = new HashMap<>();
-            for (String property : topicMetadata) {
+            for (String property : metadata) {
                 if (!property.contains("=")) {
                     throw new ParameterException(String.format("Invalid key value pair '%s', " +
                             "valid format like 'a=a,b=b,c=c'.", property));

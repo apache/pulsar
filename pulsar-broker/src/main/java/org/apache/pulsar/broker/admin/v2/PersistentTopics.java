@@ -243,7 +243,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     @PUT
-    @Path("/{tenant}/{namespace}/{topic}/partitions/topicMetadata")
+    @Path("/{tenant}/{namespace}/{topic}/partitions/properties")
     @ApiOperation(value = "Create a partitioned topic.",
             notes = "It needs to be called before creating a producer on a partitioned topic.")
     @ApiResponses(value = {
@@ -276,7 +276,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             validateTopicPolicyOperation(topicName, PolicyName.PARTITION, PolicyOperation.WRITE);
             validateCreateTopic(topicName);
             internalCreatePartitionedTopic(asyncResponse, metadata.partitions, createLocalTopicOnly,
-                    metadata.topicMetadata);
+                    metadata.properties);
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
             resumeAsyncResponseExceptionally(asyncResponse, e);
@@ -310,7 +310,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     @PUT
-    @Path("/{tenant}/{namespace}/{topic}/topicMetadata")
+    @Path("/{tenant}/{namespace}/{topic}/properties")
     @ApiOperation(value = "Create a non-partitioned topic.",
             notes = "This is the only REST endpoint from which non-partitioned topics could be created.")
     @ApiResponses(value = {
@@ -333,12 +333,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Key value pair properties for the topic metadata")
-            Map<String, String> topicMetadata) {
+            Map<String, String> properties) {
         validateNamespaceName(tenant, namespace);
         validateGlobalNamespaceOwnership();
         validateTopicName(tenant, namespace, encodedTopic);
         validateCreateTopic(topicName);
-        internalCreateNonPartitionedTopic(authoritative, topicMetadata);
+        internalCreateNonPartitionedTopic(authoritative, properties);
     }
 
     @GET

@@ -579,7 +579,7 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected void internalCreatePartitionedTopic(AsyncResponse asyncResponse, int numPartitions,
-                                                  boolean createLocalTopicOnly, Map<String, String> topicMetadata) {
+                                                  boolean createLocalTopicOnly, Map<String, String> properties) {
         Integer maxTopicsPerNamespace = null;
 
         try {
@@ -646,7 +646,7 @@ public abstract class AdminResource extends PulsarWebResource {
                 return;
             }
 
-            provisionPartitionedTopicPath(asyncResponse, numPartitions, createLocalTopicOnly, topicMetadata)
+            provisionPartitionedTopicPath(asyncResponse, numPartitions, createLocalTopicOnly, properties)
                     .thenCompose(ignored -> tryCreatePartitionsAsync(numPartitions))
                     .whenComplete((ignored, ex) -> {
                         if (ex != null) {
@@ -726,11 +726,11 @@ public abstract class AdminResource extends PulsarWebResource {
 
     private CompletableFuture<Void> provisionPartitionedTopicPath(AsyncResponse asyncResponse, int numPartitions,
                                                                   boolean createLocalTopicOnly,
-                                                                  Map<String, String> topicMetadata) {
+                                                                  Map<String, String> properties) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         namespaceResources()
                 .getPartitionedTopicResources()
-                .createPartitionedTopicAsync(topicName, new PartitionedTopicMetadata(numPartitions, topicMetadata))
+                .createPartitionedTopicAsync(topicName, new PartitionedTopicMetadata(numPartitions, properties))
                 .whenComplete((ignored, ex) -> {
                     if (ex != null) {
                         if (ex instanceof AlreadyExistsException) {

@@ -863,7 +863,7 @@ public class BrokerService implements Closeable {
     }
 
     public CompletableFuture<Optional<Topic>> getTopic(final String topic, boolean createIfMissing,
-                                                       Map<String, String> topicMetadata) {
+                                                       Map<String, String> properties) {
         try {
             CompletableFuture<Optional<Topic>> topicFuture = topics.get(topic);
             if (topicFuture != null) {
@@ -880,7 +880,7 @@ public class BrokerService implements Closeable {
                             return topicFuture.thenCompose(value -> {
                                 if (!value.isPresent()) {
                                     // retry and create topic
-                                    return getTopic(topic, createIfMissing, topicMetadata);
+                                    return getTopic(topic, createIfMissing, properties);
                                 } else {
                                     // in-progress future completed successfully
                                     return CompletableFuture.completedFuture(value);
@@ -895,7 +895,7 @@ public class BrokerService implements Closeable {
             final boolean isPersistentTopic = TopicName.get(topic).getDomain().equals(TopicDomain.persistent);
             if (isPersistentTopic) {
                 return topics.computeIfAbsent(topic, (topicName) -> {
-                    return this.loadOrCreatePersistentTopic(topicName, createIfMissing, topicMetadata);
+                    return this.loadOrCreatePersistentTopic(topicName, createIfMissing, properties);
                 });
             } else {
                 return topics.computeIfAbsent(topic, (name) -> {
@@ -1238,7 +1238,7 @@ public class BrokerService implements Closeable {
      * @throws RuntimeException
      */
     protected CompletableFuture<Optional<Topic>> loadOrCreatePersistentTopic(final String topic,
-            boolean createIfMissing, Map<String, String> topicMetadata) throws RuntimeException {
+            boolean createIfMissing, Map<String, String> properties) throws RuntimeException {
         final CompletableFuture<Optional<Topic>> topicFuture = FutureUtil.createFutureWithTimeout(
                 Duration.ofSeconds(pulsar.getConfiguration().getTopicLoadTimeoutSeconds()), executor(),
                 () -> FAILED_TO_LOAD_TOPIC_TIMEOUT_EXCEPTION);
@@ -1256,7 +1256,7 @@ public class BrokerService implements Closeable {
                     final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
 
                     if (topicLoadSemaphore.tryAcquire()) {
-                        createPersistentTopic(topic, createIfMissing, topicFuture, topicMetadata);
+                        createPersistentTopic(topic, createIfMissing, topicFuture, properties);
                         topicFuture.handle((persistentTopic, ex) -> {
                             // release permit and process pending topic
                             topicLoadSemaphore.release();
@@ -1264,7 +1264,7 @@ public class BrokerService implements Closeable {
                             return null;
                         });
                     } else {
-                        pendingTopicLoadingQueue.add(new ImmutableTriple<>(topic, topicFuture, topicMetadata));
+                        pendingTopicLoadingQueue.add(new ImmutableTriple<>(topic, topicFuture, properties));
                         if (log.isDebugEnabled()) {
                             log.debug("topic-loading for {} added into pending queue", topic);
                         }
@@ -1279,7 +1279,7 @@ public class BrokerService implements Closeable {
 
     private void createPersistentTopic(final String topic, boolean createIfMissing,
                                        CompletableFuture<Optional<Topic>> topicFuture,
-                                       Map<String, String> topicMetadata) {
+                                       Map<String, String> properties) {
 
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
         TopicName topicName = TopicName.get(topic);
@@ -1320,7 +1320,7 @@ public class BrokerService implements Closeable {
             }
 
             managedLedgerConfig.setCreateIfMissing(createIfMissing);
-            managedLedgerConfig.setProperties(topicMetadata);
+            managedLedgerConfig.setProperties(properties);
 
             // Once we have the configuration, we can proceed with the async open operation
             managedLedgerFactory.asyncOpen(topicName.getPersistenceNamingEncoding(), managedLedgerConfig,

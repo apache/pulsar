@@ -411,7 +411,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName2, true, topicMetadata);
         PartitionedTopicMetadata pMetadata2 = persistentTopics.getPartitionedMetadata(
                 testTenant, testNamespace, topicName2, true, false);
-        Assert.assertNull(pMetadata2.topicMetadata);
+        Assert.assertNull(pMetadata2.properties);
     }
 
     @Test
@@ -421,7 +421,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, topicName, 2, true);
         PartitionedTopicMetadata pMetadata = persistentTopics.getPartitionedMetadata(
                 testTenant, testNamespace, topicName, true, false);
-        Assert.assertNull(pMetadata.topicMetadata);
+        Assert.assertNull(pMetadata.partitions);
 
         final String topicName2 = "standard-partitioned-topic-b";
         Map<String, String> topicMetadata = Maps.newHashMap();
@@ -430,8 +430,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, topicName2, true, metadata);
         PartitionedTopicMetadata pMetadata2 = persistentTopics.getPartitionedMetadata(
                 testTenant, testNamespace, topicName2, true, false);
-        Assert.assertEquals(pMetadata2.topicMetadata.size(), 1);
-        Assert.assertEquals(pMetadata2.topicMetadata, topicMetadata);
+        Assert.assertEquals(pMetadata2.properties.size(), 1);
+        Assert.assertEquals(pMetadata2.properties, topicMetadata);
     }
 
     @Test(expectedExceptions = RestException.class)

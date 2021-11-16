@@ -172,7 +172,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     @PUT
-    @Path("/{property}/{cluster}/{namespace}/{topic}/partitions/topicMetadata")
+    @Path("/{property}/{cluster}/{namespace}/{topic}/partitions/properties")
     @ApiOperation(hidden = true, value = "Create a partitioned topic.",
             notes = "It needs to be called before creating a producer on a partitioned topic.")
     @ApiResponses(value = {
@@ -192,7 +192,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
             internalCreatePartitionedTopic(asyncResponse, metadata.partitions, createLocalTopicOnly,
-                    metadata.topicMetadata);
+                    metadata.properties);
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
             resumeAsyncResponseExceptionally(asyncResponse, e);
@@ -228,7 +228,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     @PUT
-    @Path("/{tenant}/{cluster}/{namespace}/{topic}/topicMetadata")
+    @Path("/{tenant}/{cluster}/{namespace}/{topic}/properties")
     @ApiOperation(value = "Create a non-partitioned topic.",
             notes = "This is the only REST endpoint from which non-partitioned topics could be created.")
     @ApiResponses(value = {
