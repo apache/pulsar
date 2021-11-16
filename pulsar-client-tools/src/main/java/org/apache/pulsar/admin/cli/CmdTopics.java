@@ -392,17 +392,19 @@ public class CmdTopics extends CmdBase {
         void run() throws Exception {
             String topic = validateTopicName(params);
             Map<String, String> map = new HashMap<>();
-            for (String property : metadata) {
-                if (!property.contains("=")) {
-                    throw new ParameterException(String.format("Invalid key value pair '%s', " +
-                            "valid format like 'a=a,b=b,c=c'.", property));
-                } else {
-                    String[] keyValue = property.split("=");
-                    if (keyValue.length != 2) {
+            if (metadata != null) {
+                for (String property : metadata) {
+                    if (!property.contains("=")) {
                         throw new ParameterException(String.format("Invalid key value pair '%s', " +
                                 "valid format like 'a=a,b=b,c=c'.", property));
+                    } else {
+                        String[] keyValue = property.split("=");
+                        if (keyValue.length != 2) {
+                            throw new ParameterException(String.format("Invalid key value pair '%s', " +
+                                    "valid format like 'a=a,b=b,c=c'.", property));
+                        }
+                        map.put(keyValue[0], keyValue[1]);
                     }
-                    map.put(keyValue[0], keyValue[1]);
                 }
             }
             getTopics().createPartitionedTopic(topic, numPartitions, map);
@@ -437,17 +439,19 @@ public class CmdTopics extends CmdBase {
     	void run() throws Exception {
     		String topic = validateTopicName(params);
             Map<String, String> map = new HashMap<>();
-            for (String property : metadata) {
-                if (!property.contains("=")) {
-                    throw new ParameterException(String.format("Invalid key value pair '%s', " +
-                            "valid format like 'a=a,b=b,c=c'.", property));
-                } else {
-                    String[] keyValue = property.split("=");
-                    if (keyValue.length != 2) {
+            if (metadata != null) {
+                for (String property : metadata) {
+                    if (!property.contains("=")) {
                         throw new ParameterException(String.format("Invalid key value pair '%s', " +
                                 "valid format like 'a=a,b=b,c=c'.", property));
+                    } else {
+                        String[] keyValue = property.split("=");
+                        if (keyValue.length != 2) {
+                            throw new ParameterException(String.format("Invalid key value pair '%s', " +
+                                    "valid format like 'a=a,b=b,c=c'.", property));
+                        }
+                        map.put(keyValue[0], keyValue[1]);
                     }
-                    map.put(keyValue[0], keyValue[1]);
                 }
             }
     		getTopics().createNonPartitionedTopic(topic, map);

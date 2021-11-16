@@ -40,6 +40,7 @@ import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
@@ -1434,7 +1435,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).getInternalStats("non-persistent://myprop/ns1/ds1", false);
 
         topics.run(split("create-partitioned-topic non-persistent://myprop/ns1/ds1 --partitions 32"));
-        verify(mockTopics).createPartitionedTopic("non-persistent://myprop/ns1/ds1", 32);
+        verify(mockTopics).createPartitionedTopic("non-persistent://myprop/ns1/ds1", 32, new HashMap<>());
 
         topics.run(split("list myprop/ns1"));
         verify(mockTopics).getList("myprop/ns1", null);
