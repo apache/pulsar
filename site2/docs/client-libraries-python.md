@@ -259,8 +259,10 @@ If using custom JSON definition schema, users need to use Python dict to produce
 and the `_record_cls` param should be None when generating `AvroSchema` object.
 
 ```
+from fastavro.schema import load_schema
+from pulsar.schema import *
+
 schema_definition = load_schema("examples/company.avsc")
-# schema_definition = avro.schema.parse(open("examples/company.avsc", "rb").read()).to_json()
 avro_schema = AvroSchema(None, schema_definition=schema_definition)
 
 producer = client.create_producer(
