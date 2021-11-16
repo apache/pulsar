@@ -101,7 +101,7 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
                             assertEquals(pulsarRecordCursor.getSlice(i).getBytes(), ((String) fooFunctions.get("field2").apply(count)).getBytes());
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("field3")) {
-                            assertEquals(pulsarRecordCursor.getLong(i), Float.floatToIntBits(((Float) fooFunctions.get("field3").apply(count)).floatValue()));
+                            assertEquals(pulsarRecordCursor.getLong(i), Float.floatToIntBits((Float) fooFunctions.get("field3").apply(count)));
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("field4")) {
                             assertEquals(pulsarRecordCursor.getDouble(i), ((Double) fooFunctions.get("field4").apply(count)).doubleValue());
