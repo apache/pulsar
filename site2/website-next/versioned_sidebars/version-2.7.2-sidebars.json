@@ -425,6 +425,52 @@
         {
           "type": "doc",
           "id": "version-2.7.2/cookbooks-bookkeepermetadata"
+      "label": "Adaptors",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.2/adaptors-kafka"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/adaptors-spark"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/adaptors-storm"
+      "label": "Admin API",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.2/admin-api-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/admin-api-clusters"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/admin-api-tenants"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/admin-api-brokers"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/admin-api-namespaces"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/admin-api-permissions"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/admin-api-topics"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/admin-api-functions"
         }
       ]
     }
