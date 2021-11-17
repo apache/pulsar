@@ -48,7 +48,7 @@ public class DebeziumMsSqlSourceTester extends SourceTester<DebeziumMsSqlContain
 
     private final PulsarCluster pulsarCluster;
 
-    public DebeziumMsSqlSourceTester(PulsarCluster cluster) {
+    public DebeziumMsSqlSourceTester(PulsarCluster cluster, boolean testWithClientBuilder) {
         super(NAME);
         this.pulsarCluster = cluster;
         this.numEntriesToInsert = 1;
@@ -63,7 +63,9 @@ public class DebeziumMsSqlSourceTester extends SourceTester<DebeziumMsSqlContain
         sourceConfig.put("database.server.name", "mssql");
         sourceConfig.put("database.dbname", "TestDB");
         sourceConfig.put("snapshot.mode", "schema_only");
-        sourceConfig.put("database.history.pulsar.service.url", pulsarServiceUrl);
+        if (!testWithClientBuilder) {
+            sourceConfig.put("database.history.pulsar.service.url", pulsarServiceUrl);
+        }
         sourceConfig.put("topic.namespace", "debezium/mssql");
     }
 

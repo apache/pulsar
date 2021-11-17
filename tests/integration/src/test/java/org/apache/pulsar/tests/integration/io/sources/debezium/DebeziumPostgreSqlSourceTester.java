@@ -58,7 +58,7 @@ public class DebeziumPostgreSqlSourceTester extends SourceTester<DebeziumPostgre
 
     private final AtomicReference<String> confirmedFlushLsn = new AtomicReference<>("not read yet");
 
-    public DebeziumPostgreSqlSourceTester(PulsarCluster cluster) {
+    public DebeziumPostgreSqlSourceTester(PulsarCluster cluster, boolean testWithClientBuilder) {
         super(NAME);
         this.pulsarCluster = cluster;
         /*
@@ -80,7 +80,9 @@ public class DebeziumPostgreSqlSourceTester extends SourceTester<DebeziumPostgre
         sourceConfig.put("database.dbname", "postgres");
         sourceConfig.put("schema.whitelist", "inventory");
         sourceConfig.put("table.blacklist", "inventory.spatial_ref_sys,inventory.geom");
-        sourceConfig.put("database.history.pulsar.service.url", pulsarServiceUrl);
+        if (!testWithClientBuilder) {
+            sourceConfig.put("database.history.pulsar.service.url", pulsarServiceUrl);
+        }
         sourceConfig.put("topic.namespace", "debezium/postgresql");
     }
 

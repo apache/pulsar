@@ -45,31 +45,52 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
 
     @Test(groups = "source")
     public void testDebeziumMySqlSourceJson() throws Exception {
-        testDebeziumMySqlConnect("org.apache.kafka.connect.json.JsonConverter", true);
+        testDebeziumMySqlConnect("org.apache.kafka.connect.json.JsonConverter", true, false);
+    }
+
+    @Test(groups = "source")
+    public void testDebeziumMySqlSourceJsonWithClientBuilder() throws Exception {
+        testDebeziumMySqlConnect("org.apache.kafka.connect.json.JsonConverter", true, true);
     }
 
     @Test(groups = "source")
     public void testDebeziumMySqlSourceAvro() throws Exception {
         testDebeziumMySqlConnect(
-                "org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroConverter", false);
+                "org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroConverter", false, false);
     }
 
     @Test(groups = "source")
     public void testDebeziumPostgreSqlSource() throws Exception {
-        testDebeziumPostgreSqlConnect("org.apache.kafka.connect.json.JsonConverter", true);
+        testDebeziumPostgreSqlConnect("org.apache.kafka.connect.json.JsonConverter", true, false);
+    }
+
+    @Test(groups = "source")
+    public void testDebeziumPostgreSqlSourceWithClientBuilder() throws Exception {
+        testDebeziumPostgreSqlConnect("org.apache.kafka.connect.json.JsonConverter", true, true);
     }
 
     @Test(groups = "source")
     public void testDebeziumMongoDbSource() throws Exception{
-        testDebeziumMongoDbConnect("org.apache.kafka.connect.json.JsonConverter", true);
+        testDebeziumMongoDbConnect("org.apache.kafka.connect.json.JsonConverter", true, false);
+    }
+
+    @Test(groups = "source")
+    public void testDebeziumMongoDbSourceWithClientBuilder() throws Exception{
+        testDebeziumMongoDbConnect("org.apache.kafka.connect.json.JsonConverter", true, true);
     }
 
     @Test(groups = "source")
     public void testDebeziumMsSqlSource() throws Exception{
-        testDebeziumMsSqlConnect("org.apache.kafka.connect.json.JsonConverter", true);
+        testDebeziumMsSqlConnect("org.apache.kafka.connect.json.JsonConverter", true, false);
     }
 
-    private void testDebeziumMySqlConnect(String converterClassName, boolean jsonWithEnvelope) throws Exception {
+    @Test(groups = "source")
+    public void testDebeziumMsSqlSourceWithClientBuilder() throws Exception{
+        testDebeziumMsSqlConnect("org.apache.kafka.connect.json.JsonConverter", true, falsetrue;
+    }
+
+    private void testDebeziumMySqlConnect(String converterClassName, boolean jsonWithEnvelope,
+                                          boolean testWithClientBuilder) throws Exception {
 
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
@@ -104,7 +125,7 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         admin.topics().createNonPartitionedTopic(outputTopicName);
 
         @Cleanup
-        DebeziumMySqlSourceTester sourceTester = new DebeziumMySqlSourceTester(pulsarCluster, converterClassName);
+        DebeziumMySqlSourceTester sourceTester = new DebeziumMySqlSourceTester(pulsarCluster, converterClassName, testWithClientBuilder);
         sourceTester.getSourceConfig().put("json-with-envelope", jsonWithEnvelope);
 
         // setup debezium mysql server
@@ -118,7 +139,8 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         runner.testSource(sourceTester);
     }
 
-    private void testDebeziumPostgreSqlConnect(String converterClassName, boolean jsonWithEnvelope) throws Exception {
+    private void testDebeziumPostgreSqlConnect(String converterClassName, boolean jsonWithEnvelope,
+                                               boolean testWithClientBuilder) throws Exception {
 
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
@@ -142,7 +164,7 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         admin.topics().createNonPartitionedTopic(outputTopicName);
 
         @Cleanup
-        DebeziumPostgreSqlSourceTester sourceTester = new DebeziumPostgreSqlSourceTester(pulsarCluster);
+        DebeziumPostgreSqlSourceTester sourceTester = new DebeziumPostgreSqlSourceTester(pulsarCluster, testWithClientBuilder);
         sourceTester.getSourceConfig().put("json-with-envelope", jsonWithEnvelope);
 
         // setup debezium postgresql server
@@ -156,7 +178,8 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         runner.testSource(sourceTester);
     }
 
-    private void testDebeziumMongoDbConnect(String converterClassName, boolean jsonWithEnvelope) throws Exception {
+    private void testDebeziumMongoDbConnect(String converterClassName, boolean jsonWithEnvelope,
+                                            boolean testWithClientBuilder) throws Exception {
 
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
@@ -181,7 +204,8 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         admin.topics().createNonPartitionedTopic(outputTopicName);
 
         @Cleanup
-        DebeziumMongoDbSourceTester sourceTester = new DebeziumMongoDbSourceTester(pulsarCluster);
+        DebeziumMongoDbSourceTester sourceTester =
+                new DebeziumMongoDbSourceTester(pulsarCluster, testWithClientBuilder);
         sourceTester.getSourceConfig().put("json-with-envelope", jsonWithEnvelope);
 
         // setup debezium mongodb server
@@ -195,7 +219,8 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         runner.testSource(sourceTester);
     }
 
-    private void testDebeziumMsSqlConnect(String converterClassName, boolean jsonWithEnvelope) throws Exception {
+    private void testDebeziumMsSqlConnect(String converterClassName, boolean jsonWithEnvelope,
+                                          boolean testWithClientBuilder) throws Exception {
 
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
@@ -218,7 +243,7 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         admin.topics().createNonPartitionedTopic(outputTopicName);
 
         @Cleanup
-        DebeziumMsSqlSourceTester sourceTester = new DebeziumMsSqlSourceTester(pulsarCluster);
+        DebeziumMsSqlSourceTester sourceTester = new DebeziumMsSqlSourceTester(pulsarCluster, testWithClientBuilder);
         sourceTester.getSourceConfig().put("json-with-envelope", jsonWithEnvelope);
 
         DebeziumMsSqlContainer msSqlContainer = new DebeziumMsSqlContainer(pulsarCluster.getClusterName());
