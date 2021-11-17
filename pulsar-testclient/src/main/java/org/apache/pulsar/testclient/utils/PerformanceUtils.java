@@ -43,11 +43,11 @@ public class PerformanceUtils {
                             .withTransactionTimeout(transactionTimeout, TimeUnit.SECONDS).build().get());
                 } catch (Exception e) {
                     numBuildTxnFailed.incrementAndGet();
-                    if(numBuildTxnFailed.get()%10 == 0){
+                    if (numBuildTxnFailed.get()%10 == 0) {
                         log.error("Failed to new a transaction with {} times", numBuildTxnFailed.get(), e);
                     }
                 }
-                if(atomicReference != null && atomicReference.get() != null){
+                if (atomicReference != null && atomicReference.get() != null) {
                     log.info("After {} failures, the transaction was created successfully for the first time",
                             numBuildTxnFailed.get());
                     return atomicReference;

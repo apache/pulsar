@@ -703,7 +703,7 @@ public class PerformanceProducer {
                     }
                     TypedMessageBuilder<byte[]> messageBuilder;
                     if (arguments.isEnableTransaction) {
-                        if(arguments.numMessagesPerTransaction> 0){
+                        if (arguments.numMessagesPerTransaction> 0) {
                             try{
                                 numMsgPerTxnLimit.acquire();
                             }catch (InterruptedException exception){
@@ -822,7 +822,7 @@ public class PerformanceProducer {
         long numTransactionOpenFailed = 0;
         long numTransactionOpenSuccess = 0;
 
-        if(arguments.isEnableTransaction){
+        if (arguments.isEnableTransaction) {
             totalTxnSuccess = totalEndTxnOpSuccessNum.sum();
             totalTxnFail = totalEndTxnOpFailNum.sum();
             rateOpenTxn = elapsed / (totalTxnFail + totalTxnSuccess);

@@ -372,7 +372,7 @@ public class PerformanceConsumer {
                         thread.interrupt();
                     }
                 }
-                if(arguments.totalNumTxn > 0) {
+                if (arguments.totalNumTxn > 0) {
                     if (totalEndTxnOpFailNum.sum() + totalEndTxnOpSuccessNum.sum() >= arguments.totalNumTxn) {
                         log.info("------------------- DONE -----------------------");
                         printAggregatedStats();
@@ -421,7 +421,7 @@ public class PerformanceConsumer {
                             }
                     );
                 }
-                if(arguments.poolMessages) {
+                if (arguments.poolMessages) {
                     msg.release();
                 }
                 if (arguments.isEnableTransaction
@@ -556,7 +556,7 @@ public class PerformanceConsumer {
             double rateOpenTxn = 0;
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);
 
-            if(arguments.isEnableTransaction) {
+            if (arguments.isEnableTransaction) {
                 totalTxnOpSuccessNum = totalEndTxnOpSuccessNum.sum();
                 totalTxnOpFailNum = totalEndTxnOpFailNum.sum();
                 rateOpenTxn = numTxnOpSuccess.sumThenReset() / elapsed;
@@ -599,7 +599,7 @@ public class PerformanceConsumer {
         long totalnumMessageAckFailed = 0;
         double rateAck = totalMessageAck.sum() / elapsed;
         double rateOpenTxn = 0;
-        if(arguments.isEnableTransaction){
+        if (arguments.isEnableTransaction) {
             totalEndTxnSuccess = totalEndTxnOpSuccessNum.sum();
             totalEndTxnFail = totalEndTxnOpFailNum.sum();
             rateOpenTxn = (totalEndTxnSuccess + totalEndTxnFail) / elapsed;

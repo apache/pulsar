@@ -327,7 +327,7 @@ public class PerformanceTransaction {
                         if (arguments.numTransactions > 0) {
                             if (totalNumTxnOpenTxnFail.sum()
                                     + totalNumTxnOpenTxnSuccess.sum() >= arguments.numTransactions) {
-                                if(totalNumEndTxnOpFailed.sum()
+                                if (totalNumEndTxnOpFailed.sum()
                                         + totalNumEndTxnOpSuccess.sum() < arguments.numTransactions ) {
                                     continue;
                                 }
@@ -412,7 +412,7 @@ public class PerformanceTransaction {
                                         messageSendRCumulativeRecorder.recordValue(latencyMicros);
                                         numMessagesSendSuccess.increment();
                                     }).exceptionally(exception -> {
-                                        if(exception instanceof InterruptedException && ! executing.get()){
+                                        if (exception instanceof InterruptedException && ! executing.get()) {
                                             return null;
                                         }
                                         log.error("Send transaction message failed with exception : ", exception);
@@ -428,7 +428,7 @@ public class PerformanceTransaction {
                                         messageSendRCumulativeRecorder.recordValue(latencyMicros);
                                         numMessagesSendSuccess.increment();
                                     }).exceptionally(exception -> {
-                                        if(exception instanceof InterruptedException && ! executing.get()){
+                                        if (exception instanceof InterruptedException && ! executing.get()) {
                                             return null;
                                         }
                                         log.error("Send message failed with exception : ", exception);
@@ -449,7 +449,7 @@ public class PerformanceTransaction {
                                             numTxnOpSuccess.increment();
                                             totalNumEndTxnOpSuccess.increment();
                                         }).exceptionally(exception -> {
-                                            if(exception instanceof InterruptedException && ! executing.get()){
+                                            if (exception instanceof InterruptedException && ! executing.get()) {
                                                 return null;
                                             }
                                             log.error("Commit transaction {} failed with exception",
@@ -463,7 +463,7 @@ public class PerformanceTransaction {
                                     numTxnOpSuccess.increment();
                                     totalNumEndTxnOpSuccess.increment();
                                 }).exceptionally(exception -> {
-                                    if(exception instanceof InterruptedException && ! executing.get()){
+                                    if (exception instanceof InterruptedException && ! executing.get()) {
                                         return null;
                                     }
                                     log.error("Commit transaction {} failed with exception",
