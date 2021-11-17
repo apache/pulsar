@@ -19,6 +19,7 @@
 package org.apache.pulsar.websocket.stats;
 
 import static org.apache.pulsar.common.stats.Metrics.create;
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 
 import java.lang.management.ManagementFactory;
 import java.util.Map;
@@ -52,7 +53,8 @@ public class JvmMetrics {
     private static final Logger log = LoggerFactory.getLogger(JvmMetrics.class);
 
     public JvmMetrics(WebSocketService service) {
-        service.getExecutor().scheduleAtFixedRate(this::updateGcStats, 0, 1, TimeUnit.MINUTES);
+        service.getExecutor()
+                .scheduleAtFixedRate(catchingAndLoggingThrowables(this::updateGcStats), 0, 1, TimeUnit.MINUTES);
     }
 
     public Metrics generate() {
