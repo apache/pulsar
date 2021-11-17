@@ -226,7 +226,7 @@ Options
 |Flag|Description|Default|
 |---|---|---|
 |`-a` , `--advertised-address`|The standalone broker advertised address||
-|`--bookkeeper-dir`|Local bookies’ base data directory|data/standalone/bookeeper|
+|`--bookkeeper-dir`|Local bookies’ base data directory|data/standalone/bookkeeper|
 |`--bookkeeper-port`|Local bookies’ base port|3181|
 |`--no-broker`|Only start ZooKeeper and BookKeeper services, not the broker|false|
 |`--num-bookies`|The number of local bookies|1|

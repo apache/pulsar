@@ -24,6 +24,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.api.client.util.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
@@ -1397,7 +1398,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCheckMaxConsumers() throws Exception {
-        Integer maxProducers = new Integer(-1);
+        Integer maxProducers = -1;
         log.info("MaxConsumers: {} will set to the topic: {}", maxProducers, testTopic);
         try {
             admin.topics().setMaxConsumers(testTopic, maxProducers);
@@ -2144,9 +2145,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         final int namespaceLevelMaxSub = 3;
         admin.namespaces().setMaxSubscriptionsPerTopic(myNamespace, namespaceLevelMaxSub);
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
-        Field field = PersistentTopic.class.getSuperclass().getDeclaredField("maxSubscriptionsPerTopic");
-        field.setAccessible(true);
-        Awaitility.await().until(() -> (int) field.get(persistentTopic) == namespaceLevelMaxSub);
+        Awaitility.await().until(() -> Integer.valueOf(namespaceLevelMaxSub)
+                .equals(persistentTopic.getHierarchyTopicPolicies().getMaxSubscriptionsPerTopic().getNamespaceValue()));
 
         try (PulsarClient client = PulsarClient.builder().operationTimeout(1000, TimeUnit.MILLISECONDS)
                 .serviceUrl(brokerUrl.toString()).build()) {
@@ -2173,7 +2173,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         }
         //Removed namespace-level policy, broker-level should take effect
         admin.namespaces().removeMaxSubscriptionsPerTopic(myNamespace);
-        Awaitility.await().until(() -> field.get(persistentTopic) == null);
+        Awaitility.await().until(() -> persistentTopic
+                .getHierarchyTopicPolicies()
+                .getMaxSubscriptionsPerTopic()
+                .getNamespaceValue() == null);
         consumerList.add(pulsarClient.newConsumer(Schema.STRING)
                 .subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe());
         assertEquals(consumerList.size(), brokerLevelMaxSub);
@@ -2641,6 +2644,25 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             assertNull(NamespaceService.checkHeartbeatNamespace(topicName.getNamespaceObject()));
             assertNull(NamespaceService.checkHeartbeatNamespaceV2(topicName.getNamespaceObject()));
         });
+    }
+
+    @Test(timeOut = 30000)
+    public void testReplicatorClusterApi() throws Exception {
+        final String topic = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
+        // init cache
+        pulsarClient.newProducer().topic(topic).create().close();
+
+        assertNull(admin.topics().getReplicationClusters(topic, false));
+
+        List<String> clusters = Lists.newArrayList();
+        clusters.add("test");
+        admin.topics().setReplicationClusters(topic, clusters);
+        Awaitility.await().untilAsserted(()
+                -> assertEquals(admin.topics().getReplicationClusters(topic, false), clusters));
+
+        admin.topics().removeReplicationClusters(topic);
+        Awaitility.await().untilAsserted(()
+                -> assertNull(admin.topics().getReplicationClusters(topic, false)));
     }
 
     @Test

@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import static org.apache.commons.collections.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.broker.PulsarService.isTransactionSystemTopic;
 import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsEventsNames;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
@@ -1052,6 +1053,7 @@ public class BrokerService implements Closeable {
     }
 
     private CompletableFuture<Optional<Topic>> createNonPersistentTopic(String topic) {
+        CompletableFuture<Optional<Topic>> topicFuture = new CompletableFuture<>();
         if (!pulsar.getConfiguration().isEnableNonPersistentTopics()) {
             if (log.isDebugEnabled()) {
                 log.debug("Broker is unable to load non-persistent topic {}", topic);
@@ -1061,27 +1063,40 @@ public class BrokerService implements Closeable {
         }
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
         NonPersistentTopic nonPersistentTopic = new NonPersistentTopic(topic, this);
-
-        CompletableFuture<Optional<Topic>> future = nonPersistentTopic.initialize()
-                .thenCompose(__ -> nonPersistentTopic.checkReplication())
-                .thenApply(__ -> {
-            log.info("Created topic {}", nonPersistentTopic);
-            long topicLoadLatencyMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime()) - topicCreateTimeMs;
-            pulsarStats.recordTopicLoadTimeValue(topic, topicLoadLatencyMs);
-            addTopicToStatsMaps(TopicName.get(topic), nonPersistentTopic);
-            return Optional.of(nonPersistentTopic);
-        });
-
-        future.exceptionally((ex) -> {
-            log.warn("Replication check failed. Removing topic from topics list {}, {}", topic, ex);
-            nonPersistentTopic.stopReplProducers().whenComplete((v, exception) -> {
-                pulsar.getExecutor().execute(() -> topics.remove(topic, future));
+        CompletableFuture<Void> isOwner = checkTopicNsOwnership(topic);
+        isOwner.thenRun(() -> {
+            nonPersistentTopic.initialize()
+                    .thenCompose(__ -> nonPersistentTopic.checkReplication())
+                    .thenRun(() -> {
+                        log.info("Created topic {}", nonPersistentTopic);
+                        long topicLoadLatencyMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime()) - topicCreateTimeMs;
+                        pulsarStats.recordTopicLoadTimeValue(topic, topicLoadLatencyMs);
+                        addTopicToStatsMaps(TopicName.get(topic), nonPersistentTopic);
+                        topicFuture.complete(Optional.of(nonPersistentTopic));
+                    }).exceptionally(ex -> {
+                log.warn("Replication check failed. Removing topic from topics list {}, {}", topic, ex.getCause());
+                nonPersistentTopic.stopReplProducers().whenComplete((v, exception) -> {
+                    pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
+                    topicFuture.completeExceptionally(ex);
+                });
+                return null;
             });
-
+        }).exceptionally(e -> {
+            log.warn("CheckTopicNsOwnership fail when createNonPersistentTopic! {}", topic, e.getCause());
+            // CheckTopicNsOwnership fail dont create nonPersistentTopic, when topic do lookup will find the correct
+            // broker. When client get non-persistent-partitioned topic
+            // metadata will the non-persistent-topic will be created.
+            // so we should add checkTopicNsOwnership logic otherwise the topic will be created
+            // if it dont own by this broker,we should return success
+            // otherwise it will keep retrying getPartitionedTopicMetadata
+            topicFuture.complete(Optional.of(nonPersistentTopic));
+            // after get metadata return success, we should delete this topic from this broker, because this topic not
+            // owner by this broker and it don't initialize and checkReplication
+            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
             return null;
         });
 
-        return future;
+        return topicFuture;
     }
 
     private <T> CompletableFuture<T> futureWithDeadline() {
@@ -1089,7 +1104,7 @@ public class BrokerService implements Closeable {
                 () -> FUTURE_DEADLINE_TIMEOUT_EXCEPTION);
     }
 
-    public PulsarClient getReplicationClient(String cluster) {
+    public PulsarClient getReplicationClient(String cluster, Optional<ClusterData> clusterDataOp) {
         PulsarClient client = replicationClients.get(cluster);
         if (client != null) {
             return client;
@@ -1097,7 +1112,7 @@ public class BrokerService implements Closeable {
 
         return replicationClients.computeIfAbsent(cluster, key -> {
             try {
-                ClusterData data = pulsar.getPulsarResources().getClusterResources().getCluster(cluster)
+                ClusterData data = clusterDataOp
                         .orElseThrow(() -> new MetadataStoreException.NotFoundException(cluster));
                 ClientBuilder clientBuilder = PulsarClient.builder()
                         .enableTcpNoDelay(false)
@@ -1164,14 +1179,14 @@ public class BrokerService implements Closeable {
         }
     }
 
-    public PulsarAdmin getClusterPulsarAdmin(String cluster) {
+    public PulsarAdmin getClusterPulsarAdmin(String cluster, Optional<ClusterData> clusterDataOp) {
         PulsarAdmin admin = clusterAdmins.get(cluster);
         if (admin != null) {
             return admin;
         }
         return clusterAdmins.computeIfAbsent(cluster, key -> {
             try {
-                ClusterData data = pulsar.getPulsarResources().getClusterResources().getCluster(cluster)
+                ClusterData data = clusterDataOp
                         .orElseThrow(() -> new MetadataStoreException.NotFoundException(cluster));
 
                 ServiceConfiguration conf = pulsar.getConfig();
@@ -1270,6 +1285,14 @@ public class BrokerService implements Closeable {
             return;
         }
 
+        if (isTransactionSystemTopic(topicName)) {
+            String msg = String.format("Can not create transaction system topic %s", topic);
+            log.warn(msg);
+            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
+            topicFuture.completeExceptionally(new NotAllowedException(msg));
+            return;
+        }
+
         CompletableFuture<Void> maxTopicsCheck = createIfMissing
                 ? checkMaxTopicsPerNamespace(topicName, 1)
                 : CompletableFuture.completedFuture(null);
@@ -1339,7 +1362,7 @@ public class BrokerService implements Closeable {
 
                                     return null;
                                 });
-                            } catch (NamingException | PulsarServerException e) {
+                            } catch (PulsarServerException e) {
                                 log.warn("Failed to create topic {}-{}", topic, e.getMessage());
                                 pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                                 topicFuture.completeExceptionally(e);

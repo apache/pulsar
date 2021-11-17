@@ -1352,7 +1352,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         CompletableFuture<Producer> producerFuture = producers.get(send.getProducerId());
 
         if (producerFuture == null || !producerFuture.isDone() || producerFuture.isCompletedExceptionally()) {
-            log.warn("[{}] Producer had already been closed: {}", remoteAddress, send.getProducerId());
+            log.warn("[{}] Received message, but the producer is not ready : {}. Closing the connection.",
+                    remoteAddress, send.getProducerId());
+            close();
             return;
         }
 
@@ -1579,9 +1581,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         CompletableFuture<Producer> producerFuture = producers.get(producerId);
         if (producerFuture == null) {
-            log.warn("[{}] Producer was not registered on the connection. producerId={}", remoteAddress, producerId);
-            commandSender.sendErrorResponse(requestId, ServerError.UnknownError,
-                    "Producer was not registered on the connection");
+            log.info("[{}] Producer {} was not registered on the connection", remoteAddress, producerId);
+            ctx.writeAndFlush(Commands.newSuccess(requestId));
             return;
         }
 
@@ -1626,8 +1627,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         CompletableFuture<Consumer> consumerFuture = consumers.get(consumerId);
         if (consumerFuture == null) {
-            log.warn("[{}] Consumer was not registered on the connection: consumerId={}", remoteAddress, consumerId);
-            commandSender.sendErrorResponse(requestId, ServerError.MetadataError, "Consumer not found");
+            log.info("[{}] Consumer was not registered on the connection: {}", consumerId, remoteAddress);
+            ctx.writeAndFlush(Commands.newSuccess(requestId));
             return;
         }
 

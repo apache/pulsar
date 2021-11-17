@@ -24,7 +24,6 @@ import static org.apache.pulsar.common.policies.data.PoliciesUtil.defaultBundle;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.google.common.collect.Sets.SetView;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
@@ -86,6 +85,7 @@ import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.Policies.BundleType;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -298,44 +298,39 @@ public abstract class NamespacesBase extends AdminResource {
                 }
             }
 
-            try {
-                namespaceResources().getPartitionedTopicResources().clearPartitionedTopicMetadata(namespaceName);
+            internalClearZkSources(asyncResponse);
 
-                try {
-                    pulsar().getPulsarResources().getTopicResources()
-                            .clearDomainPersistence(namespaceName).get();
-                    pulsar().getPulsarResources().getTopicResources()
-                            .clearNamespacePersistence(namespaceName).get();
-                } catch (ExecutionException | InterruptedException e) {
-                    // warn level log here since this failure has no side effect besides left a un-used metadata
-                    // and also will not affect the re-creation of namespace
-                    log.warn("[{}] Failed to remove managed-ledger for {}", clientAppId(), namespaceName, e);
-                }
-
-                // we have successfully removed all the ownership for the namespace, the policies znode can be deleted
-                // now
-                namespaceResources().deletePolicies(namespaceName);
-
-                try {
-                    namespaceResources().deletePolicies(namespaceName);
-                } catch (NotFoundException e) {
-                    // If the node with the modified information is not there anymore, we're already good
-                }
-
-                try {
-                    getLocalPolicies().deleteLocalPolicies(namespaceName);
-                } catch (NotFoundException nne) {
-                    // If the z-node with the modified information is not there anymore, we're already good
-                }
-            } catch (Exception e) {
-                log.error("[{}] Failed to remove owned namespace {} from metadata", clientAppId(), namespaceName, e);
-                asyncResponse.resume(new RestException(e));
-                return null;
-            }
-
-            asyncResponse.resume(Response.noContent().build());
             return null;
         });
+    }
+
+    // clear zk-node resources for deleting namespace
+    protected void internalClearZkSources(AsyncResponse asyncResponse) {
+        // clear resource of `/namespace/{namespaceName}` for zk-node
+        namespaceResources().deleteNamespaceAsync(namespaceName)
+                .thenCompose(ignore -> namespaceResources().getPartitionedTopicResources()
+                        .clearPartitionedTopicMetadataAsync(namespaceName))
+                // clear resource for manager-ledger z-node
+                .thenCompose(ignore -> pulsar().getPulsarResources().getTopicResources()
+                        .clearDomainPersistence(namespaceName))
+                .thenCompose(ignore -> pulsar().getPulsarResources().getTopicResources()
+                        .clearNamespacePersistence(namespaceName))
+                // we have successfully removed all the ownership for the namespace, the policies
+                // z-node can be deleted now
+                .thenCompose(ignore -> namespaceResources().deletePoliciesAsync(namespaceName))
+                // clear z-node of local policies
+                .thenCompose(ignore -> getLocalPolicies().deleteLocalPoliciesAsync(namespaceName))
+                .whenComplete((ignore, ex) -> {
+                    if (ex != null) {
+                        log.warn("[{}] Failed to remove namespace or managed-ledger for {}",
+                                clientAppId(), namespaceName, ex);
+                        asyncResponse.resume(new RestException(ex));
+                    } else {
+                        log.info("[{}] Remove namespace or managed-ledger successfully {}",
+                                clientAppId(), namespaceName);
+                        asyncResponse.resume(Response.noContent().build());
+                    }
+                });
     }
 
     @SuppressWarnings("deprecation")
@@ -474,7 +469,7 @@ public abstract class NamespacesBase extends AdminResource {
                 }
             }
         } catch (Exception e) {
-            log.error("[{}] Failed to remove owned namespace {}", clientAppId(), namespaceName, e);
+            log.error("[{}] Failed to remove forcefully owned namespace {}", clientAppId(), namespaceName, e);
             asyncResponse.resume(new RestException(e));
             return;
         }
@@ -485,42 +480,15 @@ public abstract class NamespacesBase extends AdminResource {
                     asyncResponse.resume(new RestException((PulsarAdminException) exception.getCause()));
                     return null;
                 } else {
-                    log.error("[{}] Failed to remove owned namespace {}", clientAppId(), namespaceName, exception);
+                    log.error("[{}] Failed to remove forcefully owned namespace {}",
+                            clientAppId(), namespaceName, exception);
                     asyncResponse.resume(new RestException(exception.getCause()));
                     return null;
                 }
             }
 
-            try {
-                // remove partitioned topics znode
-                pulsar().getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
-                        .clearPartitionedTopicMetadata(namespaceName);
+            internalClearZkSources(asyncResponse);
 
-                try {
-                    pulsar().getPulsarResources().getTopicResources().clearDomainPersistence(namespaceName).get();
-                    pulsar().getPulsarResources().getTopicResources().clearNamespacePersistence(namespaceName).get();
-                } catch (ExecutionException | InterruptedException e) {
-                    // warn level log here since this failure has no side effect besides left a un-used metadata
-                    // and also will not affect the re-creation of namespace
-                    log.warn("[{}] Failed to remove managed-ledger for {}", clientAppId(), namespaceName, e);
-                }
-
-                // we have successfully removed all the ownership for the namespace, the policies znode can be deleted
-                // now
-                namespaceResources().deletePolicies(namespaceName);
-
-                try {
-                    getLocalPolicies().deleteLocalPolicies(namespaceName);
-                } catch (NotFoundException nne) {
-                    // If the z-node with the modified information is not there anymore, we're already good
-                }
-            } catch (Exception e) {
-                log.error("[{}] Failed to remove owned namespace {} from ZK", clientAppId(), namespaceName, e);
-                asyncResponse.resume(new RestException(e));
-                return null;
-            }
-
-            asyncResponse.resume(Response.noContent().build());
             return null;
         });
     }
@@ -830,6 +798,12 @@ public abstract class NamespacesBase extends AdminResource {
         });
     }
 
+    protected AutoTopicCreationOverride internalGetAutoTopicCreation() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.AUTO_TOPIC_CREATION, PolicyOperation.READ);
+        Policies policies = getNamespacePolicies(namespaceName);
+        return policies.autoTopicCreationOverride;
+    }
+
     protected void internalSetAutoTopicCreation(AsyncResponse asyncResponse,
                                                 AutoTopicCreationOverride autoTopicCreationOverride) {
         final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
@@ -900,6 +874,12 @@ public abstract class NamespacesBase extends AdminResource {
             asyncResponse.resume(new RestException(e.getCause()));
             return null;
         });
+    }
+
+    protected AutoSubscriptionCreationOverride internalGetAutoSubscriptionCreation() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.AUTO_SUBSCRIPTION_CREATION, PolicyOperation.READ);
+        Policies policies = getNamespacePolicies(namespaceName);
+        return policies.autoSubscriptionCreationOverride;
     }
 
     protected void internalRemoveAutoSubscriptionCreation(AsyncResponse asyncResponse) {
@@ -1113,9 +1093,7 @@ public abstract class NamespacesBase extends AdminResource {
         checkNotNull(bundleName, "BundleRange should not be null");
         log.info("[{}] Split namespace bundle {}/{}", clientAppId(), namespaceName, bundleName);
 
-        String bundleRange = bundleName.equals(Policies.LARGEST_BUNDLE)
-                ? findLargestBundleWithTopics(namespaceName).getBundleRange()
-                : bundleName;
+        String bundleRange = getBundleRange(bundleName);
 
         Policies policies = getNamespacePolicies(namespaceName);
 
@@ -1167,8 +1145,22 @@ public abstract class NamespacesBase extends AdminResource {
         });
     }
 
+    private String getBundleRange(String bundleName) {
+        if (BundleType.LARGEST.toString().equals(bundleName)) {
+            return findLargestBundleWithTopics(namespaceName).getBundleRange();
+        } else if (BundleType.HOT.toString().equals(bundleName)) {
+            return findHotBundle(namespaceName).getBundleRange();
+        } else {
+            return bundleName;
+        }
+    }
+
     private NamespaceBundle findLargestBundleWithTopics(NamespaceName namespaceName) {
-        return pulsar().getNamespaceService().getNamespaceBundleFactory().getBundlesWithHighestTopics(namespaceName);
+        return pulsar().getNamespaceService().getNamespaceBundleFactory().getBundleWithHighestTopics(namespaceName);
+    }
+
+    private NamespaceBundle findHotBundle(NamespaceName namespaceName) {
+        return pulsar().getNamespaceService().getNamespaceBundleFactory().getBundleWithHighestThroughput(namespaceName);
     }
 
     private NamespaceBundleSplitAlgorithm getNamespaceBundleSplitAlgorithmByName(String algorithmName) {
@@ -1727,6 +1719,12 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    protected SubscriptionAuthMode internalGetSubscriptionAuthMode() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SUBSCRIPTION_AUTH_MODE, PolicyOperation.READ);
+        Policies policies = getNamespacePolicies(namespaceName);
+        return policies.subscription_auth_mode;
+    }
+
     protected void internalModifyEncryptionRequired(boolean encryptionRequired) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.ENCRYPTION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
@@ -1743,6 +1741,12 @@ public abstract class NamespacesBase extends AdminResource {
                     namespaceName, e);
             throw new RestException(e);
         }
+    }
+
+    protected Boolean internalGetEncryptionRequired() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.ENCRYPTION, PolicyOperation.READ);
+        Policies policies = getNamespacePolicies(namespaceName);
+        return policies.encryption_required;
     }
 
     protected DelayedDeliveryPolicies internalGetDelayedDelivery() {
@@ -1958,34 +1962,6 @@ public abstract class NamespacesBase extends AdminResource {
                 throw new RestException(Status.PRECONDITION_FAILED, "Subscription has active connected consumers");
             }
             throw new RestException(e.getCause());
-        }
-    }
-
-    /**
-     * It validates that peer-clusters can't coexist in replication-clusters.
-     *
-     * @param clusterName:         given cluster whose peer-clusters can't be present into replication-cluster list
-     * @param replicationClusters: replication-cluster list
-     */
-    private void validatePeerClusterConflict(String clusterName, Set<String> replicationClusters) {
-        try {
-            ClusterData clusterData = clusterResources().getCluster(clusterName).orElseThrow(
-                    () -> new RestException(Status.PRECONDITION_FAILED, "Invalid replication cluster " + clusterName));
-            Set<String> peerClusters = clusterData.getPeerClusterNames();
-            if (peerClusters != null && !peerClusters.isEmpty()) {
-                SetView<String> conflictPeerClusters = Sets.intersection(peerClusters, replicationClusters);
-                if (!conflictPeerClusters.isEmpty()) {
-                    log.warn("[{}] {}'s peer cluster can't be part of replication clusters {}", clientAppId(),
-                            clusterName, conflictPeerClusters);
-                    throw new RestException(Status.CONFLICT,
-                            String.format("%s's peer-clusters %s can't be part of replication-clusters %s", clusterName,
-                                    conflictPeerClusters, replicationClusters));
-                }
-            }
-        } catch (RestException re) {
-            throw re;
-        } catch (Exception e) {
-            log.warn("[{}] Failed to get cluster-data for {}", clientAppId(), clusterName, e);
         }
     }
 

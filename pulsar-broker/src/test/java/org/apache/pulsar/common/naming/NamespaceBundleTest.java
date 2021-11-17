@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.common.naming;
 
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -32,9 +30,7 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.hash.Hashing;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 

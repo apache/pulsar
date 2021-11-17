@@ -713,6 +713,14 @@ public class PulsarClientImpl implements PulsarClient {
                     throwable = t;
                 }
             }
+            if (tcClient != null) {
+                try {
+                    tcClient.close();
+                } catch (Throwable t) {
+                    log.warn("Failed to close tcClient");
+                    throwable = t;
+                }
+            }
             try {
                 // Shutting down eventLoopGroup separately because in some cases, cnxPool might be using different
                 // eventLoopGroup.
@@ -745,14 +753,6 @@ public class PulsarClientImpl implements PulsarClient {
                     conf.getAuthentication().close();
                 } catch (Throwable t) {
                     log.warn("Failed to close authentication", t);
-                    throwable = t;
-                }
-            }
-            if (tcClient != null) {
-                try {
-                    tcClient.close();
-                } catch (Throwable t) {
-                    log.warn("Failed to close tcClient");
                     throwable = t;
                 }
             }

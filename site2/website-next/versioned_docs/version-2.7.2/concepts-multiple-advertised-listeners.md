@@ -1,13 +1,9 @@
 ---
 id: concepts-multiple-advertised-listeners
 title: Multiple advertised listeners
-sidebar_label: Multiple advertised listeners
+sidebar_label: "Multiple advertised listeners"
 original_id: concepts-multiple-advertised-listeners
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 When a Pulsar cluster is deployed in the production environment, it may require to expose multiple advertised addresses for the broker. For example, when you deploy a Pulsar cluster in Kubernetes and want other clients, which are not in the same Kubernetes cluster, to connect to the Pulsar cluster, you need to assign a broker URL to external clients. But clients in the same Kubernetes cluster can still connect to the Pulsar cluster through the internal network of Kubernetes.
 
@@ -45,3 +41,4 @@ PulsarClient client = PulsarClient.builder()
     .build();
 
 ```
+

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import static org.apache.pulsar.broker.PulsarService.isTransactionInternalName;
 import static org.apache.pulsar.broker.resources.PulsarResources.DEFAULT_OPERATION_TIMEOUT_SEC;
 import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsTransactionCoordinatorAssign;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -161,7 +162,9 @@ public class PersistentTopicsBase extends AdminResource {
         }
 
         try {
-            return topicResources().listPersistentTopicsAsync(namespaceName).join();
+            return topicResources().listPersistentTopicsAsync(namespaceName).thenApply(topics ->
+                    topics.stream().filter(topic ->
+                            !isTransactionInternalName(TopicName.get(topic))).collect(Collectors.toList())).join();
         } catch (Exception e) {
             log.error("[{}] Failed to get topics list for namespace {}", clientAppId(), namespaceName, e);
             throw new RestException(e);
@@ -241,6 +244,13 @@ public class PersistentTopicsBase extends AdminResource {
                         topicName, clientAppId(), e.getMessage(), e);
                 throw new RestException(e);
             }
+        }
+    }
+
+    protected void validateCreateTopic(TopicName topicName) {
+        if (isTransactionInternalName(topicName)) {
+            log.warn("Try to create a topic in the system topic format! {}", topicName);
+            throw new RestException(Status.CONFLICT, "Cannot create topic in system topic format!");
         }
     }
 
@@ -509,9 +519,14 @@ public class PersistentTopicsBase extends AdminResource {
             if (cluster.equals(pulsar().getConfig().getClusterName())) {
                 return;
             }
-            results.add(pulsar().getBrokerService().getClusterPulsarAdmin(cluster).topics()
-                    .updatePartitionedTopicAsync(topicName.toString(),
-                            numPartitions, true, false));
+            CompletableFuture<Void> updatePartitionTopicFuture =
+                pulsar().getPulsarResources().getClusterResources().getClusterAsync(cluster)
+                    .thenApply(clusterDataOp ->
+                            pulsar().getBrokerService().getClusterPulsarAdmin(cluster, clusterDataOp))
+                    .thenCompose(pulsarAdmin ->
+                            pulsarAdmin.topics().updatePartitionedTopicAsync(
+                                    topicName.toString(), numPartitions, true, false));
+            results.add(updatePartitionTopicFuture);
         });
         return FutureUtil.waitForAll(results);
     }
@@ -1044,7 +1059,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 existsFutures.put(i, topicResources().persistentTopicExists(topicName.getPartition(i)));
                             }
                             FutureUtil.waitForAll(Lists.newArrayList(existsFutures.values())).thenApply(__ ->
-                                    existsFutures.entrySet().stream().filter(e -> e.getValue().join().booleanValue())
+                                    existsFutures.entrySet().stream().filter(e -> e.getValue().join())
                                             .map(item -> topicName.getPartition(item.getKey()).toString())
                                             .collect(Collectors.toList())
                             ).thenAccept(topics -> {
@@ -2816,6 +2831,60 @@ public class PersistentTopicsBase extends AdminResource {
             });
     }
 
+    protected CompletableFuture<Void> internalSetReplicationClusters(List<String> clusterIds) {
+        validateTopicPolicyOperation(topicName, PolicyName.REPLICATION, PolicyOperation.WRITE);
+        validatePoliciesReadOnlyAccess();
+
+        Set<String> replicationClusters = Sets.newHashSet(clusterIds);
+        if (replicationClusters.contains("global")) {
+            throw new RestException(Status.PRECONDITION_FAILED,
+                    "Cannot specify global in the list of replication clusters");
+        }
+        Set<String> clusters = clusters();
+        for (String clusterId : replicationClusters) {
+            if (!clusters.contains(clusterId)) {
+                throw new RestException(Status.FORBIDDEN, "Invalid cluster id: " + clusterId);
+            }
+            validatePeerClusterConflict(clusterId, replicationClusters);
+            validateClusterForTenant(namespaceName.getTenant(), clusterId);
+        }
+
+        return getTopicPoliciesAsyncWithRetry(topicName).thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setReplicationClusters(Lists.newArrayList(replicationClusters));
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
+                            .thenRun(() -> {
+                                log.info("[{}] Successfully set replication clusters for namespace={}, "
+                                                + "topic={}, clusters={}",
+                                        clientAppId(),
+                                        namespaceName,
+                                        topicName.getLocalName(),
+                                        topicPolicies.getReplicationClusters());
+                            });
+                }
+        );
+    }
+
+    protected CompletableFuture<Void> internalRemoveReplicationClusters() {
+        validateTopicPolicyOperation(topicName, PolicyName.REPLICATION, PolicyOperation.WRITE);
+        validatePoliciesReadOnlyAccess();
+
+        return getTopicPoliciesAsyncWithRetry(topicName).thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setReplicationClusters(null);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
+                            .thenRun(() -> {
+                                log.info("[{}] Successfully set replication clusters for namespace={}, "
+                                                + "topic={}, clusters={}",
+                                        clientAppId(),
+                                        namespaceName,
+                                        topicName.getLocalName(),
+                                        topicPolicies.getReplicationClusters());
+                            });
+                }
+        );
+    }
+
     protected CompletableFuture<Boolean> internalGetDeduplication(boolean applied) {
         return getTopicPoliciesAsyncWithRetry(topicName)
             .thenApply(op -> op.map(TopicPolicies::getDeduplicationEnabled)
@@ -3624,7 +3693,10 @@ public class PersistentTopicsBase extends AdminResource {
         } catch (RestException e) {
             throw e;
         } catch (Exception e) {
-            throw new RestException(e);
+            if (e.getCause() instanceof NotAllowedException) {
+                throw new RestException(Status.CONFLICT, e.getCause());
+            }
+            throw new RestException(e.getCause());
         }
     }
 

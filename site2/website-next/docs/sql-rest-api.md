@@ -4,10 +4,6 @@ title: Pulsar SQL REST APIs
 sidebar_label: "REST APIs"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 This section lists resources that make up the Presto REST API v1. 
 
 ## Request for Presto services

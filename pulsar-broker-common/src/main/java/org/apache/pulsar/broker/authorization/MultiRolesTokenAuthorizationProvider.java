@@ -26,7 +26,6 @@ import io.jsonwebtoken.RequiredTypeException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -208,6 +207,11 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
     @Override
     public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
         return authorize(authenticationData, r -> super.allowSinkOpsAsync(namespaceName, r, authenticationData));
+    }
+
+    @Override
+    public CompletableFuture<Boolean> allowConsumeOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+        return authorize(authenticationData, r -> super.allowConsumeOpsAsync(namespaceName, r, authenticationData));
     }
 
     @Override

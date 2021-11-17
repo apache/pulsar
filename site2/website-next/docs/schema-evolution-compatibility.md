@@ -4,10 +4,6 @@ title: Schema evolution and compatibility
 sidebar_label: "Schema evolution and compatibility"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 Normally, schemas do not stay the same over a long period of time. Instead, they undergo evolutions to satisfy new needs. 
 
 This chapter examines how Pulsar schema evolves and what Pulsar schema compatibility check strategies are.
@@ -156,6 +152,12 @@ Suppose that you have a topic containing three schemas (V1, V2, and V3), V1 is t
 #### Example  
 
 In some data formats, for example, Avro, you can define fields with default values. Consequently, adding or removing a field with a default value is a fully compatible change.
+
+:::tip
+
+You can set schema compatibility check strategy at namespace or broker level. For how to set the strategy, see [here](schema-manage.md/#set-schema-compatibility-check-strategy).
+
+:::
 
 ## Schema verification
 

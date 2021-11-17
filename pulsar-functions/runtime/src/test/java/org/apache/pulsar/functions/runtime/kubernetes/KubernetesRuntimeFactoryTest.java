@@ -333,7 +333,7 @@ public class KubernetesRuntimeFactoryTest {
                 "Per instance ram requested, 0, for function should be positive and a multiple of the granularity, 1000");
     }
 
-    public void testAuthProvider(Optional<FunctionAuthProvider> authProvider) throws Exception {
+    private void testAuthProvider(Optional<FunctionAuthProvider> authProvider) throws Exception {
         factory = createKubernetesRuntimeFactory(null, null, null, null, false,
                 authProvider, Optional.empty());
     }

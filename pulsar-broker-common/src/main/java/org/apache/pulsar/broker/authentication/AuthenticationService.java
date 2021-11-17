@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.authentication;
 
-import com.google.common.collect.Maps;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -44,7 +43,7 @@ public class AuthenticationService implements Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(AuthenticationService.class);
     private final String anonymousUserRole;
 
-    private final Map<String, AuthenticationProvider> providers = Maps.newHashMap();
+    private final Map<String, AuthenticationProvider> providers = new HashMap<>();
 
     public AuthenticationService(ServiceConfiguration conf) throws PulsarServerException {
         anonymousUserRole = conf.getAnonymousUserRole();
