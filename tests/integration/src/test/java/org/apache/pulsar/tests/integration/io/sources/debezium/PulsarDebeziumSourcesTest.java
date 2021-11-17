@@ -86,7 +86,7 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
 
     @Test(groups = "source")
     public void testDebeziumMsSqlSourceWithClientBuilder() throws Exception{
-        testDebeziumMsSqlConnect("org.apache.kafka.connect.json.JsonConverter", true, falsetrue;
+        testDebeziumMsSqlConnect("org.apache.kafka.connect.json.JsonConverter", true, false);
     }
 
     private void testDebeziumMySqlConnect(String converterClassName, boolean jsonWithEnvelope,
