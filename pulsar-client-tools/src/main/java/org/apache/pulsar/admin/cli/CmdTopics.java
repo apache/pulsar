@@ -358,7 +358,7 @@ public class CmdTopics extends CmdBase {
     @Parameters(commandDescription = "Lookup a partitioned topic from the current serving broker")
     protected class PartitionedLookup extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/partitionedTopic", required = true)
-        private java.util.List<String> params;
+        protected java.util.List<String> params;
         @Parameter(names = { "-s",
                                 "--sort-by-broker" }, description = "Sort partitioned-topic by Broker Url")
         protected boolean sortByBroker = false;

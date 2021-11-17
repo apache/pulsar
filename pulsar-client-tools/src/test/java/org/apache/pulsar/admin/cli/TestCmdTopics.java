@@ -34,6 +34,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.apache.pulsar.client.admin.Lookup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -45,15 +46,23 @@ import org.mockito.Mockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.Assert;
+import org.testng.IObjectFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
 @PrepareForTest({CmdFunctions.class})
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.io.core.*" })
 public class TestCmdTopics {
+
+    @ObjectFactory
+    public IObjectFactory getObjectFactory() {
+        return new org.powermock.modules.testng.PowerMockObjectFactory();
+    }
     private static final String PERSISTENT_TOPIC_URL = "persistent://";
     private static final String PARTITIONED_TOPIC_NAME = "my-topic";
+    private static final String URL_SLASH = "/";
     private PulsarAdmin pulsarAdmin;
     private CmdTopics cmdTopics;
     private Lookup mockLookup;
@@ -132,22 +141,28 @@ public class TestCmdTopics {
    }
     @Test
     public void testPartitionedLookup() throws Exception {
+        partitionedLookup.params = Arrays.asList("persistent://public/default/my-topic");
         partitionedLookup.run();
         StringBuilder topic = new StringBuilder();
         topic.append(PERSISTENT_TOPIC_URL);
         topic.append(PUBLIC_TENANT);
+        topic.append(URL_SLASH);
         topic.append(DEFAULT_NAMESPACE);
+        topic.append(URL_SLASH);
         topic.append(PARTITIONED_TOPIC_NAME);
         verify(mockLookup).lookupPartitionedTopic(eq(topic.toString()));
     }
 
     @Test
     public void testPartitionedLookupSortByBroker() throws Exception {
+        partitionedLookup.params = Arrays.asList("persistent://public/default/my-topic");
         partitionedLookup.run();
         StringBuilder topic = new StringBuilder();
         topic.append(PERSISTENT_TOPIC_URL);
         topic.append(PUBLIC_TENANT);
+        topic.append(URL_SLASH);
         topic.append(DEFAULT_NAMESPACE);
+        topic.append(URL_SLASH);
         topic.append(PARTITIONED_TOPIC_NAME);
         partitionedLookup.sortByBroker = true;
         verify(mockLookup).lookupPartitionedTopic(eq(topic.toString()));
