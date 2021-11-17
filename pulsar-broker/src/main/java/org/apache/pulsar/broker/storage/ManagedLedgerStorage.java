@@ -41,13 +41,11 @@ public interface ManagedLedgerStorage extends AutoCloseable {
      * Initialize the managed ledger storage.
      *
      * @param conf service config
-     * @param zkClient zk client
      * @param bookkeeperProvider bookkeeper provider
      * @throws Exception
      */
     void initialize(ServiceConfiguration conf,
                     MetadataStoreExtended metadataStore,
-                    ZooKeeper zkClient,
                     BookKeeperClientFactory bookkeeperProvider,
                     EventLoopGroup eventLoopGroup) throws Exception;
 
@@ -94,7 +92,7 @@ public interface ManagedLedgerStorage extends AutoCloseable {
                                        EventLoopGroup eventLoopGroup) throws Exception {
         final Class<?> storageClass = Class.forName(conf.getManagedLedgerStorageClassName());
         final ManagedLedgerStorage storage = (ManagedLedgerStorage) storageClass.getDeclaredConstructor().newInstance();
-        storage.initialize(conf, metadataStore, zkClient, bkProvider, eventLoopGroup);
+        storage.initialize(conf, metadataStore, bkProvider, eventLoopGroup);
         return storage;
     }
 

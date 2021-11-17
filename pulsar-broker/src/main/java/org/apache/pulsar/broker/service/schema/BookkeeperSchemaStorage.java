@@ -58,10 +58,9 @@ import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataSerde;
-import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.zookeeper.ZooKeeper;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,9 +70,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     private static final String SchemaPath = "/schemas";
     private static final byte[] LedgerPassword = "".getBytes();
 
-    private final MetadataStore store;
+    private final MetadataStoreExtended store;
     private final PulsarService pulsar;
-    private final ZooKeeper zooKeeper;
     private final MetadataCache<SchemaStorageFormat.SchemaLocator> locatorEntryCache;
 
     private final ServiceConfiguration config;
@@ -83,9 +81,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             new ConcurrentHashMap<>();
 
     @VisibleForTesting
-    BookkeeperSchemaStorage(PulsarService pulsar, ZooKeeper zooKeeper) {
+    BookkeeperSchemaStorage(PulsarService pulsar) {
         this.pulsar = pulsar;
-        this.zooKeeper = zooKeeper;
         this.store = pulsar.getLocalMetadataStore();
         this.config = pulsar.getConfiguration();
         this.locatorEntryCache = store.getMetadataCache(new MetadataSerde<SchemaStorageFormat.SchemaLocator>() {
@@ -106,7 +103,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     public void start() throws IOException {
         this.bookKeeper = pulsar.getBookKeeperClientFactory().create(
             pulsar.getConfiguration(),
-            zooKeeper,
+            store,
             pulsar.getIoEventLoopGroup(),
             Optional.empty(),
             null

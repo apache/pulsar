@@ -37,7 +37,7 @@ import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.policies.data.BookieInfo;
-import org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping;
+import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.assertj.core.util.Lists;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
@@ -114,7 +114,7 @@ public class RackAwareTest extends BkEnsemblesTestBase {
         // Make sure the racks cache gets updated through the ZK watch
         Awaitility.await().untilAsserted(() -> {
             byte[] data = bkEnsemble.getZkClient()
-                    .getData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null);
+                    .getData(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null);
             TreeMap<String, Map<String, Map<String, String>>> rackInfoMap =
                     new Gson().fromJson(new String(data), TreeMap.class);
             assertTrue(rackInfoMap.get(group).size() == NUM_BOOKIES);
