@@ -5,10 +5,6 @@ sidebar_label: "JDBC sink connector"
 original_id: io-jdbc-sink
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The JDBC sink connectors allow pulling messages from Pulsar topics 
 and persists the messages to ClickHouse, MariaDB, PostgreSQL, and SQLite.
 

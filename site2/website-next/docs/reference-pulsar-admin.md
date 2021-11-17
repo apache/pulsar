@@ -4,10 +4,6 @@ title: Pulsar admin CLI
 sidebar_label: "Pulsar Admin CLI"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 > **Important**
 >
 > This page is deprecated and not updated anymore. For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/)
@@ -2912,7 +2908,7 @@ Options
 |---|---|---|
 |`-s`, `--subscription`|Subscription to reset position on||
 |`-t`, `--time`|The time in minutes to reset back to (or minutes, hours, days, weeks, etc.). Examples: `100m`, `3h`, `2d`, `5w`.||
-|`-m`, `--messageId`| The messageId to reset back to (ledgerId:entryId). ||
+|`-m`, `--messageId`| The message ID to reset back to (`ledgerId:entryId` or earliest or latest). ||
 
 ### `get-message-by-id`
 Get message by ledger id and entry id

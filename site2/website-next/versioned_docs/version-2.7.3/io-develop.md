@@ -5,10 +5,6 @@ sidebar_label: "Develop"
 original_id: io-develop
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 This guide describes how to develop Pulsar connectors to move data
 between Pulsar and other systems. 
 
