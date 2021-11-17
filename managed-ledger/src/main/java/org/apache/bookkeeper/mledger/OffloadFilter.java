@@ -19,21 +19,20 @@
 package org.apache.bookkeeper.mledger;
 
 import org.apache.bookkeeper.client.api.LedgerEntry;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 
 public interface OffloadFilter {
 
     /**
-     * Check whether this Entry needs offload.Exclude the aborted message and transaction mark
+     * Whether the entry could be offloaded.
      * @return
      */
-    boolean checkIfNeedOffload(LedgerEntry LedgerEntry);
+    boolean checkEntry(LedgerEntry LedgerEntry);
 
     /**
-     * The largest stable position that can be exposed to the consumer
+     * Whether the entry could be offloaded.
      * @return
      */
-    boolean checkIfLedgerIdCanOffload(long LedgerId);
+    boolean checkLedger(long LedgerId);
 
     /**
      * Check whether offloadFilter is ready.

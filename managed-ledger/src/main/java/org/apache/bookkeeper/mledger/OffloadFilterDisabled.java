@@ -23,12 +23,12 @@ import org.apache.bookkeeper.client.api.LedgerEntry;
 public class OffloadFilterDisabled implements OffloadFilter {
 
     @Override
-    public boolean checkIfNeedOffload(LedgerEntry LedgerEntry) {
+    public boolean checkEntry(LedgerEntry LedgerEntry) {
         return true;
     }
 
     @Override
-    public boolean checkIfLedgerIdCanOffload(long ledgerId) {
+    public boolean checkLedger(long ledgerId) {
         return true;
     }
 

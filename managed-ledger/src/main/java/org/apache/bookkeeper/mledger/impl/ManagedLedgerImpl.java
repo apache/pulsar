@@ -111,6 +111,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedger
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.ManagedLedgerMXBean;
 import org.apache.bookkeeper.mledger.OffloadFilter;
+import org.apache.bookkeeper.mledger.OffloadFilterDisabled;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.WaitingEntryCallBack;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
@@ -223,7 +224,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private ManagedLedgerInterceptor managedLedgerInterceptor;
 
-    private OffloadFilter offloadFilter;
+    private OffloadFilter offloadFilter = new OffloadFilterDisabled();
 
     protected static final int DEFAULT_LEDGER_DELETE_RETRIES = 3;
     protected static final int DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC = 60;
@@ -1590,7 +1591,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     synchronized void createLedgerAfterClosed() {
-        if(isNeededCreateNewLedgerAfterCloseLedger()) {
+        if (isNeededCreateNewLedgerAfterCloseLedger()) {
             log.info("[{}] Creating a new ledger", name);
             STATE_UPDATER.set(this, State.CreatingLedger);
             this.lastLedgerCreationInitiationTimestamp = System.currentTimeMillis();
@@ -1872,10 +1873,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         // can read max position entryId
-        if (ledger.getId() == opReadEntry.maxPosition.getLedgerId()) {
-            if(!info.getOffloadContext().getComplete()){
-                lastEntryInLedger = min(opReadEntry.maxPosition.getEntryId(), lastEntryInLedger);
-            }
+        if (ledger.getId() == opReadEntry.maxPosition.getLedgerId() && !info.getOffloadContext().getComplete()) {
+            lastEntryInLedger = min(opReadEntry.maxPosition.getEntryId(), lastEntryInLedger);
         }
 
         if (firstEntry > lastEntryInLedger) {
@@ -2255,7 +2254,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 && config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() != null
                 && config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() >= 0) {
             //This means that the topic has not been created yet or the TB has not been started completely.
-            if(offloadFilter == null || !offloadFilter.checkFilterIsReady()){
+            if (!offloadFilter.checkFilterIsReady()) {
                 return;
             }
             executor.executeOrdered(name, safeRun(() -> maybeOffload(promise)));
@@ -2298,7 +2297,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     if (alreadyOffloaded) {
                         alreadyOffloadedSize += size;
                     } else if (sizeSummed > threshold) {
-                        if(offloadFilter != null && !offloadFilter.checkIfLedgerIdCanOffload(e.getValue().getLedgerId())){
+                        if (!offloadFilter.checkLedger(e.getValue().getLedgerId())) {
                             continue;
                         }
                         toOffloadSize += size;
@@ -2838,7 +2837,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     // don't offload if ledger has already been offloaded, or is empty
                     if (!ls.getOffloadContext().getComplete() && ls.getSize() > 0) {
                         //If the state of TB is noSnapshot, this ledger will not contain transaction messages
-                        if(offloadFilter != null && !offloadFilter.checkIfLedgerIdCanOffload(ls.getLedgerId())){
+                        if (!offloadFilter.checkLedger(ls.getLedgerId())) {
                             continue;
                         }
                         ledgersToOffload.add(ls);
@@ -4022,6 +4021,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    @Override
     public void setOffloadFilter(OffloadFilter offloadFilter) {
         this.offloadFilter = offloadFilter;
     }

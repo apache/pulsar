@@ -636,4 +636,10 @@ public interface ManagedLedger {
      * @return the future of managed ledger internal stats
      */
     CompletableFuture<ManagedLedgerInternalStats> getManagedLedgerInternalStats(boolean includeLedgerMetadata);
+
+    /**
+     * Set the offloadFilter for the ManagedLedger
+     * @param offloadFilter  filter out unnecessary entries
+     */
+    public void setOffloadFilter(OffloadFilter offloadFilter);
 }

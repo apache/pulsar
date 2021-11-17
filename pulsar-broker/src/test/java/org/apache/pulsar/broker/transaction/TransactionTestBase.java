@@ -84,8 +84,6 @@ public abstract class TransactionTestBase extends TestRetrySupport {
     protected PulsarClient pulsarClient;
 
     @Setter
-    private Properties properties = new Properties();
-    @Setter
     private LedgerOffloader ledgerOffloader;
     @Setter
     private int maxEntriesPerLedger = 0;
@@ -186,7 +184,6 @@ public abstract class TransactionTestBase extends TestRetrySupport {
                 conf.setManagedLedgerMaxEntriesPerLedger(maxEntriesPerLedger);
             }
             conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
-            conf.setProperties(properties);
             serviceConfigurationList.add(conf);
 
             PulsarService pulsar = spy(new PulsarService(conf));
@@ -332,7 +329,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
                     }
                 }
             }
-            if(bkExecutor != null) {
+            if (bkExecutor != null) {
                 try {
                     bkExecutor.shutdownNow();
                     bkExecutor.awaitTermination(5, TimeUnit.SECONDS);

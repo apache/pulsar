@@ -131,7 +131,7 @@ public interface LedgerOffloader {
      * @param uid unique id to identity this offload attempt
      * @param extraMetadata metadata to be stored with the offloaded ledger for informational
      *                      purposes
-     * @param offloadFilter  Filter out unnecessary entries
+     * @param offloadFilter  filter out unnecessary entries
      * @return a future, which when completed, denotes that the offload has been successful.
      */
     CompletableFuture<Void> offload(ReadHandle ledger, UUID uid, Map<String, String> extraMetadata,

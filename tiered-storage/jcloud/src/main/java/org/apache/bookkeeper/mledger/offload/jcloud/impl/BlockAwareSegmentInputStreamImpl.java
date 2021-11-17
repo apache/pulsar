@@ -128,7 +128,7 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
             while (iterator.hasNext()) {
                 LedgerEntry entry = iterator.next();
                 ByteBuf buf;
-                if (!offloadFilter.checkIfNeedOffload(entry)) {
+                if (!offloadFilter.checkEntry(entry)) {
                     buf = PulsarByteBufAllocator.DEFAULT.buffer(0, 0);
                 } else  {
                     buf = entry.getEntryBuffer().retain();

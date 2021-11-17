@@ -1324,13 +1324,11 @@ public class BrokerService implements Closeable {
                                 if (persistentTopic.getBrokerService().getPulsar().getConfig()
                                         .isTransactionCoordinatorEnabled()){
                                     if (ledger instanceof ManagedLedgerImpl) {
-                                        ((ManagedLedgerImpl) ledger)
-                                                .setOffloadFilter(new OffloadFilterImp(persistentTopic));
+                                        ledger.setOffloadFilter(new OffloadFilterImp(persistentTopic));
                                     }
                                 } else {
                                     if (ledger instanceof ManagedLedgerImpl) {
-                                        ((ManagedLedgerImpl) ledger)
-                                                .setOffloadFilter(new OffloadFilterDisabled());
+                                        ledger.setOffloadFilter(new OffloadFilterDisabled());
                                     }
                                 }
 

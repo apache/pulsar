@@ -118,6 +118,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
             if (entry == null) {
                 continue;
             } else if (entry.getLength() == 0) {
+                //If an entry is filtered during offloading, its length is 0.
                 subscription.acknowledgeMessage(Collections.singletonList(entry.getPosition()), AckType.Individual,
                         Collections.emptyMap());
                 entries.set(i, null);

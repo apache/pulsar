@@ -284,7 +284,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                 Iterator<LedgerEntry> iterator = ledgerEntriesOnce.iterator();
                 while (iterator.hasNext()) {
                     LedgerEntry entry = iterator.next();
-                    if (!offloadFilter.checkIfNeedOffload(entry)) {
+                    if (!offloadFilter.checkEntry(entry)) {
                         value.set(new byte[0], 0, 0);
                     } else {
                         value.set(entry.getEntryBytes(), 0, entry.getEntryBytes().length);

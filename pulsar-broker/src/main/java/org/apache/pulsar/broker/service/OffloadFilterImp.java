@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.mledger.OffloadFilter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
@@ -33,7 +34,7 @@ public class OffloadFilterImp implements OffloadFilter {
     }
 
     @Override
-    public boolean checkIfNeedOffload(LedgerEntry ledgerEntry) {
+    public boolean checkEntry(LedgerEntry ledgerEntry) {
         int index = ledgerEntry.getEntryBuffer().readerIndex();
         MessageMetadata messageMetadata = Commands.parseMessageMetadata(ledgerEntry.getEntryBuffer());
         ledgerEntry.getEntryBuffer().readerIndex(index);
@@ -46,13 +47,15 @@ public class OffloadFilterImp implements OffloadFilter {
     }
 
     @Override
-    public boolean checkIfLedgerIdCanOffload(long ledgerId) {
+    public boolean checkLedger(long ledgerId) {
         return ledgerId < persistentTopic.getMaxReadPosition().getLedgerId();
     }
 
     @Override
     public boolean checkFilterIsReady() {
-        return "Ready".equals(persistentTopic.getTransactionBufferStats().state)
-                    || "NoSnapshot".equals(persistentTopic.getTransactionBufferStats().state);
+        TopicTransactionBufferState.State state =
+                TopicTransactionBufferState.State.valueOf(persistentTopic.getTransactionBufferStats().state);
+        return TopicTransactionBufferState.State.Ready.equals(state)
+                    || TopicTransactionBufferState.State.NoSnapshot.equals(state);
     }
 }

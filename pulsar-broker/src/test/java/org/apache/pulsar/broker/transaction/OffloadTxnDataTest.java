@@ -68,17 +68,13 @@ import org.jclouds.domain.Credentials;
 import org.junit.Assert;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
 public class OffloadTxnDataTest extends TransactionTestBase{
 
-    private static final String TENANT = "tnx";
-    private static final String NAMESPACE1 = TENANT + "/ns1";
     private static final int NUM_BROKERS = 1;
     private static final int NUM_PARTITIONS = 1;
-    private Properties properties = new Properties();
 
     protected PulsarMockBookKeeper bk;
     protected JCloudBlobStoreProvider provider;
@@ -87,28 +83,7 @@ public class OffloadTxnDataTest extends TransactionTestBase{
 
     @Override
     protected void setup() throws Exception {
-        this.setBrokerCount(NUM_BROKERS);
-        this.internalSetup();
-        String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
-        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length - 1];
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder()
-                .serviceUrl("http://localhost:" + webServicePort).build());
-        admin.tenants().createTenant(TENANT,
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
-        admin.namespaces().createNamespace(NAMESPACE1);
-
-        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
-        admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
-        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), NUM_PARTITIONS);
-        pulsarClient.close();
-        pulsarClient = PulsarClient.builder()
-                .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
-                .statsInterval(0, TimeUnit.SECONDS)
-                .enableTransaction(true)
-                .build();
-        // wait tc init success to ready state
-        waitForCoordinatorToBeAvailable(NUM_PARTITIONS);
+        super.setUpBase(NUM_BROKERS, NUM_PARTITIONS, NAMESPACE1 + "/test", 0);
     }
 
     private FileSystemManagedLedgerOffloader buildFileSystemOffloader() throws IOException {
@@ -168,7 +143,6 @@ public class OffloadTxnDataTest extends TransactionTestBase{
         fileSystemManagedLedgerOffloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(1L);
         setLedgerOffloader(fileSystemManagedLedgerOffloader);
         setMaxEntriesPerLedger(4);
-        setProperties(properties);
         setup();
         sendAndOffloadMessages();
     }
@@ -177,7 +151,6 @@ public class OffloadTxnDataTest extends TransactionTestBase{
         BlobStoreManagedLedgerOffloader blobStoreManagedLedgerOffloader = buildBlobstoreOffloader();
         setMaxEntriesPerLedger(4);
         setLedgerOffloader(blobStoreManagedLedgerOffloader);
-        setProperties(properties);
         setup();
         sendAndOffloadMessages();
     }
