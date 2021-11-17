@@ -18,12 +18,20 @@
  */
 package org.apache.pulsar.broker.resources;
 
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import java.util.concurrent.CompletableFuture;
 
 public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
 
+    public static final String LOCAL_POLICIES_ROOT = "/admin/local-policies";
+
     public LocalPoliciesResources(MetadataStoreExtended configurationStore, int operationTimeoutSec) {
         super(configurationStore, LocalPolicies.class, operationTimeoutSec);
+    }
+
+    public CompletableFuture<Void> deleteLocalPoliciesAsync(NamespaceName ns) {
+        return deleteAsync(joinPath(LOCAL_POLICIES_ROOT, ns.toString()));
     }
 }

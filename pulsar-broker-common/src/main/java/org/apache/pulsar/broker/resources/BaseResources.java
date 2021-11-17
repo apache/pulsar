@@ -26,9 +26,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import com.google.common.base.Joiner;
 import lombok.Getter;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -174,5 +176,21 @@ public class BaseResources<T> {
         StringBuilder sb = new StringBuilder();
         Joiner.on('/').appendTo(sb, parts);
         return sb.toString();
+    }
+
+    protected CompletableFuture<Void> deleteRecursiveAsync(String path) {
+        return getChildrenAsync(path)
+                .thenCompose(children -> FutureUtil.waitForAll(
+                        children.stream()
+                                .map(child -> deleteRecursiveAsync(path + "/" + child))
+                                .collect(Collectors.toList())))
+                .thenCompose(__ -> existsAsync(path))
+                .thenCompose(exists -> {
+                    if (exists) {
+                        return deleteAsync(path);
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                });
     }
 }

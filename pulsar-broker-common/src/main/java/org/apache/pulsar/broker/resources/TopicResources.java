@@ -24,6 +24,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.metadata.api.MetadataStore;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -49,5 +50,31 @@ public class TopicResources {
                         .map(s -> String.format("%s://%s/%s", domain.value(), ns, decode(s)))
                         .collect(Collectors.toList())
         );
+    }
+
+    public CompletableFuture<Void> clearNamespacePersistence(NamespaceName ns) {
+        String path = MANAGED_LEDGER_PATH + "/" + ns;
+        return checkExistAndDelete(path);
+    }
+
+    public CompletableFuture<Void> clearDomainPersistence(NamespaceName ns) {
+        String path = MANAGED_LEDGER_PATH + "/" + ns + "/persistent";
+        return checkExistAndDelete(path);
+    }
+
+    public CompletableFuture<Void> clearTenantPersistence(String tenant) {
+        String path = MANAGED_LEDGER_PATH + "/" + tenant;
+        return checkExistAndDelete(path);
+    }
+
+    private CompletableFuture<Void> checkExistAndDelete(String path) {
+        return store.exists(path)
+                .thenCompose(exists -> {
+                    if (exists) {
+                        return store.delete(path, Optional.empty());
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                });
     }
 }

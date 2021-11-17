@@ -20,7 +20,10 @@ package org.apache.pulsar.broker.resources;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 public class TenantResources extends BaseResources<TenantInfo> {
@@ -30,5 +33,13 @@ public class TenantResources extends BaseResources<TenantInfo> {
 
     public CompletableFuture<Optional<TenantInfo>> getTenantAsync(String tenantName) {
         return getAsync(joinPath(BASE_POLICIES_PATH, tenantName));
+    }
+
+    public CompletableFuture<Void> deleteTenantAsync(String tenantName) {
+        return getChildrenAsync(joinPath(BASE_POLICIES_PATH, tenantName))
+                .thenCompose(clusters -> FutureUtil.waitForAll(clusters.stream()
+                        .map(cluster -> getCache().delete(joinPath(BASE_POLICIES_PATH, tenantName, cluster)))
+                        .collect(Collectors.toList()))
+                ).thenCompose(__ -> deleteAsync(joinPath(BASE_POLICIES_PATH, tenantName)));
     }
 }
