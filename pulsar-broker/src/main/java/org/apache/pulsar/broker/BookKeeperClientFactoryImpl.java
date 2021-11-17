@@ -47,6 +47,7 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver;
 
 @SuppressWarnings("deprecation")
 @Slf4j
@@ -66,7 +67,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                              EventLoopGroup eventLoopGroup,
                              Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
                              Map<String, Object> properties, StatsLogger statsLogger) throws IOException {
-        ClientConfiguration bkConf = createBkClientConfiguration(conf);
+        ClientConfiguration bkConf = createBkClientConfiguration(store, conf);
         if (properties != null) {
             properties.forEach((key, value) -> bkConf.setProperty(key, value));
         }
@@ -87,7 +88,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
     }
 
     @VisibleForTesting
-    ClientConfiguration createBkClientConfiguration(ServiceConfiguration conf) {
+    ClientConfiguration createBkClientConfiguration(MetadataStoreExtended store, ServiceConfiguration conf) {
         ClientConfiguration bkConf = new ClientConfiguration();
         if (conf.getBookkeeperClientAuthenticationPlugin() != null
                 && conf.getBookkeeperClientAuthenticationPlugin().trim().length() > 0) {
@@ -122,16 +123,18 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         bkConf.setNettyMaxFrameSizeBytes(conf.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING);
         bkConf.setDiskWeightBasedPlacementEnabled(conf.isBookkeeperDiskWeightBasedPlacementEnabled());
 
-        if (StringUtils.isNotBlank(conf.getBookkeeperMetadataServiceUri())) {
-            bkConf.setMetadataServiceUri(conf.getBookkeeperMetadataServiceUri());
-        } else {
-            String metadataServiceUri = PulsarService.bookieMetadataServiceUri(conf);
-            bkConf.setMetadataServiceUri(metadataServiceUri);
+        bkConf.setMetadataServiceUri(conf.getBookkeeperMetadataStoreUrl());
+
+        if (!conf.isBookkeeperMetadataStoreSeparated()) {
+            // If we're connecting to the same metadata service, with same config, then
+            // let's share the MetadataStore instance
+            bkConf.setProperty(AbstractMetadataDriver.METADATA_STORE_INSTANCE, store);
         }
 
         if (conf.isBookkeeperClientHealthCheckEnabled()) {
             bkConf.enableBookieHealthCheck();
-            bkConf.setBookieHealthCheckInterval(conf.getBookkeeperHealthCheckIntervalSec(), TimeUnit.SECONDS);
+            bkConf.setBookieHealthCheckInterval((int) conf.getBookkeeperClientHealthCheckIntervalSeconds(),
+                    TimeUnit.SECONDS);
             bkConf.setBookieErrorThresholdPerInterval(conf.getBookkeeperClientHealthCheckErrorThresholdPerInterval());
             bkConf.setBookieQuarantineTime((int) conf.getBookkeeperClientHealthCheckQuarantineTimeInSeconds(),
                     TimeUnit.SECONDS);

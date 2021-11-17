@@ -20,21 +20,23 @@ package org.apache.pulsar.metadata.bookkeeper;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.bookie.Bookie;
 import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.client.BookKeeperAdmin;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.conf.ServerConfiguration;
-import org.apache.bookkeeper.conf.TestBKConfiguration;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.replication.AutoRecoveryMain;
@@ -46,17 +48,17 @@ import org.apache.bookkeeper.util.PortManager;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.awaitility.Awaitility;
-import org.testng.Assert;
 
 /**
  * A class runs several bookie servers for testing.
  */
 @Slf4j
-class BKTestCluster implements AutoCloseable {
+public class BKCluster implements AutoCloseable {
 
     // Metadata service related variables
     private final String metadataServiceUri;
+
+    @Getter
     private final MetadataStoreExtended store;
 
     // BookKeeper related variables
@@ -64,11 +66,11 @@ class BKTestCluster implements AutoCloseable {
     private final List<BookieServer> bs = new ArrayList<>();
     private final List<ServerConfiguration> bsConfs = new ArrayList<>();
 
-    protected final ServerConfiguration baseConf = TestBKConfiguration.newServerConfiguration();
-    protected final ClientConfiguration baseClientConf = TestBKConfiguration.newClientConfiguration();
+    protected final ServerConfiguration baseConf = newBaseServerConfiguration();
+    protected final ClientConfiguration baseClientConf = newBaseClientConfiguration();
 
 
-    public BKTestCluster(String metadataServiceUri, int numBookies) throws Exception {
+    public BKCluster(String metadataServiceUri, int numBookies) throws Exception {
         this.metadataServiceUri = metadataServiceUri;
         this.store = MetadataStoreExtended.create(metadataServiceUri, MetadataStoreConfig.builder().build());
         baseConf.setJournalRemovePagesFromCache(false);
@@ -83,7 +85,6 @@ class BKTestCluster implements AutoCloseable {
 
     @Getter
     boolean isAutoRecoveryEnabled = false;
-
 
     @Override
     public void close() throws Exception {
@@ -237,15 +238,20 @@ class BKTestCluster implements AutoCloseable {
         BookieServer server = new BookieServer(conf, NullStatsLogger.INSTANCE, null);
         BookieId address = Bookie.getBookieId(conf);
 
-        @Cleanup
-        BookKeeperAdmin bkc = new BookKeeperAdmin(baseClientConf);
-
         server.start();
 
-        Awaitility.await().atMost(30, TimeUnit.SECONDS)
-                .untilAsserted(() -> {
-            Assert.assertTrue(server.isRunning());
-        });
+        // Wait for up to 30 seconds for the bookie to start
+        for (int i = 0; i < 3000; i++) {
+            if (server.isRunning()) {
+                break;
+            }
+
+            Thread.sleep(10);
+        }
+
+        if (!server.isRunning()) {
+            throw new RuntimeException("Bookie failed to start within timeout period");
+        }
 
         log.info("New bookie '{}' has been created.", address);
 
@@ -268,5 +274,55 @@ class BKTestCluster implements AutoCloseable {
             log.debug("Starting Auditor Recovery for the bookie:"
                     + bserver.getBookieId());
         }
+    }
+
+    private static ServerConfiguration newBaseServerConfiguration() {
+        ServerConfiguration confReturn = new ServerConfiguration();
+        confReturn.setTLSEnabledProtocols("TLSv1.2,TLSv1.1");
+        confReturn.setJournalFlushWhenQueueEmpty(true);
+        confReturn.setJournalFormatVersionToWrite(5);
+        confReturn.setAllowEphemeralPorts(true);
+        confReturn.setJournalWriteData(false);
+        confReturn.setBookiePort(0);
+        confReturn.setGcWaitTime(1000L);
+        confReturn.setDiskUsageThreshold(0.999F);
+        confReturn.setDiskUsageWarnThreshold(0.99F);
+        confReturn.setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
+        confReturn.setProperty("dbStorage_writeCacheMaxSizeMb", 4);
+        confReturn.setProperty("dbStorage_readAheadCacheMaxSizeMb", 4);
+        setLoopbackInterfaceAndAllowLoopback(confReturn);
+        return confReturn;
+    }
+
+    public static ClientConfiguration newBaseClientConfiguration() {
+        ClientConfiguration clientConfiguration = new ClientConfiguration();
+        clientConfiguration.setTLSEnabledProtocols("TLSv1.2,TLSv1.1");
+        return clientConfiguration;
+    }
+
+    private static String getLoopbackInterfaceName() {
+        try {
+            Enumeration<NetworkInterface> nifs = NetworkInterface.getNetworkInterfaces();
+            Iterator var1 = Collections.list(nifs).iterator();
+
+            while(var1.hasNext()) {
+                NetworkInterface nif = (NetworkInterface)var1.next();
+                if (nif.isLoopback()) {
+                    return nif.getName();
+                }
+            }
+        } catch (SocketException var3) {
+            log.warn("Exception while figuring out loopback interface. Will use null.", var3);
+            return null;
+        }
+
+        log.warn("Unable to deduce loopback interface. Will use null");
+        return null;
+    }
+
+    private static ServerConfiguration setLoopbackInterfaceAndAllowLoopback(ServerConfiguration serverConf) {
+        serverConf.setListeningInterface(getLoopbackInterfaceName());
+        serverConf.setAllowLoopback(true);
+        return serverConf;
     }
 }
