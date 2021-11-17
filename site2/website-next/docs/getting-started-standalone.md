@@ -20,7 +20,7 @@ This tutorial guides you through every step of installing Pulsar locally.
 
 ### System requirements
 
-Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.
+Currently, Pulsar is available for 64-bit **macOS**, **Linux**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions, JDK11+ is suggested.
 
 :::tip
 
