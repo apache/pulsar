@@ -47,14 +47,16 @@ and persists the messages to a Redis database.</p>
 <ul>
 <li><p>JSON</p>
 <pre><code class="hljs css language-json">{
-    <span class="hljs-attr">"redisHosts"</span>: <span class="hljs-string">"localhost:6379"</span>,
-    <span class="hljs-attr">"redisPassword"</span>: <span class="hljs-string">"mypassword"</span>,
-    <span class="hljs-attr">"redisDatabase"</span>: <span class="hljs-string">"0"</span>,
-    <span class="hljs-attr">"clientMode"</span>: <span class="hljs-string">"Standalone"</span>,
-    <span class="hljs-attr">"operationTimeout"</span>: <span class="hljs-string">"2000"</span>,
-    <span class="hljs-attr">"batchSize"</span>: <span class="hljs-string">"1"</span>,
-    <span class="hljs-attr">"batchTimeMs"</span>: <span class="hljs-string">"1000"</span>,
-    <span class="hljs-attr">"connectTimeout"</span>: <span class="hljs-string">"3000"</span>
+   <span class="hljs-attr">"configs"</span>: {
+      <span class="hljs-attr">"redisHosts"</span>: <span class="hljs-string">"localhost:6379"</span>,
+      <span class="hljs-attr">"redisPassword"</span>: <span class="hljs-string">"mypassword"</span>,
+      <span class="hljs-attr">"redisDatabase"</span>: <span class="hljs-string">"0"</span>,
+      <span class="hljs-attr">"clientMode"</span>: <span class="hljs-string">"Standalone"</span>,
+      <span class="hljs-attr">"operationTimeout"</span>: <span class="hljs-string">"2000"</span>,
+      <span class="hljs-attr">"batchSize"</span>: <span class="hljs-string">"1"</span>,
+      <span class="hljs-attr">"batchTimeMs"</span>: <span class="hljs-string">"1000"</span>,
+      <span class="hljs-attr">"connectTimeout"</span>: <span class="hljs-string">"3000"</span>
+   }
 }
 </code></pre></li>
 <li><p>YAML</p>

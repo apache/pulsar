@@ -40,10 +40,12 @@ and publish it to user-defined Pulsar topics.</p>
 <ul>
 <li><p>JSON</p>
 <pre><code class="hljs css language-json">{
-    <span class="hljs-attr">"type"</span>: <span class="hljs-string">"tcp"</span>,
-    <span class="hljs-attr">"host"</span>: <span class="hljs-string">"127.0.0.1"</span>,
-    <span class="hljs-attr">"port"</span>: <span class="hljs-string">"10911"</span>,
-    <span class="hljs-attr">"numberOfThreads"</span>: <span class="hljs-string">"1"</span>
+   <span class="hljs-attr">"configs"</span>: {
+      <span class="hljs-attr">"type"</span>: <span class="hljs-string">"tcp"</span>,
+      <span class="hljs-attr">"host"</span>: <span class="hljs-string">"127.0.0.1"</span>,
+      <span class="hljs-attr">"port"</span>: <span class="hljs-string">"10911"</span>,
+      <span class="hljs-attr">"numberOfThreads"</span>: <span class="hljs-string">"1"</span>
+   }
 }
 </code></pre></li>
 <li><p>YAML</p>

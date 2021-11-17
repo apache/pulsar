@@ -154,7 +154,7 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.8.1
 <tr><th style="text-align:left">目录</th><th style="text-align:left">内容</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>bin</code></td><td style="text-align:left"><a href="/docs/zh-CN/2.7.2/reference-cli-tools">command-line tools</a> of Pulsar, such as <a href="/docs/zh-CN/2.7.2/reference-cli-tools#pulsar"><code>pulsar</code></a> and <a href="https://pulsar.apache.org/tools/pulsar-admin/"><code>pulsar-admin</code></a></td></tr>
+<tr><td style="text-align:left"><code>bin</code></td><td style="text-align:left">Pulsar 的<a href="/docs/zh-CN/2.7.2/reference-cli-tools">命令行工具</a>，例如 <a href="/docs/zh-CN/2.7.2/reference-cli-tools#pulsar"><code>pulsar</code></a> 和 <a href="https://pulsar.apache.org/tools/pulsar-admin/"><code>pulsar-admin</code></a></td></tr>
 <tr><td style="text-align:left"><code>conf</code></td><td style="text-align:left">Pulsar的配置文件，包含<a href="/docs/zh-CN/2.7.2/reference-configuration#broker">broker配置</a>,<a href="/docs/zh-CN/2.7.2/reference-configuration#zookeeper">ZooKeeper 配置</a> 等等</td></tr>
 <tr><td style="text-align:left"><code>data</code></td><td style="text-align:left">Zookeeper 和 Bookeeper 使用的数据保存目录</td></tr>
 <tr><td style="text-align:left"><code>lib</code></td><td style="text-align:left">Pulsar 使用的<a href="https://en.wikipedia.org/wiki/JAR_(file_format)"> JAR </a>文件</td></tr>
@@ -204,8 +204,8 @@ pulsar-io-aerospike-2.8.1.nar
 <p>压缩包下载完后，解压压缩包，并将复制后重命名为<code>offloaders</code>，存放在 pulsar 安装目录下。</p>
 <pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-offloaders-2.8.1-bin.tar.gz
 
-// you can find a directory named `apache-pulsar-offloaders-2.8.1` <span class="hljs-keyword">in</span> the pulsar directory
-// <span class="hljs-keyword">then</span> copy the offloaders
+// 你可以在 pulsar 目录下找到一个名为 `apache-pulsar-offloaders-2.8.1` 的目录
+// 然后复制卸载程序
 
 $ mv apache-pulsar-offloaders-2.8.1/offloaders offloaders
 
@@ -215,7 +215,7 @@ tiered-storage-jcloud-2.8.1.nar
 <p>了解更多分层存储的详细配置，请参考<a href="/docs/zh-CN/2.7.2/cookbooks-tiered-storage">分层存储指南</a></p>
 <h2><a class="anchor" aria-hidden="true" id="部署-zookeeper-集群"></a><a href="#部署-zookeeper-集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署 Zookeeper 集群</h2>
 <blockquote>
-<p>If you already have an existing zookeeper cluster and want to use it, you can skip this section.</p>
+<p>如果你已经有 zookeeper 集群并想复用它，你可以跳过本节。</p>
 </blockquote>
 <p><a href="https://zookeeper.apache.org">ZooKeeper</a> manages a variety of essential coordination- and configuration-related tasks for Pulsar. 部署 Pulsar 集群，你必须首先部署 Zookeeper (在所有其他组件之前)。 建议部署3个节点的 Zookeeper 集群。 Pulsar does not make heavy use of ZooKeeper, so more lightweight machines or VMs should suffice for running ZooKeeper.</p>
 <p>首先，将所有的 Zookeeper 服务器信息添加到<a href="/docs/zh-CN/2.7.2/reference-configuration#zookeeper"><code>conf/zookeeper.conf</code></a>配置文件(文件在 Pulsar 的安装目录<a href="#install-the-pulsar-binary-package">里面</a>)。 如下所示：</p>

@@ -45,14 +45,16 @@ and persists the messages to HBase tables</p>
 <ul>
 <li><p>JSON</p>
 <pre><code class="hljs css language-json">{
-    <span class="hljs-attr">"hbaseConfigResources"</span>: <span class="hljs-string">"hbase-site.xml"</span>,
-    <span class="hljs-attr">"zookeeperQuorum"</span>: <span class="hljs-string">"localhost"</span>,
-    <span class="hljs-attr">"zookeeperClientPort"</span>: <span class="hljs-string">"2181"</span>,
-    <span class="hljs-attr">"zookeeperZnodeParent"</span>: <span class="hljs-string">"/hbase"</span>,
-    <span class="hljs-attr">"tableName"</span>: <span class="hljs-string">"pulsar_hbase"</span>,
-    <span class="hljs-attr">"rowKeyName"</span>: <span class="hljs-string">"rowKey"</span>,
-    <span class="hljs-attr">"familyName"</span>: <span class="hljs-string">"info"</span>,
-    <span class="hljs-attr">"qualifierNames"</span>: [ 'name', 'address', 'age']
+   <span class="hljs-attr">"configs"</span>: {
+      <span class="hljs-attr">"hbaseConfigResources"</span>: <span class="hljs-string">"hbase-site.xml"</span>,
+      <span class="hljs-attr">"zookeeperQuorum"</span>: <span class="hljs-string">"localhost"</span>,
+      <span class="hljs-attr">"zookeeperClientPort"</span>: <span class="hljs-string">"2181"</span>,
+      <span class="hljs-attr">"zookeeperZnodeParent"</span>: <span class="hljs-string">"/hbase"</span>,
+      <span class="hljs-attr">"tableName"</span>: <span class="hljs-string">"pulsar_hbase"</span>,
+      <span class="hljs-attr">"rowKeyName"</span>: <span class="hljs-string">"rowKey"</span>,
+      <span class="hljs-attr">"familyName"</span>: <span class="hljs-string">"info"</span>,
+      <span class="hljs-attr">"qualifierNames"</span>: [ 'name', 'address', 'age']
+   }
 }
 </code></pre></li>
 </ul>
