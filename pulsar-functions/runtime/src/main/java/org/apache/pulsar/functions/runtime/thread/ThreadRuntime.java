@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.functions.runtime.thread;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Arrays;
@@ -32,6 +33,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.common.nar.FileUtils;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
@@ -134,14 +136,24 @@ public class ThreadRuntime implements Runtime {
             return Thread.currentThread().getContextClassLoader();
         }
         ClassLoader fnClassLoader;
-        try {
-            log.info("Load JAR: {}", jarFile);
-            // Let's first try to treat it as a nar archive
-            fnCache.registerFunctionInstanceWithArchive(
-                    instanceConfig.getFunctionId(),
-                    instanceConfig.getInstanceName(),
-                    jarFile, narExtractionDirectory);
-        } catch (FileNotFoundException e) {
+        boolean loadedAsNar = false;
+        if (FileUtils.mayBeANarArchive(new File(jarFile))) {
+            try {
+                log.info("Trying Loading file as NAR file: {}", jarFile);
+                // Let's first try to treat it as a nar archive
+                fnCache.registerFunctionInstanceWithArchive(
+                        instanceConfig.getFunctionId(),
+                        instanceConfig.getInstanceName(),
+                        jarFile, narExtractionDirectory);
+                loadedAsNar = true;
+            } catch (FileNotFoundException e) {
+                // this is usually like
+                // java.io.FileNotFoundException: /tmp/pulsar-nar/xxx.jar-unpacked/xxxxx/META-INF/MANIFEST.MF'
+                log.error("The file {} does not look like a .nar file", jarFile, e.toString());
+            }
+        }
+        if (!loadedAsNar) {
+            log.info("Load file as simple JAR file: {}", jarFile);
             // create the function class loader
             fnCache.registerFunctionInstance(
                     instanceConfig.getFunctionId(),

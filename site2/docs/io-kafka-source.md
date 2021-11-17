@@ -68,11 +68,13 @@ Before using the Kafka source connector, you need to create a configuration file
 
     ```json
     {
-        "bootstrapServers": "pulsar-kafka:9092",
-        "groupId": "test-pulsar-io",
-        "topic": "my-topic",
-        "sessionTimeoutMs": "10000",
-        "autoCommitEnabled": false
+       "configs": {
+          "bootstrapServers": "pulsar-kafka:9092",
+          "groupId": "test-pulsar-io",
+          "topic": "my-topic",
+          "sessionTimeoutMs": "10000",
+          "autoCommitEnabled": false
+       }
     }
     ```
 

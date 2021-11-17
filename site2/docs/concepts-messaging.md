@@ -4,7 +4,7 @@ title: Messaging
 sidebar_label: Messaging
 ---
 
-Pulsar is built on the [publish-subscribe](https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern) pattern (often abbreviated to pub-sub). In this pattern, [producers](#producers) publish messages to [topics](#topics); [consumers](#consumers) [subscribe](#subscription-modes) to those topics, process incoming messages, and send [acknowledgements](#acknowledgement) to the broker when processing is finished.
+Pulsar is built on the [publish-subscribe](https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern) pattern (often abbreviated to pub-sub). In this pattern, [producers](#producers) publish messages to [topics](#topics); [consumers](#consumers) [subscribe](#subscription-types) to those topics, process incoming messages, and send [acknowledgements](#acknowledgement) to the broker when processing is finished.
 
 When a subscription is created, Pulsar [retains](concepts-architecture-overview.md#persistent-storage) all messages, even if the consumer is disconnected. The retained messages are discarded only when a consumer acknowledges that all these messages are processed successfully. 
 
@@ -316,10 +316,11 @@ A subscription is a named configuration rule that determines how messages are de
 > * If you want to achieve "message queuing" among consumers, share the same subscription name among multiple consumers(shared, failover, key_shared).
 > * If you want to achieve both effects simultaneously, combine exclusive subscription type with other subscription types for consumers.
 
-### Consumerless Subscriptions and Their Corresponding Types
+### Subscription types
+
 When a subscription has no consumers, its subscription type is undefined. The type of a subscription is defined when a consumer connects to it, and the type can be changed by restarting all consumers with a different configuration.
 
-### Exclusive
+#### Exclusive
 
 In *Exclusive* type, only a single consumer is allowed to attach to the subscription. If multiple consumers subscribe to a topic using the same subscription, an error occurs.
 
@@ -329,7 +330,7 @@ In the diagram below, only **Consumer A-0** is allowed to consume messages.
 
 ![Exclusive subscriptions](assets/pulsar-exclusive-subscriptions.png)
 
-### Failover
+#### Failover
 
 In *Failover* type, multiple consumers can attach to the same subscription. A master consumer is picked for non-partitioned topic or each partition of partitioned topic and receives messages. When the master consumer disconnects, all (non-acknowledged and subsequent) messages are delivered to the next consumer in line.
 
@@ -341,7 +342,7 @@ In the diagram below, **Consumer-B-0** is the master consumer while **Consumer-B
 
 ![Failover subscriptions](assets/pulsar-failover-subscriptions.png)
 
-### Shared
+#### Shared
 
 In *shared* or *round robin* type, multiple consumers can attach to the same subscription. Messages are delivered in a round robin distribution across consumers, and any given message is delivered to only one consumer. When a consumer disconnects, all the messages that were sent to it and not acknowledged will be rescheduled for sending to the remaining consumers.
 
@@ -354,7 +355,7 @@ In the diagram below, **Consumer-C-1** and **Consumer-C-2** are able to subscrib
 
 ![Shared subscriptions](assets/pulsar-shared-subscriptions.png)
 
-### Key_Shared
+#### Key_Shared
 
 In *Key_Shared* type, multiple consumers can attach to the same subscription. Messages are delivered in a distribution across consumers and message with same key or same ordering key are delivered to only one consumer. No matter how many times the message is re-delivered, it is delivered to the same consumer. When a consumer connected or disconnected will cause served consumer change for some key of message.
 
@@ -395,6 +396,57 @@ producer = client.create_producer(topic='my-topic', batching_type=pulsar.Batchin
 > When you use Key_Shared type, be aware that:
 > * You need to specify a key or orderingKey for messages.
 > * You cannot use cumulative acknowledgment with Key_Shared type.
+
+### Subscription modes
+
+#### What is a subscription mode
+
+The subscription mode indicates the cursor type. 
+
+- When a subscription is created, an associated cursor is created to record the last consumed position. 
+
+- When a consumer of the subscription restarts, it can continue consuming from the last message it consumes.
+
+Subscription mode | Description | Note
+|---|---|---
+`Durable`|The cursor is durable, which retains messages and persists the current position. <br></br>If a broker restarts from a failure, it can recover the cursor from the persistent storage (BookKeeper), so that messages can continue to be consumed from the last consumed position.|`Durable` is the **default** subscription mode.
+`NonDurable`|The cursor is non-durable. <br></br>Once a broker stops, the cursor is lost and can never be recovered, so that messages **can not** continue to be consumed from the last consumed position.|Reader’s subscription mode is `NonDurable` in nature and it does not prevent data in a topic from being deleted. Reader’s subscription mode **can not** be changed. 
+
+A [subscription](#concepts-messaging.md/#subscriptions) can have one or more consumers. When a consumer subscribes to a topic, it must specify the subscription name. A durable subscription and a non-durable subscription can have the same name, they are independent of each other. If a consumer specifies a subscription which does not exist before, the subscription is automatically created.
+
+#### When to use
+
+By default, messages of a topic without any durable subscriptions are marked as deleted. If you want to prevent the messages being marked as deleted, you can create a durable subscription for this topic. In this case, only acknowledged messages are marked as deleted. For more information, see [message retention and expiry](cookbooks-retention-expiry.md).
+
+#### How to use
+
+After a consumer is created, the default subscription mode of the consumer is `Durable`. You can change the subscription mode to `NonDurable` by making changes to the consumer’s configuration.
+
+<!--DOCUSAURUS_CODE_TABS-->
+
+<!--Durable-->
+ 
+```java
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic("my-topic")
+                .subscriptionName("my-sub")
+                .subscriptionMode(SubscriptionMode.Durable)
+                .subscribe();
+```
+ 
+<!--Non-durable-->
+ 
+```java
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic("my-topic")
+                .subscriptionName("my-sub")
+                .subscriptionMode(SubscriptionMode.NonDurable)
+                .subscribe();
+```
+ 
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+For how to create, check, or delete a durable subscription, see [manage subscriptions](admin-api-topics.md/#manage-subscriptions).
 
 ## Multi-topic subscriptions
 

@@ -4,10 +4,6 @@ title: Pulsar load balance
 sidebar_label: "Load balance"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 ## Load balance across Pulsar brokers
 
 Pulsar is an horizontally scalable messaging system, so the traffic in a logical cluster must be balanced across all the available Pulsar brokers as evenly as possible, which is a core requirement.

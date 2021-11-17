@@ -27,8 +27,6 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
-import org.apache.pulsar.metadata.api.MetadataStoreException.InvalidImplementationException;
-import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl;
 

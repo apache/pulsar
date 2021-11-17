@@ -4,10 +4,6 @@ title: Solr sink connector
 sidebar_label: "Solr sink connector"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The Solr sink connector pulls messages from Pulsar topics 
 and persists the messages to Solr collections.
 
@@ -41,12 +37,14 @@ Before using the Solr sink connector, you need to create a configuration file th
   ```json
   
   {
-      "solrUrl": "localhost:2181,localhost:2182/chroot",
-      "solrMode": "SolrCloud",
-      "solrCollection": "techproducts",
-      "solrCommitWithinMs": 100,
-      "username": "fakeuser",
-      "password": "fake@123"
+     "configs": {
+        "solrUrl": "localhost:2181,localhost:2182/chroot",
+        "solrMode": "SolrCloud",
+        "solrCollection": "techproducts",
+        "solrCommitWithinMs": 100,
+        "username": "fakeuser",
+        "password": "fake@123"
+     }
   }
   
   ```

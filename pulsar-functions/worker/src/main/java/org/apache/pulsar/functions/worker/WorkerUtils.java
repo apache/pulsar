@@ -72,13 +72,13 @@ public final class WorkerUtils {
 
     public static void uploadFileToBookkeeper(String packagePath, File sourceFile, Namespace dlogNamespace) throws IOException {
         try (FileInputStream uploadedInputStream = new FileInputStream(sourceFile)) {
-            uploadToBookeeper(dlogNamespace, uploadedInputStream, packagePath);
+            uploadToBookKeeper(dlogNamespace, uploadedInputStream, packagePath);
         }
     }
 
-    public static void uploadToBookeeper(Namespace dlogNamespace,
-                                         InputStream uploadedInputStream,
-                                         String destPkgPath)
+    public static void uploadToBookKeeper(Namespace dlogNamespace,
+                                          InputStream uploadedInputStream,
+                                          String destPkgPath)
             throws IOException {
 
         // if the dest directory does not exist, create it.

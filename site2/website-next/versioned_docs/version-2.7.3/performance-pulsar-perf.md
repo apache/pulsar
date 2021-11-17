@@ -5,10 +5,6 @@ sidebar_label: "Pulsar Perf"
 original_id: performance-pulsar-perf
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 This document describes how to use the Pulsar Perf for performance testing. For detailed information about performance tuning, see [here](https://streamnative.io/whitepaper/taking-a-deep-dive-into-apache-pulsar-architecture-for-performance-tuning/).
 
 ## Pulsar Perf

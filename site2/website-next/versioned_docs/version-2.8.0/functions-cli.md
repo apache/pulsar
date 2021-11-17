@@ -5,10 +5,6 @@ sidebar_label: "Reference: CLI"
 original_id: functions-cli
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The following tables list Pulsar Functions command-line tools. You can learn Pulsar Functions modes, commands, and parameters.
 
 ## localrun

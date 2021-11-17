@@ -66,7 +66,6 @@ public class Policies {
     public boolean deleted = false;
     public static final String FIRST_BOUNDARY = "0x00000000";
     public static final String LAST_BOUNDARY = "0xffffffff";
-    public static final String LARGEST_BUNDLE = "LARGEST";
 
     @SuppressWarnings("checkstyle:MemberName")
     public boolean encryption_required = false;
@@ -125,6 +124,10 @@ public class Policies {
 
     @SuppressWarnings("checkstyle:MemberName")
     public String resource_group_name = null;
+
+    public enum BundleType {
+        LARGEST, HOT;
+    }
 
     @Override
     public int hashCode() {

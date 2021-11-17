@@ -5,10 +5,6 @@ sidebar_label: "ZooKeeper and BookKeeper"
 original_id: administration-zk-bk
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 Pulsar relies on two external systems for essential tasks:
 
 * [ZooKeeper](https://zookeeper.apache.org/) is responsible for a wide variety of configuration-related and coordination-related tasks.
@@ -316,7 +312,7 @@ The following is an example:
 
 $ pulsar-admin namespaces set-persistence my-tenant/my-ns \
   --bookkeeper-ack-quorum 3 \
-  --bookeeper-ensemble 2
+  --bookkeeper-ensemble 2
 
 ```
 

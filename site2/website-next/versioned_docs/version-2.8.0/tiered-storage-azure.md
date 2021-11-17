@@ -5,10 +5,6 @@ sidebar_label: "Azure BlobStore offloader"
 original_id: tiered-storage-azure
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 This chapter guides you through every step of installing and configuring the Azure BlobStore offloader and using it with Pulsar.
 
 ## Installation

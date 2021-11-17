@@ -4,10 +4,6 @@ title: Pulsar 2.0
 sidebar_label: "Pulsar 2.0"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 Pulsar 2.0 is a major new release for Pulsar that brings some bold changes to the platform, including [simplified topic names](#topic-names), the addition of the [Pulsar Functions](functions-overview) feature, some terminology changes, and more.
 
 ## New features in Pulsar 2.0

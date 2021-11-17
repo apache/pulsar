@@ -22,7 +22,6 @@
 <suite name="Pulsar Auth Integration Tests" verbose="2" annotations="JDK">
     <test name="pulsar-auth-test-suite" preserve-order="true" >
         <classes>
-            <class name="org.apache.pulsar.tests.integration.auth.admin.PackagesOpsWithAuthTest"/>
         </classes>
     </test>
 </suite>

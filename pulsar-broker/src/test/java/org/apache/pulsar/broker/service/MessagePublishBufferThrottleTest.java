@@ -20,14 +20,12 @@ package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
-import java.util.ArrayList;
-import java.util.List;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import org.apache.pulsar.client.api.MessageId;
+
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;

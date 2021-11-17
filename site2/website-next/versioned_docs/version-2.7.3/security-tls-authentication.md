@@ -5,10 +5,6 @@ sidebar_label: "Authentication using TLS"
 original_id: security-tls-authentication
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 ## TLS authentication overview
 
 TLS authentication is an extension of [TLS transport encryption](security-tls-transport). Not only servers have keys and certs that the client uses to verify the identity of servers, clients also have keys and certs that the server uses to verify the identity of clients. You must have TLS transport encryption configured on your cluster before you can use TLS authentication. This guide assumes you already have TLS transport encryption configured.
@@ -129,7 +125,7 @@ When you use TLS authentication, client connects via TLS transport. You need to 
 
 You need to add the following parameters to that file to use TLS authentication with the CLI tools of Pulsar:
 
-```
+```properties
 
 webServiceUrl=https://broker.example.com:8443/
 brokerServiceUrl=pulsar+ssl://broker.example.com:6651/
@@ -143,7 +139,7 @@ authParams=tlsCertFile:/path/to/my-role.cert.pem,tlsKeyFile:/path/to/my-role.key
 
 ### Java client
 
-```
+```java
 
 import org.apache.pulsar.client.api.PulsarClient;
 
@@ -159,7 +155,7 @@ PulsarClient client = PulsarClient.builder()
 
 ### Python client
 
-```
+```python
 
 from pulsar import Client, AuthenticationTLS
 
@@ -173,7 +169,7 @@ client = Client("pulsar+ssl://broker.example.com:6651/",
 
 ### C++ client
 
-```
+```c++
 
 #include <pulsar/Client.h>
 
@@ -192,7 +188,7 @@ pulsar::Client client("pulsar+ssl://broker.example.com:6651/", config);
 
 ### Node.js client
 
-```
+```JavaScript
 
 const Pulsar = require('pulsar-client');
 
@@ -213,7 +209,7 @@ const Pulsar = require('pulsar-client');
 
 ### C# client
 
-```
+```c#
 
 var clientCertificate = new X509Certificate2("admin.pfx");
 var client = PulsarClient.Builder()

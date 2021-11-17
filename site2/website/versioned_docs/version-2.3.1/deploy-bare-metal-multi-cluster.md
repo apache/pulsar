@@ -242,7 +242,7 @@ BookKeeper bookies can be configured using the [`conf/bookkeeper.conf`](referenc
 
 You can start up a bookie in two ways: in the foreground or as a background daemon.
 
-To start up a bookie in the foreground, use the [`bookeeper`](reference-cli-tools.md#bookkeeper)
+To start up a bookie in the foreground, use the [`bookkeeper`](reference-cli-tools.md#bookkeeper)
 
 ```shell
 $ bin/pulsar-daemon start bookie

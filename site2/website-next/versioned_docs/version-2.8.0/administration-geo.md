@@ -5,10 +5,6 @@ sidebar_label: "Geo-replication"
 original_id: administration-geo
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 *Geo-replication* is the replication of persistently stored message data across multiple clusters of a Pulsar instance.
 
 ## How geo-replication works

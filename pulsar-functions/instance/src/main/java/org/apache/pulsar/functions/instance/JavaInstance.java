@@ -25,7 +25,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import lombok.AccessLevel;
 import lombok.Data;

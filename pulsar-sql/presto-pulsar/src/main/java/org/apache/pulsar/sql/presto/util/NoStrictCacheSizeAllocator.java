@@ -20,7 +20,6 @@ package org.apache.pulsar.sql.presto.util;
 
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * Cache size allocator.

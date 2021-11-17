@@ -25,6 +25,7 @@ import com.google.gson.Gson;
 import io.netty.handler.codec.http.HttpHeaders;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.List;
 import java.util.Set;
@@ -888,14 +889,14 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         }).toCompletableFuture();
 
             statusFuture
-                    .thenAccept(status -> {
+                    .whenComplete((status, throwable) -> {
                         try {
                             os.close();
-                        } catch (Exception e) {
+                        } catch (IOException e) {
                             future.completeExceptionally(getApiException(e));
-                            return;
                         }
-
+                    })
+                    .thenAccept(status -> {
                         if (status.getStatusCode() < 200 || status.getStatusCode() >= 300) {
                             future.completeExceptionally(
                                     getApiException(Response

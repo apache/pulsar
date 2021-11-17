@@ -142,16 +142,7 @@ You can choose the encoding type when constructing the key/value schema.
 
 <Tabs 
   defaultValue="INLINE"
-  values={[
-  {
-    "label": "INLINE",
-    "value": "INLINE"
-  },
-  {
-    "label": "SEPARATED",
-    "value": "SEPARATED"
-  }
-]}>
+  values={[{"label":"INLINE","value":"INLINE"},{"label":"SEPARATED","value":"SEPARATED"}]}>
 
 <TabItem value="INLINE">
 
@@ -264,20 +255,7 @@ Pulsar provides the following methods to use the `struct` schema:
 
 <Tabs 
   defaultValue="static"
-  values={[
-  {
-    "label": "static",
-    "value": "static"
-  },
-  {
-    "label": "generic",
-    "value": "generic"
-  },
-  {
-    "label": "SchemaDefinition",
-    "value": "SchemaDefinition"
-  }
-]}>
+  values={[{"label":"static","value":"static"},{"label":"generic","value":"generic"},{"label":"SchemaDefinition","value":"SchemaDefinition"}]}>
 
 <TabItem value="static">
 
