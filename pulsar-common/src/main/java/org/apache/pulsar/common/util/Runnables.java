@@ -22,8 +22,10 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class Runnables {
+public final class Runnables {
     private static final Logger LOGGER = LoggerFactory.getLogger(Runnables.class);
+
+    private Runnables() {}
 
     /**
      * Wraps a Runnable so that throwables are caught and logged when a Runnable is run.
