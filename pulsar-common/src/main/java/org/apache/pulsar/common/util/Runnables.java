@@ -37,12 +37,23 @@ public final class Runnables {
      * @return a wrapped Runnable
      */
     public static Runnable catchingAndLoggingThrowables(Runnable runnable) {
-        return () -> {
+        return new CatchingAndLoggingRunnable(runnable);
+    }
+
+    private static final class CatchingAndLoggingRunnable implements Runnable {
+        private final Runnable runnable;
+
+        private CatchingAndLoggingRunnable(Runnable runnable) {
+            this.runnable = runnable;
+        }
+
+        @Override
+        public void run() {
             try {
                 runnable.run();
             } catch (Throwable t) {
                 LOGGER.error("Unexpected throwable caught", t);
             }
-        };
+        }
     }
 }
