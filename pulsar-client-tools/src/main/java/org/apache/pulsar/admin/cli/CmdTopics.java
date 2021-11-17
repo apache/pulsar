@@ -792,8 +792,13 @@ public class CmdTopics extends CmdBase {
                     getTopics().resetCursor(persistentTopic, subName, messageId);
                 }
             } else if (isNotBlank(resetTimeStr)) {
-                long resetTimeInMillis = TimeUnit.SECONDS
-                        .toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(resetTimeStr));
+                long resetTimeInMillis;
+                try {
+                    resetTimeInMillis = TimeUnit.SECONDS.toMillis(
+                            RelativeTimeUtil.parseRelativeTimeInSeconds(resetTimeStr));
+                } catch (IllegalArgumentException exception) {
+                    throw new ParameterException(exception.getMessage());
+                }
                 // now - go back time
                 long timestamp = System.currentTimeMillis() - resetTimeInMillis;
                 getTopics().resetCursor(persistentTopic, subName, timestamp);
@@ -1280,7 +1285,13 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String topicName = validateTopicName(params);
-            long delayedDeliveryTimeInMills = TimeUnit.SECONDS.toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(delayedDeliveryTimeStr));
+            long delayedDeliveryTimeInMills;
+            try {
+                delayedDeliveryTimeInMills = TimeUnit.SECONDS.toMillis(
+                        RelativeTimeUtil.parseRelativeTimeInSeconds(delayedDeliveryTimeStr));
+            } catch (IllegalArgumentException exception) {
+                throw new ParameterException(exception.getMessage());
+            }
 
             if (enable == disable) {
                 throw new ParameterException("Need to specify either --enable or --disable");
@@ -1430,7 +1441,12 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             long sizeLimit = validateSizeString(limitStr);
-            long retentionTimeInSec = RelativeTimeUtil.parseRelativeTimeInSeconds(retentionTimeStr);
+            long retentionTimeInSec;
+            try {
+                retentionTimeInSec = RelativeTimeUtil.parseRelativeTimeInSeconds(retentionTimeStr);
+            } catch (IllegalArgumentException exception) {
+                throw new ParameterException(exception.getMessage());
+            }
 
             final int retentionTimeInMin;
             if (retentionTimeInSec != -1) {
@@ -2287,7 +2303,13 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            long maxInactiveDurationInSeconds = TimeUnit.SECONDS.toSeconds(RelativeTimeUtil.parseRelativeTimeInSeconds(deleteInactiveTopicsMaxInactiveDuration));
+            long maxInactiveDurationInSeconds;
+            try {
+                maxInactiveDurationInSeconds = TimeUnit.SECONDS.toSeconds(
+                        RelativeTimeUtil.parseRelativeTimeInSeconds(deleteInactiveTopicsMaxInactiveDuration));
+            } catch (IllegalArgumentException exception) {
+                throw new ParameterException(exception.getMessage());
+            }
 
             if (enableDeleteWhileInactive == disableDeleteWhileInactive) {
                 throw new ParameterException("Need to specify either enable-delete-while-inactive or disable-delete-while-inactive");

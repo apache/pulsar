@@ -20,6 +20,7 @@ package org.apache.pulsar.admin.cli;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.CommaParameterSplitter;
 import com.google.gson.Gson;
@@ -528,8 +529,13 @@ public class CmdPersistentTopics extends CmdBase {
                 MessageId messageId = validateMessageIdString(resetMessageIdStr);
                 getPersistentTopics().resetCursor(persistentTopic, subName, messageId);
             } else if (isNotBlank(resetTimeStr)) {
-                long resetTimeInMillis = TimeUnit.SECONDS
-                        .toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(resetTimeStr));
+                long resetTimeInMillis;
+                try {
+                    resetTimeInMillis = TimeUnit.SECONDS.toMillis(
+                            RelativeTimeUtil.parseRelativeTimeInSeconds(resetTimeStr));
+                } catch (IllegalArgumentException exception) {
+                    throw new ParameterException(exception.getMessage());
+                }
                 // now - go back time
                 long timestamp = System.currentTimeMillis() - resetTimeInMillis;
                 getPersistentTopics().resetCursor(persistentTopic, subName, timestamp);
