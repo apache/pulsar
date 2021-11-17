@@ -5,10 +5,6 @@ sidebar_label: "CGo(deprecated)"
 original_id: client-libraries-cgo
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 You can use Pulsar Go client to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Go (aka Golang).
 
 All the methods in [producers](#producers), [consumers](#consumers), and [readers](#readers) of a Go client are thread-safe.

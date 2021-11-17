@@ -5,10 +5,6 @@ sidebar_label: "Encryption"
 original_id: cookbooks-encryption
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 Pulsar encryption allows applications to encrypt messages at the producer and decrypt at the consumer. Encryption is performed using the public/private key pair configured by the application. Encrypted messages can only be decrypted by consumers with a valid key.
 
 ## Asymmetric and symmetric encryption

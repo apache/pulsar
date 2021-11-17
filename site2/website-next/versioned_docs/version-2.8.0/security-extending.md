@@ -5,10 +5,6 @@ sidebar_label: "Extending"
 original_id: security-extending
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 Pulsar provides a way to use custom authentication and authorization mechanisms.
 
 ## Authentication

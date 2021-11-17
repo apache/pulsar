@@ -160,6 +160,10 @@ module.exports = {
               to: "docs/2.6.4/",
             },
             {
+              label: "2.6.3",
+              to: "docs/2.6.3/",
+            },
+            {
               label: "2.2.0",
               to: "docs/2.2.0/",
             },

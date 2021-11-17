@@ -5,10 +5,6 @@ sidebar_label: "How-to: Debug"
 original_id: functions-debug
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 You can use the following methods to debug Pulsar Functions:
 
 * [Captured stderr](functions-debug.md#captured-stderr)

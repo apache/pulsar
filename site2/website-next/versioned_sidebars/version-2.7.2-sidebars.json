@@ -413,6 +413,11 @@
         {
           "type": "doc",
           "id": "version-2.7.2/reference-metrics"
+        }
+      ]
+    },
+    {
+      "type": "category",
       "label": "Development",
       "items": [
         {
@@ -434,6 +439,11 @@
         {
           "type": "doc",
           "id": "version-2.7.2/develop-cpp"
+        }
+      ]
+    },
+    {
+      "type": "category",
       "label": "Cookbooks",
       "items": [
         {
@@ -463,6 +473,11 @@
         {
           "type": "doc",
           "id": "version-2.7.2/cookbooks-bookkeepermetadata"
+        }
+      ]
+    },
+    {
+      "type": "category",
       "label": "Adaptors",
       "items": [
         {
@@ -476,6 +491,11 @@
         {
           "type": "doc",
           "id": "version-2.7.2/adaptors-storm"
+        }
+      ]
+    },
+    {
+      "type": "category",
       "label": "Admin API",
       "items": [
         {
