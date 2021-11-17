@@ -23,7 +23,6 @@ import com.google.common.collect.Lists;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import java.util.List;
-import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -102,12 +101,7 @@ class OpReadEntry implements ReadEntriesCallback {
             log.warn("[{}][{}] read failed from ledger at position:{} : {}", cursor.ledger.getName(), cursor.getName(),
                     readPosition, exception.getMessage());
             // try to find and move to next valid ledger
-            final Position nexReadPosition;
-            if (exception.getCause() != null && exception.getCause() instanceof BKException.BKNoSuchEntryException) {
-                nexReadPosition = cursor.getNextValidPosition(readPosition);
-            } else {
-                nexReadPosition = cursor.getNextLedgerPosition(readPosition.ledgerId);
-            }
+            final Position nexReadPosition = cursor.getNextLedgerPosition(readPosition.getLedgerId());
             // fail callback if it couldn't find next valid ledger
             if (nexReadPosition == null) {
                 callback.readEntriesFailed(exception, ctx);

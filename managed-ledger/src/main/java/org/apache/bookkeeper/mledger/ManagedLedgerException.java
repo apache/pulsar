@@ -141,9 +141,6 @@ public class ManagedLedgerException extends Exception {
         public NonRecoverableLedgerException(String msg) {
             super(msg);
         }
-        public NonRecoverableLedgerException(String msg, Throwable exception) {
-            super(msg, exception);
-        }
     }
 
     public static class InvalidReplayPositionException extends ManagedLedgerException {
