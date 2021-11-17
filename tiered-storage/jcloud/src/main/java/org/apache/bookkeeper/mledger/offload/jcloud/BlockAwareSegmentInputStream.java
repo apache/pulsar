@@ -20,7 +20,6 @@ package org.apache.bookkeeper.mledger.offload.jcloud;
 
 import java.io.InputStream;
 import org.apache.bookkeeper.client.api.ReadHandle;
-import org.apache.bookkeeper.mledger.OffloadFilter;
 
 /**
  * The BlockAwareSegmentInputStream for each cold storage data block.

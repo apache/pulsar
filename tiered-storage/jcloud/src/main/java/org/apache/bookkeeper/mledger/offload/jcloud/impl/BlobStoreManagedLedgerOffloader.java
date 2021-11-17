@@ -104,7 +104,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     private volatile ManagedLedger ml;
     private OffloadIndexBlockV2Builder streamingIndexBuilder;
 
-
     public static BlobStoreManagedLedgerOffloader create(TieredStorageConfiguration config,
                                                          Map<String, String> userMetadata,
                                                          OrderedScheduler scheduler) throws IOException {
@@ -165,7 +164,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                                            OffloadFilter offloadFilter) {
         final BlobStore writeBlobStore = blobStores.get(config.getBlobStoreLocation());
         CompletableFuture<Void> promise = new CompletableFuture<>();
-
         scheduler.chooseThread(readHandle.getId()).submit(() -> {
             if (readHandle.getLength() == 0 || !readHandle.isClosed() || readHandle.getLastAddConfirmed() < 0) {
                 promise.completeExceptionally(

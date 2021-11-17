@@ -162,33 +162,27 @@ public class OffloadTxnDataTest extends TransactionTestBase{
         super.internalCleanup();
     }
 
-    @DataProvider(name = "receiverQueueSize")
-    public Object[] receiverQueueSizes() {
-        return new Object[][] { { 1 }, { 3 }, { 7 } };
-    }
-
-    @Test(dataProvider = "receiverQueueSize")
-    public void testFileSystemOffloadTxnData(int receiverQueueSize) throws Exception {
+    @Test
+    public void testFileSystemOffloadTxnData() throws Exception {
         FileSystemManagedLedgerOffloader fileSystemManagedLedgerOffloader = buildFileSystemOffloader();
         fileSystemManagedLedgerOffloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(1L);
         setLedgerOffloader(fileSystemManagedLedgerOffloader);
         setMaxEntriesPerLedger(4);
         setProperties(properties);
         setup();
-        sendAndOffloadMessages(receiverQueueSize);
+        sendAndOffloadMessages();
     }
-
-    @Test(dataProvider = "receiverQueueSize")
-    public void testBlobStoreOffloadTxnData(int receiverQueueSize) throws Exception {
+    @Test
+    public void testBlobStoreOffloadTxnData() throws Exception {
         BlobStoreManagedLedgerOffloader blobStoreManagedLedgerOffloader = buildBlobstoreOffloader();
         setMaxEntriesPerLedger(4);
         setLedgerOffloader(blobStoreManagedLedgerOffloader);
         setProperties(properties);
         setup();
-        sendAndOffloadMessages(receiverQueueSize);
+        sendAndOffloadMessages();
     }
 
-    private void sendAndOffloadMessages(int receiverQueueSize) throws Exception {
+    private void sendAndOffloadMessages() throws Exception {
         String topic = "persistent://" + NAMESPACE1 + "/testOffloadTxnData";
         admin.topics().createNonPartitionedTopic(topic);
         Map<String, String> map = new HashMap<>();
@@ -257,7 +251,7 @@ public class OffloadTxnDataTest extends TransactionTestBase{
         waitOffload(messageIdList.get(messageIdList.size() - 2), persistentTopic);
 
         @Cleanup
-        Consumer<String> consumer = buildConsumer(topic, receiverQueueSize);
+        Consumer<String> consumer = buildConsumer(topic);
         for (int i = 0; i < messageIdList.size() - 1; i++) {
             Message message = consumer.receive();
             String[] msgs = message.getValue().toString().split(" ");
@@ -328,12 +322,11 @@ public class OffloadTxnDataTest extends TransactionTestBase{
             return null;
         }
     }
-    private Consumer<String> buildConsumer(String topic, int receiverQueueSize) throws PulsarClientException {
+    private Consumer<String> buildConsumer(String topic) throws PulsarClientException {
         return pulsarClient
                 .newConsumer(Schema.STRING)
                 .subscriptionName("testOffload" + RandomUtils.nextLong())
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .receiverQueueSize(receiverQueueSize)
                 .topic(topic)
                 .subscribe();
     }
