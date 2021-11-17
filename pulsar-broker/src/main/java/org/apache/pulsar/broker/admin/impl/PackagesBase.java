@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import static javax.ws.rs.core.Response.Status.SERVICE_UNAVAILABLE;
 import java.io.InputStream;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -74,92 +75,127 @@ public class PackagesBase extends AdminResource {
 
     protected void internalGetMetadata(String type, String tenant, String namespace, String packageName,
                                                   String version, AsyncResponse asyncResponse) {
-        checkPermissions(tenant, namespace)
-            .thenCompose(ignore -> getPackageNameAsync(type, tenant, namespace, packageName, version))
-            .thenCompose(name -> getPackagesManagement().getMeta(name))
-            .thenAccept(asyncResponse::resume)
-            .exceptionally(e -> handleError(e.getCause(), asyncResponse));
+        if (pulsar().getConfig().isEnablePackagesManagement()) {
+            checkPermissions(tenant, namespace)
+                    .thenCompose(ignore -> getPackageNameAsync(type, tenant, namespace, packageName, version))
+                    .thenCompose(name -> getPackagesManagement().getMeta(name))
+                    .thenAccept(asyncResponse::resume)
+                    .exceptionally(e -> handleError(e.getCause(), asyncResponse));
+        } else {
+            asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
+                    "Package Management Service is not enabled in the broker."));
+        }
     }
 
     protected void internalUpdateMetadata(String type, String tenant, String namespace, String packageName,
                                           String version, PackageMetadata metadata, AsyncResponse asyncResponse) {
-        checkPermissions(tenant, namespace)
-            .thenCompose(ignore -> getPackageNameAsync(type, tenant, namespace, packageName, version))
-            .thenCompose(name -> getPackagesManagement().updateMeta(name, metadata))
-            .thenAccept(ignore -> asyncResponse.resume(Response.noContent().build()))
-            .exceptionally(e -> handleError(e.getCause(), asyncResponse));
+        if (pulsar().getConfig().isEnablePackagesManagement()) {
+            checkPermissions(tenant, namespace)
+                    .thenCompose(ignore -> getPackageNameAsync(type, tenant, namespace, packageName, version))
+                    .thenCompose(name -> getPackagesManagement().updateMeta(name, metadata))
+                    .thenAccept(ignore -> asyncResponse.resume(Response.noContent().build()))
+                    .exceptionally(e -> handleError(e.getCause(), asyncResponse));
+        } else {
+            asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
+                    "Package Management Service is not enabled in the broker."));
+        }
     }
 
     protected StreamingOutput internalDownload(String type, String tenant, String namespace,
                                                String packageName, String version) {
-        try {
-            checkPermissions(tenant, namespace).get();
-        } catch (InterruptedException e) {
-            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
-        } catch (ExecutionException e) {
-            if (e.getCause() instanceof WebApplicationException) {
-                throw (WebApplicationException) e.getCause();
-            } else {
-                throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getCause().getMessage());
-            }
-        }
-        try {
-            PackageName name = PackageName.get(type, tenant, namespace, packageName, version);
-            return output -> {
-                try {
-                    getPackagesManagement().download(name, output).get();
-                } catch (InterruptedException e) {
-                    throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
-                } catch (ExecutionException e) {
-                    if (e.getCause() instanceof PackagesManagementException.NotFoundException) {
-                        throw new RestException(Response.Status.NOT_FOUND, e.getCause().getMessage());
-                    } else {
-                        throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getCause().getMessage());
-                    }
+        if (pulsar().getConfig().isEnablePackagesManagement()) {
+            try {
+                checkPermissions(tenant, namespace).get();
+            } catch (InterruptedException e) {
+                throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+            } catch (ExecutionException e) {
+                if (e.getCause() instanceof WebApplicationException) {
+                    throw (WebApplicationException) e.getCause();
+                } else {
+                    throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getCause().getMessage());
                 }
-            };
-        } catch (IllegalArgumentException illegalArgumentException) {
-            throw new RestException(Response.Status.PRECONDITION_FAILED, illegalArgumentException.getMessage());
+            }
+            try {
+                PackageName name = PackageName.get(type, tenant, namespace, packageName, version);
+                return output -> {
+                    try {
+                        getPackagesManagement().download(name, output).get();
+                    } catch (InterruptedException e) {
+                        throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+                    } catch (ExecutionException e) {
+                        if (e.getCause() instanceof PackagesManagementException.NotFoundException) {
+                            throw new RestException(Response.Status.NOT_FOUND, e.getCause().getMessage());
+                        } else {
+                            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getCause().getMessage());
+                        }
+                    }
+                };
+            } catch (IllegalArgumentException illegalArgumentException) {
+                throw new RestException(Response.Status.PRECONDITION_FAILED, illegalArgumentException.getMessage());
+            }
+        } else {
+            throw new RestException(SERVICE_UNAVAILABLE,
+                    "Package Management Service is not enabled in the broker.");
         }
     }
 
     protected void internalUpload(String type, String tenant, String namespace, String packageName, String version,
                                   PackageMetadata metadata, InputStream uploadedInputStream,
                                   AsyncResponse asyncResponse) {
-        checkPermissions(tenant, namespace)
-            .thenCompose(ignore -> getPackageNameAsync(type, tenant, namespace, packageName, version))
-            .thenCompose(name -> getPackagesManagement().upload(name, metadata, uploadedInputStream))
-            .thenAccept(ignore -> asyncResponse.resume(Response.noContent().build()))
-            .exceptionally(e -> handleError(e.getCause(), asyncResponse));
+        if (pulsar().getConfig().isEnablePackagesManagement()) {
+            checkPermissions(tenant, namespace)
+                    .thenCompose(ignore -> getPackageNameAsync(type, tenant, namespace, packageName, version))
+                    .thenCompose(name -> getPackagesManagement().upload(name, metadata, uploadedInputStream))
+                    .thenAccept(ignore -> asyncResponse.resume(Response.noContent().build()))
+                    .exceptionally(e -> handleError(e.getCause(), asyncResponse));
+        } else {
+            asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
+                    "Package Management Service is not enabled in the broker."));
+        }
     }
 
     protected void internalDelete(String type, String tenant, String namespace, String packageName, String version,
                                   AsyncResponse asyncResponse) {
-        checkPermissions(tenant, namespace)
-            .thenCompose(ignore -> getPackageNameAsync(type, tenant, namespace, packageName, version))
-            .thenCompose(name -> getPackagesManagement().delete(name))
-            .thenAccept(ignore -> asyncResponse.resume(Response.noContent().build()))
-            .exceptionally(e -> handleError(e.getCause(), asyncResponse));
+        if (pulsar().getConfig().isEnablePackagesManagement()) {
+            checkPermissions(tenant, namespace)
+                    .thenCompose(ignore -> getPackageNameAsync(type, tenant, namespace, packageName, version))
+                    .thenCompose(name -> getPackagesManagement().delete(name))
+                    .thenAccept(ignore -> asyncResponse.resume(Response.noContent().build()))
+                    .exceptionally(e -> handleError(e.getCause(), asyncResponse));
+        } else {
+            asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
+                    "Package Management Service is not enabled in the broker."));
+        }
     }
 
     protected void internalListVersions(String type, String tenant, String namespace, String packageName,
                                                      AsyncResponse asyncResponse) {
-        checkPermissions(tenant, namespace)
-            .thenCompose(ignore -> getPackageNameAsync(type, tenant, namespace, packageName, ""))
-            .thenCompose(name -> getPackagesManagement().list(name))
-            .thenAccept(asyncResponse::resume)
-            .exceptionally(e -> handleError(e.getCause(), asyncResponse));
+        if (pulsar().getConfig().isEnablePackagesManagement()) {
+            checkPermissions(tenant, namespace)
+                    .thenCompose(ignore -> getPackageNameAsync(type, tenant, namespace, packageName, ""))
+                    .thenCompose(name -> getPackagesManagement().list(name))
+                    .thenAccept(asyncResponse::resume)
+                    .exceptionally(e -> handleError(e.getCause(), asyncResponse));
+        } else {
+            asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
+                    "Package Management Service is not enabled in the broker."));
+        }
     }
 
     protected void internalListPackages(String type, String tenant, String namespace, AsyncResponse asyncResponse) {
-        try {
-            PackageType packageType = PackageType.getEnum(type);
-            checkPermissions(tenant, namespace)
-                .thenCompose(ignore -> getPackagesManagement().list(packageType, tenant, namespace))
-                .thenAccept(asyncResponse::resume)
-                .exceptionally(e -> handleError(e.getCause(), asyncResponse));
-        } catch (IllegalArgumentException iae) {
-            asyncResponse.resume(new RestException(Response.Status.PRECONDITION_FAILED, iae.getMessage()));
+        if (pulsar().getConfig().isEnablePackagesManagement()) {
+            try {
+                PackageType packageType = PackageType.getEnum(type);
+                checkPermissions(tenant, namespace)
+                        .thenCompose(ignore -> getPackagesManagement().list(packageType, tenant, namespace))
+                        .thenAccept(asyncResponse::resume)
+                        .exceptionally(e -> handleError(e.getCause(), asyncResponse));
+            } catch (IllegalArgumentException iae) {
+                asyncResponse.resume(new RestException(Response.Status.PRECONDITION_FAILED, iae.getMessage()));
+            }
+        } else {
+            asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
+                    "Package Management Service is not enabled in the broker."));
         }
     }
 
