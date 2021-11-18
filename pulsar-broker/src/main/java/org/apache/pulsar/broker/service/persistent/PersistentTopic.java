@@ -3090,7 +3090,7 @@ public class PersistentTopic extends AbstractTopic
         topicPolicies.getMaxSubscriptionsPerTopic().updateTopicValue(policies.getMaxSubscriptionsPerTopic());
         topicPolicies.getInactiveTopicPolicies().updateTopicValue(policies.getInactiveTopicPolicies());
         Arrays.stream(BacklogQuotaType.values()).forEach(type ->
-                this.topicPolicies.getBackLogQuotaMap().get(type).updateNamespaceValue(
+                this.topicPolicies.getBackLogQuotaMap().get(type).updateTopicValue(
                         policies.getBackLogQuotaMap() == null ? null :
                                 policies.getBackLogQuotaMap().get(type.toString()))
         );
