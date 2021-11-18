@@ -73,7 +73,7 @@ jobs:
 
       - name: build modules
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
-        run: mvn -B -ntp -q clean install -Pcore-modules,-main -DskipTests
+        run: mvn -B -ntp -q clean install -DskipTests
 
       - name: run unit test 'BROKER_FLAKY'
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}

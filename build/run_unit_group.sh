@@ -124,6 +124,8 @@ function other() {
 
   $MVN_TEST_COMMAND -pl tiered-storage/jcloud -Dinclude='**/BlobStoreManagedLedgerOffloaderTest.java'
 
+  $MVN_TEST_COMMAND -pl tiered-storage/tiered-storage-test -Dinclude='**/OffloadTxnDataTest.java'
+
   echo "::endgroup::"
   local modules_with_quarantined_tests=$(git grep -l '@Test.*"quarantine"' | grep '/src/test/java/' | \
     awk -F '/src/test/java/' '{ print $1 }' | egrep -v 'pulsar-broker|pulsar-proxy' | sort | uniq | \

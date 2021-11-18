@@ -39,6 +39,7 @@
   <modules>
     <module>jcloud</module>
     <module>file-system</module>
+    <module>tiered-storage-test</module>
   </modules>
 
   <build>
