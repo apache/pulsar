@@ -45,6 +45,18 @@ public class MessageIdImpl implements MessageId {
         this(-1, -1, -1);
     }
 
+    // Private constructor used only for json deserialization
+    private MessageIdImpl(String position) {
+        if ("latest".equals(position)) {
+            this.ledgerId = Long.MAX_VALUE;
+            this.entryId = Long.MAX_VALUE;
+        } else {
+            this.ledgerId = -1;
+            this.entryId = -1;
+        }
+        this.partitionIndex = -1;
+    }
+
     public MessageIdImpl(long ledgerId, long entryId, int partitionIndex) {
         this.ledgerId = ledgerId;
         this.entryId = entryId;

@@ -1318,9 +1318,9 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(name = "messageId", value = "messageId where to create the subscription. "
-                    + "It can be 'latest', 'earliest' or (ledgerId:entryId)",
+                    + "It can be 'latest', 'earliest' or (ledgerId:entryId:partitionIndex)",
                     defaultValue = "latest",
-                    allowableValues = "latest, earliest, ledgerId:entryId"
+                    allowableValues = "latest, earliest, (ledgerId:entryId:partitionIndex)"
             )
                     MessageIdImpl messageId,
             @ApiParam(value = "Is replicated required to perform this operation")
