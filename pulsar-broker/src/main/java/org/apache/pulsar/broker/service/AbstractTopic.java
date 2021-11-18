@@ -98,7 +98,7 @@ public abstract class AbstractTopic implements Topic {
     @Getter
     protected volatile SchemaCompatibilityStrategy schemaCompatibilityStrategy =
             SchemaCompatibilityStrategy.FULL;
-    protected volatile boolean isAllowAutoUpdateSchema = true;
+    protected volatile Boolean isAllowAutoUpdateSchema;
     // schema validation enforced flag
     protected volatile boolean schemaValidationEnforced = false;
 
@@ -334,7 +334,7 @@ public abstract class AbstractTopic implements Topic {
         String id = TopicName.get(base).getSchemaName();
         SchemaRegistryService schemaRegistryService = brokerService.pulsar().getSchemaRegistryService();
 
-        if (brokerService.pulsar().getConfig().isAllowAutoUpdateSchema() && isAllowAutoUpdateSchema) {
+        if (allowAutoUpdateSchema()) {
             return schemaRegistryService.putSchemaIfAbsent(id, schema, schemaCompatibilityStrategy);
         } else {
             return schemaRegistryService.trimDeletedSchemaAndGetList(id).thenCompose(schemaAndMetadataList ->
@@ -348,6 +348,13 @@ public abstract class AbstractTopic implements Topic {
                                 }
                             }));
         }
+    }
+
+    private boolean allowAutoUpdateSchema() {
+        if (isAllowAutoUpdateSchema == null) {
+            return brokerService.pulsar().getConfig().isAllowAutoUpdateSchemaEnabled();
+        }
+        return isAllowAutoUpdateSchema;
     }
 
     @Override

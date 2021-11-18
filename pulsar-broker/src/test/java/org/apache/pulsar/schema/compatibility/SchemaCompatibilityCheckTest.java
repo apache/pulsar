@@ -246,7 +246,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
 
 
-        pulsar.getConfig().setAllowAutoUpdateSchema(false);
+        pulsar.getConfig().setAllowAutoUpdateSchemaEnabled(false);
         ProducerBuilder<Schemas.PersonTwo> producerThreeBuilder = pulsarClient
                 .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull
                                 (false).withSupportSchemaVersioning(true).
@@ -258,7 +258,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
             Assert.assertTrue(e.getMessage().contains("Schema not found and schema auto updating is disabled."));
         }
 
-        pulsar.getConfig().setAllowAutoUpdateSchema(true);
+        pulsar.getConfig().setAllowAutoUpdateSchemaEnabled(true);
         ConsumerBuilder<Schemas.PersonTwo> comsumerBuilder = pulsarClient.newConsumer(Schema.AVRO(
                         SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull
                                         (false).withSupportSchemaVersioning(true).
@@ -281,7 +281,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         producer.close();
         consumerTwo.close();
 
-        pulsar.getConfig().setAllowAutoUpdateSchema(false);
+        pulsar.getConfig().setAllowAutoUpdateSchemaEnabled(false);
 
         producer = producerThreeBuilder.create();
         consumerTwo = comsumerBuilder.subscribe();
