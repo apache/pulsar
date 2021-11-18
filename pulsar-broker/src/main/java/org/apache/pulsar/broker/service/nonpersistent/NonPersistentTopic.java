@@ -57,6 +57,7 @@ import org.apache.pulsar.broker.service.StreamingStats;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TransportCnx;
+import org.apache.pulsar.broker.service.option.SubscriptionOption;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.api.MessageId;
@@ -222,6 +223,15 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     @Override
     public CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely(boolean isTxnEnabled) {
         return  CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<Consumer> subscribe(SubscriptionOption option) {
+        return subscribe(option.getCnx(), option.getSubscriptionName(), option.getConsumerId(), option.getSubType(),
+                option.getPriorityLevel(), option.getConsumerName(), option.isDurable(), option.getStartMessageId(),
+                option.getMetadata(), option.isReadCompacted(), option.getInitialPosition(),
+                option.getStartMessageRollbackDurationSec(), option.isReplicatedSubscriptionStateArg(),
+                option.getKeySharedMeta());
     }
 
     @Override

@@ -101,6 +101,7 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPolicyListener;
 import org.apache.pulsar.broker.service.TransportCnx;
+import org.apache.pulsar.broker.service.option.SubscriptionOption;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
@@ -653,14 +654,23 @@ public class PersistentTopic extends AbstractTopic
     }
 
     @Override
-    public CompletableFuture<Consumer> subscribe(final TransportCnx cnx, String subscriptionName, long consumerId,
+    public CompletableFuture<Consumer> subscribe(SubscriptionOption option) {
+        return internalSubscribe(option.getCnx(), option.getSubscriptionName(), option.getConsumerId(), option.getSubType(),
+                option.getPriorityLevel(), option.getConsumerName(), option.isDurable(), option.getStartMessageId(),
+                option.getMetadata(), option.isReadCompacted(), option.getInitialPosition(),
+                option.getStartMessageRollbackDurationSec(), option.isReplicatedSubscriptionStateArg(),
+                option.getKeySharedMeta(), option.getSubscriptionProperties());
+    }
+
+    private CompletableFuture<Consumer> internalSubscribe(final TransportCnx cnx, String subscriptionName, long consumerId,
                                                  SubType subType, int priorityLevel, String consumerName,
                                                  boolean isDurable, MessageId startMessageId,
                                                  Map<String, String> metadata, boolean readCompacted,
                                                  InitialPosition initialPosition,
                                                  long startMessageRollbackDurationSec,
                                                  boolean replicatedSubscriptionStateArg,
-                                                 KeySharedMeta keySharedMeta) {
+                                                 KeySharedMeta keySharedMeta,
+                                                 Map<String, Long> subscriptionProperties) {
         if (readCompacted && !(subType == SubType.Failover || subType == SubType.Exclusive)) {
             return FutureUtil.failedFuture(new NotAllowedException(
                     "readCompacted only allowed on failover or exclusive subscriptions"));
@@ -740,7 +750,7 @@ public class PersistentTopic extends AbstractTopic
 
             CompletableFuture<? extends Subscription> subscriptionFuture = isDurable ? //
                     getDurableSubscription(subscriptionName, initialPosition, startMessageRollbackDurationSec,
-                            replicatedSubscriptionState)
+                            replicatedSubscriptionState, subscriptionProperties)
                     : getNonDurableSubscription(subscriptionName, startMessageId, initialPosition,
                     startMessageRollbackDurationSec);
 
@@ -801,6 +811,20 @@ public class PersistentTopic extends AbstractTopic
         });
     }
 
+    @Override
+    public CompletableFuture<Consumer> subscribe(final TransportCnx cnx, String subscriptionName, long consumerId,
+                                                 SubType subType, int priorityLevel, String consumerName,
+                                                 boolean isDurable, MessageId startMessageId,
+                                                 Map<String, String> metadata, boolean readCompacted,
+                                                 InitialPosition initialPosition,
+                                                 long startMessageRollbackDurationSec,
+                                                 boolean replicatedSubscriptionStateArg,
+                                                 KeySharedMeta keySharedMeta) {
+        return internalSubscribe(cnx, subscriptionName, consumerId, subType, priorityLevel, consumerName,
+                isDurable, startMessageId, metadata, readCompacted, initialPosition, startMessageRollbackDurationSec,
+                replicatedSubscriptionStateArg, keySharedMeta, null);
+    }
+
     public void updateUnackedMessagesAppliedOnSubscription(Policies policies) {
         maxUnackedMessagesOnSubscriptionApplied = getTopicPolicies()
                 .map(TopicPolicies::getMaxUnackedMessagesOnSubscription)
@@ -830,7 +854,8 @@ public class PersistentTopic extends AbstractTopic
     }
 
     private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,
-            InitialPosition initialPosition, long startMessageRollbackDurationSec, boolean replicated) {
+            InitialPosition initialPosition, long startMessageRollbackDurationSec, boolean replicated,
+                                                                   Map<String, Long> subscriptionProperties) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
         if (checkMaxSubscriptionsPerTopicExceed(subscriptionName)) {
             subscriptionFuture.completeExceptionally(new NotAllowedException(
@@ -838,7 +863,7 @@ public class PersistentTopic extends AbstractTopic
             return subscriptionFuture;
         }
 
-        Map<String, Long> properties = PersistentSubscription.getBaseCursorProperties(replicated);
+        Map<String, Long> properties = PersistentSubscription.getBaseCursorProperties(replicated, subscriptionProperties);
 
         ledger.asyncOpenCursor(Codec.encode(subscriptionName), initialPosition, properties, new OpenCursorCallback() {
             @Override
@@ -964,7 +989,7 @@ public class PersistentTopic extends AbstractTopic
     public CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
                                                               boolean replicateSubscriptionState) {
         return getDurableSubscription(subscriptionName, initialPosition,
-                0 /*avoid reseting cursor*/, replicateSubscriptionState);
+                0 /*avoid reseting cursor*/, replicateSubscriptionState, null);
     }
 
     /**

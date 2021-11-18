@@ -25,6 +25,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import java.io.Serializable;
+import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -62,6 +63,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private String subscriptionName;
 
     private SubscriptionType subscriptionType = SubscriptionType.Exclusive;
+
+    private Map<String, Long> subscriptionProperties;
 
     private SubscriptionMode subscriptionMode = SubscriptionMode.Durable;
 

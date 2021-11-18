@@ -24,6 +24,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.broker.service.option.SubscriptionOption;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
@@ -136,6 +137,13 @@ public interface Topic {
                                           InitialPosition initialPosition,
                                           long startMessageRollbackDurationSec, boolean replicateSubscriptionState,
                                           KeySharedMeta keySharedMeta);
+
+    /**
+     * Subscribe a topic
+     * @param option
+     * @return
+     */
+    CompletableFuture<Consumer> subscribe(SubscriptionOption option);
 
     CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
             boolean replicateSubscriptionState);

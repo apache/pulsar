@@ -75,6 +75,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataExc
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionNotFoundException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicNotFoundException;
+import org.apache.pulsar.broker.service.option.SubscriptionOption;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
@@ -1010,20 +1011,22 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                 new SubscriptionNotFoundException(
                                                         "Subscription does not exist"));
                             }
-
+                            SubscriptionOption option = SubscriptionOption.builder().cnx(ServerCnx.this)
+                                    .subscriptionName(subscriptionName)
+                                    .consumerId(consumerId).subType(subType).priorityLevel(priorityLevel)
+                                    .consumerName(consumerName).isDurable(isDurable).subType(subType)
+                                    .startMessageId(startMessageId).metadata(metadata).readCompacted(readCompacted)
+                                    .initialPosition(initialPosition)
+                                    .startMessageRollbackDurationSec(startMessageRollbackDurationSec)
+                                    .replicatedSubscriptionStateArg(isReplicated).keySharedMeta(keySharedMeta)
+                                    .subscriptionProperties(SubscriptionOption.getPropertiesMap(
+                                            subscribe.getSubscriptionPropertiesList()))
+                                    .build();
                             if (schema != null) {
                                 return topic.addSchemaIfIdleOrCheckCompatible(schema)
-                                        .thenCompose(v -> topic.subscribe(
-                                                ServerCnx.this, subscriptionName, consumerId,
-                                                subType, priorityLevel, consumerName, isDurable,
-                                                startMessageId, metadata,
-                                                readCompacted, initialPosition, startMessageRollbackDurationSec,
-                                                isReplicated, keySharedMeta));
+                                        .thenCompose(v -> topic.subscribe(option));
                             } else {
-                                return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
-                                    subType, priorityLevel, consumerName, isDurable,
-                                    startMessageId, metadata, readCompacted, initialPosition,
-                                    startMessageRollbackDurationSec, isReplicated, keySharedMeta);
+                                return topic.subscribe(option);
                             }
                         })
                         .thenAccept(consumer -> {

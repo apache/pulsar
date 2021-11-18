@@ -205,6 +205,13 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
+    public ConsumerBuilder<T> subscriptionProperties(Map<String, Long> subscriptionProperties) {
+        checkArgument(subscriptionProperties != null, "subscriptionProperties cannot be null");
+        conf.setSubscriptionProperties(subscriptionProperties);
+        return this;
+    }
+
+    @Override
     public ConsumerBuilder<T> ackTimeout(long ackTimeout, TimeUnit timeUnit) {
         checkArgument(ackTimeout == 0 || timeUnit.toMillis(ackTimeout) >= MIN_ACK_TIMEOUT_MILLIS,
                 "Ack timeout should be greater than " + MIN_ACK_TIMEOUT_MILLIS + " ms");
