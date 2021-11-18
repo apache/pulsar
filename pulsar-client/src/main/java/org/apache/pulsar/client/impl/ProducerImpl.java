@@ -116,7 +116,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     // Globally unique producer name
     private String producerName;
-    private boolean userProvidedProducerName = false;
+    private final boolean userProvidedProducerName;
 
     private String connectionId;
     private String connectedSince;
@@ -162,9 +162,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         super(client, topic, conf, producerCreatedFuture, schema, interceptors);
         this.producerId = client.newProducerId();
         this.producerName = conf.getProducerName();
-        if (StringUtils.isNotBlank(producerName)) {
-            this.userProvidedProducerName = true;
-        }
+        this.userProvidedProducerName = StringUtils.isNotBlank(producerName);
         this.partitionIndex = partitionIndex;
         this.pendingMessages = createPendingMessagesQueue();
         if (conf.getMaxPendingMessages() > 0) {
