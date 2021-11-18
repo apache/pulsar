@@ -365,7 +365,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
     }
 
     private void processCompactedMetaDataTopicMessage(Message<byte[]> message) throws IOException {
-        long version = Long.valueOf(message.getProperty(versionTag));
+        long version = Long.parseLong(message.getProperty(versionTag));
         String tenant = FunctionCommon.extractTenantFromFullyQualifiedName(message.getKey());
         String namespace = FunctionCommon.extractNamespaceFromFullyQualifiedName(message.getKey());
         String functionName = FunctionCommon.extractNameFromFullyQualifiedName(message.getKey());

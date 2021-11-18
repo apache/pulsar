@@ -18,14 +18,11 @@
  */
 package org.apache.pulsar.broker;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.channel.EventLoopGroup;
 
 import java.io.IOException;
-import java.util.concurrent.Executors;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ExecutorService;
 
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;

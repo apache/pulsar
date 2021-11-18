@@ -4,9 +4,6 @@ title: Pulsar dashboard
 sidebar_label: "Dashboard"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 :::note
 
 Pulsar dashboard is deprecated. We recommend you use [Pulsar Manager](administration-pulsar-manager) to manage and monitor the stats of your topics. 

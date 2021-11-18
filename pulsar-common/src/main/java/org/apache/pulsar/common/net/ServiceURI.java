@@ -220,7 +220,7 @@ public class ServiceURI {
             case BINARY_SERVICE:
                 if (serviceInfos.length == 0) {
                     port = BINARY_PORT;
-                } else if (serviceInfos.length == 1 && serviceInfos[0].toLowerCase().equals(SSL_SERVICE)) {
+                } else if (serviceInfos.length == 1 && serviceInfos[0].equalsIgnoreCase(SSL_SERVICE)) {
                     port = BINARY_TLS_PORT;
                 } else {
                     throw new IllegalArgumentException("Invalid pulsar service : " + serviceName + "+"

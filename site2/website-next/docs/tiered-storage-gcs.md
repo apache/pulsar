@@ -4,10 +4,6 @@ title: Use GCS offloader with Pulsar
 sidebar_label: "GCS offloader"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 This chapter guides you through every step of installing and configuring the GCS offloader and using it with Pulsar.
 
 ## Installation

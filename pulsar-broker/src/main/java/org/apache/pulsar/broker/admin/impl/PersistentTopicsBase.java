@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import static org.apache.pulsar.broker.PulsarService.isTransactionInternalName;
 import static org.apache.pulsar.broker.resources.PulsarResources.DEFAULT_OPERATION_TIMEOUT_SEC;
 import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsTransactionCoordinatorAssign;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -161,7 +162,9 @@ public class PersistentTopicsBase extends AdminResource {
         }
 
         try {
-            return topicResources().listPersistentTopicsAsync(namespaceName).join();
+            return topicResources().listPersistentTopicsAsync(namespaceName).thenApply(topics ->
+                    topics.stream().filter(topic ->
+                            !isTransactionInternalName(TopicName.get(topic))).collect(Collectors.toList())).join();
         } catch (Exception e) {
             log.error("[{}] Failed to get topics list for namespace {}", clientAppId(), namespaceName, e);
             throw new RestException(e);
@@ -241,6 +244,13 @@ public class PersistentTopicsBase extends AdminResource {
                         topicName, clientAppId(), e.getMessage(), e);
                 throw new RestException(e);
             }
+        }
+    }
+
+    protected void validateCreateTopic(TopicName topicName) {
+        if (isTransactionInternalName(topicName)) {
+            log.warn("Try to create a topic in the system topic format! {}", topicName);
+            throw new RestException(Status.CONFLICT, "Cannot create topic in system topic format!");
         }
     }
 
@@ -1049,7 +1059,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 existsFutures.put(i, topicResources().persistentTopicExists(topicName.getPartition(i)));
                             }
                             FutureUtil.waitForAll(Lists.newArrayList(existsFutures.values())).thenApply(__ ->
-                                    existsFutures.entrySet().stream().filter(e -> e.getValue().join().booleanValue())
+                                    existsFutures.entrySet().stream().filter(e -> e.getValue().join())
                                             .map(item -> topicName.getPartition(item.getKey()).toString())
                                             .collect(Collectors.toList())
                             ).thenAccept(topics -> {
@@ -3683,7 +3693,10 @@ public class PersistentTopicsBase extends AdminResource {
         } catch (RestException e) {
             throw e;
         } catch (Exception e) {
-            throw new RestException(e);
+            if (e.getCause() instanceof NotAllowedException) {
+                throw new RestException(Status.CONFLICT, e.getCause());
+            }
+            throw new RestException(e.getCause());
         }
     }
 

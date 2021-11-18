@@ -48,20 +48,22 @@ You can use one of the following methods to create a configuration file.
 
     ```json
     {
-        "database.hostname": "localhost",
-        "database.port": "3306",
-        "database.user": "debezium",
-        "database.password": "dbz",
-        "database.server.id": "184054",
-        "database.server.name": "dbserver1",
-        "database.whitelist": "inventory",
-        "database.history": "org.apache.pulsar.io.debezium.PulsarDatabaseHistory",
-        "database.history.pulsar.topic": "history-topic",
-        "database.history.pulsar.service.url": "pulsar://127.0.0.1:6650",
-        "key.converter": "org.apache.kafka.connect.json.JsonConverter",
-        "value.converter": "org.apache.kafka.connect.json.JsonConverter",
-        "pulsar.service.url": "pulsar://127.0.0.1:6650",
-        "offset.storage.topic": "offset-topic"
+       "configs": {
+          "database.hostname": "localhost",
+          "database.port": "3306",
+          "database.user": "debezium",
+          "database.password": "dbz",
+          "database.server.id": "184054",
+          "database.server.name": "dbserver1",
+          "database.whitelist": "inventory",
+          "database.history": "org.apache.pulsar.io.debezium.PulsarDatabaseHistory",
+          "database.history.pulsar.topic": "history-topic",
+          "database.history.pulsar.service.url": "pulsar://127.0.0.1:6650",
+          "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+          "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+          "pulsar.service.url": "pulsar://127.0.0.1:6650",
+          "offset.storage.topic": "offset-topic"
+       }
     }
     ```
 

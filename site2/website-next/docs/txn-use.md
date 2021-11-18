@@ -4,10 +4,6 @@ title: How to use transactions?
 sidebar_label: "How to use transactions?"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 ## Transaction API
 
 The transaction feature is primarily a server-side and protocol-level feature. You can use the transaction feature via the [transaction API](https://pulsar.apache.org/api/admin/), which is available in **Pulsar 2.8.0 or later**. 

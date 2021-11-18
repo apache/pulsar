@@ -103,7 +103,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         this.numMsgsDelivered = new LongAdder();
         this.numBytesDelivered = new LongAdder();
         this.numMsgsAcked = new LongAdder();
-        this.pullMode = Boolean.valueOf(queryParams.get("pullMode"));
+        this.pullMode = Boolean.parseBoolean(queryParams.get("pullMode"));
 
         try {
             // checkAuth() and getConsumerConfiguration() should be called after assigning a value to this.subscription

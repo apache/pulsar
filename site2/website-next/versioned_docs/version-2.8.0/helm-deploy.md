@@ -5,10 +5,6 @@ sidebar_label: "Deployment"
 original_id: helm-deploy
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 Before running `helm install`, you need to decide how to run Pulsar.
 Options can be specified using Helm's `--set option.name=value` command line option.
 

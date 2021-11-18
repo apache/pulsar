@@ -5,10 +5,6 @@ sidebar_label: "HBase sink connector"
 original_id: io-hbase-sink
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The HBase sink connector pulls the messages from Pulsar topics 
 and persists the messages to HBase tables
 

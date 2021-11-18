@@ -5,10 +5,6 @@ sidebar_label: "Docker"
 original_id: deploy-docker
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 To deploy a Pulsar cluster on Docker, complete the following steps:
 1. Deploy a ZooKeeper cluster (optional)
 2. Initialize cluster metadata
