@@ -195,6 +195,100 @@
           "id": "version-2.6.3/sql-rest-api"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Kubernetes (Helm)",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.6.3/helm-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.3/helm-prepare"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.3/helm-install"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.3/helm-deploy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.3/helm-upgrade"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.3/helm-tools"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Deployment",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.6.3/deploy-aws"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.3/deploy-kubernetes"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.3/deploy-bare-metal"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.3/deploy-bare-metal-multi-cluster"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.3/deploy-dcos"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.3/deploy-monitoring"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Administration",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.6.3/administration-zk-bk"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.3/administration-geo"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.3/administration-pulsar-manager"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.3/administration-stats"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.3/administration-load-balance"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.3/administration-proxy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.3/administration-upgrade"
+        }
+      ]
     }
   ]
 }
