@@ -218,6 +218,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 if (ex != null) {
                     log.error("[{}] Failed to create reader on __change_events topic", namespace, ex);
                     result.completeExceptionally(ex);
+                    readerCaches.remove(namespace);
+                    reader.closeAsync();
                 } else {
                     initPolicesCache(reader, result);
                     result.thenRun(() -> readMorePolicies(reader));
