@@ -73,19 +73,21 @@
 <ul>
 <li><p>JSON</p>
 <pre><code class="hljs css language-json">{
-    <span class="hljs-attr">"database.hostname"</span>: <span class="hljs-string">"localhost"</span>,
-    <span class="hljs-attr">"database.port"</span>: <span class="hljs-string">"3306"</span>,
-    <span class="hljs-attr">"database.user"</span>: <span class="hljs-string">"debezium"</span>,
-    <span class="hljs-attr">"database.password"</span>: <span class="hljs-string">"dbz"</span>,
-    <span class="hljs-attr">"database.server.id"</span>: <span class="hljs-string">"184054"</span>,
-    <span class="hljs-attr">"database.server.name"</span>: <span class="hljs-string">"dbserver1"</span>,
-    <span class="hljs-attr">"database.whitelist"</span>: <span class="hljs-string">"inventory"</span>,
-    <span class="hljs-attr">"database.history"</span>: <span class="hljs-string">"org.apache.pulsar.io.debezium.PulsarDatabaseHistory"</span>,
-    <span class="hljs-attr">"database.history.pulsar.topic"</span>: <span class="hljs-string">"history-topic"</span>,
-    <span class="hljs-attr">"database.history.pulsar.service.url"</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>,
-    <span class="hljs-attr">"key.converter"</span>: <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>,
-    <span class="hljs-attr">"value.converter"</span>: <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>,
-    <span class="hljs-attr">"offset.storage.topic"</span>: <span class="hljs-string">"offset-topic"</span>
+   <span class="hljs-attr">"configs"</span>: {
+      <span class="hljs-attr">"database.hostname"</span>: <span class="hljs-string">"localhost"</span>,
+      <span class="hljs-attr">"database.port"</span>: <span class="hljs-string">"3306"</span>,
+      <span class="hljs-attr">"database.user"</span>: <span class="hljs-string">"debezium"</span>,
+      <span class="hljs-attr">"database.password"</span>: <span class="hljs-string">"dbz"</span>,
+      <span class="hljs-attr">"database.server.id"</span>: <span class="hljs-string">"184054"</span>,
+      <span class="hljs-attr">"database.server.name"</span>: <span class="hljs-string">"dbserver1"</span>,
+      <span class="hljs-attr">"database.whitelist"</span>: <span class="hljs-string">"inventory"</span>,
+      <span class="hljs-attr">"database.history"</span>: <span class="hljs-string">"org.apache.pulsar.io.debezium.PulsarDatabaseHistory"</span>,
+      <span class="hljs-attr">"database.history.pulsar.topic"</span>: <span class="hljs-string">"history-topic"</span>,
+      <span class="hljs-attr">"database.history.pulsar.service.url"</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>,
+      <span class="hljs-attr">"key.converter"</span>: <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>,
+      <span class="hljs-attr">"value.converter"</span>: <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>,
+      <span class="hljs-attr">"offset.storage.topic"</span>: <span class="hljs-string">"offset-topic"</span>
+   }
 }
 </code></pre></li>
 <li><p>YAML</p>
