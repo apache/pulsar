@@ -22,9 +22,6 @@ import org.apache.pulsar.common.policies.data.stats.NonPersistentPartitionedTopi
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPublisherStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentReplicatorStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentSubscriptionStatsImpl;
-import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
-import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
-import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.testng.annotations.Test;
 
 import static org.testng.Assert.assertEquals;

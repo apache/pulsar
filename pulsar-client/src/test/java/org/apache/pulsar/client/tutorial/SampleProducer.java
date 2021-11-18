@@ -22,7 +22,6 @@ import java.io.IOException;
 
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 
 public class SampleProducer {
     public static void main(String[] args) throws InterruptedException, IOException {

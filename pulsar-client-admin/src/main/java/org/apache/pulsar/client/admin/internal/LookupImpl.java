@@ -50,16 +50,7 @@ public class LookupImpl extends BaseResource implements Lookup {
 
     @Override
     public String lookupTopic(String topic) throws PulsarAdminException {
-        try {
-            return lookupTopicAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> lookupTopicAsync(topic));
     }
 
     @Override
@@ -147,16 +138,7 @@ public class LookupImpl extends BaseResource implements Lookup {
 
     @Override
     public String getBundleRange(String topic) throws PulsarAdminException {
-        try {
-            return getBundleRangeAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getBundleRangeAsync(topic));
     }
 
     @Override

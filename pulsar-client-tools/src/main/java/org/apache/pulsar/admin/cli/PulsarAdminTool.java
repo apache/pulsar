@@ -20,6 +20,7 @@ package org.apache.pulsar.admin.cli;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import com.google.common.annotations.VisibleForTesting;
 
 import java.io.FileInputStream;
 import java.lang.reflect.InvocationTargetException;
@@ -317,7 +318,7 @@ public class PulsarAdminTool {
         }
 
         ++cmdPos;
-        boolean isLocalRun = cmdPos < args.length && "localrun".equals(args[cmdPos].toLowerCase());
+        boolean isLocalRun = cmdPos < args.length && "localrun".equalsIgnoreCase(args[cmdPos]);
 
         Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory;
         if (isLocalRun) {
@@ -361,5 +362,9 @@ public class PulsarAdminTool {
         return lastExitCode;
     }
 
+    @VisibleForTesting
+    static void resetLastExitCode() {
+        lastExitCode = Integer.MIN_VALUE;
+    }
 
 }

@@ -4,10 +4,6 @@ title: Kinesis source connector
 sidebar_label: "Kinesis source connector"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The Kinesis source connector pulls data from Amazon Kinesis and persists data into Pulsar.
 
 This connector uses the [Kinesis Consumer Library](https://github.com/awslabs/amazon-kinesis-client) (KCL) to do the actual consuming of messages. The KCL uses DynamoDB to track state for consumers.
@@ -48,17 +44,19 @@ Before using the Kinesis source connector, you need to create a configuration fi
   ```json
   
   {
-      "awsEndpoint": "https://some.endpoint.aws",
-      "awsRegion": "us-east-1",
-      "awsKinesisStreamName": "my-stream",
-      "awsCredentialPluginParam": "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}",
-      "applicationName": "My test application",
-      "checkpointInterval": "30000",
-      "backoffTime": "4000",
-      "numRetries": "3",
-      "receiveQueueSize": 2000,
-      "initialPositionInStream": "TRIM_HORIZON",
-      "startAtTime": "2019-03-05T19:28:58.000Z"
+     "configs": {
+        "awsEndpoint": "https://some.endpoint.aws",
+        "awsRegion": "us-east-1",
+        "awsKinesisStreamName": "my-stream",
+        "awsCredentialPluginParam": "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}",
+        "applicationName": "My test application",
+        "checkpointInterval": "30000",
+        "backoffTime": "4000",
+        "numRetries": "3",
+        "receiveQueueSize": 2000,
+        "initialPositionInStream": "TRIM_HORIZON",
+        "startAtTime": "2019-03-05T19:28:58.000Z"
+     }
   }
   
   ```

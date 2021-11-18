@@ -5,10 +5,6 @@ sidebar_label: "Solr sink connector"
 original_id: io-solr-sink
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The Solr sink connector pulls messages from Pulsar topics 
 and persists the messages to Solr collections.
 

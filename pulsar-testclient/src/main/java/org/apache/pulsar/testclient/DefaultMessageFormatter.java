@@ -50,7 +50,7 @@ public class DefaultMessageFormatter implements IMessageFormatter {
                 break;
             }
             if (i != 1) {
-                size = Float.valueOf(new String(sMessage.substring(idx+1,idx+i)));
+                size = Float.parseFloat(sMessage.substring(idx + 1, idx + i));
             }
 
             String sub = sMessage.substring(idx, idx+i+1);

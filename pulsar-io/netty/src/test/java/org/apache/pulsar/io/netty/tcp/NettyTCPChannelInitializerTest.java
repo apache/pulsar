@@ -24,10 +24,8 @@ import static org.testng.Assert.assertNotNull;
 import org.apache.pulsar.io.netty.NettySource;
 import org.apache.pulsar.io.netty.tcp.NettyTCPChannelInitializer;
 import org.apache.pulsar.io.netty.tcp.NettyTCPServerHandler;
-import org.apache.pulsar.io.netty.udp.NettyUDPServerHandler;
 import org.testng.annotations.Test;
 
-import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 
 /**

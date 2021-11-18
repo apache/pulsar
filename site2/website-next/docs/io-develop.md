@@ -386,12 +386,7 @@ Here is an example of how to customize metrics for a Java connector.
 
 <Tabs 
   defaultValue="Java"
-  values={[
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"Java","value":"Java"}]}>
 <TabItem value="Java">
 
 ```
