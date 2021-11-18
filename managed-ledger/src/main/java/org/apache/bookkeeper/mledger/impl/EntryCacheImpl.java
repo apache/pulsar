@@ -234,12 +234,7 @@ public class EntryCacheImpl implements EntryCache {
                         } finally {
                             ledgerEntries.close();
                         }
-                    }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception->{
-                          ml.invalidateLedgerHandle(lh);
-                          callback.readEntryFailed(createManagedLedgerException(exception), ctx);
-                          return null;
-                    }
-                    );
+                    }, ml.getExecutor().chooseThread(ml.getName()));
         }
     }
 
@@ -333,17 +328,7 @@ public class EntryCacheImpl implements EntryCache {
                         } finally {
                             ledgerEntries.close();
                         }
-                    }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception->{
-                    	  if (exception instanceof BKException
-                                  && ((BKException)exception).getCode() == BKException.Code.TooManyRequestsException) {
-                                  callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
-                              } else {
-                                  ml.invalidateLedgerHandle(lh);
-                                  ManagedLedgerException mlException = createManagedLedgerException(exception);
-                                  callback.readEntriesFailed(mlException, ctx);
-                              }
-                    	return null;
-                    });
+                    }, ml.getExecutor().chooseThread(ml.getName()));
         }
     }
 

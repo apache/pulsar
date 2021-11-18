@@ -215,9 +215,6 @@ public class EntryCacheManager {
                         ml.mbean.addReadEntriesSample(entries.size(), totalSize);
 
                         callback.readEntriesComplete(entries, ctx);
-                    }).exceptionally(exception -> {
-                    	callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
-                    	return null;
                     });
         }
 
