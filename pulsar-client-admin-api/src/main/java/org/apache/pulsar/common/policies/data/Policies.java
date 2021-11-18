@@ -107,7 +107,7 @@ public class Policies {
     public SchemaCompatibilityStrategy schema_compatibility_strategy = SchemaCompatibilityStrategy.UNDEFINED;
 
     @SuppressWarnings("checkstyle:MemberName")
-    public boolean is_allow_auto_update_schema = true;
+    public Boolean is_allow_auto_update_schema = null;
 
     @SuppressWarnings("checkstyle:MemberName")
     public boolean schema_validation_enforced = false;
