@@ -631,13 +631,9 @@ public abstract class AbstractTopic implements Topic {
 
     private void tryOverwriteOldProducer(Producer oldProducer, Producer newProducer)
             throws BrokerServiceException {
-        boolean canOverwrite = false;
-        if (oldProducer.equals(newProducer) && !isUserProvidedProducerName(oldProducer)
-                && !isUserProvidedProducerName(newProducer) && newProducer.getEpoch() > oldProducer.getEpoch()) {
+        if (newProducer.isSuccessorTo(oldProducer) && !isUserProvidedProducerName(oldProducer)
+                && !isUserProvidedProducerName(newProducer)) {
             oldProducer.close(false);
-            canOverwrite = true;
-        }
-        if (canOverwrite) {
             if (!producers.replace(newProducer.getProducerName(), oldProducer, newProducer)) {
                 // Met concurrent update, throw exception here so that client can try reconnect later.
                 throw new BrokerServiceException.NamingException("Producer with name '" + newProducer.getProducerName()
