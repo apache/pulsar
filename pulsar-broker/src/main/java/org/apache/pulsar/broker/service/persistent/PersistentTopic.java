@@ -74,7 +74,6 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.NamespaceResources.PartitionedTopicResources;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.AbstractTopic;
@@ -250,7 +249,7 @@ public class PersistentTopic extends AbstractTopic
         }
     }
 
-    public PersistentTopic(String topic, ManagedLedger ledger, BrokerService brokerService) throws NamingException {
+    public PersistentTopic(String topic, ManagedLedger ledger, BrokerService brokerService) {
         super(topic, brokerService);
         this.ledger = ledger;
         this.subscriptions = new ConcurrentOpenHashMap<>(16, 1);
@@ -324,9 +323,9 @@ public class PersistentTopic extends AbstractTopic
                     isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
 
                     schemaValidationEnforced = policies.schema_validation_enforced;
-                    if (policies.inactive_topic_policies != null) {
-                        inactiveTopicPolicies = policies.inactive_topic_policies;
-                    }
+
+                    topicPolicies.getInactiveTopicPolicies().updateNamespaceValue(policies.inactive_topic_policies);
+
                     updateUnackedMessagesAppliedOnSubscription(policies);
                     updateUnackedMessagesExceededOnConsumer(policies);
                 }).exceptionally(ex -> {
@@ -1565,7 +1564,7 @@ public class PersistentTopic extends AbstractTopic
                         .thenApply(clusterData ->
                                 brokerService.getReplicationClient(remoteCluster, clusterData)))
                 .thenAccept(replicationClient -> {
-                    replicators.computeIfAbsent(remoteCluster, r -> {
+                    Replicator replicator = replicators.computeIfAbsent(remoteCluster, r -> {
                         try {
                             return new PersistentReplicator(PersistentTopic.this, cursor, localCluster,
                                     remoteCluster, brokerService, (PulsarClientImpl) replicationClient);
@@ -1576,8 +1575,8 @@ public class PersistentTopic extends AbstractTopic
                     });
 
                     // clean up replicator if startup is failed
-                    if (replicators.containsKey(remoteCluster) && replicators.get(remoteCluster) == null) {
-                        replicators.remove(remoteCluster);
+                    if (replicator == null) {
+                        replicators.removeNullValue(remoteCluster);
                     }
                 });
     }
@@ -2203,8 +2202,9 @@ public class PersistentTopic extends AbstractTopic
             // This topic is not included in GC
             return;
         }
-        InactiveTopicDeleteMode deleteMode = inactiveTopicPolicies.getInactiveTopicDeleteMode();
-        int maxInactiveDurationInSec = inactiveTopicPolicies.getMaxInactiveDurationSeconds();
+        InactiveTopicDeleteMode deleteMode =
+                topicPolicies.getInactiveTopicPolicies().get().getInactiveTopicDeleteMode();
+        int maxInactiveDurationInSec = topicPolicies.getInactiveTopicPolicies().get().getMaxInactiveDurationSeconds();
         if (isActive(deleteMode)) {
             lastActive = System.nanoTime();
         } else if (System.nanoTime() - lastActive < TimeUnit.SECONDS.toNanos(maxInactiveDurationInSec)) {
@@ -2412,7 +2412,7 @@ public class PersistentTopic extends AbstractTopic
         schemaValidationEnforced = data.schema_validation_enforced;
         updateUnackedMessagesAppliedOnSubscription(data);
         updateUnackedMessagesExceededOnConsumer(data);
-        maxSubscriptionsPerTopic.updateNamespaceValue(data.max_subscriptions_per_topic);
+        this.topicPolicies.getMaxSubscriptionsPerTopic().updateNamespaceValue(data.max_subscriptions_per_topic);
 
         if (data.delayed_delivery_policies != null) {
             delayedDeliveryTickTimeMillis = data.delayed_delivery_policies.getTickTime();
@@ -2420,16 +2420,8 @@ public class PersistentTopic extends AbstractTopic
         }
         //If the topic-level policy already exists, the namespace-level policy cannot override the topic-level policy.
         Optional<TopicPolicies> topicPolicies = getTopicPolicies();
-        if (data.inactive_topic_policies != null) {
-            if (!topicPolicies.isPresent() || !topicPolicies.get().isInactiveTopicPoliciesSet()) {
-                this.inactiveTopicPolicies = data.inactive_topic_policies;
-            }
-        } else {
-            ServiceConfiguration cfg = brokerService.getPulsar().getConfiguration();
-            resetInactiveTopicPolicies(cfg.getBrokerDeleteInactiveTopicsMode()
-                    , cfg.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(),
-                    cfg.isBrokerDeleteInactiveTopicsEnabled());
-        }
+
+        this.topicPolicies.getInactiveTopicPolicies().updateNamespaceValue(data.inactive_topic_policies);
 
         initializeRateLimiterIfNeeded(Optional.ofNullable(data));
 
@@ -2842,7 +2834,6 @@ public class PersistentTopic extends AbstractTopic
         if (messageTtl.isPresent()) {
             return CompletableFuture.completedFuture(messageTtl.get());
         }
-        TopicName name = TopicName.get(topic);
 
         return brokerService.pulsar().getPulsarResources().getNamespaceResources()
                 .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
@@ -3101,20 +3092,10 @@ public class PersistentTopic extends AbstractTopic
             updateMaxPublishRate(namespacePolicies.orElse(null));
         }
 
-        maxSubscriptionsPerTopic.updateTopicValue(policies.getMaxSubscriptionsPerTopic());
+        topicPolicies.getMaxSubscriptionsPerTopic().updateTopicValue(policies.getMaxSubscriptionsPerTopic());
 
-        if (policies.isInactiveTopicPoliciesSet()) {
-            inactiveTopicPolicies = policies.getInactiveTopicPolicies();
-        } else if (namespacePolicies.isPresent() && namespacePolicies.get().inactive_topic_policies != null) {
-            //topic-level policies is null , so use namespace-level
-            inactiveTopicPolicies = namespacePolicies.get().inactive_topic_policies;
-        } else {
-            //namespace-level policies is null , so use broker level
-            ServiceConfiguration cfg = brokerService.getPulsar().getConfiguration();
-            resetInactiveTopicPolicies(cfg.getBrokerDeleteInactiveTopicsMode()
-                    , cfg.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(),
-                    cfg.isBrokerDeleteInactiveTopicsEnabled());
-        }
+        topicPolicies.getInactiveTopicPolicies().updateTopicValue(policies.getInactiveTopicPolicies());
+
         updateUnackedMessagesAppliedOnSubscription(namespacePolicies.orElse(null));
         initializeTopicSubscribeRateLimiterIfNeeded(Optional.ofNullable(policies));
         if (this.subscribeRateLimiter.isPresent()) {
@@ -3185,7 +3166,7 @@ public class PersistentTopic extends AbstractTopic
             return false;
         }
 
-        Integer maxSubsPerTopic  = maxSubscriptionsPerTopic.get();
+        Integer maxSubsPerTopic  = topicPolicies.getMaxSubscriptionsPerTopic().get();
 
         if (maxSubsPerTopic != null && maxSubsPerTopic > 0) {
             return subscriptions != null && subscriptions.size() >= maxSubsPerTopic;

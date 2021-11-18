@@ -108,7 +108,6 @@ import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
-import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.ZooKeeper;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
@@ -645,6 +644,28 @@ public class ServerCnxTest {
         clientCommand.release();
 
         assertTrue(getResponse() instanceof CommandSendReceipt);
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testSendCommandBeforeCreatingProducer() throws Exception {
+        resetChannel();
+        setChannelConnected();
+
+        // test SEND before producer is created
+        MessageMetadata messageMetadata = new MessageMetadata()
+                .setPublishTime(System.currentTimeMillis())
+                .setProducerName("prod-name")
+                .setSequenceId(0);
+        ByteBuf data = Unpooled.buffer(1024);
+
+        ByteBuf clientCommand = ByteBufPair.coalesce(Commands.newSend(1, 0, 1,
+                ChecksumType.None, messageMetadata, data));
+        channel.writeInbound(Unpooled.copiedBuffer(clientCommand));
+        clientCommand.release();
+
+        // Then expect channel to close
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> !channel.isActive());
         channel.finish();
     }
 

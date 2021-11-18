@@ -49,7 +49,8 @@ public class EventsTopicNames {
     }
 
     public static boolean checkTopicIsTransactionCoordinatorAssign(TopicName topicName) {
-        return TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString().equals(topicName.toString());
+        return topicName != null && topicName.toString()
+                .startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
     }
 
     public static boolean isTopicPoliciesSystemTopic(String topic) {

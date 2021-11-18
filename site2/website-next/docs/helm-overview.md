@@ -4,10 +4,6 @@ title: Apache Pulsar Helm Chart
 sidebar_label: "Overview"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 [Helm chart](https://github.com/apache/pulsar-helm-chart) supports you to install Apache Pulsar in a cloud-native environment.
 
 ## Introduction

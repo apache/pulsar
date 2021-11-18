@@ -5,10 +5,6 @@ sidebar_label: "Kafka source connector"
 original_id: io-kafka-source
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The Kafka source connector pulls messages from Kafka topics and persists the messages
 to Pulsar topics.
 

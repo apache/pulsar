@@ -24,16 +24,14 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Replicator;
 
 public class TopicPoliciesSystemTopic extends SystemTopic {
     public static final String IS_GLOBAL = "isGlobal";
 
-
     public TopicPoliciesSystemTopic(String topic, ManagedLedger ledger,
                                     BrokerService brokerService)
-            throws BrokerServiceException.NamingException, PulsarServerException {
+            throws PulsarServerException {
         super(topic, ledger, brokerService);
     }
 

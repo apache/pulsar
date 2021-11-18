@@ -89,7 +89,7 @@ public class WindowFunctionExecutorTest {
     private static class TestWrongTimestampExtractor implements TimestampExtractor<String> {
         @Override
         public long extractTimestamp(String input) {
-            return Long.valueOf(input);
+            return Long.parseLong(input);
         }
     }
 

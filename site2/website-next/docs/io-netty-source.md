@@ -4,10 +4,6 @@ title: Netty source connector
 sidebar_label: "Netty source connector"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The Netty source connector opens a port that accepts incoming data via the configured network protocol 
 and publish it to user-defined Pulsar topics.
 
@@ -36,10 +32,12 @@ Before using the Netty source connector, you need to create a configuration file
   ```json
   
   {
-      "type": "tcp",
-      "host": "127.0.0.1",
-      "port": "10911",
-      "numberOfThreads": "1"
+     "configs": {
+        "type": "tcp",
+        "host": "127.0.0.1",
+        "port": "10911",
+        "numberOfThreads": "1"
+     }
   }
   
   ```

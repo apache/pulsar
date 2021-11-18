@@ -42,17 +42,19 @@ Before using the DynamoDB source connector, you need to create a configuration f
 
     ```json
     {
-        "awsEndpoint": "https://some.endpoint.aws",
-        "awsRegion": "us-east-1",
-        "awsDynamodbStreamArn": "arn:aws:dynamodb:us-west-2:111122223333:table/TestTable/stream/2015-05-11T21:21:33.291",
-        "awsCredentialPluginParam": "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}",
-        "applicationName": "My test application",
-        "checkpointInterval": "30000",
-        "backoffTime": "4000",
-        "numRetries": "3",
-        "receiveQueueSize": 2000,
-        "initialPositionInStream": "TRIM_HORIZON",
-        "startAtTime": "2019-03-05T19:28:58.000Z"
+       "configs": {
+          "awsEndpoint": "https://some.endpoint.aws",
+          "awsRegion": "us-east-1",
+          "awsDynamodbStreamArn": "arn:aws:dynamodb:us-west-2:111122223333:table/TestTable/stream/2015-05-11T21:21:33.291",
+          "awsCredentialPluginParam": "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}",
+          "applicationName": "My test application",
+          "checkpointInterval": "30000",
+          "backoffTime": "4000",
+          "numRetries": "3",
+          "receiveQueueSize": 2000,
+          "initialPositionInStream": "TRIM_HORIZON",
+          "startAtTime": "2019-03-05T19:28:58.000Z"
+       }
     }
     ```
 

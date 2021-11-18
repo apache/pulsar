@@ -22,6 +22,7 @@ import com.beust.jcommander.DefaultUsageFormatter;
 import com.beust.jcommander.IUsageFormatter;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.google.common.base.Charsets;
 import io.jsonwebtoken.Claims;
@@ -155,8 +156,13 @@ public class TokensCliUtils {
 
             Optional<Date> optExpiryTime = Optional.empty();
             if (expiryTime != null) {
-                long relativeTimeMillis = TimeUnit.SECONDS
-                        .toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(expiryTime));
+                long relativeTimeMillis;
+                try {
+                    relativeTimeMillis = TimeUnit.SECONDS.toMillis(
+                            RelativeTimeUtil.parseRelativeTimeInSeconds(expiryTime));
+                } catch (IllegalArgumentException exception) {
+                    throw new ParameterException(exception.getMessage());
+                }
                 optExpiryTime = Optional.of(new Date(System.currentTimeMillis() + relativeTimeMillis));
             }
 
