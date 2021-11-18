@@ -34,14 +34,19 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 
 import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+
+import lombok.Getter;
 
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
@@ -71,19 +76,21 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
+@Getter
 @Parameters(commandDescription = "Operations on persistent topics")
 public class CmdTopics extends CmdBase {
+    private final CmdTopics.PartitionedLookup partitionedLookup;
 
     public CmdTopics(Supplier<PulsarAdmin> admin) {
         super("topics", admin);
-
+        partitionedLookup = new PartitionedLookup();
         jcommander.addCommand("list", new ListCmd());
         jcommander.addCommand("list-partitioned-topics", new PartitionedTopicListCmd());
         jcommander.addCommand("permissions", new Permissions());
         jcommander.addCommand("grant-permission", new GrantPermissions());
         jcommander.addCommand("revoke-permission", new RevokePermissions());
         jcommander.addCommand("lookup", new Lookup());
-        jcommander.addCommand("partitioned-lookup", new PartitionedLookup());
+        jcommander.addCommand("partitioned-lookup", partitionedLookup);
         jcommander.addCommand("bundle-range", new GetBundleRange());
         jcommander.addCommand("delete", new DeleteCmd());
         jcommander.addCommand("truncate", new TruncateCmd());
@@ -349,15 +356,33 @@ public class CmdTopics extends CmdBase {
     }
 
     @Parameters(commandDescription = "Lookup a partitioned topic from the current serving broker")
-    private class PartitionedLookup extends CliCommand {
+    protected class PartitionedLookup extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/partitionedTopic", required = true)
-        private java.util.List<String> params;
+        protected java.util.List<String> params;
+        @Parameter(names = { "-s",
+                                "--sort-by-broker" }, description = "Sort partitioned-topic by Broker Url")
+        protected boolean sortByBroker = false;
 
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            print(getAdmin().lookups().lookupPartitionedTopic(topic));
+            if (sortByBroker) {
+                print(lookupPartitionedTopicSortByBroker(topic));
+            } else {
+                print(getAdmin().lookups().lookupPartitionedTopic(topic));
+            }
         }
+    }
+
+    private Map<String, List<String>> lookupPartitionedTopicSortByBroker(String topic) throws PulsarAdminException {
+        Map<String, String> partitionLookup = getAdmin().lookups().lookupPartitionedTopic(topic);
+        Map<String, List<String>> result = new HashMap<>();
+        for (Map.Entry<String, String> entry : partitionLookup.entrySet()) {
+            List<String> topics = result.getOrDefault(entry.getValue(), new ArrayList<String>());
+            topics.add(entry.getKey());
+            result.put(entry.getValue(), topics);
+        }
+        return result;
     }
 
     @Parameters(commandDescription = "Get Namespace bundle range of a topic")
