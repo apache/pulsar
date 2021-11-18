@@ -101,7 +101,7 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPolicyListener;
 import org.apache.pulsar.broker.service.TransportCnx;
-import org.apache.pulsar.broker.service.option.SubscriptionOption;
+import org.apache.pulsar.broker.service.SubscriptionOption;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
@@ -655,11 +655,12 @@ public class PersistentTopic extends AbstractTopic
 
     @Override
     public CompletableFuture<Consumer> subscribe(SubscriptionOption option) {
-        return internalSubscribe(option.getCnx(), option.getSubscriptionName(), option.getConsumerId(), option.getSubType(),
-                option.getPriorityLevel(), option.getConsumerName(), option.isDurable(), option.getStartMessageId(),
-                option.getMetadata(), option.isReadCompacted(), option.getInitialPosition(),
-                option.getStartMessageRollbackDurationSec(), option.isReplicatedSubscriptionStateArg(),
-                option.getKeySharedMeta(), option.getSubscriptionProperties());
+        return internalSubscribe(option.getCnx(), option.getSubscriptionName(), option.getConsumerId(),
+                option.getSubType(), option.getPriorityLevel(), option.getConsumerName(), option.isDurable(),
+                option.getStartMessageId(), option.getMetadata(), option.isReadCompacted(),
+                option.getInitialPosition(), option.getStartMessageRollbackDurationSec(),
+                option.isReplicatedSubscriptionStateArg(), option.getKeySharedMeta(),
+                option.getSubscriptionProperties());
     }
 
     private CompletableFuture<Consumer> internalSubscribe(final TransportCnx cnx, String subscriptionName, long consumerId,
@@ -863,7 +864,8 @@ public class PersistentTopic extends AbstractTopic
             return subscriptionFuture;
         }
 
-        Map<String, Long> properties = PersistentSubscription.getBaseCursorProperties(replicated, subscriptionProperties);
+        Map<String, Long> properties = PersistentSubscription.getBaseCursorProperties(replicated,
+                subscriptionProperties);
 
         ledger.asyncOpenCursor(Codec.encode(subscriptionName), initialPosition, properties, new OpenCursorCallback() {
             @Override

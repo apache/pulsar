@@ -127,7 +127,7 @@ public class PersistentSubscription implements Subscription {
     static Map<String, Long> getBaseCursorProperties(boolean isReplicated, Map<String, Long> subscriptionProperties) {
 
         Map<String, Long> properties = new TreeMap<>();
-        if(isReplicated){
+        if (isReplicated) {
             properties.put(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
         }
         if (subscriptionProperties != null) {
