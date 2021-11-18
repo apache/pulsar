@@ -98,10 +98,10 @@ import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.StreamingStats;
 import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.SubscriptionOption;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPolicyListener;
 import org.apache.pulsar.broker.service.TransportCnx;
-import org.apache.pulsar.broker.service.SubscriptionOption;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
@@ -663,9 +663,9 @@ public class PersistentTopic extends AbstractTopic
                 option.getSubscriptionProperties());
     }
 
-    private CompletableFuture<Consumer> internalSubscribe(final TransportCnx cnx, String subscriptionName, long consumerId,
-                                                 SubType subType, int priorityLevel, String consumerName,
-                                                 boolean isDurable, MessageId startMessageId,
+    private CompletableFuture<Consumer> internalSubscribe(final TransportCnx cnx, String subscriptionName,
+                                                 long consumerId, SubType subType, int priorityLevel,
+                                                 String consumerName, boolean isDurable, MessageId startMessageId,
                                                  Map<String, String> metadata, boolean readCompacted,
                                                  InitialPosition initialPosition,
                                                  long startMessageRollbackDurationSec,
