@@ -576,8 +576,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_POLICIES,
         dynamic = true,
-        doc = "Allow schema to be auto updated. If this is disabled, 'is_allow_auto_update_schema' in namespace "
-            + "policy will be ignored. This is enabled by default."
+        doc = "Allow schema to be auto updated at broker level. User can override this by 'is_allow_auto_update_schema'"
+            + " of namespace policy. This is enabled by default."
     )
     private boolean isAllowAutoUpdateSchemaEnabled = true;
 
