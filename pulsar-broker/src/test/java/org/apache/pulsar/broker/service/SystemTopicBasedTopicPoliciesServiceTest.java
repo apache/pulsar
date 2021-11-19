@@ -76,7 +76,6 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     private static final TopicName TOPIC5 = TopicName.get("persistent", NamespaceName.get(NAMESPACE3), "topic-1");
     private static final TopicName TOPIC6 = TopicName.get("persistent", NamespaceName.get(NAMESPACE3), "topic-2");
 
-    private NamespaceEventsSystemTopicFactory systemTopicFactory;
     private SystemTopicBasedTopicPoliciesService systemTopicBasedTopicPoliciesService;
 
     @BeforeMethod(alwaysRun = true)
@@ -92,6 +91,40 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test
+    public void testConcurrentlyRegisterUnregisterListeners() throws ExecutionException, InterruptedException {
+        TopicName topicName = TopicName.get("test");
+        class TopicPolicyListenerImpl implements TopicPolicyListener<TopicPolicies> {
+
+            @Override
+            public void onUpdate(TopicPolicies data) {
+                //no op.
+            }
+        }
+
+        CompletableFuture<Void> f = CompletableFuture.completedFuture(null).thenRunAsync(() -> {
+            for (int i = 0; i < 100; i++) {
+                TopicPolicyListener<TopicPolicies> listener = new TopicPolicyListenerImpl();
+                systemTopicBasedTopicPoliciesService.registerListener(topicName, listener);
+                Assert.assertNotNull(systemTopicBasedTopicPoliciesService.listeners.get(topicName));
+                Assert.assertTrue(systemTopicBasedTopicPoliciesService.listeners.get(topicName).size() >= 1);
+                systemTopicBasedTopicPoliciesService.unregisterListener(topicName, listener);
+            }
+        });
+
+        for (int i = 0; i < 100; i++) {
+            TopicPolicyListener<TopicPolicies> listener = new TopicPolicyListenerImpl();
+            systemTopicBasedTopicPoliciesService.registerListener(topicName, listener);
+            Assert.assertNotNull(systemTopicBasedTopicPoliciesService.listeners.get(topicName));
+            Assert.assertTrue(systemTopicBasedTopicPoliciesService.listeners.get(topicName).size() >= 1);
+            systemTopicBasedTopicPoliciesService.unregisterListener(topicName, listener);
+        }
+
+        f.get();
+        //Some system topics will be added to the listeners. Just check if it contains topicName.
+        Assert.assertFalse(systemTopicBasedTopicPoliciesService.listeners.containsKey(topicName));
     }
 
     @Test
@@ -239,7 +272,6 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         admin.lookups().lookupTopic(TOPIC4.toString());
         admin.lookups().lookupTopic(TOPIC5.toString());
         admin.lookups().lookupTopic(TOPIC6.toString());
-        systemTopicFactory = new NamespaceEventsSystemTopicFactory(pulsarClient);
         systemTopicBasedTopicPoliciesService = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
     }
 
