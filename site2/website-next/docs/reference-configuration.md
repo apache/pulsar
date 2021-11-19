@@ -349,6 +349,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 | managedLedgerInfoCompressionType | Compression type of managed ledger information. <br /><br />Available options are `NONE`, `LZ4`, `ZLIB`, `ZSTD`, and `SNAPPY`). <br /><br />If this value is `NONE` or invalid, the `managedLedgerInfo` is not compressed. <br /><br />**Note** that after enabling this configuration, if you want to degrade a broker, you need to change the value to `NONE` and make sure all ledger metadata is saved without compression. | None |
 | additionalServlets | Additional servlet name. <br /><br />If you have multiple additional servlets, separate them by commas. <br /><br />For example, additionalServlet_1, additionalServlet_2 | N/A |
 | additionalServletDirectory | Location of broker additional servlet NAR directory | ./brokerAdditionalServlet |
+| isAllowAutoUpdateSchemaEnabled | Allow schema to be auto updated at broker level. User can override this by 'is_allow_auto_update_schema' of namespace policy. |true|
 
 ## Client
 
@@ -480,7 +481,6 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 | dispatchThrottlingRatePerTopicInMsg | Default messages (per second) dispatch throttling-limit for every topic. When the value is set to 0, default message dispatch throttling-limit is disabled. |0 |
 | dispatchThrottlingRatePerTopicInByte | Default byte (per second) dispatch throttling-limit for every topic. When the value is set to 0, default byte dispatch throttling-limit is disabled. | 0|
 | dispatchThrottlingOnBatchMessageEnabled |Apply dispatch rate limiting on batch message instead individual messages with in batch message. (Default is disabled). | false|
-
 | dispatchThrottlingRateRelativeToPublishRate | Enable dispatch rate-limiting relative to publish rate. | false |
 |dispatchThrottlingRatePerSubscriptionInMsg|The defaulted number of message dispatching throttling-limit for a subscription. The value of 0 disables message dispatch-throttling.|0|
 |dispatchThrottlingRatePerSubscriptionInByte|The default number of message-bytes dispatching throttling-limit for a subscription. The value of 0 disables message-byte dispatch-throttling.|0|
@@ -650,6 +650,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
 |bookieId | If you want to custom a bookie ID or use a dynamic network address for a bookie, you can set the `bookieId`. <br /><br />Bookie advertises itself using the `bookieId` rather than the `BookieSocketAddress` (`hostname:port` or `IP:port`).<br /><br /> The `bookieId` is a non-empty string that can contain ASCII digits and letters ([a-zA-Z9-0]), colons, dashes, and dots. <br /><br />For more information about `bookieId`, see [here](http://bookkeeper.apache.org/bps/BP-41-bookieid/).|/|
 | maxTopicsPerNamespace | The maximum number of persistent topics that can be created in the namespace. When the number of topics reaches this threshold, the broker rejects the request of creating a new topic, including the auto-created topics by the producer or consumer, until the number of connected consumers decreases. The default value 0 disables the check. | 0 |
+| isAllowAutoUpdateSchemaEnabled | Allow schema to be auto updated at broker level. User can override this by 'is_allow_auto_update_schema' of namespace policy. |true|
 
 ## WebSocket
 
