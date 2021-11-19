@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.sun.management.OperatingSystemMXBean;
 import java.lang.management.ManagementFactory;
 import java.util.concurrent.ScheduledExecutorService;
@@ -53,9 +54,10 @@ public class GenericBrokerHostUsageImpl implements BrokerHostUsage {
         this.totalCpuLimit = getTotalCpuLimit();
         // Call now to initialize values before the constructor returns
         calculateBrokerHostUsage();
-        executorService.scheduleAtFixedRate(this::checkCpuLoad, CPU_CHECK_MILLIS,
+        executorService.scheduleAtFixedRate(catchingAndLoggingThrowables(this::checkCpuLoad), CPU_CHECK_MILLIS,
                 CPU_CHECK_MILLIS, TimeUnit.MILLISECONDS);
-        executorService.scheduleAtFixedRate(this::doCalculateBrokerHostUsage, hostUsageCheckIntervalMin,
+        executorService.scheduleAtFixedRate(catchingAndLoggingThrowables(this::doCalculateBrokerHostUsage),
+                hostUsageCheckIntervalMin,
                 hostUsageCheckIntervalMin, TimeUnit.MINUTES);
     }
 

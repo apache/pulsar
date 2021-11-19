@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.stats.prometheus.metrics;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.prometheus.client.Collector;
@@ -95,9 +96,8 @@ public class PrometheusMetricsProvider implements StatsProvider {
                 DEFAULT_PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS);
         cluster = conf.getString(CLUSTER_NAME, DEFAULT_CLUSTER_NAME);
 
-        executor.scheduleAtFixedRate(() -> {
-            rotateLatencyCollection();
-        }, 1, latencyRolloverSeconds, TimeUnit.SECONDS);
+        executor.scheduleAtFixedRate(catchingAndLoggingThrowables(this::rotateLatencyCollection),
+                1, latencyRolloverSeconds, TimeUnit.SECONDS);
     }
 
     @Override
