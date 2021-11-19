@@ -106,6 +106,7 @@ public class PackagesApiTest extends MockedPulsarServiceBaseTest {
         String unknownPackageName = "function://public/default/unknown@v1";
         try {
             admin.packages().download(unknownPackageName, "/test/unknown");
+            fail("should throw 404 error");
         } catch (PulsarAdminException e) {
             assertEquals(404, e.getStatusCode());
         }
@@ -113,6 +114,7 @@ public class PackagesApiTest extends MockedPulsarServiceBaseTest {
         // get the metadata of a non-existent package should return not found exception
         try {
             admin.packages().getMetadata(unknownPackageName);
+            fail("should throw 404 error");
         } catch (PulsarAdminException e) {
             assertEquals(404, e.getStatusCode());
         }
@@ -121,6 +123,7 @@ public class PackagesApiTest extends MockedPulsarServiceBaseTest {
         try {
             admin.packages().updateMetadata(unknownPackageName,
                 PackageMetadata.builder().description("unknown").build());
+            fail("should throw 404 error");
         } catch (PulsarAdminException e) {
             assertEquals(404, e.getStatusCode());
         }
