@@ -50,7 +50,7 @@ public class PulsarDecoderTest {
     @Test
     public void testChannelRead() throws Exception {
         long consumerId = 1234L;
-        ByteBuf changeBuf = Commands.newActiveConsumerChange(consumerId, true);
+        ByteBuf changeBuf = Commands.newActiveConsumerChange(consumerId, true, null);
         ByteBuf cmdBuf = changeBuf.slice(4, changeBuf.writerIndex() - 4);
 
         doNothing().when(decoder).handleActiveConsumerChange(any(CommandActiveConsumerChange.class));
@@ -63,7 +63,7 @@ public class PulsarDecoderTest {
     @Test
     public void testChannelRead2() throws Exception {
         long consumerId = 1234L;
-        ByteBuf changeBuf = Commands.newActiveConsumerChange(consumerId,
+        ByteBuf changeBuf = Commands.newActiveConsumerChange(consumerId, true,
                 "{\"predicateType\":3,\"hashRing\":{\"0\":[\"__special_consumer_mark__\"],"
                 + "\"10\":[\"__special_consumer_mark__\"]},\"rangeSize\":65536}");
         ByteBuf cmdBuf = changeBuf.slice(4, changeBuf.writerIndex() - 4);

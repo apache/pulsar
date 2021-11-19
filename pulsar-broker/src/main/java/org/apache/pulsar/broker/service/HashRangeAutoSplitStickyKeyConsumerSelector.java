@@ -97,26 +97,28 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
     @Override
     public synchronized void removeConsumer(Consumer consumer) {
         Integer removeRange = consumerRange.remove(consumer);
+        Consumer effectedConsumer = null;
         if (removeRange != null) {
             if (removeRange == rangeSize && rangeMap.size() > 1) {
                 Map.Entry<Integer, Consumer> lowerEntry = rangeMap.lowerEntry(removeRange);
                 rangeMap.put(removeRange, lowerEntry.getValue());
                 rangeMap.remove(lowerEntry.getKey());
                 consumerRange.put(lowerEntry.getValue(), removeRange);
-                // notify change for effected consumer
-                lowerEntry.getValue().notifyActiveConsumerChange(
-                        generateSpecialPredicate(lowerEntry.getValue()).encode());
+                effectedConsumer = lowerEntry.getValue();
+
             } else {
                 rangeMap.remove(removeRange);
                 // notify change for effected consumer.
                 Map.Entry<Integer, Consumer> lowerEntry = rangeMap.higherEntry(removeRange);
                 if (lowerEntry != null) {
-                    lowerEntry.getValue().notifyActiveConsumerChange(
-                            generateSpecialPredicate(lowerEntry.getValue()).encode());
+                    effectedConsumer = lowerEntry.getValue();
                 }
             }
-//            // notify removed consumer change
-//            consumer.notifyActiveConsumerChange(StickyKeyConsumerPredicate.DENIED.encode());
+        }
+        // notify change for effected consumer
+        if (effectedConsumer != null) {
+            effectedConsumer.notifyActiveConsumerChange(
+                    generateSpecialPredicate(effectedConsumer).encode());
         }
     }
 
@@ -183,7 +185,6 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
         return Collections.unmodifiableMap(rangeMap);
     }
 
-    @Override
     public StickyKeyConsumerPredicate generateSpecialPredicate(Consumer consumer){
         Integer highIndex = consumerRange.get(consumer);
         if (highIndex == null) {

@@ -446,7 +446,7 @@ public class PulsarClientImpl implements PulsarClient {
         if (conf.getConsumerEventListener() != null && conf.getSubscriptionType() != SubscriptionType.Failover
                 && conf.getSubscriptionType() != SubscriptionType.Key_Shared) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
-                    "Active consumer listener is only supported for failover subscription"));
+                    "Active consumer listener is only supported for failover or key_shared subscription"));
         }
 
         if (conf.getTopicsPattern() != null) {

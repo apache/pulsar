@@ -22,6 +22,7 @@ import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -29,7 +30,6 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
@@ -62,6 +62,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     @Override
     public void addConsumer(Consumer consumer) throws ConsumerAssignException {
         rwLock.writeLock().lock();
+        Map<Integer, List<Consumer>> hashRingCopy = null;
         try {
             // Insert multiple points on the hash ring for every consumer
             // The points are deterministically added based on the hash of the consumer name
@@ -80,15 +81,17 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                     }
                 });
             }
-            notifyActiveConsumerChanged();
+            hashRingCopy = new HashMap<>(hashRing);
         } finally {
             rwLock.writeLock().unlock();
         }
+        notifyActiveConsumerChanged(hashRingCopy);
     }
 
     @Override
     public void removeConsumer(Consumer consumer) {
         rwLock.writeLock().lock();
+        Map<Integer, List<Consumer>> hashRingCopy = null;
         try {
             // Remove all the points that were added for this consumer
             for (int i = 0; i < numberOfPoints; i++) {
@@ -106,10 +109,11 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                     }
                 });
             }
-            notifyActiveConsumerChanged();
+            hashRingCopy = new HashMap<>(hashRing);
         } finally {
             rwLock.writeLock().unlock();
         }
+        notifyActiveConsumerChanged(hashRingCopy);
     }
 
     @Override
@@ -157,9 +161,9 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
         return Collections.unmodifiableMap(hashRing);
     }
 
-    @Override
-    public StickyKeyConsumerPredicate generateSpecialPredicate(final Consumer consumer){
-        NavigableMap<Integer, List<String>> cpHashRing = new ConcurrentSkipListMap<>();
+    public StickyKeyConsumerPredicate generateSpecialPredicate(final Consumer consumer,
+                                                               final Map<Integer, List<Consumer>> hashRing) {
+        NavigableMap<Integer, List<String>> cpHashRing = new TreeMap<>();
         for (Map.Entry<Integer, List<Consumer>> entry: hashRing.entrySet()) {
             if (CollectionUtils.isEmpty(entry.getValue())) {
                 continue;
@@ -174,11 +178,17 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
         return new StickyKeyConsumerPredicate.Predicate4ConsistentHashingStickyKeyConsumerSelector(cpHashRing);
     }
 
-    private void notifyActiveConsumerChanged() {
+    private void notifyActiveConsumerChanged(final Map<Integer, List<Consumer>> hashRing) {
         // TODO add configuration for this events in future
-        Set<Consumer> consumerSet = new HashSet<>(hashRing.values().stream()
-                .flatMap(list -> list.stream()).collect(Collectors.toSet()));
-        consumerSet.forEach(consumer ->
-                consumer.notifyActiveConsumerChange(generateSpecialPredicate(consumer).encode()));
+        Set<Consumer> consumerSet = new HashSet<>();
+        for (List<Consumer> consumerList : hashRing.values()){
+            for (Consumer consumer : consumerList){
+                if (consumerSet.contains(consumer)){
+                    continue;
+                }
+                consumerSet.add(consumer);
+                consumer.notifyActiveConsumerChange(generateSpecialPredicate(consumer, hashRing).encode());
+            }
+        }
     }
 }

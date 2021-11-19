@@ -61,13 +61,13 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
             rangeMap.put(intRange.getStart(), consumer);
             rangeMap.put(intRange.getEnd(), consumer);
         }
-        notifyActiveConsumerChanged();
+        notifyActiveConsumerChanged(new HashMap<Integer, Consumer>(rangeMap));
     }
 
     @Override
     public void removeConsumer(Consumer consumer) {
         rangeMap.entrySet().removeIf(entry -> entry.getValue().equals(consumer));
-        notifyActiveConsumerChanged();
+        notifyActiveConsumerChanged(new HashMap<Integer, Consumer>(rangeMap));
     }
 
     @Override
@@ -151,8 +151,8 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
         return Collections.unmodifiableMap(rangeMap);
     }
 
-    @Override
-    public StickyKeyConsumerPredicate generateSpecialPredicate(Consumer consumer){
+    public StickyKeyConsumerPredicate generateSpecialPredicate(Consumer consumer,
+                                                               final Map<Integer, Consumer> rangeMap){
         ConcurrentSkipListMap<Integer, String> cpRangeMap = new ConcurrentSkipListMap<>();
         for (Map.Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
             String v = StickyKeyConsumerPredicate.OTHER_CONSUMER_MARK;
@@ -165,11 +165,11 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
                 .Predicate4HashRangeExclusiveStickyKeyConsumerSelector(cpRangeMap, rangeSize);
     }
 
-    private void notifyActiveConsumerChanged() {
+    private void notifyActiveConsumerChanged(final Map<Integer, Consumer> rangeMap) {
         // TODO add configuration for s events
         Set<Consumer> consumerSet = new HashSet<>(rangeMap.values());
         consumerSet.forEach(consumer ->
-                consumer.notifyActiveConsumerChange(generateSpecialPredicate(consumer).encode()));
+                consumer.notifyActiveConsumerChange(generateSpecialPredicate(consumer, rangeMap).encode()));
     }
 
 }

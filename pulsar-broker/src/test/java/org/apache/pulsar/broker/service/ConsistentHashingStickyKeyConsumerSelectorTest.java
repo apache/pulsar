@@ -24,7 +24,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
+import java.util.NavigableMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
 import org.apache.pulsar.client.api.Range;
@@ -110,11 +112,15 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
     public void testGenerateSpecialPredicate() throws Exception{
         final ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(100);
         String key1 = "anyKey";
+        Field fieldHashRing = ConsistentHashingStickyKeyConsumerSelector.class.getDeclaredField("hashRing");
+        fieldHashRing.setAccessible(true);
+        NavigableMap<Integer, List<Consumer>> hashRing =
+                (NavigableMap<Integer, List<Consumer>>) fieldHashRing.get(selector);
         // one consumer
         Consumer consumer1 = mock(Consumer.class);
         when(consumer1.consumerName()).thenReturn("c1");
         selector.addConsumer(consumer1);
-        Assert.assertTrue(selector.generateSpecialPredicate(consumer1).test(key1));
+        Assert.assertTrue(selector.generateSpecialPredicate(consumer1, hashRing).test(key1));
         // more consumer
         Consumer consumer2 = mock(Consumer.class);
         when(consumer2.consumerName()).thenReturn("c2");
@@ -129,17 +135,18 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         when(consumer5.consumerName()).thenReturn("c5");
         selector.addConsumer(consumer5);
         // do test
+
         final Map<Consumer, StickyKeyConsumerPredicate> predicateMapping = new HashMap<>();
         predicateMapping.put(consumer1,
-                StickyKeyConsumerPredicate.decode(selector.generateSpecialPredicate(consumer1).encode()));
+                StickyKeyConsumerPredicate.decode(selector.generateSpecialPredicate(consumer1, hashRing).encode()));
         predicateMapping.put(consumer2,
-                StickyKeyConsumerPredicate.decode(selector.generateSpecialPredicate(consumer2).encode()));
+                StickyKeyConsumerPredicate.decode(selector.generateSpecialPredicate(consumer2, hashRing).encode()));
         predicateMapping.put(consumer3,
-                StickyKeyConsumerPredicate.decode(selector.generateSpecialPredicate(consumer3).encode()));
+                StickyKeyConsumerPredicate.decode(selector.generateSpecialPredicate(consumer3, hashRing).encode()));
         predicateMapping.put(consumer4,
-                StickyKeyConsumerPredicate.decode(selector.generateSpecialPredicate(consumer4).encode()));
+                StickyKeyConsumerPredicate.decode(selector.generateSpecialPredicate(consumer4, hashRing).encode()));
         predicateMapping.put(consumer5,
-                StickyKeyConsumerPredicate.decode(selector.generateSpecialPredicate(consumer5).encode()));
+                StickyKeyConsumerPredicate.decode(selector.generateSpecialPredicate(consumer5, hashRing).encode()));
         for (int i = 0; i < 100; i++){
             String randomKey = UUID.randomUUID().toString();
             Consumer selectedConsumer = selector.select(randomKey.getBytes(StandardCharsets.UTF_8));

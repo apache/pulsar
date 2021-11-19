@@ -664,20 +664,14 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
-    public static ByteBuf newActiveConsumerChange(long consumerId, boolean isActive) {
+    public static ByteBuf newActiveConsumerChange(long consumerId, boolean isActive, String keySharedProps) {
         BaseCommand cmd = localCmd(Type.ACTIVE_CONSUMER_CHANGE);
         cmd.setActiveConsumerChange()
                 .setConsumerId(consumerId)
                 .setIsActive(isActive);
-        return serializeWithSize(cmd);
-    }
-
-    public static ByteBuf newActiveConsumerChange(long consumerId, String keySharedProps) {
-        BaseCommand cmd = localCmd(Type.ACTIVE_CONSUMER_CHANGE);
-        cmd.setActiveConsumerChange()
-                .setConsumerId(consumerId)
-                .setKeySharedProps(keySharedProps)
-                .setIsActive(true);
+        if (StringUtils.isNoneBlank(keySharedProps)){
+            cmd.getActiveConsumerChange().setKeySharedProps(keySharedProps);
+        }
         return serializeWithSize(cmd);
     }
 

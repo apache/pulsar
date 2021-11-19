@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Lists;
 
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -34,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 
 import java.util.UUID;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.impl.StickyKeyConsumerPredicate;
@@ -128,6 +130,11 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
     @Test(dependsOnMethods = {"testConsumerSelect"})
     public void testGenerateSpecialPredicate() throws Exception{
         HashRangeExclusiveStickyKeyConsumerSelector selector = new HashRangeExclusiveStickyKeyConsumerSelector(30);
+        Field fieldRangeMap = HashRangeExclusiveStickyKeyConsumerSelector.class.getDeclaredField("rangeMap");
+        fieldRangeMap.setAccessible(true);
+        ConcurrentSkipListMap<Integer, Consumer> rangeMap =
+                (ConcurrentSkipListMap<Integer, Consumer>) fieldRangeMap.get(selector);
+
         Consumer consumer1 = mock(Consumer.class);
         KeySharedMeta keySharedMeta1 = new KeySharedMeta();
         IntRange intRange1 = new IntRange();
@@ -155,11 +162,11 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
         // do test
         Map<Consumer, StickyKeyConsumerPredicate> predicateMapping = new HashMap<>();
         predicateMapping.put(consumer1,
-                StickyKeyConsumerPredicate.decode(selector.generateSpecialPredicate(consumer1).encode()));
+                StickyKeyConsumerPredicate.decode(selector.generateSpecialPredicate(consumer1, rangeMap).encode()));
         predicateMapping.put(consumer2,
-                StickyKeyConsumerPredicate.decode(selector.generateSpecialPredicate(consumer2).encode()));
+                StickyKeyConsumerPredicate.decode(selector.generateSpecialPredicate(consumer2, rangeMap).encode()));
         predicateMapping.put(consumer3,
-                StickyKeyConsumerPredicate.decode(selector.generateSpecialPredicate(consumer3).encode()));
+                StickyKeyConsumerPredicate.decode(selector.generateSpecialPredicate(consumer3, rangeMap).encode()));
         for (int i = 0; i < 100; i++){
             String randomKey = UUID.randomUUID().toString();
             Consumer selectedConsumer = selector.select(randomKey.getBytes(StandardCharsets.UTF_8));

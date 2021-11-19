@@ -100,11 +100,6 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
             } catch (InterruptedException e) {
             }
         }
-
-        @Override
-        public void keySharedRuleChanged(Consumer<?> consumer, Predicate<String> keyPredicate) {
-            // nothing to do, In Failover_Mode this method will not be invoke
-        }
     }
 
     private void verifyConsumerNotReceiveAnyStateChanges(TestConsumerStateEventListener listener) {
@@ -141,11 +136,6 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         public synchronized void becameInactive(Consumer<?> consumer, int partitionId) {
             activePtns.remove(partitionId);
             inactivePtns.add(partitionId);
-        }
-
-        @Override
-        public void keySharedRuleChanged(Consumer<?> consumer, Predicate<String> keyPredicate) {
-            // nothing to do, In Failover_Mode this method will not be invoke
         }
     }
 

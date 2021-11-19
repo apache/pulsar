@@ -52,11 +52,6 @@ public class ConsumerConfigurationTest {
             @Override
             public void becameInactive(Consumer<?> consumer, int partitionId) {
             }
-
-            @Override
-            public void keySharedRuleChanged(Consumer<?> consumer, Predicate<String> keyPredicate) {
-
-            }
         });
 
         conf.setMessageListener((MessageListener) (consumer, msg) -> {
