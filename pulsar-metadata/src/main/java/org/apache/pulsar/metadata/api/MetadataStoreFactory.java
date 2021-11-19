@@ -44,8 +44,12 @@ public class MetadataStoreFactory {
     public static MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig) throws MetadataStoreException {
         if (metadataURL.startsWith("memory://")) {
             return new LocalMemoryMetadataStore(metadataURL, metadataStoreConfig);
-        } else {
+        } else if (metadataURL.startsWith("zookeeper://")){
             return new ZKMetadataStore(metadataURL, metadataStoreConfig);
+        }else if(metadataURL.startsWith("etcd://")){
+            //TODO 新增传输配置
+            return  null;
         }
+        return null;
     }
 }

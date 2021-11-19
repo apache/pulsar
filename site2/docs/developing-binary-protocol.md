@@ -382,6 +382,9 @@ Parameters:
    the messages due to: `UncompressedSizeCorruption`,
    `DecompressionError`, `ChecksumMismatch`, `BatchDeSerializeError`
 
+
+
+
 ##### Command CloseConsumer
 
 ***Note***: *This command can be sent by either producer or broker*.

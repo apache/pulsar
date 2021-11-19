@@ -22,6 +22,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 /**
+ * 分布式锁，用来管理版本号用的
  * Interface for the coordination service. Provides abstraction for distributed locks and leader election.
  */
 public interface CoordinationService extends AutoCloseable {

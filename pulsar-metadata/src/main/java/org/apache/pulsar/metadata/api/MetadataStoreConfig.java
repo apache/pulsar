@@ -39,4 +39,13 @@ public class MetadataStoreConfig {
      */
     @Builder.Default
     private final boolean allowReadOnlyOperations = false;
+
+    //etcd每次消息落盘的大小
+    private final Integer maxInboundMessageSize;
+
+    //与注册中心链接的时间间隔
+    private final String retryMaxDuration;
+
+    //与注册中心的实例再次重试的最大延迟时间
+    private final Long retryDelay;
 }

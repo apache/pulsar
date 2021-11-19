@@ -73,6 +73,8 @@ public class CoordinationServiceImpl implements CoordinationService {
         return (LockManager<T>) lockManagers.computeIfAbsent(clazz, k -> new LockManagerImpl<T>(store, clazz));
     }
 
+
+    //获取选举的时钟epoch
     @Override
     public CompletableFuture<Long> getNextCounterValue(String path) {
         String counterBasePath = path + "/-";
