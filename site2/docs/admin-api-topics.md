@@ -840,6 +840,40 @@ admin.lookup().lookupDestination(topic);
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
+### Lookup of partitioned topic
+
+You can locate the broker URL of each partitioned topic which is serving the given topic in the following ways.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
+```shell
+$ pulsar-admin topics partitioned-lookup \
+  persistent://test-tenant/ns1/my-topic \
+
+  "persistent://test-tenant/ns1/my-topic-partition-0   pulsar://localhost:6650"
+  "persistent://test-tenant/ns1/my-topic-partition-1   pulsar://localhost:6650"
+  "persistent://test-tenant/ns1/my-topic-partition-2   pulsar://localhost:6650"
+  "persistent://test-tenant/ns1/my-topic-partition-3   pulsar://localhost:6650"
+```
+
+<!--Java-->
+```java
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+admin.lookup().lookupPartitionedTopic(topic);
+```
+
+Lookup the partitioned topics sorted by broker URL
+
+```shell
+$ pulsar-admin topics partitioned-lookup \
+  persistent://test-tenant/ns1/my-topic --sort-by-broker \
+
+  "pulsar://localhost:6650   [persistent://test-tenant/ns1/my-topic-partition-0, persistent://test-tenant/ns1/my-topic-partition-1, persistent://test-tenant/ns1/my-topic-partition-2, persistent://test-tenant/ns1/my-topic-partition-3]"
+```
+
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
 ### Get bundle
 
 You can check the range of the bundle which contains given topic in the following ways.

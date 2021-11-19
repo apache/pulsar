@@ -310,14 +310,14 @@ public class TopicOwnerTest {
         Assert.assertEquals(partitions, allPartitionMap.size());
 
         Map<String, String> partitionedMap = new LinkedHashMap<>();
-        for(int i = 0; i < partitions; i++) {
+        for (int i = 0; i < partitions; i++) {
            String partitionTopicName = topic + "-partition-" + i;
            partitionedMap.put(partitionTopicName, pulsarAdmins[0].lookups().lookupTopic(partitionTopicName));
         }
 
         Assert.assertEquals(allPartitionMap.size(), partitionedMap.size());
 
-        for(Map.Entry<String, String> entry : allPartitionMap.entrySet()) {
+        for (Map.Entry<String, String> entry : allPartitionMap.entrySet()) {
             Assert.assertTrue(entry.getValue().equalsIgnoreCase(partitionedMap.get(entry.getKey())));
         }
 

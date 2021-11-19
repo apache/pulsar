@@ -135,7 +135,6 @@ public class LookupImpl extends BaseResource implements Lookup {
         return future;
     }
 
-
     @Override
     public String getBundleRange(String topic) throws PulsarAdminException {
         return sync(() -> getBundleRangeAsync(topic));
