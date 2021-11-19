@@ -134,7 +134,7 @@ public class TenantResources extends BaseResources<TenantInfo> {
                             }
                             if (children != null && !children.isEmpty()) {
                                 checkNs.completeExceptionally(
-                                        new IllegalStateException("Tenant has active namespace"));
+                                        new IllegalStateException("The tenant still has active namespaces"));
                                 return;
                             }
                             String namespace = NamespaceName.get(tenant, clusterOrNamespace).toString();
@@ -145,7 +145,7 @@ public class TenantResources extends BaseResources<TenantInfo> {
                             getAsync(joinPath(BASE_POLICIES_PATH, namespace)).thenApply(data -> {
                                 if (data.isPresent()) {
                                     checkNs.completeExceptionally(new IllegalStateException(
-                                            "Tenant has active namespace"));
+                                            "The tenant still has active namespaces"));
                                 } else {
                                     checkNs.complete(null);
                                 }
