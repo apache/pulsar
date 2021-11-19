@@ -189,6 +189,10 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             NamespaceName namespace = topicName.getNamespaceObject();
             prepareInitPoliciesCache(namespace, new CompletableFuture<>());
         }
+        if (policyCacheInitMap.containsKey(topicName.getNamespaceObject())
+                && !policyCacheInitMap.get(topicName.getNamespaceObject())) {
+            throw new TopicPoliciesCacheNotInitException();
+        }
         return isGlobal ? globalPoliciesCache.get(TopicName.get(topicName.getPartitionedTopicName()))
                 : policiesCache.get(TopicName.get(topicName.getPartitionedTopicName()));
     }
