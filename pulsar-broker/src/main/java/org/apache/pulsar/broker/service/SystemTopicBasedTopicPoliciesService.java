@@ -183,14 +183,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     @Override
-    public TopicPolicies getTopicPolicies(TopicName topicName) throws TopicPoliciesCacheNotInitException {
+    public TopicPolicies getTopicPolicies(TopicName topicName,
+                                          boolean isGlobal) throws TopicPoliciesCacheNotInitException {
         if (!policyCacheInitMap.containsKey(topicName.getNamespaceObject())) {
             NamespaceName namespace = topicName.getNamespaceObject();
             prepareInitPoliciesCache(namespace, new CompletableFuture<>());
-        }
-        if (policyCacheInitMap.containsKey(topicName.getNamespaceObject())
-                && !policyCacheInitMap.get(topicName.getNamespaceObject())) {
-            throw new TopicPoliciesCacheNotInitException();
         }
         return isGlobal ? globalPoliciesCache.get(TopicName.get(topicName.getPartitionedTopicName()))
                 : policiesCache.get(TopicName.get(topicName.getPartitionedTopicName()));

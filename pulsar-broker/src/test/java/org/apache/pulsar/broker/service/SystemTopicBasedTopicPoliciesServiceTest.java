@@ -309,7 +309,8 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
             }
         }, 2000, TimeUnit.MILLISECONDS);
         Awaitility.await().untilAsserted(() -> {
-            Optional<TopicPolicies> topicPolicies = systemTopicBasedTopicPoliciesService.getTopicPoliciesAsyncWithRetry(TOPIC1, backoff, pulsar.getExecutor()).get();
+            Optional<TopicPolicies> topicPolicies = systemTopicBasedTopicPoliciesService
+                    .getTopicPoliciesAsyncWithRetry(TOPIC1, backoff, pulsar.getExecutor(), false).get();
             Assert.assertTrue(topicPolicies.isPresent());
             if (topicPolicies.isPresent()) {
                 Assert.assertEquals(topicPolicies.get(), initPolicy);
