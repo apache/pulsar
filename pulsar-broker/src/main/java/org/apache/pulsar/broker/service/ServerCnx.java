@@ -1967,7 +1967,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     requestId, tcId, remoteAddress);
         }
 
-        if (!checkTransactionEnabled(requestId)) {
+        if (!checkTransactionEnableAndSendError(requestId)) {
             return;
         }
 
@@ -1989,7 +1989,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         });
     }
 
-    private boolean checkTransactionEnabled(long requestId) {
+    private boolean checkTransactionEnableAndSendError(long requestId) {
         if (!service.getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
             BrokerServiceException.NotAllowedException ex =
                     new BrokerServiceException.NotAllowedException(
@@ -2010,7 +2010,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     requestId, tcId, remoteAddress);
         }
 
-        if (!checkTransactionEnabled(requestId)) {
+        if (!checkTransactionEnableAndSendError(requestId)) {
             return;
         }
 
@@ -2047,7 +2047,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             + "from {} with txnId {}, topic: [{}]", requestId, remoteAddress, txnID, partion));
         }
 
-        if (!checkTransactionEnabled(requestId)) {
+        if (!checkTransactionEnableAndSendError(requestId)) {
             return;
         }
 
@@ -2088,7 +2088,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
         final TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTxnidMostBits());
 
-        if (!checkTransactionEnabled(requestId)) {
+        if (!checkTransactionEnableAndSendError(requestId)) {
             return;
         }
 
@@ -2303,7 +2303,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         final TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTxnidMostBits());
 
-        if (!checkTransactionEnabled(requestId)) {
+        if (!checkTransactionEnableAndSendError(requestId)) {
             return;
         }
 
