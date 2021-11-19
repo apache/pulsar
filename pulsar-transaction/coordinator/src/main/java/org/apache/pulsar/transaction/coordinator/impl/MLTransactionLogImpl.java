@@ -281,18 +281,19 @@ public class MLTransactionLogImpl implements TransactionLog {
     class FillEntryQueueCallback implements AsyncCallbacks.ReadEntriesCallback {
 
         private final AtomicLong outstandingReadsRequests = new AtomicLong(0);
+        private boolean isReadable = true;
 
         boolean fillQueue() {
             if (entryQueue.size() < entryQueue.capacity() && outstandingReadsRequests.get() == 0) {
                 if (cursor.hasMoreEntries()) {
                     outstandingReadsRequests.incrementAndGet();
                     readAsync(100, this);
-                    return true;
+                    return isReadable;
                 } else {
                     return false;
                 }
             } else {
-                return true;
+                return isReadable;
             }
         }
 
@@ -313,6 +314,11 @@ public class MLTransactionLogImpl implements TransactionLog {
 
         @Override
         public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+            if (managedLedgerConfig.isAutoSkipNonRecoverableData()
+                    && exception instanceof ManagedLedgerException.NonRecoverableLedgerException
+                    || exception instanceof ManagedLedgerException.ManagedLedgerFencedException) {
+                isReadable = false;
+            }
             log.error("Transaction log init fail error!", exception);
             outstandingReadsRequests.decrementAndGet();
         }
