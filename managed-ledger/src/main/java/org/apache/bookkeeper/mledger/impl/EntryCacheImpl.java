@@ -209,7 +209,7 @@ public class EntryCacheImpl implements EntryCache {
             manager.mlFactoryMBean.recordCacheHit(cachedEntry.getLength());
             callback.readEntryComplete(cachedEntry, ctx);
         } else {
-            lh.readAsync(position.getEntryId(), position.getEntryId()).thenAccept(
+            lh.readAsync(position.getEntryId(), position.getEntryId()).thenAcceptAsync(
                     ledgerEntries -> {
                         try {
                             Iterator<LedgerEntry> iterator = ledgerEntries.iterator();
@@ -228,7 +228,7 @@ public class EntryCacheImpl implements EntryCache {
                         } finally {
                             ledgerEntries.close();
                         }
-                    }).exceptionally(exception -> {
+                    }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception -> {
                         ml.invalidateLedgerHandle(lh);
                         callback.readEntryFailed(createManagedLedgerException(exception), ctx);
                         return null;
@@ -290,10 +290,11 @@ public class EntryCacheImpl implements EntryCache {
             }
 
             // Read all the entries from bookkeeper
-            lh.readAsync(firstEntry, lastEntry).thenAccept(
+            lh.readAsync(firstEntry, lastEntry).thenAcceptAsync(
                     ledgerEntries -> {
                         checkNotNull(ml.getName());
                         checkNotNull(ml.getExecutor());
+
                         try {
                             // We got the entries, we need to transform them to a List<> type
                             long totalSize = 0;
@@ -313,7 +314,7 @@ public class EntryCacheImpl implements EntryCache {
                         } finally {
                             ledgerEntries.close();
                         }
-                    }).exceptionally(exception -> {
+                    }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception -> {
                         if (exception instanceof BKException
                                 && ((BKException)exception).getCode() == BKException.Code.TooManyRequestsException) {
                             callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
