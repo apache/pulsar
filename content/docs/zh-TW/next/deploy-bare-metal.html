@@ -262,7 +262,13 @@ tiered-storage-jcloud-2.8.1.nar
 </code></pre>
 <blockquote>
 <p>If you only have one machine on which to deploy Pulsar, you only need to add one server entry in the configuration file.</p>
+<p>If your machines are behind NAT use 0.0.0.0 as server entry for the local address. If the node use external IP in configuration for itself, behind NAT, zookeper service won't start because it tries to put a listener on an external ip that the linux box doesn't own. Using 0.0.0.0 start a listener on ALL ip, so that NAT network traffic can reach it.</p>
 </blockquote>
+<p>Example of configuration on <em>server.3</em></p>
+<pre><code class="hljs css language-properties"><span class="hljs-meta">server.1</span>=<span class="hljs-string">zk1.us-west.example.com:2888:3888</span>
+<span class="hljs-meta">server.2</span>=<span class="hljs-string">zk2.us-west.example.com:2888:3888</span>
+<span class="hljs-meta">server.3</span>=<span class="hljs-string">0.0.0.0:2888:3888</span>
+</code></pre>
 <p>On each host, you need to specify the ID of the node in the <code>myid</code> file, which is in the <code>data/zookeeper</code> folder of each server by default (you can change the file location via the <a href="/docs/zh-TW/next/reference-configuration#zookeeper-dataDir"><code>dataDir</code></a> parameter).</p>
 <blockquote>
 <p>See the <a href="https://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html#sc_zkMulitServerSetup">Multi-server setup guide</a> in the ZooKeeper documentation for detailed information on <code>myid</code> and more.</p>
