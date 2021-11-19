@@ -180,7 +180,7 @@ public class PerformanceConsumer {
                 "used for handling connections to brokers, default is 1 thread")
         public int ioThreads = 1;
 
-        @Parameter(names = {"-listenerThreads", "--num-listener-threads"}, description = "Set the number of threads"
+        @Parameter(names = {"-lt", "--num-listener-threads"}, description = "Set the number of threads"
                 + " to be used for message listeners")
         public int listenerThreads = 1;
 
