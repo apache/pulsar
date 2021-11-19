@@ -1249,7 +1249,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .dispatchThrottlingRateInMsg(100)
                 .dispatchThrottlingRateInByte(1024 * 1024)
                 .ratePeriodInSecond(1)
-                .build();;
+                .build();
         admin.namespaces().setSubscriptionDispatchRate(myNamespace, namespaceDispatchRate);
 
         Awaitility.await()
@@ -1269,7 +1269,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .dispatchThrottlingRateInMsg(200)
                 .dispatchThrottlingRateInByte(2 * 1024 * 1024)
                 .ratePeriodInSecond(1)
-                .build();;
+                .build();
         admin.topics().setSubscriptionDispatchRate(topic, topicDispatchRate);
 
         Awaitility.await()
