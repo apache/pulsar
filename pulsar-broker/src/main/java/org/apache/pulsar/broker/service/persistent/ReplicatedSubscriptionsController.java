@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import io.netty.buffer.ByteBuf;
 import io.prometheus.client.Gauge;
 import java.io.IOException;
@@ -77,7 +78,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         this.topic = topic;
         this.localCluster = localCluster;
         timer = topic.getBrokerService().pulsar().getExecutor()
-                .scheduleAtFixedRate(this::startNewSnapshot, 0,
+                .scheduleAtFixedRate(catchingAndLoggingThrowables(this::startNewSnapshot), 0,
                         topic.getBrokerService().pulsar().getConfiguration()
                                 .getReplicatedSubscriptionsSnapshotFrequencyMillis(),
                         TimeUnit.MILLISECONDS);

@@ -341,7 +341,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             log.info("Enabling per-broker unack-message limit {} and dispatcher-limit {} on blocked-broker",
                     maxUnackedMessages, maxUnackedMsgsPerDispatcher);
             // block misbehaving dispatcher by checking periodically
-            pulsar.getExecutor().scheduleAtFixedRate(() -> checkUnAckMessageDispatching(),
+            pulsar.getExecutor().scheduleAtFixedRate(safeRun(this::checkUnAckMessageDispatching),
                     600, 30, TimeUnit.SECONDS);
         } else {
             this.maxUnackedMessages = 0;

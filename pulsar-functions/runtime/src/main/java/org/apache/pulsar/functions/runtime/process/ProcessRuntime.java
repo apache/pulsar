@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.functions.runtime.process;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -180,16 +181,17 @@ class ProcessRuntime implements Runtime {
                     .build();
             stub = InstanceControlGrpc.newFutureStub(channel);
 
-            timer = InstanceCache.getInstanceCache().getScheduledExecutorService().scheduleAtFixedRate(() -> {
-                CompletableFuture<InstanceCommunication.HealthCheckResult> result = healthCheck();
-                try {
-                    result.get();
-                } catch (Exception e) {
-                    log.error("Health check failed for {}-{}",
-                            instanceConfig.getFunctionDetails().getName(),
-                            instanceConfig.getInstanceId(), e);
-                }
-            }, expectedHealthCheckInterval, expectedHealthCheckInterval, TimeUnit.SECONDS);
+            timer = InstanceCache.getInstanceCache().getScheduledExecutorService()
+                    .scheduleAtFixedRate(catchingAndLoggingThrowables(() -> {
+                        CompletableFuture<InstanceCommunication.HealthCheckResult> result = healthCheck();
+                        try {
+                            result.get();
+                        } catch (Exception e) {
+                            log.error("Health check failed for {}-{}",
+                                    instanceConfig.getFunctionDetails().getName(),
+                                    instanceConfig.getInstanceId(), e);
+                        }
+                    }), expectedHealthCheckInterval, expectedHealthCheckInterval, TimeUnit.SECONDS);
         }
     }
 

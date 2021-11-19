@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Maps;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -176,9 +177,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this.config = config;
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
         this.entryCacheManager = new EntryCacheManager(this);
-        this.statsTask = scheduledExecutor.scheduleAtFixedRate(this::refreshStats,
+        this.statsTask = scheduledExecutor.scheduleAtFixedRate(catchingAndLoggingThrowables(this::refreshStats),
                 0, StatsPeriodSeconds, TimeUnit.SECONDS);
-        this.flushCursorsTask = scheduledExecutor.scheduleAtFixedRate(this::flushCursors,
+        this.flushCursorsTask = scheduledExecutor.scheduleAtFixedRate(catchingAndLoggingThrowables(this::flushCursors),
                 config.getCursorPositionFlushSeconds(), config.getCursorPositionFlushSeconds(), TimeUnit.SECONDS);
 
 

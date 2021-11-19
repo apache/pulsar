@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.collect.Queues;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
@@ -207,8 +208,9 @@ public class ClientCnx extends PulsarHandler {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
-        this.timeoutTask = this.eventLoopGroup.scheduleAtFixedRate(() -> checkRequestTimeout(), operationTimeoutMs,
-                operationTimeoutMs, TimeUnit.MILLISECONDS);
+        this.timeoutTask = this.eventLoopGroup
+                .scheduleAtFixedRate(catchingAndLoggingThrowables(this::checkRequestTimeout), operationTimeoutMs,
+                        operationTimeoutMs, TimeUnit.MILLISECONDS);
 
         if (proxyToTargetBrokerAddress == null) {
             if (log.isDebugEnabled()) {

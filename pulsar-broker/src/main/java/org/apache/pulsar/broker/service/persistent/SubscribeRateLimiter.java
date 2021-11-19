@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.base.MoreObjects;
 import java.util.Objects;
 import java.util.Optional;
@@ -267,7 +268,7 @@ public class SubscribeRateLimiter {
     }
 
     private ScheduledFuture<?> createTask() {
-        return executorService.scheduleAtFixedRate(this::closeAndClearRateLimiters,
+        return executorService.scheduleAtFixedRate(catchingAndLoggingThrowables(this::closeAndClearRateLimiters),
                 this.subscribeRate.ratePeriodInSecond,
                 this.subscribeRate.ratePeriodInSecond,
                 TimeUnit.SECONDS);
