@@ -690,7 +690,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         } else if (getState() != State.Connected || !isActive) {
             // Connection is either still being established or already closed.
             return;
-        } else if (authState != null && !authState.isExpired()) {
+        } else if (!authState.isExpired()) {
             // Credentials are still valid. Nothing to do at this point
             return;
         } else if (originalPrincipal != null && originalAuthState == null) {
@@ -1962,7 +1962,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     requestId, tcId, remoteAddress);
         }
 
-        if (!checkTransactionEnableAndSenError(requestId)) {
+        if (!checkTransactionEnableAndSendError(requestId)) {
             return;
         }
 
@@ -1984,7 +1984,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         });
     }
 
-    private boolean checkTransactionEnableAndSenError(long requestId) {
+    private boolean checkTransactionEnableAndSendError(long requestId) {
         if (!service.getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
             BrokerServiceException.NotAllowedException ex =
                     new BrokerServiceException.NotAllowedException(
@@ -2005,7 +2005,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     requestId, tcId, remoteAddress);
         }
 
-        if (!checkTransactionEnableAndSenError(requestId)) {
+        if (!checkTransactionEnableAndSendError(requestId)) {
             return;
         }
 
@@ -2042,7 +2042,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             + "from {} with txnId {}, topic: [{}]", requestId, remoteAddress, txnID, partion));
         }
 
-        if (!checkTransactionEnableAndSenError(requestId)) {
+        if (!checkTransactionEnableAndSendError(requestId)) {
             return;
         }
 
@@ -2083,7 +2083,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
         final TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTxnidMostBits());
 
-        if (!checkTransactionEnableAndSenError(requestId)) {
+        if (!checkTransactionEnableAndSendError(requestId)) {
             return;
         }
 
@@ -2298,7 +2298,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         final TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTxnidMostBits());
 
-        if (!checkTransactionEnableAndSenError(requestId)) {
+        if (!checkTransactionEnableAndSendError(requestId)) {
             return;
         }
 
