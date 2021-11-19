@@ -1187,6 +1187,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.info("[{}][{}] Creating producer. producerId={}", remoteAddress, topicName, producerId);
 
             service.getOrCreateTopic(topicName.toString()).thenAccept((Topic topic) -> {
+                if (producerFuture.isDone() || !isActive()) {
+                    // If the topic takes longer to load than the client's timeout, the client sends CloseProducer,
+                    // which completes the producerFuture. If the future is complete or the connection is no longer
+                    // active, there is no reason to continue creating the producer.
+                    return;
+                }
                 // Before creating producer, check if backlog quota exceeded
                 // on topic for size based limit and time based limit
                 for (BacklogQuota.BacklogQuotaType backlogQuotaType : BacklogQuota.BacklogQuotaType.values()) {
