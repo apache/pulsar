@@ -180,6 +180,10 @@ public class PerformanceConsumer {
                 "used for handling connections to brokers, default is 1 thread")
         public int ioThreads = 1;
 
+        @Parameter(names = {"-lt", "--num-listener-threads"}, description = "Set the number of threads"
+                + " to be used for message listeners")
+        public int listenerThreads = 1;
+
         @Parameter(names = {"--batch-index-ack" }, description = "Enable or disable the batch index acknowledgment")
         public boolean batchIndexAck = false;
 
@@ -340,6 +344,7 @@ public class PerformanceConsumer {
                 .connectionsPerBroker(arguments.maxConnections) //
                 .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
                 .ioThreads(arguments.ioThreads) //
+                .listenerThreads(arguments.listenerThreads)
                 .enableBusyWait(arguments.enableBusyWait)
                 .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
         if (isNotBlank(arguments.authPluginClassName)) {
