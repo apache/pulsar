@@ -253,6 +253,7 @@ public class BrokerService implements Closeable {
 
     private final DelayedDeliveryTrackerFactory delayedDeliveryTrackerFactory;
     private final ServerBootstrap defaultServerBootstrap;
+    private final List<EventLoopGroup> protocolHandlersWorkerGroups = new ArrayList<>();
 
     @Getter
     private final BundlesQuotas bundlesQuotas;
@@ -385,6 +386,16 @@ public class BrokerService implements Closeable {
                                       SocketAddress address,
                                       ChannelInitializer<SocketChannel> initializer) throws IOException {
         ServerBootstrap bootstrap = defaultServerBootstrap.clone();
+        ServiceConfiguration configuration = pulsar.getConfiguration();
+        boolean useSeparateThreadPool = configuration.isUseSeparateThreadPoolForProtocolHandlers();
+        if (useSeparateThreadPool) {
+            DefaultThreadFactory defaultThreadFactory = new DefaultThreadFactory("pulsar-ph-" + protocol);
+            EventLoopGroup dedicatedWorkerGroup =
+                    EventLoopUtil.newEventLoopGroup(configuration.getNumIOThreads(), false, defaultThreadFactory);
+            bootstrap.channel(EventLoopUtil.getServerSocketChannelClass(dedicatedWorkerGroup));
+            protocolHandlersWorkerGroups.add(dedicatedWorkerGroup);
+            bootstrap.group(this.acceptorGroup, dedicatedWorkerGroup);
+        }
         bootstrap.childHandler(initializer);
         try {
             bootstrap.bind(address).sync();
@@ -698,9 +709,14 @@ public class BrokerService implements Closeable {
 
             CompletableFuture<CompletableFuture<Void>> cancellableDownstreamFutureReference = new CompletableFuture<>();
             log.info("Event loops shutting down gracefully...");
+            List<CompletableFuture<?>> shutdownEventLoops = new ArrayList<>();
+            shutdownEventLoops.add(shutdownEventLoopGracefully(acceptorGroup));
+            shutdownEventLoops.add(shutdownEventLoopGracefully(workerGroup));
+            for (EventLoopGroup group : protocolHandlersWorkerGroups) {
+                shutdownEventLoops.add(shutdownEventLoopGracefully(group));
+            }
             CompletableFuture<Void> shutdownFuture =
-                    CompletableFuture.allOf(shutdownEventLoopGracefully(acceptorGroup),
-                            shutdownEventLoopGracefully(workerGroup))
+                    CompletableFuture.allOf(shutdownEventLoops.toArray(new CompletableFuture[0]))
                             .handle((v, t) -> {
                                 if (t != null) {
                                     log.warn("Error shutting down event loops gracefully", t);
