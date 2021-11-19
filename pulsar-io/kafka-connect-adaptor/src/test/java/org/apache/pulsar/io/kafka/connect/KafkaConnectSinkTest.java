@@ -92,7 +92,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         file = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString());
 
         props = Maps.newHashMap();
-        props.put("topic", "test-topic");
+        props.put("topic", "");
         props.put("offsetStorageTopic", offsetTopicName);
         props.put("kafkaConnectorSinkClass", "org.apache.kafka.connect.file.FileStreamSinkConnector");
 

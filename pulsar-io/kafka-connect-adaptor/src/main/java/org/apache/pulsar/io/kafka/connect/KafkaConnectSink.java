@@ -230,7 +230,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
     @SuppressWarnings("rawtypes")
     protected SinkRecord toSinkRecord(Record<GenericObject> sourceRecord) {
         final int partition = sourceRecord.getPartitionIndex().orElse(0);
-        final String topic = sourceRecord.getTopicName().orElse(topicName);
+        final String topic = getTopicName(sourceRecord);
         final Object key;
         final Object value;
         final Schema keySchema;
@@ -286,6 +286,13 @@ public class KafkaConnectSink implements Sink<GenericObject> {
                 offset,
                 timestamp,
                 timestampType);
+    }
+
+    protected String getTopicName(Record<GenericObject> sourceRecord) {
+        if (topicName.isEmpty()) {
+            return sourceRecord.getTopicName().get();
+        }
+        return topicName;
     }
 
     @VisibleForTesting
