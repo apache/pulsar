@@ -201,7 +201,7 @@ public class ElasticSearchClientTests {
                 assertEquals(mockRecord.failed, 0);
                 assertEquals(client.totalHits(index), 2);
 
-                ChaosContainer<?> chaosContainer = new ChaosContainer<>(container.getContainerName(), "15s");
+                ChaosContainer<?> chaosContainer = ChaosContainer.pauseContainerForSeconds(container.getContainerName(), 15);
                 chaosContainer.start();
 
                 client.bulkIndex(mockRecord, Pair.of("3", "{\"a\":3}"));
@@ -248,12 +248,12 @@ public class ElasticSearchClientTests {
                 });
                 client.flush();
                 Awaitility.await().untilAsserted(() -> {
-                    assertEquals(mockRecord.acked, 5);
                     assertEquals(mockRecord.failed, 0);
+                    assertEquals(mockRecord.acked, 5);
                     assertEquals(client.totalHits(index), 5);
                 });
 
-                ChaosContainer<?> chaosContainer = new ChaosContainer<>(container.getContainerName(), "30s");
+                ChaosContainer<?> chaosContainer = ChaosContainer.pauseContainerForSeconds(container.getContainerName(), 30);
                 chaosContainer.start();
                 Thread.sleep(1000L);
 
