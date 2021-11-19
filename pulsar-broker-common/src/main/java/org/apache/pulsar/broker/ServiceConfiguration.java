@@ -1040,6 +1040,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String protocolHandlerDirectory = "./protocols";
 
     @FieldContext(
+            category = CATEGORY_PROTOCOLS,
+            doc = "Use a separate ThreadPool for each Protocol Handler"
+    )
+    private boolean useSeparateThreadPoolForProtocolHandlers = true;
+
+    @FieldContext(
         category = CATEGORY_PROTOCOLS,
         doc = "List of messaging protocols to load, which is a list of protocol names"
     )
