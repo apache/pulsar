@@ -5,10 +5,6 @@ sidebar_label: "Java"
 original_id: client-libraries-java
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 You can use Pulsar Java client to create Java [producer](#producer), [consumer](#consumer), and [readers](#reader-interface) of messages and to perform [administrative tasks](admin-api-overview). The current version of the Java client is **@pulsar:version@**.
 
 All the methods in [producer](#producer), [consumer](#consumer), and [reader](#reader) of a Java client are thread-safe.
@@ -201,6 +197,7 @@ stringProducer.send("My message");
 > 
 > ```
 
+
 ### Configure producer
 
 If you instantiate a `Producer` object by specifying only a topic name as the example above, use the default configuration for producer. 
@@ -352,7 +349,7 @@ int |`maxTotalReceiverQueueSizeAcrossPartitions`|The max total receiver queue si
 String|`consumerName`|Consumer name|null
 long|`ackTimeoutMillis`|Timeout of unacked messages|0
 long|`tickDurationMillis`|Granularity of the ack-timeout redelivery.<br /><br />Using an higher `tickDurationMillis` reduces the memory overhead to track messages when setting ack-timeout to a bigger value (for example, 1 hour).|1000
-int|`priorityLevel`|Priority level for a consumer to which a broker gives more priority while dispatching messages in the shared subscription mode. <br /><br />The broker follows descending priorities. For example, 0=max-priority, 1, 2,...<br /><br />In shared subscription mode, the broker **first dispatches messages to the max priority level consumers if they have permits**. Otherwise, the broker considers next priority level consumers.<br /><br /> **Example 1**<br /><br />If a subscription has consumerA with `priorityLevel` 0 and consumerB with `priorityLevel` 1, then the broker **only dispatches messages to consumerA until it runs out permits** and then starts dispatching messages to consumerB.<br /><br />**Example 2**<br /><br />Consumer Priority, Level, Permits<br />C1, 0, 2<br />C2, 0, 1<br />C3, 0, 1<br />C4, 1, 2<br />C5, 1, 1<br /><br />Order in which a broker dispatches messages to consumers is: C1, C2, C3, C1, C4, C5, C4.|0
+int|`priorityLevel`|Priority level for a consumer to which a broker gives more priority while dispatching messages in Shared subscription type. <br /><br />The broker follows descending priorities. For example, 0=max-priority, 1, 2,...<br /><br />In shared subscription type, the broker **first dispatches messages to the max priority level consumers if they have permits**. Otherwise, the broker considers next priority level consumers.<br /><br /> **Example 1**<br /><br />If a subscription has consumerA with `priorityLevel` 0 and consumerB with `priorityLevel` 1, then the broker **only dispatches messages to consumerA until it runs out permits** and then starts dispatching messages to consumerB.<br /><br />**Example 2**<br /><br />Consumer Priority, Level, Permits<br />C1, 0, 2<br />C2, 0, 1<br />C3, 0, 1<br />C4, 1, 2<br />C5, 1, 1<br /><br />Order in which a broker dispatches messages to consumers is: C1, C2, C3, C1, C4, C5, C4.|0
 ConsumerCryptoFailureAction|`cryptoFailureAction`|Consumer should take action when it receives a message that can not be decrypted.<br /><br /><li>**FAIL**: this is the default option to fail messages until crypto succeeds.</li><br /><li> **DISCARD**:silently acknowledge and not deliver message to an application.</li><br /><li>**CONSUME**: deliver encrypted messages to applications. It is the application's responsibility to decrypt the message.<br /><br />The decompression of message fails. <br /><br />If messages contain batch messages, a client is not be able to retrieve individual messages in batch.<br /><br />Delivered encrypted message contains {@link EncryptionContext} which contains encryption and compression information in it using which application can decrypt consumed message payload.</li>|<li>ConsumerCryptoFailureAction.FAIL</li>
 SortedMap<String, String>|`properties`|A name or value property of this consumer.<br /><br />`properties` is application defined metadata attached to a consumer. <br /><br />When getting a topic stats, associate this metadata with the consumer stats for easier identification.|new TreeMap()
 boolean|`readCompacted`|If enabling `readCompacted`, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic.<br /><br /> A consumer only sees the latest value for each key in the compacted topic, up until reaching the point in the topic message when compacting backlog. Beyond that point, send messages as normal.<br /><br />Only enabling `readCompacted` on subscriptions to persistent topics, which have a single active consumer (like failure or exclusive subscriptions). <br /><br />Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a `PulsarClientException`.|false
@@ -536,13 +533,13 @@ private void receiveMessageFromConsumer(Object consumer) {
 
 ```
 
-### Subscription modes
+### Subscription types
 
-Pulsar has various [subscription modes](concepts-messaging#subscription-modes) to match different scenarios. A topic can have multiple subscriptions with different subscription modes. However, a subscription can only have one subscription mode at a time.
+Pulsar has various [subscription types](concepts-messaging#subscription-types) to match different scenarios. A topic can have multiple subscriptions with different subscription types. However, a subscription can only have one subscription type at a time.
 
-A subscription is identical with the subscription name which can specify only one subscription mode at a time. You cannot change the subscription mode unless all existing consumers of this subscription are offline.
+A subscription is identical with the subscription name; a subscription name can specify only one subscription type at a time. To change the subscription type, you should first stop all consumers of this subscription.
 
-Different subscription modes have different message distribution modes. This section describes the differences of subscription modes and how to use them.
+Different subscription types have different message distribution modes. This section describes the differences of subscription types and how to use them.
 
 In order to better describe their differences, assuming you have a topic named "my-topic", and the producer has published 10 messages.
 
@@ -568,7 +565,7 @@ producer.newMessage().key("key-4").value("message-4-2").send();
 
 #### Exclusive
 
-Create a new consumer and subscribe with the `Exclusive` subscription mode.
+Create a new consumer and subscribe with the `Exclusive` subscription type.
 
 ```java
 
@@ -590,7 +587,7 @@ If topic is a partitioned topic, the first consumer subscribes to all partitione
 
 #### Failover
 
-Create new consumers and subscribe with the`Failover` subscription mode.
+Create new consumers and subscribe with the`Failover` subscription type.
 
 ```java
 
@@ -643,7 +640,7 @@ If a topic is a partitioned topic, each partition has only one active consumer, 
 
 #### Shared
 
-Create new consumers and subscribe with `Shared` subscription mode:
+Create new consumers and subscribe with `Shared` subscription type.
 
 ```java
 
@@ -662,7 +659,7 @@ Consumer consumer2 = client.newConsumer()
 
 ```
 
-In shared subscription mode, multiple consumers can attach to the same subscription and messages are delivered in a round robin distribution across consumers.
+In shared subscription type, multiple consumers can attach to the same subscription and messages are delivered in a round robin distribution across consumers.
 
 If a broker dispatches only one message at a time, consumer1 receives the following information.
 
@@ -688,11 +685,11 @@ consumer2 receives the following information.
 
 ```
 
-`Shared` subscription is different from `Exclusive` and `Failover` subscription modes. `Shared` subscription has better flexibility, but cannot provide order guarantee.
+`Shared` subscription is different from `Exclusive` and `Failover` subscription types. `Shared` subscription has better flexibility, but cannot provide order guarantee.
 
 #### Key_shared
 
-This is a new subscription mode since 2.4.0 release, create new consumers and subscribe with `Key_Shared` subscription mode.
+This is a new subscription type since 2.4.0 release. Create new consumers and subscribe with `Key_Shared` subscription type.
 
 ```java
 

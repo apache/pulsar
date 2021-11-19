@@ -5,10 +5,6 @@ sidebar_label: "RabbitMQ source connector"
 original_id: io-rabbitmq-source
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The RabbitMQ source connector receives messages from RabbitMQ clusters 
 and writes messages to Pulsar topics.
 

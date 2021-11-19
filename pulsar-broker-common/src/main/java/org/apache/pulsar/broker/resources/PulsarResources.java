@@ -25,7 +25,6 @@ import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
-import lombok.AccessLevel;
 import lombok.Getter;
 
 public class PulsarResources {

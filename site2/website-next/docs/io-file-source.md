@@ -4,10 +4,6 @@ title: File source connector
 sidebar_label: "File source connector"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The File source connector pulls messages from files in directories and persists the messages to Pulsar topics.
 
 ## Configuration
@@ -40,18 +36,20 @@ Before using the File source connector, you need to create a configuration file 
   ```json
   
   {
-      "inputDirectory": "/Users/david",
-      "recurse": true,
-      "keepFile": true,
-      "fileFilter": "[^\\.].*",
-      "pathFilter": "*",
-      "minimumFileAge": 0,
-      "maximumFileAge": 9999999999,
-      "minimumSize": 1,
-      "maximumSize": 5000000,
-      "ignoreHiddenFiles": true,
-      "pollingInterval": 5000,
-      "numWorkers": 1
+     "configs": {
+        "inputDirectory": "/Users/david",
+        "recurse": true,
+        "keepFile": true,
+        "fileFilter": "[^\\.].*",
+        "pathFilter": "*",
+        "minimumFileAge": 0,
+        "maximumFileAge": 9999999999,
+        "minimumSize": 1,
+        "maximumSize": 5000000,
+        "ignoreHiddenFiles": true,
+        "pollingInterval": 5000,
+        "numWorkers": 1
+     }
   }
   
   ```

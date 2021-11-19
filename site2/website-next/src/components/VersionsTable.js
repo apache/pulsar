@@ -5,6 +5,7 @@ import TableCell from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
 import Link from "@mui/material/Link";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
+import Translate, { translate } from "@docusaurus/Translate";
 import { docUrl } from "../utils/index";
 const versions = require("../../versions.json");
 
@@ -19,9 +20,9 @@ export default function VersionsTable(props) {
         {props.data.map((row) => (
           <TableRow key={row.name}>
             <TableCell
-              className="border-gray-300"
+              className="border-gray-300 font-bold"
               sx={{ border: 1, color: "inherit" }}
-              align="left font-bold"
+              align="left"
             >
               <p>{row.name}</p>
             </TableCell>
@@ -39,7 +40,7 @@ export default function VersionsTable(props) {
                 )}
                 underline="none"
               >
-                Documentation
+                <Translate>Documentation</Translate>
               </Link>
             </TableCell>
             <TableCell
@@ -56,7 +57,13 @@ export default function VersionsTable(props) {
                 }
                 underline="none"
               >
-                {row.name == "next" ? "Source Code" : "Release Notes"}
+                {row.name == "next"
+                  ? translate({
+                      message: "Source Code",
+                    })
+                  : translate({
+                      message: "Release Notes",
+                    })}
               </Link>
             </TableCell>
           </TableRow>

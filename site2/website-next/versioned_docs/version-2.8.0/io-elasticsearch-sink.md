@@ -5,10 +5,6 @@ sidebar_label: "ElasticSearch sink connector"
 original_id: io-elasticsearch-sink
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The ElasticSearch sink connector pulls messages from Pulsar topics and persists the messages to indexes.
 
 ## Configuration

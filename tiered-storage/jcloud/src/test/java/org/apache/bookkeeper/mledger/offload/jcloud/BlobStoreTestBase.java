@@ -18,8 +18,6 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud;
 
-import java.util.Properties;
-
 import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;

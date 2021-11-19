@@ -287,7 +287,7 @@ The following is an example:
 ```shell
 $ pulsar-admin namespaces set-persistence my-tenant/my-ns \
   --bookkeeper-ack-quorum 3 \
-  --bookeeper-ensemble 2
+  --bookkeeper-ensemble 2
 ```
 
 #### REST API

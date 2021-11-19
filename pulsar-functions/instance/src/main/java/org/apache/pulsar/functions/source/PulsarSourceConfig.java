@@ -18,17 +18,10 @@
  */
 package org.apache.pulsar.functions.source;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import java.io.IOException;
-import java.util.Map;
-import java.util.TreeMap;
-
 import lombok.Data;
 
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.functions.FunctionConfig;
 
 @Data

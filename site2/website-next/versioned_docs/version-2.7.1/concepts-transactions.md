@@ -5,10 +5,6 @@ sidebar_label: "Overview"
 original_id: transactions
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 Transactional semantics enable event streaming applications to consume, process, and produce messages in one atomic operation. In Pulsar, a producer or consumer can work with messages across multiple topics and partitions and ensure those messages are processed as a single unit. 
 
 The following concepts help you understand Pulsar transactions.

@@ -4,10 +4,6 @@ title: Pulsar Perf
 sidebar_label: "Pulsar Perf"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The Pulsar Perf is a built-in performance test tool for Apache Pulsar. You can use the Pulsar Perf to test message writing or reading performance. For detailed information about performance tuning, see [here](https://streamnative.io/en/blog/tech/2021-01-14-pulsar-architecture-performance-tuning).
 
 ## Produce messages
@@ -40,7 +36,7 @@ After the command is executed, the test data is continuously output on the Conso
 
 ```
 
-From the above test data, you can get the throughput statistics and the write latency statistics. The aggregated statistics is printed when the Pulsar Perf is stopped. You can press **Ctrl**+**C** to stop the Pulsar Perf. After the Pulsar Perf is stopped, the [HdrHistogram](http://hdrhistogram.github.io/HdrHistogram/) formatted test result appears under your directory. The document looks like `perf-producer-1589370810837.hgrm`. You can also check the test result through [HdrHistogram Plotter](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html). For details about how to check the test result through [HdrHistogram Plotter](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html), see [HdrHistogram Plotter](#hdrhistogram-plotter).
+From the above test data, you can get the throughput statistics and the write latency statistics. The aggregated statistics is printed when the Pulsar Perf is stopped. You can press **Ctrl**+**C** to stop the Pulsar Perf. If you specify a filename with the `--histogram-file` parameter, a file with the [HdrHistogram](http://hdrhistogram.github.io/HdrHistogram/) formatted test result appears under your directory after Pulsar Perf is stopped. You can also check the test result through [HdrHistogram Plotter](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html). For details about how to check the test result through [HdrHistogram Plotter](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html), see [HdrHistogram Plotter](#hdrhistogram-plotter).
 
 ### Configuration options for `pulsar-perf produce`
 
@@ -69,6 +65,7 @@ The following table lists configuration options available for the `pulsar-perf p
 | format-class | Set the custom formatter class name. | org.apache.pulsar.testclient.DefaultMessageFormatter |
 | format-payload | Configure whether to format %i as a message index in the stream from producer and/or %t as the timestamp nanoseconds. | false |
 | help | Configure the help message. | false |
+| histogram-file | HdrHistogram output file | N/A |
 | max-connections | Set the maximum number of TCP connections to a single broker. | 100 |
 | max-outstanding | Set the maximum number of outstanding messages. | 1000 |
 | max-outstanding-across-partitions | Set the maximum number of outstanding messages across partitions. | 50000 |
@@ -143,6 +140,7 @@ The following table lists configuration options available for the `pulsar-perf c
 | encryption-key-name | Set the name of the public key used to encrypt the payload. | N/A |
 | encryption-key-value-file | Set the file which contains the public key used to encrypt the payload. | N/A |
 | help | Configure the help message. | false |
+| histogram-file | HdrHistogram output file | N/A |
 | expire_time_incomplete_chunked_messages | Set the expiration time for incomplete chunk messages (in milliseconds). | 0 |
 | max-connections | Set the maximum number of TCP connections to a single broker. | 100 |
 | max_chunked_msg | Set the max pending chunk messages. | 0 |

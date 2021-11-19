@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.authentication;
 
-import com.google.common.collect.Maps;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;

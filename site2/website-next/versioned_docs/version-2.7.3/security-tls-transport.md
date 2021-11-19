@@ -5,10 +5,6 @@ sidebar_label: "Transport Encryption using TLS"
 original_id: security-tls-transport
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 ## TLS overview
 
 By default, Apache Pulsar clients communicate with the Apache Pulsar service in plain text. This means that all data is sent in the clear. You can use TLS to encrypt this traffic to protect the traffic from the snooping of a man-in-the-middle attacker.
@@ -84,13 +80,15 @@ Once you have created a CA certificate, you can create certificate requests and 
 
 The following commands ask you a few questions and then create the certificates. When you are asked for the common name, you should match the hostname of the broker. You can also use a wildcard to match a group of broker hostnames, for example, `*.broker.usw.example.com`. This ensures that multiple machines can reuse the same certificate.
 
-> #### Tips
-> 
-> Sometimes matching the hostname is not possible or makes no sense,
-> such as when you create the brokers with random hostnames, or you
-> plan to connect to the hosts via their IP. In these cases, you 
-> should configure the client to disable TLS hostname verification. For more
-> details, you can see [the host verification section in client configuration](#hostname-verification).
+:::tip
+
+Sometimes matching the hostname is not possible or makes no sense,
+such as when you create the brokers with random hostnames, or you
+plan to connect to the hosts via their IP. In these cases, you 
+should configure the client to disable TLS hostname verification. For more
+details, you can see [the host verification section in client configuration](#hostname-verification).
+
+:::
 
 1. Enter the command below to generate the key.
 
@@ -171,7 +169,7 @@ For JDK 8, you can obtain a list of supported values from the documentation:
 
 Proxies need to configure TLS in two directions, for clients connecting to the proxy, and for the proxy connecting to brokers.
 
-```
+```properties
 
 # For clients connecting to the proxy
 tlsEnabledInProxy=true
@@ -187,7 +185,7 @@ brokerClientTrustCertsFilePath=/path/to/ca.cert.pem
 
 ## Client configuration
 
-When you enable the TLS transport encryption, you need to configure the client to use ```
+When you enable the TLS transport encryption, you need to configure the client to use ```https://``` and port 8443 for the web service URL, and ```pulsar+ssl://``` and port 6651 for the broker service URL.
 
 As the server certificate that you generated above does not belong to any of the default trust chains, you also need to either specify the path the **trust cert** (recommended), or tell the client to allow untrusted server certs.
 

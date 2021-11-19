@@ -81,7 +81,6 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         try {
             return BookKeeper.forConfig(bkConf)
                     .allocator(PulsarByteBufAllocator.DEFAULT)
-                    .setZookeeper(zkClient)
                     .eventLoopGroup(eventLoopGroup)
                     .statsLogger(statsLogger)
                     .build();

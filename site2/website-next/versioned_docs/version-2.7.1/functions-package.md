@@ -5,10 +5,6 @@ sidebar_label: "How-to: Package"
 original_id: functions-package
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 You can package Pulsar functions in Java, Python, and Go. Packaging the window function in Java is the same as [packaging a function in Java](#java).
 
 :::note

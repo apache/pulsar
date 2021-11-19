@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.auth;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.testng.annotations.Test;

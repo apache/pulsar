@@ -4,10 +4,6 @@ title: Pulsar Metrics
 sidebar_label: "Pulsar Metrics"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 
 
 Pulsar exposes the following metrics in Prometheus format. You can monitor your clusters with those metrics.

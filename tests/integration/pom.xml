@@ -148,12 +148,14 @@
     <dependency>
   	  <groupId>org.elasticsearch.client</groupId>
   	  <artifactId>elasticsearch-rest-high-level-client</artifactId>
+      <scope>test</scope>
   	</dependency>
 
     <dependency>
       <groupId>com.rabbitmq</groupId>
       <artifactId>amqp-client</artifactId>
       <version>${rabbitmq-client.version}</version>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
