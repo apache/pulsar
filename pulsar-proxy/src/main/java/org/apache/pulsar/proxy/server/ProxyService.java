@@ -37,6 +37,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -85,6 +87,7 @@ public class ProxyService implements Closeable {
 
     private final EventLoopGroup acceptorGroup;
     private final EventLoopGroup workerGroup;
+    private final List<EventLoopGroup> extensionsWorkerGroups = new ArrayList<>();
 
     private Channel listenChannel;
     private Channel listenChannelTls;
@@ -263,6 +266,15 @@ public class ProxyService implements Closeable {
                                      ChannelInitializer<SocketChannel> initializer,
                                      ServerBootstrap serverBootstrap) throws IOException {
         ServerBootstrap bootstrap = serverBootstrap.clone();
+        boolean useSeparateThreadPool = proxyConfig.isUseSeparateThreadPoolForProxyExtensions();
+        if (useSeparateThreadPool) {
+            DefaultThreadFactory defaultThreadFactory = new DefaultThreadFactory("pulsar-ext-" + extensionName);
+            EventLoopGroup dedicatedWorkerGroup =
+                    EventLoopUtil.newEventLoopGroup(numThreads, false, defaultThreadFactory);
+            extensionsWorkerGroups.add(dedicatedWorkerGroup);
+            bootstrap.channel(EventLoopUtil.getServerSocketChannelClass(dedicatedWorkerGroup));
+            bootstrap.group(this.acceptorGroup, dedicatedWorkerGroup);
+        }
         bootstrap.childHandler(initializer);
         try {
             bootstrap.bind(address).sync();
@@ -314,6 +326,9 @@ public class ProxyService implements Closeable {
         }
         acceptorGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
+        for (EventLoopGroup group : extensionsWorkerGroups) {
+            group.shutdownGracefully();
+        }
         if (timer != null) {
             timer.stop();
         }
