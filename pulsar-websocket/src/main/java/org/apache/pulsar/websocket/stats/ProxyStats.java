@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.websocket.stats;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import static org.apache.pulsar.websocket.ProducerHandler.ENTRY_LATENCY_BUCKETS_USEC;
 
 import java.util.List;
@@ -55,7 +56,8 @@ public class ProxyStats {
         this.metricsCollection = Lists.newArrayList();
         this.tempMetricsCollection = Lists.newArrayList();
         // schedule stat generation task every 1 minute
-        service.getExecutor().scheduleAtFixedRate(() -> generate(), 120, 60, TimeUnit.SECONDS);
+        service.getExecutor()
+                .scheduleAtFixedRate(catchingAndLoggingThrowables(this::generate), 120, 60, TimeUnit.SECONDS);
     }
 
     /**

@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.resourcegroup;
 
 import static org.apache.pulsar.client.api.CompressionType.LZ4;
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -79,7 +80,7 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
         public ResourceUsageWriterTask() throws PulsarClientException {
             producer = createProducer();
             resourceUsagePublishTask = pulsarService.getExecutor().scheduleAtFixedRate(
-                    this,
+                    catchingAndLoggingThrowables(this),
                     pulsarService.getConfig().getResourceUsageTransportPublishIntervalInSecs(),
                     pulsarService.getConfig().getResourceUsageTransportPublishIntervalInSecs(),
                     TimeUnit.SECONDS);

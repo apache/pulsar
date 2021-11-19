@@ -29,6 +29,7 @@ import static org.apache.pulsar.client.impl.ProducerBase.MultiSchemaMode.Auto;
 import static org.apache.pulsar.client.impl.ProducerBase.MultiSchemaMode.Enabled;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import static org.apache.pulsar.common.protocol.Commands.readChecksum;
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
@@ -204,7 +205,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         if (this.msgCrypto != null) {
             // Regenerate data key cipher at fixed interval
-            keyGeneratorTask = client.eventLoopGroup().scheduleWithFixedDelay(() -> {
+            keyGeneratorTask = client.eventLoopGroup().scheduleWithFixedDelay(catchingAndLoggingThrowables(() -> {
                 try {
                     msgCrypto.addPublicKeyCipher(conf.getEncryptionKeys(), conf.getCryptoKeyReader());
                 } catch (CryptoException e) {
@@ -217,7 +218,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                                                 producerName, topic)));
                     }
                 }
-            }, 0L, 4L, TimeUnit.HOURS);
+            }), 0L, 4L, TimeUnit.HOURS);
         }
 
         if (conf.getSendTimeoutMs() > 0) {
@@ -1450,24 +1451,26 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
                         if (!producerCreatedFuture.isDone() && isBatchMessagingEnabled()) {
                             // schedule the first batch message task
-                            batchTimerTask = cnx.ctx().executor().scheduleAtFixedRate(() -> {
-                                if (log.isTraceEnabled()) {
-                                    log.trace(
-                                            "[{}] [{}] Batching the messages from the batch container from timer thread",
-                                            topic,
-                                            producerName);
-                                }
-                                // semaphore acquired when message was enqueued to container
-                                synchronized (ProducerImpl.this) {
-                                    // If it's closing/closed we need to ignore the send batch timer and not
-                                    // schedule next timeout.
-                                    if (getState() == State.Closing || getState() == State.Closed) {
-                                        return;
-                                    }
+                            batchTimerTask = cnx.ctx().executor()
+                                    .scheduleAtFixedRate(catchingAndLoggingThrowables(() -> {
+                                        if (log.isTraceEnabled()) {
+                                            log.trace(
+                                                    "[{}] [{}] Batching the messages from the batch container from "
+                                                            + "timer thread",
+                                                    topic,
+                                                    producerName);
+                                        }
+                                        // semaphore acquired when message was enqueued to container
+                                        synchronized (ProducerImpl.this) {
+                                            // If it's closing/closed we need to ignore the send batch timer and not
+                                            // schedule next timeout.
+                                            if (getState() == State.Closing || getState() == State.Closed) {
+                                                return;
+                                            }
 
-                                    batchMessageAndSend();
-                                }
-                            }, 0, conf.getBatchingMaxPublishDelayMicros(), TimeUnit.MICROSECONDS);
+                                            batchMessageAndSend();
+                                        }
+                                    }), 0, conf.getBatchingMaxPublishDelayMicros(), TimeUnit.MICROSECONDS);
                         }
                         resendMessages(cnx, epoch);
                     }
