@@ -4514,4 +4514,36 @@ public class PersistentTopicsBase extends AdminResource {
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
+
+    protected Map<String, Boolean> internalGetReplicatedSubscriptionStatus() {
+        log.info("[{}] Attempting to get replicated subscription status on {}", clientAppId(), topicName);
+
+        // Reject the request if the topic is not persistent
+        if (!topicName.isPersistent()) {
+            new RestException(Status.METHOD_NOT_ALLOWED,
+                    "Cannot get replicated subscriptions on non-persistent topics");
+        }
+
+        // Reject the request if the topic is not global
+        if (!topicName.isGlobal()) {
+            new RestException(Status.METHOD_NOT_ALLOWED,
+                    "Cannot get replicated subscriptions on non-global topics");
+        }
+
+        // Permission to consume this topic is required
+        validateTopicOperation(topicName, TopicOperation.GET_REPLICATED_SUBSCRIPTION_STATUS);
+
+        Topic topic = getTopicReference(topicName);
+        if (topic == null) {
+            new RestException(Status.NOT_FOUND, "Topic not found");
+        }
+
+        Map<String, Boolean> replicatedSubscriptionStatus = new HashMap<>();
+        topic.getSubscriptions().forEach((name, subscription) ->
+                replicatedSubscriptionStatus.put(name, subscription.isReplicated())
+        );
+        log.info("[{}] Got replicated subscription status on {}", clientAppId(), topicName);
+
+        return replicatedSubscriptionStatus;
+    }
 }

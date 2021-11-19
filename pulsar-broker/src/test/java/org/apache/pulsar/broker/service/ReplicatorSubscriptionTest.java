@@ -24,6 +24,8 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+
+import com.beust.jcommander.internal.Maps;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
@@ -49,6 +51,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -268,6 +271,8 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
 
         // Disable replicated subscription in r1
         admin1.topics().setReplicatedSubscriptionStatus(topicName, subName, false);
+        Assert.assertEquals(admin1.topics().getReplicatedSubscriptionStatus(topicName),
+                Maps.newHashMap("sub", false));
         stats = admin1.topics().getStats(topicName);
         assertFalse(stats.getSubscriptions().get(subName).isReplicated());
         stats = admin2.topics().getStats(topicName);
@@ -309,6 +314,8 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
 
         // Enable replicated subscription in r1
         admin1.topics().setReplicatedSubscriptionStatus(topicName, subName, true);
+        Assert.assertEquals(admin1.topics().getReplicatedSubscriptionStatus(topicName),
+                Maps.newHashMap("sub", true));
         stats = admin1.topics().getStats(topicName);
         assertTrue(stats.getSubscriptions().get(subName).isReplicated());
         stats = admin2.topics().getStats(topicName);

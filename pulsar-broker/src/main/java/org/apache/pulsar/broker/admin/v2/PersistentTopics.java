@@ -3426,5 +3426,25 @@ public class PersistentTopics extends PersistentTopicsBase {
         }
     }
 
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/subscription/replicatedSubscriptionStatus")
+    @ApiOperation(value = "Get replicated subscription status on a topic.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 412, message = "Can't find owner for topic"),
+            @ApiResponse(code = 500, message = "Internal server error")})
+    public Map<String, Boolean> getReplicatedSubscriptionStatus(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        return internalGetReplicatedSubscriptionStatus();
+    }
+
     private static final Logger log = LoggerFactory.getLogger(PersistentTopics.class);
 }
