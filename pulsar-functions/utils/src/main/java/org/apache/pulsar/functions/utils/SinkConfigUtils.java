@@ -45,7 +45,12 @@ import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -277,12 +282,11 @@ public class SinkConfigUtils {
         }
 
         switch (functionDetails.getSource().getSubscriptionType()) {
-            case SHARED:
-                sinkConfig.setRetainOrdering(false);
-                break;
             case FAILOVER:
                 sinkConfig.setRetainOrdering(true);
                 break;
+            default:
+                sinkConfig.setRetainOrdering(false);
         }
 
         sinkConfig.setProcessingGuarantees(convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
