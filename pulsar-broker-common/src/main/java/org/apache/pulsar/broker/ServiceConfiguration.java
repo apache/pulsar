@@ -1797,6 +1797,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + "will have 66% msgRate difference and load balancer can unload bundles from broker-1 "
                 + "to broker-2)"
     )
+
     private double loadBalancerMsgRateDifferenceShedderThreshold = 50;
     @FieldContext(
         dynamic = true,

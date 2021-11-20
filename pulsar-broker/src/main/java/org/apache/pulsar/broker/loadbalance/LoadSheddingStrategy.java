@@ -19,12 +19,27 @@
 package org.apache.pulsar.broker.loadbalance;
 
 import com.google.common.collect.Multimap;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 
 /**
  * Load management component which determines the criteria for unloading bundles.
  */
 public interface LoadSheddingStrategy {
+
+    /**
+     * Recommend that all of the returned bundles be unloaded.
+     *
+     * @param loadData
+     *            The load data to used to make the unloading decision.
+     * @param conf
+     *            The service configuration.
+     * @return A map from all selected bundles to the brokers on which they reside.
+     */
+    default Multimap<String, String> findBundlesForUnloading(PulsarService pulsar, LoadData loadData,
+            ServiceConfiguration conf) {
+        return findBundlesForUnloading(loadData, conf);
+    }
 
     /**
      * Recommend that all of the returned bundles be unloaded.
