@@ -1,41 +1,22 @@
 {
   "docs": [
-    {
-      "filename": "brokers.md"
-    },
-    {
-      "filename": "broker-stats.md"
-    },
-    {
-      "filename": "clusters.md"
-    },
-    {
-      "filename": "functions.md"
-    },
-    {
-      "filename": "namespaces.md"
-    },
-    {
-      "filename": "ns-isolation-policy.md"
-    },
-    {
-      "filename": "sources.md"
-    },
-    {
-      "filename": "sinks.md"
-    },
-    {
-      "filename": "topics.md"
-    },
-    {
-      "filename": "tenants.md"
-    },
-    {
-      "filename": "resource-quotas.md"
-    },
-    {
-      "filename": "schemas.md"
-    }
+    { "filename": "broker-stats.md" },
+    { "filename": "brokers.md" },
+    { "filename": "clusters.md" },
+    { "filename": "functions-worker.md" },
+    { "filename": "functions.md" },
+    { "filename": "namespaces.md" },
+    { "filename": "ns-isolation-policy.md" },
+    { "filename": "packages.md" },
+    { "filename": "proxy-stats.md" },
+    { "filename": "resource-quotas.md" },
+    { "filename": "resourcegroups.md" },
+    { "filename": "schemas.md" },
+    { "filename": "sinks.md" },
+    { "filename": "sources.md" },
+    { "filename": "tenants.md" },
+    { "filename": "topics.md" },
+    { "filename": "transactions.md" }
   ],
   "title": "Docs",
   "copyright": "<a href='http://pulsar.apache.org/'>Apache Pulsar</a>"

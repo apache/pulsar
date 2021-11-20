@@ -62,7 +62,6 @@ import javax.net.ssl.TrustManagerFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.classification.InterfaceAudience;
-import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.common.tls.TlsHostnameVerifier;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 

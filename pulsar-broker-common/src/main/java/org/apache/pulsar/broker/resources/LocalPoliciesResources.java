@@ -27,7 +27,6 @@ import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.CacheGetResult;
-import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 
@@ -77,6 +76,10 @@ public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
 
     public void deleteLocalPolicies(NamespaceName ns) throws MetadataStoreException {
         delete(joinPath(LOCAL_POLICIES_ROOT, ns.toString()));
+    }
+
+    public CompletableFuture<Void> deleteLocalPoliciesAsync(NamespaceName ns) {
+        return deleteAsync(joinPath(LOCAL_POLICIES_ROOT, ns.toString()));
     }
 
     public static boolean isLocalPoliciesPath(String path) {

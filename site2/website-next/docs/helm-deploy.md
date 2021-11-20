@@ -4,10 +4,6 @@ title: Deploy Pulsar cluster using Helm
 sidebar_label: "Deployment"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 Before running `helm install`, you need to decide how to run Pulsar.
 Options can be specified using Helm's `--set option.name=value` command line option.
 

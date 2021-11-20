@@ -690,7 +690,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         } else if (getState() != State.Connected || !isActive) {
             // Connection is either still being established or already closed.
             return;
-        } else if (authState != null && !authState.isExpired()) {
+        } else if (!authState.isExpired()) {
             // Credentials are still valid. Nothing to do at this point
             return;
         } else if (originalPrincipal != null && originalAuthState == null) {
@@ -1143,142 +1143,135 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             topicName, TopicOperation.PRODUCE
         );
         isAuthorizedFuture.thenApply(isAuthorized -> {
-                    if (isAuthorized) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] Client is authorized to Produce with role {}",
-                                    remoteAddress, getPrincipal());
-                        }
-                        CompletableFuture<Producer> producerFuture = new CompletableFuture<>();
-                        CompletableFuture<Producer> existingProducerFuture = producers.putIfAbsent(producerId,
-                                producerFuture);
+            if (!isAuthorized) {
+                String msg = "Client is not authorized to Produce";
+                log.warn("[{}] {} with role {}", remoteAddress, msg, getPrincipal());
+                ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
+                return null;
+            }
 
-                        if (existingProducerFuture != null) {
-                            if (existingProducerFuture.isDone() && !existingProducerFuture.isCompletedExceptionally()) {
-                                Producer producer = existingProducerFuture.getNow(null);
-                                log.info("[{}] Producer with the same id is already created:"
-                                         + " producerId={}, producer={}", remoteAddress, producerId, producer);
-                                commandSender.sendProducerSuccessResponse(requestId, producer.getProducerName(),
-                                        producer.getSchemaVersion());
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Client is authorized to Produce with role {}", remoteAddress, getPrincipal());
+            }
+            CompletableFuture<Producer> producerFuture = new CompletableFuture<>();
+            CompletableFuture<Producer> existingProducerFuture = producers.putIfAbsent(producerId, producerFuture);
 
-                                return null;
-                            } else {
-                                // There was an early request to create a producer with same producerId.
-                                // This can happen when client timeout is lower than the broker timeouts.
-                                // We need to wait until the previous producer creation request
-                                // either complete or fails.
-                                ServerError error = null;
-                                if (!existingProducerFuture.isDone()) {
-                                    error = ServerError.ServiceNotReady;
-                                } else {
-                                    error = getErrorCode(existingProducerFuture);
-                                    // remove producer with producerId as it's already completed with exception
-                                    producers.remove(producerId, existingProducerFuture);
-                                }
-                                log.warn("[{}][{}] Producer with id is already present on the connection,"
-                                         + " producerId={}", remoteAddress, topicName, producerId);
-                                commandSender.sendErrorResponse(requestId, error,
-                                                                "Producer is already present on the connection");
-
-                                return null;
-                            }
-                        }
-
-                        log.info("[{}][{}] Creating producer. producerId={}", remoteAddress, topicName, producerId);
-
-                        service.getOrCreateTopic(topicName.toString()).thenAccept((Topic topic) -> {
-                            // Before creating producer, check if backlog quota exceeded
-                            // on topic for size based limit and time based limit
-                            for (BacklogQuota.BacklogQuotaType backlogQuotaType :
-                                    BacklogQuota.BacklogQuotaType.values()) {
-                                if (topic.isBacklogQuotaExceeded(producerName, backlogQuotaType)) {
-                                    IllegalStateException illegalStateException = new IllegalStateException(
-                                            "Cannot create producer on topic with backlog quota exceeded");
-                                    BacklogQuota.RetentionPolicy retentionPolicy = topic
-                                            .getBacklogQuota(backlogQuotaType).getPolicy();
-                                    if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_request_hold) {
-                                        commandSender.sendErrorResponse(requestId,
-                                                ServerError.ProducerBlockedQuotaExceededError,
-                                                illegalStateException.getMessage());
-                                    } else if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_exception) {
-                                        commandSender.sendErrorResponse(requestId,
-                                                ServerError.ProducerBlockedQuotaExceededException,
-                                                illegalStateException.getMessage());
-                                    }
-                                    producerFuture.completeExceptionally(illegalStateException);
-                                    producers.remove(producerId, producerFuture);
-                                    return;
-                                }
-                            }
-
-                            // Check whether the producer will publish encrypted messages or not
-                            if ((topic.isEncryptionRequired() || encryptionRequireOnProducer) && !isEncrypted) {
-                                String msg = String.format("Encryption is required in %s", topicName);
-                                log.warn("[{}] {}", remoteAddress, msg);
-                                commandSender.sendErrorResponse(requestId, ServerError.MetadataError, msg);
-                                producers.remove(producerId, producerFuture);
-                                return;
-                            }
-
-                            disableTcpNoDelayIfNeeded(topicName.toString(), producerName);
-
-                            CompletableFuture<SchemaVersion> schemaVersionFuture = tryAddSchema(topic, schema);
-
-                            schemaVersionFuture.exceptionally(exception -> {
-                                String message = exception.getMessage();
-                                if (exception.getCause() != null) {
-                                    message += (" caused by " + exception.getCause());
-                                }
-                                commandSender.sendErrorResponse(requestId,
-                                        BrokerServiceException.getClientErrorCode(exception),
-                                        message);
-                                producers.remove(producerId, producerFuture);
-                                return null;
-                            });
-
-                            schemaVersionFuture.thenAccept(schemaVersion -> {
-                                topic.checkIfTransactionBufferRecoverCompletely(isTxnEnabled).thenAccept(future -> {
-                                    buildProducerAndAddTopic(topic, producerId, producerName, requestId, isEncrypted,
-                                            metadata, schemaVersion, epoch, userProvidedProducerName, topicName,
-                                            producerAccessMode, topicEpoch, producerFuture);
-                                }).exceptionally(exception -> {
-                                    Throwable cause = exception.getCause();
-                                    log.error("producerId {}, requestId {} : TransactionBuffer recover failed",
-                                            producerId, requestId, exception);
-                                    commandSender.sendErrorResponse(requestId,
-                                            ServiceUnitNotReadyException.getClientErrorCode(cause),
-                                            cause.getMessage());
-                                    return null;
-                                });
-                            });
-                        }).exceptionally(exception -> {
-                            Throwable cause = exception.getCause();
-                            if (cause instanceof NoSuchElementException) {
-                                cause = new TopicNotFoundException("Topic Not Found.");
-                            }
-                            if (!Exceptions.areExceptionsPresentInChain(cause,
-                                    ServiceUnitNotReadyException.class, ManagedLedgerException.class)) {
-                                // Do not print stack traces for expected exceptions
-                                log.error("[{}] Failed to create topic {}, producerId={}",
-                                          remoteAddress, topicName, producerId, exception);
-                            }
-
-                            // If client timed out, the future would have been completed
-                            // by subsequent close. Send error back to
-                            // client, only if not completed already.
-                            if (producerFuture.completeExceptionally(exception)) {
-                                commandSender.sendErrorResponse(requestId,
-                                        BrokerServiceException.getClientErrorCode(cause), cause.getMessage());
-                            }
-                            producers.remove(producerId, producerFuture);
-
-                            return null;
-                        });
-                    } else {
-                        String msg = "Client is not authorized to Produce";
-                        log.warn("[{}] {} with role {}", remoteAddress, msg, getPrincipal());
-                        ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
-                    }
+            if (existingProducerFuture != null) {
+                if (existingProducerFuture.isDone() && !existingProducerFuture.isCompletedExceptionally()) {
+                    Producer producer = existingProducerFuture.getNow(null);
+                    log.info("[{}] Producer with the same id is already created:"
+                            + " producerId={}, producer={}", remoteAddress, producerId, producer);
+                    commandSender.sendProducerSuccessResponse(requestId, producer.getProducerName(),
+                            producer.getSchemaVersion());
                     return null;
+                } else {
+                    // There was an early request to create a producer with same producerId.
+                    // This can happen when client timeout is lower than the broker timeouts.
+                    // We need to wait until the previous producer creation request
+                    // either complete or fails.
+                    ServerError error = null;
+                    if (!existingProducerFuture.isDone()) {
+                        error = ServerError.ServiceNotReady;
+                    } else {
+                        error = getErrorCode(existingProducerFuture);
+                        // remove producer with producerId as it's already completed with exception
+                        producers.remove(producerId, existingProducerFuture);
+                    }
+                    log.warn("[{}][{}] Producer with id is already present on the connection, producerId={}",
+                            remoteAddress, topicName, producerId);
+                    commandSender.sendErrorResponse(requestId, error, "Producer is already present on the connection");
+                    return null;
+                }
+            }
+
+            log.info("[{}][{}] Creating producer. producerId={}", remoteAddress, topicName, producerId);
+
+            service.getOrCreateTopic(topicName.toString()).thenAccept((Topic topic) -> {
+                // Before creating producer, check if backlog quota exceeded
+                // on topic for size based limit and time based limit
+                for (BacklogQuota.BacklogQuotaType backlogQuotaType : BacklogQuota.BacklogQuotaType.values()) {
+                    if (topic.isBacklogQuotaExceeded(producerName, backlogQuotaType)) {
+                        IllegalStateException illegalStateException = new IllegalStateException(
+                                "Cannot create producer on topic with backlog quota exceeded");
+                        BacklogQuota.RetentionPolicy retentionPolicy = topic
+                                .getBacklogQuota(backlogQuotaType).getPolicy();
+                        if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_request_hold) {
+                            commandSender.sendErrorResponse(requestId,
+                                    ServerError.ProducerBlockedQuotaExceededError,
+                                    illegalStateException.getMessage());
+                        } else if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_exception) {
+                            commandSender.sendErrorResponse(requestId,
+                                    ServerError.ProducerBlockedQuotaExceededException,
+                                    illegalStateException.getMessage());
+                        }
+                        producerFuture.completeExceptionally(illegalStateException);
+                        producers.remove(producerId, producerFuture);
+                        return;
+                    }
+                }
+                // Check whether the producer will publish encrypted messages or not
+                if ((topic.isEncryptionRequired() || encryptionRequireOnProducer) && !isEncrypted) {
+                    String msg = String.format("Encryption is required in %s", topicName);
+                    log.warn("[{}] {}", remoteAddress, msg);
+                    commandSender.sendErrorResponse(requestId, ServerError.MetadataError, msg);
+                    producers.remove(producerId, producerFuture);
+                    return;
+                }
+
+                disableTcpNoDelayIfNeeded(topicName.toString(), producerName);
+
+                CompletableFuture<SchemaVersion> schemaVersionFuture = tryAddSchema(topic, schema);
+
+                schemaVersionFuture.exceptionally(exception -> {
+                    String message = exception.getMessage();
+                    if (exception.getCause() != null) {
+                        message += (" caused by " + exception.getCause());
+                    }
+                    commandSender.sendErrorResponse(requestId,
+                            BrokerServiceException.getClientErrorCode(exception),
+                            message);
+                    producers.remove(producerId, producerFuture);
+                    return null;
+                });
+
+                schemaVersionFuture.thenAccept(schemaVersion -> {
+                    topic.checkIfTransactionBufferRecoverCompletely(isTxnEnabled).thenAccept(future -> {
+                        buildProducerAndAddTopic(topic, producerId, producerName, requestId, isEncrypted,
+                                metadata, schemaVersion, epoch, userProvidedProducerName, topicName,
+                                producerAccessMode, topicEpoch, producerFuture);
+                    }).exceptionally(exception -> {
+                        Throwable cause = exception.getCause();
+                        log.error("producerId {}, requestId {} : TransactionBuffer recover failed",
+                                producerId, requestId, exception);
+                        commandSender.sendErrorResponse(requestId,
+                                ServiceUnitNotReadyException.getClientErrorCode(cause),
+                                cause.getMessage());
+                        return null;
+                    });
+                });
+            }).exceptionally(exception -> {
+                Throwable cause = exception.getCause();
+                if (cause instanceof NoSuchElementException) {
+                    cause = new TopicNotFoundException("Topic Not Found.");
+                }
+                if (!Exceptions.areExceptionsPresentInChain(cause,
+                        ServiceUnitNotReadyException.class, ManagedLedgerException.class)) {
+                    // Do not print stack traces for expected exceptions
+                    log.error("[{}] Failed to create topic {}, producerId={}",
+                            remoteAddress, topicName, producerId, exception);
+                }
+
+                // If client timed out, the future would have been completed
+                // by subsequent close. Send error back to
+                // client, only if not completed already.
+                if (producerFuture.completeExceptionally(exception)) {
+                    commandSender.sendErrorResponse(requestId,
+                            BrokerServiceException.getClientErrorCode(cause), cause.getMessage());
+                }
+                producers.remove(producerId, producerFuture);
+                return null;
+            });
+            return null;
         }).exceptionally(ex -> {
             logAuthException(remoteAddress, "producer", getPrincipal(), Optional.of(topicName), ex);
             commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, ex.getMessage());
@@ -1352,7 +1345,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         CompletableFuture<Producer> producerFuture = producers.get(send.getProducerId());
 
         if (producerFuture == null || !producerFuture.isDone() || producerFuture.isCompletedExceptionally()) {
-            log.warn("[{}] Producer had already been closed: {}", remoteAddress, send.getProducerId());
+            log.warn("[{}] Received message, but the producer is not ready : {}. Closing the connection.",
+                    remoteAddress, send.getProducerId());
+            close();
             return;
         }
 
@@ -1967,7 +1962,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     requestId, tcId, remoteAddress);
         }
 
-        if (!checkTransactionEnableAndSenError(requestId)) {
+        if (!checkTransactionEnableAndSendError(requestId)) {
             return;
         }
 
@@ -1989,7 +1984,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         });
     }
 
-    private boolean checkTransactionEnableAndSenError(long requestId) {
+    private boolean checkTransactionEnableAndSendError(long requestId) {
         if (!service.getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
             BrokerServiceException.NotAllowedException ex =
                     new BrokerServiceException.NotAllowedException(
@@ -2010,7 +2005,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     requestId, tcId, remoteAddress);
         }
 
-        if (!checkTransactionEnableAndSenError(requestId)) {
+        if (!checkTransactionEnableAndSendError(requestId)) {
             return;
         }
 
@@ -2047,7 +2042,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             + "from {} with txnId {}, topic: [{}]", requestId, remoteAddress, txnID, partion));
         }
 
-        if (!checkTransactionEnableAndSenError(requestId)) {
+        if (!checkTransactionEnableAndSendError(requestId)) {
             return;
         }
 
@@ -2088,7 +2083,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
         final TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTxnidMostBits());
 
-        if (!checkTransactionEnableAndSenError(requestId)) {
+        if (!checkTransactionEnableAndSendError(requestId)) {
             return;
         }
 
@@ -2303,7 +2298,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         final TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTxnidMostBits());
 
-        if (!checkTransactionEnableAndSenError(requestId)) {
+        if (!checkTransactionEnableAndSendError(requestId)) {
             return;
         }
 

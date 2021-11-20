@@ -4,10 +4,6 @@ title: Kinesis sink connector
 sidebar_label: "Kinesis sink connector"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The Kinesis sink connector pulls data from Pulsar and persists data into Amazon Kinesis.
 
 ## Configuration
@@ -57,12 +53,14 @@ Before using the Kinesis sink connector, you need to create a configuration file
   ```json
   
   {
-      "awsEndpoint": "some.endpoint.aws",
-      "awsRegion": "us-east-1",
-      "awsKinesisStreamName": "my-stream",
-      "awsCredentialPluginParam": "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}",
-      "messageFormat": "ONLY_RAW_PAYLOAD",
-      "retainOrdering": "true"
+     "configs": {
+        "awsEndpoint": "some.endpoint.aws",
+        "awsRegion": "us-east-1",
+        "awsKinesisStreamName": "my-stream",
+        "awsCredentialPluginParam": "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}",
+        "messageFormat": "ONLY_RAW_PAYLOAD",
+        "retainOrdering": "true"
+     }
   }
   
   ```

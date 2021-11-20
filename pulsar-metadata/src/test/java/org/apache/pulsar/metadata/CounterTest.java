@@ -72,7 +72,7 @@ public class CounterTest extends BaseMetadataStoreTest {
         assertNotEquals(l2, l3);
 
         cs1.close();
-        store1.close();;
+        store1.close();
 
         // Delete all the empty container nodes
         zks.checkContainers();

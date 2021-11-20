@@ -4,10 +4,6 @@ title: MongoDB sink connector
 sidebar_label: "MongoDB sink connector"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The MongoDB sink connector pulls messages from Pulsar topics 
 and persists the messages to collections.
 
@@ -35,11 +31,13 @@ Before using the Mongo sink connector, you need to create a configuration file t
   ```json
   
   {
-      "mongoUri": "mongodb://localhost:27017",
-      "database": "pulsar",
-      "collection": "messages",
-      "batchSize": "2",
-      "batchTimeMs": "500"
+     "configs": {
+        "mongoUri": "mongodb://localhost:27017",
+        "database": "pulsar",
+        "collection": "messages",
+        "batchSize": "2",
+        "batchTimeMs": "500"
+     }
   }
   
   ```

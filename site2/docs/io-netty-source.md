@@ -31,10 +31,12 @@ Before using the Netty source connector, you need to create a configuration file
 
     ```json
     {
-        "type": "tcp",
-        "host": "127.0.0.1",
-        "port": "10911",
-        "numberOfThreads": "1"
+       "configs": {
+          "type": "tcp",
+          "host": "127.0.0.1",
+          "port": "10911",
+          "numberOfThreads": "1"
+       }
     }
     ```
 

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.windowing.triggers;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.ThreadContext;
@@ -75,7 +76,9 @@ public class TimeTriggerPolicy<T> implements TriggerPolicy<T, Void> {
 
     @Override
     public void start() {
-        executorFuture = executor.scheduleAtFixedRate(newTriggerTask(), duration, duration, TimeUnit.MILLISECONDS);
+        executorFuture =
+                executor.scheduleAtFixedRate(catchingAndLoggingThrowables(newTriggerTask()), duration, duration,
+                        TimeUnit.MILLISECONDS);
     }
 
     @Override
