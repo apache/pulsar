@@ -3136,25 +3136,19 @@ public class PersistentTopic extends AbstractTopic
         }
     }
 
-    private TopicName getPartitionedTopicName() {
-        TopicName topicName = TopicName.get(topic);
-        if (topicName.isPartitioned()) {
-            return TopicName.get(topicName.getPartitionedTopicName());
-        }
-        return topicName;
-    }
-
     private void registerTopicPolicyListener() {
         if (brokerService.pulsar().getConfig().isSystemTopicEnabled()
                 && brokerService.pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
-            brokerService.getPulsar().getTopicPoliciesService().registerListener(getPartitionedTopicName(), this);
+            brokerService.getPulsar().getTopicPoliciesService()
+                    .registerListener(TopicName.getPartitionedTopicName(topic), this);
         }
     }
 
     private void unregisterTopicPolicyListener() {
         if (brokerService.pulsar().getConfig().isSystemTopicEnabled()
                 && brokerService.pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
-            brokerService.getPulsar().getTopicPoliciesService().unregisterListener(getPartitionedTopicName(), this);
+            brokerService.getPulsar().getTopicPoliciesService()
+                    .unregisterListener(TopicName.getPartitionedTopicName(topic), this);
         }
     }
 
