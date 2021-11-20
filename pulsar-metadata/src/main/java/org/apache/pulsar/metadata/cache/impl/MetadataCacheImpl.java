@@ -261,8 +261,11 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
     @Override
     public void refresh(String path) {
-        objCache.synchronous().invalidate(path);
-        objCache.synchronous().refresh(path);
+        // Refresh object of path if only it is cached before.
+        if (objCache.getIfPresent(path) != null) {
+            objCache.synchronous().invalidate(path);
+            objCache.synchronous().refresh(path);
+        }
     }
 
     @VisibleForTesting

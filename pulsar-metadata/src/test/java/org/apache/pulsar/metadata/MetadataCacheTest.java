@@ -324,13 +324,14 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl")
-    public void insertionOutsideCacheWithGenericType(String provider, Supplier<String> urlSupplier) throws Exception {
+    public void updateOutsideCacheWithGenericType(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
         MetadataCache<Map<String, String>> objCache = store.getMetadataCache(new TypeReference<Map<String, String>>() {
         });
 
         String key1 = newKey();
+        objCache.get(key1);
 
         Map<String, String> v = new TreeMap<>();
         v.put("a", "1");
