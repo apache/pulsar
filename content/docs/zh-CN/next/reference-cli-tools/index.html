@@ -434,6 +434,7 @@
 <tr><td><code>-mc</code>, <code>--max_chunked_msg</code></td><td>最大的待处理块消息。</td><td>0</td></tr>
 <tr><td><code>-n</code>, <code>--num-consumers</code></td><td>消费者数量（每个主题）</td><td>1</td></tr>
 <tr><td><code>-ioThreads</code>, <code>--num-io-threads</code></td><td>设置用于处理 broker 连接的线程数</td><td>1</td></tr>
+<tr><td><code>-lt</code>, <code>--num-listener-threads</code></td><td>Set the number of threads to be used for message listeners</td><td>1</td></tr>
 <tr><td><code>-ns</code>, <code>--num-subscriptions</code></td><td>订阅数量 (每个主题)</td><td>1</td></tr>
 <tr><td><code>-t</code>, <code>--num-topics</code></td><td>The number of topics</td><td>1</td></tr>
 <tr><td><code>-pm</code>, <code>--pool-messages</code></td><td>使用池化消息</td><td>true</td></tr>
@@ -442,12 +443,12 @@
 <tr><td><code>-p</code>, <code>--receiver-queue-size-across-partitions</code></td><td>分区接收队列的最大大小</td><td>50000</td></tr>
 <tr><td><code>--replicated</code></td><td>是否应该复制订阅状态</td><td>false</td></tr>
 <tr><td><code>-u</code>, <code>--service-url</code></td><td>Pulsar service URL</td><td></td></tr>
-<tr><td><code>-i</code>, <code>--stats-interval-seconds</code></td><td>统计间隔秒。如果为 0，则统计被禁用</td><td>0</td></tr>
+<tr><td><code>-i</code>, <code>--stats-interval-seconds</code></td><td>Statistics interval seconds. If 0, statistics will be disabled</td><td>0</td></tr>
 <tr><td><code>-s</code>, <code>--subscriber-name</code></td><td>订阅者名称前缀</td><td></td></tr>
 <tr><td><code>-ss</code>, <code>--subscriptions</code></td><td>要消费的订阅列表（比如 sub1,sub2）</td><td>sub</td></tr>
-<tr><td><code>-st</code>, <code>--subscription-type</code></td><td>订阅类型。可能的值有：Exclusive, Shared, Failover, Key_Shared。</td><td>Exclusive</td></tr>
-<tr><td><code>-sp</code>, <code>--subscription-position</code></td><td>订阅者的位置。可能的值有：Latest, Earliest。</td><td>Latest</td></tr>
-<tr><td><code>-time</code>, <code>--test-duration</code></td><td>测试持续时间（单位：秒）。如果这个值小于或等于0，它就会一直消耗消息。</td><td>0</td></tr>
+<tr><td><code>-st</code>, <code>--subscription-type</code></td><td>Subscriber type. Possible values are Exclusive, Shared, Failover, Key_Shared.</td><td>Exclusive</td></tr>
+<tr><td><code>-sp</code>, <code>--subscription-position</code></td><td>Subscriber position. Possible values are Latest, Earliest.</td><td>Latest</td></tr>
+<tr><td><code>-time</code>, <code>--test-duration</code></td><td>Test duration (in seconds). If this value is less than or equal to 0, it keeps consuming messages.</td><td>0</td></tr>
 <tr><td><code>--trust-cert-file</code></td><td>Path for the trusted TLS certificate file</td><td></td></tr>
 <tr><td><code>--tls-allow-insecure</code></td><td>允许不安全的 TLS 连接。</td><td></td></tr>
 </tbody>
@@ -526,13 +527,14 @@
 <tr><td><code>-n</code>, <code>--num-messages</code></td><td>总共要消费的消息数量。如果值小于、等于 0，将持续消费消息。</td><td>0</td></tr>
 <tr><td><code>-c</code>, <code>--max-connections</code></td><td>Max number of TCP connections to a single broker</td><td>100</td></tr>
 <tr><td><code>-ioThreads</code>, <code>--num-io-threads</code></td><td>设置用于处理 broker 连接的线程数</td><td>1</td></tr>
+<tr><td><code>-lt</code>, <code>--num-listener-threads</code></td><td>Set the number of threads to be used for message listeners</td><td>1</td></tr>
 <tr><td><code>-t</code>, <code>--num-topics</code></td><td>The number of topics</td><td>1</td></tr>
 <tr><td><code>-r</code>, <code>--rate</code></td><td>模拟一个慢速消息 reader(速率 消息/秒)</td><td>0</td></tr>
 <tr><td><code>-q</code>, <code>--receiver-queue-size</code></td><td>接收队列的大小</td><td>1000</td></tr>
 <tr><td><code>-u</code>, <code>--service-url</code></td><td>Pulsar service URL</td><td></td></tr>
-<tr><td><code>-m</code>, <code>--start-message-id</code></td><td>起始消息id。可能是 'earliest', 'latest' 或是用 'lid:eid' 指定的消息 id</td><td>earliest</td></tr>
+<tr><td><code>-m</code>, <code>--start-message-id</code></td><td>Start message id. This can be either 'earliest', 'latest' or a specific message id by using 'lid:eid'</td><td>earliest</td></tr>
 <tr><td><code>-i</code>, <code>--stats-interval-seconds</code></td><td>Statistics interval seconds. If 0, statistics will be disabled.</td><td>0</td></tr>
-<tr><td><code>-time</code>, <code>--test-duration</code></td><td>测试持续时间（单位：秒）。如果这个值小于或等于0，它就会一直消耗消息。</td><td>0</td></tr>
+<tr><td><code>-time</code>, <code>--test-duration</code></td><td>Test duration (in seconds). If this value is less than or equal to 0, it keeps consuming messages.</td><td>0</td></tr>
 <tr><td><code>--trust-cert-file</code></td><td>Path for the trusted TLS certificate file</td><td></td></tr>
 <tr><td><code>--use-tls</code></td><td>在连接上使用 TLS 加密</td><td>false</td></tr>
 <tr><td><code>--tls-allow-insecure</code></td><td>允许不安全的 TLS 连接。</td><td></td></tr>
