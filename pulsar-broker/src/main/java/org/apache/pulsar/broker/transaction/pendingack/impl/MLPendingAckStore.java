@@ -303,7 +303,7 @@ public class MLPendingAckStore implements PendingAckStore {
         @Override
         public void run() {
             try {
-                if (((ManagedCursorImpl) cursor).isClosed()) {
+                if (cursor.isClosed()) {
                     log.warn("[{}] MLPendingAckStore cursor have been closed, close replay thread.",
                             cursor.getManagedLedger().getName());
                     return;
@@ -360,7 +360,7 @@ public class MLPendingAckStore implements PendingAckStore {
 
     class FillEntryQueueCallback implements AsyncCallbacks.ReadEntriesCallback {
 
-        private boolean isReadable = true;
+        private volatile boolean isReadable = true;
         private final AtomicLong outstandingReadsRequests = new AtomicLong(0);
 
         boolean fillQueue() {

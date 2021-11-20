@@ -385,6 +385,11 @@ public class ManagedCursorContainerTest {
         public boolean checkAndUpdateReadPositionChanged() {
             return false;
         }
+
+        @Override
+        public boolean isClosed() {
+            return false;
+        }
     }
 
     @Test
