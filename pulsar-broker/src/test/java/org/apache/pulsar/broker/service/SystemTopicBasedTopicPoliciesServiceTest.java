@@ -24,6 +24,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNull;
 import static org.testng.AssertJUnit.assertTrue;
@@ -38,12 +39,14 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCacheNotInitException;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.systopic.TopicPoliciesSystemTopicClient;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.BackoffBuilder;
@@ -255,6 +258,31 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         assertNull(map.get(topicName));
         assertNull(listMap.get(topicName));
     }
+
+    @Test
+    public void testListenerCleanupByPartition() throws Exception {
+        final String topic = "persistent://" + NAMESPACE1 + "/test" + UUID.randomUUID();
+        TopicName topicName = TopicName.get(topic);
+        admin.topics().createPartitionedTopic(topic, 3);
+        @Cleanup
+        Producer<byte[]> producers = pulsarClient.newProducer().topic(topic).create();
+
+        Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> listMap =
+                systemTopicBasedTopicPoliciesService.getListeners();
+        Awaitility.await().untilAsserted(() -> {
+            // all 3 topic partition have registered the topic policy listeners.
+            assertEquals(listMap.get(topicName).size(), 3);
+        });
+
+        admin.topics().unload(topicName.getPartition(0).toString());
+        assertFalse(listMap.get(topicName).isEmpty());
+        admin.topics().unload(topicName.getPartition(1).toString());
+        assertFalse(listMap.get(topicName).isEmpty());
+        admin.topics().unload(topicName.getPartition(2).toString());
+        assertNull(listMap.get(topicName));
+    }
+
+
 
     private void prepareData() throws PulsarAdminException {
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());

@@ -1155,8 +1155,7 @@ public class PersistentTopic extends AbstractTopic
 
                                             subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
 
-                                            brokerService.pulsar().getTopicPoliciesService()
-                                                    .clean(TopicName.get(topic));
+                                            unregisterTopicPolicyListener();
 
                                             log.info("[{}] Topic deleted", topic);
                                             deleteFuture.complete(null);
@@ -1262,7 +1261,7 @@ public class PersistentTopic extends AbstractTopic
 
                                 subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
 
-                                brokerService.pulsar().getTopicPoliciesService().clean(TopicName.get(topic));
+                                unregisterTopicPolicyListener();
                                 log.info("[{}] Topic closed", topic);
                                 closeFuture.complete(null);
                             })
@@ -3137,16 +3136,25 @@ public class PersistentTopic extends AbstractTopic
         }
     }
 
+    private TopicName getPartitionedTopicName() {
+        TopicName topicName = TopicName.get(topic);
+        if (topicName.isPartitioned()) {
+            return TopicName.get(topicName.getPartitionedTopicName());
+        }
+        return topicName;
+    }
+
     private void registerTopicPolicyListener() {
         if (brokerService.pulsar().getConfig().isSystemTopicEnabled()
                 && brokerService.pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
-            TopicName topicName = TopicName.get(topic);
-            TopicName cloneTopicName = topicName;
-            if (topicName.isPartitioned()) {
-                cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
-            }
+            brokerService.getPulsar().getTopicPoliciesService().registerListener(getPartitionedTopicName(), this);
+        }
+    }
 
-            brokerService.getPulsar().getTopicPoliciesService().registerListener(cloneTopicName, this);
+    private void unregisterTopicPolicyListener() {
+        if (brokerService.pulsar().getConfig().isSystemTopicEnabled()
+                && brokerService.pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
+            brokerService.getPulsar().getTopicPoliciesService().unregisterListener(getPartitionedTopicName(), this);
         }
     }
 
