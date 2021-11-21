@@ -48,7 +48,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
@@ -160,19 +159,19 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         admin1.clusters().createCluster("r1", ClusterData.builder()
                 .serviceUrl(url1.toString())
                 .serviceUrlTls(urlTls1.toString())
-                .brokerServiceUrl(pulsar1.getSafeBrokerServiceUrl())
+                .brokerServiceUrl(pulsar1.getBrokerServiceUrl())
                 .brokerServiceUrlTls(pulsar1.getBrokerServiceUrlTls())
                 .build());
         admin1.clusters().createCluster("r2", ClusterData.builder()
                 .serviceUrl(url2.toString())
                 .serviceUrlTls(urlTls2.toString())
-                .brokerServiceUrl(pulsar2.getSafeBrokerServiceUrl())
+                .brokerServiceUrl(pulsar2.getBrokerServiceUrl())
                 .brokerServiceUrlTls(pulsar2.getBrokerServiceUrlTls())
                 .build());
         admin1.clusters().createCluster("r3", ClusterData.builder()
                 .serviceUrl(url3.toString())
                 .serviceUrlTls(urlTls3.toString())
-                .brokerServiceUrl(pulsar3.getSafeBrokerServiceUrl())
+                .brokerServiceUrl(pulsar3.getBrokerServiceUrl())
                 .brokerServiceUrlTls(pulsar3.getBrokerServiceUrlTls())
                 .build());
 
@@ -184,9 +183,9 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         assertEquals(admin2.clusters().getCluster("r1").getServiceUrl(), url1.toString());
         assertEquals(admin2.clusters().getCluster("r2").getServiceUrl(), url2.toString());
         assertEquals(admin2.clusters().getCluster("r3").getServiceUrl(), url3.toString());
-        assertEquals(admin2.clusters().getCluster("r1").getBrokerServiceUrl(), pulsar1.getSafeBrokerServiceUrl());
-        assertEquals(admin2.clusters().getCluster("r2").getBrokerServiceUrl(), pulsar2.getSafeBrokerServiceUrl());
-        assertEquals(admin2.clusters().getCluster("r3").getBrokerServiceUrl(), pulsar3.getSafeBrokerServiceUrl());
+        assertEquals(admin2.clusters().getCluster("r1").getBrokerServiceUrl(), pulsar1.getBrokerServiceUrl());
+        assertEquals(admin2.clusters().getCluster("r2").getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl());
+        assertEquals(admin2.clusters().getCluster("r3").getBrokerServiceUrl(), pulsar3.getBrokerServiceUrl());
 
         // Also create V1 namespace for compatibility check
         admin1.clusters().createCluster("global", ClusterData.builder()

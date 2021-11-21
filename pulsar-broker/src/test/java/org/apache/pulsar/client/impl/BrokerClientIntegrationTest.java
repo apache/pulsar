@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.UUID.randomUUID;
-import static org.apache.pulsar.broker.service.BrokerService.BROKER_SERVICE_CONFIGURATION_PATH;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
@@ -43,7 +42,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.Set;
@@ -54,7 +52,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Cleanup;
@@ -94,15 +91,11 @@ import org.apache.pulsar.client.impl.schema.writer.JacksonJsonWriter;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.apache.pulsar.metadata.api.MetadataCache;
-import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -648,14 +641,11 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         }
 
         // (3) restart broker with invalid config value
-
-        MetadataCache<Map<String, String>> dynamicConfigurationCache = pulsar.getBrokerService()
-                .getDynamicConfigurationCache();
-        Map<String, String> configurationMap = dynamicConfigurationCache.get(BROKER_SERVICE_CONFIGURATION_PATH).get().get();
-        configurationMap.put("loadManagerClassName", "org.apache.pulsar.invalid.loadmanager");
-        byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configurationMap);
-        dynamicConfigurationCache.invalidate(BROKER_SERVICE_CONFIGURATION_PATH);
-        mockZooKeeper.setData(BROKER_SERVICE_CONFIGURATION_PATH, content, -1);
+        pulsar.getPulsarResources().getDynamicConfigResources()
+                .setDynamicConfiguration(m -> {
+                    m.put("loadManagerClassName", "org.apache.pulsar.invalid.loadmanager");
+                    return m;
+                });
     }
 
     static class TimestampEntryCount {

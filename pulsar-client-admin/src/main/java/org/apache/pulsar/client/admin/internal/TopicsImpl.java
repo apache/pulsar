@@ -455,14 +455,20 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public CompletableFuture<Void> updatePartitionedTopicAsync(String topic, int numPartitions) {
-        return updatePartitionedTopicAsync(topic, numPartitions, false);
+        return updatePartitionedTopicAsync(topic, numPartitions, false, false);
     }
 
     @Override
     public void updatePartitionedTopic(String topic, int numPartitions, boolean updateLocalTopicOnly)
             throws PulsarAdminException {
+        updatePartitionedTopic(topic, numPartitions, updateLocalTopicOnly, false);
+    }
+
+    @Override
+    public void updatePartitionedTopic(String topic, int numPartitions, boolean updateLocalTopicOnly, boolean force)
+            throws PulsarAdminException {
         try {
-            updatePartitionedTopicAsync(topic, numPartitions, updateLocalTopicOnly)
+            updatePartitionedTopicAsync(topic, numPartitions, updateLocalTopicOnly, force)
                     .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
@@ -477,10 +483,17 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public CompletableFuture<Void> updatePartitionedTopicAsync(String topic, int numPartitions,
             boolean updateLocalTopicOnly) {
+        return updatePartitionedTopicAsync(topic, numPartitions, updateLocalTopicOnly, false);
+    }
+
+    @Override
+    public CompletableFuture<Void> updatePartitionedTopicAsync(String topic, int numPartitions,
+            boolean updateLocalTopicOnly, boolean force) {
         checkArgument(numPartitions > 0, "Number of partitions must be more than 0");
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "partitions");
-        path = path.queryParam("updateLocalTopicOnly", Boolean.toString(updateLocalTopicOnly));
+        path = path.queryParam("updateLocalTopicOnly", Boolean.toString(updateLocalTopicOnly)).queryParam("force",
+                force);
         return asyncPostRequest(path, Entity.entity(numPartitions, MediaType.APPLICATION_JSON));
     }
 
@@ -1626,7 +1639,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         } else {
             brokerEntryMetadata = new BrokerEntryMetadata();
             if (brokerEntryTimestamp != null) {
-                brokerEntryMetadata.setBrokerTimestamp(DateFormatter.parse(brokerEntryTimestamp.toString()));
+                brokerEntryMetadata.setBrokerTimestamp(DateFormatter.parse(brokerEntryTimestamp));
             }
 
             if (brokerEntryIndex != null) {
@@ -1883,6 +1896,48 @@ public class TopicsImpl extends BaseResource implements Topics {
         } catch (Exception e) {
             throw getApiException(e);
         }
+    }
+
+    @Override
+    public Long getBacklogSizeByMessageId(String topic, MessageId messageId)
+            throws PulsarAdminException {
+        try {
+            return getBacklogSizeByMessageIdAsync(topic, messageId).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Long> getBacklogSizeByMessageIdAsync(String topic, MessageId messageId) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "backlogSize");
+
+        final CompletableFuture<Long> future = new CompletableFuture<>();
+        try {
+            request(path).async().put(Entity.entity(messageId, MediaType.APPLICATION_JSON),
+                    new InvocationCallback<Long>() {
+
+                @Override
+                public void completed(Long backlogSize) {
+                    future.complete(backlogSize);
+                }
+
+                @Override
+                public void failed(Throwable throwable) {
+                    future.completeExceptionally(getApiException(throwable.getCause()));
+                }
+
+            });
+        } catch (PulsarAdminException cae) {
+            future.completeExceptionally(cae);
+        }
+        return future;
     }
 
     @Override
@@ -3812,6 +3867,83 @@ public class TopicsImpl extends BaseResource implements Topics {
         String encodedSubName = Codec.encode(subName);
         WebTarget path = topicPath(topicName, "subscription", encodedSubName, "replicatedSubscriptionStatus");
         return asyncPostRequest(path, Entity.entity(enabled, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public Set<String> getReplicationClusters(String topic, boolean applied) throws PulsarAdminException {
+        try {
+            return getReplicationClustersAsync(topic, applied).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Set<String>> getReplicationClustersAsync(String topic, boolean applied) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "replication");
+        path = path.queryParam("applied", applied);
+        final CompletableFuture<Set<String>> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Set<String>>() {
+                    @Override
+                    public void completed(Set<String> clusterIds) {
+                        future.complete(clusterIds);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public void setReplicationClusters(String topic, List<String> clusterIds) throws PulsarAdminException {
+        try {
+            setReplicationClustersAsync(topic, clusterIds).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> setReplicationClustersAsync(String topic, List<String> clusterIds) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "replication");
+        return asyncPostRequest(path, Entity.entity(clusterIds, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void removeReplicationClusters(String topic) throws PulsarAdminException {
+        try {
+            removeReplicationClustersAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeReplicationClustersAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "replication");
+        return asyncDeleteRequest(path);
     }
 
     private static final Logger log = LoggerFactory.getLogger(TopicsImpl.class);

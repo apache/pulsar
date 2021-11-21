@@ -47,4 +47,9 @@ public class EventsTopicNames {
     public static boolean checkTopicIsEventsNames(TopicName topicName) {
         return EVENTS_TOPIC_NAMES.contains(TopicName.get(topicName.getPartitionedTopicName()).getLocalName());
     }
+
+    public static boolean checkTopicIsTransactionCoordinatorAssign(TopicName topicName) {
+        return topicName != null && topicName.toString()
+                .startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+    }
 }

@@ -24,6 +24,7 @@ import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -277,6 +278,34 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl")
+    public void insertionWithInvalidation(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataCache<MyClass> objCache = store.getMetadataCache(MyClass.class);
+
+        String key1 = newKey();
+
+        assertEquals(objCache.getIfCached(key1), Optional.empty());
+        assertEquals(objCache.get(key1).join(), Optional.empty());
+
+        MyClass value1 = new MyClass("a", 1);
+        store.put(key1, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(value1), Optional.of(-1L)).join();
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(objCache.getIfCached(key1), Optional.of(value1));
+            assertEquals(objCache.get(key1).join(), Optional.of(value1));
+        });
+
+        MyClass value2 = new MyClass("a", 2);
+        store.put(key1, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(value2), Optional.of(0L)).join();
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(objCache.getIfCached(key1), Optional.of(value2));
+            assertEquals(objCache.get(key1).join(), Optional.of(value2));
+        });
+    }
+
+    @Test(dataProvider = "impl")
     public void insertionOutsideCache(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -308,8 +337,10 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         v.put("b", "2");
         store.put(key1, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(v), Optional.of(-1L)).join();
 
-        assertEquals(objCache.getIfCached(key1), Optional.empty());
-        assertEquals(objCache.get(key1).join(), Optional.of(v));
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(objCache.getIfCached(key1), Optional.of(v));
+            assertEquals(objCache.get(key1).join(), Optional.of(v));
+        });
     }
 
     @Test(dataProvider = "impl")
@@ -495,12 +526,12 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         // Simple serde that convert numbers to ascii
         MetadataCache<Integer> objCache = store.getMetadataCache(new MetadataSerde<Integer>() {
             @Override
-            public byte[] serialize(Integer value) throws IOException {
+            public byte[] serialize(String path, Integer value) throws IOException {
                 return value.toString().getBytes(StandardCharsets.UTF_8);
             }
 
             @Override
-            public Integer deserialize(byte[] content) throws IOException {
+            public Integer deserialize(String path, byte[] content, Stat stat) throws IOException {
                 return Integer.parseInt(new String(content, StandardCharsets.UTF_8));
             }
         });
@@ -510,5 +541,48 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         objCache.create(key1, 1).join();
 
         assertEquals(objCache.get(key1).join().get(), (Integer) 1);
+    }
+
+    @Data
+    @NoArgsConstructor
+    static class CustomClass {
+        @JsonIgnore
+        private String path;
+
+        public int a;
+        public int b;
+    }
+
+    @Test(dataProvider = "impl")
+    public void customSerde(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataCache<CustomClass> objCache = store.getMetadataCache(new MetadataSerde<CustomClass>() {
+            @Override
+            public byte[] serialize(String path, CustomClass value) throws IOException {
+                return ObjectMapperFactory.getThreadLocal().writeValueAsBytes(value);
+            }
+
+            @Override
+            public CustomClass deserialize(String path, byte[] content, Stat stat) throws IOException {
+                CustomClass cc = ObjectMapperFactory.getThreadLocal().readValue(content, CustomClass.class);
+                cc.path = path;
+                return cc;
+            }
+        });
+
+        String key1 = newKey();
+
+        CustomClass value1 = new CustomClass();
+        value1.a = 1;
+        value1.b = 2;
+        Stat stat = store.put(key1, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(value1), Optional.of(-1L))
+                .join();
+
+        CacheGetResult<CustomClass> res = objCache.getWithStats(key1).join().get();
+        assertEquals(res.getStat().getVersion(), stat.getVersion());
+        assertEquals(res.getValue().a, 1);
+        assertEquals(res.getValue().b, 2);
+        assertEquals(res.getValue().path, key1);
     }
 }

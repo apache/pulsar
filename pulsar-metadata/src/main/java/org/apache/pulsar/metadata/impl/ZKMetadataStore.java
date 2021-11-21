@@ -61,9 +61,10 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
     private final MetadataStoreConfig metadataStoreConfig;
     private final boolean isZkManaged;
     private final ZooKeeper zkc;
-    private ZKSessionWatcher sessionWatcher;
+    private Optional<ZKSessionWatcher> sessionWatcher;
 
-    public ZKMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig) throws MetadataStoreException {
+    public ZKMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig, boolean enableSessionWatcher)
+            throws MetadataStoreException {
         try {
             this.metadataURL = metadataURL;
             this.metadataStoreConfig = metadataStoreConfig;
@@ -74,12 +75,16 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                     .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis())
                     .watchers(Collections.singleton(event -> {
                         if (sessionWatcher != null) {
-                            sessionWatcher.process(event);
+                            sessionWatcher.ifPresent(sw -> sw.process(event));
                         }
                     }))
                     .build();
             zkc.addWatch("/", this::handleWatchEvent, AddWatchMode.PERSISTENT_RECURSIVE);
-            sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
+            if (enableSessionWatcher) {
+                sessionWatcher = Optional.of(new ZKSessionWatcher(zkc, this::receivedSessionEvent));
+            } else {
+                sessionWatcher = Optional.empty();
+            }
         } catch (Throwable t) {
             throw new MetadataStoreException(t);
         }
@@ -92,7 +97,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         this.metadataStoreConfig = null;
         this.isZkManaged = false;
         this.zkc = zkc;
-        this.sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
+        this.sessionWatcher = Optional.of(new ZKSessionWatcher(zkc, this::receivedSessionEvent));
         zkc.addWatch("/", this::handleWatchEvent, AddWatchMode.PERSISTENT_RECURSIVE);
     }
 
@@ -106,7 +111,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                             super.receivedSessionEvent(event);
                         } else {
                             log.error("Failed to recreate persistent watch on ZooKeeper: {}", Code.get(rc));
-                            sessionWatcher.setSessionInvalid();
+                            sessionWatcher.ifPresent(ZKSessionWatcher::setSessionInvalid);
                             // On the reconnectable client, mark the session as expired to trigger a new reconnect and 
                             // we will have the chance to set the watch again.
                             if (zkc instanceof PulsarZooKeeperClient) {
@@ -133,23 +138,6 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                     if (code == Code.OK) {
                         future.complete(Optional.of(new GetResult(data, getStat(path1, stat))));
                     } else if (code == Code.NONODE) {
-                        // Place a watch on the non-existing node, so we'll get notified
-                        // when it gets created and we can invalidate the negative cache.
-                        existsFromStore(path).thenAccept(exists -> {
-                            if (exists) {
-                                get(path).thenAccept(c -> future.complete(c))
-                                        .exceptionally(ex -> {
-                                            future.completeExceptionally(ex);
-                                            return null;
-                                        });
-                            } else {
-                                // Z-node does not exist
-                                future.complete(Optional.empty());
-                            }
-                        }).exceptionally(ex -> {
-                            future.completeExceptionally(ex);
-                            return null;
-                        });
                         future.complete(Optional.empty());
                     } else {
                         future.completeExceptionally(getException(code, path));
@@ -175,25 +163,8 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                         Collections.sort(children);
                         future.complete(children);
                     } else if (code == Code.NONODE) {
-                        // The node we want may not exist yet, so put a watcher on its existence
-                        // before throwing up the exception. Its possible that the node could have
-                        // been created after the call to getChildren, but before the call to exists().
-                        // If this is the case, exists will return true, and we just call getChildren
-                        // again.
-                        existsFromStore(path).thenAccept(exists -> {
-                            if (exists) {
-                                getChildrenFromStore(path).thenAccept(c -> future.complete(c)).exceptionally(ex -> {
-                                    future.completeExceptionally(ex);
-                                    return null;
-                                });
-                            } else {
-                                // Z-node does not exist
-                                future.complete(Collections.emptyList());
-                            }
-                        }).exceptionally(ex -> {
-                            future.completeExceptionally(ex);
-                            return null;
-                        });
+                        // Z-node does not exist
+                        future.complete(Collections.emptyList());
                     } else {
                         future.completeExceptionally(getException(code, path));
                     }
@@ -320,7 +291,9 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         if (isZkManaged) {
             zkc.close();
         }
-        sessionWatcher.close();
+        if (sessionWatcher.isPresent()) {
+            sessionWatcher.get().close();
+        }
         super.close();
     }
 
@@ -408,6 +381,10 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
 
     public long getZkSessionId() {
         return zkc.getSessionId();
+    }
+
+    public ZooKeeper getZkClient() {
+        return zkc;
     }
 
     @Override

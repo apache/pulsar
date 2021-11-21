@@ -1,0 +1,82 @@
+{
+  "version.label": {
+    "message": "2.7.0",
+    "description": "The label for version 2.7.0"
+  },
+  "sidebar.docsSidebar.category.Get Started": {
+    "message": "Get Started",
+    "description": "The label for category Get Started in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.Concepts and Architecture": {
+    "message": "Concepts and Architecture",
+    "description": "The label for category Concepts and Architecture in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.Pulsar Schema": {
+    "message": "Pulsar Schema",
+    "description": "The label for category Pulsar Schema in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.Pulsar Functions": {
+    "message": "Pulsar Functions",
+    "description": "The label for category Pulsar Functions in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.Pulsar IO": {
+    "message": "Pulsar IO",
+    "description": "The label for category Pulsar IO in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.Pulsar SQL": {
+    "message": "Pulsar SQL",
+    "description": "The label for category Pulsar SQL in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.Tiered Storage": {
+    "message": "Tiered Storage",
+    "description": "The label for category Tiered Storage in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.Transactions": {
+    "message": "Transactions",
+    "description": "The label for category Transactions in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.Kubernetes (Helm)": {
+    "message": "Kubernetes (Helm)",
+    "description": "The label for category Kubernetes (Helm) in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.Deployment": {
+    "message": "Deployment",
+    "description": "The label for category Deployment in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.Administration": {
+    "message": "Administration",
+    "description": "The label for category Administration in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.Security": {
+    "message": "Security",
+    "description": "The label for category Security in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.Performance": {
+    "message": "Performance",
+    "description": "The label for category Performance in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.Client Libraries": {
+    "message": "Client Libraries",
+    "description": "The label for category Client Libraries in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.Admin API": {
+    "message": "Admin API",
+    "description": "The label for category Admin API in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.Adaptors": {
+    "message": "Adaptors",
+    "description": "The label for category Adaptors in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.Cookbooks": {
+    "message": "Cookbooks",
+    "description": "The label for category Cookbooks in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.Development": {
+    "message": "Development",
+    "description": "The label for category Development in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.Reference": {
+    "message": "Reference",
+    "description": "The label for category Reference in sidebar docsSidebar"
+  }
+}

@@ -50,7 +50,6 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -182,13 +181,27 @@ public class CmdSinks extends CmdBase {
         protected String metricsPortStart;
 
         private void mergeArgs() {
-            if (!StringUtils.isBlank(DEPRECATED_brokerServiceUrl)) brokerServiceUrl = DEPRECATED_brokerServiceUrl;
-            if (!StringUtils.isBlank(DEPRECATED_clientAuthPlugin)) clientAuthPlugin = DEPRECATED_clientAuthPlugin;
-            if (!StringUtils.isBlank(DEPRECATED_clientAuthParams)) clientAuthParams = DEPRECATED_clientAuthParams;
-            if (DEPRECATED_useTls != null) useTls = DEPRECATED_useTls;
-            if (DEPRECATED_tlsAllowInsecureConnection != null) tlsAllowInsecureConnection = DEPRECATED_tlsAllowInsecureConnection;
-            if (DEPRECATED_tlsHostNameVerificationEnabled != null) tlsHostNameVerificationEnabled = DEPRECATED_tlsHostNameVerificationEnabled;
-            if (!StringUtils.isBlank(DEPRECATED_tlsTrustCertFilePath)) tlsTrustCertFilePath = DEPRECATED_tlsTrustCertFilePath;
+            if (isBlank(brokerServiceUrl) && !isBlank(DEPRECATED_brokerServiceUrl)) {
+                brokerServiceUrl = DEPRECATED_brokerServiceUrl;
+            }
+            if (isBlank(clientAuthPlugin) && !isBlank(DEPRECATED_clientAuthPlugin)) {
+                clientAuthPlugin = DEPRECATED_clientAuthPlugin;
+            }
+            if (isBlank(clientAuthParams) && !isBlank(DEPRECATED_clientAuthParams)) {
+                clientAuthParams = DEPRECATED_clientAuthParams;
+            }
+            if (useTls == false && DEPRECATED_useTls != null) {
+                useTls = DEPRECATED_useTls;
+            }
+            if (tlsAllowInsecureConnection == false && DEPRECATED_tlsAllowInsecureConnection != null) {
+                tlsAllowInsecureConnection = DEPRECATED_tlsAllowInsecureConnection;
+            }
+            if (tlsHostNameVerificationEnabled == false && DEPRECATED_tlsHostNameVerificationEnabled != null) {
+                tlsHostNameVerificationEnabled = DEPRECATED_tlsHostNameVerificationEnabled;
+            }
+            if (isBlank(tlsTrustCertFilePath) && !isBlank(DEPRECATED_tlsTrustCertFilePath)) {
+                tlsTrustCertFilePath = DEPRECATED_tlsTrustCertFilePath;
+            }
         }
 
         @Override
@@ -349,14 +362,30 @@ public class CmdSinks extends CmdBase {
         protected SinkConfig sinkConfig;
 
         private void mergeArgs() {
-            if (!StringUtils.isBlank(DEPRECATED_subsName)) subsName = DEPRECATED_subsName;
-            if (!StringUtils.isBlank(DEPRECATED_topicsPattern)) topicsPattern = DEPRECATED_topicsPattern;
-            if (!StringUtils.isBlank(DEPRECATED_customSerdeInputString)) customSerdeInputString = DEPRECATED_customSerdeInputString;
-            if (DEPRECATED_processingGuarantees != null) processingGuarantees = DEPRECATED_processingGuarantees;
-            if (DEPRECATED_retainOrdering != null) retainOrdering = DEPRECATED_retainOrdering;
-            if (!StringUtils.isBlank(DEPRECATED_className)) className = DEPRECATED_className;
-            if (!StringUtils.isBlank(DEPRECATED_sinkConfigFile)) sinkConfigFile = DEPRECATED_sinkConfigFile;
-            if (!StringUtils.isBlank(DEPRECATED_sinkConfigString)) sinkConfigString = DEPRECATED_sinkConfigString;
+            if (isBlank(subsName) && !isBlank(DEPRECATED_subsName)) {
+                subsName = DEPRECATED_subsName;
+            }
+            if (isBlank(topicsPattern) && !isBlank(DEPRECATED_topicsPattern)) {
+                topicsPattern = DEPRECATED_topicsPattern;
+            }
+            if (isBlank(customSerdeInputString) && !isBlank(DEPRECATED_customSerdeInputString)) {
+                customSerdeInputString = DEPRECATED_customSerdeInputString;
+            }
+            if (processingGuarantees == null && DEPRECATED_processingGuarantees != null) {
+                processingGuarantees = DEPRECATED_processingGuarantees;
+            }
+            if (retainOrdering == null && DEPRECATED_retainOrdering != null) {
+                retainOrdering = DEPRECATED_retainOrdering;
+            }
+            if (isBlank(className) && !isBlank(DEPRECATED_className)) {
+                className = DEPRECATED_className;
+            }
+            if (isBlank(sinkConfigFile) && !isBlank(DEPRECATED_sinkConfigFile)) {
+                sinkConfigFile = DEPRECATED_sinkConfigFile;
+            }
+            if (isBlank(sinkConfigString) && !isBlank(DEPRECATED_sinkConfigString)) {
+                sinkConfigString = DEPRECATED_sinkConfigString;
+            }
         }
 
         @Override

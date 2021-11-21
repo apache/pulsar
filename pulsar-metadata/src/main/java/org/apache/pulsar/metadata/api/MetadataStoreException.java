@@ -103,6 +103,10 @@ public class MetadataStoreException extends IOException {
      * Failed to de-serialize the metadata.
      */
     public static class ContentDeserializationException extends MetadataStoreException {
+        public ContentDeserializationException(String msg, Throwable t) {
+            super(msg, t);
+        }
+
         public ContentDeserializationException(Throwable t) {
             super(t);
         }
@@ -139,6 +143,12 @@ public class MetadataStoreException extends IOException {
 
         public AlreadyClosedException(String msg) {
             super(msg);
+        }
+    }
+
+    public static class InvalidPathException extends MetadataStoreException {
+        public InvalidPathException(String path) {
+            super("Path(" + path + ") is invalid");
         }
     }
 

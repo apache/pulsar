@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetAddress;
@@ -46,9 +45,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -71,6 +68,8 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
 
     protected PulsarMultiListenersWithInternalListenerNameTest(boolean withInternalListener) {
         this.withInternalListener = withInternalListener;
+        // enable port forwarding from the configured advertised port to the dynamic listening port
+        this.enableBrokerGateway = true;
     }
 
     @BeforeMethod(alwaysRun = true)
@@ -98,7 +97,6 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
     protected void doInitConf() throws Exception {
         super.doInitConf();
         this.conf.setClusterName("localhost");
-        this.conf.setAdvertisedAddress(null);
         this.conf.setAdvertisedListeners(String.format("internal:pulsar://%s,internal:pulsar+ssl://%s",
                 hostAndBrokerPort, hostAndBrokerPortSsl));
         if (withInternalListener) {

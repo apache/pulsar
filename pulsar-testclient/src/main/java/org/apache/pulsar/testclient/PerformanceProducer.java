@@ -108,7 +108,7 @@ public class PerformanceProducer {
         @Parameter(description = "persistent://prop/ns/my-topic", required = true)
         public List<String> topics;
 
-        @Parameter(names = { "-threads", "--num-test-threads" }, description = "Number of test threads")
+        @Parameter(names = { "-threads", "--num-test-threads" }, description = "Number of test threads", validateWith = PositiveNumberParameterValidator.class)
         public int numTestThreads = 1;
 
         @Parameter(names = { "-r", "--rate" }, description = "Publish rate msg/s across topics")
@@ -117,10 +117,10 @@ public class PerformanceProducer {
         @Parameter(names = { "-s", "--size" }, description = "Message size (bytes)")
         public int msgSize = 1024;
 
-        @Parameter(names = { "-t", "--num-topic" }, description = "Number of topics")
+        @Parameter(names = { "-t", "--num-topic" }, description = "Number of topics", validateWith = PositiveNumberParameterValidator.class)
         public int numTopics = 1;
 
-        @Parameter(names = { "-n", "--num-producers" }, description = "Number of producers (per topic)")
+        @Parameter(names = { "-n", "--num-producers" }, description = "Number of producers (per topic)", validateWith = PositiveNumberParameterValidator.class)
         public int numProducers = 1;
 
         @Parameter(names = {"--separator"}, description = "Separator between the topic and topic number")
@@ -138,7 +138,10 @@ public class PerformanceProducer {
         @Parameter(names = { "-au", "--admin-url" }, description = "Pulsar Admin URL")
         public String adminURL;
 
-        @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name")
+        @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name", hidden = true)
+        public String deprecatedAuthPluginClassName;
+
+        @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name")
         public String authPluginClassName;
 
         @Parameter(names = { "--listener-name" }, description = "Listener name for the broker.")
@@ -169,7 +172,7 @@ public class PerformanceProducer {
         public int maxConnections = 100;
 
         @Parameter(names = { "-m",
-                "--num-messages" }, description = "Number of messages to publish in total. If 0, it will keep publishing")
+                "--num-messages" }, description = "Number of messages to publish in total. If <= 0, it will keep publishing")
         public long numMessages = 0;
 
         @Parameter(names = { "-i",
@@ -201,7 +204,7 @@ public class PerformanceProducer {
         public int batchMaxBytes = 4 * 1024 * 1024;
 
         @Parameter(names = { "-time",
-                "--test-duration" }, description = "Test duration in secs. If 0, it will keep publishing")
+                "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep publishing")
         public long testTime = 0;
 
         @Parameter(names = "--warmup-time", description = "Warm-up time in seconds (Default: 1 sec)")
@@ -250,6 +253,9 @@ public class PerformanceProducer {
 
         @Parameter(names = {"-fc", "--format-class"}, description="Custom Formatter class name")
         public String formatterClass = "org.apache.pulsar.testclient.DefaultMessageFormatter";
+
+        @Parameter(names = { "--histogram-file" }, description = "HdrHistogram output file")
+        public String histogramFile = null;
     }
 
     public static void main(String[] args) throws Exception {
@@ -269,6 +275,10 @@ public class PerformanceProducer {
         if (arguments.help) {
             jc.usage();
             PerfClientUtils.exit(-1);
+        }
+
+        if (isBlank(arguments.authPluginClassName) && !isBlank(arguments.deprecatedAuthPluginClassName)) {
+            arguments.authPluginClassName = arguments.deprecatedAuthPluginClassName;
         }
 
         if (arguments.topics != null && arguments.topics.size() != arguments.numTopics) {
@@ -429,16 +439,19 @@ public class PerformanceProducer {
         long oldTime = System.nanoTime();
 
         Histogram reportHistogram = null;
+        HistogramLogWriter histogramLogWriter = null;
 
-        String statsFileName = "perf-producer-" + System.currentTimeMillis() + ".hgrm";
-        log.info("Dumping latency stats to {}", statsFileName);
+        if (arguments.histogramFile != null) {
+            String statsFileName = arguments.histogramFile;
+            log.info("Dumping latency stats to {}", statsFileName);
 
-        PrintStream histogramLog = new PrintStream(new FileOutputStream(statsFileName), false);
-        HistogramLogWriter histogramLogWriter = new HistogramLogWriter(histogramLog);
+            PrintStream histogramLog = new PrintStream(new FileOutputStream(statsFileName), false);
+            histogramLogWriter = new HistogramLogWriter(histogramLog);
 
-        // Some log header bits
-        histogramLogWriter.outputLogFormatVersion();
-        histogramLogWriter.outputLegend();
+            // Some log header bits
+            histogramLogWriter.outputLogFormatVersion();
+            histogramLogWriter.outputLegend();
+        }
 
         while (true) {
             try {
@@ -473,7 +486,10 @@ public class PerformanceProducer {
                     dec.format(reportHistogram.getValueAtPercentile(99.99) / 1000.0),
                     dec.format(reportHistogram.getMaxValue() / 1000.0));
 
-            histogramLogWriter.outputIntervalHistogram(reportHistogram);
+            if (histogramLogWriter != null) {
+                histogramLogWriter.outputIntervalHistogram(reportHistogram);
+            }
+
             reportHistogram.reset();
 
             oldTime = now;
@@ -484,7 +500,7 @@ public class PerformanceProducer {
         try {
             ClassLoader classLoader = PerformanceProducer.class.getClassLoader();
             Class clz = classLoader.loadClass(formatterClass);
-            return (IMessageFormatter) clz.newInstance();
+            return (IMessageFormatter) clz.getDeclaredConstructor().newInstance();
         } catch (Exception e) {
             return null;
         }
@@ -538,7 +554,7 @@ public class PerformanceProducer {
                 producerBuilder.producerName(producerName);
             }
 
-            if (arguments.batchTimeMillis == 0.0 && arguments.batchMaxMessages == 0) {
+            if (arguments.batchTimeMillis <= 0.0 && arguments.batchMaxMessages <= 0) {
                 producerBuilder.enableBatching(false);
             } else {
                 long batchTimeUsec = (long) (arguments.batchTimeMillis * 1000);
@@ -601,7 +617,7 @@ public class PerformanceProducer {
                 for (Producer<byte[]> producer : producers) {
                     if (arguments.testTime > 0) {
                         if (System.nanoTime() > testEndTime) {
-                            log.info("------------------- DONE -----------------------");
+                            log.info("------------- DONE (reached the maximum duration: [{} seconds] of production) --------------", arguments.testTime);
                             printAggregatedStats();
                             doneLatch.countDown();
                             Thread.sleep(5000);
@@ -611,7 +627,7 @@ public class PerformanceProducer {
 
                     if (numMessages > 0) {
                         if (totalSent++ >= numMessages) {
-                            log.info("------------------- DONE -----------------------");
+                            log.info("------------- DONE (reached the maximum number: {} of production) --------------", numMessages);
                             printAggregatedStats();
                             doneLatch.countDown();
                             Thread.sleep(5000);

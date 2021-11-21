@@ -25,25 +25,33 @@ import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
-import lombok.AccessLevel;
 import lombok.Getter;
 
-@Getter(AccessLevel.PUBLIC)
 public class PulsarResources {
 
     public static final int DEFAULT_OPERATION_TIMEOUT_SEC = 30;
-    private TenantResources tenantResources;
-    private ClusterResources clusterResources;
-    private ResourceGroupResources resourcegroupResources;
-    private NamespaceResources namespaceResources;
-    private DynamicConfigurationResources dynamicConfigResources;
-    private LocalPoliciesResources localPolicies;
-    private LoadManagerReportResources loadReportResources;
-    private BookieResources bookieResources;
-    private TopicResources topicResources;
 
-    private Optional<MetadataStore> localMetadataStore;
-    private Optional<MetadataStore> configurationMetadataStore;
+    @Getter
+    private final TenantResources tenantResources;
+    @Getter
+    private final ClusterResources clusterResources;
+    @Getter
+    private final ResourceGroupResources resourcegroupResources;
+    @Getter
+    private final NamespaceResources namespaceResources;
+    @Getter
+    private final DynamicConfigurationResources dynamicConfigResources;
+    @Getter
+    private final LocalPoliciesResources localPolicies;
+    @Getter
+    private final LoadManagerReportResources loadReportResources;
+    @Getter
+    private final BookieResources bookieResources;
+    @Getter
+    private final TopicResources topicResources;
+
+    private final Optional<MetadataStore> localMetadataStore;
+    private final Optional<MetadataStore> configurationMetadataStore;
 
     public PulsarResources(MetadataStore localMetadataStore, MetadataStore configurationMetadataStore) {
         this(localMetadataStore, configurationMetadataStore, DEFAULT_OPERATION_TIMEOUT_SEC);
@@ -56,14 +64,27 @@ public class PulsarResources {
             namespaceResources = new NamespaceResources(localMetadataStore, configurationMetadataStore,
                     operationTimeoutSec);
             resourcegroupResources = new ResourceGroupResources(configurationMetadataStore, operationTimeoutSec);
+        } else {
+            tenantResources = null;
+            clusterResources = null;
+            namespaceResources  = null;
+            resourcegroupResources = null;
         }
+
         if (localMetadataStore != null) {
             dynamicConfigResources = new DynamicConfigurationResources(localMetadataStore, operationTimeoutSec);
             localPolicies = new LocalPoliciesResources(localMetadataStore, operationTimeoutSec);
             loadReportResources = new LoadManagerReportResources(localMetadataStore, operationTimeoutSec);
             bookieResources = new BookieResources(localMetadataStore, operationTimeoutSec);
             topicResources = new TopicResources(localMetadataStore);
+        } else {
+            dynamicConfigResources = null;
+            localPolicies = null;
+            loadReportResources = null;
+            bookieResources = null;
+            topicResources = null;
         }
+
         this.localMetadataStore = Optional.ofNullable(localMetadataStore);
         this.configurationMetadataStore = Optional.ofNullable(configurationMetadataStore);
     }

@@ -38,8 +38,10 @@ public class Actions {
     @Builder(toBuilder=true)
     public static class Action {
         private String actionName;
+        @Builder.Default
         private int numRetries = 1;
         private Supplier<ActionResult> supplier;
+        @Builder.Default
         private long sleepBetweenInvocationsMs = 500;
         private Boolean continueOn;
         private Consumer<ActionResult> onFail;

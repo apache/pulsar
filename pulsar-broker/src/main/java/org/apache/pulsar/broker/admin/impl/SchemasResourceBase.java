@@ -127,7 +127,7 @@ public class SchemasResourceBase extends AdminResource {
                                 .build());
                     } else {
                         log.error("[{}] Failed to delete schema for topic {}", clientAppId(), topicName, error);
-                        response.resume(error);
+                        response.resume(new RestException(error));
                     }
                     return null;
                 });
@@ -153,7 +153,7 @@ public class SchemasResourceBase extends AdminResource {
                             .convertKeyValueDataStringToSchemaInfoSchema(payload.getSchema().getBytes(Charsets.UTF_8));
                 } catch (IOException conversionError) {
                     log.error("[{}] Failed to post schema for topic {}", clientAppId(), topicName, conversionError);
-                    response.resume(Response.serverError().build());
+                    response.resume(new RestException(conversionError));
                     return;
                 }
             } else {
@@ -177,7 +177,7 @@ public class SchemasResourceBase extends AdminResource {
                                     error.getMessage()).build());
                         } else {
                             log.error("[{}] Failed to post schema for topic {}", clientAppId(), topicName, error);
-                            response.resume(Response.serverError().build());
+                            response.resume(new RestException(error));
                         }
                         return null;
                     });
@@ -189,7 +189,7 @@ public class SchemasResourceBase extends AdminResource {
                         .build());
             } else {
                 log.error("[{}] Failed to post schema for topic {}", clientAppId(), topicName, error);
-                response.resume(Response.serverError().build());
+                response.resume(new RestException(error));
             }
             return null;
         });
@@ -220,7 +220,7 @@ public class SchemasResourceBase extends AdminResource {
                                 .schemaCompatibilityStrategy(schemaCompatibilityStrategy.name()).build())
                         .build()))
                 .exceptionally(error -> {
-                    response.resume(Response.serverError().build());
+                    response.resume(new RestException(error));
                     return null;
                 });
     }
@@ -241,7 +241,7 @@ public class SchemasResourceBase extends AdminResource {
                         .entity(LongSchemaVersionResponse.builder().version(version).build()).build()))
                 .exceptionally(error -> {
                     log.error("[{}] Failed to get version by schema for topic {}", clientAppId(), topicName, error);
-                    response.resume(Response.serverError().build());
+                    response.resume(new RestException(error));
                     return null;
                 });
     }
@@ -272,16 +272,18 @@ public class SchemasResourceBase extends AdminResource {
     private static void handleGetSchemaResponse(AsyncResponse response, SchemaAndMetadata schema, Throwable error) {
         if (isNull(error)) {
             if (isNull(schema)) {
-                response.resume(Response.status(Response.Status.NOT_FOUND).build());
+                response.resume(Response.status(
+                        Response.Status.NOT_FOUND.getStatusCode(), "Schema not found").build());
             } else if (schema.schema.isDeleted()) {
-                response.resume(Response.status(Response.Status.NOT_FOUND).build());
+                response.resume(Response.status(
+                        Response.Status.NOT_FOUND.getStatusCode(), "Schema is deleted").build());
             } else {
                 response.resume(Response.ok().encoding(MediaType.APPLICATION_JSON)
                         .entity(convertSchemaAndMetadataToGetSchemaResponse(schema)).build());
             }
         } else {
             log.error("Failed to get schema", error);
-            response.resume(error);
+            response.resume(new RestException(error));
         }
 
     }
@@ -290,7 +292,8 @@ public class SchemasResourceBase extends AdminResource {
             Throwable error) {
         if (isNull(error)) {
             if (isNull(schemas)) {
-                response.resume(Response.status(Response.Status.NOT_FOUND).build());
+                response.resume(Response.status(
+                        Response.Status.NOT_FOUND.getStatusCode(), "Schemas not found").build());
             } else {
                 response.resume(Response.ok().encoding(MediaType.APPLICATION_JSON)
                         .entity(GetAllVersionsSchemaResponse.builder()
@@ -302,7 +305,7 @@ public class SchemasResourceBase extends AdminResource {
             }
         } else {
             log.error("Failed to get all schemas", error);
-            response.resume(error);
+            response.resume(new RestException(error));
         }
     }
 
@@ -312,7 +315,7 @@ public class SchemasResourceBase extends AdminResource {
             validateTopicOwnership(topicName, authoritative);
         } catch (RestException e) {
             if (e.getResponse().getStatus() == Response.Status.UNAUTHORIZED.getStatusCode()) {
-                throw new RestException(Response.Status.NOT_FOUND, "Not Found");
+                throw new RestException(Response.Status.UNAUTHORIZED, e.getMessage());
             } else {
                 throw e;
             }

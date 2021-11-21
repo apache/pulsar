@@ -75,16 +75,16 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         CLOSED
     }
 
-    public static OpAddEntry create(ManagedLedgerImpl ml, ByteBuf data, AddEntryCallback callback, Object ctx) {
-        OpAddEntry op = createOpAddEntry(ml, data, callback, ctx);
+    public static OpAddEntry createNoRetainBuffer(ManagedLedgerImpl ml, ByteBuf data, AddEntryCallback callback, Object ctx) {
+        OpAddEntry op = createOpAddEntryNoRetainBuffer(ml, data, callback, ctx);
         if (log.isDebugEnabled()) {
             log.debug("Created new OpAddEntry {}", op);
         }
         return op;
     }
 
-    public static OpAddEntry create(ManagedLedgerImpl ml, ByteBuf data, int numberOfMessages, AddEntryCallback callback, Object ctx) {
-        OpAddEntry op = createOpAddEntry(ml, data, callback, ctx);
+    public static OpAddEntry createNoRetainBuffer(ManagedLedgerImpl ml, ByteBuf data, int numberOfMessages, AddEntryCallback callback, Object ctx) {
+        OpAddEntry op = createOpAddEntryNoRetainBuffer(ml, data, callback, ctx);
         op.numberOfMessages = numberOfMessages;
         if (log.isDebugEnabled()) {
             log.debug("Created new OpAddEntry {}", op);
@@ -92,11 +92,11 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         return op;
     }
 
-    private static OpAddEntry createOpAddEntry(ManagedLedgerImpl ml, ByteBuf data, AddEntryCallback callback, Object ctx) {
+    private static OpAddEntry createOpAddEntryNoRetainBuffer(ManagedLedgerImpl ml, ByteBuf data, AddEntryCallback callback, Object ctx) {
         OpAddEntry op = RECYCLER.get();
         op.ml = ml;
         op.ledger = null;
-        op.data = data.retain();
+        op.data = data;
         op.dataLength = data.readableBytes();
         op.callback = callback;
         op.ctx = ctx;
@@ -155,7 +155,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         }
         checkArgument(ledger.getId() == lh.getId(), "ledgerId %s doesn't match with acked ledgerId %s", ledger.getId(),
                 lh.getId());
-        
+
         if (!checkAndCompleteOp(ctx)) {
             // means callback might have been completed by different thread (timeout task thread).. so do nothing
             return;
@@ -255,7 +255,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
 
     /**
      * Checks if add-operation is completed
-     * 
+     *
      * @return true if task is not already completed else returns false.
      */
     private boolean checkAndCompleteOp(Object ctx) {
@@ -276,19 +276,20 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
 
     /**
      * It handles add failure on the given ledger. it can be triggered when add-entry fails or times out.
-     * 
-     * @param ledger
+     *
+     * @param lh
      */
-    void handleAddFailure(final LedgerHandle ledger) {
+    void handleAddFailure(final LedgerHandle lh) {
         // If we get a write error, we will try to create a new ledger and re-submit the pending writes. If the
-        // ledger creation fails (persistent bk failure, another instanche owning the ML, ...), then the writes will
+        // ledger creation fails (persistent bk failure, another instance owning the ML, ...), then the writes will
         // be marked as failed.
-        ml.mbean.recordAddEntryError();
+        ManagedLedgerImpl finalMl = this.ml;
+        finalMl.mbean.recordAddEntryError();
 
-        ml.getExecutor().executeOrdered(ml.getName(), SafeRun.safeRun(() -> {
+        finalMl.getExecutor().executeOrdered(finalMl.getName(), SafeRun.safeRun(() -> {
             // Force the creation of a new ledger. Doing it in a background thread to avoid acquiring ML lock
             // from a BK callback.
-            ml.ledgerClosed(ledger);
+            finalMl.ledgerClosed(lh);
         }));
     }
 
@@ -313,6 +314,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
     }
 
     public void setData(ByteBuf data) {
+        this.dataLength = data.readableBytes();
         this.data = data;
     }
 

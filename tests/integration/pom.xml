@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar.tests</groupId>
     <artifactId>tests-parent</artifactId>
-    <version>2.9.0-SNAPSHOT</version>
+    <version>2.10.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>integration</artifactId>
@@ -148,12 +148,14 @@
     <dependency>
   	  <groupId>org.elasticsearch.client</groupId>
   	  <artifactId>elasticsearch-rest-high-level-client</artifactId>
+      <scope>test</scope>
   	</dependency>
 
     <dependency>
       <groupId>com.rabbitmq</groupId>
       <artifactId>amqp-client</artifactId>
       <version>${rabbitmq-client.version}</version>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
@@ -233,6 +235,27 @@
                 <file>src/test/resources/${integrationTestSuiteFile}</file>
               </suiteXmlFiles>
               <forkCount>1</forkCount>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>apache-release</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <skipTests>true</skipTests>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-deploy-plugin</artifactId>
+            <configuration>
+              <skip>${maven.deploy.skip}</skip>
             </configuration>
           </plugin>
         </plugins>

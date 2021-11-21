@@ -73,6 +73,19 @@ MessageListener ConsumerConfiguration::getMessageListener() const { return impl_
 
 bool ConsumerConfiguration::hasMessageListener() const { return impl_->hasMessageListener; }
 
+ConsumerConfiguration& ConsumerConfiguration::setConsumerEventListener(
+    ConsumerEventListenerPtr eventListener) {
+    impl_->eventListener = eventListener;
+    impl_->hasConsumerEventListener = true;
+    return *this;
+}
+
+ConsumerEventListenerPtr ConsumerConfiguration::getConsumerEventListener() const {
+    return impl_->eventListener;
+}
+
+bool ConsumerConfiguration::hasConsumerEventListener() const { return impl_->hasConsumerEventListener; }
+
 void ConsumerConfiguration::setReceiverQueueSize(int size) { impl_->receiverQueueSize = size; }
 
 int ConsumerConfiguration::getReceiverQueueSize() const { return impl_->receiverQueueSize; }
@@ -200,6 +213,16 @@ ConsumerConfiguration& ConsumerConfiguration::setProperties(
     }
     return *this;
 }
+
+ConsumerConfiguration& ConsumerConfiguration::setPriorityLevel(int priorityLevel) {
+    if (priorityLevel < 0) {
+        throw std::invalid_argument("Consumer Config Exception: PriorityLevel should be nonnegative number.");
+    }
+    impl_->priorityLevel = priorityLevel;
+    return *this;
+}
+
+int ConsumerConfiguration::getPriorityLevel() const { return impl_->priorityLevel; }
 
 ConsumerConfiguration& ConsumerConfiguration::setKeySharedPolicy(KeySharedPolicy keySharedPolicy) {
     impl_->keySharedPolicy = keySharedPolicy.clone();

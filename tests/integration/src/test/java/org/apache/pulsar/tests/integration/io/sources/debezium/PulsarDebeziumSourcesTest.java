@@ -23,9 +23,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.tests.integration.containers.DebeziumMongoDbContainer;
+import org.apache.pulsar.tests.integration.containers.DebeziumMsSqlContainer;
 import org.apache.pulsar.tests.integration.containers.DebeziumMySQLContainer;
 import org.apache.pulsar.tests.integration.containers.DebeziumPostgreSqlContainer;
 import org.apache.pulsar.tests.integration.io.PulsarIOTestBase;
@@ -59,6 +62,11 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
     @Test(groups = "source")
     public void testDebeziumMongoDbSource() throws Exception{
         testDebeziumMongoDbConnect("org.apache.kafka.connect.json.JsonConverter", true);
+    }
+
+    @Test(groups = "source")
+    public void testDebeziumMsSqlSource() throws Exception{
+        testDebeziumMsSqlConnect("org.apache.kafka.connect.json.JsonConverter", true);
     }
 
     private void testDebeziumMySqlConnect(String converterClassName, boolean jsonWithEnvelope) throws Exception {
@@ -187,15 +195,59 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         runner.testSource(sourceTester);
     }
 
+    private void testDebeziumMsSqlConnect(String converterClassName, boolean jsonWithEnvelope) throws Exception {
+
+        final String tenant = TopicName.PUBLIC_TENANT;
+        final String namespace = TopicName.DEFAULT_NAMESPACE;
+        final String outputTopicName = "debe-output-topic-name-" + testId.getAndIncrement();
+        final String consumeTopicName = "debezium/mssql/mssql.dbo.customers";
+        final String sourceName = "test-source-debezium-mssql-" + functionRuntimeType + "-" + randomName(8);
+
+        final int numMessages = 1;
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .build();
+
+        @Cleanup
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+        initNamespace(admin);
+
+        admin.topics().createNonPartitionedTopic(consumeTopicName);
+        admin.topics().createNonPartitionedTopic(outputTopicName);
+
+        @Cleanup
+        DebeziumMsSqlSourceTester sourceTester = new DebeziumMsSqlSourceTester(pulsarCluster);
+        sourceTester.getSourceConfig().put("json-with-envelope", jsonWithEnvelope);
+
+        DebeziumMsSqlContainer msSqlContainer = new DebeziumMsSqlContainer(pulsarCluster.getClusterName());
+        sourceTester.setServiceContainer(msSqlContainer);
+
+        PulsarIODebeziumSourceRunner runner = new PulsarIODebeziumSourceRunner(pulsarCluster, functionRuntimeType.toString(),
+                converterClassName, tenant, namespace, sourceName, outputTopicName, numMessages, jsonWithEnvelope,
+                consumeTopicName, client);
+
+        runner.testSource(sourceTester);
+    }
+
     protected void initNamespace(PulsarAdmin admin) {
         log.info("[initNamespace] start.");
         try {
             admin.tenants().createTenant("debezium", new TenantInfoImpl(Sets.newHashSet(),
                     Sets.newHashSet(pulsarCluster.getClusterName())));
-            admin.namespaces().createNamespace("debezium/mysql-json");
-            admin.namespaces().createNamespace("debezium/mysql-avro");
-            admin.namespaces().createNamespace("debezium/mongodb");
-            admin.namespaces().createNamespace("debezium/postgresql");
+            String [] namespaces = {
+                "debezium/mysql-json",
+                "debezium/mysql-avro",
+                "debezium/mongodb",
+                "debezium/postgresql",
+                "debezium/mssql",
+            };
+            Policies policies = new Policies();
+            policies.retention_policies = new RetentionPolicies(-1, 50);
+            for (String ns: namespaces) {
+                admin.namespaces().createNamespace(ns, policies);
+            }
         } catch (Exception e) {
             log.info("[initNamespace] msg: {}", e.getMessage());
         }

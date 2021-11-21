@@ -19,7 +19,6 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.apache.bookkeeper.common.util.MathUtils.signSafeMod;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -29,27 +28,29 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.resources.MetadataStoreCacheLoader;
 import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
-import org.apache.zookeeper.KeeperException;
+import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Joiner;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 /**
  * Maintains available active broker list and returns next active broker in round-robin for discovery service.
- *
+ * This is an API used by Proxy Extensions.
  */
+@InterfaceStability.Evolving
+@InterfaceAudience.LimitedPrivate
 public class BrokerDiscoveryProvider implements Closeable {
 
     final MetadataStoreCacheLoader metadataStoreCacheLoader;
@@ -77,6 +78,16 @@ public class BrokerDiscoveryProvider implements Closeable {
     }
 
     /**
+     * Access the list of available brokers.
+     * Used by Protocol Handlers
+     * @return the list of available brokers
+     * @throws PulsarServerException
+     */
+    public List<? extends ServiceLookupData> getAvailableBrokers() throws PulsarServerException {
+        return metadataStoreCacheLoader.getAvailableBrokers();
+    }
+
+    /**
      * Find next broker {@link LoadManagerReport} in round-robin fashion.
      *
      * @return
@@ -100,9 +111,8 @@ public class BrokerDiscoveryProvider implements Closeable {
         CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
         try {
             checkAuthorization(service, topicName, role, authenticationData);
-            final String path = path(PARTITIONED_TOPIC_PATH_ZNODE,
-                    topicName.getNamespaceObject().toString(), "persistent", topicName.getEncodedLocalName());
-            pulsarResources.getNamespaceResources().getPartitionedTopicResources().getAsync(path)
+            pulsarResources.getNamespaceResources().getPartitionedTopicResources()
+                    .getPartitionedTopicMetadataAsync(topicName)
                     .thenAccept(metadata -> {
                         // if the partitioned topic is not found in zk, then the topic
                         // is not partitioned
@@ -121,7 +131,7 @@ public class BrokerDiscoveryProvider implements Closeable {
         return metadataFuture;
     }
 
-    protected static void checkAuthorization(ProxyService service, TopicName topicName, String role,
+    protected void checkAuthorization(ProxyService service, TopicName topicName, String role,
             AuthenticationDataSource authenticationData) throws Exception {
         if (!service.getConfiguration().isAuthorizationEnabled()
                 || service.getConfiguration().getSuperUserRoles().contains(role)) {
@@ -132,14 +142,10 @@ public class BrokerDiscoveryProvider implements Closeable {
         if (!service.getAuthorizationService().canLookup(topicName, role, authenticationData)) {
             LOG.warn("[{}] Role {} is not allowed to lookup topic", topicName, role);
             // check namespace authorization
-            TenantInfoImpl tenantInfo;
+            TenantInfo tenantInfo;
             try {
-                tenantInfo = service.getConfigurationCacheService().propertiesCache()
-                        .get(path(POLICIES, topicName.getTenant()))
+                tenantInfo = pulsarResources.getTenantResources().getTenant(topicName.getTenant())
                         .orElseThrow(() -> new IllegalAccessException("Property does not exist"));
-            } catch (KeeperException.NoNodeException e) {
-                LOG.warn("Failed to get property admin data for non existing property {}", topicName.getTenant());
-                throw new IllegalAccessException("Property does not exist");
             } catch (Exception e) {
                 LOG.error("Failed to get property admin data for property");
                 throw new IllegalAccessException(String.format("Failed to get property %s admin data due to %s",
@@ -152,13 +158,6 @@ public class BrokerDiscoveryProvider implements Closeable {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Successfully authorized {} on property {}", role, topicName.getTenant());
         }
-    }
-
-    public static String path(String... parts) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("/admin/");
-        Joiner.on('/').appendTo(sb, parts);
-        return sb.toString();
     }
 
     @Override

@@ -18,14 +18,14 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import com.google.common.collect.Sets;
-
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -203,7 +203,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
             + " `super-user`, meaning they will be able to do all admin operations and publish"
             + " & consume from all topics"
     )
-    private Set<String> superUserRoles = Sets.newTreeSet();
+    private Set<String> superUserRoles = new TreeSet<>();
 
     @FieldContext(
         category = CATEGORY_AUTHENTICATION,
@@ -214,7 +214,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
         category = CATEGORY_AUTHENTICATION,
         doc = "Authentication provider name list (a comma-separated list of class names"
     )
-    private Set<String> authenticationProviders = Sets.newTreeSet();
+    private Set<String> authenticationProviders = new TreeSet<>();
     @FieldContext(
         category = CATEGORY_AUTHORIZATION,
         doc = "Whether authorization is enforced by the Pulsar proxy"
@@ -346,14 +346,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
             + " (a comma-separated list of protocol names).\n\n"
             + "Examples:- [TLSv1.3, TLSv1.2]"
     )
-    private Set<String> tlsProtocols = Sets.newTreeSet();
+    private Set<String> tlsProtocols = new TreeSet<>();
     @FieldContext(
         category = CATEGORY_TLS,
         doc = "Specify the tls cipher the proxy will use to negotiate during TLS Handshake"
             + " (a comma-separated list of ciphers).\n\n"
             + "Examples:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]"
     )
-    private Set<String> tlsCiphers = Sets.newTreeSet();
+    private Set<String> tlsCiphers = new TreeSet<>();
     @FieldContext(
         category = CATEGORY_TLS,
         doc = "Whether client certificates are required for TLS.\n\n"
@@ -449,7 +449,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
                   + "Examples:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256].\n"
                   + " used by the Pulsar proxy to authenticate with Pulsar brokers"
     )
-    private Set<String> brokerClientTlsCiphers = Sets.newTreeSet();
+    private Set<String> brokerClientTlsCiphers = new TreeSet<>();
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
             doc = "Specify the tls protocols the broker will use to negotiate during TLS handshake"
@@ -457,7 +457,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
                   + "Examples:- [TLSv1.3, TLSv1.2] \n"
                   + " used by the Pulsar proxy to authenticate with Pulsar brokers"
     )
-    private Set<String> brokerClientTlsProtocols = Sets.newTreeSet();
+    private Set<String> brokerClientTlsProtocols = new TreeSet<>();
 
     /***** --- HTTP --- ****/
 
@@ -465,7 +465,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
         category = CATEGORY_HTTP,
         doc = "Http directs to redirect to non-pulsar services"
     )
-    private Set<HttpReverseProxyConfig> httpReverseProxyConfigs = Sets.newHashSet();
+    private Set<HttpReverseProxyConfig> httpReverseProxyConfigs = new HashSet<>();
 
     @FieldContext(
         minValue = 1,
@@ -489,6 +489,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
                     + "issues a redirect response."
     )
     private int httpInputMaxReplayBufferSize = 5 * 1024 * 1024;
+
+    @FieldContext(
+            minValue = 1,
+            category = CATEGORY_HTTP,
+            doc = "Http proxy timeout.\n\n"
+                    + "The timeout value for HTTP proxy is in millisecond."
+    )
+    private int httpProxyTimeout = 5 * 60 * 1000;
 
     @FieldContext(
            minValue = 1,
@@ -515,13 +523,13 @@ public class ProxyConfiguration implements PulsarConfiguration {
             category = CATEGORY_PLUGIN,
             doc = "List of proxy additional servlet to load, which is a list of proxy additional servlet names"
     )
-    private Set<String> proxyAdditionalServlets = Sets.newTreeSet();
+    private Set<String> proxyAdditionalServlets = new TreeSet<>();
 
     @FieldContext(
             category = CATEGORY_PLUGIN,
             doc = "List of proxy additional servlet to load, which is a list of proxy additional servlet names"
     )
-    private Set<String> additionalServlets = Sets.newTreeSet();
+    private Set<String> additionalServlets = new TreeSet<>();
 
     @FieldContext(
             category =  CATEGORY_HTTP,
@@ -559,6 +567,25 @@ public class ProxyConfiguration implements PulsarConfiguration {
             )
         }
     )
+
+    /***** --- Protocol Handlers --- ****/
+    @FieldContext(
+            category = CATEGORY_PLUGIN,
+            doc = "The directory to locate proxy extensions"
+    )
+    private String proxyExtensionsDirectory = "./proxyextensions";
+
+    @FieldContext(
+            category = CATEGORY_PLUGIN,
+            doc = "List of messaging protocols to load, which is a list of extension names"
+    )
+    private Set<String> proxyExtensions = new TreeSet<>();
+
+    @FieldContext(
+            category = CATEGORY_PLUGIN,
+            doc = "Use a separate ThreadPool for each Proxy Extension"
+    )
+    private boolean useSeparateThreadPoolForProxyExtensions = true;
 
     /***** --- WebSocket --- ****/
     @FieldContext(

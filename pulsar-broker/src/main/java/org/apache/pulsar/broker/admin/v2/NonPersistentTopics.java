@@ -48,7 +48,6 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import org.apache.pulsar.broker.PulsarServerException;
-import org.apache.pulsar.broker.admin.ZkAdminPaths;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
@@ -199,7 +198,8 @@ public class NonPersistentTopics extends PersistentTopics {
                     int numPartitions,
             @QueryParam("createLocalTopicOnly") @DefaultValue("false") boolean createLocalTopicOnly) {
         try {
-            validateGlobalNamespaceOwnership(tenant, namespace);
+            validateNamespaceName(tenant, namespace);
+            validateGlobalNamespaceOwnership();
             validateTopicName(tenant, namespace, encodedTopic);
             internalCreatePartitionedTopic(asyncResponse, numPartitions, createLocalTopicOnly);
         } catch (Exception e) {
@@ -288,10 +288,10 @@ public class NonPersistentTopics extends PersistentTopics {
                         }
                     }
                     if (perPartition && stats.partitions.isEmpty()) {
-                        String path = ZkAdminPaths.partitionedTopicPath(topicName);
                         try {
-                            boolean zkPathExists = namespaceResources().getPartitionedTopicResources().exists(path);
-                            if (zkPathExists) {
+                            boolean topicExists = namespaceResources().getPartitionedTopicResources()
+                                    .partitionedTopicExists(topicName);
+                            if (topicExists) {
                                 stats.getPartitions().put(topicName.toString(), new NonPersistentTopicStatsImpl());
                             } else {
                                 asyncResponse.resume(

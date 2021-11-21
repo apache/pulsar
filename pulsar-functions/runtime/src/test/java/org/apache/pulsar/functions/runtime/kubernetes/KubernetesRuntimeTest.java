@@ -358,7 +358,8 @@ public class KubernetesRuntimeTest {
     	testResources(1.0 / 1.5, 1000, 1.3, 1.0);
     }
 
-    public void testResources(double userCpuRequest, long userMemoryRequest, double cpuOverCommitRatio, double memoryOverCommitRatio) throws Exception {
+    private void testResources(double userCpuRequest, long userMemoryRequest, double cpuOverCommitRatio,
+            double memoryOverCommitRatio) throws Exception {
 
         Function.Resources resources = Function.Resources.newBuilder()
                 .setRam(userMemoryRequest).setCpu(userCpuRequest).setDisk(10000L).build();
@@ -396,14 +397,14 @@ public class KubernetesRuntimeTest {
         if (null != depsDir) {
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            totalArgs = 39;
+            totalArgs = 40;
             portArg = 26;
             metricsPortArg = 28;
         } else {
             extraDepsEnv = "";
             portArg = 25;
             metricsPortArg = 27;
-            totalArgs = 38;
+            totalArgs = 39;
         }
         if (secretsAttached) {
             totalArgs += 4;
@@ -433,7 +434,7 @@ public class KubernetesRuntimeTest {
                 + " -Dlog4j.configurationFile=kubernetes_instance_log4j2.xml "
                 + "-Dpulsar.function.log.dir=" + logDirectory + "/" + FunctionCommon.getFullyQualifiedName(config.getFunctionDetails())
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-$SHARD_ID"
-                + " -Xmx" + String.valueOf(RESOURCES.getRam())
+                + " -Dio.netty.tryReflectionSetAccessible=true -Xmx" + String.valueOf(RESOURCES.getRam())
                 + " org.apache.pulsar.functions.instance.JavaInstanceMain"
                 + " --jar " + jarLocation + " --instance_id "
                 + "$SHARD_ID" + " --function_id " + config.getFunctionId()

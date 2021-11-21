@@ -66,12 +66,10 @@ import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooKeeper;
 import org.asynchttpclient.AsyncHttpClient;
@@ -285,8 +283,7 @@ public class WebServiceTest {
 
         // Create local cluster
         String localCluster = "test";
-        String clusterPath = PulsarWebResource.path("clusters", localCluster);
-        pulsar.getPulsarResources().getClusterResources().create(clusterPath, ClusterDataImpl.builder().build());
+        pulsar.getPulsarResources().getClusterResources().createCluster(localCluster, ClusterDataImpl.builder().build());
         TenantInfo info2 = TenantInfo.builder()
                 .adminRoles(Collections.singleton(StringUtils.repeat("*", 1 * 1024)))
                 .allowedClusters(Sets.newHashSet(localCluster))
@@ -409,10 +406,10 @@ public class WebServiceTest {
         pulsar.start();
 
         try {
-            pulsar.getZkClient().delete("/minApiVersion", -1);
+            pulsar.getLocalMetadataStore().delete("/minApiVersion", Optional.empty()).join();
         } catch (Exception ex) {
         }
-        pulsar.getZkClient().create("/minApiVersion", minApiVersion.getBytes(), null, CreateMode.PERSISTENT);
+        pulsar.getLocalMetadataStore().put("/minApiVersion", minApiVersion.getBytes(), Optional.of(-1L)).join();
 
         String BROKER_URL_BASE = "http://localhost:" + pulsar.getListenPortHTTP().get();
         String BROKER_URL_BASE_TLS = "https://localhost:" + pulsar.getListenPortHTTPS().orElse(-1);

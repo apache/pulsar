@@ -28,10 +28,15 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+
+import java.io.File;
 import java.lang.reflect.Field;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -40,6 +45,7 @@ import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
 import org.apache.pulsar.client.admin.Bookies;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.Brokers;
@@ -59,6 +65,7 @@ import org.apache.pulsar.client.admin.internal.OffloadProcessStatusImpl;
 import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -92,6 +99,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
@@ -368,6 +376,12 @@ public class PulsarAdminToolTest {
         namespaces.run(split("get-subscription-types-enabled myprop/clust/ns1"));
         verify(mockNamespaces).getSubscriptionTypesEnabled("myprop/clust/ns1");
 
+        namespaces.run(split("remove-subscription-types-enabled myprop/clust/ns1"));
+        verify(mockNamespaces).removeSubscriptionTypesEnabled("myprop/clust/ns1");
+
+        namespaces.run(split("get-schema-validation-enforce myprop/clust/ns1 -ap"));
+        verify(mockNamespaces).getSchemaValidationEnforced("myprop/clust/ns1", true);
+
         namespaces
                 .run(split("set-bookie-affinity-group myprop/clust/ns1 --primary-group test1 --secondary-group test2"));
         verify(mockNamespaces).setBookieAffinityGroup("myprop/clust/ns1",
@@ -505,12 +519,18 @@ public class PulsarAdminToolTest {
                         .topicType(TopicType.NON_PARTITIONED.toString())
                         .build());
 
+        namespaces.run(split("get-auto-topic-creation myprop/clust/ns1"));
+        verify(mockNamespaces).getAutoTopicCreation("myprop/clust/ns1");
+
         namespaces.run(split("remove-auto-topic-creation myprop/clust/ns1"));
         verify(mockNamespaces).removeAutoTopicCreation("myprop/clust/ns1");
 
         namespaces.run(split("set-auto-subscription-creation myprop/clust/ns1 -e"));
         verify(mockNamespaces).setAutoSubscriptionCreation("myprop/clust/ns1",
                 AutoSubscriptionCreationOverride.builder().allowAutoSubscriptionCreation(true).build());
+
+        namespaces.run(split("get-auto-subscription-creation myprop/clust/ns1"));
+        verify(mockNamespaces).getAutoSubscriptionCreation("myprop/clust/ns1");
 
         namespaces.run(split("remove-auto-subscription-creation myprop/clust/ns1"));
         verify(mockNamespaces).removeAutoSubscriptionCreation("myprop/clust/ns1");
@@ -648,6 +668,9 @@ public class PulsarAdminToolTest {
 
         namespaces.run(split("set-max-unacked-messages-per-consumer myprop/clust/ns1 -c 3"));
         verify(mockNamespaces).setMaxUnackedMessagesPerConsumer("myprop/clust/ns1", 3);
+
+        namespaces.run(split("remove-max-unacked-messages-per-consumer myprop/clust/ns1"));
+        verify(mockNamespaces).removeMaxUnackedMessagesPerConsumer("myprop/clust/ns1");
 
         mockNamespaces = mock(Namespaces.class);
         when(admin.namespaces()).thenReturn(mockNamespaces);
@@ -891,6 +914,9 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("partitioned-lookup persistent://myprop/clust/ns1/ds1"));
         verify(mockLookup).lookupPartitionedTopic("persistent://myprop/clust/ns1/ds1");
 
+        cmdTopics.run(split("partitioned-lookup persistent://myprop/clust/ns1/ds1 --sort-by-broker"));
+        verify(mockLookup).lookupPartitionedTopic("persistent://myprop/clust/ns1/ds1");
+
         cmdTopics.run(split("bundle-range persistent://myprop/clust/ns1/ds1"));
         verify(mockLookup).getBundleRange("persistent://myprop/clust/ns1/ds1");
 
@@ -988,7 +1014,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).getPartitionedTopicList("myprop/clust/ns1");
 
         cmdTopics.run(split("update-partitioned-topic persistent://myprop/clust/ns1/ds1 -p 6"));
-        verify(mockTopics).updatePartitionedTopic("persistent://myprop/clust/ns1/ds1", 6);
+        verify(mockTopics).updatePartitionedTopic("persistent://myprop/clust/ns1/ds1", 6, false, false);
 
         cmdTopics.run(split("get-partitioned-topic-metadata persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getPartitionedTopicMetadata("persistent://myprop/clust/ns1/ds1");
@@ -1289,6 +1315,15 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("get-max-consumers persistent://myprop/clust/ns1/ds1 -ap"));
         verify(mockTopics).getMaxConsumers("persistent://myprop/clust/ns1/ds1", true);
+
+        cmdTopics.run(split("get-replication-clusters persistent://myprop/clust/ns1/ds1 --applied"));
+        verify(mockTopics).getReplicationClusters("persistent://myprop/clust/ns1/ds1", true);
+
+        cmdTopics.run(split("set-replication-clusters persistent://myprop/clust/ns1/ds1 -c test"));
+        verify(mockTopics).setReplicationClusters("persistent://myprop/clust/ns1/ds1", Lists.newArrayList("test"));
+
+        cmdTopics.run(split("remove-replication-clusters persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeReplicationClusters("persistent://myprop/clust/ns1/ds1");
     }
 
     private static LedgerInfo newLedger(long id, long entries, long size) {
@@ -1326,7 +1361,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).deleteSubscription("persistent://myprop/clust/ns1/ds1", "sub1", false);
 
         topics.run(split("stats persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getStats("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics).getStats("persistent://myprop/clust/ns1/ds1", false);
 
         topics.run(split("stats-internal persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getInternalStats("persistent://myprop/clust/ns1/ds1", false);
@@ -1586,6 +1621,63 @@ public class PulsarAdminToolTest {
         cmdTransactions = new CmdTransactions(() -> admin);
         cmdTransactions.run(split("pending-ack-internal-stats -t test -s test"));
         verify(transactions).getPendingAckInternalStats("test", "test", false);
+    }
+
+    @Test
+    void schemas() throws Exception {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        Schemas schemas = Mockito.mock(Schemas.class);
+        doReturn(schemas).when(admin).schemas();
+
+        CmdSchemas cmdSchemas = new CmdSchemas(() -> admin);
+        cmdSchemas.run(split("get -v 1 persistent://tn1/ns1/tp1"));
+        verify(schemas).getSchemaInfo("persistent://tn1/ns1/tp1", 1);
+
+        cmdSchemas = new CmdSchemas(() -> admin);
+        cmdSchemas.run(split("get -a persistent://tn1/ns1/tp1"));
+        verify(schemas).getAllSchemas("persistent://tn1/ns1/tp1");
+
+        cmdSchemas = new CmdSchemas(() -> admin);
+        cmdSchemas.run(split("get persistent://tn1/ns1/tp1"));
+        verify(schemas).getSchemaInfoWithVersion("persistent://tn1/ns1/tp1");
+
+        cmdSchemas = new CmdSchemas(() -> admin);
+        cmdSchemas.run(split("delete persistent://tn1/ns1/tp1"));
+        verify(schemas).deleteSchema("persistent://tn1/ns1/tp1");
+
+        cmdSchemas = new CmdSchemas(() -> admin);
+        String schemaFile = PulsarAdminToolTest.class.getClassLoader()
+                .getResource("test_schema_create.json").getFile();
+        cmdSchemas.run(split("upload -f " + schemaFile + " persistent://tn1/ns1/tp1"));
+        PostSchemaPayload input = new ObjectMapper().readValue(new File(schemaFile), PostSchemaPayload.class);
+        verify(schemas).createSchema("persistent://tn1/ns1/tp1", input);
+
+        cmdSchemas = new CmdSchemas(() -> admin);
+        String jarFile = PulsarAdminToolTest.class.getClassLoader()
+                .getResource("dummyexamples.jar").getFile();
+        String className = SchemaDemo.class.getName();
+        cmdSchemas.run(split("extract -j " + jarFile + " -c " + className + " -t json persistent://tn1/ns1/tp1"));
+        File file = new File(jarFile);
+        ClassLoader cl = new URLClassLoader(new URL[]{file.toURI().toURL()});
+        Class cls = cl.loadClass(className);
+        SchemaDefinition<Object> schemaDefinition =
+                SchemaDefinition.builder()
+                        .withPojo(cls)
+                        .withAlwaysAllowNull(true)
+                        .build();
+        PostSchemaPayload postSchemaPayload = new PostSchemaPayload();
+        postSchemaPayload.setType("JSON");
+        postSchemaPayload.setSchema(SchemaExtractor.getJsonSchemaInfo(schemaDefinition));
+        postSchemaPayload.setProperties(schemaDefinition.getProperties());
+        verify(schemas).createSchema("persistent://tn1/ns1/tp1", postSchemaPayload);
+    }
+
+    public static class SchemaDemo {
+        public SchemaDemo() {
+        }
+
+        public static void main(String[] args) {
+        }
     }
 
     String[] split(String s) {

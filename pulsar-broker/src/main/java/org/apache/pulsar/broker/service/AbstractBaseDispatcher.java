@@ -19,7 +19,6 @@
 
 package org.apache.pulsar.broker.service;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import io.netty.buffer.ByteBuf;
 import java.util.Collections;
 import java.util.List;
@@ -30,7 +29,6 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -49,10 +47,12 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
     protected final Subscription subscription;
 
     protected final ServiceConfiguration serviceConfig;
+    protected final boolean dispatchThrottlingOnBatchMessageEnabled;
 
     protected AbstractBaseDispatcher(Subscription subscription, ServiceConfiguration serviceConfig) {
         this.subscription = subscription;
         this.serviceConfig = serviceConfig;
+        this.dispatchThrottlingOnBatchMessageEnabled = serviceConfig.isDispatchThrottlingOnBatchMessageEnabled();
     }
 
     /**
@@ -99,24 +99,26 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
      * @param sendMessageInfo
      *            an object where the total size in messages and bytes will be returned back to the caller
      */
-    public void filterEntriesForConsumer(List<Entry> entries, EntryBatchSizes batchSizes,
+    public int filterEntriesForConsumer(List<Entry> entries, EntryBatchSizes batchSizes,
             SendMessageInfo sendMessageInfo, EntryBatchIndexesAcks indexesAcks,
             ManagedCursor cursor, boolean isReplayRead) {
-        filterEntriesForConsumer(Optional.empty(), 0, entries, batchSizes, sendMessageInfo, indexesAcks, cursor,
+        return filterEntriesForConsumer(Optional.empty(), 0, entries, batchSizes, sendMessageInfo, indexesAcks, cursor,
                 isReplayRead);
     }
 
-    public void filterEntriesForConsumer(Optional<EntryWrapper[]> entryWrapper, int entryWrapperOffset,
+    public int filterEntriesForConsumer(Optional<EntryWrapper[]> entryWrapper, int entryWrapperOffset,
              List<Entry> entries, EntryBatchSizes batchSizes, SendMessageInfo sendMessageInfo,
              EntryBatchIndexesAcks indexesAcks, ManagedCursor cursor, boolean isReplayRead) {
         int totalMessages = 0;
         long totalBytes = 0;
         int totalChunkedMessages = 0;
+        int totalEntries = 0;
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
             Entry entry = entries.get(i);
             if (entry == null) {
                 continue;
             }
+            totalEntries++;
             ByteBuf metadataAndPayload = entry.getDataBuffer();
             int entryWrapperIndex = i + entryWrapperOffset;
             MessageMetadata msgMetadata = entryWrapper.isPresent() && entryWrapper.get()[entryWrapperIndex] != null
@@ -184,6 +186,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         sendMessageInfo.setTotalMessages(totalMessages);
         sendMessageInfo.setTotalBytes(totalBytes);
         sendMessageInfo.setTotalChunkedMessages(totalChunkedMessages);
+        return totalEntries;
     }
 
     /**
@@ -203,8 +206,8 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                     .orElse(null);
             if (maxConsumersPerSubscription == null) {
                 // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks in addConsumer
-                policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                        .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()));
+                policies = brokerService.pulsar().getPulsarResources().getNamespaceResources()
+                        .getPoliciesIfCached(TopicName.get(topic).getNamespaceObject()).orElse(null);
             }
         } catch (Exception e) {
             log.debug("Get topic or namespace policies fail", e);

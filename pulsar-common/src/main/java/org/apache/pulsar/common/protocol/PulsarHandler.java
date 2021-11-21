@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.protocol;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.concurrent.ScheduledFuture;
 import java.net.SocketAddress;
@@ -36,7 +37,7 @@ public abstract class PulsarHandler extends PulsarDecoder {
     protected SocketAddress remoteAddress;
     private int remoteEndpointProtocolVersion = ProtocolVersion.v0.getValue();
     private final long keepAliveIntervalSeconds;
-    private boolean waitingForPingResponse = false;
+    private volatile boolean waitingForPingResponse = false;
     private ScheduledFuture<?> keepAliveTask;
 
     public int getRemoteEndpointProtocolVersion() {
@@ -65,8 +66,9 @@ public abstract class PulsarHandler extends PulsarDecoder {
             log.debug("[{}] Scheduling keep-alive task every {} s", ctx.channel(), keepAliveIntervalSeconds);
         }
         if (keepAliveIntervalSeconds > 0) {
-            this.keepAliveTask = ctx.executor().scheduleAtFixedRate(this::handleKeepAliveTimeout,
-                    keepAliveIntervalSeconds, keepAliveIntervalSeconds, TimeUnit.SECONDS);
+            this.keepAliveTask = ctx.executor()
+                    .scheduleAtFixedRate(catchingAndLoggingThrowables(this::handleKeepAliveTimeout),
+                            keepAliveIntervalSeconds, keepAliveIntervalSeconds, TimeUnit.SECONDS);
         }
     }
 

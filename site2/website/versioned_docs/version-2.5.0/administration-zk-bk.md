@@ -66,7 +66,7 @@ If you deploy a [single-cluster](#single-cluster-pulsar-instance) instance, you 
 
 If your Pulsar instance consists of just one cluster, then you can deploy a configuration store on the same machines as the local ZooKeeper quorum but run on different TCP ports.
 
-To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers that the local quorom uses to the configuration file in [`conf/global_zookeeper.conf`](reference-configuration.md#configuration-store) using the same method for [local ZooKeeper](#local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). The following is an example that uses port 2184 for a three-node ZooKeeper cluster:
+To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers that the local quorum uses to the configuration file in [`conf/global_zookeeper.conf`](reference-configuration.md#configuration-store) using the same method for [local ZooKeeper](#local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). The following is an example that uses port 2184 for a three-node ZooKeeper cluster:
 
 ```properties
 clientPort=2184
@@ -177,7 +177,7 @@ You can configure BookKeeper bookies using the [`conf/bookkeeper.conf`](referenc
 
 You can start up a bookie in two ways: in the foreground or as a background daemon.
 
-To start up a bookie in the foreground, use the [`bookeeper`](reference-cli-tools.md#bookkeeper) CLI tool:
+To start up a bookie in the foreground, use the [`bookkeeper`](reference-cli-tools.md#bookkeeper) CLI tool:
 
 ```bash
 $ bin/bookkeeper bookie
@@ -251,7 +251,7 @@ Use the [`set-persistence`](reference-pulsar-admin.md#namespaces-set-persistence
 
 Flag | Description | Default
 :----|:------------|:-------
-`-a`, `--bookkeeper-ack-quorom` | The number of acks (guaranteed copies) to wait on for each entry | 0
+`-a`, `--bookkeeper-ack-quorum` | The number of acks (guaranteed copies) to wait on for each entry | 0
 `-e`, `--bookkeeper-ensemble` | The number of [bookies](reference-terminology.md#bookie) to use for topics in the namespace | 0
 `-w`, `--bookkeeper-write-quorum` | The number of writes to make for each entry | 0
 `-r`, `--ml-mark-delete-max-rate` | Throttling rate for mark-delete operations (0 means no throttle) | 0
@@ -260,8 +260,8 @@ The following is an example:
 
 ```shell
 $ pulsar-admin namespaces set-persistence my-tenant/my-ns \
-  --bookkeeper-ack-quorom 3 \
-  --bookeeper-ensemble 2
+  --bookkeeper-ack-quorum 3 \
+  --bookkeeper-ensemble 2
 ```
 
 #### REST API

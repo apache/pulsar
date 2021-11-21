@@ -22,7 +22,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -30,7 +30,6 @@ import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -55,14 +54,15 @@ public class AuthorizationService {
     private AuthorizationProvider provider;
     private final ServiceConfiguration conf;
 
-    public AuthorizationService(ServiceConfiguration conf, ConfigurationCacheService configCache)
+    public AuthorizationService(ServiceConfiguration conf, PulsarResources pulsarResources)
             throws PulsarServerException {
         this.conf = conf;
         try {
             final String providerClassname = conf.getAuthorizationProvider();
             if (StringUtils.isNotBlank(providerClassname)) {
-                provider = (AuthorizationProvider) Class.forName(providerClassname).newInstance();
-                provider.initialize(conf, configCache);
+                provider = (AuthorizationProvider) Class.forName(providerClassname)
+                        .getDeclaredConstructor().newInstance();
+                provider.initialize(conf, pulsarResources);
                 log.info("{} has been loaded.", providerClassname);
             } else {
                 throw new PulsarServerException("No authorization providers are present.");

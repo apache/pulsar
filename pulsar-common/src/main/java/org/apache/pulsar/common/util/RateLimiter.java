@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.base.MoreObjects;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -256,7 +257,8 @@ public class RateLimiter implements AutoCloseable{
     }
 
     protected ScheduledFuture<?> createTask() {
-        return executorService.scheduleAtFixedRate(this::renew, this.rateTime, this.rateTime, this.timeUnit);
+        return executorService.scheduleAtFixedRate(catchingAndLoggingThrowables(this::renew), this.rateTime,
+                this.rateTime, this.timeUnit);
     }
 
     synchronized void renew() {

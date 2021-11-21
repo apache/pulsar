@@ -43,6 +43,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
+import org.assertj.core.util.Lists;
 import org.testng.annotations.Test;
 
 public class MetadataStoreTest extends BaseMetadataStoreTest {
@@ -142,6 +143,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         int n = 10;
         List<String> expectedChildren = new ArrayList<>();
 
+        assertEquals(store.getChildren(key).join(), Collections.emptyList());
+
         for (int i = 0; i < n; i++) {
             store.put(key + "/c-" + i, new byte[0], Optional.empty()).join();
 
@@ -156,6 +159,30 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         }
 
         assertEquals(store.getChildren(key).join(), expectedChildren);
+
+        for (int i = 0; i < n; i++) {
+            store.deleteRecursive(key + "/c-" + i).join();
+        }
+
+        assertEquals(store.getChildren(key).join(), Collections.emptyList());
+    }
+
+    @Test(dataProvider = "impl")
+    public void navigateChildrenTest(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+
+        String key = newKey();
+
+        // Nested children
+        store.put(key + "/c-0/cc-1", new byte[0], Optional.empty()).join();
+        store.put(key + "/c-0/cc-2/ccc-1", new byte[0], Optional.empty()).join();
+
+        assertEquals(store.getChildren(key).join(), Collections.singletonList("c-0"));
+        assertEquals(store.getChildren(key + "/c-0").join(),
+                Lists.newArrayList("cc-1", "cc-2"));
+        assertEquals(store.getChildren(key + "/c-0/cc-2").join(),
+                Lists.newArrayList("ccc-1"));
     }
 
     @Test(dataProvider = "impl")
@@ -300,7 +327,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl")
-    public void testDeleteRecursive(String provider,  Supplier<String> urlSupplier) throws Exception {
+    public void testDeleteRecursive(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
 

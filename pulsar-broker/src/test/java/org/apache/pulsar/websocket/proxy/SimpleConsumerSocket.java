@@ -43,14 +43,16 @@ public class SimpleConsumerSocket {
     protected static final String X_PULSAR_MESSAGE_ID = "messageId";
     private final CountDownLatch closeLatch;
     private Session session;
-    protected final ArrayList<String> consumerBuffer;
-    protected final AtomicInteger receivedMessages = new AtomicInteger();
+    private final ArrayList<String> consumerBuffer;
+    final ArrayList<JsonObject> messages;
+    private final AtomicInteger receivedMessages = new AtomicInteger();
     // Custom message handler to override standard message processing, if it's needed
     private SimpleConsumerMessageHandler customMessageHandler;
 
     public SimpleConsumerSocket() {
         this.closeLatch = new CountDownLatch(1);
         consumerBuffer = new ArrayList<>();
+        this.messages = new ArrayList<>();
     }
 
     public boolean awaitClose(int duration, TimeUnit unit) throws InterruptedException {
@@ -79,6 +81,7 @@ public class SimpleConsumerSocket {
     public synchronized void onMessage(String msg) throws JsonParseException, IOException {
         receivedMessages.incrementAndGet();
         JsonObject message = new Gson().fromJson(msg, JsonObject.class);
+        this.messages.add(message);
         if (message.get(X_PULSAR_MESSAGE_ID) != null) {
             String messageId = message.get(X_PULSAR_MESSAGE_ID).getAsString();
             consumerBuffer.add(messageId);

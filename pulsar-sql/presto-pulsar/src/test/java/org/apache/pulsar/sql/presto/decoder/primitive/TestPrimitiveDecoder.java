@@ -22,7 +22,6 @@ import io.airlift.slice.Slices;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.decoder.FieldValueProvider;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.sql.presto.PulsarColumnHandle;
@@ -66,7 +65,7 @@ public class TestPrimitiveDecoder extends AbstractDecoderTester {
     public void testPrimitiveType() {
 
         byte int8Value = 1;
-        SchemaInfo schemaInfoInt8 = SchemaInfoImpl.builder().type(SchemaType.INT8).build();
+        SchemaInfo schemaInfoInt8 = SchemaInfo.builder().type(SchemaType.INT8).build();
         Schema schemaInt8 = Schema.getSchema(schemaInfoInt8);
         List<PulsarColumnHandle> pulsarColumnHandleInt8 = getColumnColumnHandles(topicName, schemaInfoInt8, PulsarColumnHandle.HandleKeyValueType.NONE, false, decoderFactory);
         PulsarRowDecoder pulsarRowDecoderInt8 = decoderFactory.createRowDecoder(topicName, schemaInfoInt8,
@@ -78,7 +77,7 @@ public class TestPrimitiveDecoder extends AbstractDecoderTester {
                 PRIMITIVE_COLUMN_NAME, TINYINT, false, false, PRIMITIVE_COLUMN_NAME, null, null, PulsarColumnHandle.HandleKeyValueType.NONE), int8Value);
 
         short int16Value = 2;
-        SchemaInfo schemaInfoInt16 = SchemaInfoImpl.builder().type(SchemaType.INT16).build();
+        SchemaInfo schemaInfoInt16 = SchemaInfo.builder().type(SchemaType.INT16).build();
         Schema schemaInt16 = Schema.getSchema(schemaInfoInt16);
         List<PulsarColumnHandle> pulsarColumnHandleInt16 = getColumnColumnHandles(topicName, schemaInfoInt16, PulsarColumnHandle.HandleKeyValueType.NONE, false, decoderFactory);
         PulsarRowDecoder pulsarRowDecoderInt16 = decoderFactory.createRowDecoder(topicName, schemaInfoInt16,
@@ -90,7 +89,7 @@ public class TestPrimitiveDecoder extends AbstractDecoderTester {
                 PRIMITIVE_COLUMN_NAME, SMALLINT, false, false, PRIMITIVE_COLUMN_NAME, null, null, PulsarColumnHandle.HandleKeyValueType.NONE), int16Value);
 
         int int32Value = 2;
-        SchemaInfo schemaInfoInt32 = SchemaInfoImpl.builder().type(SchemaType.INT32).build();
+        SchemaInfo schemaInfoInt32 = SchemaInfo.builder().type(SchemaType.INT32).build();
         Schema schemaInt32 = Schema.getSchema(schemaInfoInt32);
         List<PulsarColumnHandle> pulsarColumnHandleInt32 = getColumnColumnHandles(topicName, schemaInfoInt32,
                 PulsarColumnHandle.HandleKeyValueType.NONE, false, decoderFactory);
@@ -103,7 +102,7 @@ public class TestPrimitiveDecoder extends AbstractDecoderTester {
                 PRIMITIVE_COLUMN_NAME, INTEGER, false, false, PRIMITIVE_COLUMN_NAME, null, null, PulsarColumnHandle.HandleKeyValueType.NONE), int32Value);
 
         long int64Value = 2;
-        SchemaInfo schemaInfoInt64 = SchemaInfoImpl.builder().type(SchemaType.INT64).build();
+        SchemaInfo schemaInfoInt64 = SchemaInfo.builder().type(SchemaType.INT64).build();
         Schema schemaInt64 = Schema.getSchema(schemaInfoInt64);
         List<PulsarColumnHandle> pulsarColumnHandleInt64 = getColumnColumnHandles(topicName, schemaInfoInt64,
                 PulsarColumnHandle.HandleKeyValueType.NONE, false, decoderFactory);
@@ -117,7 +116,7 @@ public class TestPrimitiveDecoder extends AbstractDecoderTester {
                 PulsarColumnHandle.HandleKeyValueType.NONE), int64Value);
 
         String stringValue = "test";
-        SchemaInfo schemaInfoString = SchemaInfoImpl.builder().type(SchemaType.STRING).build();
+        SchemaInfo schemaInfoString = SchemaInfo.builder().type(SchemaType.STRING).build();
         Schema schemaString = Schema.getSchema(schemaInfoString);
         List<PulsarColumnHandle> pulsarColumnHandleString = getColumnColumnHandles(topicName, schemaInfoString,
                 PulsarColumnHandle.HandleKeyValueType.NONE, false, decoderFactory);
@@ -131,7 +130,7 @@ public class TestPrimitiveDecoder extends AbstractDecoderTester {
                 PulsarColumnHandle.HandleKeyValueType.NONE), stringValue);
 
         float floatValue = 0.2f;
-        SchemaInfo schemaInfoFloat = SchemaInfoImpl.builder().type(SchemaType.FLOAT).build();
+        SchemaInfo schemaInfoFloat = SchemaInfo.builder().type(SchemaType.FLOAT).build();
         Schema schemaFloat = Schema.getSchema(schemaInfoFloat);
         List<PulsarColumnHandle> pulsarColumnHandleFloat = getColumnColumnHandles(topicName, schemaInfoFloat,
                 PulsarColumnHandle.HandleKeyValueType.NONE, false, decoderFactory);
@@ -142,10 +141,10 @@ public class TestPrimitiveDecoder extends AbstractDecoderTester {
                         .copiedBuffer(schemaFloat.encode(floatValue))).get();
         checkValue(decodedRowFloat, new PulsarColumnHandle(getPulsarConnectorId().toString(),
                 PRIMITIVE_COLUMN_NAME, REAL, false, false, PRIMITIVE_COLUMN_NAME, null, null,
-                PulsarColumnHandle.HandleKeyValueType.NONE), Long.valueOf(Float.floatToIntBits(floatValue)));
+                PulsarColumnHandle.HandleKeyValueType.NONE), Float.floatToIntBits(floatValue));
 
         double doubleValue = 0.22d;
-        SchemaInfo schemaInfoDouble = SchemaInfoImpl.builder().type(SchemaType.DOUBLE).build();
+        SchemaInfo schemaInfoDouble = SchemaInfo.builder().type(SchemaType.DOUBLE).build();
         Schema schemaDouble = Schema.getSchema(schemaInfoDouble);
         List<PulsarColumnHandle> pulsarColumnHandleDouble = getColumnColumnHandles(topicName, schemaInfoDouble,
                 PulsarColumnHandle.HandleKeyValueType.NONE, false, decoderFactory);
@@ -159,7 +158,7 @@ public class TestPrimitiveDecoder extends AbstractDecoderTester {
                 PulsarColumnHandle.HandleKeyValueType.NONE), doubleValue);
 
         boolean booleanValue = true;
-        SchemaInfo schemaInfoBoolean = SchemaInfoImpl.builder().type(SchemaType.BOOLEAN).build();
+        SchemaInfo schemaInfoBoolean = SchemaInfo.builder().type(SchemaType.BOOLEAN).build();
         Schema schemaBoolean = Schema.getSchema(schemaInfoBoolean);
         List<PulsarColumnHandle> pulsarColumnHandleBoolean = getColumnColumnHandles(topicName, schemaInfoBoolean,
                 PulsarColumnHandle.HandleKeyValueType.NONE, false, decoderFactory);
@@ -174,7 +173,7 @@ public class TestPrimitiveDecoder extends AbstractDecoderTester {
 
         byte[] bytesValue = new byte[1];
         bytesValue[0] = 1;
-        SchemaInfo schemaInfoBytes = SchemaInfoImpl.builder().type(SchemaType.BYTES).build();
+        SchemaInfo schemaInfoBytes = SchemaInfo.builder().type(SchemaType.BYTES).build();
         Schema schemaBytes = Schema.getSchema(schemaInfoBytes);
         List<PulsarColumnHandle> pulsarColumnHandleBytes = getColumnColumnHandles(topicName, schemaInfoBytes,
                 PulsarColumnHandle.HandleKeyValueType.NONE, false, decoderFactory);
@@ -188,7 +187,7 @@ public class TestPrimitiveDecoder extends AbstractDecoderTester {
                 PulsarColumnHandle.HandleKeyValueType.NONE), Slices.wrappedBuffer(bytesValue));
 
         Date dateValue = new Date(System.currentTimeMillis());
-        SchemaInfo schemaInfoDate = SchemaInfoImpl.builder().type(SchemaType.DATE).build();
+        SchemaInfo schemaInfoDate = SchemaInfo.builder().type(SchemaType.DATE).build();
         Schema schemaDate = Schema.getSchema(schemaInfoDate);
         List<PulsarColumnHandle> pulsarColumnHandleDate = getColumnColumnHandles(topicName, schemaInfoDate,
                 PulsarColumnHandle.HandleKeyValueType.NONE, false, decoderFactory);
@@ -202,7 +201,7 @@ public class TestPrimitiveDecoder extends AbstractDecoderTester {
                 PulsarColumnHandle.HandleKeyValueType.NONE), dateValue.getTime());
 
         Time timeValue = new Time(System.currentTimeMillis());
-        SchemaInfo schemaInfoTime = SchemaInfoImpl.builder().type(SchemaType.TIME).build();
+        SchemaInfo schemaInfoTime = SchemaInfo.builder().type(SchemaType.TIME).build();
         Schema schemaTime = Schema.getSchema(schemaInfoTime);
         List<PulsarColumnHandle> pulsarColumnHandleTime = getColumnColumnHandles(topicName, schemaInfoTime,
                 PulsarColumnHandle.HandleKeyValueType.NONE, false, decoderFactory);
@@ -216,7 +215,7 @@ public class TestPrimitiveDecoder extends AbstractDecoderTester {
                 PulsarColumnHandle.HandleKeyValueType.NONE), timeValue.getTime());
 
         Timestamp timestampValue = new Timestamp(System.currentTimeMillis());
-        SchemaInfo schemaInfoTimestamp = SchemaInfoImpl.builder().type(SchemaType.TIMESTAMP).build();
+        SchemaInfo schemaInfoTimestamp = SchemaInfo.builder().type(SchemaType.TIMESTAMP).build();
         Schema schemaTimestamp = Schema.getSchema(schemaInfoTimestamp);
         List<PulsarColumnHandle> pulsarColumnHandleTimestamp = getColumnColumnHandles(topicName, schemaInfoTimestamp,
                 PulsarColumnHandle.HandleKeyValueType.NONE, false, decoderFactory);

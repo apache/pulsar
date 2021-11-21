@@ -43,7 +43,6 @@ import java.util.ArrayList;
 import java.util.function.Supplier;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -65,9 +64,8 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
-import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -81,13 +79,9 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
-import org.apache.pulsar.metadata.impl.ZKMetadataStore;
-import org.apache.pulsar.zookeeper.ZooKeeperCache;
-import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.ZooKeeper;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -108,7 +102,6 @@ public class PersistentDispatcherFailoverConsumerTest {
     private ManagedLedger ledgerMock;
     private ManagedCursor cursorMock;
     private MetadataStore store;
-    private ConfigurationCacheService configCacheService;
     private ChannelHandlerContext channelCtx;
     private LinkedBlockingQueue<CommandActiveConsumerChange> consumerChanges;
     private ZooKeeper mockZk;
@@ -134,23 +127,12 @@ public class PersistentDispatcherFailoverConsumerTest {
                 .when(pulsar).getBookKeeperClient();
         eventLoopGroup = new NioEventLoopGroup();
 
-        ZooKeeperCache cache = mock(ZooKeeperCache.class);
-        doReturn(30).when(cache).getZkOperationTimeoutSeconds();
-        doReturn(cache).when(pulsar).getLocalZkCache();
-
-        configCacheService = mock(ConfigurationCacheService.class);
-        @SuppressWarnings("unchecked")
-        ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
-        LocalZooKeeperCacheService zkCache = mock(LocalZooKeeperCacheService.class);
-        doReturn(CompletableFuture.completedFuture(Optional.empty())).when(zkDataCache).getAsync(any());
-        doReturn(zkDataCache).when(zkCache).policiesCache();
-        doReturn(zkDataCache).when(configCacheService).policiesCache();
-        doReturn(configCacheService).when(pulsar).getConfigurationCache();
-        doReturn(zkCache).when(pulsar).getLocalZkCacheService();
-
         store = MetadataStoreFactory.create("memory://local", MetadataStoreConfig.builder().build());
         doReturn(store).when(pulsar).getLocalMetadataStore();
         doReturn(store).when(pulsar).getConfigurationMetadataStore();
+
+        PulsarResources pulsarResources = new PulsarResources(store, store);
+        doReturn(pulsarResources).when(pulsar).getPulsarResources();
 
         brokerService = spy(new BrokerService(pulsar, eventLoopGroup));
         doReturn(brokerService).when(pulsar).getBrokerService();

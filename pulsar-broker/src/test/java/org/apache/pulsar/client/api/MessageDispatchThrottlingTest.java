@@ -39,7 +39,6 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
@@ -530,6 +529,84 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         // consumer should not have received all published message due to message-rate throttling
         Assert.assertNotEquals(totalReceived.get(), numProducedMessages);
+
+        consumer1.close();
+        consumer2.close();
+        consumer3.close();
+        consumer4.close();
+        consumer5.close();
+        producer.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test
+    public void testRateLimitingWithBatchMsgEnabled() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        conf.setDispatchThrottlingOnBatchMessageEnabled(true);
+
+        final String namespace = "my-property/throttling_ns";
+        final String topicName = "persistent://" + namespace + "/throttlingMultipleConsumers";
+
+        final int messageRate = 5;
+        DispatchRate dispatchRate = DispatchRate.builder().dispatchThrottlingRateInMsg(messageRate)
+                .dispatchThrottlingRateInByte(-1).ratePeriodInSecond(360).build();
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+        admin.namespaces().setDispatchRate(namespace, dispatchRate);
+
+        final int messagesPerBatch = 100;
+        final int numProducedMessages = messageRate * messagesPerBatch;
+        // create producer and topic
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(true)
+                .batchingMaxPublishDelay(1, TimeUnit.SECONDS).batchingMaxMessages(messagesPerBatch).create();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        boolean isMessageRateUpdate = false;
+        int retry = 5;
+        for (int i = 0; i < retry; i++) {
+            if (topic.getDispatchRateLimiter().get().getDispatchRateOnMsg() > 0) {
+                isMessageRateUpdate = true;
+                break;
+            } else {
+                if (i != retry - 1) {
+                    Thread.sleep(100);
+                }
+            }
+        }
+        Assert.assertTrue(isMessageRateUpdate);
+        Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
+
+        final AtomicInteger totalReceived = new AtomicInteger(0);
+
+        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared)
+                .messageListener((c1, msg) -> {
+                    Assert.assertNotNull(msg, "Message cannot be null");
+                    String receivedMessage = new String(msg.getData());
+                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    totalReceived.incrementAndGet();
+                });
+        Consumer<byte[]> consumer1 = consumerBuilder.subscribe();
+        Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
+        Consumer<byte[]> consumer3 = consumerBuilder.subscribe();
+        Consumer<byte[]> consumer4 = consumerBuilder.subscribe();
+        Consumer<byte[]> consumer5 = consumerBuilder.subscribe();
+
+        // deactive cursors
+        deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
+
+        // Asynchronously produce messages
+        CountDownLatch latch = new CountDownLatch(numProducedMessages);
+        for (int i = 0; i < numProducedMessages; i++) {
+            final String message = "my-message-" + i;
+            producer.sendAsync(message.getBytes()).thenAccept(__ -> latch.countDown());
+        }
+
+        latch.await();
+
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> totalReceived.get() == numProducedMessages);
+
+        // consumer should not have received all published message due to message-rate throttling
+        Assert.assertEquals(totalReceived.get(), numProducedMessages);
 
         consumer1.close();
         consumer2.close();

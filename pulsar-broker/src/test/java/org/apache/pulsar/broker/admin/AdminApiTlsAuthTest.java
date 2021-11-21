@@ -49,9 +49,9 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ResourceGroup;
 import org.apache.pulsar.common.tls.NoopHostnameVerifier;
 import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.glassfish.jersey.client.ClientConfig;
@@ -169,6 +169,72 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         try (PulsarAdmin admin = buildAdminClient("proxy")) {
             admin.tenants().getTenants();
             Assert.fail("Shouldn't be able to list tenants");
+        } catch (PulsarAdminException.NotAuthorizedException e) {
+            // expected
+        }
+    }
+
+    @Test
+    public void testSuperUserCanGetResourceGroups() throws Exception {
+        try (PulsarAdmin admin = buildAdminClient("admin")) {
+            admin.resourcegroups().createResourceGroup("test-resource-group",
+                    new ResourceGroup());
+            admin.resourcegroups().getResourceGroup("test-resource-group");
+            Assert.assertEquals(ImmutableSet.of("test-resource-group"),
+                            admin.resourcegroups().getResourceGroups());
+            admin.resourcegroups().getResourceGroup("test-resource-group");
+        }
+    }
+
+    @Test
+    public void testSuperUserCanDeleteResourceGroups() throws Exception {
+        try (PulsarAdmin admin = buildAdminClient("admin")) {
+            admin.resourcegroups().createResourceGroup("test-resource-group",
+                    new ResourceGroup());
+            admin.resourcegroups().deleteResourceGroup("test-resource-group");
+        }
+    }
+
+    @Test
+    public void testProxyRoleCantDeleteResourceGroups() throws Exception {
+        try (PulsarAdmin admin = buildAdminClient("admin")) {
+            admin.resourcegroups().createResourceGroup("test-resource-group",
+                    new ResourceGroup());
+        }
+        try (PulsarAdmin admin = buildAdminClient("proxy")) {
+            admin.resourcegroups().deleteResourceGroup("test-resource-group");
+            Assert.fail("Shouldn't be able to delete ResourceGroup");
+        } catch (PulsarAdminException.NotAuthorizedException e) {
+            // expected
+        }
+    }
+
+    @Test
+    public void testProxyRoleCantCreateResourceGroups() throws Exception {
+        try (PulsarAdmin admin = buildAdminClient("proxy")) {
+            admin.resourcegroups().createResourceGroup("test-resource-group",
+                    new ResourceGroup());
+            Assert.fail("Shouldn't be able to create ResourceGroup");
+        } catch (PulsarAdminException.NotAuthorizedException e) {
+            // expected
+        }
+    }
+
+    @Test
+    public void testProxyRoleCantGetResourceGroups() throws Exception {
+        try (PulsarAdmin admin = buildAdminClient("admin")) {
+            admin.resourcegroups().createResourceGroup("test-resource-group",
+                    new ResourceGroup());
+        }
+        try (PulsarAdmin admin = buildAdminClient("proxy")) {
+            admin.resourcegroups().getResourceGroups();
+            Assert.fail("Shouldn't be able to list ResourceGroups");
+        } catch (PulsarAdminException.NotAuthorizedException e) {
+            // expected
+        }
+        try (PulsarAdmin admin = buildAdminClient("proxy")) {
+            admin.resourcegroups().getResourceGroup("test-resource-group");
+            Assert.fail("Shouldn't be able to get ResourceGroup");
         } catch (PulsarAdminException.NotAuthorizedException e) {
             // expected
         }

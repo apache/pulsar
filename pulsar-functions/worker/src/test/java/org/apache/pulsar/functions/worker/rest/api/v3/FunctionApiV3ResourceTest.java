@@ -29,7 +29,6 @@ import static org.powermock.api.mockito.PowerMockito.doNothing;
 import static org.powermock.api.mockito.PowerMockito.doThrow;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 
 import com.google.common.collect.Lists;
 
@@ -630,7 +629,7 @@ public class FunctionApiV3ResourceTest {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookeeper(
+            WorkerUtils.uploadToBookKeeper(
                 any(Namespace.class),
                 any(InputStream.class),
                 anyString());
@@ -690,7 +689,7 @@ public class FunctionApiV3ResourceTest {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookeeper(
+            WorkerUtils.uploadToBookKeeper(
                 any(Namespace.class),
                 any(InputStream.class),
                 anyString());
@@ -714,7 +713,7 @@ public class FunctionApiV3ResourceTest {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookeeper(
+            WorkerUtils.uploadToBookKeeper(
                 any(Namespace.class),
                 any(InputStream.class),
                 anyString());
@@ -1072,7 +1071,7 @@ public class FunctionApiV3ResourceTest {
     public void testUpdateFunctionSuccess() throws Exception {
         mockStatic(WorkerUtils.class);
         doNothing().when(WorkerUtils.class);
-        WorkerUtils.uploadToBookeeper(
+        WorkerUtils.uploadToBookKeeper(
             any(Namespace.class),
             any(InputStream.class),
             anyString());
@@ -1120,7 +1119,7 @@ public class FunctionApiV3ResourceTest {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookeeper(
+            WorkerUtils.uploadToBookKeeper(
                 any(Namespace.class),
                 any(InputStream.class),
                 anyString());
@@ -1143,7 +1142,7 @@ public class FunctionApiV3ResourceTest {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookeeper(
+            WorkerUtils.uploadToBookKeeper(
                 any(Namespace.class),
                 any(InputStream.class),
                 anyString());
@@ -1525,7 +1524,7 @@ public class FunctionApiV3ResourceTest {
     public void testDownloadFunctionFile() throws Exception {
         URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
         File file = Paths.get(fileUrl.toURI()).toFile();
-        String fileLocation = file.getAbsolutePath();
+        String fileLocation = file.getAbsolutePath().replace('\\', '/');
         String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         PulsarWorkerService worker = mock(PulsarWorkerService.class);
         doReturn(true).when(worker).isInitialized();
@@ -1533,7 +1532,7 @@ public class FunctionApiV3ResourceTest {
         when(config.isAuthorizationEnabled()).thenReturn(false);
         when(worker.getWorkerConfig()).thenReturn(config);
         FunctionsImpl function = new FunctionsImpl(() -> worker);
-        StreamingOutput streamOutput = function.downloadFunction("file://" + fileLocation, null, null);
+        StreamingOutput streamOutput = function.downloadFunction("file:///" + fileLocation, null, null);
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
         streamOutput.write(output);
@@ -1549,8 +1548,8 @@ public class FunctionApiV3ResourceTest {
 
         URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
         File file = Paths.get(fileUrl.toURI()).toFile();
-        String fileLocation = file.getAbsolutePath();
-        String filePackageUrl = "file://" + fileLocation;
+        String fileLocation = file.getAbsolutePath().replace('\\', '/');
+        String filePackageUrl = "file:///" + fileLocation;
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
         FunctionConfig functionConfig = new FunctionConfig();
@@ -1577,8 +1576,8 @@ public class FunctionApiV3ResourceTest {
 
         URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
         File file = Paths.get(fileUrl.toURI()).toFile();
-        String fileLocation = file.getAbsolutePath();
-        String filePackageUrl = "file://" + fileLocation;
+        String fileLocation = file.getAbsolutePath().replace('\\', '/');
+        String filePackageUrl = "file:///" + fileLocation;
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
         when(mockedManager.containsFunction(eq(actualTenant), eq(actualNamespace), eq(actualName))).thenReturn(false);
 
@@ -1601,8 +1600,8 @@ public class FunctionApiV3ResourceTest {
 
         URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
         File file = Paths.get(fileUrl.toURI()).toFile();
-        String fileLocation = file.getAbsolutePath();
-        String filePackageUrl = "file://" + fileLocation;
+        String fileLocation = file.getAbsolutePath().replace('\\', '/');
+        String filePackageUrl = "file:///" + fileLocation;
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
         FunctionConfig functionConfig = new FunctionConfig();

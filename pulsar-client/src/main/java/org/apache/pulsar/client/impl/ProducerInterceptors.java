@@ -103,6 +103,16 @@ public class ProducerInterceptors implements Closeable {
         }
     }
 
+    public void onPartitionsChange(String topicName, int partitions) {
+        for (ProducerInterceptor interceptor : interceptors) {
+            try {
+                interceptor.onPartitionsChange(topicName, partitions);
+            } catch (Throwable e) {
+                log.warn("Error executing interceptor onPartitionsChange callback ", e);
+            }
+        }
+    }
+
     @Override
     public void close() throws IOException {
         for (ProducerInterceptor interceptor : interceptors) {

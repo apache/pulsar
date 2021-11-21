@@ -25,7 +25,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -186,5 +185,19 @@ public class ConsumerImplTest {
         future.cancel(true);
         // then
         Assert.assertFalse(consumer.hasPendingBatchReceive());
+    }
+
+    @Test
+    public void testClose() {
+        Exception checkException = null;
+        try {
+            if (consumer != null) {
+                consumer.negativeAcknowledge(new MessageIdImpl(-1, -1, -1));
+                consumer.close();
+            }
+        } catch (Exception e) {
+            checkException = e;
+        }
+        Assert.assertNull(checkException);
     }
 }

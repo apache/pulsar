@@ -267,10 +267,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         if (workerService == null) {
             return false;
         }
-        if (!workerService.isInitialized()) {
-            return false;
-        }
-        return true;
+        return workerService.isInitialized();
     }
 
     PackageLocationMetaData.Builder getFunctionPackageLocation(final FunctionMetaData functionMetaData,
@@ -344,10 +341,9 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         StorageAdminClient adminClient = worker().getStateStoreAdminClient();
         if (adminClient != null) {
             adminClient.deleteStream(namespace, table).whenComplete((res, throwable) -> {
-                if ((throwable == null && res.booleanValue())
-                        || (throwable != null &&
-                        (throwable instanceof NamespaceNotFoundException
-                                || throwable instanceof StreamNotFoundException) )) {
+                if ((throwable == null && res)
+                        || ((throwable instanceof NamespaceNotFoundException
+                        || throwable instanceof StreamNotFoundException))) {
                     log.info("{}/{} table deleted successfully", namespace, table);
                 } else {
                     if (throwable != null) {
@@ -407,7 +403,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                 newVersionedMetaData.getFunctionDetails().getNamespace(),
                 newVersionedMetaData.getFunctionDetails().getName(),
                 newVersionedMetaData, true,
-                String.format("Error deleting {} @ /{}/{}/{}",
+                String.format("Error deleting %s @ /%s/%s/%s",
                         ComponentTypeUtils.toString(componentType), tenant, namespace, componentName));
 
         // clean up component files stored in BK
@@ -538,12 +534,12 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
 
         if (!FunctionMetaDataUtils.canChangeState(functionMetaData, Integer.parseInt(instanceId), start ? Function.FunctionState.RUNNING : Function.FunctionState.STOPPED)) {
             log.error("Operation not permitted on {}/{}/{}", tenant, namespace, componentName);
-            throw new RestException(Status.BAD_REQUEST, String.format("Operation not permitted"));
+            throw new RestException(Status.BAD_REQUEST, "Operation not permitted");
         }
 
         FunctionMetaData newFunctionMetaData = FunctionMetaDataUtils.changeFunctionInstanceStatus(functionMetaData, Integer.parseInt(instanceId), start);
         internalProcessFunctionRequest(tenant, namespace, componentName, newFunctionMetaData, false,
-                String.format("Failed to start/stop {}: {}/{}/{}/{}", ComponentTypeUtils.toString(componentType),
+                String.format("Failed to start/stop %s: %s/%s/%s/%s", ComponentTypeUtils.toString(componentType),
                         tenant, namespace, componentName, instanceId));
     }
 
@@ -664,12 +660,12 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
 
         if (!FunctionMetaDataUtils.canChangeState(functionMetaData, -1, start ? Function.FunctionState.RUNNING : Function.FunctionState.STOPPED)) {
             log.error("Operation not permitted on {}/{}/{}", tenant, namespace, componentName);
-            throw new RestException(Status.BAD_REQUEST, String.format("Operation not permitted"));
+            throw new RestException(Status.BAD_REQUEST, "Operation not permitted");
         }
 
         FunctionMetaData newFunctionMetaData = FunctionMetaDataUtils.changeFunctionInstanceStatus(functionMetaData, -1, start);
         internalProcessFunctionRequest(tenant, namespace, componentName, newFunctionMetaData, false,
-                String.format("Failed to start/stop {}: {}/{}/{}", ComponentTypeUtils.toString(componentType), tenant, namespace, componentName));
+                String.format("Failed to start/stop %s: %s/%s/%s", ComponentTypeUtils.toString(componentType), tenant, namespace, componentName));
     }
 
     public void restartFunctionInstances(final String tenant,
@@ -1228,7 +1224,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         // Upload to bookkeeper
         try {
             log.info("Uploading function package to {}", path);
-            WorkerUtils.uploadToBookeeper(worker().getDlogNamespace(), uploadedInputStream, path);
+            WorkerUtils.uploadToBookKeeper(worker().getDlogNamespace(), uploadedInputStream, path);
         } catch (IOException e) {
             log.error("Error uploading file {}", path, e);
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());

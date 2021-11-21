@@ -20,9 +20,13 @@
 package org.apache.pulsar.io.kafka.connect;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.generic.GenericData;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.connect.data.Struct;
+import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
@@ -34,6 +38,7 @@ import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.util.MessageIdUtils;
 import org.apache.pulsar.functions.api.Record;
@@ -41,6 +46,7 @@ import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.io.core.KeyValue;
 import org.apache.pulsar.io.core.SinkContext;
 import org.mockito.Mockito;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -124,7 +130,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         final GenericRecord rec = getGenericRecord("value", Schema.STRING);
         Message msg = mock(MessageImpl.class);
         when(msg.getValue()).thenReturn(rec);
-        when(msg.getMessageId()).thenReturn(new MessageIdImpl(0, 0, 0));
+        when(msg.getMessageId()).thenReturn(new MessageIdImpl(1, 0, 0));
 
         final AtomicInteger status = new AtomicInteger(0);
         Record<GenericObject> record = PulsarRecord.<String>builder()
@@ -230,11 +236,11 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
 
     }
 
-    private void recordSchemaTest(Object value, Schema schema, Object expected, String expectedSchema) throws Exception {
-        recordSchemaTest(value, schema, "key",  "STRING", expected, expectedSchema);
+    private SinkRecord recordSchemaTest(Object value, Schema schema, Object expected, String expectedSchema) throws Exception {
+        return recordSchemaTest(value, schema, "key",  "STRING", expected, expectedSchema);
     }
 
-    private void recordSchemaTest(Object value, Schema schema, Object expectedKey, String expectedKeySchema,
+    private SinkRecord recordSchemaTest(Object value, Schema schema, Object expectedKey, String expectedKeySchema,
                                   Object expected, String expectedSchema) throws Exception {
         props.put("kafkaConnectorSinkClass", SchemaedFileStreamSinkConnector.class.getCanonicalName());
 
@@ -246,7 +252,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         when(msg.getValue()).thenReturn(rec);
         when(msg.getKey()).thenReturn("key");
         when(msg.hasKey()).thenReturn(true);
-        when(msg.getMessageId()).thenReturn(new MessageIdImpl(0, 0, 0));
+        when(msg.getMessageId()).thenReturn(new MessageIdImpl(1, 0, 0));
 
         final AtomicInteger status = new AtomicInteger(0);
         Record<GenericObject> record = PulsarRecord.<String>builder()
@@ -272,6 +278,9 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         assertEquals(result.get("value"), expected);
         assertEquals(result.get("keySchema"), expectedKeySchema);
         assertEquals(result.get("valueSchema"), expectedSchema);
+
+        SinkRecord sinkRecord = sink.toSinkRecord(record);
+        return sinkRecord;
     }
 
     private GenericRecord getGenericRecord(Object value, Schema schema) {
@@ -289,50 +298,69 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
 
     @Test
     public void bytesRecordSchemaTest() throws Exception {
-        recordSchemaTest("val".getBytes(StandardCharsets.US_ASCII), Schema.BYTES, "val", "BYTES");
+        byte[] in = "val".getBytes(StandardCharsets.US_ASCII);
+        SinkRecord sinkRecord = recordSchemaTest(in, Schema.BYTES, "val", "BYTES");
+        byte[] out = (byte[]) sinkRecord.value();
+        Assert.assertEquals(out, in);
     }
 
     @Test
     public void stringRecordSchemaTest() throws Exception {
-        recordSchemaTest("val", Schema.STRING, "val", "STRING");
+        SinkRecord sinkRecord = recordSchemaTest("val", Schema.STRING, "val", "STRING");
+        String out = (String) sinkRecord.value();
+        Assert.assertEquals(out, "val");
     }
 
     @Test
     public void booleanRecordSchemaTest() throws Exception {
-        recordSchemaTest(true, Schema.BOOL, true, "BOOLEAN");
+        SinkRecord sinkRecord = recordSchemaTest(true, Schema.BOOL, true, "BOOLEAN");
+        boolean out = (boolean) sinkRecord.value();
+        Assert.assertEquals(out, true);
     }
 
     @Test
     public void byteRecordSchemaTest() throws Exception {
         // int 1 is coming back from ObjectMapper
-        recordSchemaTest((byte)1, Schema.INT8, 1, "INT8");
+        SinkRecord sinkRecord = recordSchemaTest((byte)1, Schema.INT8, 1, "INT8");
+        byte out = (byte) sinkRecord.value();
+        Assert.assertEquals(out, 1);
     }
 
     @Test
     public void shortRecordSchemaTest() throws Exception {
         // int 1 is coming back from ObjectMapper
-        recordSchemaTest((short)1, Schema.INT16, 1, "INT16");
+        SinkRecord sinkRecord = recordSchemaTest((short)1, Schema.INT16, 1, "INT16");
+        short out = (short) sinkRecord.value();
+        Assert.assertEquals(out, 1);
     }
 
     @Test
     public void integerRecordSchemaTest() throws Exception {
-        recordSchemaTest(Integer.MAX_VALUE, Schema.INT32, Integer.MAX_VALUE, "INT32");
+        SinkRecord sinkRecord = recordSchemaTest(Integer.MAX_VALUE, Schema.INT32, Integer.MAX_VALUE, "INT32");
+        int out = (int) sinkRecord.value();
+        Assert.assertEquals(out, Integer.MAX_VALUE);
     }
 
     @Test
     public void longRecordSchemaTest() throws Exception {
-        recordSchemaTest(Long.MAX_VALUE, Schema.INT64, Long.MAX_VALUE, "INT64");
+        SinkRecord sinkRecord = recordSchemaTest(Long.MAX_VALUE, Schema.INT64, Long.MAX_VALUE, "INT64");
+        long out = (long) sinkRecord.value();
+        Assert.assertEquals(out, Long.MAX_VALUE);
     }
 
     @Test
     public void floatRecordSchemaTest() throws Exception {
         // 1.0d is coming back from ObjectMapper
-        recordSchemaTest(1.0f, Schema.FLOAT, 1.0d, "FLOAT32");
+        SinkRecord sinkRecord = recordSchemaTest(1.0f, Schema.FLOAT, 1.0d, "FLOAT32");
+        float out = (float) sinkRecord.value();
+        Assert.assertEquals(out, 1.0d);
     }
 
     @Test
     public void doubleRecordSchemaTest() throws Exception {
-        recordSchemaTest(Double.MAX_VALUE, Schema.DOUBLE, Double.MAX_VALUE, "FLOAT64");
+        SinkRecord sinkRecord = recordSchemaTest(Double.MAX_VALUE, Schema.DOUBLE, Double.MAX_VALUE, "FLOAT64");
+        double out = (double) sinkRecord.value();
+        Assert.assertEquals(out, Double.MAX_VALUE);
     }
 
     @Test
@@ -347,13 +375,45 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         obj.setField2("test");
         obj.setField3(100L);
 
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode jsonNode = mapper.valueToTree(obj);
+
         Map<String, Object> expected = new LinkedHashMap<>();
         expected.put("field1", 10);
         expected.put("field2", "test");
         // integer is coming back from ObjectMapper
         expected.put("field3", 100);
 
-        recordSchemaTest(obj, jsonSchema, expected, "STRUCT");
+        SinkRecord sinkRecord = recordSchemaTest(jsonNode, jsonSchema, expected, "STRUCT");
+
+        Struct out = (Struct) sinkRecord.value();
+        Assert.assertEquals((int)out.get("field1"), 10);
+        Assert.assertEquals((String)out.get("field2"), "test");
+        Assert.assertEquals((long)out.get("field3"), 100L);
+    }
+
+    @Test
+    public void avroSchemaTest() throws Exception {
+        AvroSchema<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations> pulsarAvroSchema
+                = AvroSchema.of(PulsarSchemaToKafkaSchemaTest.StructWithAnnotations.class);
+
+        final GenericData.Record obj = new GenericData.Record(pulsarAvroSchema.getAvroSchema());
+        obj.put("field1", 10);
+        obj.put("field2", "test");
+        obj.put("field3", 100L);
+
+        Map<String, Object> expected = new LinkedHashMap<>();
+        expected.put("field1", 10);
+        expected.put("field2", "test");
+        // integer is coming back from ObjectMapper
+        expected.put("field3", 100);
+
+        SinkRecord sinkRecord = recordSchemaTest(obj, pulsarAvroSchema, expected, "STRUCT");
+
+        Struct out = (Struct) sinkRecord.value();
+        Assert.assertEquals((int)out.get("field1"), 10);
+        Assert.assertEquals((String)out.get("field2"), "test");
+        Assert.assertEquals((long)out.get("field3"), 100L);
     }
 
     @Test
@@ -390,7 +450,11 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
     @Test
     public void KeyValueSchemaTest() throws Exception {
         KeyValue<Integer, String> kv = new KeyValue<>(11, "value");
-        recordSchemaTest(kv, Schema.KeyValue(Schema.INT32, Schema.STRING), 11, "INT32", "value", "STRING");
+        SinkRecord sinkRecord = recordSchemaTest(kv, Schema.KeyValue(Schema.INT32, Schema.STRING), 11, "INT32", "value", "STRING");
+        String val = (String) sinkRecord.value();
+        Assert.assertEquals(val, "value");
+        int key = (int) sinkRecord.key();
+        Assert.assertEquals(key, 11);
     }
 
     @Test

@@ -161,6 +161,16 @@ public class ConsumerInterceptors<T> implements Closeable {
         }
     }
 
+    public void onPartitionsChange(String topicName, int partitions) {
+        for (int i = 0, interceptorsSize = interceptors.size(); i < interceptorsSize; i++) {
+            try {
+                interceptors.get(i).onPartitionsChange(topicName, partitions);
+            } catch (Throwable e) {
+                log.warn("Error executing interceptor onPartitionsChange callback", e);
+            }
+        }
+    }
+
     @Override
     public void close() throws IOException {
         for (int i = 0, interceptorsSize = interceptors.size(); i < interceptorsSize; i++) {

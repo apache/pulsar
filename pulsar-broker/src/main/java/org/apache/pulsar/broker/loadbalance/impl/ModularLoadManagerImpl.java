@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
-import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
@@ -43,7 +41,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Consumer;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.BrokerData;
@@ -51,7 +48,6 @@ import org.apache.pulsar.broker.BundleData;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.TimeAverageBrokerData;
 import org.apache.pulsar.broker.TimeAverageMessageData;
 import org.apache.pulsar.broker.loadbalance.BrokerFilter;
@@ -64,6 +60,7 @@ import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManager;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
+import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -82,13 +79,14 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.coordination.LockManager;
 import org.apache.pulsar.metadata.api.coordination.ResourceLock;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Notification> {
+public class ModularLoadManagerImpl implements ModularLoadManager {
     private static final Logger log = LoggerFactory.getLogger(ModularLoadManagerImpl.class);
 
     // Path to ZNode whose children contain BundleData jsons for each bundle (new API version of ResourceQuota).
@@ -183,6 +181,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
 
     private Map<String, String> brokerToFailureDomainMap;
 
+    private SessionEvent lastMetadataSessionEvent = SessionEvent.Reconnected;
+
     // record load balancing metrics
     private AtomicReference<List<Metrics>> loadBalancingMetrics = new AtomicReference<>();
     // record bundle unload metrics
@@ -240,7 +240,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
         bundlesCache = pulsar.getLocalMetadataStore().getMetadataCache(BundleData.class);
         resourceQuotaCache = pulsar.getLocalMetadataStore().getMetadataCache(ResourceQuota.class);
         timeAverageBrokerDataCache = pulsar.getLocalMetadataStore().getMetadataCache(TimeAverageBrokerData.class);
-        pulsar.getLocalMetadataStore().registerListener(this);
+        pulsar.getLocalMetadataStore().registerListener(this::handleDataNotification);
+        pulsar.getLocalMetadataStore().registerSessionListener(this::handleMetadataSessionEvent);
 
         if (SystemUtils.IS_OS_LINUX) {
             brokerHostUsage = new LinuxBrokerHostUsageImpl(pulsar);
@@ -248,7 +249,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
             brokerHostUsage = new GenericBrokerHostUsageImpl(pulsar);
         }
 
-        bundleSplitStrategy = new BundleSplitterTask(pulsar);
+        bundleSplitStrategy = new BundleSplitterTask();
 
         conf = pulsar.getConfiguration();
 
@@ -264,16 +265,15 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
 
         refreshBrokerToFailureDomainMap();
         // register listeners for domain changes
-        pulsar.getConfigurationCache().failureDomainListCache()
-                .registerListener((path, data, stat) -> scheduler.execute(() -> refreshBrokerToFailureDomainMap()));
-        pulsar.getConfigurationCache().failureDomainCache()
-                .registerListener((path, data, stat) -> scheduler.execute(() -> refreshBrokerToFailureDomainMap()));
+        pulsar.getPulsarResources().getClusterResources().getFailureDomainResources()
+                .registerListener(__ -> {
+                    scheduler.execute(() -> refreshBrokerToFailureDomainMap());
+                });
 
         loadSheddingPipeline.add(createLoadSheddingStrategy());
     }
 
-    @Override
-    public void accept(Notification t) {
+    public void handleDataNotification(Notification t) {
         if (t.getPath().startsWith(LoadManager.LOADBALANCE_BROKERS_ROOT)) {
             brokersData.listLocks(LoadManager.LOADBALANCE_BROKERS_ROOT)
                     .thenAccept(brokers -> {
@@ -288,10 +288,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
         }
     }
 
+    private void handleMetadataSessionEvent(SessionEvent e) {
+        lastMetadataSessionEvent = e;
+    }
+
     private LoadSheddingStrategy createLoadSheddingStrategy() {
         try {
             Class<?> loadSheddingClass = Class.forName(conf.getLoadBalancerLoadSheddingStrategy());
-            Object loadSheddingInstance = loadSheddingClass.newInstance();
+            Object loadSheddingInstance = loadSheddingClass.getDeclaredConstructor().newInstance();
             if (loadSheddingInstance instanceof LoadSheddingStrategy) {
                 return (LoadSheddingStrategy) loadSheddingInstance;
             } else {
@@ -352,7 +356,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
 
     // Attempt to local the data for the given bundle in metadata store
     // If it cannot be found, return the default bundle data.
-    private BundleData getBundleDataOrDefault(final String bundle) {
+    @Override
+    public BundleData getBundleDataOrDefault(final String bundle) {
         BundleData bundleData = null;
         try {
             Optional<BundleData> optBundleData = bundlesCache.get(getBundleDataPath(bundle)).join();
@@ -393,7 +398,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
     }
 
     // Get the metadata store path for the given bundle full name.
-    private static String getBundleDataPath(final String bundle) {
+    public static String getBundleDataPath(final String bundle) {
         return BUNDLE_DATA_PATH + "/" + bundle;
     }
 
@@ -640,8 +645,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
 
     public boolean shouldAntiAffinityNamespaceUnload(String namespace, String bundle, String currentBroker) {
         try {
-            Optional<LocalPolicies> nsPolicies = pulsar.getLocalZkCacheService().policiesCache()
-                    .get(joinPath(LOCAL_POLICIES_ROOT, namespace));
+            Optional<LocalPolicies> nsPolicies = pulsar.getPulsarResources().getLocalPolicies()
+                    .getLocalPolicies(NamespaceName.get(namespace));
             if (!nsPolicies.isPresent() || StringUtils.isBlank(nsPolicies.get().namespaceAntiAffinityGroup)) {
                 return true;
             }
@@ -850,14 +855,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
             Map<String, String> protocolData = pulsar.getProtocolDataToAdvertise();
 
             lastData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                    pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls(), pulsar.getAdvertisedListeners());
+                    pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls(), pulsar.getAdvertisedListeners());
             lastData.setProtocols(protocolData);
             // configure broker-topic mode
             lastData.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
             lastData.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
 
             localData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                    pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls(), pulsar.getAdvertisedListeners());
+                    pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls(), pulsar.getAdvertisedListeners());
             localData.setProtocols(protocolData);
             localData.setBrokerVersionString(pulsar.getBrokerVersion());
             // configure broker-topic mode
@@ -911,6 +916,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
             final SystemResourceUsage systemResourceUsage = LoadManagerShared.getSystemResourceUsage(brokerHostUsage);
             localData.update(systemResourceUsage, getBundleStats());
             updateLoadBalancingMetrics(systemResourceUsage);
+            if (conf.isExposeBunlesMetricsInPrometheus()) {
+                updateLoadBalancingBundlesMetrics(getBundleStats());
+            }
         } catch (Exception e) {
             log.warn("Error when attempting to update local broker data", e);
             if (e instanceof ConcurrentModificationException) {
@@ -923,6 +931,33 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
     }
 
     /**
+     * As any broker, update its bundle metrics.
+     *
+     * @param bundlesData
+     */
+    private void updateLoadBalancingBundlesMetrics(Map<String, NamespaceBundleStats> bundlesData) {
+        List<Metrics> metrics = Lists.newArrayList();
+        for (Map.Entry<String, NamespaceBundleStats> entry: bundlesData.entrySet()) {
+            final String bundle = entry.getKey();
+            final NamespaceBundleStats stats = entry.getValue();
+            Map<String, String> dimensions = new HashMap<>();
+            dimensions.put("broker", pulsar.getAdvertisedAddress());
+            dimensions.put("bundle", bundle);
+            dimensions.put("metric", "loadBalancing");
+            Metrics m = Metrics.create(dimensions);
+            m.put("brk_bundle_msg_rate_in", stats.msgRateIn);
+            m.put("brk_bundle_msg_rate_out", stats.msgRateOut);
+            m.put("brk_bundle_topics_count", stats.topics);
+            m.put("brk_bundle_consumer_count", stats.consumerCount);
+            m.put("brk_bundle_producer_count", stats.producerCount);
+            m.put("brk_bundle_msg_throughput_in", stats.msgThroughputIn);
+            m.put("brk_bundle_msg_throughput_out", stats.msgThroughputOut);
+            metrics.add(m);
+        }
+        this.loadBalancingMetrics.set(metrics);
+    }
+
+    /**
      * As any broker, update System Resource Usage Percentage.
      *
      * @param systemResourceUsage
@@ -931,7 +966,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
         List<Metrics> metrics = Lists.newArrayList();
         Map<String, String> dimensions = new HashMap<>();
 
-        dimensions.put("broker", ServiceConfigurationUtils.getAppliedAdvertisedAddress(conf, true));
+        dimensions.put("broker", pulsar.getAdvertisedAddress());
         dimensions.put("metric", "loadBalancing");
 
         Metrics m = Metrics.create(dimensions);
@@ -957,7 +992,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
         lock.lock();
         try {
             updateLocalBrokerData();
-            if (needBrokerDataUpdate() || force) {
+
+            // Do not attempt to write if not connected
+            if (lastMetadataSessionEvent != null
+                    && lastMetadataSessionEvent.isConnected()
+                    && (needBrokerDataUpdate() || force)) {
                 localData.setLastUpdate(System.currentTimeMillis());
 
                 brokerDataLock.updateValue(localData).join();
@@ -1024,14 +1063,15 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
         if (!pulsar.getConfiguration().isFailureDomainsEnabled()) {
             return;
         }
-        final String clusterDomainRootPath = pulsar.getConfigurationCache().CLUSTER_FAILURE_DOMAIN_ROOT;
+        ClusterResources.FailureDomainResources fdr =
+                pulsar.getPulsarResources().getClusterResources().getFailureDomainResources();
+        String clusterName = pulsar.getConfiguration().getClusterName();
         try {
             synchronized (brokerToFailureDomainMap) {
                 Map<String, String> tempBrokerToFailureDomainMap = Maps.newHashMap();
-                for (String domainName : pulsar.getConfigurationCache().failureDomainListCache().get()) {
+                for (String domainName : fdr.listFailureDomains(clusterName)) {
                     try {
-                        Optional<FailureDomainImpl> domain = pulsar.getConfigurationCache().failureDomainCache()
-                                .get(clusterDomainRootPath + "/" + domainName);
+                        Optional<FailureDomainImpl> domain = fdr.getFailureDomain(clusterName, domainName);
                         if (domain.isPresent()) {
                             for (String broker : domain.get().brokers) {
                                 tempBrokerToFailureDomainMap.put(broker, domainName);

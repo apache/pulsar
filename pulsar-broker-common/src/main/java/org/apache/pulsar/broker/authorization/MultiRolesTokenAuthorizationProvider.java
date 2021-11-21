@@ -26,7 +26,7 @@ import io.jsonwebtoken.RequiredTypeException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
@@ -67,7 +67,7 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
     }
 
     @Override
-    public void initialize(ServiceConfiguration conf, ConfigurationCacheService configCache) throws IOException {
+    public void initialize(ServiceConfiguration conf, PulsarResources pulsarResources) throws IOException {
         String prefix = (String) conf.getProperty(CONF_TOKEN_SETTING_PREFIX);
         if (null == prefix) {
             prefix = "";
@@ -78,7 +78,7 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
             this.roleClaim = (String) tokenAuthClaim;
         }
 
-        super.initialize(conf, configCache);
+        super.initialize(conf, pulsarResources);
     }
 
     private List<String> getRoles(AuthenticationDataSource authData) {
@@ -207,6 +207,11 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
     @Override
     public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
         return authorize(authenticationData, r -> super.allowSinkOpsAsync(namespaceName, r, authenticationData));
+    }
+
+    @Override
+    public CompletableFuture<Boolean> allowConsumeOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+        return authorize(authenticationData, r -> super.allowConsumeOpsAsync(namespaceName, r, authenticationData));
     }
 
     @Override

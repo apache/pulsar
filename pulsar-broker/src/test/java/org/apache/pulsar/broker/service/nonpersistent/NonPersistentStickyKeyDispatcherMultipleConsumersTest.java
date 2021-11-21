@@ -71,7 +71,6 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
     private NonPersistentTopic topicMock;
     private NonPersistentSubscription subscriptionMock;
     private ServiceConfiguration configMock;
-    private ChannelPromise channelMock;
 
     private NonPersistentStickyKeyDispatcherMultipleConsumers nonpersistentDispatcher;
 
@@ -100,7 +99,6 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
         doReturn(brokerMock).when(topicMock).getBrokerService();
         doReturn(topicName).when(topicMock).getName();
 
-        channelMock = mock(ChannelPromise.class);
         subscriptionMock = mock(NonPersistentSubscription.class);
 
         PowerMockito.mockStatic(DispatchRateLimiter.class);
@@ -167,7 +165,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
                 ByteBuf byteBuf = entry.getDataBuffer();
                 MessageMetadata messageMetadata = Commands.parseMessageMetadata(byteBuf);
                 assertEquals(byteBuf.toString(UTF_8), "message" + index);
-            };
+            }
             return mockPromise;
         }).when(consumerMock).sendMessages(any(List.class), any(EntryBatchSizes.class), any(),
                 anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));

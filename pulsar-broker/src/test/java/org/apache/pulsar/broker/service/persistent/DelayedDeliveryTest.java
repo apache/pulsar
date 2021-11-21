@@ -44,7 +44,6 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -340,7 +339,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         DelayedDeliveryPolicies delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()
                 .tickTime(2000)
                 .active(false)
-                .build();;
+                .build();
         admin.topics().setDelayedDeliveryPolicy(topicName, delayedDeliveryPolicies);
         //wait for update
         for (int i = 0; i < 50; i++) {

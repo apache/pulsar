@@ -36,7 +36,6 @@ import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.mockito.Mockito;
@@ -185,7 +184,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         int count = 0;
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
@@ -227,7 +226,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         admin.clusters().createCluster(clusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
 
         admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet(clusterName)));
+                new TenantInfoImpl(new HashSet<>(), Sets.newHashSet(clusterName)));
         admin.namespaces().createNamespace(namespaceName);
         admin.topics().createPartitionedTopic(topicName, 2);
         admin.topics().grantPermission(topicName, CLIENT_ROLE,
@@ -240,7 +239,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         Producer<byte[]> producer = proxyClient.newProducer(Schema.BYTES)
                 .topic(topicName).create();
         final int MSG_NUM = 10;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < MSG_NUM; i++) {
             String message = "my-message-" + i;
             messageSet.add(message);
@@ -248,7 +247,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         }
 
         Message<byte[]> msg;
-        Set<String> receivedMessageSet = Sets.newHashSet();
+        Set<String> receivedMessageSet = new HashSet<>();
         for (int i = 0; i < MSG_NUM; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
@@ -347,7 +346,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         int count = 0;
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);

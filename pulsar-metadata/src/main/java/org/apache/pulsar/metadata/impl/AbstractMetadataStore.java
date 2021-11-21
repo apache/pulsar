@@ -24,9 +24,7 @@ import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
-
 import io.netty.util.concurrent.DefaultThreadFactory;
-
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
@@ -38,13 +36,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-
 import java.util.stream.Collectors;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataSerde;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
@@ -64,6 +63,11 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     private final AsyncLoadingCache<String, List<String>> childrenCache;
     private final AsyncLoadingCache<String, Boolean> existsCache;
     private final CopyOnWriteArrayList<MetadataCacheImpl<?>> metadataCaches = new CopyOnWriteArrayList<>();
+
+    // We don't strictly need to use 'volatile' here because we don't need the precise consistent semantic. Instead,
+    // we want to avoid the overhead of 'volatile'.
+    @Getter
+    private boolean isConnected = true;
 
     protected abstract CompletableFuture<List<String>> getChildrenFromStore(String path);
 
@@ -85,7 +89,12 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                     @Override
                     public CompletableFuture<List<String>> asyncReload(String key, List<String> oldValue,
                             Executor executor) {
-                        return getChildrenFromStore(key);
+                        if (isConnected) {
+                            return getChildrenFromStore(key);
+                        } else {
+                            // Do not refresh if we're not connected
+                            return CompletableFuture.completedFuture(oldValue);
+                        }
                     }
                 });
 
@@ -100,7 +109,12 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                     @Override
                     public CompletableFuture<Boolean> asyncReload(String key, Boolean oldValue,
                             Executor executor) {
-                        return existsFromStore(key);
+                        if (isConnected) {
+                            return existsFromStore(key);
+                        } else {
+                            // Do not refresh if we're not connected
+                            return CompletableFuture.completedFuture(oldValue);
+                        }
                     }
                 });
     }
@@ -129,11 +143,17 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public final CompletableFuture<List<String>> getChildren(String path) {
+        if (!isValidPath(path)) {
+            return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
+        }
         return childrenCache.get(path);
     }
 
     @Override
     public final CompletableFuture<Boolean> exists(String path) {
+        if (!isValidPath(path)) {
+            return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
+        }
         return existsCache.get(path);
     }
 
@@ -186,6 +206,9 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public final CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion) {
+        if (!isValidPath(path)) {
+            return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
+        }
         // Ensure caches are invalidated before the operation is confirmed
         return storeDelete(path, expectedVersion)
                 .thenRun(() -> {
@@ -222,6 +245,9 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     @Override
     public final CompletableFuture<Stat> put(String path, byte[] data, Optional<Long> optExpectedVersion,
             EnumSet<CreateOption> options) {
+        if (!isValidPath(path)) {
+            return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
+        }
         // Ensure caches are invalidated before the operation is confirmed
         return storePut(path, data, optExpectedVersion, options)
                 .thenApply(stat -> {
@@ -235,7 +261,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                         }
                     }
 
-                    metadataCaches.forEach(c -> c.invalidate(path));
+                    metadataCaches.forEach(c -> c.refresh(path));
                     return stat;
                 });
     }
@@ -246,6 +272,8 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     }
 
     protected void receivedSessionEvent(SessionEvent event) {
+        isConnected = event.isConnected();
+
         sessionListeners.forEach(l -> {
             try {
                 l.accept(event);
@@ -286,5 +314,18 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         }
 
         return path.substring(0, idx);
+    }
+
+    /**
+     * valid path in metadata store should be
+     * 1. not blank
+     * 2. starts with '/'
+     * 3. not ends with '/', except root path "/"
+     */
+   static boolean isValidPath(String path) {
+        return StringUtils.equals(path, "/")
+                || StringUtils.isNotBlank(path)
+                && path.startsWith("/")
+                && !path.endsWith("/");
     }
 }

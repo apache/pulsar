@@ -741,4 +741,26 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * corruption, deserialization error, etc.).
      */
     ConsumerBuilder<T> poolMessages(boolean poolMessages);
+
+    /**
+     * If it's configured with a non-null value, the consumer will use the processor to process the payload, including
+     * decoding it to messages and triggering the listener.
+     *
+     * Default: null
+     */
+    ConsumerBuilder<T> messagePayloadProcessor(MessagePayloadProcessor payloadProcessor);
+
+    /**
+     * Notice: the negativeAckRedeliveryBackoff will not work with `consumer.negativeAcknowledge(MessageId messageId)`
+     * because we are not able to get the redelivery count from the message ID.
+     *
+     * <p>Example:
+     * <pre>
+     * client.newConsumer().negativeAckRedeliveryBackoff(NegativeAckRedeliveryExponentialBackoff.builder()
+     *              .minNackTimeMs(1000)
+     *              .maxNackTimeMs(60 * 1000)
+     *              .build()).subscribe();
+     * </pre>
+     */
+    ConsumerBuilder<T> negativeAckRedeliveryBackoff(NegativeAckRedeliveryBackoff negativeAckRedeliveryBackoff);
 }

@@ -70,9 +70,9 @@ class Commands {
     const static int checksumSize = 4;
 
     static SharedBuffer newConnect(const AuthenticationPtr& authentication, const std::string& logicalAddress,
-                                   bool connectingThroughProxy);
+                                   bool connectingThroughProxy, Result& result);
 
-    static SharedBuffer newAuthResponse(const AuthenticationPtr& authentication);
+    static SharedBuffer newAuthResponse(const AuthenticationPtr& authentication, Result& result);
 
     static SharedBuffer newPartitionMetadataRequest(const std::string& topic, uint64_t requestId);
 
@@ -89,7 +89,8 @@ class Commands {
                                      bool readCompacted, const std::map<std::string, std::string>& metadata,
                                      const SchemaInfo& schemaInfo,
                                      proto::CommandSubscribe_InitialPosition subscriptionInitialPosition,
-                                     bool replicateSubscriptionState, KeySharedPolicy keySharedPolicy);
+                                     bool replicateSubscriptionState, KeySharedPolicy keySharedPolicy,
+                                     int priorityLevel = 0);
 
     static SharedBuffer newUnsubscribe(uint64_t consumerId, uint64_t requestId);
 

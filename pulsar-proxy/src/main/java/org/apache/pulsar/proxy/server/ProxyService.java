@@ -18,52 +18,55 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
-
+import com.google.common.collect.Sets;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.AdaptiveRecvByteBufAllocator;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
-import lombok.Getter;
-import lombok.Setter;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
-import org.apache.pulsar.broker.cache.ConfigurationMetadataCacheService;
 import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
+import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
+import org.apache.pulsar.proxy.extensions.ProxyExtensions;
 import org.apache.pulsar.proxy.stats.TopicStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 
 /**
  * Pulsar proxy service
@@ -71,18 +74,20 @@ import com.google.common.collect.Sets;
 public class ProxyService implements Closeable {
 
     private final ProxyConfiguration proxyConfig;
+    private final Authentication proxyClientAuthentication;
     private final Timer timer;
     private String serviceUrl;
     private String serviceUrlTls;
-    private ConfigurationMetadataCacheService configurationCacheService;
     private final AuthenticationService authenticationService;
     private AuthorizationService authorizationService;
     private MetadataStoreExtended localMetadataStore;
     private MetadataStoreExtended configMetadataStore;
     private PulsarResources pulsarResources;
+    private ProxyExtensions proxyExtensions = null;
 
     private final EventLoopGroup acceptorGroup;
     private final EventLoopGroup workerGroup;
+    private final List<EventLoopGroup> extensionsWorkerGroups = new ArrayList<>();
 
     private Channel listenChannel;
     private Channel listenChannelTls;
@@ -128,12 +133,12 @@ public class ProxyService implements Closeable {
     private AdditionalServlets proxyAdditionalServlets;
 
     public ProxyService(ProxyConfiguration proxyConfig,
-                        AuthenticationService authenticationService) throws IOException {
-        checkNotNull(proxyConfig);
+                        AuthenticationService authenticationService) throws Exception {
+        requireNonNull(proxyConfig);
         this.proxyConfig = proxyConfig;
         this.timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-timer", Thread.currentThread().isDaemon()), 1, TimeUnit.MILLISECONDS);
         this.clientCnxs = Sets.newConcurrentHashSet();
-        this.topicStats = Maps.newConcurrentMap();
+        this.topicStats = new ConcurrentHashMap<>();
 
         this.lookupRequestSemaphore = new AtomicReference<Semaphore>(
                 new Semaphore(proxyConfig.getMaxConcurrentLookupRequests(), false));
@@ -146,6 +151,10 @@ public class ProxyService implements Closeable {
         this.acceptorGroup = EventLoopUtil.newEventLoopGroup(1, false, acceptorThreadFactory);
         this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, false, workersThreadFactory);
         this.authenticationService = authenticationService;
+
+        // Initialize the message protocol handlers
+        proxyExtensions = ProxyExtensions.load(proxyConfig);
+        proxyExtensions.initialize(proxyConfig);
 
         statsExecutor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("proxy-stats-executor"));
@@ -161,6 +170,12 @@ public class ProxyService implements Closeable {
             });
         }, 60, TimeUnit.SECONDS);
         this.proxyAdditionalServlets = AdditionalServlets.load(proxyConfig);
+        if (proxyConfig.getBrokerClientAuthenticationPlugin() != null) {
+            proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                    proxyConfig.getBrokerClientAuthenticationParameters());
+        } else {
+            proxyClientAuthentication = AuthenticationDisabled.INSTANCE;
+        }
     }
 
     public void start() throws Exception {
@@ -174,9 +189,8 @@ public class ProxyService implements Closeable {
             configMetadataStore = createConfigurationMetadataStore();
             pulsarResources = new PulsarResources(localMetadataStore, configMetadataStore);
             discoveryProvider = new BrokerDiscoveryProvider(this.proxyConfig, pulsarResources);
-            this.configurationCacheService = new ConfigurationMetadataCacheService(pulsarResources, null);
             authorizationService = new AuthorizationService(PulsarConfigurationLoader.convertFrom(proxyConfig),
-                                                            configurationCacheService);
+                                                            pulsarResources);
         }
 
         ServerBootstrap bootstrap = new ServerBootstrap();
@@ -221,6 +235,53 @@ public class ProxyService implements Closeable {
         } else {
             this.serviceUrlTls = null;
         }
+
+        // Initialize the message protocol handlers.
+        // start the protocol handlers only after the broker is ready,
+        // so that the protocol handlers can access broker service properly.
+        this.proxyExtensions.start(this);
+        Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> protocolHandlerChannelInitializers =
+                this.proxyExtensions.newChannelInitializers();
+        startProxyExtensions(protocolHandlerChannelInitializers, bootstrap);
+    }
+
+    // This call is used for starting additional protocol handlers
+    public void startProxyExtensions(
+            Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> protocolHandlers, ServerBootstrap serverBootstrap) {
+
+        protocolHandlers.forEach((extensionName, initializers) -> {
+            initializers.forEach((address, initializer) -> {
+                try {
+                    startProxyExtension(extensionName, address, initializer, serverBootstrap);
+                } catch (IOException e) {
+                    LOG.error("{}", e.getMessage(), e.getCause());
+                    throw new RuntimeException(e.getMessage(), e.getCause());
+                }
+            });
+        });
+    }
+
+    private void startProxyExtension(String extensionName,
+                                     SocketAddress address,
+                                     ChannelInitializer<SocketChannel> initializer,
+                                     ServerBootstrap serverBootstrap) throws IOException {
+        ServerBootstrap bootstrap = serverBootstrap.clone();
+        boolean useSeparateThreadPool = proxyConfig.isUseSeparateThreadPoolForProxyExtensions();
+        if (useSeparateThreadPool) {
+            DefaultThreadFactory defaultThreadFactory = new DefaultThreadFactory("pulsar-ext-" + extensionName);
+            EventLoopGroup dedicatedWorkerGroup =
+                    EventLoopUtil.newEventLoopGroup(numThreads, false, defaultThreadFactory);
+            extensionsWorkerGroups.add(dedicatedWorkerGroup);
+            bootstrap.channel(EventLoopUtil.getServerSocketChannelClass(dedicatedWorkerGroup));
+            bootstrap.group(this.acceptorGroup, dedicatedWorkerGroup);
+        }
+        bootstrap.childHandler(initializer);
+        try {
+            bootstrap.bind(address).sync();
+        } catch (Exception e) {
+            throw new IOException("Failed to bind extension `" + extensionName + "` on " + address, e);
+        }
+        LOG.info("Successfully bound extension `{}` on {}", extensionName, address);
     }
 
     public BrokerDiscoveryProvider getDiscoveryProvider() {
@@ -265,6 +326,9 @@ public class ProxyService implements Closeable {
         }
         acceptorGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
+        for (EventLoopGroup group : extensionsWorkerGroups) {
+            group.shutdownGracefully();
+        }
         if (timer != null) {
             timer.stop();
         }
@@ -292,14 +356,6 @@ public class ProxyService implements Closeable {
 
     public AuthorizationService getAuthorizationService() {
         return authorizationService;
-    }
-
-    public ConfigurationCacheService getConfigurationCacheService() {
-        return configurationCacheService;
-    }
-
-    public void setConfigurationCacheService(ConfigurationMetadataCacheService configurationCacheService) {
-        this.configurationCacheService = configurationCacheService;
     }
 
     public Semaphore getLookupRequestSemaphore() {
@@ -334,6 +390,10 @@ public class ProxyService implements Closeable {
     public MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
         return PulsarResources.createMetadataStore(proxyConfig.getConfigurationStoreServers(),
                 proxyConfig.getZookeeperSessionTimeoutMs());
+    }
+
+    public Authentication getProxyClientAuthenticationPlugin() {
+        return this.proxyClientAuthentication;
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ProxyService.class);

@@ -18,18 +18,17 @@
  */
 package org.apache.pulsar.broker.resourcegroup;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.RESOURCEGROUPS;
-import static org.apache.pulsar.common.policies.path.PolicyPath.path;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import com.google.common.collect.Sets;
 import java.util.Random;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.resources.ResourceGroupResources;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -126,11 +125,13 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
 
         admin.namespaces().setNamespaceResourceGroup(namespaceName, rgName);
         Awaitility.await().untilAsserted(() ->
-            assertNotNull(pulsar.getResourceGroupServiceManager().getNamespaceResourceGroup(namespaceName)));
+                assertNotNull(pulsar.getResourceGroupServiceManager()
+                        .getNamespaceResourceGroup(NamespaceName.get(namespaceName))));
 
         admin.namespaces().removeNamespaceResourceGroup(namespaceName);
         Awaitility.await().untilAsserted(() ->
-            assertNull(pulsar.getResourceGroupServiceManager().getNamespaceResourceGroup(namespaceName)));
+                assertNull(pulsar.getResourceGroupServiceManager()
+                        .getNamespaceResourceGroup(NamespaceName.get(namespaceName))));
 
         admin.namespaces().deleteNamespace(namespaceName);
         deleteResourceGroup(rgName);
@@ -178,15 +179,13 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
         pulsar.getPulsarResources().getResourcegroupResources().getStore().registerListener(
           notification -> {
               String notifyPath = notification.getPath();
-              String rgName = notifyPath.substring(notifyPath.lastIndexOf('/') + 1);
-              if (!notifyPath.startsWith(path(RESOURCEGROUPS))) {
+              if (!ResourceGroupResources.isResourceGroupPath(notifyPath)) {
                   return;
               }
-              if (RESOURCEGROUPS.equals(rgName)) {
-                  return;
-              }
+
+              String rgName = ResourceGroupResources.resourceGroupNameFromPath(notifyPath).get();
               pulsar.getPulsarResources().getResourcegroupResources()
-                .getAsync(notifyPath).whenComplete((optionalRg, ex) -> {
+                .getResourceGroupAsync(rgName).whenComplete((optionalRg, ex) -> {
                   if (ex != null) {
                       return;
                   }

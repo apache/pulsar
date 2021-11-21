@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessagePayloadFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -44,35 +45,7 @@ import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaDefinitionBuilder;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
-import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
-import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
-import org.apache.pulsar.client.impl.schema.AvroSchema;
-import org.apache.pulsar.client.impl.schema.BooleanSchema;
-import org.apache.pulsar.client.impl.schema.ByteBufferSchema;
-import org.apache.pulsar.client.impl.schema.ByteSchema;
-import org.apache.pulsar.client.impl.schema.BytesSchema;
-import org.apache.pulsar.client.impl.schema.DateSchema;
-import org.apache.pulsar.client.impl.schema.DoubleSchema;
-import org.apache.pulsar.client.impl.schema.FloatSchema;
-import org.apache.pulsar.client.impl.schema.InstantSchema;
-import org.apache.pulsar.client.impl.schema.IntSchema;
-import org.apache.pulsar.client.impl.schema.JSONSchema;
-import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
-import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
-import org.apache.pulsar.client.impl.schema.LocalDateSchema;
-import org.apache.pulsar.client.impl.schema.LocalDateTimeSchema;
-import org.apache.pulsar.client.impl.schema.LocalTimeSchema;
-import org.apache.pulsar.client.impl.schema.LongSchema;
-import org.apache.pulsar.client.impl.schema.NativeAvroBytesSchema;
-import org.apache.pulsar.client.impl.schema.ProtobufNativeSchema;
-import org.apache.pulsar.client.impl.schema.ProtobufSchema;
-import org.apache.pulsar.client.impl.schema.RecordSchemaBuilderImpl;
-import org.apache.pulsar.client.impl.schema.SchemaDefinitionBuilderImpl;
-import org.apache.pulsar.client.impl.schema.SchemaUtils;
-import org.apache.pulsar.client.impl.schema.ShortSchema;
-import org.apache.pulsar.client.impl.schema.StringSchema;
-import org.apache.pulsar.client.impl.schema.TimeSchema;
-import org.apache.pulsar.client.impl.schema.TimestampSchema;
+import org.apache.pulsar.client.impl.schema.*;
 import org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.client.internal.PulsarClientImplementationBinding;
@@ -379,4 +352,11 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
         return new KeyBasedBatcherBuilder();
     }
 
+    public MessagePayloadFactory newDefaultMessagePayloadFactory() {
+        return new MessagePayloadFactoryImpl();
+    }
+
+    public SchemaInfo newSchemaInfoImpl(String name, byte[] schema, SchemaType type, Map<String, String> propertiesValue) {
+        return new SchemaInfoImpl(name, schema, type, propertiesValue);
+    }
 }

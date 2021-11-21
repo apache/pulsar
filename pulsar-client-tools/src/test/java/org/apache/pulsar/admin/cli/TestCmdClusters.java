@@ -26,14 +26,12 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import java.io.File;
 import java.nio.file.Files;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.client.admin.Clusters;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
@@ -62,7 +60,8 @@ public class TestCmdClusters {
         testCmdClusterConfigFile(clusterData, clusterData);
     }
 
-    public void testCmdClusterConfigFile(ClusterData testClusterData, ClusterData expectedClusterData) throws Exception {
+    private void testCmdClusterConfigFile(ClusterData testClusterData, ClusterData expectedClusterData)
+            throws Exception {
         File file = Files.createTempFile("tmp_cluster", ".yaml").toFile();
         ObjectMapperFactory.getThreadLocalYaml().writeValue(file, testClusterData);
         Assert.assertEquals(testClusterData, CmdUtils.loadConfig(file.getAbsolutePath(), ClusterData.class));

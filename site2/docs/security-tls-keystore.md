@@ -154,7 +154,7 @@ Optional settings that may worth consider:
     [JDK Ciphers](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites)
 3. tlsProtocols=[TLSv1.3,TLSv1.2] (list out the TLS protocols that you are going to accept from clients).
     By default, it is not set.
-
+```
 ### Configuring Clients
 
 This is similar to [TLS encryption configuing for client with PEM type](security-tls-transport.md#Client configuration).

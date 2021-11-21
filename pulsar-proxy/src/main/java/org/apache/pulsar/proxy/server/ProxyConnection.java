@@ -32,7 +32,6 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.client.impl.ClientCnx;
@@ -71,7 +70,6 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     private PulsarClientImpl client;
     private ConnectionPool connectionPool;
     private ProxyService service;
-    private Authentication clientAuthentication;
     AuthenticationDataSource authenticationData;
     private State state;
     private final Supplier<SslHandler> sslHandlerSupplier;
@@ -91,6 +89,8 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     private int protocolVersionToAdvertise;
     private String proxyToBrokerUrl;
     private HAProxyMessage haProxyMessage;
+
+    private static final byte[] EMPTY_CREDENTIALS = new byte[0];
 
     enum State {
         Init,
@@ -301,7 +301,6 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         try {
             // init authn
             this.clientConf = createClientConfiguration();
-            this.clientAuthentication = clientConf.getAuthentication();
             int protocolVersion = getProtocolVersionToAdvertise(connect);
 
             // authn not enabled, complete
@@ -315,7 +314,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
                 return;
             }
 
-            AuthData clientData = AuthData.of(connect.getAuthData());
+            AuthData clientData = AuthData.of(connect.hasAuthData() ? connect.getAuthData() : EMPTY_CREDENTIALS);
             if (connect.hasAuthMethodName()) {
                 authMethod = connect.getAuthMethodName();
             } else if (connect.hasAuthMethod()) {
@@ -413,7 +412,9 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         state = State.Closed;
         ctx.close();
         try {
-            client.close();
+            if (client != null) {
+                client.close();
+            }
         } catch (PulsarClientException e) {
             LOG.error("Unable to close pulsar client - {}. Error - {}", client, e.getMessage());
         }
@@ -423,10 +424,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         ClientConfigurationData clientConf = new ClientConfigurationData();
         clientConf.setServiceUrl(service.getServiceUrl());
         ProxyConfiguration proxyConfig = service.getConfiguration();
-        if (proxyConfig.getBrokerClientAuthenticationPlugin() != null) {
-            clientConf.setAuthentication(AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
-                    proxyConfig.getBrokerClientAuthenticationParameters()));
-        }
+        clientConf.setAuthentication(this.getClientAuthentication());
         if (proxyConfig.isTlsEnabledWithBroker()) {
             clientConf.setUseTls(true);
             if (proxyConfig.isBrokerClientTlsEnabledWithKeyStore()) {
@@ -459,7 +457,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     }
 
     public Authentication getClientAuthentication() {
-        return clientAuthentication;
+        return service.getProxyClientAuthenticationPlugin();
     }
 
     @Override

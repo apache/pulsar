@@ -95,6 +95,8 @@ class AdminProxyHandler extends ProxyServlet {
                 : config.getBrokerWebServiceURL();
         this.functionWorkerWebServiceUrl = config.isTlsEnabledWithBroker() ? config.getFunctionWorkerWebServiceURLTLS()
                 : config.getFunctionWorkerWebServiceURL();
+
+        super.setTimeout(config.getHttpProxyTimeout());
     }
 
     @Override
@@ -254,7 +256,7 @@ class AdminProxyHandler extends ProxyServlet {
 
             if (config.isTlsEnabledWithBroker()) {
                 try {
-                    X509Certificate trustCertificates[] = SecurityUtility
+                    X509Certificate[] trustCertificates = SecurityUtility
                         .loadCertificatesFromPemFile(config.getBrokerClientTrustCertsFilePath());
 
                     SSLContext sslCtx;
@@ -279,6 +281,7 @@ class AdminProxyHandler extends ProxyServlet {
 
                     return new JettyHttpClient(contextFactory);
                 } catch (Exception e) {
+                    LOG.error("new jetty http client exception ", e);
                     try {
                         auth.close();
                     } catch (IOException ioe) {
@@ -301,7 +304,7 @@ class AdminProxyHandler extends ProxyServlet {
 
         boolean isFunctionsRestRequest = false;
         String requestUri = request.getRequestURI();
-        for (String routePrefix: functionRoutes) {
+        for (String routePrefix : functionRoutes) {
             if (requestUri.startsWith(routePrefix)) {
                 isFunctionsRestRequest = true;
                 break;
@@ -322,7 +325,7 @@ class AdminProxyHandler extends ProxyServlet {
 
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("[{}:{}] Selected active broker is {}", request.getRemoteAddr(), request.getRemotePort(),
-                            url.toString());
+                            url);
                 }
             } catch (Exception e) {
                 LOG.warn("[{}:{}] Failed to get next active broker {}", request.getRemoteAddr(),

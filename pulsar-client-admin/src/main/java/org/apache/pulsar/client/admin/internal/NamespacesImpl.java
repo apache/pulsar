@@ -23,9 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
@@ -71,16 +69,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public List<String> getNamespaces(String tenant) throws PulsarAdminException {
-        try {
-            return getNamespacesAsync(tenant).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getNamespacesAsync(tenant));
     }
 
     @Override
@@ -104,6 +93,10 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public List<String> getNamespaces(String tenant, String cluster) throws PulsarAdminException {
+        return sync(() -> getNamespacesAsync(tenant, cluster));
+    }
+
+    public CompletableFuture<List<String>> getNamespacesAsync(String tenant, String cluster) {
         WebTarget path = adminNamespaces.path(tenant).path(cluster);
         final CompletableFuture<List<String>> future = new CompletableFuture<>();
         asyncGetRequest(path,
@@ -119,44 +112,17 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
                         future.completeExceptionally(getApiException(throwable.getCause()));
                     }
                 });
-        try {
-            return future.get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return future;
     }
 
     @Override
     public List<String> getTopics(String namespace) throws PulsarAdminException {
-        try {
-            return getTopicsAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getTopicsAsync(namespace));
     }
 
     @Override
     public BundlesData getBundles(String namespace) throws PulsarAdminException {
-        try {
-            return getBundlesAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getBundlesAsync(namespace));
     }
 
     @Override
@@ -203,16 +169,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public Policies getPolicies(String namespace) throws PulsarAdminException {
-        try {
-            return getPoliciesAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getPoliciesAsync(namespace));
     }
 
     @Override
@@ -237,16 +194,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void createNamespace(String namespace, Set<String> clusters) throws PulsarAdminException {
-        try {
-            createNamespaceAsync(namespace, clusters).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> createNamespaceAsync(namespace, clusters));
     }
 
     @Override
@@ -280,16 +228,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void createNamespace(String namespace, Policies policies) throws PulsarAdminException {
-        try {
-            createNamespaceAsync(namespace, policies).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> createNamespaceAsync(namespace, policies));
     }
 
     @Override
@@ -303,16 +242,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void createNamespace(String namespace, BundlesData bundlesData) throws PulsarAdminException {
-        try {
-            createNamespaceAsync(namespace, bundlesData).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> createNamespaceAsync(namespace, bundlesData));
     }
 
     @Override
@@ -333,16 +263,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void createNamespace(String namespace) throws PulsarAdminException {
-        try {
-            createNamespaceAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> createNamespaceAsync(namespace));
     }
 
     @Override
@@ -354,30 +275,12 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void deleteNamespace(String namespace) throws PulsarAdminException {
-        try {
-            deleteNamespaceAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> deleteNamespaceAsync(namespace));
     }
 
     @Override
     public void deleteNamespace(String namespace, boolean force) throws PulsarAdminException {
-        try {
-            deleteNamespaceAsync(namespace, force).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> deleteNamespaceAsync(namespace, force));
     }
 
     @Override
@@ -395,30 +298,12 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void deleteNamespaceBundle(String namespace, String bundleRange) throws PulsarAdminException {
-        try {
-            deleteNamespaceBundleAsync(namespace, bundleRange).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> deleteNamespaceBundleAsync(namespace, bundleRange));
     }
 
     @Override
     public void deleteNamespaceBundle(String namespace, String bundleRange, boolean force) throws PulsarAdminException {
-        try {
-            deleteNamespaceBundleAsync(namespace, bundleRange, force).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> deleteNamespaceBundleAsync(namespace, bundleRange, force));
     }
 
     @Override
@@ -436,16 +321,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public Map<String, Set<AuthAction>> getPermissions(String namespace) throws PulsarAdminException {
-        try {
-            return getPermissionsAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getPermissionsAsync(namespace));
     }
 
     @Override
@@ -471,17 +347,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public void grantPermissionOnNamespace(String namespace, String role, Set<AuthAction> actions)
             throws PulsarAdminException {
-        try {
-            grantPermissionOnNamespaceAsync(namespace, role, actions)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> grantPermissionOnNamespaceAsync(namespace, role, actions));
     }
 
     @Override
@@ -494,16 +360,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void revokePermissionsOnNamespace(String namespace, String role) throws PulsarAdminException {
-        try {
-            revokePermissionsOnNamespaceAsync(namespace, role).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> revokePermissionsOnNamespaceAsync(namespace, role));
     }
 
     @Override
@@ -513,21 +370,35 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         return asyncDeleteRequest(path);
     }
 
+    @Override
+    public Map<String, Set<String>> getPermissionOnSubscription(String namespace) throws PulsarAdminException {
+        return sync(() -> getPermissionOnSubscriptionAsync(namespace));
+    }
+
+    @Override
+    public CompletableFuture<Map<String, Set<String>>> getPermissionOnSubscriptionAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "permissions", "subscription");
+        final CompletableFuture<Map<String, Set<String>>> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Map<String, Set<String>>>() {
+                    @Override
+                    public void completed(Map<String, Set<String>> permissions) {
+                        future.complete(permissions);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
 
     @Override
     public void grantPermissionOnSubscription(String namespace, String subscription, Set<String> roles)
             throws PulsarAdminException {
-        try {
-            grantPermissionOnSubscriptionAsync(namespace, subscription, roles)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> grantPermissionOnSubscriptionAsync(namespace, subscription, roles));
     }
 
     @Override
@@ -541,17 +412,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public void revokePermissionOnSubscription(
             String namespace, String subscription, String role) throws PulsarAdminException {
-        try {
-            revokePermissionOnSubscriptionAsync(namespace, subscription, role)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> revokePermissionOnSubscriptionAsync(namespace, subscription, role));
     }
 
     @Override
@@ -564,17 +425,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public List<String> getNamespaceReplicationClusters(String namespace) throws PulsarAdminException {
-        try {
-            return getNamespaceReplicationClustersAsync(namespace)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getNamespaceReplicationClustersAsync(namespace));
     }
 
     @Override
@@ -599,16 +450,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void setNamespaceReplicationClusters(String namespace, Set<String> clusterIds) throws PulsarAdminException {
-        try {
-            setNamespaceReplicationClustersAsync(namespace, clusterIds).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setNamespaceReplicationClustersAsync(namespace, clusterIds));
     }
 
     @Override
@@ -620,17 +462,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public Integer getNamespaceMessageTTL(String namespace) throws PulsarAdminException {
-        try {
-            return getNamespaceMessageTTLAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getNamespaceMessageTTLAsync(namespace));
     }
 
     @Override
@@ -655,17 +487,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void setNamespaceMessageTTL(String namespace, int ttlInSeconds) throws PulsarAdminException {
-        try {
-            setNamespaceMessageTTLAsync(namespace, ttlInSeconds)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setNamespaceMessageTTLAsync(namespace, ttlInSeconds));
     }
 
     @Override
@@ -677,17 +499,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void removeNamespaceMessageTTL(String namespace) throws PulsarAdminException {
-        try {
-            removeNamespaceMessageTTLAsync(namespace)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeNamespaceMessageTTLAsync(namespace));
     }
 
     @Override
@@ -699,16 +511,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public Integer getSubscriptionExpirationTime(String namespace) throws PulsarAdminException {
-        try {
-            return getSubscriptionExpirationTimeAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getSubscriptionExpirationTimeAsync(namespace));
     }
 
     @Override
@@ -733,17 +536,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public void setSubscriptionExpirationTime(String namespace, int expirationTime)
             throws PulsarAdminException {
-        try {
-            setSubscriptionExpirationTimeAsync(namespace, expirationTime).get(this.readTimeoutMs,
-                    TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setSubscriptionExpirationTimeAsync(namespace, expirationTime));
     }
 
     @Override
@@ -755,16 +548,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void removeSubscriptionExpirationTime(String namespace) throws PulsarAdminException {
-        try {
-            removeSubscriptionExpirationTimeAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeSubscriptionExpirationTimeAsync(namespace));
     }
 
     @Override
@@ -777,17 +561,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public void setNamespaceAntiAffinityGroup(String namespace, String namespaceAntiAffinityGroup)
             throws PulsarAdminException {
-        try {
-            setNamespaceAntiAffinityGroupAsync(namespace, namespaceAntiAffinityGroup)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setNamespaceAntiAffinityGroupAsync(namespace, namespaceAntiAffinityGroup));
     }
 
     @Override
@@ -800,17 +574,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public String getNamespaceAntiAffinityGroup(String namespace) throws PulsarAdminException {
-        try {
-            return getNamespaceAntiAffinityGroupAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getNamespaceAntiAffinityGroupAsync(namespace));
     }
 
     @Override
@@ -836,17 +600,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public List<String> getAntiAffinityNamespaces(String tenant, String cluster, String namespaceAntiAffinityGroup)
             throws PulsarAdminException {
-        try {
-            return getAntiAffinityNamespacesAsync(tenant, cluster, namespaceAntiAffinityGroup)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getAntiAffinityNamespacesAsync(tenant, cluster, namespaceAntiAffinityGroup));
     }
 
     @Override
@@ -872,17 +626,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void deleteNamespaceAntiAffinityGroup(String namespace) throws PulsarAdminException {
-        try {
-            deleteNamespaceAntiAffinityGroupAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> deleteNamespaceAntiAffinityGroupAsync(namespace));
     }
 
     @Override
@@ -894,17 +638,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void removeDeduplicationStatus(String namespace) throws PulsarAdminException {
-        try {
-            removeDeduplicationStatusAsync(namespace)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeDeduplicationStatusAsync(namespace));
     }
 
     @Override
@@ -916,17 +650,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public Boolean getDeduplicationStatus(String namespace) throws PulsarAdminException {
-        try {
-            return getDeduplicationStatusAsync(namespace)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getDeduplicationStatusAsync(namespace));
     }
 
     @Override
@@ -951,17 +675,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void setDeduplicationStatus(String namespace, boolean enableDeduplication) throws PulsarAdminException {
-        try {
-            setDeduplicationStatusAsync(namespace, enableDeduplication)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setDeduplicationStatusAsync(namespace, enableDeduplication));
     }
 
     @Override
@@ -974,17 +688,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public void setAutoTopicCreation(String namespace,
                                      AutoTopicCreationOverride autoTopicCreationOverride) throws PulsarAdminException {
-        try {
-            setAutoTopicCreationAsync(namespace, autoTopicCreationOverride)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setAutoTopicCreationAsync(namespace, autoTopicCreationOverride));
     }
 
     @Override
@@ -996,17 +700,33 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public AutoTopicCreationOverride getAutoTopicCreation(String namespace) throws PulsarAdminException {
+        return sync(() -> getAutoTopicCreationAsync(namespace));
+    }
+
+    @Override
+    public CompletableFuture<AutoTopicCreationOverride> getAutoTopicCreationAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "autoTopicCreation");
+        final CompletableFuture<AutoTopicCreationOverride> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<AutoTopicCreationOverride>() {
+                    @Override
+                    public void completed(AutoTopicCreationOverride autoTopicCreationOverride) {
+                        future.complete(autoTopicCreationOverride);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
     public void removeAutoTopicCreation(String namespace) throws PulsarAdminException {
-        try {
-            removeAutoTopicCreationAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeAutoTopicCreationAsync(namespace));
     }
 
     @Override
@@ -1019,17 +739,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public void setAutoSubscriptionCreation(String namespace,
             AutoSubscriptionCreationOverride autoSubscriptionCreationOverride) throws PulsarAdminException {
-        try {
-            setAutoSubscriptionCreationAsync(namespace, autoSubscriptionCreationOverride)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setAutoSubscriptionCreationAsync(namespace, autoSubscriptionCreationOverride));
     }
 
     @Override
@@ -1041,19 +751,35 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public AutoSubscriptionCreationOverride getAutoSubscriptionCreation(String namespace) throws PulsarAdminException {
+        return sync(() -> getAutoSubscriptionCreationAsync(namespace));
+    }
+
+    @Override
+    public CompletableFuture<AutoSubscriptionCreationOverride> getAutoSubscriptionCreationAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "autoSubscriptionCreation");
+        final CompletableFuture<AutoSubscriptionCreationOverride> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<AutoSubscriptionCreationOverride>() {
+                    @Override
+                    public void completed(AutoSubscriptionCreationOverride autoSubscriptionCreation) {
+                        future.complete(autoSubscriptionCreation);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+
+    @Override
     public void setSubscriptionTypesEnabled(
             String namespace, Set<SubscriptionType> subscriptionTypesEnabled) throws PulsarAdminException {
-        try {
-            setSubscriptionTypesEnabledAsync(namespace, subscriptionTypesEnabled)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setSubscriptionTypesEnabledAsync(namespace, subscriptionTypesEnabled));
     }
 
     @Override
@@ -1066,16 +792,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public Set<SubscriptionType> getSubscriptionTypesEnabled(String namespace) throws PulsarAdminException {
-        try {
-            return getSubscriptionTypesEnabledAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getSubscriptionTypesEnabledAsync(namespace));
     }
 
     @Override
@@ -1099,17 +816,20 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public void removeSubscriptionTypesEnabled(String namespace) throws PulsarAdminException {
+        sync(() -> removeSubscriptionTypesEnabledAsync(namespace));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeSubscriptionTypesEnabledAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "subscriptionTypesEnabled");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
     public void removeAutoSubscriptionCreation(String namespace) throws PulsarAdminException {
-        try {
-            removeAutoSubscriptionCreationAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeAutoSubscriptionCreationAsync(namespace));
     }
 
     @Override
@@ -1121,16 +841,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public Map<BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(String namespace) throws PulsarAdminException {
-        try {
-            return getBacklogQuotaMapAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getBacklogQuotaMapAsync(namespace));
     }
 
     @Override
@@ -1156,17 +867,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public void setBacklogQuota(String namespace, BacklogQuota backlogQuota,
                                 BacklogQuota.BacklogQuotaType backlogQuotaType) throws PulsarAdminException {
-        try {
-            setBacklogQuotaAsync(namespace, backlogQuota, backlogQuotaType)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setBacklogQuotaAsync(namespace, backlogQuota, backlogQuotaType));
     }
 
     @Override
@@ -1181,32 +882,12 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public void removeBacklogQuota(String namespace, BacklogQuota.BacklogQuotaType backlogQuotaType)
             throws PulsarAdminException {
-        try {
-            removeBacklogQuotaAsync(namespace, backlogQuotaType).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeBacklogQuotaAsync(namespace, backlogQuotaType));
     }
 
     @Override
     public void removeInactiveTopicPolicies(String namespace) throws PulsarAdminException {
-        try {
-            removeInactiveTopicPoliciesAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeInactiveTopicPoliciesAsync(namespace));
     }
 
     @Override
@@ -1227,16 +908,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void removePersistence(String namespace) throws PulsarAdminException {
-        try {
-            removePersistenceAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removePersistenceAsync(namespace));
     }
 
     @Override
@@ -1248,16 +920,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void setPersistence(String namespace, PersistencePolicies persistence) throws PulsarAdminException {
-        try {
-            setPersistenceAsync(namespace, persistence).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setPersistenceAsync(namespace, persistence));
     }
 
     @Override
@@ -1270,16 +933,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public void setBookieAffinityGroup(
             String namespace, BookieAffinityGroupData bookieAffinityGroup) throws PulsarAdminException {
-        try {
-            setBookieAffinityGroupAsync(namespace, bookieAffinityGroup).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setBookieAffinityGroupAsync(namespace, bookieAffinityGroup));
     }
 
     @Override
@@ -1292,17 +946,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void deleteBookieAffinityGroup(String namespace) throws PulsarAdminException {
-        try {
-            deleteBookieAffinityGroupAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> deleteBookieAffinityGroupAsync(namespace));
     }
 
     @Override
@@ -1314,17 +958,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public BookieAffinityGroupData getBookieAffinityGroup(String namespace) throws PulsarAdminException {
-        try {
-            return getBookieAffinityGroupAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getBookieAffinityGroupAsync(namespace));
     }
 
     @Override
@@ -1349,16 +983,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public PersistencePolicies getPersistence(String namespace) throws PulsarAdminException {
-        try {
-            return getPersistenceAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getPersistenceAsync(namespace));
     }
 
     @Override
@@ -1383,16 +1008,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void setRetention(String namespace, RetentionPolicies retention) throws PulsarAdminException {
-        try {
-            setRetentionAsync(namespace, retention).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setRetentionAsync(namespace, retention));
     }
 
     @Override
@@ -1404,16 +1020,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void removeRetention(String namespace) throws PulsarAdminException {
-        try {
-            removeRetentionAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeRetentionAsync(namespace));
     }
 
     @Override
@@ -1425,16 +1032,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public RetentionPolicies getRetention(String namespace) throws PulsarAdminException {
-        try {
-            return getRetentionAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getRetentionAsync(namespace));
     }
 
     @Override
@@ -1459,16 +1057,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void unload(String namespace) throws PulsarAdminException {
-        try {
-            unloadAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> unloadAsync(namespace));
     }
 
     @Override
@@ -1480,17 +1069,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public String getReplicationConfigVersion(String namespace) throws PulsarAdminException {
-        try {
-            return getReplicationConfigVersionAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getReplicationConfigVersionAsync(namespace));
     }
 
     @Override
@@ -1515,16 +1094,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void unloadNamespaceBundle(String namespace, String bundle) throws PulsarAdminException {
-        try {
-            unloadNamespaceBundleAsync(namespace, bundle).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> unloadNamespaceBundleAsync(namespace, bundle));
     }
 
     @Override
@@ -1538,17 +1108,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public void splitNamespaceBundle(
             String namespace, String bundle, boolean unloadSplitBundles, String splitAlgorithmName)
             throws PulsarAdminException {
-        try {
-            splitNamespaceBundleAsync(namespace, bundle, unloadSplitBundles, splitAlgorithmName)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> splitNamespaceBundleAsync(namespace, bundle, unloadSplitBundles, splitAlgorithmName));
     }
 
     @Override
@@ -1563,30 +1123,12 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void setPublishRate(String namespace, PublishRate publishMsgRate) throws PulsarAdminException {
-        try {
-            setPublishRateAsync(namespace, publishMsgRate).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setPublishRateAsync(namespace, publishMsgRate));
     }
 
     @Override
     public void removePublishRate(String namespace) throws PulsarAdminException {
-        try {
-            removePublishRateAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removePublishRateAsync(namespace));
     }
 
     @Override
@@ -1605,16 +1147,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public PublishRate getPublishRate(String namespace) throws PulsarAdminException {
-        try {
-            return getPublishRateAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getPublishRateAsync(namespace));
     }
 
     @Override
@@ -1639,17 +1172,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void removeDispatchRate(String namespace) throws PulsarAdminException {
-        try {
-            removeDispatchRateAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeDispatchRateAsync(namespace));
     }
 
     @Override
@@ -1661,16 +1184,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void setDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException {
-        try {
-            setDispatchRateAsync(namespace, dispatchRate).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setDispatchRateAsync(namespace, dispatchRate));
     }
 
     @Override
@@ -1682,16 +1196,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public DispatchRate getDispatchRate(String namespace) throws PulsarAdminException {
-        try {
-            return getDispatchRateAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getDispatchRateAsync(namespace));
     }
 
     @Override
@@ -1716,16 +1221,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void setSubscribeRate(String namespace, SubscribeRate subscribeRate) throws PulsarAdminException {
-        try {
-            setSubscribeRateAsync(namespace, subscribeRate).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setSubscribeRateAsync(namespace, subscribeRate));
     }
 
     @Override
@@ -1737,16 +1233,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void removeSubscribeRate(String namespace) throws PulsarAdminException {
-        try {
-            removeSubscribeRateAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeSubscribeRateAsync(namespace));
     }
 
     @Override
@@ -1758,17 +1245,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public SubscribeRate getSubscribeRate(String namespace) throws PulsarAdminException {
-        try {
-            return getSubscribeRateAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getSubscribeRateAsync(namespace));
     }
 
     @Override
@@ -1793,17 +1270,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void removeSubscriptionDispatchRate(String namespace) throws PulsarAdminException {
-        try {
-            removeSubscriptionDispatchRateAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeSubscriptionDispatchRateAsync(namespace));
     }
 
     @Override
@@ -1816,16 +1283,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void setSubscriptionDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException {
-        try {
-            setSubscriptionDispatchRateAsync(namespace, dispatchRate).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setSubscriptionDispatchRateAsync(namespace, dispatchRate));
     }
 
     @Override
@@ -1837,16 +1295,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public DispatchRate getSubscriptionDispatchRate(String namespace) throws PulsarAdminException {
-        try {
-            return getSubscriptionDispatchRateAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getSubscriptionDispatchRateAsync(namespace));
     }
 
     @Override
@@ -1871,16 +1320,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void setReplicatorDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException {
-        try {
-            setReplicatorDispatchRateAsync(namespace, dispatchRate).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setReplicatorDispatchRateAsync(namespace, dispatchRate));
     }
 
     @Override
@@ -1892,16 +1332,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void removeReplicatorDispatchRate(String namespace) throws PulsarAdminException {
-        try {
-            removeReplicatorDispatchRateAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeReplicatorDispatchRateAsync(namespace));
     }
 
     @Override
@@ -1913,17 +1344,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public DispatchRate getReplicatorDispatchRate(String namespace) throws PulsarAdminException {
-        try {
-            return getReplicatorDispatchRateAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getReplicatorDispatchRateAsync(namespace));
     }
 
     @Override
@@ -1948,17 +1369,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void clearNamespaceBacklog(String namespace) throws PulsarAdminException {
-        try {
-            clearNamespaceBacklogAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> clearNamespaceBacklogAsync(namespace));
     }
 
     @Override
@@ -1971,17 +1382,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public void clearNamespaceBacklogForSubscription(String namespace, String subscription)
             throws PulsarAdminException {
-        try {
-            clearNamespaceBacklogForSubscriptionAsync(namespace, subscription).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> clearNamespaceBacklogForSubscriptionAsync(namespace, subscription));
     }
 
     @Override
@@ -1993,16 +1394,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void clearNamespaceBundleBacklog(String namespace, String bundle) throws PulsarAdminException {
-        try {
-            clearNamespaceBundleBacklogAsync(namespace, bundle).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> clearNamespaceBundleBacklogAsync(namespace, bundle));
     }
 
     @Override
@@ -2015,17 +1407,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public void clearNamespaceBundleBacklogForSubscription(String namespace, String bundle, String subscription)
             throws PulsarAdminException {
-        try {
-            clearNamespaceBundleBacklogForSubscriptionAsync(namespace, bundle, subscription)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> clearNamespaceBundleBacklogForSubscriptionAsync(namespace, bundle, subscription));
     }
 
     @Override
@@ -2038,16 +1420,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void unsubscribeNamespace(String namespace, String subscription) throws PulsarAdminException {
-        try {
-            unsubscribeNamespaceAsync(namespace, subscription).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> unsubscribeNamespaceAsync(namespace, subscription));
     }
 
     @Override
@@ -2060,17 +1433,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public void unsubscribeNamespaceBundle(String namespace, String bundle, String subscription)
             throws PulsarAdminException {
-        try {
-            unsubscribeNamespaceBundleAsync(namespace, bundle, subscription)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> unsubscribeNamespaceBundleAsync(namespace, bundle, subscription));
     }
 
     @Override
@@ -2084,17 +1447,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public void setSubscriptionAuthMode(String namespace, SubscriptionAuthMode subscriptionAuthMode)
             throws PulsarAdminException {
-        try {
-            setSubscriptionAuthModeAsync(namespace, subscriptionAuthMode)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setSubscriptionAuthModeAsync(namespace, subscriptionAuthMode));
     }
 
     @Override
@@ -2106,18 +1459,33 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public SubscriptionAuthMode getSubscriptionAuthMode(String namespace) throws PulsarAdminException {
+        return sync(() -> getSubscriptionAuthModeAsync(namespace));
+    }
+
+    @Override
+    public CompletableFuture<SubscriptionAuthMode> getSubscriptionAuthModeAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "subscriptionAuthMode");
+        final CompletableFuture<SubscriptionAuthMode> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<SubscriptionAuthMode>() {
+                    @Override
+                    public void completed(SubscriptionAuthMode subscriptionAuthMode) {
+                        future.complete(subscriptionAuthMode);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
     public void setEncryptionRequiredStatus(String namespace, boolean encryptionRequired) throws PulsarAdminException {
-        try {
-            setEncryptionRequiredStatusAsync(namespace, encryptionRequired)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setEncryptionRequiredStatusAsync(namespace, encryptionRequired));
     }
 
     @Override
@@ -2128,18 +1496,33 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public Boolean getEncryptionRequiredStatus(String namespace) throws PulsarAdminException {
+        return sync(() -> getEncryptionRequiredStatusAsync(namespace));
+    }
+
+    @Override
+    public CompletableFuture<Boolean> getEncryptionRequiredStatusAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "encryptionRequired");
+        final CompletableFuture<Boolean> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Boolean>() {
+                    @Override
+                    public void completed(Boolean enabled) {
+                        future.complete(enabled);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
     public DelayedDeliveryPolicies getDelayedDelivery(String namespace) throws PulsarAdminException {
-        try {
-            return getDelayedDeliveryAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getDelayedDeliveryAsync(namespace));
     }
 
     @Override
@@ -2165,17 +1548,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public void setDelayedDeliveryMessages(
             String namespace, DelayedDeliveryPolicies delayedDeliveryPolicies) throws PulsarAdminException {
-        try {
-            setDelayedDeliveryMessagesAsync(namespace, delayedDeliveryPolicies)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setDelayedDeliveryMessagesAsync(namespace, delayedDeliveryPolicies));
     }
 
     @Override
@@ -2188,17 +1561,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void removeDelayedDeliveryMessages(String namespace) throws PulsarAdminException {
-        try {
-            removeDelayedDeliveryMessagesAsync(namespace)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeDelayedDeliveryMessagesAsync(namespace));
     }
 
     @Override
@@ -2210,17 +1573,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public InactiveTopicPolicies getInactiveTopicPolicies(String namespace) throws PulsarAdminException {
-        try {
-            return getInactiveTopicPoliciesAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getInactiveTopicPoliciesAsync(namespace));
     }
 
     @Override
@@ -2245,17 +1598,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public void setInactiveTopicPolicies(
             String namespace, InactiveTopicPolicies inactiveTopicPolicies) throws PulsarAdminException {
-        try {
-            setInactiveTopicPoliciesAsync(namespace, inactiveTopicPolicies)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setInactiveTopicPoliciesAsync(namespace, inactiveTopicPolicies));
     }
 
     @Override
@@ -2268,17 +1611,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public Integer getDeduplicationSnapshotInterval(String namespace) throws PulsarAdminException {
-        try {
-            return getDeduplicationSnapshotIntervalAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getDeduplicationSnapshotIntervalAsync(namespace));
     }
 
     @Override
@@ -2303,17 +1636,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void setDeduplicationSnapshotInterval(String namespace, Integer interval) throws PulsarAdminException {
-        try {
-            setDeduplicationSnapshotIntervalAsync(namespace, interval).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setDeduplicationSnapshotIntervalAsync(namespace, interval));
     }
 
     @Override
@@ -2335,17 +1658,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public Integer getMaxSubscriptionsPerTopic(String namespace) throws PulsarAdminException {
-        try {
-            return getMaxSubscriptionsPerTopicAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getMaxSubscriptionsPerTopicAsync(namespace));
     }
 
     @Override
@@ -2371,17 +1684,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public void setMaxSubscriptionsPerTopic(String namespace, int maxSubscriptionsPerTopic)
             throws PulsarAdminException {
-        try {
-            setMaxSubscriptionsPerTopicAsync(namespace, maxSubscriptionsPerTopic).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setMaxSubscriptionsPerTopicAsync(namespace, maxSubscriptionsPerTopic));
     }
 
     @Override
@@ -2393,17 +1696,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void removeMaxSubscriptionsPerTopic(String namespace) throws PulsarAdminException {
-        try {
-            removeMaxSubscriptionsPerTopicAsync(namespace)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeMaxSubscriptionsPerTopicAsync(namespace));
     }
 
     @Override
@@ -2415,17 +1708,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public Integer getMaxProducersPerTopic(String namespace) throws PulsarAdminException {
-        try {
-            return getMaxProducersPerTopicAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getMaxProducersPerTopicAsync(namespace));
     }
 
     @Override
@@ -2450,17 +1733,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void setMaxProducersPerTopic(String namespace, int maxProducersPerTopic) throws PulsarAdminException {
-        try {
-            setMaxProducersPerTopicAsync(namespace, maxProducersPerTopic).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setMaxProducersPerTopicAsync(namespace, maxProducersPerTopic));
     }
 
     @Override
@@ -2472,17 +1745,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void removeMaxProducersPerTopic(String namespace) throws PulsarAdminException {
-        try {
-            removeMaxProducersPerTopicAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeMaxProducersPerTopicAsync(namespace));
     }
 
     @Override
@@ -2494,17 +1757,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public Integer getMaxConsumersPerTopic(String namespace) throws PulsarAdminException {
-        try {
-            return getMaxConsumersPerTopicAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getMaxConsumersPerTopicAsync(namespace));
     }
 
     @Override
@@ -2529,17 +1782,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void setMaxConsumersPerTopic(String namespace, int maxConsumersPerTopic) throws PulsarAdminException {
-        try {
-            setMaxConsumersPerTopicAsync(namespace, maxConsumersPerTopic)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setMaxConsumersPerTopicAsync(namespace, maxConsumersPerTopic));
     }
 
     @Override
@@ -2551,17 +1794,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void removeMaxConsumersPerTopic(String namespace) throws PulsarAdminException {
-        try {
-            removeMaxConsumersPerTopicAsync(namespace)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeMaxConsumersPerTopicAsync(namespace));
     }
 
     @Override
@@ -2573,17 +1806,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public Integer getMaxConsumersPerSubscription(String namespace) throws PulsarAdminException {
-        try {
-            return getMaxConsumersPerSubscriptionAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getMaxConsumersPerSubscriptionAsync(namespace));
     }
 
     @Override
@@ -2609,17 +1832,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public void setMaxConsumersPerSubscription(String namespace, int maxConsumersPerSubscription)
             throws PulsarAdminException {
-        try {
-            setMaxConsumersPerSubscriptionAsync(namespace, maxConsumersPerSubscription)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setMaxConsumersPerSubscriptionAsync(namespace, maxConsumersPerSubscription));
     }
 
     @Override
@@ -2633,17 +1846,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public void removeMaxConsumersPerSubscription(String namespace)
             throws PulsarAdminException {
-        try {
-            removeMaxConsumersPerSubscriptionAsync(namespace)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeMaxConsumersPerSubscriptionAsync(namespace));
     }
 
     @Override
@@ -2656,17 +1859,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public Integer getMaxUnackedMessagesPerConsumer(String namespace) throws PulsarAdminException {
-        try {
-            return getMaxUnackedMessagesPerConsumerAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getMaxUnackedMessagesPerConsumerAsync(namespace));
     }
 
     @Override
@@ -2692,17 +1885,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public void setMaxUnackedMessagesPerConsumer(String namespace, int maxUnackedMessagesPerConsumer)
             throws PulsarAdminException {
-        try {
-            setMaxUnackedMessagesPerConsumerAsync(namespace, maxUnackedMessagesPerConsumer).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setMaxUnackedMessagesPerConsumerAsync(namespace, maxUnackedMessagesPerConsumer));
     }
 
     @Override
@@ -2715,17 +1898,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void removeMaxUnackedMessagesPerConsumer(String namespace) throws PulsarAdminException {
-        try {
-            removeMaxUnackedMessagesPerConsumerAsync(namespace)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeMaxUnackedMessagesPerConsumerAsync(namespace));
     }
 
     @Override
@@ -2737,17 +1910,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public Integer getMaxUnackedMessagesPerSubscription(String namespace) throws PulsarAdminException {
-        try {
-            return getMaxUnackedMessagesPerSubscriptionAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getMaxUnackedMessagesPerSubscriptionAsync(namespace));
     }
 
     @Override
@@ -2773,17 +1936,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public void setMaxUnackedMessagesPerSubscription(String namespace, int maxUnackedMessagesPerSubscription)
             throws PulsarAdminException {
-        try {
-            setMaxUnackedMessagesPerSubscriptionAsync(namespace, maxUnackedMessagesPerSubscription)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setMaxUnackedMessagesPerSubscriptionAsync(namespace, maxUnackedMessagesPerSubscription));
     }
 
     @Override
@@ -2797,17 +1950,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public void removeMaxUnackedMessagesPerSubscription(String namespace)
             throws PulsarAdminException {
-        try {
-            removeMaxUnackedMessagesPerSubscriptionAsync(namespace)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeMaxUnackedMessagesPerSubscriptionAsync(namespace));
     }
 
     @Override
@@ -2820,17 +1963,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public Long getCompactionThreshold(String namespace) throws PulsarAdminException {
-        try {
-            return getCompactionThresholdAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getCompactionThresholdAsync(namespace));
     }
 
     @Override
@@ -2855,17 +1988,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void setCompactionThreshold(String namespace, long compactionThreshold) throws PulsarAdminException {
-        try {
-            setCompactionThresholdAsync(namespace, compactionThreshold)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setCompactionThresholdAsync(namespace, compactionThreshold));
     }
 
     @Override
@@ -2877,17 +2000,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void removeCompactionThreshold(String namespace) throws PulsarAdminException {
-        try {
-            removeCompactionThresholdAsync(namespace)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeCompactionThresholdAsync(namespace));
     }
 
     @Override
@@ -2899,17 +2012,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public long getOffloadThreshold(String namespace) throws PulsarAdminException {
-        try {
-            return getOffloadThresholdAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getOffloadThresholdAsync(namespace));
     }
 
     @Override
@@ -2934,17 +2037,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void setOffloadThreshold(String namespace, long offloadThreshold) throws PulsarAdminException {
-        try {
-            setOffloadThresholdAsync(namespace, offloadThreshold).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setOffloadThresholdAsync(namespace, offloadThreshold));
     }
 
     @Override
@@ -2956,17 +2049,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public Long getOffloadDeleteLagMs(String namespace) throws PulsarAdminException {
-        try {
-            return getOffloadDeleteLagMsAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getOffloadDeleteLagMsAsync(namespace));
     }
 
     @Override
@@ -2991,16 +2074,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void setOffloadDeleteLag(String namespace, long lag, TimeUnit unit) throws PulsarAdminException {
-        try {
-            setOffloadDeleteLagAsync(namespace, lag, unit).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setOffloadDeleteLagAsync(namespace, lag, unit));
     }
 
     @Override
@@ -3013,17 +2087,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void clearOffloadDeleteLag(String namespace) throws PulsarAdminException {
-        try {
-            clearOffloadDeleteLagAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> clearOffloadDeleteLagAsync(namespace));
     }
 
     @Override
@@ -3060,25 +2124,26 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public boolean getSchemaValidationEnforced(String namespace)
-            throws PulsarAdminException {
-        try {
-            return getSchemaValidationEnforcedAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+    public boolean getSchemaValidationEnforced(String namespace) throws PulsarAdminException {
+        return getSchemaValidationEnforced(namespace, false);
     }
 
     @Override
     public CompletableFuture<Boolean> getSchemaValidationEnforcedAsync(String namespace) {
+        return getSchemaValidationEnforcedAsync(namespace, false);
+    }
+
+    @Override
+    public boolean getSchemaValidationEnforced(String namespace, boolean applied)
+            throws PulsarAdminException {
+        return sync(() -> getSchemaValidationEnforcedAsync(namespace, applied));
+    }
+
+    @Override
+    public CompletableFuture<Boolean> getSchemaValidationEnforcedAsync(String namespace, boolean applied) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "schemaValidationEnforced");
+        path = path.queryParam("applied", applied);
         final CompletableFuture<Boolean> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<Boolean>() {
@@ -3098,17 +2163,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public void setSchemaValidationEnforced(String namespace, boolean schemaValidationEnforced)
             throws PulsarAdminException {
-        try {
-            setSchemaValidationEnforcedAsync(namespace, schemaValidationEnforced)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setSchemaValidationEnforcedAsync(namespace, schemaValidationEnforced));
     }
 
     @Override
@@ -3121,17 +2176,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public SchemaCompatibilityStrategy getSchemaCompatibilityStrategy(String namespace) throws PulsarAdminException {
-        try {
-            return getSchemaCompatibilityStrategyAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getSchemaCompatibilityStrategyAsync(namespace));
     }
 
     @Override
@@ -3157,17 +2202,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public void setSchemaCompatibilityStrategy(String namespace, SchemaCompatibilityStrategy strategy)
             throws PulsarAdminException {
-        try {
-            setSchemaCompatibilityStrategyAsync(namespace, strategy).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setSchemaCompatibilityStrategyAsync(namespace, strategy));
     }
 
     @Override
@@ -3180,17 +2215,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public boolean getIsAllowAutoUpdateSchema(String namespace) throws PulsarAdminException {
-        try {
-            return getIsAllowAutoUpdateSchemaAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getIsAllowAutoUpdateSchemaAsync(namespace));
     }
 
     @Override
@@ -3216,17 +2241,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public void setIsAllowAutoUpdateSchema(String namespace, boolean isAllowAutoUpdateSchema)
             throws PulsarAdminException {
-        try {
-            setIsAllowAutoUpdateSchemaAsync(namespace, isAllowAutoUpdateSchema).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setIsAllowAutoUpdateSchemaAsync(namespace, isAllowAutoUpdateSchema));
     }
 
     @Override
@@ -3239,32 +2254,12 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public void setOffloadPolicies(String namespace, OffloadPolicies offloadPolicies)
             throws PulsarAdminException {
-        try {
-            setOffloadPoliciesAsync(namespace, offloadPolicies)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setOffloadPoliciesAsync(namespace, offloadPolicies));
     }
 
     @Override
     public void removeOffloadPolicies(String namespace) throws PulsarAdminException {
-        try {
-            removeOffloadPoliciesAsync(namespace)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeOffloadPoliciesAsync(namespace));
     }
 
     @Override
@@ -3283,17 +2278,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public OffloadPolicies getOffloadPolicies(String namespace) throws PulsarAdminException {
-        try {
-            return getOffloadPoliciesAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getOffloadPoliciesAsync(namespace));
     }
 
     @Override
@@ -3318,17 +2303,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public int getMaxTopicsPerNamespace(String namespace) throws PulsarAdminException {
-        try {
-            return getMaxTopicsPerNamespaceAsync(namespace)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getMaxTopicsPerNamespaceAsync(namespace));
     }
 
     @Override
@@ -3353,17 +2328,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void setMaxTopicsPerNamespace(String namespace, int maxTopicsPerNamespace) throws PulsarAdminException {
-        try {
-            setMaxTopicsPerNamespaceAsync(namespace, maxTopicsPerNamespace)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setMaxTopicsPerNamespaceAsync(namespace, maxTopicsPerNamespace));
     }
 
     @Override
@@ -3375,17 +2340,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void removeMaxTopicsPerNamespace(String namespace) throws PulsarAdminException {
-        try {
-            removeMaxTopicsPerNamespaceAsync(namespace)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeMaxTopicsPerNamespaceAsync(namespace));
     }
 
     @Override
@@ -3404,17 +2359,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void setProperty(String namespace, String key, String value) throws PulsarAdminException {
-        try {
-            setPropertyAsync(namespace, key, value)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setPropertyAsync(namespace, key, value));
     }
 
     @Override
@@ -3426,32 +2371,12 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void setProperties(String namespace, Map<String, String> properties) throws PulsarAdminException {
-        try {
-            setPropertiesAsync(namespace, properties)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setPropertiesAsync(namespace, properties));
     }
 
     @Override
     public String getNamespaceResourceGroup(String namespace) throws PulsarAdminException {
-        try {
-            return getNamespaceResourceGroupAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getNamespaceResourceGroupAsync(namespace));
     }
 
     @Override
@@ -3475,17 +2400,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public String getProperty(String namespace, String key) throws PulsarAdminException {
-        try {
-            return getPropertyAsync(namespace, key)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getPropertyAsync(namespace, key));
     }
 
     @Override
@@ -3529,32 +2444,12 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public Map<String, String> getProperties(String namespace) throws PulsarAdminException {
-        try {
-            return getPropertiesAsync(namespace)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getPropertiesAsync(namespace));
     }
 
     @Override
     public void setNamespaceResourceGroup(String namespace, String resourcegroupname) throws PulsarAdminException {
-        try {
-            setNamespaceResourceGroupAsync(namespace, resourcegroupname)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setNamespaceResourceGroupAsync(namespace, resourcegroupname));
     }
 
     @Override
@@ -3578,17 +2473,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public String removeProperty(String namespace, String key) throws PulsarAdminException {
-        try {
-            return removePropertyAsync(namespace, key)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> removePropertyAsync(namespace, key));
     }
 
     @Override
@@ -3600,17 +2485,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void removeNamespaceResourceGroup(String namespace) throws PulsarAdminException {
-        try {
-            removeNamespaceResourceGroupAsync(namespace)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeNamespaceResourceGroupAsync(namespace));
     }
 
     @Override
@@ -3623,17 +2498,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void clearProperties(String namespace) throws PulsarAdminException {
-        try {
-            clearPropertiesAsync(namespace)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> clearPropertiesAsync(namespace));
     }
 
     @Override

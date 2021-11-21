@@ -39,7 +39,6 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -107,6 +106,9 @@ public class CmdProduce {
                description = "Rate (in msg/sec) at which to produce," +
                        " value 0 means to produce messages as fast as possible.")
     private double publishRate = 0;
+
+    @Parameter(names = { "-db", "--disable-batching" }, description = "Disable batch sending of messages")
+    private boolean disableBatching = false;
     
     @Parameter(names = { "-c",
             "--chunking" }, description = "Should split the message and publish in chunks if message size is larger than allowed max size")
@@ -247,6 +249,8 @@ public class CmdProduce {
             if (this.chunkingAllowed) {
                 producerBuilder.enableChunking(true);
                 producerBuilder.enableBatching(false);
+            } else if (this.disableBatching) {
+                producerBuilder.enableBatching(false);
             }
             if (isNotBlank(this.encKeyName) && isNotBlank(this.encKeyValue)) {
                 producerBuilder.addEncryptionKey(this.encKeyName);
@@ -359,19 +363,22 @@ public class CmdProduce {
 
     @SuppressWarnings("deprecation")
     @VisibleForTesting
-    public String getProduceBaseEndPoint(String topic) {
+    public String getWebSocketProduceUri(String topic) {
+        String serviceURLWithoutTrailingSlash = serviceURL.substring(0,
+                serviceURL.endsWith("/") ? serviceURL.length() - 1 : serviceURL.length());
+
         TopicName topicName = TopicName.get(topic);
-        String produceBaseEndPoint;
+        String wsTopic;
         if (topicName.isV2()) {
-            String wsTopic = String.format("%s/%s/%s/%s", topicName.getDomain(), topicName.getTenant(),
+            wsTopic = String.format("%s/%s/%s/%s", topicName.getDomain(), topicName.getTenant(),
                     topicName.getNamespacePortion(), topicName.getLocalName());
-            produceBaseEndPoint = serviceURL + (serviceURL.endsWith("/") ? "" : "/") + "ws/v2/producer/" + wsTopic;
         } else {
-            String wsTopic = String.format("%s/%s/%s/%s/%s", topicName.getDomain(), topicName.getTenant(),
+            wsTopic = String.format("%s/%s/%s/%s/%s", topicName.getDomain(), topicName.getTenant(),
                     topicName.getCluster(), topicName.getNamespacePortion(), topicName.getLocalName());
-            produceBaseEndPoint = serviceURL + (serviceURL.endsWith("/") ? "" : "/") + "ws/producer/" + wsTopic;
         }
-        return produceBaseEndPoint;
+
+        String uriFormat = "%s/ws" + (topicName.isV2() ? "/v2/" : "/") + "producer/%s";
+        return String.format(uriFormat, serviceURLWithoutTrailingSlash, wsTopic);
     }
 
     @SuppressWarnings("deprecation")
@@ -379,7 +386,7 @@ public class CmdProduce {
         int numMessagesSent = 0;
         int returnCode = 0;
 
-        URI produceUri = URI.create(getProduceBaseEndPoint(topic));
+        URI produceUri = URI.create(getWebSocketProduceUri(topic));
 
         WebSocketClient produceClient = new WebSocketClient(new SslContextFactory(true));
         ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();

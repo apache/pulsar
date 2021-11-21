@@ -169,6 +169,12 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
         }
     }
 
+    protected void onPartitionsChange(String topicName, int partitions) {
+        if (interceptors != null) {
+            interceptors.onPartitionsChange(topicName, partitions);
+        }
+    }
+
     @Override
     public String toString() {
         return "ProducerBase{" + "topic='" + topic + '\'' + '}';
