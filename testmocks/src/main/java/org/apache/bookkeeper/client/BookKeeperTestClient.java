@@ -20,8 +20,8 @@ package org.apache.bookkeeper.client;
 
 import java.io.IOException;
 import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.bookkeeper.meta.MetadataClientDriver;
 import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.ZooKeeper;
 
 /**
  * Test BookKeeperClient which allows access to members we don't wish to expose in the public API.
@@ -31,8 +31,8 @@ public class BookKeeperTestClient extends BookKeeper {
         super(conf);
     }
 
-    public ZooKeeper getZkHandle() {
-        return super.getZkHandle();
+    public MetadataClientDriver getZkHandle() {
+        return super.getMetadataClientDriver();
     }
 
     public ClientConfiguration getConf() {
