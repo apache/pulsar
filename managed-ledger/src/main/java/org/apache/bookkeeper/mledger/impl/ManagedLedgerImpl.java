@@ -1450,13 +1450,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         }
                     }, null);
 
-                    metadataMutex.unlock();
-
                     if (e instanceof BadVersionException) {
                         synchronized (ManagedLedgerImpl.this) {
                             log.error(
                                 "[{}] Failed to update ledger list. z-node version mismatch. Closing managed ledger",
                                 name);
+                            lastLedgerCreationFailureTimestamp = clock.millis();
                             STATE_UPDATER.set(ManagedLedgerImpl.this, State.Fenced);
                             // Return ManagedLedgerFencedException to addFailed callback
                             // to indicate that the ledger is now fenced and topic needs to be closed
@@ -1465,6 +1464,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             return;
                         }
                     }
+
+                    metadataMutex.unlock();
 
                     synchronized (ManagedLedgerImpl.this) {
                         lastLedgerCreationFailureTimestamp = clock.millis();
