@@ -904,15 +904,15 @@
     "CompletableFuture" : {
       "type" : "object",
       "properties" : {
-        "done" : {
-          "type" : "boolean"
-        },
         "cancelled" : {
           "type" : "boolean"
         },
         "numberOfDependents" : {
           "type" : "integer",
           "format" : "int32"
+        },
+        "done" : {
+          "type" : "boolean"
         },
         "completedExceptionally" : {
           "type" : "boolean"
@@ -922,15 +922,15 @@
     "CompletableFutureClusterData" : {
       "type" : "object",
       "properties" : {
-        "done" : {
-          "type" : "boolean"
-        },
         "cancelled" : {
           "type" : "boolean"
         },
         "numberOfDependents" : {
           "type" : "integer",
           "format" : "int32"
+        },
+        "done" : {
+          "type" : "boolean"
         },
         "completedExceptionally" : {
           "type" : "boolean"
@@ -1022,10 +1022,10 @@
           "type" : "integer",
           "format" : "int32"
         },
-        "displayName" : {
+        "symbol" : {
           "type" : "string"
         },
-        "symbol" : {
+        "displayName" : {
           "type" : "string"
         },
         "numericCodeAsString" : {
@@ -1120,11 +1120,11 @@
         "locale" : {
           "$ref" : "#/definitions/Locale"
         },
-        "factory" : {
-          "$ref" : "#/definitions/DeserializerFactory"
-        },
         "timeZone" : {
           "$ref" : "#/definitions/TimeZone"
+        },
+        "factory" : {
+          "$ref" : "#/definitions/DeserializerFactory"
         },
         "config" : {
           "$ref" : "#/definitions/DeserializationConfig"
@@ -1203,6 +1203,9 @@
     "JavaType" : {
       "type" : "object",
       "properties" : {
+        "contentType" : {
+          "$ref" : "#/definitions/JavaType"
+        },
         "interface" : {
           "type" : "boolean"
         },
@@ -1223,9 +1226,6 @@
         },
         "abstract" : {
           "type" : "boolean"
-        },
-        "contentType" : {
-          "$ref" : "#/definitions/JavaType"
         },
         "bindings" : {
           "$ref" : "#/definitions/TypeBindings"
@@ -1289,6 +1289,9 @@
     "JsonFactory" : {
       "type" : "object",
       "properties" : {
+        "rootValueSeparator" : {
+          "type" : "string"
+        },
         "codec" : {
           "$ref" : "#/definitions/ObjectCodec"
         },
@@ -1303,9 +1306,6 @@
         },
         "outputDecorator" : {
           "$ref" : "#/definitions/OutputDecorator"
-        },
-        "rootValueSeparator" : {
-          "type" : "string"
         }
       }
     },
@@ -1397,16 +1397,16 @@
         "text" : {
           "type" : "string"
         },
-        "doubleValue" : {
-          "type" : "number",
-          "format" : "double"
-        },
         "byteValue" : {
           "type" : "string",
           "format" : "byte"
         },
         "booleanValue" : {
           "type" : "boolean"
+        },
+        "doubleValue" : {
+          "type" : "number",
+          "format" : "double"
         },
         "floatValue" : {
           "type" : "number",
@@ -1586,6 +1586,9 @@
         "displayName" : {
           "type" : "string"
         },
+        "language" : {
+          "type" : "string"
+        },
         "script" : {
           "type" : "string"
         },
@@ -1632,9 +1635,6 @@
           "type" : "string"
         },
         "displayVariant" : {
-          "type" : "string"
-        },
-        "language" : {
           "type" : "string"
         }
       }
@@ -1890,9 +1890,6 @@
     "PublicKey" : {
       "type" : "object",
       "properties" : {
-        "format" : {
-          "type" : "string"
-        },
         "algorithm" : {
           "type" : "string"
         },
@@ -1902,6 +1899,9 @@
             "type" : "string",
             "format" : "byte"
           }
+        },
+        "format" : {
+          "type" : "string"
         }
       }
     },
@@ -2278,9 +2278,11 @@
         "issuerX500Principal" : {
           "$ref" : "#/definitions/X500Principal"
         },
-        "version" : {
-          "type" : "integer",
-          "format" : "int32"
+        "issuerDN" : {
+          "$ref" : "#/definitions/Principal"
+        },
+        "subjectDN" : {
+          "$ref" : "#/definitions/Principal"
         },
         "serialNumber" : {
           "type" : "integer"
@@ -2292,11 +2294,20 @@
             "format" : "byte"
           }
         },
-        "issuerDN" : {
-          "$ref" : "#/definitions/Principal"
+        "signature" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
         },
-        "subjectDN" : {
-          "$ref" : "#/definitions/Principal"
+        "basicConstraints" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "version" : {
+          "type" : "integer",
+          "format" : "int32"
         },
         "extendedKeyUsage" : {
           "type" : "array",
@@ -2360,17 +2371,6 @@
               "type" : "object"
             }
           }
-        },
-        "signature" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
-        "basicConstraints" : {
-          "type" : "integer",
-          "format" : "int32"
         },
         "criticalExtensionOIDs" : {
           "type" : "array",
