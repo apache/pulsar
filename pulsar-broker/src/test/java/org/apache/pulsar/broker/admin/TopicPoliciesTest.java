@@ -85,6 +85,7 @@ import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -111,7 +112,6 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         this.conf.setSystemTopicEnabled(true);
         this.conf.setTopicLevelPoliciesEnabled(true);
         this.conf.setDefaultNumberOfNamespaceBundles(1);
-        this.conf.setMaxMessageSizeCheckIntervalInSeconds(1);
         super.internalSetup();
 
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
@@ -1942,14 +1942,24 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(timeOut = 20000)
-    public void testTopicMaxMessageSize() throws Exception{
-        doTestTopicMaxMessageSize(true);
-        doTestTopicMaxMessageSize(false);
+    @DataProvider(name = "persistentAndPartition")
+    public Object[][] implementations() {
+        return new Object[][]{
+                {TopicDomain.persistent, true},
+                {TopicDomain.persistent, false},
+                {TopicDomain.non_persistent, true},
+                {TopicDomain.non_persistent, false},
+        };
     }
 
-    private void doTestTopicMaxMessageSize(boolean isPartitioned) throws Exception {
-        final String topic = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
+    @Test(dataProvider = "persistentAndPartition")
+    public void testTopicMaxMessageSize(TopicDomain topicDomain, boolean isPartitioned) throws Exception {
+        final String topic = TopicName.get(
+                topicDomain.value(),
+                NamespaceName.get(myNamespace),
+                "test-" + UUID.randomUUID()
+        ).toString();
+
         if (isPartitioned) {
             admin.topics().createPartitionedTopic(topic, 3);
         }
@@ -1958,8 +1968,25 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertNull(admin.topicPolicies().getMaxMessageSize(topic));
         // set msg size
         admin.topicPolicies().setMaxMessageSize(topic, 10);
-        Awaitility.await().until(()
-                -> pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)) != null);
+        if (isPartitioned) {
+            for (int i = 0; i <3; i++) {
+                String partitionName = TopicName.get(topic).getPartition(i).toString();
+                Awaitility.await().untilAsserted(() -> {
+                    AbstractTopic partition =
+                            (AbstractTopic) pulsar.getBrokerService().getTopicIfExists(partitionName).get().get();
+                    assertEquals(partition.getHierarchyTopicPolicies().getTopicMaxMessageSize().get(),
+                            Integer.valueOf(10));
+                });
+            }
+        } else {
+            Awaitility.await().untilAsserted(() -> {
+                AbstractTopic abstractTopic =
+                        (AbstractTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+                assertEquals(abstractTopic.getHierarchyTopicPolicies().getTopicMaxMessageSize().get(),
+                        Integer.valueOf(10));
+            });
+        }
+
         assertEquals(admin.topicPolicies().getMaxMessageSize(topic).intValue(), 10);
 
         try {
@@ -1982,6 +2009,23 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             fail("should fail");
         } catch (PulsarAdminException e) {
             assertEquals(e.getStatusCode(), 412);
+        }
+        //make sure policy value take effect.
+        if (isPartitioned) {
+            for (int i = 0; i <3; i++) {
+                String partitionName = TopicName.get(topic).getPartition(i).toString();
+                Awaitility.await().untilAsserted(() -> {
+                    AbstractTopic partition =
+                            (AbstractTopic) pulsar.getBrokerService().getTopicIfExists(partitionName).get().get();
+                    assertNull(partition.getHierarchyTopicPolicies().getTopicMaxMessageSize().getTopicValue());
+                });
+            }
+        } else {
+            Awaitility.await().untilAsserted(() -> {
+                AbstractTopic abstractTopic =
+                        (AbstractTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+                assertNull(abstractTopic.getHierarchyTopicPolicies().getTopicMaxMessageSize().getTopicValue());
+            });
         }
 
         Awaitility.await().untilAsserted(() -> {

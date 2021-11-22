@@ -36,6 +36,8 @@ public class PolicyHierarchyValue<T> {
     @Getter
     private volatile T namespaceValue;
 
+    @VisibleForTesting
+    @Getter
     private volatile T topicValue;
 
     private volatile T value;
