@@ -18,12 +18,20 @@
  */
 package org.apache.pulsar.broker.transaction;
 
+import static org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore.PENDING_ACK_STORE_SUFFIX;
 import static org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl.TRANSACTION_LOG_PREFIX;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import static org.testng.FileAssert.fail;
+
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +52,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -164,14 +173,14 @@ public class TransactionTest extends TransactionTestBase {
         Transaction transaction = pulsarClient.newTransaction()
                 .build().get();
         TxnID txnID = transaction.getTxnID();
-        Assert.assertEquals(txnID.getLeastSigBits(), 0);
-        Assert.assertEquals(txnID.getMostSigBits(), 0);
+        assertEquals(txnID.getLeastSigBits(), 0);
+        assertEquals(txnID.getMostSigBits(), 0);
         transaction.abort();
         transaction = pulsarClient.newTransaction()
                 .build().get();
         txnID = transaction.getTxnID();
-        Assert.assertEquals(txnID.getLeastSigBits(), 1);
-        Assert.assertEquals(txnID.getMostSigBits(), 0);
+        assertEquals(txnID.getLeastSigBits(), 1);
+        assertEquals(txnID.getMostSigBits(), 0);
     }
 
     @Test
@@ -228,12 +237,12 @@ public class TransactionTest extends TransactionTestBase {
                     Assert.fail();
                 }
                 TopicPolicies topicPolicies = originPersistentTopic.getTopicPolicies().get();
-                Assert.assertEquals(retentionSizeInMbSetTopic, retentionSize);
+                assertEquals(retentionSizeInMbSetTopic, retentionSize);
                 MLPendingAckStoreProvider mlPendingAckStoreProvider = new MLPendingAckStoreProvider();
                 CompletableFuture<PendingAckStore> future = mlPendingAckStoreProvider.newPendingAckStore(subscription);
                 future.thenAccept(pendingAckStore -> {
                             ((MLPendingAckStore) pendingAckStore).getManagedLedger().thenAccept(managedLedger1 -> {
-                                Assert.assertEquals(managedLedger1.getConfig().getRetentionSizeInMB(),
+                                assertEquals(managedLedger1.getConfig().getRetentionSizeInMB(),
                                         retentionSizeInMbSetTo);
                             });
                         }
@@ -244,6 +253,63 @@ public class TransactionTest extends TransactionTestBase {
         });
 
 
+    }
+
+    @Test
+    public void testCreateTransactionSystemTopic() throws Exception {
+        String subName = "test";
+        String topicName = TopicName.get(NAMESPACE1 + "/" + "testCreateTransactionSystemTopic").toString();
+
+        try {
+            // init pending ack
+            @Cleanup
+            Consumer<byte[]> consumer = getConsumer(topicName, subName);
+            Transaction transaction = pulsarClient.newTransaction()
+                    .withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
+
+            consumer.acknowledgeAsync(new MessageIdImpl(10, 10, 10), transaction).get();
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof PulsarClientException.TransactionConflictException);
+        }
+        topicName = MLPendingAckStore.getTransactionPendingAckStoreSuffix(topicName, subName);
+
+        // getList does not include transaction system topic
+        List<String> list = admin.topics().getList(NAMESPACE1);
+        assertEquals(list.size(), 3);
+        list.forEach(topic -> assertFalse(topic.contains(PENDING_ACK_STORE_SUFFIX)));
+
+        try {
+            // can't create transaction system topic
+            @Cleanup
+            Consumer<byte[]> consumer = getConsumer(topicName, subName);
+            fail();
+        } catch (PulsarClientException.NotAllowedException e) {
+            assertTrue(e.getMessage().contains("Can not create transaction system topic"));
+        }
+
+        // can't create transaction system topic
+        try {
+            admin.topics().getSubscriptions(topicName);
+            fail();
+        } catch (PulsarAdminException e) {
+            assertEquals(e.getMessage(), "Can not create transaction system topic " + topicName);
+        }
+
+        // can't create transaction system topic
+        try {
+            admin.topics().createPartitionedTopic(topicName, 3);
+            fail();
+        } catch (PulsarAdminException e) {
+            assertEquals(e.getMessage(), "Cannot create topic in system topic format!");
+        }
+
+        // can't create transaction system topic
+        try {
+            admin.topics().createNonPartitionedTopic(topicName);
+            fail();
+        } catch (PulsarAdminException e) {
+            assertEquals(e.getMessage(), "Cannot create topic in system topic format!");
+        }
     }
 
 }

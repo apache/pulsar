@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import static org.apache.commons.collections.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.broker.PulsarService.isTransactionSystemTopic;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
@@ -1279,6 +1280,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             log.warn(msg);
             pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
             topicFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
+            return;
+        }
+
+        if (isTransactionSystemTopic(topicName)) {
+            String msg = String.format("Can not create transaction system topic %s", topic);
+            log.warn(msg);
+            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
+            topicFuture.completeExceptionally(new NotAllowedException(msg));
             return;
         }
 

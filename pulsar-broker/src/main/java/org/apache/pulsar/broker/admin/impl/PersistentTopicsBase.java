@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import static org.apache.pulsar.broker.PulsarService.isTransactionInternalName;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.resources.PulsarResources.DEFAULT_OPERATION_TIMEOUT_SEC;
 import static org.apache.pulsar.common.util.Codec.decode;
@@ -164,7 +165,8 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             String path = String.format("/managed-ledgers/%s/%s", namespaceName.toString(), domain());
             for (String topic : getLocalPolicies().getChildren(path)) {
-                if (domain().equals(TopicDomain.persistent.toString())) {
+                if (domain().equals(TopicDomain.persistent.toString())
+                        && !isTransactionInternalName(TopicName.get(topic))) {
                     topics.add(TopicName.get(domain(), namespaceName, decode(topic)).toString());
                 }
             }
@@ -196,6 +198,13 @@ public class PersistentTopicsBase extends AdminResource {
             throw new RestException(e);
         }
         return getPartitionedTopicList(TopicDomain.getEnum(domain()));
+    }
+
+    protected void validateCreateTopic(TopicName topicName) {
+        if (isTransactionInternalName(topicName)) {
+            log.warn("Try to create a topic in the system topic format! {}", topicName);
+            throw new RestException(Status.BAD_REQUEST, "Cannot create topic in system topic format!");
+        }
     }
 
     protected Map<String, Set<AuthAction>> internalGetPermissionsOnTopic() {
@@ -3517,7 +3526,10 @@ public class PersistentTopicsBase extends AdminResource {
         } catch (RestException e) {
             throw e;
         } catch (Exception e) {
-            throw new RestException(e);
+            if (e.getCause() instanceof NotAllowedException) {
+                throw new RestException(Status.BAD_REQUEST, e.getCause());
+            }
+            throw new RestException(e.getCause());
         }
     }
 
