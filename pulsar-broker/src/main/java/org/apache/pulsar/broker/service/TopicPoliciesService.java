@@ -26,6 +26,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCach
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.BackoffBuilder;
 import org.apache.pulsar.client.util.RetryUtil;
+import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
@@ -34,6 +35,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 /**
  * Topic policies service.
  */
+@InterfaceStability.Evolving
 public interface TopicPoliciesService {
 
     TopicPoliciesService DISABLED = new TopicPoliciesServiceDisabled();
