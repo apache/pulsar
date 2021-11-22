@@ -119,16 +119,16 @@ public class PersistentSubscription implements Subscription {
     private final PendingAckHandle pendingAckHandle;
     private Map<String, Long> subscriptionProperties;
 
-    static {
-        REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES.put(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
-    }
-
     private final LongAdder bytesOutFromRemovedConsumers = new LongAdder();
     private final LongAdder msgOutFromRemovedConsumer = new LongAdder();
 
     private DeleteTransactionMarkerState deleteTransactionMarkerState = DeleteTransactionMarkerState.None;
 
     private final Object waitObject = new Object();
+
+    static {
+        REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES.put(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
+    }
 
     public enum DeleteTransactionMarkerState {
         Process,
