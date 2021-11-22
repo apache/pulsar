@@ -276,6 +276,32 @@ The schema definition is like this.
 
 You can send messages using `BytesSchema`, `StringSchema`, `AvroSchema`, and `JsonSchema`.
 
+Before the producer is created, the Pulsar broker validates that the existing topic schema is the correct type and that the format is compatible with the schema definition of a class. If the format of the topic schema is incompatible with the schema definition, an exception occurs in the producer creation.
+
+Once a producer is created with a certain schema definition, it only accepts objects that are instances of the declared schema class.
+
+Similarly, for a consumer or reader, the consumer returns an object (which is an instance of the schema record class) rather than raw bytes.
+
+**Example**
+
+```python
+consumer = client.subscribe(
+                  topic='my-topic',
+                  subscription_name='my-subscription',
+                  schema=AvroSchema(Example) )
+
+while True:
+    msg = consumer.receive()
+    ex = msg.value()
+    try:
+        print("Received message a={} b={} c={}".format(ex.a, ex.b, ex.c))
+        # Acknowledge successful processing of the message
+        consumer.acknowledge(msg)
+    except:
+        # Message failed to be processed
+        consumer.negative_acknowledge(msg)
+```
+
 <!--DOCUSAURUS_CODE_TABS-->
 
 <!--BytesSchema-->
@@ -347,32 +373,6 @@ consumer = client.subscribe(
 				schema=AvroSchema(Example))
 msg = consumer.receive()
 e = msg.value()
-```
-
-After the producer is created, the Pulsar broker validates that the existing topic schema is "Avro" type and that the format is compatible with the schema definition of the `Example` class. If the format of the topic schema is incompatible with the schema definition, an exception occurs in the producer creation.
-
-Once a producer is created with a certain schema definition, it only accepts objects that are instances of the declared schema class.
-
-Similarly, for a consumer or reader, the consumer returns an object (which is an instance of the schema record class) rather than raw bytes.
-
-**Example**
-
-```python
-consumer = client.subscribe(
-                  topic='my-topic',
-                  subscription_name='my-subscription',
-                  schema=AvroSchema(Example) )
-
-while True:
-    msg = consumer.receive()
-    ex = msg.value()
-    try:
-        print("Received message a={} b={} c={}".format(ex.a, ex.b, ex.c))
-        # Acknowledge successful processing of the message
-        consumer.acknowledge(msg)
-    except:
-        # Message failed to be processed
-        consumer.negative_acknowledge(msg)
 ```
 
 #### Method 2: JSON definition
