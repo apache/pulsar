@@ -546,6 +546,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                 isAuthorizedFuture = allowTheSpecifiedActionOpsAsync(namespaceName, role, authData, AuthAction.packages);
                 break;
             case GET_TOPICS:
+            case UNSUBSCRIBE:
                 isAuthorizedFuture = allowConsumeOpsAsync(namespaceName, role, authData);
                 break;
             default:
@@ -582,6 +583,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         switch (operation) {
             case LOOKUP:
             case GET_STATS:
+            case GET_METADATA:
                 isAuthorizedFuture = canLookupAsync(topicName, role, authData);
                 break;
             case PRODUCE:

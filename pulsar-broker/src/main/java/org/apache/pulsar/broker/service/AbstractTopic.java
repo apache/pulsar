@@ -98,7 +98,7 @@ public abstract class AbstractTopic implements Topic {
     @Getter
     protected volatile SchemaCompatibilityStrategy schemaCompatibilityStrategy =
             SchemaCompatibilityStrategy.FULL;
-    protected volatile boolean isAllowAutoUpdateSchema = true;
+    protected volatile Boolean isAllowAutoUpdateSchema;
     // schema validation enforced flag
     protected volatile boolean schemaValidationEnforced = false;
 
@@ -330,20 +330,28 @@ public abstract class AbstractTopic implements Topic {
         String base = TopicName.get(getName()).getPartitionedTopicName();
         String id = TopicName.get(base).getSchemaName();
         SchemaRegistryService schemaRegistryService = brokerService.pulsar().getSchemaRegistryService();
-        return isAllowAutoUpdateSchema ? schemaRegistryService
-                .putSchemaIfAbsent(id, schema, schemaCompatibilityStrategy)
-                : schemaRegistryService.trimDeletedSchemaAndGetList(id).thenCompose(schemaAndMetadataList ->
-                schemaRegistryService.getSchemaVersionBySchemaData(schemaAndMetadataList, schema)
-                        .thenCompose(schemaVersion -> {
-                    if (schemaVersion == null) {
-                        return FutureUtil
-                                .failedFuture(
-                                        new IncompatibleSchemaException(
-                                                "Schema not found and schema auto updating is disabled."));
-                    } else {
-                        return CompletableFuture.completedFuture(schemaVersion);
-                    }
-                }));
+
+        if (allowAutoUpdateSchema()) {
+            return schemaRegistryService.putSchemaIfAbsent(id, schema, schemaCompatibilityStrategy);
+        } else {
+            return schemaRegistryService.trimDeletedSchemaAndGetList(id).thenCompose(schemaAndMetadataList ->
+                    schemaRegistryService.getSchemaVersionBySchemaData(schemaAndMetadataList, schema)
+                            .thenCompose(schemaVersion -> {
+                                if (schemaVersion == null) {
+                                    return FutureUtil.failedFuture(new IncompatibleSchemaException(
+                                            "Schema not found and schema auto updating is disabled."));
+                                } else {
+                                    return CompletableFuture.completedFuture(schemaVersion);
+                                }
+                            }));
+        }
+    }
+
+    private boolean allowAutoUpdateSchema() {
+        if (isAllowAutoUpdateSchema == null) {
+            return brokerService.pulsar().getConfig().isAllowAutoUpdateSchemaEnabled();
+        }
+        return isAllowAutoUpdateSchema;
     }
 
     @Override

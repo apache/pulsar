@@ -171,6 +171,10 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     @Override
     public TopicPolicies getTopicPolicies(TopicName topicName) throws TopicPoliciesCacheNotInitException {
+        if (!policyCacheInitMap.containsKey(topicName.getNamespaceObject())) {
+            NamespaceName namespace = topicName.getNamespaceObject();
+            prepareInitPoliciesCache(namespace, new CompletableFuture<>());
+        }
         if (policyCacheInitMap.containsKey(topicName.getNamespaceObject())
                 && !policyCacheInitMap.get(topicName.getNamespaceObject())) {
             throw new TopicPoliciesCacheNotInitException();
@@ -208,22 +212,29 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 result.complete(null);
             } else {
                 ownedBundlesCountPerNamespace.putIfAbsent(namespace, new AtomicInteger(1));
-                policyCacheInitMap.put(namespace, false);
-                CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
-                        creatSystemTopicClientWithRetry(namespace);
-                readerCaches.put(namespace, readerCompletableFuture);
-                readerCompletableFuture.whenComplete((reader, ex) -> {
-                    if (ex != null) {
-                        log.error("[{}] Failed to create reader on __change_events topic", namespace, ex);
-                        result.completeExceptionally(ex);
-                    } else {
-                        initPolicesCache(reader, result);
-                        result.thenRun(() -> readMorePolicies(reader));
-                    }
-                });
+                prepareInitPoliciesCache(namespace, result);
             }
         }
         return result;
+    }
+
+    private void prepareInitPoliciesCache(NamespaceName namespace, CompletableFuture<Void> result) {
+        if (policyCacheInitMap.putIfAbsent(namespace, false) == null) {
+            CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
+                    creatSystemTopicClientWithRetry(namespace);
+            readerCaches.put(namespace, readerCompletableFuture);
+            readerCompletableFuture.whenComplete((reader, ex) -> {
+                if (ex != null) {
+                    log.error("[{}] Failed to create reader on __change_events topic", namespace, ex);
+                    result.completeExceptionally(ex);
+                    readerCaches.remove(namespace);
+                    reader.closeAsync();
+                } else {
+                    initPolicesCache(reader, result);
+                    result.thenRun(() -> readMorePolicies(reader));
+                }
+            });
+        }
     }
 
     protected CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> creatSystemTopicClientWithRetry(
@@ -292,6 +303,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         reader.getSystemTopic().getTopicName(), ex);
                 future.completeExceptionally(ex);
                 readerCaches.remove(reader.getSystemTopic().getTopicName().getNamespaceObject());
+                policyCacheInitMap.remove(reader.getSystemTopic().getTopicName().getNamespaceObject());
+                reader.closeAsync();
+                return;
             }
             if (hasMore) {
                 reader.readNextAsync().whenComplete((msg, e) -> {
@@ -300,6 +314,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                 reader.getSystemTopic().getTopicName(), ex);
                         future.completeExceptionally(e);
                         readerCaches.remove(reader.getSystemTopic().getTopicName().getNamespaceObject());
+                        policyCacheInitMap.remove(reader.getSystemTopic().getTopicName().getNamespaceObject());
+                        reader.closeAsync();
+                        return;
                     }
                     refreshTopicPoliciesCache(msg);
                     if (log.isDebugEnabled()) {
@@ -314,7 +331,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 }
                 policyCacheInitMap.computeIfPresent(
                         reader.getSystemTopic().getTopicName().getNamespaceObject(), (k, v) -> true);
-
                 // replay policy message
                 policiesCache.forEach(((topicName, topicPolicies) -> {
                     if (listeners.get(topicName) != null) {
