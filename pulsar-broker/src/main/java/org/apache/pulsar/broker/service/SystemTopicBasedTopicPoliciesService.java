@@ -508,16 +508,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         });
     }
 
-    @Override
-    public void clean(TopicName topicName) {
-        TopicName realTopicName = topicName;
-        if (topicName.isPartitioned()) {
-            //change persistent://tenant/namespace/xxx-partition-0  to persistent://tenant/namespace/xxx
-            realTopicName = TopicName.get(topicName.getPartitionedTopicName());
-        }
-        listeners.remove(realTopicName);
-    }
-
     @VisibleForTesting
     protected Map<TopicName, TopicPolicies> getPoliciesCache() {
         return policiesCache;
