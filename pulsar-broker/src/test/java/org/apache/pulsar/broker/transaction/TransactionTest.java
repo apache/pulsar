@@ -291,7 +291,7 @@ public class TransactionTest extends TransactionTestBase {
         try {
             admin.topics().getSubscriptions(topicName);
             fail();
-        } catch (PulsarAdminException.ConflictException e) {
+        } catch (PulsarAdminException e) {
             assertEquals(e.getMessage(), "Can not create transaction system topic " + topicName);
         }
 
@@ -299,7 +299,7 @@ public class TransactionTest extends TransactionTestBase {
         try {
             admin.topics().createPartitionedTopic(topicName, 3);
             fail();
-        } catch (PulsarAdminException.ConflictException e) {
+        } catch (PulsarAdminException e) {
             assertEquals(e.getMessage(), "Cannot create topic in system topic format!");
         }
 
@@ -307,7 +307,7 @@ public class TransactionTest extends TransactionTestBase {
         try {
             admin.topics().createNonPartitionedTopic(topicName);
             fail();
-        } catch (PulsarAdminException.ConflictException e) {
+        } catch (PulsarAdminException e) {
             assertEquals(e.getMessage(), "Cannot create topic in system topic format!");
         }
     }
