@@ -142,27 +142,27 @@ ls offloaders
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="自动运行-filesystem-offloader"></a><a href="#自动运行-filesystem-offloader" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>自动运行 filesystem offloader</h3>
 <p>您可以将命名空间策略配置为在达到阈值后自动卸载数据。 该阈值基于一个 topic 在 Pulsar 集群的数据存储大小而定。 一旦 topic 到达阈值，就自动触发卸载操作。</p>
-<p>Threshold value|Action |---|--- | &gt; 0 | It triggers the offloading operation if the topic storage reaches its threshold. = 0| 它使 broker 竭尽全力地 offload 数据。 &lt; 0 |It disables automatic offloading operation.</p>
-<p>Automatic offload runs when a new segment is added to a topic log. If you set the threshold on a namespace, but few messages are being produced to the topic, the filesystem offloader does not work until the current segment is full.</p>
-<p>You can configure the threshold using CLI tools, such as pulsar-admin.</p>
+<p>阈值|动作 |---|--- | &gt; 0 | 如果 topic 存储达到其阈值，它就会触发卸载操作。 = 0| 它使 broker 竭尽全力地 offload 数据。 &lt; 0 | 它将禁用自动卸载操作。</p>
+<p>Automatic offload runs when a new segment is added to a topic log. 如果在命名空间上设置了阈值，但向该 topic 生产的消息很少，filesystem offloader 将会停止工作，直至当前 segment 达到饱和。</p>
+<p>通过命令行工具（CLI）可以设置阈值大小，比如 pulsar-admin。</p>
 <h4><a class="anchor" aria-hidden="true" id="示例"></a><a href="#示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>示例</h4>
-<p>This example sets the filesystem offloader threshold to 10 MB using pulsar-admin.</p>
+<p>该示例使用 pulsar-admin 将 filesystem offloader 的阈值大小设置为 10 MB。</p>
 <pre><code class="hljs css language-bash">pulsar-admin namespaces <span class="hljs-built_in">set</span>-offload-threshold --size 10M my-tenant/my-namespace
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示"></a><a href="#提示" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
 <p>关于 <code>pulsar-admin namespaces set-offload-threshold options</code> 命令的更多信息，包括标志、描述、默认值和速记方法，见<a href="/docs/zh-CN/2.7.2/pulsar-admin#set-offload-threshold">这里</a>。</p>
 </blockquote>
-<h3><a class="anchor" aria-hidden="true" id="run-filesystem-offloader-manually"></a><a href="#run-filesystem-offloader-manually" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Run filesystem offloader manually</h3>
-<p>For individual topics, you can trigger the filesystem offloader manually using one of the following methods:</p>
+<h3><a class="anchor" aria-hidden="true" id="手动运行-filesystem-offloader"></a><a href="#手动运行-filesystem-offloader" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>手动运行 filesystem offloader</h3>
+<p>对于每一个 topic，使用下列方法之一可以手动触发 filesystem offloader：</p>
 <ul>
-<li><p>Use the REST endpoint.</p></li>
+<li><p>使用 REST 端点。</p></li>
 <li><p>使用命令行工具(例如 pulsar-admin)。</p></li>
 </ul>
-<p>To manually trigger the filesystem offloader via CLI tools, you need to specify the maximum amount of data (threshold) that should be retained on a Pulsar cluster for a topic. 如果 Pulsar 集群上 topic 的数据大小超过了这个阈值，那么该 topic 下的 segment 就会被陆续卸载到 filesystem 上，直到不再超过这个阈值。 优先卸载旧的 segment。</p>
+<p>要想用命令行工具触发 filesystem offloader，需要指定一个 topic 应该保留在 Pulsar 集群中的最大数据量(阈值)。 如果 Pulsar 集群上 topic 的数据大小超过了这个阈值，那么该 topic 下的 segment 就会被陆续卸载到 filesystem 上，直到不再超过这个阈值。 优先卸载旧的 segment。</p>
 <h4><a class="anchor" aria-hidden="true" id="示例-1"></a><a href="#示例-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>示例</h4>
 <ul>
-<li><p>This example manually run the filesystem offloader using pulsar-admin.</p>
+<li><p>此示例使用 pulsar-admin 手动运行 filesystem offloader。</p>
 <pre><code class="hljs css language-bash">pulsar-admin topics offload --size-threshold 10M persistent://my-tenant/my-namespace/topic1
 </code></pre>
 <p><strong>输出</strong></p>
@@ -199,96 +199,96 @@ Reason: <span class="hljs-builtin-name">Error</span> offloading: org.apache.book
 </blockquote></li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="教程"></a><a href="#教程" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>教程</h2>
-<p>This section provides step-by-step instructions on how to use the filesystem offloader to move data from Pulsar to Hadoop Distributed File System (HDFS) or Network File system (NFS).</p>
-<pre><code class="hljs">&lt;div class=&quot;tabs&quot;&gt;&lt;div class=&quot;nav-tabs&quot;&gt;&lt;div id=&quot;tab-group-24829-tab-24830&quot; class=&quot;nav-link active&quot; data-group=&quot;group_24829&quot; data-tab=&quot;tab-group-24829-content-24830&quot;&gt;HDFS&lt;/div&gt;&lt;div id=&quot;tab-group-24829-tab-24831&quot; class=&quot;nav-link&quot; data-group=&quot;group_24829&quot; data-tab=&quot;tab-group-24829-content-24831&quot;&gt;NFS&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;tab-content&quot;&gt;&lt;div id=&quot;tab-group-24829-content-24830&quot; class=&quot;tab-pane active&quot; data-group=&quot;group_24829&quot; tabindex=&quot;-1&quot;&gt;&lt;div&gt;&lt;span&gt;&lt;p&gt;To move data from Pulsar to HDFS, follow these steps.&lt;/p&gt;
+<p>本节提供有关如何使用  filesystem offloader  将数据从 Pulsar 移动到 Hadoop 分布式文件系统（HDFS）或网络文件系统（NFS）的分步说明。</p>
+<pre><code class="hljs">&lt;div class=&quot;tabs&quot;&gt;&lt;div class=&quot;nav-tabs&quot;&gt;&lt;div id=&quot;tab-group-24829-tab-24830&quot; class=&quot;nav-link active&quot; data-group=&quot;group_24829&quot; data-tab=&quot;tab-group-24829-content-24830&quot;&gt;HDFS&lt;/div&gt;&lt;div id=&quot;tab-group-24829-tab-24831&quot; class=&quot;nav-link&quot; data-group=&quot;group_24829&quot; data-tab=&quot;tab-group-24829-content-24831&quot;&gt;NFS&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;tab-content&quot;&gt;&lt;div id=&quot;tab-group-24829-content-24830&quot; class=&quot;tab-pane active&quot; data-group=&quot;group_24829&quot; tabindex=&quot;-1&quot;&gt;&lt;div&gt;&lt;span&gt;&lt;p&gt;要将数据从 Pulsar 移动到 HDFS，请按照以下步骤进行。&lt;/p&gt;
 </code></pre>
-<p><h3><a class="anchor" aria-hidden="true" id="step-1-prepare-the-hdfs-environment"></a><a href="#step-1-prepare-the-hdfs-environment" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Step 1: Prepare the HDFS environment</h3></p>
-<p>This tutorial sets up a Hadoop single node cluster and uses Hadoop 3.2.1.</p>
+<p><h3><a class="anchor" aria-hidden="true" id="第-1-步准备-hdfs-环境"></a><a href="#第-1-步准备-hdfs-环境" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>第 1 步：准备 HDFS 环境</h3></p>
+<p>本教程使用 Hadoop 3.2.1设置一个 Hadoop 单个节点集群。</p>
 <blockquote>
 <p><strong>提示</strong></p>
-<p>For details about how to set up a Hadoop single node cluster, see <a href="https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-common/SingleCluster.html">here</a>.</p>
+<p>有关如何设置 Hadoop 单节点集群的详细信息，请参见<a href="https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-common/SingleCluster.html">此处</a>。</p>
 </blockquote>
 <ol>
-<li>Download and uncompress Hadoop 3.2.1.</li>
+<li>下载并解压缩 Hadoop 3.2.1。</li>
 </ol>
 <pre><code class="hljs">wget <span class="hljs-symbol">https:</span>/<span class="hljs-regexp">/mirrors.bfsu.edu.cn/apache</span><span class="hljs-regexp">/hadoop/common</span><span class="hljs-regexp">/hadoop-3.2.1/hadoop</span><span class="hljs-number">-3.2</span>.<span class="hljs-number">1</span>.tar.gz  <br /><br />tar -zxvf hadoop<span class="hljs-number">-3.2</span>.<span class="hljs-number">1</span>.tar.gz -C <span class="hljs-variable">$HADOOP_HOME</span><br /></code></pre>    
 <ol start="2">
-<li>Configure Hadoop.</li>
+<li>配置 Hadoop。</li>
 </ol>
 <pre><code class="hljs"><span class="hljs-meta"># $HADOOP_HOME/etc/hadoop/core-site.xml</span><br /><span class="hljs-params">&lt;configuration&gt;</span><br />    <span class="hljs-params">&lt;property&gt;</span><br />        <span class="hljs-params">&lt;name&gt;</span>fs.defaultFS<span class="hljs-params">&lt;/name&gt;</span><br />        <span class="hljs-params">&lt;value&gt;</span>hdfs:<span class="hljs-comment">//localhost:9000&lt;/value&gt;</span><br />    <span class="hljs-params">&lt;/property&gt;</span><br /><span class="hljs-params">&lt;/configuration&gt;</span><br /><br /><span class="hljs-meta"># $HADOOP_HOME/etc/hadoop/hdfs-site.xml</span><br /><span class="hljs-params">&lt;configuration&gt;</span><br />    <span class="hljs-params">&lt;property&gt;</span><br />        <span class="hljs-params">&lt;name&gt;</span>dfs.replication<span class="hljs-params">&lt;/name&gt;</span><br />        <span class="hljs-params">&lt;value&gt;</span><span class="hljs-number">1</span><span class="hljs-params">&lt;/value&gt;</span><br />    <span class="hljs-params">&lt;/property&gt;</span><br /><span class="hljs-params">&lt;/configuration&gt;</span><br /></code></pre>    
 <ol start="3">
-<li>Set passphraseless ssh.</li>
+<li>设置无密码 ssh。</li>
 </ol>
-<pre><code class="hljs"><span class="hljs-comment"># Now check that you can ssh to the localhost without a passphrase:</span><br /><span class="hljs-variable">$ </span>ssh localhost<br /><span class="hljs-comment"># If you cannot ssh to localhost without a passphrase, execute the following commands</span><br /><span class="hljs-variable">$ </span>ssh-keygen -t rsa -P <span class="hljs-string">''</span> -f ~<span class="hljs-regexp">/.ssh/id</span>_rsa<br /><span class="hljs-variable">$ </span>cat ~<span class="hljs-regexp">/.ssh/id</span>_rsa.pub &gt;&gt; ~<span class="hljs-regexp">/.ssh/authorized</span>_keys<br /><span class="hljs-variable">$ </span>chmod 0600 ~<span class="hljs-regexp">/.ssh/authorized</span>_keys<br /></code></pre>    
+<pre><code class="hljs"><span class="hljs-comment"># 现在检查无需密码是否可以使用 ssh 连接到 localhost：</span><br /><span class="hljs-variable">$ </span>ssh localhost<br /><span class="hljs-comment"># 如果在无密码的情况下无法 ssh 连接到 localhost，请执行以下命令</span><br /><span class="hljs-variable">$ </span>ssh-keygen -t rsa -P <span class="hljs-string">''</span> -f ~<span class="hljs-regexp">/.ssh/id</span>_rsa<br /><span class="hljs-variable">$ </span>cat ~<span class="hljs-regexp">/.ssh/id</span>_rsa.pub &gt;&gt; ~<span class="hljs-regexp">/.ssh/authorized</span>_keys<br /><span class="hljs-variable">$ </span>chmod 0600 ~<span class="hljs-regexp">/.ssh/authorized</span>_keys<br /></code></pre>    
 <ol start="4">
-<li>Start HDFS.</li>
+<li>启动 HDFS。</li>
 </ol>
-<pre><code class="hljs"><span class="hljs-comment"># don't execute this command repeatedly, repeat execute will cauld the clusterId of the datanode is not consistent with namenode</span><br /><span class="hljs-variable">$HADOOP_HOME</span><span class="hljs-regexp">/bin/</span>hadoop namenode -format<br /><span class="hljs-variable">$HADOOP_HOME</span><span class="hljs-regexp">/sbin/</span>start-dfs.sh<br /></code></pre>    
+<pre><code class="hljs"><span class="hljs-comment"># 不重复执行此命令， 重复执行会捕获数据集群标识符与命名方式</span><br /><span class="hljs-variable">$HADOOP_HOME</span><span class="hljs-regexp">/bin/</span>hadoop namenode -format<br /><span class="hljs-variable">$HADOOP_HOME</span><span class="hljs-regexp">/sbin/</span>start-dfs.sh<br /></code></pre>    
 <ol start="5">
-<li>Navigate to the <a href="http://localhost:9870/">HDFS website</a>.</li>
+<li>导航到 <a href="http://localhost:9870/">HDFS 网站</a>。</li>
 </ol>
-<p>You can see the <strong>Overview</strong> page.</p>
+<p>您可以查看 <strong>概述</strong> 页面。</p>
 <p><img src="/docs/assets/FileSystem-1.png" alt=""></p>
 <ol>
-<li><p>At the top navigation bar, click <strong>Datanodes</strong> to check DataNode information.</p>
+<li><p>在顶部导航栏，单击 <strong>数据节点</strong> 查看数据节点信息。</p>
 <p><img src="/docs/assets/FileSystem-2.png" alt=""></p></li>
-<li><p>Click <strong>HTTP Address</strong> to get more detailed information about localhost:9866.</p>
-<p>As can be seen below, the size of <strong>Capacity Used</strong> is 4 KB, which is the initial value.</p>
+<li><p>单击 <strong>HTTP 地址</strong> 获取更多关于 localhost:9866 的详细信息。</p>
+<p>如下文所示， <strong>所用容量</strong> 的大小是 4 KB，它是初始值。</p>
 <p><img src="/docs/assets/FileSystem-3.png" alt=""></p></li>
 </ol>
-<h3><a class="anchor" aria-hidden="true" id="step-2-install-the-filesystem-offloader"></a><a href="#step-2-install-the-filesystem-offloader" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Step 2: Install the filesystem offloader</h3>
-<p>For details, see <a href="#installation">installation</a>.</p>
-<h3><a class="anchor" aria-hidden="true" id="step-3-configure-the-filesystem-offloader"></a><a href="#step-3-configure-the-filesystem-offloader" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Step 3: Configure the filesystem offloader</h3>
-<p>As indicated in the <a href="#configuration">configuration</a> section, you need to configure some properties for the filesystem offloader driver before using it. This tutorial assumes that you have configured the filesystem offloader driver as below and run Pulsar in <strong>standalone</strong> mode.</p>
-<p>Set the following configurations in the <code>conf/standalone.conf</code> file.</p>
+<h3><a class="anchor" aria-hidden="true" id="第-2-步-安装-filesystem-offloader"></a><a href="#第-2-步-安装-filesystem-offloader" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>第 2 步: 安装 filesystem offloader</h3>
+<p>更多详细信息，请参阅 <a href="#installation">安装</a>。</p>
+<h3><a class="anchor" aria-hidden="true" id="第-3-步-配置-filesystem-offloader"></a><a href="#第-3-步-配置-filesystem-offloader" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>第 3 步: 配置 filesystem offloader</h3>
+<p>正如 <a href="#configuration">配置</a> 部分所指明的那样，需要先配置  filesystem offloader 驱动程序的一些属性，然后才能使用。 本教程假设您已按以下方式配置  filesystem offloader 驱动程序，并在<strong>独立</strong>模式下运行 Pulsar。</p>
+<p>在 <code>conf/standalone.conf</code> 文件中设置以下配置。</p>
 <pre><code class="hljs css language-conf"><span class="hljs-attr">managedLedgerOffloadDriver</span>=filesystem<br /><span class="hljs-attr">fileSystemURI</span>=hdfs://<span class="hljs-number">127.0</span>.<span class="hljs-number">0.1</span>:<span class="hljs-number">9000</span><br /><span class="hljs-attr">fileSystemProfilePath</span>=../conf/filesystem_<span class="hljs-literal">off</span>load_core_site.xml<br /></code></pre>    
 <blockquote>
 <p><strong>Note</strong></p>
-<p>For testing purposes, you can set the following two configurations to speed up ledger rollover, but it is not recommended that you set them in the production environment.</p>
+<p>为测试目的，您可以设置以下两个配置来加速 ledger 切换， 但不建议在生产环境中设置它们。</p>
 </blockquote>
 <pre><code class="hljs"><span class="hljs-attr">managedLedgerMinLedgerRolloverTimeMinutes</span>=<span class="hljs-number">1</span><br /><span class="hljs-attr">managedLedgerMaxEntriesPerLedger</span>=<span class="hljs-number">100</span><br /></code></pre>    
 </span></div></div><div id="tab-group-24829-content-24831" class="tab-pane" data-group="group_24829" tabindex="-1"><div><span><blockquote>
 <p><strong>Note</strong></p>
-<p>In this section, it is assumed that you have enabled NFS service and set the shared path of your NFS service. In this section, <code>/Users/test</code> is used as the shared path of NFS service.</p>
+<p>在本节中，假定您已启用 NFS 服务并设置 NFS 服务的共享路径。 在本节中， <code>/Users/test</code> 被用作 NFS 服务的共享路径。</p>
 </blockquote>
-<p>To offload data to NFS, follow these steps.</p>
-<h3><a class="anchor" aria-hidden="true" id="step-1-install-the-filesystem-offloader"></a><a href="#step-1-install-the-filesystem-offloader" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Step 1: Install the filesystem offloader</h3>
-<p>For details, see <a href="#installation">installation</a>.</p>
-<h3><a class="anchor" aria-hidden="true" id="step-2-mont-your-nfs-to-your-local-filesystem"></a><a href="#step-2-mont-your-nfs-to-your-local-filesystem" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Step 2: Mont your NFS to your local filesystem</h3>
-<p>This example mounts mounts <em>/Users/pulsar_nfs</em> to <em>/Users/test</em>.</p>
+<p>要将数据卸载到 NFS，请执行以下步骤。</p>
+<h3><a class="anchor" aria-hidden="true" id="第-1-步-安装-filesystem-offloader"></a><a href="#第-1-步-安装-filesystem-offloader" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>第 1 步: 安装 filesystem offloader</h3>
+<p>更多详细信息，请参阅 <a href="#installation">安装</a>。</p>
+<h3><a class="anchor" aria-hidden="true" id="第-2-步将-nfs-置于本地文件系统"></a><a href="#第-2-步将-nfs-置于本地文件系统" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>第 2 步：将 NFS 置于本地文件系统</h3>
+<p>此示例将挂载 <em>/Users/pulsar_nfs</em> 到 <em>/Users/test</em>。</p>
 <pre><code class="hljs">mount -e <span class="hljs-number">192.168</span>.0.<span class="hljs-number">103</span><span class="hljs-symbol">:/Users/test/Users/pulsar_nfs</span><br /></code></pre>    
-<h3><a class="anchor" aria-hidden="true" id="step-3-configure-the-filesystem-offloader-driver"></a><a href="#step-3-configure-the-filesystem-offloader-driver" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Step 3: Configure the filesystem offloader driver</h3>
-<p>As indicated in the <a href="#configuration">configuration</a> section, you need to configure some properties for the filesystem offloader driver before using it. This tutorial assumes that you have configured the filesystem offloader driver as below and run Pulsar in <strong>standalone</strong> mode.</p>
+<h3><a class="anchor" aria-hidden="true" id="第-3-步-配置-filesystem-offloader-驱动程序"></a><a href="#第-3-步-配置-filesystem-offloader-驱动程序" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>第 3 步: 配置 filesystem offloader 驱动程序</h3>
+<p>正如 <a href="#configuration">配置</a> 部分所指明的那样，需要先配置  filesystem offloader 驱动程序的一些属性，然后才能使用。 本教程假设您已按以下方式配置  filesystem offloader 驱动程序，并在<strong>独立</strong>模式下运行 Pulsar。</p>
 <ol>
-<li>Set the following configurations in the <code>conf/standalone.conf</code> file.</li>
+<li>在 <code>conf/standalone.conf</code> 文件中设置以下配置。</li>
 </ol>
 <pre><code class="hljs css language-conf"><span class="hljs-attr">managedLedgerOffloadDriver</span>=filesystem<br /><span class="hljs-attr">fileSystemProfilePath</span>=../conf/filesystem_<span class="hljs-literal">off</span>load_core_site.xml<br /></code></pre>    
 <ol start="2">
-<li>Modify the <em>filesystem_offload_core_site.xml</em> as follows.</li>
+<li>修改 <em>filesystem_offload_core_site.xml</em>，如下所示。</li>
 </ol>
 <pre><code class="hljs"><span class="hljs-tag">&lt;<span class="hljs-name">property</span>&gt;</span><br />    <span class="hljs-tag">&lt;<span class="hljs-name">name</span>&gt;</span>fs.defaultFS<span class="hljs-tag">&lt;/<span class="hljs-name">name</span>&gt;</span><br />    <span class="hljs-tag">&lt;<span class="hljs-name">value</span>&gt;</span>file:///<span class="hljs-tag">&lt;/<span class="hljs-name">value</span>&gt;</span><br /><span class="hljs-tag">&lt;/<span class="hljs-name">property</span>&gt;</span><br /><br /><span class="hljs-tag">&lt;<span class="hljs-name">property</span>&gt;</span><br />    <span class="hljs-tag">&lt;<span class="hljs-name">name</span>&gt;</span>hadoop.tmp.dir<span class="hljs-tag">&lt;/<span class="hljs-name">name</span>&gt;</span><br />    <span class="hljs-tag">&lt;<span class="hljs-name">value</span>&gt;</span>file:///Users/pulsar_nfs<span class="hljs-tag">&lt;/<span class="hljs-name">value</span>&gt;</span><br /><span class="hljs-tag">&lt;/<span class="hljs-name">property</span>&gt;</span><br /><br /><span class="hljs-tag">&lt;<span class="hljs-name">property</span>&gt;</span><br />    <span class="hljs-tag">&lt;<span class="hljs-name">name</span>&gt;</span>io.file.buffer.size<span class="hljs-tag">&lt;/<span class="hljs-name">name</span>&gt;</span><br />    <span class="hljs-tag">&lt;<span class="hljs-name">value</span>&gt;</span>4096<span class="hljs-tag">&lt;/<span class="hljs-name">value</span>&gt;</span><br /><span class="hljs-tag">&lt;/<span class="hljs-name">property</span>&gt;</span><br /><br /><span class="hljs-tag">&lt;<span class="hljs-name">property</span>&gt;</span><br />    <span class="hljs-tag">&lt;<span class="hljs-name">name</span>&gt;</span>io.seqfile.compress.blocksize<span class="hljs-tag">&lt;/<span class="hljs-name">name</span>&gt;</span><br />    <span class="hljs-tag">&lt;<span class="hljs-name">value</span>&gt;</span>1000000<span class="hljs-tag">&lt;/<span class="hljs-name">value</span>&gt;</span><br /><span class="hljs-tag">&lt;/<span class="hljs-name">property</span>&gt;</span><br /><span class="hljs-tag">&lt;<span class="hljs-name">property</span>&gt;</span><br /><br />    <span class="hljs-tag">&lt;<span class="hljs-name">name</span>&gt;</span>io.seqfile.compression.type<span class="hljs-tag">&lt;/<span class="hljs-name">name</span>&gt;</span><br />    <span class="hljs-tag">&lt;<span class="hljs-name">value</span>&gt;</span>BLOCK<span class="hljs-tag">&lt;/<span class="hljs-name">value</span>&gt;</span><br /><span class="hljs-tag">&lt;/<span class="hljs-name">property</span>&gt;</span><br /><br /><span class="hljs-tag">&lt;<span class="hljs-name">property</span>&gt;</span><br />    <span class="hljs-tag">&lt;<span class="hljs-name">name</span>&gt;</span>io.map.index.interval<span class="hljs-tag">&lt;/<span class="hljs-name">name</span>&gt;</span><br />    <span class="hljs-tag">&lt;<span class="hljs-name">value</span>&gt;</span>128<span class="hljs-tag">&lt;/<span class="hljs-name">value</span>&gt;</span><br /><span class="hljs-tag">&lt;/<span class="hljs-name">property</span>&gt;</span><br /></code></pre>    
 </span></div></div></div></div>
-<h3><a class="anchor" aria-hidden="true" id="step-4-offload-data-from-bookkeeper-to-filesystem"></a><a href="#step-4-offload-data-from-bookkeeper-to-filesystem" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Step 4: Offload data from BookKeeper to filesystem</h3>
-<p>Execute the following commands in the repository where you download Pulsar tarball. For example, <code>~/path/to/apache-pulsar-2.5.1</code>.</p>
+<h3><a class="anchor" aria-hidden="true" id="第-4-步将数据从-bookkeeper-卸载到文件系统"></a><a href="#第-4-步将数据从-bookkeeper-卸载到文件系统" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>第 4 步：将数据从 BookKeeper 卸载到文件系统</h3>
+<p>在下载 Pulsar tar 包的仓库中执行以下命令。 例如， <code>~/path/to/apache-pulsar-2.5.1</code>。</p>
 <ol>
 <li><p>启动 Pulsar 单机模式。</p>
 <pre><code class="hljs">./bin/pulsar standalone -a <span class="hljs-number">127.0</span><span class="hljs-number">.0</span><span class="hljs-number">.1</span>
 </code></pre></li>
-<li><p>To ensure the data generated is not deleted immediately, it is recommended to set the <a href="https://pulsar.apache.org/docs/en/next/cookbooks-retention-expiry/#retention-policies">retention policy</a>, which can be either a <strong>size</strong> limit or a <strong>time</strong> limit. The larger value you set for the retention policy, the longer the data can be retained.</p>
+<li><p>为了确保生成的数据不会立即被删除，建议设置 <a href="https://pulsar.apache.org/docs/en/next/cookbooks-retention-expiry/#retention-policies">保留策略</a>， 可以是 <strong>大小</strong> 限制或 <strong>时间</strong> 限制。 为保留策略设定的值越大，数据保留的时间越长。</p>
 <pre><code class="hljs">./<span class="hljs-string">bin/</span><span class="hljs-string">pulsarctl </span><span class="hljs-string">namespaces </span><span class="hljs-built_in">set-retention</span> <span class="hljs-string">public/</span><span class="hljs-string">default </span><span class="hljs-built_in">--size</span> <span class="hljs-string">100M </span><span class="hljs-built_in">--time</span> <span class="hljs-string">2d
 </span></code></pre>
 <blockquote>
 <p><strong>提示</strong></p>
-<p>For more information about the <code>pulsarctl namespaces set-retention options</code> command, including flags, descriptions, default values, and shorthands, see <a href="https://docs.streamnative.io/pulsarctl/v2.7.0.6/#-em-set-retention-em-">here</a>.</p>
+<p>关于 <code>pulsar-admin namespaces set-offload-threshold options</code> 命令的更多信息，包括标志、描述、默认值和速记方法，参见<a href="https://docs.streamnative.io/pulsarctl/v2.7.0.6/#-em-set-retention-em-">这里</a>。</p>
 </blockquote></li>
-<li><p>Produce data using pulsar-client.</p>
+<li><p>使用 pulsar-client 生成数据。</p>
 <pre><code class="hljs">./bin/pulsar-client produce -m <span class="hljs-string">"Hello FileSystem Offloader"</span> -n <span class="hljs-number">1000</span> <span class="hljs-meta">public</span>/<span class="hljs-meta">default</span>/<span class="hljs-built_in">fs</span>-<span class="hljs-keyword">test</span>
 </code></pre></li>
-<li><p>The offloading operation starts after a ledger rollover is triggered. To ensure offload data successfully, it is recommended that you wait until several ledger rollovers are triggered. In this case, you might need to wait for a second. You can check the ledger status using pulsarctl.</p>
+<li><p>卸载操作在触发 ledger 切换后开始。 为了确保卸载数据成功，建议您等待多个 ledger 切换被触发。 在这种情况下，可能需要等待一秒钟。 您可以使用 pulsarctl 检查 ledger 状态。</p>
 <pre><code class="hljs">./bin/pulsarctl topics internal-stats <span class="hljs-meta">public</span>/<span class="hljs-meta">default</span>/<span class="hljs-built_in">fs</span>-<span class="hljs-keyword">test</span>
 </code></pre>
 <p><strong>输出</strong></p>
-<p>The data of the ledger 696 is not offloaded.</p>
+<p>ledger 696 的数据未卸载。</p>
 <pre><code class="hljs">{
 <span class="hljs-attr">"version"</span>: <span class="hljs-number">1</span>,
 <span class="hljs-attr">"creationDate"</span>: <span class="hljs-string">"2020-06-16T21:46:25.807+08:00"</span>,
@@ -302,14 +302,14 @@ Reason: <span class="hljs-builtin-name">Error</span> offloading: org.apache.book
 <span class="hljs-attr">"cursors"</span>: {}
 }
 </code></pre></li>
-<li><p>Wait a second and send more messages to the topic.</p>
+<li><p>请稍等，然后向 topic 发送更多消息。</p>
 <pre><code class="hljs">./bin/pulsar-client produce -m <span class="hljs-string">"Hello FileSystem Offloader"</span> -n <span class="hljs-number">1000</span> <span class="hljs-meta">public</span>/<span class="hljs-meta">default</span>/<span class="hljs-built_in">fs</span>-<span class="hljs-keyword">test</span>
 </code></pre></li>
-<li><p>Check the ledger status using pulsarctl.</p>
+<li><p>使用 pulsarctl 检查 ledger 状态。</p>
 <pre><code class="hljs">./bin/pulsarctl topics internal-stats <span class="hljs-meta">public</span>/<span class="hljs-meta">default</span>/<span class="hljs-built_in">fs</span>-<span class="hljs-keyword">test</span>
 </code></pre>
 <p><strong>输出</strong></p>
-<p>The ledger 696 is rollovered.</p>
+<p>ledger 696已经切换。</p>
 <pre><code class="hljs">{
 <span class="hljs-attr">"version"</span>: <span class="hljs-number">2</span>,
 <span class="hljs-attr">"creationDate"</span>: <span class="hljs-string">"2020-06-16T21:46:25.807+08:00"</span>,
@@ -329,19 +329,19 @@ Reason: <span class="hljs-builtin-name">Error</span> offloading: org.apache.book
 <span class="hljs-attr">"cursors"</span>: {}
 }
 </code></pre></li>
-<li><p>Trigger the offloading operation manually using pulsarctl.</p>
+<li><p>使用 pulsarctl 手动触发卸载操作。</p>
 <pre><code class="hljs">./bin/pulsarctl topic offload -s <span class="hljs-number">0</span> <span class="hljs-meta">public</span>/<span class="hljs-meta">default</span>/<span class="hljs-built_in">fs</span>-<span class="hljs-keyword">test</span>
 </code></pre>
 <p><strong>输出</strong></p>
-<p>Data in ledgers before the ledge 697 is offloaded.</p>
+<p>ledger 中的数据先于 ledge 697 已卸载。</p>
 <pre><code class="hljs"><span class="hljs-comment"># offload info, the ledgers before 697 will be offloaded</span>
 Offload triggered <span class="hljs-keyword">for</span> persistent:<span class="hljs-regexp">//</span>public<span class="hljs-regexp">/default/</span>fs-test3 <span class="hljs-keyword">for</span> messages before <span class="hljs-number">697</span>:<span class="hljs-number">0</span>:-<span class="hljs-number">1</span>
 </code></pre></li>
-<li><p>Check the ledger status using pulsarctl.</p>
+<li><p>使用 pulsarctl 检查 ledger 状态。</p>
 <pre><code class="hljs">./bin/pulsarctl topic <span class="hljs-type">internal</span>-<span class="hljs-keyword">info</span> <span class="hljs-built_in">public</span>/<span class="hljs-keyword">default</span>/fs-test
 </code></pre>
 <p><strong>输出</strong></p>
-<p>The data of the ledger 696 is offloaded.</p>
+<p>ledger 696 的数据已卸载。</p>
 <pre><code class="hljs">{
 <span class="hljs-attr">"version"</span>: <span class="hljs-number">4</span>,
 <span class="hljs-attr">"creationDate"</span>: <span class="hljs-string">"2020-06-16T21:46:25.807+08:00"</span>,
@@ -361,10 +361,10 @@ Offload triggered <span class="hljs-keyword">for</span> persistent:<span class="
 <span class="hljs-attr">"cursors"</span>: {}
 }
 </code></pre>
-<p>And the <strong>Capacity Used</strong> is changed from 4 KB to 116.46 KB.</p>
+<p>并且 <strong>所用容量</strong> 已经从 4 KB 变成 116.46 KB。</p>
 <p><img src="/docs/assets/FileSystem-8.png" alt=""></p></li>
 </ol>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.7.2/tiered-storage-gcs"><span class="arrow-prev">← </span><span>GCS offloader</span></a><a class="docs-next button" href="/docs/zh-CN/2.7.2/tiered-storage-azure"><span class="function-name-prevnext">Azure BlobStore offloader</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a><ul class="toc-headings"><li><a href="#前提条件">前提条件</a></li><li><a href="#步骤">步骤</a></li></ul></li><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#配置-filesystem-offloader-driver">配置 filesystem offloader driver</a></li><li><a href="#自动运行-filesystem-offloader">自动运行 filesystem offloader</a></li><li><a href="#run-filesystem-offloader-manually">Run filesystem offloader manually</a></li></ul></li><li><a href="#教程">教程</a><ul class="toc-headings"><li><a href="#step-1-prepare-the-hdfs-environment">Step 1: Prepare the HDFS environment</a></li><li><a href="#step-2-install-the-filesystem-offloader">Step 2: Install the filesystem offloader</a></li><li><a href="#step-3-configure-the-filesystem-offloader">Step 3: Configure the filesystem offloader</a></li><li><a href="#step-1-install-the-filesystem-offloader">Step 1: Install the filesystem offloader</a></li><li><a href="#step-2-mont-your-nfs-to-your-local-filesystem">Step 2: Mont your NFS to your local filesystem</a></li><li><a href="#step-3-configure-the-filesystem-offloader-driver">Step 3: Configure the filesystem offloader driver</a></li><li><a href="#step-4-offload-data-from-bookkeeper-to-filesystem">Step 4: Offload data from BookKeeper to filesystem</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.7.2/tiered-storage-gcs"><span class="arrow-prev">← </span><span>GCS offloader</span></a><a class="docs-next button" href="/docs/zh-CN/2.7.2/tiered-storage-azure"><span class="function-name-prevnext">Azure BlobStore offloader</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a><ul class="toc-headings"><li><a href="#前提条件">前提条件</a></li><li><a href="#步骤">步骤</a></li></ul></li><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#配置-filesystem-offloader-driver">配置 filesystem offloader driver</a></li><li><a href="#自动运行-filesystem-offloader">自动运行 filesystem offloader</a></li><li><a href="#手动运行-filesystem-offloader">手动运行 filesystem offloader</a></li></ul></li><li><a href="#教程">教程</a><ul class="toc-headings"><li><a href="#第-1-步准备-hdfs-环境">第 1 步：准备 HDFS 环境</a></li><li><a href="#第-2-步-安装-filesystem-offloader">第 2 步: 安装 filesystem offloader</a></li><li><a href="#第-3-步-配置-filesystem-offloader">第 3 步: 配置 filesystem offloader</a></li><li><a href="#第-1-步-安装-filesystem-offloader">第 1 步: 安装 filesystem offloader</a></li><li><a href="#第-2-步将-nfs-置于本地文件系统">第 2 步：将 NFS 置于本地文件系统</a></li><li><a href="#第-3-步-配置-filesystem-offloader-驱动程序">第 3 步: 配置 filesystem offloader 驱动程序</a></li><li><a href="#第-4-步将数据从-bookkeeper-卸载到文件系统">第 4 步：将数据从 BookKeeper 卸载到文件系统</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

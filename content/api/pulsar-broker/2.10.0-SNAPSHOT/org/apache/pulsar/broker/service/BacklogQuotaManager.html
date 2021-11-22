@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10};
+var methods = {"i0":10,"i1":10,"i2":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -153,22 +153,9 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 </tr>
 <tr id="i1" class="rowColor">
 <td class="colFirst"><code>org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/BacklogQuotaManager.html#getBacklogQuota-org.apache.pulsar.common.naming.TopicName-org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType-">getBacklogQuota</a></span>(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
-               org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType&nbsp;backlogQuotaType)</code>&nbsp;</td>
-</tr>
-<tr id="i2" class="altColor">
-<td class="colFirst"><code>long</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/BacklogQuotaManager.html#getBacklogQuotaLimitInSize-org.apache.pulsar.common.naming.TopicName-">getBacklogQuotaLimitInSize</a></span>(org.apache.pulsar.common.naming.TopicName&nbsp;topicName)</code>&nbsp;</td>
-</tr>
-<tr id="i3" class="rowColor">
-<td class="colFirst"><code>int</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/BacklogQuotaManager.html#getBacklogQuotaLimitInTime-org.apache.pulsar.common.naming.TopicName-">getBacklogQuotaLimitInTime</a></span>(org.apache.pulsar.common.naming.TopicName&nbsp;topicName)</code>&nbsp;</td>
-</tr>
-<tr id="i4" class="altColor">
-<td class="colFirst"><code>org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/BacklogQuotaManager.html#getDefaultQuota--">getDefaultQuota</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i2" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/BacklogQuotaManager.html#handleExceededBacklogQuota-org.apache.pulsar.broker.service.persistent.PersistentTopic-org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType-boolean-">handleExceededBacklogQuota</a></span>(<a href="../../../../../org/apache/pulsar/broker/service/persistent/PersistentTopic.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentTopic</a>&nbsp;persistentTopic,
                           org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType&nbsp;backlogQuotaType,
@@ -232,34 +219,6 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <h4>getBacklogQuota</h4>
 <pre>public&nbsp;org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl&nbsp;getBacklogQuota(org.apache.pulsar.common.naming.NamespaceName&nbsp;namespace,
                                                                                     org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType&nbsp;backlogQuotaType)</pre>
-</li>
-</ul>
-<a name="getBacklogQuota-org.apache.pulsar.common.naming.TopicName-org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType-">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>getBacklogQuota</h4>
-<pre>public&nbsp;org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl&nbsp;getBacklogQuota(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
-                                                                                    org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType&nbsp;backlogQuotaType)</pre>
-</li>
-</ul>
-<a name="getBacklogQuotaLimitInSize-org.apache.pulsar.common.naming.TopicName-">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>getBacklogQuotaLimitInSize</h4>
-<pre>public&nbsp;long&nbsp;getBacklogQuotaLimitInSize(org.apache.pulsar.common.naming.TopicName&nbsp;topicName)</pre>
-</li>
-</ul>
-<a name="getBacklogQuotaLimitInTime-org.apache.pulsar.common.naming.TopicName-">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>getBacklogQuotaLimitInTime</h4>
-<pre>public&nbsp;int&nbsp;getBacklogQuotaLimitInTime(org.apache.pulsar.common.naming.TopicName&nbsp;topicName)</pre>
 </li>
 </ul>
 <a name="handleExceededBacklogQuota-org.apache.pulsar.broker.service.persistent.PersistentTopic-org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType-boolean-">
