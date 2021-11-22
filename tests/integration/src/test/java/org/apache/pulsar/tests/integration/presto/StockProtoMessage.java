@@ -85,7 +85,7 @@ public final class StockProtoMessage {
         throws com.google.protobuf.InvalidProtocolBufferException {
       this();
       if (extensionRegistry == null) {
-        throw new java.lang.NullPointerException();
+        throw new java.lang.IllegalArgumentException();
       }
       int mutable_bitField0_ = 0;
       com.google.protobuf.UnknownFieldSet.Builder unknownFields =
@@ -581,7 +581,7 @@ public final class StockProtoMessage {
       public Builder setSymbol(
           java.lang.String value) {
         if (value == null) {
-    throw new NullPointerException();
+    throw new IllegalArgumentException();
   }
   
         symbol_ = value;
@@ -603,7 +603,7 @@ public final class StockProtoMessage {
       public Builder setSymbolBytes(
           com.google.protobuf.ByteString value) {
         if (value == null) {
-    throw new NullPointerException();
+    throw new IllegalArgumentException();
   }
   checkByteStringIsUtf8(value);
         

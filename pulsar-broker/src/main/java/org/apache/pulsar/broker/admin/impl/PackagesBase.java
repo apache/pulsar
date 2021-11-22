@@ -65,6 +65,8 @@ public class PackagesBase extends AdminResource {
             asyncResponse.resume(new RestException(Response.Status.NOT_FOUND, throwable.getMessage()));
         } else if (throwable instanceof WebApplicationException) {
             asyncResponse.resume(throwable);
+        } else if (throwable instanceof UnsupportedOperationException) {
+            asyncResponse.resume(new RestException(Response.Status.SERVICE_UNAVAILABLE, throwable.getMessage()));
         } else {
             log.error("Encountered unexpected error", throwable);
             asyncResponse.resume(new RestException(Response.Status.INTERNAL_SERVER_ERROR, throwable.getMessage()));
@@ -116,6 +118,8 @@ public class PackagesBase extends AdminResource {
                     } else {
                         throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getCause().getMessage());
                     }
+                } catch (UnsupportedOperationException e) {
+                    throw new RestException(Response.Status.SERVICE_UNAVAILABLE, e.getMessage());
                 }
             };
         } catch (IllegalArgumentException illegalArgumentException) {
