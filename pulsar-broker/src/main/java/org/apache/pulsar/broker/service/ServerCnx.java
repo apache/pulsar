@@ -132,6 +132,7 @@ import org.apache.pulsar.common.naming.Metadata;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
@@ -1205,64 +1206,69 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             service.getOrCreateTopic(topicName.toString()).thenAccept((Topic topic) -> {
                 // Before creating producer, check if backlog quota exceeded
                 // on topic for size based limit and time based limit
-                for (BacklogQuota.BacklogQuotaType backlogQuotaType : BacklogQuota.BacklogQuotaType.values()) {
-                    if (topic.isBacklogQuotaExceeded(producerName, backlogQuotaType)) {
-                        IllegalStateException illegalStateException = new IllegalStateException(
-                                "Cannot create producer on topic with backlog quota exceeded");
-                        BacklogQuota.RetentionPolicy retentionPolicy = topic
-                                .getBacklogQuota(backlogQuotaType).getPolicy();
-                        if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_request_hold) {
-                            commandSender.sendErrorResponse(requestId,
-                                    ServerError.ProducerBlockedQuotaExceededError,
-                                    illegalStateException.getMessage());
-                        } else if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_exception) {
-                            commandSender.sendErrorResponse(requestId,
-                                    ServerError.ProducerBlockedQuotaExceededException,
-                                    illegalStateException.getMessage());
-                        }
-                        producerFuture.completeExceptionally(illegalStateException);
-                        producers.remove(producerId, producerFuture);
-                        return;
+                CompletableFuture<Void> backlogQuotaCheckFuture = CompletableFuture.allOf(
+                        topic.checkBacklogQuotaExceeded(producerName, BacklogQuotaType.destination_storage),
+                        topic.checkBacklogQuotaExceeded(producerName, BacklogQuotaType.message_age));
+                backlogQuotaCheckFuture.exceptionally(throwable -> {
+                    //throwable should be CompletionException holding TopicBacklogQuotaExceededException
+                    BrokerServiceException.TopicBacklogQuotaExceededException exception =
+                            (BrokerServiceException.TopicBacklogQuotaExceededException) throwable.getCause();
+                    IllegalStateException illegalStateException = new IllegalStateException(exception);
+                    BacklogQuota.RetentionPolicy retentionPolicy = exception.getRetentionPolicy();
+                    if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_request_hold) {
+                        commandSender.sendErrorResponse(requestId,
+                                ServerError.ProducerBlockedQuotaExceededError,
+                                illegalStateException.getMessage());
+                    } else if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_exception) {
+                        commandSender.sendErrorResponse(requestId,
+                                ServerError.ProducerBlockedQuotaExceededException,
+                                illegalStateException.getMessage());
                     }
-                }
-                // Check whether the producer will publish encrypted messages or not
-                if ((topic.isEncryptionRequired() || encryptionRequireOnProducer) && !isEncrypted) {
-                    String msg = String.format("Encryption is required in %s", topicName);
-                    log.warn("[{}] {}", remoteAddress, msg);
-                    commandSender.sendErrorResponse(requestId, ServerError.MetadataError, msg);
-                    producers.remove(producerId, producerFuture);
-                    return;
-                }
-
-                disableTcpNoDelayIfNeeded(topicName.toString(), producerName);
-
-                CompletableFuture<SchemaVersion> schemaVersionFuture = tryAddSchema(topic, schema);
-
-                schemaVersionFuture.exceptionally(exception -> {
-                    String message = exception.getMessage();
-                    if (exception.getCause() != null) {
-                        message += (" caused by " + exception.getCause());
-                    }
-                    commandSender.sendErrorResponse(requestId,
-                            BrokerServiceException.getClientErrorCode(exception),
-                            message);
+                    producerFuture.completeExceptionally(illegalStateException);
                     producers.remove(producerId, producerFuture);
                     return null;
                 });
 
-                schemaVersionFuture.thenAccept(schemaVersion -> {
-                    topic.checkIfTransactionBufferRecoverCompletely(isTxnEnabled).thenAccept(future -> {
-                        buildProducerAndAddTopic(topic, producerId, producerName, requestId, isEncrypted,
-                                metadata, schemaVersion, epoch, userProvidedProducerName, topicName,
-                                producerAccessMode, topicEpoch, producerFuture);
-                    }).exceptionally(exception -> {
-                        Throwable cause = exception.getCause();
-                        log.error("producerId {}, requestId {} : TransactionBuffer recover failed",
-                                producerId, requestId, exception);
+                backlogQuotaCheckFuture.thenRun(() -> {
+                    // Check whether the producer will publish encrypted messages or not
+                    if ((topic.isEncryptionRequired() || encryptionRequireOnProducer) && !isEncrypted) {
+                        String msg = String.format("Encryption is required in %s", topicName);
+                        log.warn("[{}] {}", remoteAddress, msg);
+                        commandSender.sendErrorResponse(requestId, ServerError.MetadataError, msg);
+                        producers.remove(producerId, producerFuture);
+                        return;
+                    }
+
+                    disableTcpNoDelayIfNeeded(topicName.toString(), producerName);
+
+                    CompletableFuture<SchemaVersion> schemaVersionFuture = tryAddSchema(topic, schema);
+
+                    schemaVersionFuture.exceptionally(exception -> {
+                        String message = exception.getMessage();
+                        if (exception.getCause() != null) {
+                            message += (" caused by " + exception.getCause());
+                        }
                         commandSender.sendErrorResponse(requestId,
-                                ServiceUnitNotReadyException.getClientErrorCode(cause),
-                                cause.getMessage());
+                                BrokerServiceException.getClientErrorCode(exception),
+                                message);
+                        producers.remove(producerId, producerFuture);
                         return null;
+                    });
+
+                    schemaVersionFuture.thenAccept(schemaVersion -> {
+                        topic.checkIfTransactionBufferRecoverCompletely(isTxnEnabled).thenAccept(future -> {
+                            buildProducerAndAddTopic(topic, producerId, producerName, requestId, isEncrypted,
+                                    metadata, schemaVersion, epoch, userProvidedProducerName, topicName,
+                                    producerAccessMode, topicEpoch, producerFuture);
+                        }).exceptionally(exception -> {
+                            Throwable cause = exception.getCause();
+                            log.error("producerId {}, requestId {} : TransactionBuffer recover failed",
+                                    producerId, requestId, exception);
+                            commandSender.sendErrorResponse(requestId,
+                                    ServiceUnitNotReadyException.getClientErrorCode(cause),
+                                    cause.getMessage());
+                            return null;
+                        });
                     });
                 });
             }).exceptionally(exception -> {
