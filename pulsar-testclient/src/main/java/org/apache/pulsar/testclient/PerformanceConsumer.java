@@ -20,6 +20,7 @@ package org.apache.pulsar.testclient;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.testclient.utils.PerformanceUtils.buildTransaction;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
@@ -34,7 +35,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 
 import org.HdrHistogram.Histogram;
@@ -48,6 +52,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
@@ -67,8 +72,19 @@ public class PerformanceConsumer {
     private static final LongAdder totalMessagesReceived = new LongAdder();
     private static final LongAdder totalBytesReceived = new LongAdder();
 
-    private static Recorder recorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
-    private static Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
+    private static final LongAdder totalNumTxnOpenFail = new LongAdder();
+    private static final LongAdder totalNumTxnOpenSuccess = new LongAdder();
+
+    private static final LongAdder totalMessageAck = new LongAdder();
+    private static final LongAdder totalMessageAckFailed = new LongAdder();
+    private static final LongAdder messageAck = new LongAdder();
+
+    private static final LongAdder totalEndTxnOpFailNum = new LongAdder();
+    private static final LongAdder totalEndTxnOpSuccessNum = new LongAdder();
+    private static final LongAdder numTxnOpSuccess = new LongAdder();
+
+    private static final Recorder recorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
+    private static final Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
 
     @Parameters(commandDescription = "Test pulsar consumer performance.")
     static class Arguments {
@@ -94,7 +110,7 @@ public class PerformanceConsumer {
         @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix", hidden = true)
         public String subscriberName;
 
-        @Parameter(names = { "-ss", "--subscriptions" }, description = "A list of subscriptions to consume on (e.g. sub1,sub2)")
+        @Parameter(names = { "-ss", "--subscriptions" }, description = "A list of subscriptions to consume (for example, sub1,sub2)")
         public List<String> subscriptions = Collections.singletonList("sub");
 
         @Parameter(names = { "-st", "--subscription-type" }, description = "Subscription type")
@@ -177,7 +193,7 @@ public class PerformanceConsumer {
         public long testTime = 0;
 
         @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be " +
-                "used for handling connections to brokers, default is 1 thread")
+                "used for handling connections to brokers. The default value is 1.")
         public int ioThreads = 1;
 
         @Parameter(names = {"-lt", "--num-listener-threads"}, description = "Set the number of threads"
@@ -192,6 +208,26 @@ public class PerformanceConsumer {
 
         @Parameter(names = {"-bw", "--busy-wait"}, description = "Enable Busy-Wait on the Pulsar client")
         public boolean enableBusyWait = false;
+
+        @Parameter(names = {"-tto", "--txn-timeout"},  description = "Set the time value of transaction timeout,"
+                + " and the time unit is second. (After --txn-enable setting to true, --txn-timeout takes effect)")
+        public long transactionTimeout = 10;
+
+        @Parameter(names = {"-nmt", "--numMessage-perTransaction"},
+                description = "The number of messages acknowledged by a transaction. "
+                + "(After --txn-enable setting to true, -numMessage-perTransaction takes effect")
+        public int numMessagesPerTransaction = 50;
+
+        @Parameter(names = {"-txn", "--txn-enable"}, description = "Enable or disable the transaction")
+        public boolean isEnableTransaction = false;
+
+        @Parameter(names = {"-ntxn"}, description = "The number of opened transactions, 0 means keeping open."
+                + "(After --txn-enable setting to true, -ntxn takes effect.)")
+        public long totalNumTxn = 0;
+
+        @Parameter(names = {"-abort"}, description = "Abort the transaction. (After --txn-enable "
+                + "setting to true, -abort takes effect)")
+        public boolean isAbortTransaction = false;
 
         @Parameter(names = { "--histogram-file" }, description = "HdrHistogram output file")
         public String histogramFile = null;
@@ -303,43 +339,9 @@ public class PerformanceConsumer {
         final RateLimiter limiter = arguments.rate > 0 ? RateLimiter.create(arguments.rate) : null;
         long startTime = System.nanoTime();
         long testEndTime = startTime + (long) (arguments.testTime * 1e9);
-        MessageListener<ByteBuffer> listener = (consumer, msg) -> {
-            if (arguments.testTime > 0) {
-                if (System.nanoTime() > testEndTime) {
-                    log.info("------------- DONE (reached the maximum duration: [{} seconds] of consumption) --------------", arguments.testTime);
-                    printAggregatedStats();
-                    PerfClientUtils.exit(0);
-                }
-            }
-            if (arguments.numMessages > 0 && totalMessagesReceived.sum() >= arguments.numMessages) {
-                log.info("------------- DONE (reached the maximum number: [{}] of consumption) --------------", arguments.numMessages);
-                printAggregatedStats();
-                PerfClientUtils.exit(0);
-            }
-            messagesReceived.increment();
-            bytesReceived.add(msg.size());
-
-            totalMessagesReceived.increment();
-            totalBytesReceived.add(msg.size());
-
-            if (limiter != null) {
-                limiter.acquire();
-            }
-
-            long latencyMillis = System.currentTimeMillis() - msg.getPublishTime();
-            if (latencyMillis >= 0) {
-                recorder.recordValue(latencyMillis);
-                cumulativeRecorder.recordValue(latencyMillis);
-            }
-
-            consumer.acknowledgeAsync(msg);
-
-            if(arguments.poolMessages) {
-                msg.release();
-            }
-        };
 
         ClientBuilder clientBuilder = PulsarClient.builder() //
+                .enableTransaction(arguments.isEnableTransaction)
                 .serviceUrl(arguments.serviceURL) //
                 .connectionsPerBroker(arguments.maxConnections) //
                 .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
@@ -358,8 +360,120 @@ public class PerformanceConsumer {
         if (isNotBlank(arguments.listenerName)) {
             clientBuilder.listenerName(arguments.listenerName);
         }
-
         PulsarClient pulsarClient = clientBuilder.build();
+
+        AtomicReference<Transaction> atomicReference = buildTransaction(pulsarClient, arguments.isEnableTransaction,
+                arguments.transactionTimeout);
+
+        AtomicLong messageAckedCount = new AtomicLong();
+        Semaphore messageReceiveLimiter = new Semaphore(arguments.numMessagesPerTransaction);
+        Thread thread = Thread.currentThread();
+        MessageListener<ByteBuffer> listener = (consumer, msg) -> {
+                if (arguments.testTime > 0) {
+                    if (System.nanoTime() > testEndTime) {
+                        log.info("------------------- DONE -----------------------");
+                        printAggregatedStats();
+                        PerfClientUtils.exit(0);
+                        thread.interrupt();
+                    }
+                }
+                if (arguments.totalNumTxn > 0) {
+                    if (totalEndTxnOpFailNum.sum() + totalEndTxnOpSuccessNum.sum() >= arguments.totalNumTxn) {
+                        log.info("------------------- DONE -----------------------");
+                        printAggregatedStats();
+                        PerfClientUtils.exit(0);
+                        thread.interrupt();
+                    }
+                }
+                messagesReceived.increment();
+                bytesReceived.add(msg.size());
+
+                totalMessagesReceived.increment();
+                totalBytesReceived.add(msg.size());
+
+                if (limiter != null) {
+                    limiter.acquire();
+                }
+
+                long latencyMillis = System.currentTimeMillis() - msg.getPublishTime();
+                if (latencyMillis >= 0) {
+                    recorder.recordValue(latencyMillis);
+                    cumulativeRecorder.recordValue(latencyMillis);
+                }
+                if (arguments.isEnableTransaction) {
+                    try {
+                        messageReceiveLimiter.acquire();
+                    }catch (InterruptedException e){
+                        log.error("Got error: ", e);
+                    }
+                    consumer.acknowledgeAsync(msg.getMessageId(), atomicReference.get()).thenRun(() -> {
+                        totalMessageAck.increment();
+                        messageAck.increment();
+                    }).exceptionally(throwable ->{
+                        log.error("Ack message {} failed with exception", msg, throwable);
+                        totalMessageAckFailed.increment();
+                        return null;
+                    });
+                } else {
+                    consumer.acknowledgeAsync(msg).thenRun(()->{
+                        totalMessageAck.increment();
+                        messageAck.increment();
+                    }
+                    ).exceptionally(throwable ->{
+                                log.error("Ack message {} failed with exception", msg, throwable);
+                                totalMessageAckFailed.increment();
+                                return null;
+                            }
+                    );
+                }
+                if (arguments.poolMessages) {
+                    msg.release();
+                }
+                if (arguments.isEnableTransaction
+                        && messageAckedCount.incrementAndGet() == arguments.numMessagesPerTransaction) {
+                    Transaction transaction = atomicReference.get();
+                    if (!arguments.isAbortTransaction) {
+                        transaction.commit()
+                                .thenRun(() -> {
+                                    totalEndTxnOpSuccessNum.increment();
+                                    numTxnOpSuccess.increment();
+                                })
+                                .exceptionally(exception -> {
+                                    log.error("Commit transaction failed with exception : ", exception);
+                                    totalEndTxnOpFailNum.increment();
+                                    return null;
+                                });
+                    } else {
+                        transaction.abort().thenRun(() -> {
+                            log.info("Abort transaction {}", transaction.getTxnID().toString());
+                            totalEndTxnOpSuccessNum.increment();
+                            numTxnOpSuccess.increment();
+                        }).exceptionally(exception -> {
+                            log.error("Commit transaction {} failed with exception",
+                                    transaction.getTxnID().toString(),
+                                    exception);
+                            totalEndTxnOpFailNum.increment();
+                            return null;
+                        });
+                    }
+                    while (true) {
+                        try {
+                            Transaction newTransaction = pulsarClient.newTransaction()
+                                    .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS)
+                                    .build().get();
+                            atomicReference.compareAndSet(transaction, newTransaction);
+                            totalNumTxnOpenSuccess.increment();
+                            messageAckedCount.set(0);
+                            messageReceiveLimiter.release(arguments.numMessagesPerTransaction);
+                            break;
+                        } catch (Exception e) {
+                            log.error("Failed to new transaction with exception:", e);
+                            totalNumTxnOpenFail.increment();
+                        }
+                    }
+                }
+
+        };
 
         List<Future<Consumer<ByteBuffer>>> futures = Lists.newArrayList();
         ConsumerBuilder<ByteBuffer> consumerBuilder = pulsarClient.newConsumer(Schema.BYTEBUFFER) //
@@ -398,18 +512,16 @@ public class PerformanceConsumer {
                 }
             }
         }
-
         for (Future<Consumer<ByteBuffer>> future : futures) {
             future.get();
         }
-
         log.info("Start receiving from {} consumers per subscription on {} topics", arguments.numConsumers,
                 arguments.numTopics);
 
         long start = System.nanoTime();
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            printAggregatedThroughput(start);
+            printAggregatedThroughput(start, arguments);
             printAggregatedStats();
         }));
 
@@ -443,11 +555,27 @@ public class PerformanceConsumer {
             long total = totalMessagesReceived.sum();
             double rate = messagesReceived.sumThenReset() / elapsed;
             double throughput = bytesReceived.sumThenReset() / elapsed * 8 / 1024 / 1024;
-
+            double rateAck = messageAck.sumThenReset() / elapsed;
+            long totalTxnOpSuccessNum = 0;
+            long totalTxnOpFailNum = 0;
+            double rateOpenTxn = 0;
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);
 
+            if (arguments.isEnableTransaction) {
+                totalTxnOpSuccessNum = totalEndTxnOpSuccessNum.sum();
+                totalTxnOpFailNum = totalEndTxnOpFailNum.sum();
+                rateOpenTxn = numTxnOpSuccess.sumThenReset() / elapsed;
+                log.info("--- Transaction: {} transaction end successfully --- {} transaction end failed "
+                                + "--- {}  Txn/s --- AckRate: {} msg/s",
+                        totalTxnOpSuccessNum,
+                        totalTxnOpFailNum,
+                        dec.format(rateOpenTxn),
+                        dec.format(rateAck));
+            }
             log.info(
-                    "Throughput received: {} msg --- {}  msg/s -- {} Mbit/s --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
+                    "Throughput received: {} msg --- {}  msg/s -- {} Mbit/s  "
+                            + "--- Latency: mean: {} ms - med: {} "
+                            + "- 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
                     intFormat.format(total),
                     dec.format(rate), dec.format(throughput), dec.format(reportHistogram.getMean()),
                     reportHistogram.getValueAtPercentile(50), reportHistogram.getValueAtPercentile(95),
@@ -465,15 +593,41 @@ public class PerformanceConsumer {
         pulsarClient.close();
     }
 
-    private static void printAggregatedThroughput(long start) {
+    private static void printAggregatedThroughput(long start, Arguments arguments) {
         double elapsed = (System.nanoTime() - start) / 1e9;
         double rate = totalMessagesReceived.sum() / elapsed;
         double throughput = totalBytesReceived.sum() / elapsed * 8 / 1024 / 1024;
+        long totalEndTxnSuccess = 0;
+        long totalEndTxnFail = 0;
+        long numTransactionOpenFailed = 0;
+        long numTransactionOpenSuccess = 0;
+        long totalnumMessageAckFailed = 0;
+        double rateAck = totalMessageAck.sum() / elapsed;
+        double rateOpenTxn = 0;
+        if (arguments.isEnableTransaction) {
+            totalEndTxnSuccess = totalEndTxnOpSuccessNum.sum();
+            totalEndTxnFail = totalEndTxnOpFailNum.sum();
+            rateOpenTxn = (totalEndTxnSuccess + totalEndTxnFail) / elapsed;
+            totalnumMessageAckFailed = totalMessageAckFailed.sum();
+            numTransactionOpenFailed = totalNumTxnOpenFail.sum();
+            numTransactionOpenSuccess = totalNumTxnOpenSuccess.sum();
+            log.info("-- Transaction: {}  transaction end successfully --- {} transaction end failed "
+                            + "--- {} transaction open successfully --- {} transaction open failed "
+                            + "--- {} Txn/s ",
+                    totalEndTxnSuccess,
+                    totalEndTxnFail,
+                    numTransactionOpenSuccess,
+                    numTransactionOpenFailed,
+                    dec.format(rateOpenTxn));
+        }
         log.info(
-            "Aggregated throughput stats --- {} records received --- {} msg/s --- {} Mbit/s",
-            totalMessagesReceived,
+            "Aggregated throughput stats --- {} records received --- {} msg/s --- {} Mbit/s"
+                 + "--- AckRate: {}  msg/s --- ack failed {} msg",
+            totalMessagesReceived.sum(),
             dec.format(rate),
-            dec.format(throughput));
+            dec.format(throughput),
+                rateAck,
+                totalnumMessageAckFailed);
     }
 
     private static void printAggregatedStats() {

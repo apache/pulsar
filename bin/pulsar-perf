@@ -87,6 +87,7 @@ Usage: pulsar-perf <command>
 where command is one of:
     produce                 Run a producer
     consume                 Run a consumer
+    transaction             Run a transaction repeatedly
     read                    Run a topic reader
 
     websocket-producer      Run a websocket producer
@@ -164,6 +165,8 @@ if [ "$COMMAND" == "produce" ]; then
     exec $JAVA $OPTS org.apache.pulsar.testclient.PerformanceProducer --conf-file $PULSAR_PERFTEST_CONF "$@"
 elif [ "$COMMAND" == "consume" ]; then
     exec $JAVA $OPTS org.apache.pulsar.testclient.PerformanceConsumer --conf-file $PULSAR_PERFTEST_CONF "$@"
+elif [  "$COMMAND" == "transaction" ]; then
+    exec $JAVA $OPTS org.apache.pulsar.testclient.PerformanceTransaction --conf-file $PULSAR_PERFTEST_CONF "$@"
 elif [ "$COMMAND" == "read" ]; then
     exec $JAVA $OPTS org.apache.pulsar.testclient.PerformanceReader --conf-file $PULSAR_PERFTEST_CONF "$@"
 elif [ "$COMMAND" == "monitor-brokers" ]; then
