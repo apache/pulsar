@@ -1318,11 +1318,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(name = "messageId", value = "messageId where to create the subscription. "
-                    + "It can be 'latest', 'earliest' or (ledgerId:entryId:partitionIndex)",
+                    + "It can be 'latest', 'earliest' or (ledgerId:entryId)",
                     defaultValue = "latest",
-                    allowableValues = "latest, earliest, (ledgerId:entryId:partitionIndex)"
+                    allowableValues = "latest, earliest, ledgerId:entryId"
             )
-                    MessageIdImpl messageId,
+                    ResetCursorData resetCursorData,
             @ApiParam(value = "Is replicated required to perform this operation")
             @QueryParam("replicated") boolean replicated
     ) {
@@ -1332,6 +1332,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                 throw new RestException(Response.Status.BAD_REQUEST, "Create subscription on non-persistent topic"
                         + "can only be done through client");
             }
+            MessageIdImpl messageId = new MessageIdImpl(resetCursorData.getLedgerId(), resetCursorData.getEntryId(),
+                    resetCursorData.getPartitionIndex());
             internalCreateSubscription(asyncResponse, decode(encodedSubName), messageId, authoritative, replicated);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);

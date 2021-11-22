@@ -70,6 +70,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ProducerBase;
 import org.apache.pulsar.client.impl.ProducerImpl;
+import org.apache.pulsar.client.impl.ResetCursorData;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -184,7 +185,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         // 4) Create a subscription
         response = mock(AsyncResponse.class);
         persistentTopics.createSubscription(response, testTenant, testNamespace, testLocalTopicName, "test", true,
-                (MessageIdImpl) MessageId.earliest, false);
+                new ResetCursorData(MessageId.earliest), false);
         responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
@@ -211,7 +212,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         // 8) Create a sub of partitioned-topic
         response = mock(AsyncResponse.class);
         persistentTopics.createSubscription(response, testTenant, testNamespace, testLocalTopicName + "-partition-1", "test", true,
-                (MessageIdImpl) MessageId.earliest, false);
+                new ResetCursorData(MessageId.earliest), false);
         responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
@@ -261,7 +262,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         AsyncResponse response = mock(AsyncResponse.class);
         persistentTopics.createSubscription(response, testTenant, testNamespace, testLocalTopicName, SUB_EARLIEST, true,
-                (MessageIdImpl) MessageId.earliest, false);
+                new ResetCursorData(MessageId.earliest), false);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
@@ -274,7 +275,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         response = mock(AsyncResponse.class);
         persistentTopics.createSubscription(response, testTenant, testNamespace, testLocalTopicName, SUB_LATEST, true,
-                (MessageIdImpl) MessageId.latest, false);
+                new ResetCursorData(MessageId.latest), false);
         responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
@@ -306,7 +307,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         ArgumentCaptor<WebApplicationException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
         persistentTopics.createSubscription(response, testTenant, testNamespace,
                 "testCreateSubscriptionForNonPersistentTopic", "sub",
-                true, (MessageIdImpl) MessageId.earliest, false);
+                true, new ResetCursorData(MessageId.earliest), false);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getResponse().getStatus(), Response.Status.BAD_REQUEST.getStatusCode());
     }
@@ -325,7 +326,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         // 5) Create a subscription
         response = mock(AsyncResponse.class);
         persistentTopics.createSubscription(response, testTenant, testNamespace, testLocalTopicName, "test", true,
-                (MessageIdImpl) MessageId.earliest, false);
+                new ResetCursorData(MessageId.earliest), false);
         responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
@@ -346,7 +347,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         // 2) Create a subscription
         AsyncResponse response  = mock(AsyncResponse.class);
         persistentTopics.createSubscription(response, testTenant, testNamespace, testLocalTopicName, "test", true,
-                (MessageIdImpl) MessageId.earliest, false);
+                new ResetCursorData(MessageId.earliest), false);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
@@ -370,7 +371,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         final String nonPartitionTopic = "non-partitioned-topic";
         AsyncResponse response = mock(AsyncResponse.class);
         persistentTopics.createSubscription(response, testTenant, testNamespace, nonPartitionTopic, "test", true,
-                (MessageIdImpl) MessageId.latest, false);
+                new ResetCursorData(MessageId.latest), false);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
@@ -869,7 +870,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         // 4) Create a subscription
         response = mock(AsyncResponse.class);
         persistentTopics.createSubscription(response, testTenant, testNamespace, topicName, subName, true,
-                (MessageIdImpl) MessageId.latest, false);
+                new ResetCursorData(MessageId.latest), false);
         responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(10000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
