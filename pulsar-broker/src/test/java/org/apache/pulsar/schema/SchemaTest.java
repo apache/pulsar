@@ -301,6 +301,54 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testSendAvroAndJsonPrimitiveSchema() throws Exception {
+        final String tenant = PUBLIC_TENANT;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topicOne = "test-multi-version-schema-one";
+        final String fqtnOne = TopicName.get(
+                TopicDomain.persistent.value(),
+                tenant,
+                namespace,
+                topicOne
+        ).toString();
+
+
+        admin.namespaces().createNamespace(
+                tenant + "/" + namespace,
+                Sets.newHashSet(CLUSTER_NAME)
+        );
+
+        admin.namespaces().setSchemaCompatibilityStrategy(tenant + "/" + namespace,
+                SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES())
+                .topic(fqtnOne)
+                .create();
+
+        final Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME()).topic(fqtnOne)
+                .subscriptionName("sub")
+                .subscribe();
+
+        int producerAvroIntegerValue = 1;
+        byte[] producerAvroBytesValue = "testProducerAvroBytes".getBytes();
+        producer.newMessage(Schema.AVRO(Integer.class)).value(1).send();
+        producer.newMessage(Schema.AVRO(byte[].class)).value(producerAvroBytesValue).send();
+
+        int producerJsonIntegerValue = 2;
+        byte[] producerJsonBytesValue = "testProducerJsonBytes".getBytes();
+        producer.newMessage(Schema.JSON(Integer.class)).value(producerJsonIntegerValue).send();
+        producer.newMessage(Schema.JSON(byte[].class)).value(producerJsonBytesValue).send();
+
+        // AVRO schema with primitive class can consume
+        assertEquals(consumer.receive().getValue().getNativeObject(), producerAvroIntegerValue);
+        assertArrayEquals((byte[]) consumer.receive().getValue().getNativeObject(), producerAvroBytesValue);
+
+        // JSON schema with primitive class can consume
+        assertEquals(consumer.receive().getValue().getNativeObject(), producerJsonIntegerValue);
+        assertArrayEquals((byte[])  consumer.receive().getValue().getNativeObject(), producerJsonBytesValue);
+}
+
+    @Test
     public void testJSONSchemaDeserialize() throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);

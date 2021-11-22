@@ -284,15 +284,15 @@ public final class SchemaUtils {
                 case AVRO:
                 case JSON:
                 case PROTOBUF:
-                    return toJsonObject(schemaInfo.getSchemaDefinition());
+                    return toJsonElement(schemaInfo.getSchemaDefinition());
                 case KEY_VALUE:
                     KeyValue<SchemaInfo, SchemaInfo> schemaInfoKeyValue =
                         DefaultImplementation.decodeKeyValueSchemaInfo(schemaInfo);
                     JsonObject obj = new JsonObject();
                     String keyJson = jsonifySchemaInfo(schemaInfoKeyValue.getKey());
                     String valueJson = jsonifySchemaInfo(schemaInfoKeyValue.getValue());
-                    obj.add("key", toJsonObject(keyJson));
-                    obj.add("value", toJsonObject(valueJson));
+                    obj.add("key", toJsonElement(keyJson));
+                    obj.add("value", toJsonElement(valueJson));
                     return obj;
                 default:
                     return new JsonPrimitive(schemaDef);
@@ -300,9 +300,13 @@ public final class SchemaUtils {
         }
     }
 
-    public static JsonObject toJsonObject(String json) {
-        JsonParser parser = new JsonParser();
-        return parser.parse(json).getAsJsonObject();
+    public static JsonElement toJsonElement(String str) {
+        try {
+            return JsonParser.parseString(str).getAsJsonObject();
+        } catch (IllegalStateException e) {
+            // because str may not a json, so we should use JsonPrimitive
+            return new JsonPrimitive(str);
+        }
     }
 
     private static class SchemaInfoToStringAdapter implements JsonSerializer<SchemaInfo> {
@@ -311,7 +315,8 @@ public final class SchemaUtils {
         public JsonElement serialize(SchemaInfo schemaInfo,
                                      Type type,
                                      JsonSerializationContext jsonSerializationContext) {
-            return toJsonObject(jsonifySchemaInfo(schemaInfo));
+            // schema will not a json, so use toJsonElement
+            return toJsonElement(jsonifySchemaInfo(schemaInfo));
         }
     }
 
@@ -356,7 +361,7 @@ public final class SchemaUtils {
      * @return the key/value schema info data bytes
      */
     public static byte[] convertKeyValueDataStringToSchemaInfoSchema(byte[] keyValueSchemaInfoDataJsonBytes) throws IOException {
-        JsonObject jsonObject = toJsonObject(new String(keyValueSchemaInfoDataJsonBytes, UTF_8));
+        JsonObject jsonObject = (JsonObject) toJsonElement(new String(keyValueSchemaInfoDataJsonBytes, UTF_8));
         byte[] keyBytes = getKeyOrValueSchemaBytes(jsonObject.get("key"));
         byte[] valueBytes = getKeyOrValueSchemaBytes(jsonObject.get("value"));
         int dataLength = 4 + keyBytes.length + 4 + valueBytes.length;
