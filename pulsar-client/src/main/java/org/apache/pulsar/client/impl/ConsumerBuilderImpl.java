@@ -207,7 +207,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public ConsumerBuilder<T> subscriptionProperties(Map<String, Long> subscriptionProperties) {
         checkArgument(subscriptionProperties != null, "subscriptionProperties cannot be null");
-        conf.setSubscriptionProperties(subscriptionProperties);
+        conf.setSubscriptionProperties(Collections.unmodifiableMap(subscriptionProperties));
         return this;
     }
 
