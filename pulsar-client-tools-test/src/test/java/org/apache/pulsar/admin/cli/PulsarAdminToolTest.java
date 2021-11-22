@@ -1281,6 +1281,9 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("set-replicated-subscription-status persistent://myprop/clust/ns1/ds1 -s sub1 -d"));
         verify(mockTopics).setReplicatedSubscriptionStatus("persistent://myprop/clust/ns1/ds1", "sub1", false);
 
+        cmdTopics.run(split("get-replicated-subscription-status persistent://myprop/clust/ns1/ds1 -s sub1"));
+        verify(mockTopics).getReplicatedSubscriptionStatus("persistent://myprop/clust/ns1/ds1", "sub1");
+
         //cmd with option cannot be executed repeatedly.
         cmdTopics = new CmdTopics(() -> admin);
 

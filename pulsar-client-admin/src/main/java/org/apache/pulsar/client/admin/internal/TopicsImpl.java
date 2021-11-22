@@ -3832,9 +3832,11 @@ public class TopicsImpl extends BaseResource implements Topics {
         return asyncPostRequest(path, Entity.entity(enabled, MediaType.APPLICATION_JSON));
     }
 
-    public Map<String, Boolean> getReplicatedSubscriptionStatus(String topic) throws PulsarAdminException {
+    public Map<String, Boolean> getReplicatedSubscriptionStatus(String topic,
+                                                                String subName) throws PulsarAdminException {
         try {
-            return getReplicatedSubscriptionStatusAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            return getReplicatedSubscriptionStatusAsync(topic, subName)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -3845,9 +3847,10 @@ public class TopicsImpl extends BaseResource implements Topics {
         }
     }
 
-    public CompletableFuture<Map<String, Boolean>> getReplicatedSubscriptionStatusAsync(String topic) {
+    public CompletableFuture<Map<String, Boolean>> getReplicatedSubscriptionStatusAsync(String topic, String subName) {
         TopicName topicName = validateTopic(topic);
-        WebTarget path = topicPath(topicName, "subscription", "replicatedSubscriptionStatus");
+        String encodedSubName = Codec.encode(subName);
+        WebTarget path = topicPath(topicName, "subscription", encodedSubName, "replicatedSubscriptionStatus");
         final CompletableFuture<Map<String, Boolean>> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<Map<String, Boolean>>() {

@@ -3643,6 +3643,7 @@ public interface Topics {
      * Get replicated subscription status on a topic.
      *
      * @param topic topic name
+     * @param subName subscription name
      * @return a map of replicated subscription status on a topic
      *
      * @throws NotAuthorizedException
@@ -3652,7 +3653,7 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    Map<String, Boolean> getReplicatedSubscriptionStatus(String topic) throws PulsarAdminException;
+    Map<String, Boolean> getReplicatedSubscriptionStatus(String topic, String subName) throws PulsarAdminException;
 
     /**
      * Get replicated subscription status on a topic asynchronously.
@@ -3660,5 +3661,5 @@ public interface Topics {
      * @param topic topic name
      * @return a map of replicated subscription status on a topic
      */
-    CompletableFuture<Map<String, Boolean>> getReplicatedSubscriptionStatusAsync(String topic);
+    CompletableFuture<Map<String, Boolean>> getReplicatedSubscriptionStatusAsync(String topic, String subName);
 }

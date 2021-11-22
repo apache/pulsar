@@ -3427,7 +3427,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     @GET
-    @Path("/{tenant}/{namespace}/{topic}/subscription/replicatedSubscriptionStatus")
+    @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/replicatedSubscriptionStatus")
     @ApiOperation(value = "Get replicated subscription status on a topic.")
     @ApiResponses(value = {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources"),
@@ -3435,15 +3435,20 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 412, message = "Can't find owner for topic"),
             @ApiResponse(code = 500, message = "Internal server error")})
-    public Map<String, Boolean> getReplicatedSubscriptionStatus(
+    public void getReplicatedSubscriptionStatus(
+            @Suspended AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
-            @PathParam("topic") @Encoded String encodedTopic) {
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Name of subscription", required = true)
+            @PathParam("subName") String encodedSubName,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        return internalGetReplicatedSubscriptionStatus();
+        internalGetReplicatedSubscriptionStatus(asyncResponse, decode(encodedSubName), authoritative);
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentTopics.class);

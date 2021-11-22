@@ -2548,10 +2548,14 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = {"-s",
+                "--subscription"}, description = "Subscription name", required = true)
+        private String subName;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getTopics().getReplicatedSubscriptionStatus(persistentTopic));
+            print(getTopics().getReplicatedSubscriptionStatus(persistentTopic, subName));
         }
     }
 
