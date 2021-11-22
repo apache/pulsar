@@ -555,7 +555,7 @@ public class Commands {
                 .setReplicateSubscriptionState(isReplicated)
                 .setForceTopicCreation(createTopicIfDoesNotExist);
 
-        if (subscriptionProperties != null && subscriptionProperties.size() > 0) {
+        if (subscriptionProperties != null && !subscriptionProperties.isEmpty()) {
             List<KeyLongValue> keyLongValues = new ArrayList<>();
             subscriptionProperties.forEach((key, value) -> {
                 KeyLongValue keyLongValue = new KeyLongValue();
