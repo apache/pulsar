@@ -40,6 +40,8 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -870,6 +872,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                     }
 
                     stopReplProducers().thenCompose(v -> delete(true, false, true))
+                            .thenAccept(__ -> tryToDeletePartitionedMetadata())
                             .thenRun(() -> log.info("[{}] Topic deleted successfully due to inactivity", topic))
                             .exceptionally(e -> {
                                 Throwable throwable = e.getCause();
@@ -889,6 +892,32 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                 }
             }
         }
+    }
+
+    private CompletableFuture<Void> tryToDeletePartitionedMetadata() {
+        if (TopicName.get(topic).isPartitioned() && !deletePartitionedTopicMetadataWhileInactive()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        TopicName topicName = TopicName.get(TopicName.get(topic).getPartitionedTopicName());
+        try {
+            NamespaceResources.PartitionedTopicResources partitionedTopicResources = brokerService.pulsar()
+                    .getPulsarResources().getNamespaceResources().getPartitionedTopicResources();
+            String path = partitionedTopicPath(topicName);
+            if (!partitionedTopicResources.exists(path)) {
+                return CompletableFuture.completedFuture(null);
+            }
+            return partitionedTopicResources.deleteAsync(path);
+        } catch (Exception e) {
+            return FutureUtil.failedFuture(e);
+        }
+    }
+
+    private static String partitionedTopicPath(TopicName topicName) {
+        return String.format("%s/%s/%s/%s",
+                ConfigurationCacheService.PARTITIONED_TOPICS_ROOT,
+                topicName.getNamespace(),
+                topicName.getDomain(),
+                topicName.getEncodedLocalName());
     }
 
     @Override
