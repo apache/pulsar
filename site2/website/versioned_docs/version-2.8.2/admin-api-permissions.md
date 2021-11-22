@@ -17,9 +17,9 @@ original_id: admin-api-permissions
 
 Pulsar allows you to grant namespace-level or topic-level permission to users.
 
-- If you grant namespace-level permissions to a user, then the user can access all the topics under the namespace.
+- If you grant a namespace-level permission to a user, then the user can access all the topics under the namespace.
 
-- If you grant topic-level permissions to a user, then this user can access only the topic.
+- If you grant a topic-level permission to a user, then the user can access only the topic.
 
 The chapters below demonstrate how to grant namespace-level permissions to users. For how to grant topic-level permissions to users, see [manage topics](admin-api-topics.md/#grant-permission).
 
