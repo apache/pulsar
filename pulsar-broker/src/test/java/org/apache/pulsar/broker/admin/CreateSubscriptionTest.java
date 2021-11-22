@@ -144,19 +144,19 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
     public void addSubscriptionPropertiesTest() throws Exception {
         String topic = "persistent://my-property/my-ns/topic" + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);
-        Map<String, Long> map = new HashMap<>();
-        map.put("1", 1L);
-        map.put("2", 2L);
+        Map<String, String> map = new HashMap<>();
+        map.put("1", "1");
+        map.put("2", "2");
         String subName = "my-sub";
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).receiverQueueSize(1)
                 .subscriptionProperties(map).subscriptionName(subName).subscribe();
         PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
                 .getTopicReference(topic).get().getSubscription(subName);
-        Map<String, Long> properties = subscription.getSubscriptionProperties();
+        Map<String, String> properties = subscription.getSubscriptionProperties();
         assertTrue(properties.containsKey("1"));
         assertTrue(properties.containsKey("2"));
-        assertEquals(properties.get("1").longValue(), 1L);
-        assertEquals(properties.get("2").longValue(), 2L);
+        assertEquals(properties.get("1"), "1");
+        assertEquals(properties.get("2"), "2");
 
         // after updating mark delete position, the properties should still exist
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
@@ -174,8 +174,8 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         properties = subscription.getSubscriptionProperties();
         assertTrue(properties.containsKey("1"));
         assertTrue(properties.containsKey("2"));
-        assertEquals(properties.get("1").longValue(), 1L);
-        assertEquals(properties.get("2").longValue(), 2L);
+        assertEquals(properties.get("1"), "1");
+        assertEquals(properties.get("2"), "2");
 
         consumer.close();
         producer.close();
@@ -187,25 +187,25 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         PersistentSubscription subscription2 = (PersistentSubscription) pulsar.getBrokerService()
                 .getTopicReference(topic).get().getSubscription(subName);
         Awaitility.await().untilAsserted(() -> {
-            Map<String, Long> properties2 = subscription2.getSubscriptionProperties();
+            Map<String, String> properties2 = subscription2.getSubscriptionProperties();
             assertTrue(properties2.containsKey("1"));
             assertTrue(properties2.containsKey("2"));
-            assertEquals(properties2.get("1").longValue(), 1L);
-            assertEquals(properties2.get("2").longValue(), 2L);
+            assertEquals(properties2.get("1"), "1");
+            assertEquals(properties2.get("2"), "2");
         });
         consumer2.close();
 
         // create a new consumer with new properties, the new properties should be ignored
-        Map<String, Long> map3 = new HashMap<>();
-        map3.put("3", 3L);
-        map3.put("4", 4L);
+        Map<String, String> map3 = new HashMap<>();
+        map3.put("3", "3");
+        map3.put("4", "4");
         Consumer<byte[]> consumer3 = pulsarClient.newConsumer().topic(topic).receiverQueueSize(1)
                 .subscriptionProperties(map3).subscriptionName(subName).subscribe();
-        Map<String, Long> properties3 = subscription.getSubscriptionProperties();
+        Map<String, String> properties3 = subscription.getSubscriptionProperties();
         assertTrue(properties3.containsKey("1"));
         assertTrue(properties3.containsKey("2"));
-        assertEquals(properties3.get("1").longValue(), 1L);
-        assertEquals(properties3.get("2").longValue(), 2L);
+        assertEquals(properties3.get("1"), "1");
+        assertEquals(properties3.get("2"), "2");
         consumer3.close();
 
         //restart and create a new consumer with new properties, the new properties should be updated
@@ -214,11 +214,11 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
                 .subscriptionProperties(map3).subscriptionName(subName).subscribe();
         PersistentSubscription subscription4 = (PersistentSubscription) pulsar.getBrokerService()
                 .getTopicReference(topic).get().getSubscription(subName);
-        Map<String, Long> properties4 = subscription4.getSubscriptionProperties();
+        Map<String, String> properties4 = subscription4.getSubscriptionProperties();
         assertTrue(properties4.containsKey("3"));
         assertTrue(properties4.containsKey("4"));
-        assertEquals(properties4.get("3").longValue(), 3L);
-        assertEquals(properties4.get("4").longValue(), 4L);
+        assertEquals(properties4.get("3"), "3");
+        assertEquals(properties4.get("4"), "4");
         consumer4.close();
     }
 }

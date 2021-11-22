@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -18,41 +18,43 @@
  */
 package org.apache.pulsar.broker.service;
 
+import lombok.Builder;
+import lombok.Getter;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.KeyValue;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
-import lombok.Builder;
-import lombok.Data;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.common.api.proto.CommandSubscribe;
-import org.apache.pulsar.common.api.proto.KeyLongValue;
-import org.apache.pulsar.common.api.proto.KeySharedMeta;
 
-@Data
+@Getter
 @Builder
 public class SubscriptionOption {
-    final TransportCnx cnx;
-    String subscriptionName;
-    long consumerId;
-    CommandSubscribe.SubType subType;
-    int priorityLevel;
-    String consumerName;
-    boolean isDurable;
-    MessageId startMessageId;
-    Map<String, String> metadata;
-    boolean readCompacted;
-    CommandSubscribe.InitialPosition initialPosition;
-    long startMessageRollbackDurationSec;
-    boolean replicatedSubscriptionStateArg;
-    KeySharedMeta keySharedMeta;
-    Map<String, Long> subscriptionProperties;
+    private final TransportCnx cnx;
+    private String subscriptionName;
+    private long consumerId;
+    private CommandSubscribe.SubType subType;
+    private int priorityLevel;
+    private String consumerName;
+    private boolean isDurable;
+    private MessageId startMessageId;
+    private Map<String, String> metadata;
+    private boolean readCompacted;
+    private CommandSubscribe.InitialPosition initialPosition;
+    private long startMessageRollbackDurationSec;
+    private boolean replicatedSubscriptionStateArg;
+    private KeySharedMeta keySharedMeta;
+    private Optional<Map<String, String>> subscriptionProperties;
 
-    public static Map<String, Long> getPropertiesMap(List<KeyLongValue> list) {
+    public static Optional<Map<String, String>> getPropertiesMap(List<KeyValue> list) {
         if (list == null) {
-            return Collections.emptyMap();
+            return Optional.of(Collections.emptyMap());
         }
-        return list.stream().collect(Collectors.toMap(
-                KeyLongValue::getKey, KeyLongValue::getValue, (key1, key2) -> key1));
+        return Optional.of(list.stream().collect(Collectors.toMap(
+                KeyValue::getKey, KeyValue::getValue, (key1, key2) -> key1)));
     }
 }

@@ -49,6 +49,7 @@ import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
 import org.apache.pulsar.common.api.proto.KeyLongValue;
+import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.api.proto.AuthMethod;
 import org.apache.pulsar.common.api.proto.BaseCommand;
@@ -539,7 +540,7 @@ public class Commands {
                Map<String, String> metadata, boolean readCompacted, boolean isReplicated,
                InitialPosition subscriptionInitialPosition, long startMessageRollbackDurationInSec,
                SchemaInfo schemaInfo, boolean createTopicIfDoesNotExist, KeySharedPolicy keySharedPolicy,
-               Map<String, Long> subscriptionProperties) {
+               Map<String, String> subscriptionProperties) {
         BaseCommand cmd = localCmd(Type.SUBSCRIBE);
         CommandSubscribe subscribe = cmd.setSubscribe()
                 .setTopic(topic)
@@ -556,14 +557,14 @@ public class Commands {
                 .setForceTopicCreation(createTopicIfDoesNotExist);
 
         if (subscriptionProperties != null && !subscriptionProperties.isEmpty()) {
-            List<KeyLongValue> keyLongValues = new ArrayList<>();
+            List<KeyValue> keyValues = new ArrayList<>();
             subscriptionProperties.forEach((key, value) -> {
-                KeyLongValue keyLongValue = new KeyLongValue();
-                keyLongValue.setKey(key);
-                keyLongValue.setValue(value);
-                keyLongValues.add(keyLongValue);
+                KeyValue keyValue = new KeyValue();
+                keyValue.setKey(key);
+                keyValue.setValue(value);
+                keyValues.add(keyValue);
             });
-            subscribe.addAllSubscriptionProperties(keyLongValues);
+            subscribe.addAllSubscriptionProperties(keyValues);
         }
 
         if (keySharedPolicy != null) {

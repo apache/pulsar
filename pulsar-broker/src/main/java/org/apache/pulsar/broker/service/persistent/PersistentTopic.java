@@ -393,7 +393,7 @@ public class PersistentTopic extends AbstractTopic
     }
 
     private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
-            boolean replicated, Map<String, Long> subscriptionProperties) {
+            boolean replicated, Map<String, String> subscriptionProperties) {
         checkNotNull(compactedTopic);
         if (subscriptionName.equals(COMPACTION_SUBSCRIPTION)) {
             return new CompactorSubscription(this, compactedTopic, subscriptionName, cursor);
@@ -664,7 +664,7 @@ public class PersistentTopic extends AbstractTopic
                 option.getStartMessageId(), option.getMetadata(), option.isReadCompacted(),
                 option.getInitialPosition(), option.getStartMessageRollbackDurationSec(),
                 option.isReplicatedSubscriptionStateArg(), option.getKeySharedMeta(),
-                option.getSubscriptionProperties());
+                option.getSubscriptionProperties().orElse(Collections.emptyMap()));
     }
 
     private CompletableFuture<Consumer> internalSubscribe(final TransportCnx cnx, String subscriptionName,
@@ -675,7 +675,7 @@ public class PersistentTopic extends AbstractTopic
                                                  long startMessageRollbackDurationSec,
                                                  boolean replicatedSubscriptionStateArg,
                                                  KeySharedMeta keySharedMeta,
-                                                 Map<String, Long> subscriptionProperties) {
+                                                 Map<String, String> subscriptionProperties) {
         if (readCompacted && !(subType == SubType.Failover || subType == SubType.Exclusive)) {
             return FutureUtil.failedFuture(new NotAllowedException(
                     "readCompacted only allowed on failover or exclusive subscriptions"));
@@ -860,7 +860,7 @@ public class PersistentTopic extends AbstractTopic
 
     private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,
             InitialPosition initialPosition, long startMessageRollbackDurationSec, boolean replicated,
-                                                                   Map<String, Long> subscriptionProperties) {
+                                                                   Map<String, String> subscriptionProperties) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
         if (checkMaxSubscriptionsPerTopicExceed(subscriptionName)) {
             subscriptionFuture.completeExceptionally(new NotAllowedException(

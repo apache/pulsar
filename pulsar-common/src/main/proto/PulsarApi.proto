@@ -383,7 +383,7 @@ message CommandSubscribe {
 
     optional KeySharedMeta keySharedMeta = 17;
 
-    repeated KeyLongValue subscription_properties = 18;
+    repeated KeyValue subscription_properties = 18;
 }
 
 message CommandPartitionedTopicMetadata {

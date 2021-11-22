@@ -117,7 +117,7 @@ public class PersistentSubscription implements Subscription {
     private volatile ReplicatedSubscriptionSnapshotCache replicatedSubscriptionSnapshotCache;
     private volatile Position lastMarkDeleteForTransactionMarker;
     private final PendingAckHandle pendingAckHandle;
-    private Map<String, Long> subscriptionProperties;
+    private Map<String, String> subscriptionProperties;
 
     private final LongAdder bytesOutFromRemovedConsumers = new LongAdder();
     private final LongAdder msgOutFromRemovedConsumer = new LongAdder();
@@ -150,7 +150,7 @@ public class PersistentSubscription implements Subscription {
     }
 
     public PersistentSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor,
-            boolean replicated, Map<String, Long> subscriptionProperties) {
+            boolean replicated, Map<String, String> subscriptionProperties) {
         this.topic = topic;
         this.cursor = cursor;
         this.topicName = topic.getName();
@@ -158,7 +158,8 @@ public class PersistentSubscription implements Subscription {
         this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor, this);
         this.setReplicated(replicated);
-        this.subscriptionProperties = subscriptionProperties == null ? new HashMap<>() : subscriptionProperties;
+        this.subscriptionProperties = subscriptionProperties == null
+                ? new HashMap<>() : Collections.unmodifiableMap(subscriptionProperties);
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
                 && !checkTopicIsEventsNames(TopicName.get(topicName))) {
             this.pendingAckHandle = new PendingAckHandleImpl(this);
@@ -1149,7 +1150,7 @@ public class PersistentSubscription implements Subscription {
         }
     }
 
-    public Map<String, Long> getSubscriptionProperties() {
+    public Map<String, String> getSubscriptionProperties() {
         return subscriptionProperties;
     }
 

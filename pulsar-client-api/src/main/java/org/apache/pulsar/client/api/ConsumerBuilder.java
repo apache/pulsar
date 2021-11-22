@@ -174,7 +174,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * @param subscriptionProperties
      * @return
      */
-    ConsumerBuilder<T> subscriptionProperties(Map<String, Long> subscriptionProperties);
+    ConsumerBuilder<T> subscriptionProperties(Map<String, String> subscriptionProperties);
 
 
     /**

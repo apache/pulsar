@@ -64,7 +64,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private SubscriptionType subscriptionType = SubscriptionType.Exclusive;
 
-    private Map<String, Long> subscriptionProperties;
+    private Map<String, String> subscriptionProperties;
 
     private SubscriptionMode subscriptionMode = SubscriptionMode.Durable;
 
