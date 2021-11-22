@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="stylesheet.css" type="text/css">
 </head>
 <body>
-<div id="sidebar-wrapper" class="side-nav side-bar-nav"><ul><li class="nav-level-1"><a href="#produce" class="nav-item">produce</a></li></ul><ul><li class="nav-level-1"><a href="#consume" class="nav-item">consume</a></li></ul><ul><li class="nav-level-1"><a href="#read" class="nav-item">read</a></li></ul><ul><li class="nav-level-1"><a href="#monitor-brokers" class="nav-item">monitor-brokers</a></li></ul><ul><li class="nav-level-1"><a href="#simulation-client" class="nav-item">simulation-client</a></li></ul><ul><li class="nav-level-1"><a href="#simulation-controller" class="nav-item">simulation-controller</a></li></ul><ul><li class="nav-level-1"><a href="#websocket-producer" class="nav-item">websocket-producer</a></li></ul><ul><li class="nav-level-1"><a href="#managed-ledger" class="nav-item">managed-ledger</a></li></ul><br/><div class="copyright"><a href='http://pulsar.apache.org/'>Apache Pulsar</a></div></div>
+<div id="sidebar-wrapper" class="side-nav side-bar-nav"><ul><li class="nav-level-1"><a href="#produce" class="nav-item">produce</a></li></ul><ul><li class="nav-level-1"><a href="#consume" class="nav-item">consume</a></li></ul><ul><li class="nav-level-1"><a href="#transaction" class="nav-item">transaction</a></li></ul><ul><li class="nav-level-1"><a href="#read" class="nav-item">read</a></li></ul><ul><li class="nav-level-1"><a href="#monitor-brokers" class="nav-item">monitor-brokers</a></li></ul><ul><li class="nav-level-1"><a href="#simulation-client" class="nav-item">simulation-client</a></li></ul><ul><li class="nav-level-1"><a href="#simulation-controller" class="nav-item">simulation-controller</a></li></ul><ul><li class="nav-level-1"><a href="#websocket-producer" class="nav-item">websocket-producer</a></li></ul><ul><li class="nav-level-1"><a href="#managed-ledger" class="nav-item">managed-ledger</a></li></ul><br/><div class="copyright"><a href='http://pulsar.apache.org/'>Apache Pulsar</a></div></div>
 <div id="wrapper">
 <div id="code-tabs-wrapper" class="code-tabs"><ul class="code-tab-list"><li class="code-tab" id="example">example</li></ul></div>
 <div id="page-content-wrapper" class="body-content container-fluid"><hr>
@@ -107,6 +107,11 @@
 <td>null</td>
 </tr>
 <tr>
+<td><code>-nmt, --numMessage-perTransaction</code></td>
+<td>The number of messages sent by a transaction. (After --txn-enable setting to true, -nmt takes effect)</td>
+<td>50</td>
+</tr>
+<tr>
 <td><code>-n, --num-producers</code></td>
 <td>Number of producers (per topic)</td>
 <td>1</td>
@@ -130,6 +135,11 @@
 <td><code>--warmup-time</code></td>
 <td>Warm-up time in seconds (Default: 1 sec)</td>
 <td>1.0</td>
+</tr>
+<tr>
+<td><code>-txn, --txn-enable</code></td>
+<td>Enable or disable the transaction</td>
+<td>false</td>
 </tr>
 <tr>
 <td><code>-fp, --format-payload</code></td>
@@ -162,9 +172,19 @@
 <td>1000</td>
 </tr>
 <tr>
+<td><code>-abort</code></td>
+<td>Abort the transaction. (After --txn-enable setting to true, -abort takes effect)</td>
+<td>false</td>
+</tr>
+<tr>
 <td><code>-t, --num-topic</code></td>
 <td>Number of topics</td>
 <td>1</td>
+</tr>
+<tr>
+<td><code>-tto, --txn-timeout</code></td>
+<td>Set the time value of transaction timeout, and the time unit is second. (After --txn-enable setting to true, --txn-timeout takes effect)</td>
+<td>10</td>
 </tr>
 <tr>
 <td><code>--listener-name</code></td>
@@ -238,7 +258,7 @@
 </tr>
 <tr>
 <td><code>-ioThreads, --num-io-threads</code></td>
-<td>Set the number of threads to be used for handling connections to brokers, default is 1 thread</td>
+<td>Set the number of threads to be used for handling connections to brokers. The default value is 1.</td>
 <td>1</td>
 </tr>
 <tr>
@@ -291,6 +311,11 @@
 <td>0</td>
 </tr>
 <tr>
+<td><code>-nmt, --numMessage-perTransaction</code></td>
+<td>The number of messages acknowledged by a transaction. (After --txn-enable setting to true, -numMessage-perTransaction takes effect</td>
+<td>50</td>
+</tr>
+<tr>
 <td><code>-st, --subscription-type</code></td>
 <td>Subscription type</td>
 <td>Exclusive</td>
@@ -302,13 +327,18 @@
 </tr>
 <tr>
 <td><code>-ioThreads, --num-io-threads</code></td>
-<td>Set the number of threads to be used for handling connections to brokers, default is 1 thread</td>
+<td>Set the number of threads to be used for handling connections to brokers. The default value is 1.</td>
 <td>1</td>
 </tr>
 <tr>
 <td><code>-r, --rate</code></td>
 <td>Simulate a slow message consumer (rate in msg/s)</td>
 <td>0.0</td>
+</tr>
+<tr>
+<td><code>-txn, --txn-enable</code></td>
+<td>Enable or disable the transaction</td>
+<td>false</td>
 </tr>
 <tr>
 <td><code>-e, --expire_time_incomplete_chunked_messages</code></td>
@@ -346,9 +376,19 @@
 <td>null</td>
 </tr>
 <tr>
+<td><code>-tto, --txn-timeout</code></td>
+<td>Set the time value of transaction timeout, and the time unit is second. (After --txn-enable setting to true, --txn-timeout takes effect)</td>
+<td>10</td>
+</tr>
+<tr>
 <td><code>-n, --num-consumers</code></td>
 <td>Number of consumers (per subscription), only one consumer is allowed when subscriptionType is Exclusive</td>
 <td>1</td>
+</tr>
+<tr>
+<td><code>-ntxn</code></td>
+<td>The number of opened transactions, 0 means keeping open.(After --txn-enable setting to true, -ntxn takes effect.)</td>
+<td>0</td>
 </tr>
 <tr>
 <td><code>-time, --test-duration</code></td>
@@ -371,8 +411,13 @@
 <td>0</td>
 </tr>
 <tr>
+<td><code>-abort</code></td>
+<td>Abort the transaction. (After --txn-enable setting to true, -abort takes effect)</td>
+<td>false</td>
+</tr>
+<tr>
 <td><code>-ss, --subscriptions</code></td>
-<td>A list of subscriptions to consume on (e.g. sub1,sub2)</td>
+<td>A list of subscriptions to consume (for example, sub1,sub2)</td>
 <td>[sub]</td>
 </tr>
 <tr>
@@ -444,6 +489,140 @@
 <td><code>-ac, --auto_ack_chunk_q_full</code></td>
 <td>Auto ack for oldest message on queue is full</td>
 <td>false</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h1 id="transaction">transaction</h1>
+<h3 id="usage">Usage</h3>
+<p><code>$transaction</code></p>
+<hr>
+<p>Test pulsar transaction performance.</p>
+<pre class="code-block example"><code class="lang-shell"><span class="hljs-symbol">$</span> pulsar-perf transaction [<span class="hljs-keyword">options</span>]
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-q, --receiver-queue-size</code></td>
+<td>Size of the receiver queue</td>
+<td>1000</td>
+</tr>
+<tr>
+<td><code>--txn-disable</code></td>
+<td>Disable transaction</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-ns, --num-subscriptions</code></td>
+<td>Number of subscriptions (per topic)</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>-ntxn, --number-txn</code></td>
+<td>Set the number of transaction. 0 means keeping open.If transaction disabled, it means the number of tasks. The task or transaction produces or consumes a specified number of messages.</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>-ioThreads, --num-io-threads</code></td>
+<td>Set the number of threads to be used for handling connections to brokers. The default value is 1.</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>-nmc, --numMessage-perTransaction-consume</code></td>
+<td>Set the number of messages consumed in a transaction.If transaction disabled, it means the number of messages consumed in a task.</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>-c, --max-connections</code></td>
+<td>Max number of TCP connections to a single broker</td>
+<td>100</td>
+</tr>
+<tr>
+<td><code>-txnRate</code></td>
+<td>Set the rate of opened transaction or task. 0 means no limit</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>-ss, --subscriptions</code></td>
+<td>A list of subscriptions to consume (for example, sub1,sub2)</td>
+<td>[sub]</td>
+</tr>
+<tr>
+<td><code>-h, --help</code></td>
+<td>Help message</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>--topics-c</code></td>
+<td>All topics that need ack for a transaction</td>
+<td>[test-consume]</td>
+</tr>
+<tr>
+<td><code>-st, --subscription-type</code></td>
+<td>Subscription type</td>
+<td>Shared</td>
+</tr>
+<tr>
+<td><code>-nmp, --numMessage-perTransaction-produce</code></td>
+<td>Set the number of messages produced in  a transaction.If transaction disabled, it means the number of messages produced in a task.</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>-threads, --num-test-threads</code></td>
+<td>Number of test threads.This thread is for a new transaction to ack messages from consumer topics and produce message to producer topics, and then commit or abort this transaction. Increasing the number of threads increases the parallelism of the performance test, thereby increasing the intensity of the stress test.</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>-time, --test-duration</code></td>
+<td>Test duration (in second). 0 means keeping publishing</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>--conf-file</code></td>
+<td>Configuration file</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-abort</code></td>
+<td>Abort the transaction. (After --txn-disEnable setting to false, -abort takes effect)</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-u, --service-url</code></td>
+<td>Pulsar Service URL</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-np, --partitions</code></td>
+<td>Create partitioned topics with a given number of partitions, 0 meansnot trying to create a topic</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-sp, --subscription-position</code></td>
+<td>Subscription position</td>
+<td>Earliest</td>
+</tr>
+<tr>
+<td><code>--topics-p</code></td>
+<td>All topics that need produce for a transaction</td>
+<td>[test-produce]</td>
+</tr>
+<tr>
+<td><code>-au, --admin-url</code></td>
+<td>Pulsar Admin URL</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-tto, --txn-timeout</code></td>
+<td>Set the time value of transaction timeout, and the time unit is second. (After --txn-enable setting to true, --txn-timeout takes effect)</td>
+<td>5</td>
 </tr>
 </tbody>
 </table>
