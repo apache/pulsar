@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://pulsar.apache.com/blog</id>
+    <title>Apache Pulsar Blog</title>
+    <updated>2021-08-25T00:00:00.000Z</updated>
+    <generator>https://github.com/jpmonette/feed</generator>
+    <link rel="alternate" href="https://pulsar.apache.com/blog"/>
+    <subtitle>Apache Pulsar Blog</subtitle>
+    <icon>https://pulsar.apache.com/img/favicon.ico</icon>
+    <entry>
+        <title type="html"><![CDATA[Welcome]]></title>
+        <id>welcome</id>
+        <link href="https://pulsar.apache.com/blog/welcome"/>
+        <updated>2021-08-25T00:00:00.000Z</updated>
+        <summary type="html"><![CDATA[Welcome to Apache Pulsar.]]></summary>
+    </entry>
+</feed>
