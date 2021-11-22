@@ -19,7 +19,7 @@ To connect to Pulsar, you need to specify a URL.
 - Produce messages to specific partitions of partitioned topics
 
     ```
-    brokerUrl:[8080/8081]/topics/{persistent/non-persistent}/{my-tenant}/{my-namespace}/{my-topic}/partitions/{partition-number}
+    brokerUrl:{8080/8081}/topics/{persistent/non-persistent}/{my-tenant}/{my-namespace}/{my-topic}/partitions/{partition-number}
     ```
 
 ## Producer
