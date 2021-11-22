@@ -22,6 +22,7 @@ import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsEvent
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -107,9 +108,20 @@ public class PersistentSubscription implements Subscription {
 
     private static final String REPLICATED_SUBSCRIPTION_PROPERTY = "pulsar.replicated.subscription";
 
+    // Map of properties that is used to mark this subscription as "replicated".
+    // Since this is the only field at this point, we can just keep a static
+    // instance of the map.
+    private static final Map<String, Long> REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES = new TreeMap<>();
+    private static final Map<String, Long> NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES = Collections.emptyMap();
+
     private volatile ReplicatedSubscriptionSnapshotCache replicatedSubscriptionSnapshotCache;
     private volatile Position lastMarkDeleteForTransactionMarker;
     private final PendingAckHandle pendingAckHandle;
+    private Map<String, Long> subscriptionProperties;
+
+    static {
+        REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES.put(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
+    }
 
     private final LongAdder bytesOutFromRemovedConsumers = new LongAdder();
     private final LongAdder msgOutFromRemovedConsumer = new LongAdder();
@@ -124,16 +136,8 @@ public class PersistentSubscription implements Subscription {
         None
     }
 
-    static Map<String, Long> getBaseCursorProperties(boolean isReplicated, Map<String, Long> subscriptionProperties) {
-
-        Map<String, Long> properties = new TreeMap<>();
-        if (isReplicated) {
-            properties.put(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
-        }
-        if (subscriptionProperties != null) {
-            subscriptionProperties.forEach(properties::putIfAbsent);
-        }
-        return properties;
+    static Map<String, Long> getBaseCursorProperties(boolean isReplicated) {
+        return isReplicated ? REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES : NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES;
     }
 
     static boolean isCursorFromReplicatedSubscription(ManagedCursor cursor) {
@@ -141,7 +145,12 @@ public class PersistentSubscription implements Subscription {
     }
 
     public PersistentSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor,
-            boolean replicated) {
+                                                         boolean replicated) {
+        this(topic, subscriptionName, cursor, replicated, Collections.emptyMap());
+    }
+
+    public PersistentSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor,
+            boolean replicated, Map<String, Long> subscriptionProperties) {
         this.topic = topic;
         this.cursor = cursor;
         this.topicName = topic.getName();
@@ -149,6 +158,7 @@ public class PersistentSubscription implements Subscription {
         this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor, this);
         this.setReplicated(replicated);
+        this.subscriptionProperties = subscriptionProperties == null ? new HashMap<>() : subscriptionProperties;
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
                 && !checkTopicIsEventsNames(TopicName.get(topicName))) {
             this.pendingAckHandle = new PendingAckHandleImpl(this);
@@ -1139,12 +1149,16 @@ public class PersistentSubscription implements Subscription {
         }
     }
 
+    public Map<String, Long> getSubscriptionProperties() {
+        return subscriptionProperties;
+    }
+
     /**
      * Return a merged map that contains the cursor properties specified by used
      * (eg. when using compaction subscription) and the subscription properties.
      */
     protected Map<String, Long> mergeCursorProperties(Map<String, Long> userProperties) {
-        Map<String, Long> baseProperties = getBaseCursorProperties(isReplicated(), null);
+        Map<String, Long> baseProperties = getBaseCursorProperties(isReplicated());
 
         if (userProperties.isEmpty()) {
             // Use only the static instance in the common case
