@@ -38,19 +38,28 @@ Consuming and reading messages via REST will be supported in the future.
 
 ### Message
 
-Below are message related parameters. 
+- Below is the structure of a request payload.
 
-Parameter|Required?|Type|Description
-|---|---|---|---
-`payload`|Yes|`String`|Actual message payload </br></br>Messages are sent in strings and encoded with given schemas on the server side
-`properties`|No|`Map<String, String>`|Custom properties
-`key`|No|`String`|Partition key 
-`replicationClusters`|No|`List<String>`|Clusters to which messages replicate
-`eventTime`|No|`String`|Message event time
-`sequenceId`|No|`long`|Message sequence ID
-`disableReplication`|No|`boolean`|Whether to disable replication of messages
-`deliverAt`|No|`long`|Deliver messages only at or after specified absolute timestamp
-`deliverAfterMs`|No|`long`|Deliver messages only after specified relative delay (in milliseconds)
+    Parameter|Required?|Description
+    |---|---|---
+    `schemaVersion`|No| Schema version of existing schema used for this message </br></br>You need provide one of the following: <br/><br/> - `schemaVersion` <br/> - `keySchema`/`valueSchema`<br/><br/>If both of them are provided, then `schemaVersion` is used
+    `keySchema/valueSchema`|No|Key schema / Value schema used for this message
+    `producerName`|No|Producer name
+    `Messages[] SingleMessage`|Yes|Messages to be sent
+
+- Below is the structure of a message. 
+
+    Parameter|Required?|Type|Description
+    |---|---|---|---
+    `payload`|Yes|`String`|Actual message payload </br></br>Messages are sent in strings and encoded with given schemas on the server side
+    `properties`|No|`Map<String, String>`|Custom properties
+    `key`|No|`String`|Partition key 
+    `replicationClusters`|No|`List<String>`|Clusters to which messages replicate
+    `eventTime`|No|`String`|Message event time
+    `sequenceId`|No|`long`|Message sequence ID
+    `disableReplication`|No|`boolean`|Whether to disable replication of messages
+    `deliverAt`|No|`long`|Deliver messages only at or after specified absolute timestamp
+    `deliverAfterMs`|No|`long`|Deliver messages only after specified relative delay (in milliseconds)
 
 ### Schema
 
@@ -59,14 +68,6 @@ Parameter|Required?|Type|Description
 - For Primitive, Avro and JSON schemas, schemas should be provided as the full schema encoded as a string.  
 
 - If the schema is not set, messages are encoded with string schema.
-
-Below are schema related parameters. 
-
-Parameter|Required?|Description
-|---|---|---
-`schemaVersion`|No| Schema version of existing schema used for this message </br></br>You need provide one of the following: <br/><br/> - `schemaVersion` <br/> - `keySchema`/`valueSchema`<br/><br/>If both of them are provided, then `schemaVersion` is used
-`keySchema/valueSchema`|No|Key schema / Value schema used for this message
-`producerName`|No|Producer name
 
 ### Example
 
