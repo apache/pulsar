@@ -250,7 +250,7 @@ public class PersistentTopicsBase extends AdminResource {
     protected void validateCreateTopic(TopicName topicName) {
         if (isTransactionInternalName(topicName)) {
             log.warn("Try to create a topic in the system topic format! {}", topicName);
-            throw new RestException(Status.CONFLICT, "Cannot create topic in system topic format!");
+            throw new RestException(Status.BAD_REQUEST, "Cannot create topic in system topic format!");
         }
     }
 
@@ -3694,7 +3694,7 @@ public class PersistentTopicsBase extends AdminResource {
             throw e;
         } catch (Exception e) {
             if (e.getCause() instanceof NotAllowedException) {
-                throw new RestException(Status.CONFLICT, e.getCause());
+                throw new RestException(Status.BAD_REQUEST, e.getCause());
             }
             throw new RestException(e.getCause());
         }
