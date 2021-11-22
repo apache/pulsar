@@ -345,11 +345,11 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
         // AVRO schema with primitive class can consume
         assertEquals(consumer.receive().getValue().getNativeObject(), producerAvroIntegerValue);
-        assertEquals(consumer.receive().getValue().getNativeObject(), producerAvroBytesValue);
+        assertArrayEquals((byte[]) consumer.receive().getValue().getNativeObject(), producerAvroBytesValue);
 
         // JSON schema with primitive class can consume
         assertEquals(consumer.receive().getValue().getNativeObject(), producerJsonIntegerValue);
-        assertEquals(consumer.receive().getValue().getNativeObject(), producerJsonBytesValue);
+        assertArrayEquals((byte[])  consumer.receive().getValue().getNativeObject(), producerJsonBytesValue);
 }
 
     @Test
