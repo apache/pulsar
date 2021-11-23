@@ -672,7 +672,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      * </pre>
      *
      */
-    @Test(timeOut = 10000)
+    @Test(timeOut = 60000)
     public void testBlockBrokerDispatching() {
         log.info("-- Starting {} test --", methodName);
 
