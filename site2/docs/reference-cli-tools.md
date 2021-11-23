@@ -42,6 +42,7 @@ Commands:
 * `websocket`
 * `zookeeper`
 * `zookeeper-shell`
+* `sql-worker`
 
 Example:
 ```bash

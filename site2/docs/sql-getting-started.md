@@ -22,8 +22,13 @@ To query data in Pulsar with Pulsar SQL, complete the following steps.
 2. Start a Pulsar SQL worker.
 
 ```bash
-./bin/pulsar sql-worker run
+./bin/pulsar sql-worker
 ```
+
+> **Tip**  
+> If the service runs as a background process using the `pulsar-daemon start sql-worker` command, then use the `pulsar-daemon stop sql-worker`  command to stop the service.
+> 
+> For more information, see [pulsar-daemon](https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon).
 
 3. After initializing Pulsar standalone cluster and the SQL worker, run SQL CLI.
 
