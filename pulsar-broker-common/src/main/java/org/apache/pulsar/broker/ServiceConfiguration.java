@@ -830,6 +830,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean preciseDispatcherFlowControl = false;
 
     @FieldContext(
+         dynamic = true,
+         category = CATEGORY_SERVER,
+         doc = " Class name of Pluggable entry filter that can decide whether the entry needs to be filtered"
+    )
+    private String entryFilterClassName = "";
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Whether to use streaming read dispatcher. Currently is in preview and can be changed " +
                 "in subsequent release."
