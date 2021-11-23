@@ -623,9 +623,9 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         int numOfEntriesToRead = applyMaxSizeCap(numberOfEntriesToRead, maxSizeBytes);
 
+        PENDING_READ_OPS_UPDATER.incrementAndGet(this);
         OpReadEntry op = OpReadEntry.create(this, readPosition, numOfEntriesToRead, callback, ctx, maxPosition);
         if (op != null) {
-            PENDING_READ_OPS_UPDATER.incrementAndGet(this);
             ledger.asyncReadEntries(op);
         }
     }

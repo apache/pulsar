@@ -3399,7 +3399,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
 
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("test-non-existent-ledger", config);
-        ManagedCursor cursor = ledger.openCursor("test-non-existent-cursor");
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-non-existent-cursor");
 
         CompletableFuture<Boolean> future = new CompletableFuture<>();
         PositionImpl pos = PositionImpl.latest;
@@ -3418,5 +3418,6 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         cursor.close();
         ledger.close();
         assert(future.get());
+        assertEquals(cursor.getPendingReadOpsCount(), 0);
     }
 }
