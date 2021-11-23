@@ -69,7 +69,7 @@ jobs:
         uses: actions/setup-java@v2
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         with:
-          distribution: 'adopt'
+          distribution: 'temurin'
           java-version: 11
 
       - name: build modules
