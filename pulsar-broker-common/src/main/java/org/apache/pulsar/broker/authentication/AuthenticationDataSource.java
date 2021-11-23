@@ -102,7 +102,10 @@ public interface AuthenticationDataSource {
     /**
      * Evaluate and challenge the data that passed in, and return processed data back.
      * It is used for mutual authentication like SASL.
+     * NOTE: this method is not called by the Pulsar authentication framework.
+     * @deprecated use {@link AuthenticationProvider} or {@link AuthenticationState}.
      */
+    @Deprecated
     default AuthData authenticate(AuthData data) throws AuthenticationException {
         throw new AuthenticationException("Not supported");
     }

@@ -4,10 +4,6 @@ title: Pulsar SQL configuration and deployment
 sidebar_label: "Configuration and deployment"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 You can configure Presto Pulsar connector and deploy a cluster with the following instruction.
 
 ## Configure Presto Pulsar Connector
@@ -107,7 +103,9 @@ pulsar.managed-ledger-num-scheduler-threads=Runtime.getRuntime().availableProces
 
 # directory used to store extraction NAR file
 pulsar.nar-extraction-directory=System.getProperty("java.io.tmpdir")
+
 ```
+
 You can connect Presto to a Pulsar cluster with multiple hosts. To configure multiple hosts for brokers, add multiple URLs to `pulsar.web-service-url`. To configure multiple hosts for ZooKeeper, add multiple URIs to `pulsar.zookeeper-uri`. The following is an example.
 
 ```

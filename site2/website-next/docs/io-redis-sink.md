@@ -4,10 +4,6 @@ title: Redis sink connector
 sidebar_label: "Redis sink connector"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The  Redis sink connector pulls messages from Pulsar topics 
 and persists the messages to a Redis database.
 
@@ -46,14 +42,16 @@ Before using the Redis sink connector, you need to create a configuration file i
   ```json
   
   {
-      "redisHosts": "localhost:6379",
-      "redisPassword": "mypassword",
-      "redisDatabase": "0",
-      "clientMode": "Standalone",
-      "operationTimeout": "2000",
-      "batchSize": "1",
-      "batchTimeMs": "1000",
-      "connectTimeout": "3000"
+     "configs": {
+        "redisHosts": "localhost:6379",
+        "redisPassword": "mypassword",
+        "redisDatabase": "0",
+        "clientMode": "Standalone",
+        "operationTimeout": "2000",
+        "batchSize": "1",
+        "batchTimeMs": "1000",
+        "connectTimeout": "3000"
+     }
   }
   
   ```

@@ -658,9 +658,12 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         final Map<String, String> map = new HashMap<>();
         map.put("key", null);
         map.put(null, "value"); // null key is not allowed for JSON, it's only for test here
-        ((SchemaInfoImpl)Schema.INT32.getSchemaInfo()).setProperties(map);
 
-        final Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32).topic(topic)
+        // leave INT32 instance unchanged
+        final Schema<Integer> integerSchema = Schema.INT32.clone();
+        ((SchemaInfoImpl) integerSchema.getSchemaInfo()).setProperties(map);
+
+        final Consumer<Integer> consumer = pulsarClient.newConsumer(integerSchema).topic(topic)
                 .subscriptionName("sub")
                 .subscribe();
         consumer.close();
@@ -800,6 +803,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         assertEquals("foo", message.getValue());
     }
 
+    @Test
     public void testConsumeMultipleSchemaMessages() throws Exception {
         final String namespace = "test-namespace-" + randomName(16);
         String ns = PUBLIC_TENANT + "/" + namespace;

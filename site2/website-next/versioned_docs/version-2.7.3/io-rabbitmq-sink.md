@@ -5,10 +5,6 @@ sidebar_label: "RabbitMQ sink connector"
 original_id: io-rabbitmq-sink
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The RabbitMQ sink connector pulls messages from Pulsar topics 
 and persist the messages to RabbitMQ queues.
 

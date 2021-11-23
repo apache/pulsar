@@ -284,7 +284,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         final String subscriptionName = "ackAbortTest";
         Transaction txn = pulsarClient
                 .newTransaction()
-                .withTransactionTimeout(5, TimeUnit.SECONDS)
+                .withTransactionTimeout(30, TimeUnit.SECONDS)
                 .build().get();
         log.info("init transaction {}.", txn);
 

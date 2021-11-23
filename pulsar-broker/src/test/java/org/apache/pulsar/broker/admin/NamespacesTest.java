@@ -1698,8 +1698,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
 
         // clear all namespace subType enabled, add failover to broker.conf and sub with shared will fail
-        subscriptionTypes.clear();
-        admin.namespaces().setSubscriptionTypesEnabled(namespace, subscriptionTypes);
+        admin.namespaces().removeSubscriptionTypesEnabled(namespace);
+        assertEquals(admin.namespaces().getSubscriptionTypesEnabled(namespace), Sets.newHashSet());
         consumerBuilder.subscriptionType(SubscriptionType.Shared);
         HashSet<String> subscriptions = new HashSet<>();
         subscriptions.add("Failover");

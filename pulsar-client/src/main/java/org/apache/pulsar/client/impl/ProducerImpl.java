@@ -56,6 +56,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.function.Consumer;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Message;
@@ -114,7 +115,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     // Globally unique producer name
     private String producerName;
-    private boolean userProvidedProducerName = false;
+    private final boolean userProvidedProducerName;
 
     private String connectionId;
     private String connectedSince;
@@ -160,9 +161,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         super(client, topic, conf, producerCreatedFuture, schema, interceptors);
         this.producerId = client.newProducerId();
         this.producerName = conf.getProducerName();
-        if (StringUtils.isNotBlank(producerName)) {
-            this.userProvidedProducerName = true;
-        }
+        this.userProvidedProducerName = StringUtils.isNotBlank(producerName);
         this.partitionIndex = partitionIndex;
         this.pendingMessages = createPendingMessagesQueue();
         if (conf.getMaxPendingMessages() > 0) {
@@ -647,7 +646,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     callback.sendComplete((PulsarClientException.IncompatibleSchemaException) t);
                 }
             } else {
-                log.warn("[{}] [{}] GetOrCreateSchema succeed", topic, producerName);
+                log.info("[{}] [{}] GetOrCreateSchema succeed", topic, producerName);
                 SchemaHash schemaHash = SchemaHash.of(msg.getSchemaInternal());
                 schemaCache.putIfAbsent(schemaHash, v);
                 msg.getMessageBuilder().setSchemaVersion(v);
@@ -1799,7 +1798,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     processOpSendMsg(opSendMsg);
                 }
             } catch (PulsarClientException e) {
-                Thread.currentThread().interrupt();
                 semaphoreRelease(batchMessageContainer.getNumMessagesInBatch());
             } catch (Throwable t) {
                 semaphoreRelease(batchMessageContainer.getNumMessagesInBatch());
@@ -1925,7 +1923,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     public int getPendingQueueSize() {
-        return pendingMessages.size();
+        if (!isBatchMessagingEnabled()) {
+            return pendingMessages.size();
+        }
+        MutableInt size = new MutableInt(0);
+        pendingMessages.forEach(op -> {
+            size.add(Math.max(op.numMessagesInBatch, 1));
+        });
+        return size.getValue();
     }
 
     @Override

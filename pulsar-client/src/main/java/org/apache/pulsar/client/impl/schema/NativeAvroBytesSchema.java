@@ -23,7 +23,6 @@ import static com.google.common.base.Preconditions.checkState;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.schema.SchemaType;
 
 import java.util.Optional;
 

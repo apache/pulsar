@@ -1,13 +1,9 @@
 ---
 id: concepts-architecture-overview
 title: Architecture Overview
-sidebar_label: Architecture
+sidebar_label: "Architecture"
 original_id: concepts-architecture-overview
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 At the highest level, a Pulsar instance is composed of one or more Pulsar clusters. Clusters within an instance can [replicate](concepts-replication) data amongst themselves.
 
@@ -167,3 +163,4 @@ client = Client('pulsar://pulsar-cluster.acme.com:6650')
 In Pulsar, each topic is handled by only one broker. Initial requests from a client to read, update or delete a topic are sent to a broker that may not be the topic owner. If the broker cannot handle the request for this topic, it redirects the request to the appropriate broker.
 
 :::
+

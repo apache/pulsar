@@ -4,10 +4,6 @@ title: Kafka source connector
 sidebar_label: "Kafka source connector"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The Kafka source connector pulls messages from Kafka topics and persists the messages
 to Pulsar topics.
 
@@ -73,11 +69,13 @@ Before using the Kafka source connector, you need to create a configuration file
   ```json
   
   {
-      "bootstrapServers": "pulsar-kafka:9092",
-      "groupId": "test-pulsar-io",
-      "topic": "my-topic",
-      "sessionTimeoutMs": "10000",
-      "autoCommitEnabled": false
+     "configs": {
+        "bootstrapServers": "pulsar-kafka:9092",
+        "groupId": "test-pulsar-io",
+        "topic": "my-topic",
+        "sessionTimeoutMs": "10000",
+        "autoCommitEnabled": false
+     }
   }
   
   ```

@@ -4,10 +4,6 @@ title: Set up a standalone Pulsar in Docker
 sidebar_label: "Run Pulsar in Docker"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 For local development and testing, you can run Pulsar in standalone mode on your own machine within a Docker container. 
 
 If you have not installed Docker, download the [Community edition](https://www.docker.com/community-edition) and follow the instructions for your OS.
