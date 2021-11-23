@@ -29,6 +29,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -705,7 +706,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                                                                  final String namespace,
                                                                  final String sourceName,
                                                                  final SourceConfig sourceConfig,
-                                                                 final File sourcePackageFile) {
+                                                                 final File sourcePackageFile) throws IOException {
         // The rest end points take precedence over whatever is there in sourceconfig
         sourceConfig.setTenant(tenant);
         sourceConfig.setNamespace(namespace);
@@ -741,6 +742,9 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
         SourceConfigUtils.ExtractedSourceDetails sourceDetails
                 = SourceConfigUtils.validateAndExtractDetails(
                         sourceConfig, classLoader, worker().getWorkerConfig().getValidateConnectorConfig());
+        if (classLoader instanceof URLClassLoader) {
+            ((URLClassLoader) classLoader).close();
+        }
         return SourceConfigUtils.convert(sourceConfig, sourceDetails);
     }
 

@@ -29,6 +29,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -744,6 +745,9 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
 
         SinkConfigUtils.ExtractedSinkDetails sinkDetails = SinkConfigUtils.validateAndExtractDetails(
                 sinkConfig, classLoader, worker().getWorkerConfig().getValidateConnectorConfig());
+        if (classLoader instanceof URLClassLoader) {
+            ((URLClassLoader) classLoader).close();
+        }
         return SinkConfigUtils.convert(sinkConfig, sinkDetails);
     }
 

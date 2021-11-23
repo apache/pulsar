@@ -149,7 +149,7 @@ public class ThreadRuntime implements Runtime {
             } catch (FileNotFoundException e) {
                 // this is usually like
                 // java.io.FileNotFoundException: /tmp/pulsar-nar/xxx.jar-unpacked/xxxxx/META-INF/MANIFEST.MF'
-                log.error("The file {} does not look like a .nar file", jarFile, e.toString());
+                log.error("The file {} does not look like a .nar file", jarFile, e);
             }
         }
         if (!loadedAsNar) {
@@ -215,7 +215,6 @@ public class ThreadRuntime implements Runtime {
         }
     }
 
-    @SuppressWarnings("deprecation")
     @Override
     public void stop() {
         if (fnThread != null) {
