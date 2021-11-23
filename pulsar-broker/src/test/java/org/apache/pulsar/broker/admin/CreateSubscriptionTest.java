@@ -220,5 +220,42 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         assertEquals(properties4.get("3"), "3");
         assertEquals(properties4.get("4"), "4");
         consumer4.close();
+
+        //consumer subscribe without subscriptionProperties set, it will get the old one
+        consumer4 = pulsarClient.newConsumer().topic(topic).receiverQueueSize(1)
+                .subscriptionName(subName).subscribe();
+        subscription4 = (PersistentSubscription) pulsar.getBrokerService()
+                .getTopicReference(topic).get().getSubscription(subName);
+        properties4 = subscription4.getSubscriptionProperties();
+        assertTrue(properties4.containsKey("3"));
+        assertTrue(properties4.containsKey("4"));
+        assertEquals(properties4.get("3"), "3");
+        assertEquals(properties4.get("4"), "4");
+        consumer4.close();
+
+        //restart broker, it won't get any properties
+        restartBroker();
+        consumer4 = pulsarClient.newConsumer().topic(topic).receiverQueueSize(1)
+                .subscriptionName(subName).subscribe();
+        subscription4 = (PersistentSubscription) pulsar.getBrokerService()
+                .getTopicReference(topic).get().getSubscription(subName);
+        assertEquals(subscription4.getSubscriptionProperties().size(), 0);
+        consumer4.close();
+
+        //restart broker and create a new consumer with new properties, the properties will be updated
+        restartBroker();
+        consumer4 = pulsarClient.newConsumer().topic(topic).receiverQueueSize(1)
+                .subscriptionProperties(map)
+                .subscriptionName(subName).subscribe();
+        PersistentSubscription subscription5 = (PersistentSubscription) pulsar.getBrokerService()
+                .getTopicReference(topic).get().getSubscription(subName);
+        properties = subscription5.getSubscriptionProperties();
+        assertTrue(properties.containsKey("1"));
+        assertTrue(properties.containsKey("2"));
+        assertEquals(properties.get("1"), "1");
+        assertEquals(properties.get("2"), "2");
+        consumer4.close();
+
+
     }
 }
