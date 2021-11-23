@@ -227,9 +227,10 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
     @Override
     public CompletableFuture<Consumer> subscribe(SubscriptionOption option) {
-        return internalSubscribe(option.getCnx(), option.getSubscriptionName(), option.getConsumerId(), option.getSubType(),
-                option.getPriorityLevel(), option.getConsumerName(), option.isDurable(), option.getStartMessageId(),
-                option.getMetadata(), option.isReadCompacted(), option.getInitialPosition(),
+        return internalSubscribe(option.getCnx(), option.getSubscriptionName(), option.getConsumerId(),
+                option.getSubType(), option.getPriorityLevel(), option.getConsumerName(),
+                option.isDurable(), option.getStartMessageId(), option.getMetadata(),
+                option.isReadCompacted(), option.getInitialPosition(),
                 option.getStartMessageRollbackDurationSec(), option.isReplicatedSubscriptionStateArg(),
                 option.getKeySharedMeta());
     }
@@ -247,13 +248,14 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                 replicateSubscriptionState, keySharedMeta);
     }
 
-    private CompletableFuture<Consumer> internalSubscribe(final TransportCnx cnx, String subscriptionName, long consumerId,
-                                                 SubType subType, int priorityLevel, String consumerName,
-                                                 boolean isDurable, MessageId startMessageId,
-                                                 Map<String, String> metadata, boolean readCompacted,
-                                                 InitialPosition initialPosition,
-                                                 long resetStartMessageBackInSec, boolean replicateSubscriptionState,
-                                                 KeySharedMeta keySharedMeta) {
+    private CompletableFuture<Consumer> internalSubscribe(final TransportCnx cnx, String subscriptionName,
+                                                          long consumerId, SubType subType, int priorityLevel,
+                                                          String consumerName, boolean isDurable,
+                                                          MessageId startMessageId, Map<String, String> metadata,
+                                                          boolean readCompacted, InitialPosition initialPosition,
+                                                          long resetStartMessageBackInSec,
+                                                          boolean replicateSubscriptionState,
+                                                          KeySharedMeta keySharedMeta) {
 
         return brokerService.checkTopicNsOwnership(getName()).thenCompose(__ -> {
             final CompletableFuture<Consumer> future = new CompletableFuture<>();
