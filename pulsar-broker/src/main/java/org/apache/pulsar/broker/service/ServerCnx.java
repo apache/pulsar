@@ -1284,10 +1284,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                              boolean userProvidedProducerName, TopicName topicName,
                              ProducerAccessMode producerAccessMode,
                              Optional<Long> topicEpoch, CompletableFuture<Producer> producerFuture){
-        CompletableFuture<Void> producerQueuedFuture = new CompletableFuture<>();
-        Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName,
-                getPrincipal(), isEncrypted, metadata, schemaVersion, epoch,
-                userProvidedProducerName, producerAccessMode, topicEpoch);
         // Skip acquiring the topic's lock within addProducer if the producer will fail creation anyway.
         if (!isActive()) {
             log.info("[{}] Connection is no longer active. Skipping creation for produceId={} to topic {}.",
@@ -1298,6 +1294,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     remoteAddress, topicName, producerId);
             return;
         }
+        CompletableFuture<Void> producerQueuedFuture = new CompletableFuture<>();
+        Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName,
+                getPrincipal(), isEncrypted, metadata, schemaVersion, epoch,
+                userProvidedProducerName, producerAccessMode, topicEpoch);
         topic.addProducer(producer, producerQueuedFuture).thenAccept(newTopicEpoch -> {
             if (isActive()) {
                 if (producerFuture.complete(producer)) {
