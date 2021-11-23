@@ -899,7 +899,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public long getNumberOfUnAckedEntries(Position position) {
         PositionImpl toPosition = (PositionImpl) position;
-        // if given position is smaller than current read position means there's no un-acked entries
+        // if given position is smaller than current mark delete position means there's no un-acked entries
         if (markDeletePosition.compareTo(toPosition) > 0) {
             return 0;
         }

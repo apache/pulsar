@@ -1446,7 +1446,7 @@ public interface Topics {
     CompletableFuture<Void> createSubscriptionAsync(String topic, String subscriptionName, MessageId messageId);
 
     /**
-     * Create a new subscription on a topic.
+     * Get number of unacked message up to given message position.
      *
      * @param topic
      *            topic name
@@ -1470,7 +1470,7 @@ public interface Topics {
             throws PulsarAdminException;
 
     /**
-     * Create a new subscription on a topic.
+     * Get number of unacked message up to given message position.
      *
      * @param topic
      *            topic name

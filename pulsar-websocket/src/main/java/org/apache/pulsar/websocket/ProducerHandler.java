@@ -36,8 +36,6 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -49,7 +47,6 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.util.DateFormatter;
@@ -79,8 +76,6 @@ public class ProducerHandler extends AbstractWebSocketHandler {
     private final LongAdder numMsgsFailed;
     private final LongAdder numBytesSent;
     private final StatsBuckets publishLatencyStatsUSec;
-    private final boolean consumerPullMode;
-    private final boolean consumerCumulativeAck;
 
     private volatile long msgPublishedCounter = 0;
     private static final AtomicLongFieldUpdater<ProducerHandler> MSG_PUBLISHED_COUNTER_UPDATER =
@@ -95,8 +90,6 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         this.numBytesSent = new LongAdder();
         this.numMsgsFailed = new LongAdder();
         this.publishLatencyStatsUSec = new StatsBuckets(ENTRY_LATENCY_BUCKETS_USEC);
-        this.consumerPullMode = Boolean.valueOf(queryParams.get("consumerPullMode"));
-        this.consumerCumulativeAck = Boolean.valueOf(queryParams.get("consumerCumulativeAck"));
         if (!checkAuth(response)) {
             return;
         }
@@ -250,14 +243,6 @@ public class ProducerHandler extends AbstractWebSocketHandler {
     @Override
     protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception {
         return service.getAuthorizationService().canProduce(topic, authRole, authenticationData);
-    }
-
-    private void sendMessageSucceed(long msgSize, long sendTime, ProducerMessage sendRequest, MessageId msgId) {
-        updateSentMsgStats(msgSize, TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - sendTime));
-        if (isConnected()) {
-            String messageId = Base64.getEncoder().encodeToString(msgId.toByteArray());
-            sendAckResponse(new ProducerAck(messageId, sendRequest.context));
-        }
     }
 
     private void sendAckResponse(ProducerAck response) {

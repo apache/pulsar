@@ -305,7 +305,6 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             // If not pull mode, then we need to calculate how many messages have been acked in a cumulative ack request
             // to properly calculate how many more messages we should dispatch to consumer. Use precise backlog size before
             // and after the cumulative ack for the calculation.
-            // Use a writelock to prevent individual ack during the process which might cause incorrect result.
             if (!this.pullMode) {
                 try {
                     MessageIdImpl messageId = (MessageIdImpl) msgId;
