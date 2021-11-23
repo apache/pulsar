@@ -102,7 +102,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.bookkeeper</groupId>
+      <groupId>com.datastax.oss</groupId>
       <artifactId>stream-storage-java-client</artifactId>
       <exclusions>
         <exclusion>
@@ -134,7 +134,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.bookkeeper</groupId>
+      <groupId>com.datastax.oss</groupId>
       <artifactId>bookkeeper-common</artifactId>
       <exclusions>
         <exclusion>
