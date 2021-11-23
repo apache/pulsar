@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar Python 客户端 · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Pulsar 的 Python 客户端库是对现有 [C++ 客户端库](/docs/zh-CN/next/client-libraries-cpp) 的封装， 它所包含的功能与 [C++ 客户端](/api/cpp/2.8.0-SNAPSHOT) 相同。 你可以在 C++ 客户端源码的 [Python 子目录](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) 中找到 Pulsar Python 客户端的相关源码 。"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar Python 客户端 · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="Pulsar 的 Python 客户端库是对现有 [C++ 客户端库](/docs/zh-CN/next/client-libraries-cpp) 的封装， 它所包含的功能与 [C++ 客户端](/api/cpp/2.8.0-SNAPSHOT) 相同。 你可以在 C++ 客户端源码的 [Python 子目录](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) 中找到 Pulsar Python 客户端的相关源码 。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar Python 客户端 · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Pulsar 的 Python 客户端库是对现有 [C++ 客户端库](/docs/zh-CN/next/client-libraries-cpp) 的封装， 它所包含的功能与 [C++ 客户端](/api/cpp/2.8.0-SNAPSHOT) 相同。 你可以在 C++ 客户端源码的 [Python 子目录](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) 中找到 Pulsar Python 客户端的相关源码 。"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar Python 客户端 · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="Pulsar 的 Python 客户端库是对现有 [C++ 客户端库](/docs/zh-CN/next/client-libraries-cpp) 的封装， 它所包含的功能与 [C++ 客户端](/api/cpp/2.8.0-SNAPSHOT) 相同。 你可以在 C++ 客户端源码的 [Python 子目录](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) 中找到 Pulsar Python 客户端的相关源码 。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -202,44 +202,8 @@ reader = client.create_reader(<span class="hljs-string">'my-topic'</span>, msg_i
 client.close()
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="schema"></a><a href="#schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema</h2>
-<h3><a class="anchor" aria-hidden="true" id="声明和验证-schema"></a><a href="#声明和验证-schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>声明和验证 schema</h3>
-<p>你可以通过传递一个继承自 <code>pulsar.schema.Record</code> 的类来声明 Schema，并将字段定义为类变量。例如：</p>
-<pre><code class="hljs css language-python"><span class="hljs-keyword">from</span> pulsar.schema <span class="hljs-keyword">import</span> *
-
-<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Example</span><span class="hljs-params">(Record)</span>:</span>
-    a = String()
-    b = Integer()
-    c = Boolean()
-</code></pre>
-<p>通过该简单的 schema 定义，你可以创建生产者、消费者和 reader 示例。</p>
-<pre><code class="hljs css language-python">producer = client.create_producer(
-                    topic=<span class="hljs-string">'my-topic'</span>,
-                    schema=AvroSchema(Example) )
-
-producer.send(Example(a=<span class="hljs-string">'Hello'</span>, b=<span class="hljs-number">1</span>))
-</code></pre>
-<p>创建生产者后，Pulsar broker 会验证现有的 topic schema 是否是“Avro”类型，并且格式是否与 <code>Example</code> 类的 schema 定义兼容。</p>
-<p>如果不匹配，则在生产者的创建中会发生意外情况。</p>
-<p>一旦使用一个特定的 schema 定义将生产者创建成功，那该生产者只接受已声明 schema 类的实例对象。</p>
-<p>同样，对消费者/reader 来说，消费者将返回一个对象、schema 记录类的实例，不会返回原始字节：</p>
-<pre><code class="hljs css language-python">consumer = client.subscribe(
-                  topic=<span class="hljs-string">'my-topic'</span>,
-                  subscription_name=<span class="hljs-string">'my-subscription'</span>,
-                  schema=AvroSchema(Example) )
-
-<span class="hljs-keyword">while</span> <span class="hljs-literal">True</span>:
-    msg = consumer.receive()
-    ex = msg.value()
-    <span class="hljs-keyword">try</span>:
-        print(<span class="hljs-string">"Received message a={} b={} c={}"</span>.format(ex.a, ex.b, ex.c))
-        <span class="hljs-comment"># # 确认已经成功处理消息</span>
-        consumer.acknowledge(msg)
-    <span class="hljs-keyword">except</span>:
-        <span class="hljs-comment"># 消息处理失败</span>
-        consumer.negative_acknowledge(msg)
-</code></pre>
-<h3><a class="anchor" aria-hidden="true" id="支持的-schema-类型"></a><a href="#支持的-schema-类型" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>支持的 Schema 类型</h3>
-<p>你可以在 Pulsar 中使用不同的内置 Schema 类型。所有定义都在 <code>pulsar.schema</code> 包中。</p>
+<h3><a class="anchor" aria-hidden="true" id="supported-schema-types"></a><a href="#supported-schema-types" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Supported schema types</h3>
+<p>You can use different builtin schema types in Pulsar. All the definitions are in the <code>pulsar.schema</code> package.</p>
 <table>
 <thead>
 <tr><th>Schema</th><th>备注</th></tr>
@@ -251,9 +215,9 @@ producer.send(Example(a=<span class="hljs-string">'Hello'</span>, b=<span class=
 <tr><td><code>AvroSchema</code></td><td>需要记录定义。序列化为 AVRO 格式。</td></tr>
 </tbody>
 </table>
-<h3><a class="anchor" aria-hidden="true" id="schema-定义参考"></a><a href="#schema-定义参考" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema 定义参考</h3>
-<p>Schema 定义是通过继承自 <code>pulsar.schema.Record</code> 的类完成的。</p>
-<p>这个类有许多字段，可以是 <code>pulsar.schema.Field</code> 类型，或者是其他嵌套的 <code>Record</code>。 所有字段都在 <code>pulsar.schema</code> 包中予以指定。 字段匹配 AVRO 字段类型。</p>
+<h3><a class="anchor" aria-hidden="true" id="schema-definition-reference"></a><a href="#schema-definition-reference" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema definition reference</h3>
+<p>The schema definition is done through a class that inherits from <code>pulsar.schema.Record</code>.</p>
+<p>This class has a number of fields which can be of either <code>pulsar.schema.Field</code> type or another nested <code>Record</code>. All the fields are specified in the <code>pulsar.schema</code> package. The fields are matching the AVRO fields types.</p>
 <table>
 <thead>
 <tr><th>字段类型</th><th>Python 类型</th><th>备注</th></tr>
@@ -270,9 +234,9 @@ producer.send(Example(a=<span class="hljs-string">'Hello'</span>, b=<span class=
 <tr><td><code>Map</code></td><td><code>dict</code></td><td>Key 总是 <code>String</code> 类型，需要指定值类型。</td></tr>
 </tbody>
 </table>
-<p>另外，任何 Python <code>Enum</code> 类型都可以用作有效的字段类型。</p>
+<p>Additionally, any Python <code>Enum</code> type can be used as a valid field type.</p>
 <h4><a class="anchor" aria-hidden="true" id="字段参数"></a><a href="#字段参数" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>字段参数</h4>
-<p>添加字段时，您可以在构造器中使用这些参数。</p>
+<p>When adding a field, you can use these parameters in the constructor.</p>
 <table>
 <thead>
 <tr><th>参数</th><th>默认值</th><th>备注</th></tr>
@@ -313,13 +277,13 @@ producer.send(Example(a=<span class="hljs-string">'Hello'</span>, b=<span class=
     sub = MySubRecord()
 </code></pre>
 <h5><a class="anchor" aria-hidden="true" id="为-avro-schema-设置命名空间"></a><a href="#为-avro-schema-设置命名空间" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>为 Avro schema 设置命名空间</h5>
-<p>使用特殊字段 <code>_avro_namespace</code> 设置Avro Record schema 的命名空间。</p>
+<p>Set the namespace for Avro Record schema using the special field <code>_avro_namespace</code>.</p>
 <pre><code class="hljs css language-python"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">NamespaceDemo</span><span class="hljs-params">(Record)</span>:</span>
    _avro_namespace = <span class="hljs-string">'xxx.xxx.xxx'</span>
    x = String()
    y = Integer()
 </code></pre>
-<p>Schema 定义就是这样的。</p>
+<p>The schema definition is like this.</p>
 <pre><code class="hljs">{
   'name': 'NamespaceDemo', 'namespace': 'xxx.xxx.xxx', 'type': 'record', 'fields': [
     {'name': 'x', 'type': ['null', 'string']}, 
@@ -327,6 +291,56 @@ producer.send(Example(a=<span class="hljs-string">'Hello'</span>, b=<span class=
   ]
 }
 </code></pre>
+<h3><a class="anchor" aria-hidden="true" id="declare-and-validate-schema"></a><a href="#declare-and-validate-schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Declare and validate schema</h3>
+<p>You can send messages using <code>BytesSchema</code>, <code>StringSchema</code>, <code>AvroSchema</code>, and <code>JsonSchema</code>.</p>
+<p>Before the producer is created, the Pulsar broker validates that the existing topic schema is the correct type and that the format is compatible with the schema definition of a class. If the format of the topic schema is incompatible with the schema definition, an exception occurs in the producer creation.</p>
+<p>Once a producer is created with a certain schema definition, it only accepts objects that are instances of the declared schema class.</p>
+<p>Similarly, for a consumer or reader, the consumer returns an object (which is an instance of the schema record class) rather than raw bytes.</p>
+<p><strong>示例</strong></p>
+<pre><code class="hljs css language-python">consumer = client.subscribe(
+                  topic=<span class="hljs-string">'my-topic'</span>,
+                  subscription_name=<span class="hljs-string">'my-subscription'</span>,
+                  schema=AvroSchema(Example) )
+
+<span class="hljs-keyword">while</span> <span class="hljs-literal">True</span>:
+    msg = consumer.receive()
+    ex = msg.value()
+    <span class="hljs-keyword">try</span>:
+        print(<span class="hljs-string">"Received message a={} b={} c={}"</span>.format(ex.a, ex.b, ex.c))
+        <span class="hljs-comment"># Acknowledge successful processing of the message</span>
+        consumer.acknowledge(msg)
+    <span class="hljs-keyword">except</span>:
+        <span class="hljs-comment"># Message failed to be processed</span>
+        consumer.negative_acknowledge(msg)
+</code></pre>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-2454-tab-2455" class="nav-link active" data-group="group_2454" data-tab="tab-group-2454-content-2455">BytesSchema</div><div id="tab-group-2454-tab-2456" class="nav-link" data-group="group_2454" data-tab="tab-group-2454-content-2456">StringSchema</div><div id="tab-group-2454-tab-2457" class="nav-link" data-group="group_2454" data-tab="tab-group-2454-content-2457">AvroSchema</div><div id="tab-group-2454-tab-2458" class="nav-link" data-group="group_2454" data-tab="tab-group-2454-content-2458">JsonSchema</div></div><div class="tab-content"><div id="tab-group-2454-content-2455" class="tab-pane active" data-group="group_2454" tabindex="-1"><div><span><p>You can send byte data using a <code>BytesSchema</code>.</p>
+<p><strong>示例</strong></p>
+<pre><code class="hljs css language-python">producer = client.create_producer(<br />                <span class="hljs-string">'bytes-schema-topic'</span>,<br />                schema=BytesSchema())<br />producer.send(<span class="hljs-string">b"Hello"</span>)<br /><br />consumer = client.subscribe(<br />                <span class="hljs-string">'bytes-schema-topic'</span>,<br />                <span class="hljs-string">'sub'</span>,<br />                schema=BytesSchema())<br />msg = consumer.receive()<br />data = msg.value()<br /></code></pre>
+</span></div></div><div id="tab-group-2454-content-2456" class="tab-pane" data-group="group_2454" tabindex="-1"><div><span><p>You can send string data using a <code>StringSchema</code>.</p>
+<p><strong>示例</strong></p>
+<pre><code class="hljs css language-python">producer = client.create_producer(<br />                <span class="hljs-string">'string-schema-topic'</span>,<br />                schema=StringSchema())<br />producer.send(<span class="hljs-string">"Hello"</span>)<br /><br />consumer = client.subscribe(<br />                <span class="hljs-string">'string-schema-topic'</span>,<br />                <span class="hljs-string">'sub'</span>,<br />                schema=StringSchema())<br />msg = consumer.receive()<br />str = msg.value()<br /></code></pre>
+</span></div></div><div id="tab-group-2454-content-2457" class="tab-pane" data-group="group_2454" tabindex="-1"><div><span><p>You can declare an <code>AvroSchema</code> using one of the following methods.</p>
+<h4><a class="anchor" aria-hidden="true" id="method-1-record"></a><a href="#method-1-record" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Method 1: Record</h4>
+<p>You can declare an <code>AvroSchema</code> by passing a class that inherits from <code>pulsar.schema.Record</code> and defines the fields as class variables.</p>
+<p><strong>示例</strong></p>
+<pre><code class="hljs css language-python"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Example</span><span class="hljs-params">(Record)</span>:</span><br />    a = Integer()<br />    b = Integer()<br /><br />producer = client.create_producer(<br />                <span class="hljs-string">'avro-schema-topic'</span>,<br />                schema=AvroSchema(Example))<br />r = Example(a=<span class="hljs-number">1</span>, b=<span class="hljs-number">2</span>)<br />producer.send(r)<br /><br />consumer = client.subscribe(<br />                <span class="hljs-string">'avro-schema-topic'</span>,<br />                <span class="hljs-string">'sub'</span>,<br />                schema=AvroSchema(Example))<br />msg = consumer.receive()<br />e = msg.value()<br /></code></pre>
+<h4><a class="anchor" aria-hidden="true" id="method-2-json-definition"></a><a href="#method-2-json-definition" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Method 2: JSON definition</h4>
+<p>You can declare an <code>AvroSchema</code> using JSON. In this case, Avro schemas are defined using JSON.</p>
+<p><strong>示例</strong></p>
+<p>Below is an <code>AvroSchema</code> defined using a JSON file (<em>company.avsc</em>).</p>
+<pre><code class="hljs css language-json">{<br />    <span class="hljs-attr">"doc"</span>: <span class="hljs-string">"this is doc"</span>,<br />    <span class="hljs-attr">"namespace"</span>: <span class="hljs-string">"example.avro"</span>,<br />    <span class="hljs-attr">"type"</span>: <span class="hljs-string">"record"</span>,<br />    <span class="hljs-attr">"name"</span>: <span class="hljs-string">"Company"</span>,<br />    <span class="hljs-attr">"fields"</span>: [<br />        {<span class="hljs-attr">"name"</span>: <span class="hljs-string">"name"</span>, <span class="hljs-attr">"type"</span>: [<span class="hljs-string">"null"</span>, <span class="hljs-string">"string"</span>]},<br />        {<span class="hljs-attr">"name"</span>: <span class="hljs-string">"address"</span>, <span class="hljs-attr">"type"</span>: [<span class="hljs-string">"null"</span>, <span class="hljs-string">"string"</span>]},<br />        {<span class="hljs-attr">"name"</span>: <span class="hljs-string">"employees"</span>, <span class="hljs-attr">"type"</span>: [<span class="hljs-string">"null"</span>, {<span class="hljs-attr">"type"</span>: <span class="hljs-string">"array"</span>, <span class="hljs-attr">"items"</span>: {<br />            <span class="hljs-attr">"type"</span>: <span class="hljs-string">"record"</span>,<br />            <span class="hljs-attr">"name"</span>: <span class="hljs-string">"Employee"</span>,<br />            <span class="hljs-attr">"fields"</span>: [<br />                {<span class="hljs-attr">"name"</span>: <span class="hljs-string">"name"</span>, <span class="hljs-attr">"type"</span>: [<span class="hljs-string">"null"</span>, <span class="hljs-string">"string"</span>]},<br />                {<span class="hljs-attr">"name"</span>: <span class="hljs-string">"age"</span>, <span class="hljs-attr">"type"</span>: [<span class="hljs-string">"null"</span>, <span class="hljs-string">"int"</span>]}<br />            ]<br />        }}]},<br />        {<span class="hljs-attr">"name"</span>: <span class="hljs-string">"labels"</span>, <span class="hljs-attr">"type"</span>: [<span class="hljs-string">"null"</span>, {<span class="hljs-attr">"type"</span>: <span class="hljs-string">"map"</span>, <span class="hljs-attr">"values"</span>: <span class="hljs-string">"string"</span>}]}<br />    ]<br />}<br /></code></pre>
+<p>You can load a schema definition from file by using [<code>avro.schema</code>]((<a href="http://avro.apache.org/docs/current/gettingstartedpython.html">http://avro.apache.org/docs/current/gettingstartedpython.html</a>) or <a href="https://fastavro.readthedocs.io/en/latest/schema.html#fastavro._schema_py.load_schema"><code>fastavro.schema</code></a>.</p>
+<p>If you use the &quot;JSON definition&quot; method to declare an <code>AvroSchema</code>, pay attention to the following points:</p>
+<ul>
+<li><p>You need to use <a href="https://developers.google.com/edu/python/dict-files">Python dict</a> to produce and consume messages, which is different from using the &quot;Record&quot; way.</p></li>
+<li><p>When generating an <code>AvroSchema</code> object, set <code>_record_cls</code> parameter to <code>None</code>.</p></li>
+</ul>
+<p><strong>示例</strong></p>
+<pre><code class="hljs">from fastavro.schema import load_schema<br />from pulsar.schema import *<br />schema_definition = load_schema(&quot;examples/company.avsc&quot;)<br />avro_schema = AvroSchema(None, schema_definition=schema_definition)<br />producer = client.create_producer(<br />    topic=topic,<br />    schema=avro_schema)<br />consumer = client.subscribe(topic, 'test', schema=avro_schema)<br />company = {<br />    &quot;name&quot;: &quot;company-name&quot; + str(i),<br />    &quot;address&quot;: 'xxx road xxx street ' + str(i),<br />    &quot;employees&quot;: [<br />        {&quot;name&quot;: &quot;user&quot; + str(i), &quot;age&quot;: 20 + i},<br />        {&quot;name&quot;: &quot;user&quot; + str(i), &quot;age&quot;: 30 + i},<br />        {&quot;name&quot;: &quot;user&quot; + str(i), &quot;age&quot;: 35 + i},<br />    ],<br />    &quot;labels&quot;: {<br />        &quot;industry&quot;: &quot;software&quot; + str(i),<br />        &quot;scale&quot;: &quot;&gt;100&quot;,<br />        &quot;funds&quot;: &quot;1000000.0&quot;<br />    }<br />}<br />producer.send(company)<br />msg = consumer.receive()<br /># Users could get a dict object by `value()` method.<br />msg.value()<br /></code></pre>
+</span></div></div><div id="tab-group-2454-content-2458" class="tab-pane" data-group="group_2454" tabindex="-1"><div><span><h4><a class="anchor" aria-hidden="true" id="record"></a><a href="#record" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Record</h4>
+<p>You can declare a <code>JsonSchema</code> by passing a class that inherits from <code>pulsar.schema.Record</code> and defines the fields as class variables. This is similar to using <code>AvroSchema</code>. The only difference is to use <code>JsonSchema</code> instead of <code>AvroSchema</code> when defining schema type as shown below. For how to use <code>AvroSchema</code> via record, see <a href="/docs/zh-CN/next/client-libraries-python#method-1-record">here</a>.</p>
+<pre><code class="hljs">producer = client.create_producer(<br />                'avro-schema-topic',<br />                schema=JsonSchema(Example))<br /><br />consumer = client.subscribe(<br />                'avro-schema-topic',<br />                'sub',<br />                schema=JsonSchema(Example))<br /></code></pre>
+</span></div></div></div></div>
 <h2><a class="anchor" aria-hidden="true" id="端到端加密"></a><a href="#端到端加密" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>端到端加密</h2>
 <p><a href="https://pulsar.apache.org/docs/en/next/cookbooks-encryption/#docsNav">端到端加密</a> 可以让应用在生产端加密消息并在消费端解密消息。</p>
 <h3><a class="anchor" aria-hidden="true" id="配置"></a><a href="#配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置</h3>
@@ -335,7 +349,7 @@ producer.send(Example(a=<span class="hljs-string">'Hello'</span>, b=<span class=
 privateKeyPath: &quot;./private.pem&quot;
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="教程"></a><a href="#教程" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>教程</h3>
-<p>本节提供如何在 Python 客户端中使用端到端加密功能的分步骤说明。</p>
+<p>This section provides step-by-step instructions on how to use the end-to-end encryption feature in the Python client.</p>
 <p><strong>前提条件</strong></p>
 <ul>
 <li>Pulsar Python 客户端为 2.7.1或更高版本</li>
@@ -391,7 +405,7 @@ client.close()
 <p>消费端：</p>
 <pre><code class="hljs"> Received msg 'encryption message' id = '(0,0,-1,-1)'</code></pre></li>
 </ol>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/client-libraries-go"><span class="arrow-prev">← </span><span>Go</span></a><a class="docs-next button" href="/docs/zh-CN/next/client-libraries-cpp"><span>C++</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a><ul class="toc-headings"><li><a href="#使用-pip-安装">使用 pip 安装</a></li><li><a href="#可选依赖">可选依赖</a></li><li><a href="#从源代码安装">从源代码安装</a></li></ul></li><li><a href="#api-参考">API 参考</a></li><li><a href="#示例">示例</a><ul class="toc-headings"><li><a href="#生产者示例">生产者示例</a></li><li><a href="#消费者示例">消费者示例</a></li><li><a href="#reader-接口示例">Reader 接口示例</a></li><li><a href="#多主题订阅">多主题订阅</a></li></ul></li><li><a href="#schema">Schema</a><ul class="toc-headings"><li><a href="#声明和验证-schema">声明和验证 schema</a></li><li><a href="#支持的-schema-类型">支持的 Schema 类型</a></li><li><a href="#schema-定义参考">Schema 定义参考</a></li></ul></li><li><a href="#端到端加密">端到端加密</a><ul class="toc-headings"><li><a href="#配置">配置</a></li><li><a href="#教程">教程</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/client-libraries-go"><span class="arrow-prev">← </span><span>Go</span></a><a class="docs-next button" href="/docs/zh-CN/next/client-libraries-cpp"><span>C++</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a><ul class="toc-headings"><li><a href="#使用-pip-安装">使用 pip 安装</a></li><li><a href="#可选依赖">可选依赖</a></li><li><a href="#从源代码安装">从源代码安装</a></li></ul></li><li><a href="#api-参考">API 参考</a></li><li><a href="#示例">示例</a><ul class="toc-headings"><li><a href="#生产者示例">生产者示例</a></li><li><a href="#消费者示例">消费者示例</a></li><li><a href="#reader-接口示例">Reader 接口示例</a></li><li><a href="#多主题订阅">多主题订阅</a></li></ul></li><li><a href="#schema">Schema</a><ul class="toc-headings"><li><a href="#supported-schema-types">Supported schema types</a></li><li><a href="#schema-definition-reference">Schema definition reference</a></li><li><a href="#declare-and-validate-schema">Declare and validate schema</a></li></ul></li><li><a href="#端到端加密">端到端加密</a><ul class="toc-headings"><li><a href="#配置">配置</a></li><li><a href="#教程">教程</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
