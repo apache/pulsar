@@ -85,19 +85,6 @@ public class AuthenticationService implements Closeable {
         }
     }
 
-    public String authenticate(AuthenticationDataSource authData, String authMethodName)
-            throws AuthenticationException {
-        AuthenticationProvider provider = providers.get(authMethodName);
-        if (provider != null) {
-            return provider.authenticate(authData);
-        } else {
-            if (StringUtils.isNotBlank(anonymousUserRole)) {
-                return anonymousUserRole;
-            }
-            throw new AuthenticationException("Unsupported authentication mode: " + authMethodName);
-        }
-    }
-
     public String authenticateHttpRequest(HttpServletRequest request) throws AuthenticationException {
         AuthenticationException authenticationException = null;
         AuthenticationDataSource authData = new AuthenticationDataHttps(request);
