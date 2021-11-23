@@ -198,37 +198,6 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         }
 
         final long now = System.nanoTime();
-
-        if (!consumerCumulativeAck || consumerPullMode) {
-            builder.sendAsync().thenAccept(msgId -> sendMessageSucceed(msgSize, now, sendRequest, msgId))
-                .exceptionally(exception -> {
-                    log.warn("[{}] Error occurred while producer handler was sending msg from {}: {}", producer.getTopic(),
-                            getRemote().getInetSocketAddress().toString(), exception.getMessage());
-                    numMsgsFailed.increment();
-                    sendAckResponse(
-                            new ProducerAck(UnknownError, exception.getMessage(), null, sendRequest.context));
-                    return null;
-                }
-            );
-        } else {
-            // if consumer not using pull mode but still want to use cumulative ack, then produce and cumulative ack
-            // can't happen at the same time as produce will also affect backlog msg count which will affect
-            // consumer permit calculation
-            try {
-                MessageId msgId = builder.send();
-                sendMessageSucceed(msgSize, now, sendRequest, msgId);
-            } catch (PulsarClientException exception) {
-                log.warn("[{}] Error occurred while producer handler was sending msg from {}: {}", producer.getTopic(),
-                        getRemote().getInetSocketAddress().toString(), exception.getMessage());
-                numMsgsFailed.increment();
-                sendAckResponse(
-                        new ProducerAck(UnknownError, exception.getMessage(), null, sendRequest.context));
-
-
-
-
-
-
         builder.sendAsync().thenAccept(msgId -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Success fully write the message to broker with returned message ID {} from producer {}",
@@ -239,7 +208,14 @@ public class ProducerHandler extends AbstractWebSocketHandler {
                 String messageId = Base64.getEncoder().encodeToString(msgId.toByteArray());
                 sendAckResponse(new ProducerAck(messageId, sendRequest.context));
             }
-        }
+        }).exceptionally(exception -> {
+            log.warn("[{}] Error occurred while producer handler was sending msg from {}: {}", producer.getTopic(),
+                    getRemote().getInetSocketAddress().toString(), exception.getMessage());
+            numMsgsFailed.increment();
+            sendAckResponse(
+                    new ProducerAck(UnknownError, exception.getMessage(), null, sendRequest.context));
+            return null;
+        });
     }
 
     public Producer<byte[]> getProducer() {

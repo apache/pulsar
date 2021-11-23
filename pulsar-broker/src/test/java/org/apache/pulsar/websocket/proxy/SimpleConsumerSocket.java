@@ -129,8 +129,8 @@ public class SimpleConsumerSocket {
         return consumerBuffer;
     }
 
-    public int getReceivedMessagesCount() {
-        return receivedMessages.get();
+    public AtomicInteger getReceivedMessages() {
+        return receivedMessages;
     }
 
     private static final Logger log = LoggerFactory.getLogger(SimpleConsumerSocket.class);

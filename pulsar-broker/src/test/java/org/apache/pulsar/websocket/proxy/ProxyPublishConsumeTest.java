@@ -177,8 +177,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
             int retry = 0;
             int maxRetry = 400;
-            while ((consumeSocket1.getReceivedMessagesCount() < 10 && consumeSocket2.getReceivedMessagesCount() < 10)
-                    || readSocket.getReceivedMessagesCount() < 10) {
+            while ((consumeSocket1.getReceivedMessages().get() < 10 && consumeSocket2.getReceivedMessages().get() < 10)
+                    || readSocket.getReceivedMessages().get() < 10) {
                 Thread.sleep(10);
                 if (retry++ > maxRetry) {
                     final String msg = String.format("Consumer still has not received the message after %s ms",
@@ -240,7 +240,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             // Send 10 permits, should receive 10 message
             consumeSocket.sendPermits(10);
             Awaitility.await().untilAsserted(() ->
-                    assertEquals(consumeSocket.getReceivedMessagesCount(), 10));
+                    assertEquals(consumeSocket.getReceivedMessages().get(), 10));
             consumeSocket.isEndOfTopic();
             // Wait till get response
             Awaitility.await().untilAsserted(() ->
@@ -252,11 +252,11 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             consumeSocket.sendPermits(20);
             // 31 includes previous of end of topic request.
             Awaitility.await().untilAsserted(() ->
-                    assertEquals(consumeSocket.getReceivedMessagesCount(), 31));
+                    assertEquals(consumeSocket.getReceivedMessages().get(), 31));
             consumeSocket.isEndOfTopic();
             // Wait till get response
             Awaitility.await().untilAsserted(() ->
-                    assertEquals(consumeSocket.getReceivedMessagesCount(), 32));
+                    assertEquals(consumeSocket.getReceivedMessages().get(), 32));
             // Assert not reached end of topic.
             assertEquals(consumeSocket.getBuffer().get(consumeSocket.getBuffer().size() - 1), "{\"endOfTopic\":false}");
 
@@ -264,7 +264,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             consumeSocket.isEndOfTopic();
             // Wait till get response
             Awaitility.await().untilAsserted(() ->
-                    assertEquals(consumeSocket.getReceivedMessagesCount(), 33));
+                    assertEquals(consumeSocket.getReceivedMessages().get(), 33));
             // Assert reached end of topic.
             assertEquals(consumeSocket.getBuffer().get(consumeSocket.getBuffer().size() - 1), "{\"endOfTopic\":true}");
         } finally {
@@ -307,7 +307,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 10000)
+    @Test(timeOut = 1000)
     public void emptySubscriptionConsumerTest() {
 
         // Empty subscription name
@@ -644,7 +644,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             // sleep so, proxy can deliver few messages to consumers for stats
             int retry = 0;
             int maxRetry = 400;
-            while (consumeSocket1.getReceivedMessagesCount() < 2) {
+            while (consumeSocket1.getReceivedMessages().get() < 2) {
                 Thread.sleep(10);
                 if (retry++ > maxRetry) {
                     final String msg = String.format("Consumer still has not received the message after %s ms", (maxRetry * 10));
@@ -756,8 +756,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             Thread.sleep(500);
 
             // Verify no messages received despite production
-            assertEquals(consumeSocket1.getReceivedMessagesCount(), 0);
-            assertEquals(consumeSocket2.getReceivedMessagesCount(), 0);
+            assertEquals(consumeSocket1.getReceivedMessages().get(), 0);
+            assertEquals(consumeSocket2.getReceivedMessages().get(), 0);
 
             consumeSocket1.sendPermits(3);
             consumeSocket2.sendPermits(2);
@@ -766,8 +766,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
             Thread.sleep(500);
 
-            assertEquals(consumeSocket1.getReceivedMessagesCount(), 3);
-            assertEquals(consumeSocket2.getReceivedMessagesCount(), 6);
+            assertEquals(consumeSocket1.getReceivedMessages().get(), 3);
+            assertEquals(consumeSocket2.getReceivedMessages().get(), 6);
 
         } finally {
             stopWebSocketClient(consumeClient1, consumeClient2, produceClient);
@@ -824,18 +824,18 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             Future<Session> producerFuture = produceClient.connect(produceSocket, URI.create(producerUri), produceRequest);
             assertTrue(producerFuture.get().isOpen());
 
-            assertEquals(consumeSocket1.getReceivedMessagesCount(), 0);
-            assertEquals(consumeSocket2.getReceivedMessagesCount(), 0);
+            assertEquals(consumeSocket1.getReceivedMessages().get(), 0);
+            assertEquals(consumeSocket2.getReceivedMessages().get(), 0);
 
             produceSocket.sendMessage(1);
 
             // Main topic
             Awaitility.await().atMost(5, TimeUnit.SECONDS)
-                    .untilAsserted(() -> assertEquals(consumeSocket1.getReceivedMessagesCount(), 2));
+                    .untilAsserted(() -> assertEquals(consumeSocket1.getReceivedMessages().get(), 2));
 
             // DLQ
             Awaitility.await().atMost(5, TimeUnit.SECONDS)
-                    .untilAsserted(() -> assertEquals(consumeSocket2.getReceivedMessagesCount(), 1));
+                    .untilAsserted(() -> assertEquals(consumeSocket2.getReceivedMessages().get(), 1));
         } finally {
             stopWebSocketClient(consumeClient1, consumeClient2, produceClient);
         }
@@ -879,18 +879,18 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
                     produceRequest);
             assertTrue(producerFuture.get().isOpen());
 
-            assertEquals(consumeSocket.getReceivedMessagesCount(), 0);
+            assertEquals(consumeSocket.getReceivedMessages().get(), 0);
 
             produceSocket.sendMessage(1);
 
             Awaitility.await().atMost(delayTime - 1000, TimeUnit.MILLISECONDS)
-                    .untilAsserted(() -> assertEquals(consumeSocket.getReceivedMessagesCount(), 1));
+                    .untilAsserted(() -> assertEquals(consumeSocket.getReceivedMessages().get(), 1));
 
             // Nacked message should be redelivered after 5 seconds
             Thread.sleep(delayTime);
 
             Awaitility.await().atMost(delayTime - 1000, TimeUnit.MILLISECONDS)
-                    .untilAsserted(() -> assertEquals(consumeSocket.getReceivedMessagesCount(), 2));
+                    .untilAsserted(() -> assertEquals(consumeSocket.getReceivedMessages().get(), 2));
         } finally {
             stopWebSocketClient(consumeClient, produceClient);
         }
@@ -900,24 +900,20 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     private class CumulativeAckConsumerSocket extends SimpleConsumerSocket {
         @Override
         public synchronized void onMessage(String msg) throws JsonParseException, IOException {
-            receivedMessages.incrementAndGet();
+            getReceivedMessages().incrementAndGet();
             JsonObject message = new Gson().fromJson(msg, JsonObject.class);
             if (message.get(X_PULSAR_MESSAGE_ID) != null) {
                 String messageId = message.get(X_PULSAR_MESSAGE_ID).getAsString();
-                consumerBuffer.add(messageId);
-                JsonObject ack = new JsonObject();
-                if (receivedMessages.get() % 20 == 0) {
+                getBuffer().add(messageId);
+                if (getReceivedMessages().get() % 20 == 0) {
+                    JsonObject ack = new JsonObject();
                     // cumulative acking
                     ack.add("messageId", new JsonPrimitive(messageId));
                     ack.add("ackType", new JsonPrimitive("cumulative"));
                     this.getRemote().sendString(ack.toString());
-                } else if (receivedMessages.get() % 2 == 0) {
-                    // ack half of messages by individual ack
-                    ack.add("messageId", new JsonPrimitive(messageId));
-                    this.getRemote().sendString(ack.toString());
                 }
             } else {
-                consumerBuffer.add(message.toString());
+                getBuffer().add(message.toString());
             }
         }
     }
@@ -929,12 +925,11 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
         final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() +
                 "/ws/v2/consumer/persistent/" +
-                consumerTopic + "/" + subscription +
-                "?allowCumulativeAck=true";
+                consumerTopic + "/" + subscription;
 
         final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() +
-                "/ws/v2/producer/persistent/" + consumerTopic+
-                "?consumerCumulativeAck=true";
+                "/ws/v2/producer/persistent/" + consumerTopic;
+
         WebSocketClient consumeClient = new WebSocketClient();
         SimpleConsumerSocket consumeSocket = new CumulativeAckConsumerSocket();
         WebSocketClient produceClient = new WebSocketClient();
@@ -953,32 +948,32 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             assertTrue(producerFuture.get().isOpen());
 
             Awaitility.await().atMost(100000, TimeUnit.MILLISECONDS)
-                    .untilAsserted(() -> assertEquals(consumeSocket.getReceivedMessagesCount(), 10));
+                    .untilAsserted(() -> assertEquals(consumeSocket.getReceivedMessages().get(), 10));
 
             // cumulative ack on every 20 messages, send 10 message when connected, only half message acked by individual ack
             Awaitility.await().atMost(100000, TimeUnit.MILLISECONDS)
-                    .untilAsserted(() -> assertEquals(admin.topics().getStats(TopicDomain.persistent + "://" + consumerTopic, true, true).getSubscriptions().get(subscription).getMsgBacklogNoDelayed(), 5));
+                    .untilAsserted(() -> assertEquals(admin.topics().getStats(TopicDomain.persistent + "://" + consumerTopic, true, true).getSubscriptions().get(subscription).getMsgBacklogNoDelayed(), 10));
 
             // send 10 more messages, all messages acked by cumulative ack
             produceSocket.sendMessage(10);
             Awaitility.await().atMost(100000, TimeUnit.MILLISECONDS)
-                    .untilAsserted(() -> assertEquals(consumeSocket.getReceivedMessagesCount(), 20));
+                    .untilAsserted(() -> assertEquals(consumeSocket.getReceivedMessages().get(), 20));
             Awaitility.await().atMost(100000, TimeUnit.MILLISECONDS)
                     .untilAsserted(() -> assertEquals(admin.topics().getStats(TopicDomain.persistent + "://" + consumerTopic, true, true).getSubscriptions().get(subscription).getMsgBacklogNoDelayed(), 0));
 
             produceSocket.sendMessage(10);
             Awaitility.await().atMost(1000, TimeUnit.MILLISECONDS)
-                    .untilAsserted(() -> assertEquals(consumeSocket.getReceivedMessagesCount(), 30));
+                    .untilAsserted(() -> assertEquals(consumeSocket.getReceivedMessages().get(), 30));
 
             assertEquals(admin.topics().getStats(TopicDomain.persistent + "://" + consumerTopic, true, true).getSubscriptions().get(subscription).getConsumers().get(0).getMsgOutCounter(), 30);
             // only half message acked by individual ack
             Awaitility.await().atMost(1000, TimeUnit.MILLISECONDS)
-                    .untilAsserted(() -> assertEquals(admin.topics().getStats(TopicDomain.persistent + "://" + consumerTopic, true, true).getSubscriptions().get(subscription).getMsgBacklogNoDelayed(), 5));
+                    .untilAsserted(() -> assertEquals(admin.topics().getStats(TopicDomain.persistent + "://" + consumerTopic, true, true).getSubscriptions().get(subscription).getMsgBacklogNoDelayed(), 10));
 
             produceSocket.sendMessage(70);
 
             Awaitility.await().atMost(1000, TimeUnit.MILLISECONDS)
-                    .untilAsserted(() -> assertEquals(consumeSocket.getReceivedMessagesCount(), 100));
+                    .untilAsserted(() -> assertEquals(consumeSocket.getReceivedMessages().get(), 100));
 
             assertEquals(admin.topics().getStats(TopicDomain.persistent + "://" + consumerTopic, true, true).getSubscriptions().get(subscription).getConsumers().get(0).getMsgOutCounter(), 100);
             // all messages acked by cumulative ack
@@ -1011,7 +1006,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             Future<Session> consumerFuture = consumerClient.connect(consumeSocket, URI.create(consumerUri), consumerRequest);
 
             assertTrue(consumerFuture.get().isOpen());
-            assertEquals(consumeSocket.getReceivedMessagesCount(), 0);
+            assertEquals(consumeSocket.getReceivedMessages().get(), 0);
 
             for (int i = 0; i < messages; i++) {
                 producer.sendAsync(String.valueOf(i).getBytes(StandardCharsets.UTF_8));
@@ -1020,7 +1015,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             producer.flush();
             consumeSocket.sendPermits(messages);
             Awaitility.await().untilAsserted(() ->
-                    assertEquals(consumeSocket.getReceivedMessagesCount(), messages));
+                    assertEquals(consumeSocket.getReceivedMessages().get(), messages));
 
             // The message should not be acked since we only acked 1 message of the batch message
             Awaitility.await().untilAsserted(() ->
@@ -1060,7 +1055,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             Future<Session> consumerFuture = consumerClient.connect(consumeSocket, URI.create(consumerUri), consumerRequest);
 
             assertTrue(consumerFuture.get().isOpen());
-            assertEquals(consumeSocket.getReceivedMessagesCount(), 0);
+            assertEquals(consumeSocket.getReceivedMessages().get(), 0);
 
             for (int i = 0; i < messages; i++) {
                 producer.sendAsync(String.valueOf(i).getBytes(StandardCharsets.UTF_8));
@@ -1069,7 +1064,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             producer.flush();
             consumeSocket.sendPermits(messages);
             Awaitility.await().untilAsserted(() ->
-                    assertEquals(consumeSocket.getReceivedMessagesCount(), messages));
+                    assertEquals(consumeSocket.getReceivedMessages().get(), messages));
 
             for (JsonObject msg : consumeSocket.messages) {
                 assertTrue(msg.has("encryptionContext"));

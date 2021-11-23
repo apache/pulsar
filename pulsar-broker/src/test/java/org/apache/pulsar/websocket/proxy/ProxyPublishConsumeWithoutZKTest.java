@@ -109,7 +109,7 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
             Assert.assertTrue(consumerFuture.get().isOpen());
             Assert.assertTrue(producerFuture.get().isOpen());
 
-            while (consumeSocket.getReceivedMessagesCount() < 10) {
+            while (consumeSocket.getReceivedMessages().get() < 10) {
                 Thread.sleep(10);
             }
             Assert.assertTrue(produceSocket.getBuffer().size() > 0);

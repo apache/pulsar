@@ -86,9 +86,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     private int maxPendingMessages = 0;
     private final AtomicInteger pendingMessages = new AtomicInteger();
-    private final ReadWriteLock pendingMessagesLock = new ReentrantReadWriteLock();
     private final boolean pullMode;
-    private final boolean allowCumulativeAck;
 
     private final LongAdder numMsgsDelivered;
     private final LongAdder numBytesDelivered;
@@ -302,61 +300,43 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         // We should have received an ack
         MessageId msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId),
                 topic.toString());
-        if ("cumulative".equals(command.ackType)) {
-            if (allowCumulativeAck) {
-                // If not pull mode, then we need to calculate how many messages have been acked in a cumulative ack request
-                // to properly calculate how many more messages we should dispatch to consumer. Use precise backlog size before
-                // and after the cumulative ack for the calculation.
-                // Use a writelock to prevent individual ack during the process which might cause incorrect result.
-                if (!this.pullMode) {
-                    try {
-                        pendingMessagesLock.writeLock().lock();
-                        MessageIdImpl messageId = (MessageIdImpl) msgId;
-                        long messagesToBeAcked = service.getAdminClient().topics().getNumberOfUnackedMessages(topic.toString(), subscription, messageId.getLedgerId(), messageId.getEntryId());
+
+        if (this.subscriptionType == SubscriptionType.Exclusive || this.subscriptionType == SubscriptionType.Failover) {
+            // If not pull mode, then we need to calculate how many messages have been acked in a cumulative ack request
+            // to properly calculate how many more messages we should dispatch to consumer. Use precise backlog size before
+            // and after the cumulative ack for the calculation.
+            // Use a writelock to prevent individual ack during the process which might cause incorrect result.
+            if (!this.pullMode) {
+                try {
+                    MessageIdImpl messageId = (MessageIdImpl) msgId;
+                    long messagesToBeAcked = service.getAdminClient().topics().getNumberOfUnackedMessages(topic.toString(), subscription, messageId.getLedgerId(), messageId.getEntryId());
+                    if (messagesToBeAcked > 0) {
                         consumer.acknowledgeCumulative(msgId);
-                        int ack = (int) messagesToBeAcked > pendingMessages.get() ? pendingMessages.get() : (int) messagesToBeAcked;
-                        int pending = pendingMessages.getAndAdd(-ack);
-                        if (pending >= maxPendingMessages) {
-                            // Resume delivery
-                            receiveMessage();
-                        }
-                    } catch (PulsarAdminException e) {
-                        log.warn("[{}] Fail to handle websocket consumer cumulative ack request: {}", consumer.getTopic(), e.getMessage());
-                    } finally {
-                        pendingMessagesLock.writeLock().unlock();
                     }
-                } else {
-                    // for pull mode no need to keep track of how many messages to dispatch, so simply do cumulative ack.
-                    consumer.acknowledgeCumulativeAsync(msgId).exceptionally(exception -> {
-                        log.warn("[{}] Fail to handle websocket consumer cumulative ack request: {}", consumer.getTopic(), exception.getMessage());
-                        return null;
-                    });
+                    int ack = (int) messagesToBeAcked > pendingMessages.get() ? pendingMessages.get() : (int) messagesToBeAcked;
+                    int pending = pendingMessages.getAndAdd(-ack);
+                    if (pending >= maxPendingMessages) {
+                        // Resume delivery
+                        receiveMessage();
+                    }
+                } catch (PulsarAdminException e) {
+                    log.warn("[{}] Fail to handle websocket consumer cumulative ack request: {}", consumer.getTopic(), e.getMessage());
                 }
             } else {
-                log.warn("[{}] Websocket consumer cumulative ack request not enabled", consumer.getTopic());
+                // for pull mode no need to keep track of how many messages to dispatch, so simply do cumulative ack.
+                consumer.acknowledgeCumulativeAsync(msgId).exceptionally(exception -> {
+                    log.warn("[{}] Fail to handle websocket consumer cumulative ack request: {}", consumer.getTopic(), exception.getMessage());
+                    return null;
+                });
             }
         } else {
-            if (allowCumulativeAck) {
-                // multiple individual acks can happen at the same time, but individual ack and cumulative ack can't
-                // happen at the same time, as it'll interfere calculation of pending message, hence use a readlock.
-                // if not pull mode, produce request can also change backlog msg count so can't happen at the same
-                // time as cumulative ack.
-                try {
-                    pendingMessagesLock.readLock().lock();
-                    consumer.acknowledge(msgId);
-                    checkResumeReceive();
-                } finally {
-                    pendingMessagesLock.readLock().unlock();
-                }
-            } else {
-                consumer.acknowledgeAsync(msgId)
-                        .thenAccept(consumer -> numMsgsAcked.increment())
-                        .exceptionally(exception -> {
-                            log.warn("[{}] Fail to handle websocket consumer ack request: {}", consumer.getTopic(), exception.getMessage());
-                            return null;
-                        });
-                checkResumeReceive();
-            }
+            consumer.acknowledgeAsync(msgId)
+                    .thenAccept(consumer -> numMsgsAcked.increment())
+                    .exceptionally(exception -> {
+                        log.warn("[{}] Fail to handle websocket consumer ack request: {}", consumer.getTopic(), exception.getMessage());
+                        return null;
+                    });
+            checkResumeReceive();
         }
         if (log.isDebugEnabled()) {
             log.debug("[{}/{}] Received ack request of message {} from {} ", consumer.getTopic(),

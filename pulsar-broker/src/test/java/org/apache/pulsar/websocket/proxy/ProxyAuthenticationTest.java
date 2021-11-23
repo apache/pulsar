@@ -200,7 +200,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 
             int retry = 0;
             int maxRetry = 500;
-            while (consumeSocket.getReceivedMessagesCount() < 3) {
+            while (consumeSocket.getReceivedMessages().get() < 3) {
                 Thread.sleep(10);
                 if (retry++ > maxRetry) {
                     break;
