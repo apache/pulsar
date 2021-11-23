@@ -111,7 +111,7 @@
                   <goal>exec</goal>
                 </goals>
                 <configuration>
-                  <executable>${project.basedir}/../../src/pulsar-io-gen</executable>
+                  <executable>${project.basedir}/../../src/pulsar-io-gen.sh</executable>
                   <outputFile>${project.basedir}/target/pulsar-io-gen.output</outputFile>
                   <arguments>
                     <argument>conf</argument>
