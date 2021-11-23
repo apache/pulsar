@@ -27,6 +27,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -676,10 +677,12 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      * </pre>
      *
      */
-    @Test(timeOut = 10000)
+    @Test(timeOut = 60000)
     public void testBlockBrokerDispatching() {
         log.info("-- Starting {} test --", methodName);
 
+        List<Long> timestamps = new ArrayList<>();
+        timestamps.add(System.currentTimeMillis());
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerBroker();
         double unAckedMessagePercentage = pulsar.getConfiguration()
                 .getMaxUnackedMessagesPerSubscriptionOnBrokerBlocked();
@@ -737,6 +740,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
                 String message = "my-message-" + i;
                 producer.send(message.getBytes());
             }
+            timestamps.add(System.currentTimeMillis());
 
             /*****
              * (1) try to consume messages: without acking messages and dispatcher will be blocked once it reaches
@@ -782,6 +786,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             String dispatcherName = blockedDispatchers.values().get(0).getName();
             String subName = dispatcherName.substring(dispatcherName.lastIndexOf("/") + 2, dispatcherName.length());
             assertEquals(subName, subscriberName1);
+            timestamps.add(System.currentTimeMillis());
 
             /**
              * (2) However, other subscription2 should still be able to consume messages until it reaches to
@@ -802,6 +807,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             // (2.b) It should receive only messages with limit of maxUnackPerDispatcher
             assertEquals(messages2.size(), maxUnAckPerDispatcher, receiverQueueSize);
             assertEquals(blockedDispatchers.size(), 2);
+            timestamps.add(System.currentTimeMillis());
 
             /** (3) if Subscription3 is acking then it shouldn't be blocked **/
             consumer1Sub3 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
@@ -819,6 +825,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             }
             assertEquals(consumedMsgsSub3, totalProducedMsgs);
             assertEquals(blockedDispatchers.size(), 2);
+            timestamps.add(System.currentTimeMillis());
 
             /** (4) try to ack messages from sub1 which should unblock broker */
             messages1.forEach(consumer1Sub1::acknowledgeAsync);
@@ -836,6 +843,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             assertEquals(messages1.size(), totalProducedMsgs);
             // it unblocks all consumers
             assertEquals(blockedDispatchers.size(), 0);
+            timestamps.add(System.currentTimeMillis());
 
             /** (5) try redelivery on sub2 consumer and verify to consume all messages */
             consumerSub2.redeliverUnacknowledgedMessages();
@@ -854,11 +862,16 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             }
             latch.await();
             assertEquals(msgReceivedCount.get(), totalProducedMsgs);
+            timestamps.add(System.currentTimeMillis());
 
             consumer1Sub1.close();
             consumerSub2.close();
             consumer1Sub3.close();
 
+            for (int i = 1; i < timestamps.size(); i++) {
+                //log time cost for each step.
+                log.info("Step {} cost {}ms", i, timestamps.get(i) - timestamps.get(i - 1));
+            }
             log.info("-- Exiting {} test --", methodName);
         } catch (Exception e) {
             fail();
