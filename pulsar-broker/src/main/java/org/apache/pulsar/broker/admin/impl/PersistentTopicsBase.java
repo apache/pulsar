@@ -264,8 +264,7 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
             if (null != authService) {
-                authService.grantPermissionAsync(topicUri, actions, role, null/*additional auth-data json*/)
-                        .get();
+                authService.grantPermissionAsync(topicUri, actions, role, null/*additional auth-data json*/).get();
             } else {
                 throw new RestException(Status.NOT_IMPLEMENTED, "Authorization is not enabled");
             }
@@ -275,11 +274,15 @@ public class PersistentTopicsBase extends AdminResource {
             log.error("[{}] Failed to get permissions for topic {}", clientAppId(), topicUri, e);
             throw new RestException(e);
         } catch (ExecutionException e) {
-            if (e.getCause() instanceof IllegalArgumentException) {
+            // The IllegalArgumentException and the IllegalStateException were historically thrown by the
+            // grantPermissionAsync method, so we catch them here to ensure backwards compatibility.
+            if (e.getCause() instanceof MetadataStoreException.NotFoundException
+                    || e.getCause() instanceof IllegalArgumentException) {
                 log.warn("[{}] Failed to set permissions for topic {}: Namespace does not exist", clientAppId(),
                         topicUri, e);
                 throw new RestException(Status.NOT_FOUND, "Topic's namespace does not exist");
-            } else if (e.getCause() instanceof IllegalStateException) {
+            } else if (e.getCause() instanceof MetadataStoreException.BadVersionException
+                    || e.getCause() instanceof IllegalStateException) {
                 log.warn("[{}] Failed to set permissions for topic {}: {}",
                         clientAppId(), topicUri, e.getCause().getMessage(), e);
                 throw new RestException(Status.CONFLICT, "Concurrent modification");
