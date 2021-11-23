@@ -32,6 +32,8 @@ import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailable
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
+
+import java.io.FileInputStream;
 import java.nio.file.Files;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.api.StorageClient;
@@ -78,12 +80,15 @@ import org.apache.pulsar.functions.utils.ComponentTypeUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.FunctionMetaDataUtils;
+import org.apache.pulsar.functions.utils.functions.FunctionUtils;
+import org.apache.pulsar.functions.utils.functions.Functions;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
+import org.apache.pulsar.functions.worker.dlog.DLInputStream;
 import org.apache.pulsar.functions.worker.service.api.Component;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
@@ -92,6 +97,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
+import java.nio.file.Path;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -282,21 +288,27 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         boolean isBuiltin = isFunctionCodeBuiltin(functionDetails);
         boolean isPkgUrlProvided = isNotBlank(functionPkgUrl);
         if (worker().getFunctionRuntimeManager().getRuntimeFactory().externallyManaged()) {
-            // For externally managed schedulers, the pkgUrl/builtin stuff should be copied to bk
+            // For externally managed schedulers, the pkgUrl/builtin stuff can be copied to bk
+            // if the function worker image does not include connectors
             if (isBuiltin) {
-                File sinkOrSource;
-                if (componentType == FunctionDetails.ComponentType.SOURCE) {
-                    String archiveName = functionDetails.getSource().getBuiltin();
-                    sinkOrSource = worker().getConnectorsManager().getSourceArchive(archiveName).toFile();
+                if (worker().getWorkerConfig().getUploadBuiltinSinksSources()) {
+                    File sinkOrSource;
+                    if (componentType == FunctionDetails.ComponentType.SOURCE) {
+                        String archiveName = functionDetails.getSource().getBuiltin();
+                        sinkOrSource = worker().getConnectorsManager().getSourceArchive(archiveName).toFile();
+                    } else {
+                        String archiveName = functionDetails.getSink().getBuiltin();
+                        sinkOrSource = worker().getConnectorsManager().getSinkArchive(archiveName).toFile();
+                    }
+                    packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
+                            sinkOrSource.getName()));
+                    packageLocationMetaDataBuilder.setOriginalFileName(sinkOrSource.getName());
+                    log.info("Uploading {} package to {}", ComponentTypeUtils.toString(componentType), packageLocationMetaDataBuilder.getPackagePath());
+                    WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), sinkOrSource, worker().getDlogNamespace());
                 } else {
-                    String archiveName = functionDetails.getSink().getBuiltin();
-                    sinkOrSource = worker().getConnectorsManager().getSinkArchive(archiveName).toFile();
+                    log.info("Skipping upload for the built-in package {}", ComponentTypeUtils.toString(componentType));
+                    packageLocationMetaDataBuilder.setPackagePath("builtin://" + getFunctionCodeBuiltin(functionDetails));
                 }
-                packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
-                        sinkOrSource.getName()));
-                packageLocationMetaDataBuilder.setOriginalFileName(sinkOrSource.getName());
-                log.info("Uploading {} package to {}", ComponentTypeUtils.toString(componentType), packageLocationMetaDataBuilder.getPackagePath());
-                WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), sinkOrSource, worker().getDlogNamespace());
             } else if (isPkgUrlProvided) {
                 packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
                         uploadedInputStreamAsFile.getName()));
@@ -1272,6 +1284,20 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                 URI url = URI.create(pkgPath);
                 File file = new File(url.getPath());
                 Files.copy(file.toPath(), output);
+            } else if(pkgPath.startsWith(Utils.BUILTIN) && !worker().getWorkerConfig().getUploadBuiltinSinksSources()) {
+                String sType = pkgPath.replaceFirst("^builtin://", "");
+                final String connectorsDir = worker().getWorkerConfig().getConnectorsDirectory();
+                log.warn("Processing package {} ; looking at the dir {}", pkgPath, connectorsDir);
+                Functions sinksOrSources = FunctionUtils.searchForFunctions(connectorsDir, true);
+                Path narPath = sinksOrSources.getFunctions().get(sType);
+                if (narPath == null) {
+                    throw new IllegalStateException("Didn't find " + pkgPath + " in " + connectorsDir);
+                }
+                log.info("Loading {} from {}", pkgPath, narPath);
+                try (InputStream in = new FileInputStream(narPath.toString())) {
+                    IOUtils.copy(in, output, 1024);
+                    output.flush();
+                }
             } else {
                 WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), output, pkgPath);
             }
