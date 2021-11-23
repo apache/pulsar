@@ -5,10 +5,6 @@ sidebar_label: "Overview"
 original_id: concepts-overview
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 Pulsar is a multi-tenant, high-performance solution for server-to-server messaging. Pulsar was originally developed by Yahoo, it is under the stewardship of the [Apache Software Foundation](https://www.apache.org/).
 
 Key features of Pulsar are listed below:

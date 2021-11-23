@@ -5,10 +5,6 @@ sidebar_label: "Pulsar Admin CLI"
 original_id: pulsar-admin
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 > **Important**
 >
 > This page is deprecated and not updated anymore. For the latest and complete information about `pulsar-admin`, including commands, flags, descriptions, and more, see [pulsar-admin doc](https://pulsar.apache.org/tools/pulsar-admin/).

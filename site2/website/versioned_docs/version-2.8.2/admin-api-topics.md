@@ -5,6 +5,16 @@ sidebar_label: Topics
 original_id: admin-api-topics
 ---
 
+> **Important**
+>
+> This page only shows **some frequently used operations**.
+>
+> - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/).
+> 
+> - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
+> 
+> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/).
+
 Pulsar has persistent and non-persistent topics. Persistent topic is a logical endpoint for publishing and consuming messages. The topic name structure for persistent topics is:
 
 ```shell
@@ -685,30 +695,6 @@ admin.topics().getSubscriptions(topic);
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-### Unsubscribe
-
-When a subscription does not process messages any more, you can unsubscribe it in the following ways. 
-
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
-```shell
-$ pulsar-admin topics unsubscribe \
-  --subscription my-subscription \
-  persistent://test-tenant/ns1/tp1 \
-```
-
-<!--REST API-->
-{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/:topic/subscription/:subscription|operation/deleteSubscription?version=[[pulsar:version_number]]}
-
-<!--Java-->
-```java
-String topic = "persistent://my-tenant/my-namespace/my-topic";
-String subscriptionName = "my-subscription";
-admin.topics().deleteSubscription(topic, subscriptionName);
-```
-
-<!--END_DOCUSAURUS_CODE_TABS-->
-
 ### Last Message Id
 
 You can get the last committed message ID for a persistent topic. It is available since 2.3.0 release.
@@ -1236,4 +1222,60 @@ If a message has a key, it supersedes the round robin routing policy. The follow
         } else {
             return signSafeMod(PARTITION_INDEX_UPDATER.getAndIncrement(this), topicMetadata.numPartitions());
         }
-```        
+``` 
+
+## Manage subscriptions
+You can use [Pulsar admin API](admin-api-overview.md) to create, check, and delete subscriptions.
+### Create subscription
+You can create a subscription for a topic using one of the following methods.
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
+```shell
+pulsar-admin topics create-subscription \
+--subscription my-subscription \
+persistent://test-tenant/ns1/tp1
+```
+<!--REST API-->
+{@inject: endpoint|PUT|/admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subscription|operation/createSubscriptions?version=[[pulsar:version_number]]}
+<!--Java-->
+```java
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+String subscriptionName = "my-subscription";
+admin.topics().createSubscription(topic, subscriptionName, MessageId.latest);
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+### Get subscription
+You can check all subscription names for a given topic using one of the following methods.
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
+```shell
+pulsar-admin topics subscriptions \
+persistent://test-tenant/ns1/tp1 \
+my-subscription
+```
+<!--REST API-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscriptions|operation/getSubscriptions?version=[[pulsar:version_number]]}
+<!--Java-->
+```java
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+admin.topics().getSubscriptions(topic);
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+### Unsubscribe subscription 
+When a subscription does not process messages any more, you can unsubscribe it using one of the following methods. 
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
+```shell
+pulsar-admin topics unsubscribe \
+--subscription my-subscription \
+persistent://test-tenant/ns1/tp1 
+```
+<!--REST API-->
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/:topic/subscription/:subscription|operation/deleteSubscription?version=[[pulsar:version_number]]}
+<!--Java-->
+```java
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+String subscriptionName = "my-subscription";
+admin.topics().deleteSubscription(topic, subscriptionName);
+```
+<!--END_DOCUSAURUS_CODE_TABS-->

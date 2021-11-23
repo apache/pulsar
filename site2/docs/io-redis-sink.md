@@ -41,14 +41,16 @@ Before using the Redis sink connector, you need to create a configuration file i
 
     ```json
     {
-        "redisHosts": "localhost:6379",
-        "redisPassword": "mypassword",
-        "redisDatabase": "0",
-        "clientMode": "Standalone",
-        "operationTimeout": "2000",
-        "batchSize": "1",
-        "batchTimeMs": "1000",
-        "connectTimeout": "3000"
+       "configs": {
+          "redisHosts": "localhost:6379",
+          "redisPassword": "mypassword",
+          "redisDatabase": "0",
+          "clientMode": "Standalone",
+          "operationTimeout": "2000",
+          "batchSize": "1",
+          "batchTimeMs": "1000",
+          "connectTimeout": "3000"
+       }
     }
     ```
 

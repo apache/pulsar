@@ -4,10 +4,6 @@ title: Topic Compaction
 sidebar_label: "Topic Compaction"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 Pulsar was built with highly scalable [persistent storage](concepts-architecture-overview.md#persistent-storage) of message data as a primary objective. Pulsar topics enable you to persistently store as many unacknowledged messages as you need while preserving message ordering. By default, Pulsar stores *all* unacknowledged/unprocessed messages produced on a topic. Accumulating many unacknowledged messages on a topic is necessary for many Pulsar use cases but it can also be very time intensive for Pulsar consumers to "rewind" through the entire log of messages.
 
 > For a more practical guide to topic compaction, see the [Topic compaction cookbook](cookbooks-compaction).

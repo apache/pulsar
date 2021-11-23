@@ -4,7 +4,7 @@ title: Messaging
 sidebar_label: Messaging
 ---
 
-Pulsar is built on the [publish-subscribe](https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern) pattern (often abbreviated to pub-sub). In this pattern, [producers](#producers) publish messages to [topics](#topics); [consumers](#consumers) [subscribe](#subscription-modes) to those topics, process incoming messages, and send [acknowledgements](#acknowledgement) to the broker when processing is finished.
+Pulsar is built on the [publish-subscribe](https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern) pattern (often abbreviated to pub-sub). In this pattern, [producers](#producers) publish messages to [topics](#topics); [consumers](#consumers) [subscribe](#subscription-types) to those topics, process incoming messages, and send [acknowledgements](#acknowledgement) to the broker when processing is finished.
 
 When a subscription is created, Pulsar [retains](concepts-architecture-overview.md#persistent-storage) all messages, even if the consumer is disconnected. The retained messages are discarded only when a consumer acknowledges that all these messages are processed successfully. 
 
@@ -316,7 +316,7 @@ A subscription is a named configuration rule that determines how messages are de
 > * If you want to achieve "message queuing" among consumers, share the same subscription name among multiple consumers(shared, failover, key_shared).
 > * If you want to achieve both effects simultaneously, combine exclusive subscription type with other subscription types for consumers.
 
-### Subscriptions type
+### Subscription types
 
 When a subscription has no consumers, its subscription type is undefined. The type of a subscription is defined when a consumer connects to it, and the type can be changed by restarting all consumers with a different configuration.
 
@@ -397,9 +397,9 @@ producer = client.create_producer(topic='my-topic', batching_type=pulsar.Batchin
 > * You need to specify a key or orderingKey for messages.
 > * You cannot use cumulative acknowledgment with Key_Shared type.
 
-### Subscription mode
+### Subscription modes
 
-#### What is subscription mode
+#### What is a subscription mode
 
 The subscription mode indicates the cursor type. 
 

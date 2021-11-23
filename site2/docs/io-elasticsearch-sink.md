@@ -103,10 +103,12 @@ Before using the Elasticsearch sink connector, you need to create a configuratio
 
     ```json
     {
-        "elasticSearchUrl": "http://localhost:9200",
-        "indexName": "my_index",
-        "username": "scooby",
-        "password": "doobie"
+       "configs": {
+          "elasticSearchUrl": "http://localhost:9200",
+          "indexName": "my_index",
+          "username": "scooby",
+          "password": "doobie"
+       }
     }
     ```
 

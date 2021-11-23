@@ -5,10 +5,6 @@ sidebar_label: "Overview"
 original_id: helm-overview
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 This is the official supported Helm chart to install Apache Pulsar on a cloud-native environment. It was enhanced based on StreamNative's [Helm Chart](https://github.com/streamnative/charts).
 
 ## Introduction

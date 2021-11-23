@@ -193,12 +193,8 @@ public class EntryCacheManager {
         @Override
         public void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, boolean isSlowestReader,
                 final ReadEntriesCallback callback, Object ctx) {
-            lh.readAsync(firstEntry, lastEntry).whenComplete(
-                    (ledgerEntries, exception) -> {
-                        if (exception != null) {
-                            callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
-                            return;
-                        }
+            lh.readAsync(firstEntry, lastEntry).thenAcceptAsync(
+                    ledgerEntries -> {
                         List<Entry> entries = Lists.newArrayList();
                         long totalSize = 0;
                         try {
@@ -215,10 +211,10 @@ public class EntryCacheManager {
                         ml.mbean.addReadEntriesSample(entries.size(), totalSize);
 
                         callback.readEntriesComplete(entries, ctx);
-                    }).exceptionally(exception -> {
-                    	callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
-                    	return null;
-                    });
+                    }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception -> {
+                        callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
+                        return null;
+            });
         }
 
         @Override

@@ -5,10 +5,6 @@ sidebar_label: "Pulsar CLI tools"
 original_id: reference-cli-tools
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 Pulsar offers several command-line tools that you can use for managing Pulsar installations, performance testing, using command-line producers and consumers, and more.
 
 All Pulsar command-line tools can be run from the `bin` directory of your [installed Pulsar package](getting-started-standalone). The following tools are currently documented:

@@ -4,10 +4,6 @@ title: Simulation tools
 sidebar_label: "Simulation tools"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 It is sometimes necessary create an test environment and incur artificial load to observe how well load managers
 handle the load. The load simulation controller, the load simulation client, and the broker monitor were created as an
 effort to make create this load and observe the effects on the managers more easily.
@@ -72,7 +68,7 @@ names. In all cases, the BASE name of the tenants, namespaces, and topics are us
 * Shutdown a previously created group of topics
   * `stop_group <tenant> <group>`
 * Copy the historical data from one ZooKeeper to another and simulate based on the message rates and sizes in that history
-    * `copy <tenant> <source zookeeper> <target zookeeper> [--rate-multiplier value]`
+  * `copy <tenant> <source zookeeper> <target zookeeper> [--rate-multiplier value]`
 * Simulate the load of the historical data on the current ZooKeeper (should be same ZooKeeper being simulated on)
   * `simulate <tenant> <zookeeper> [--rate-multiplier value]`
 * Stream the latest data from the given active ZooKeeper to simulate the real-time load of that ZooKeeper.

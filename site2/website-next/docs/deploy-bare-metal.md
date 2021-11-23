@@ -4,18 +4,13 @@ title: Deploy a cluster on bare metal
 sidebar_label: "Bare metal"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
+:::tip
 
+1. You can use single-cluster Pulsar installation in most use cases, such as experimenting with Pulsar or using Pulsar in a startup or in a single team. If you need to run a multi-cluster Pulsar instance, see the [guide](deploy-bare-metal-multi-cluster).
+2. If you want to use all built-in [Pulsar IO](io-overview.md) connectors, you need to download `apache-pulsar-io-connectors`package and install `apache-pulsar-io-connectors` under `connectors` directory in the pulsar directory on every broker node or on every function-worker node if you have run a separate cluster of function workers for [Pulsar Functions](functions-overview).
+3. If you want to use [Tiered Storage](concepts-tiered-storage.md) feature in your Pulsar deployment, you need to download `apache-pulsar-offloaders`package and install `apache-pulsar-offloaders` under `offloaders` directory in the Pulsar directory on every broker node. For more details of how to configure this feature, you can refer to the [Tiered storage cookbook](cookbooks-tiered-storage).
 
-
-> **Tips**
->
-> 1. You can use single-cluster Pulsar installation in most use cases, such as experimenting with Pulsar or using Pulsar in a startup or in a single team. If you need to run a multi-cluster Pulsar instance, see the [guide](deploy-bare-metal-multi-cluster).
->
-> 2. If you want to use all built-in [Pulsar IO](io-overview.md) connectors, you need to download `apache-pulsar-io-connectors`package and install `apache-pulsar-io-connectors` under `connectors` directory in the pulsar directory on every broker node or on every function-worker node if you have run a separate cluster of function workers for [Pulsar Functions](functions-overview).
->
-> 3. If you want to use [Tiered Storage](concepts-tiered-storage.md) feature in your Pulsar deployment, you need to download `apache-pulsar-offloaders`package and install `apache-pulsar-offloaders` under `offloaders` directory in the Pulsar directory on every broker node. For more details of how to configure this feature, you can refer to the [Tiered storage cookbook](cookbooks-tiered-storage).
+:::
 
 Deploying a Pulsar cluster consists of the following steps:
 
@@ -30,8 +25,11 @@ Deploying a Pulsar cluster consists of the following steps:
 
 Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.
 
->**Tips**  
-> You can reuse existing Zookeeper clusters.
+:::tip
+
+You can reuse existing Zookeeper clusters.
+
+:::
 
 To run Pulsar on bare metal, the following configuration is recommended:
 
@@ -419,6 +417,7 @@ webServicePortTls=8443
 > 
 > ```
 
+
 ### Enable Pulsar Functions (optional)
 
 If you want to enable [Pulsar Functions](functions-overview), you can follow the instructions as below:
@@ -486,6 +485,7 @@ brokerServiceurl=pulsar://us-west.example.com:6650
 >
 > 
 > ```
+
 
 Once that is complete, you can publish a message to the Pulsar topic:
 

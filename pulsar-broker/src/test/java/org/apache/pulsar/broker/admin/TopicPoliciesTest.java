@@ -44,7 +44,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.pulsar.broker.ConfigHelper;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.broker.service.BacklogQuotaManager;
 import org.apache.pulsar.broker.service.PublishRateLimiterImpl;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
@@ -100,6 +99,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     private final String topicPolicyEventsTopic = "persistent://" + myNamespace + "/__change_events";
 
+    private final int testTopicPartitions = 2;
+
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
@@ -113,7 +114,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant(this.testTenant, tenantInfo);
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Sets.newHashSet("test"));
-        admin.topics().createPartitionedTopic(testTopic, 2);
+        admin.topics().createPartitionedTopic(testTopic, testTopicPartitions);
         Producer producer = pulsarClient.newProducer().topic(testTopic).create();
         producer.close();
         waitForZooKeeperWatchers();
@@ -141,13 +142,13 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertEquals(admin.topics().getBacklogQuotaMap(testTopic)
                         .get(BacklogQuota.BacklogQuotaType.destination_storage), backlogQuota));
-
-        BacklogQuotaManager backlogQuotaManager = pulsar.getBrokerService().getBacklogQuotaManager();
-        BacklogQuota backlogQuotaInManager = backlogQuotaManager
-                .getBacklogQuota(TopicName.get(testTopic), BacklogQuota.BacklogQuotaType.destination_storage);
-        log.info("Backlog quota {} in backlog quota manager on topic: {}", backlogQuotaInManager, testTopic);
-        Assert.assertEquals(backlogQuota, backlogQuotaInManager);
-
+        for (int i = 0; i < testTopicPartitions; i++) {
+            String partition = TopicName.get(testTopic).getPartition(i).toString();
+            Topic topic = pulsar.getBrokerService().getTopic(partition, false).get().get();
+            BacklogQuota backlogQuotaInTopic = topic.getBacklogQuota(BacklogQuota.BacklogQuotaType.destination_storage);
+            log.info("Backlog quota {} in backlog quota manager on topic: {}", backlogQuotaInTopic, testTopic);
+            Assert.assertEquals(backlogQuota, backlogQuotaInTopic);
+        }
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
@@ -164,18 +165,28 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertEquals(admin.topics().getBacklogQuotaMap(testTopic)
                         .get(BacklogQuota.BacklogQuotaType.message_age), backlogQuota));
-
-        BacklogQuotaManager backlogQuotaManager = pulsar.getBrokerService().getBacklogQuotaManager();
-        BacklogQuota backlogQuotaInManager = backlogQuotaManager
-                .getBacklogQuota(TopicName.get(testTopic), BacklogQuota.BacklogQuotaType.message_age);
-
-        Assert.assertEquals(backlogQuota, backlogQuotaInManager);
+        for (int i = 0; i < testTopicPartitions; i++) {
+            String partition = TopicName.get(testTopic).getPartition(i).toString();
+            Topic topic = pulsar.getBrokerService().getTopic(partition, false).get().get();
+            BacklogQuota backlogQuotaInTopic = topic.getBacklogQuota(BacklogQuota.BacklogQuotaType.message_age);
+            Assert.assertEquals(backlogQuota, backlogQuotaInTopic);
+        }
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
     @Test
     public void testRemoveSizeBasedBacklogQuota() throws Exception {
+        List<Topic> partitions = new ArrayList<>();
+        List<BacklogQuota> defaultBacklogQuotas = new ArrayList<>();
+        for (int i = 0; i < testTopicPartitions; i++) {
+            String partition = TopicName.get(testTopic).getPartition(i).toString();
+            Topic topic = pulsar.getBrokerService().getOrCreateTopic(partition).get();
+            partitions.add(topic);
+            BacklogQuota defaultBacklogQuota = topic.getBacklogQuota(BacklogQuota.BacklogQuotaType.destination_storage);
+            defaultBacklogQuotas.add(defaultBacklogQuota);
+        }
+
         BacklogQuota backlogQuota = BacklogQuota.builder()
                 .limitSize(1024)
                 .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
@@ -189,52 +200,69 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .untilAsserted(() -> Assert.assertEquals(admin.topics().getBacklogQuotaMap(testTopic)
                         .get(BacklogQuota.BacklogQuotaType.destination_storage), backlogQuota));
 
-        BacklogQuotaManager backlogQuotaManager = pulsar.getBrokerService().getBacklogQuotaManager();
-        BacklogQuota backlogQuotaInManager = backlogQuotaManager
-                .getBacklogQuota(TopicName.get(testTopic), BacklogQuota.BacklogQuotaType.destination_storage);
-        log.info("Backlog quota {} in backlog quota manager on topic: {}", backlogQuotaInManager, testTopic);
-        Assert.assertEquals(backlogQuota, backlogQuotaInManager);
+        partitions.forEach(topic -> {
+            BacklogQuota backlogQuotaInTopic = topic.getBacklogQuota(BacklogQuota.BacklogQuotaType.destination_storage);
+            log.info("Backlog quota {} in backlog quota manager on topic: {}", backlogQuotaInTopic, testTopic);
+            Assert.assertEquals(backlogQuota, backlogQuotaInTopic);
+        });
 
         admin.topics().removeBacklogQuota(testTopic, BacklogQuota.BacklogQuotaType.destination_storage);
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertNull(admin.topics().getBacklogQuotaMap(testTopic)
                         .get(BacklogQuota.BacklogQuotaType.destination_storage)));
-
-        backlogQuotaInManager = backlogQuotaManager
-                .getBacklogQuota(TopicName.get(testTopic), BacklogQuota.BacklogQuotaType.destination_storage);
-        log.info("Backlog quota {} in backlog quota manager on topic: {} after remove", backlogQuotaInManager,
-                testTopic);
-        Assert.assertEquals(backlogQuotaManager.getDefaultQuota(), backlogQuotaInManager);
+        for (int i = 0; i < partitions.size(); i++) {
+            BacklogQuota backlogQuotaInTopic =
+                    partitions.get(i).getBacklogQuota(BacklogQuota.BacklogQuotaType.destination_storage);
+            log.info("Backlog quota {} in backlog quota manager on topic: {} after remove", backlogQuotaInTopic,
+                    testTopic);
+            Assert.assertEquals(defaultBacklogQuotas.get(i), backlogQuotaInTopic);
+        }
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
     @Test
     public void testRemoveTimeBasedBacklogQuota() throws Exception {
+        List<Topic> partitions = new ArrayList<>();
+        List<BacklogQuota> defaultBacklogQuotas = new ArrayList<>();
+        for (int i = 0; i < testTopicPartitions; i++) {
+            String partition = TopicName.get(testTopic).getPartition(i).toString();
+            Topic topic = pulsar.getBrokerService().getOrCreateTopic(partition).get();
+            partitions.add(topic);
+            BacklogQuota defaultBacklogQuota = topic.getBacklogQuota(BacklogQuota.BacklogQuotaType.message_age);
+            defaultBacklogQuotas.add(defaultBacklogQuota);
+        }
+
         BacklogQuota backlogQuota = BacklogQuota.builder()
                 .limitTime(1000)
                 .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
                 .build();
-
         admin.topics().setBacklogQuota(testTopic, backlogQuota, BacklogQuota.BacklogQuotaType.message_age);
 
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertEquals(admin.topics().getBacklogQuotaMap(testTopic)
                         .get(BacklogQuota.BacklogQuotaType.message_age), backlogQuota));
 
-        BacklogQuotaManager backlogQuotaManager = pulsar.getBrokerService().getBacklogQuotaManager();
-        BacklogQuota backlogQuotaInManager = backlogQuotaManager
-                .getBacklogQuota(TopicName.get(testTopic), BacklogQuota.BacklogQuotaType.message_age);
-        Assert.assertEquals(backlogQuota, backlogQuotaInManager);
+        for (int i = 0; i < partitions.size(); i++) {
+            Assert.assertEquals(partitions.get(i).getBacklogQuota(BacklogQuota.BacklogQuotaType.message_age),
+                    backlogQuota);
+            //destination_storage should keep the same.
+            Assert.assertEquals(partitions.get(i).getBacklogQuota(BacklogQuota.BacklogQuotaType.destination_storage),
+                    defaultBacklogQuotas.get(i));
+        }
 
         admin.topics().removeBacklogQuota(testTopic, BacklogQuota.BacklogQuotaType.message_age);
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertNull(admin.topics().getBacklogQuotaMap(testTopic)
                         .get(BacklogQuota.BacklogQuotaType.message_age)));
 
-        backlogQuotaInManager = backlogQuotaManager
-                .getBacklogQuota(TopicName.get(testTopic), BacklogQuota.BacklogQuotaType.message_age);
-        Assert.assertEquals(backlogQuotaManager.getDefaultQuota(), backlogQuotaInManager);
+        for (int i = 0; i < partitions.size(); i++) {
+            BacklogQuota backlogQuotaInTopic =
+                    partitions.get(i).getBacklogQuota(BacklogQuota.BacklogQuotaType.message_age);
+            log.info("Backlog quota {} in backlog quota manager on topic: {} after remove", backlogQuotaInTopic,
+                    testTopic);
+            Assert.assertEquals(defaultBacklogQuotas.get(i), backlogQuotaInTopic);
+        }
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
@@ -1249,7 +1277,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .dispatchThrottlingRateInMsg(100)
                 .dispatchThrottlingRateInByte(1024 * 1024)
                 .ratePeriodInSecond(1)
-                .build();;
+                .build();
         admin.namespaces().setSubscriptionDispatchRate(myNamespace, namespaceDispatchRate);
 
         Awaitility.await()
@@ -1269,7 +1297,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .dispatchThrottlingRateInMsg(200)
                 .dispatchThrottlingRateInByte(2 * 1024 * 1024)
                 .ratePeriodInSecond(1)
-                .build();;
+                .build();
         admin.topics().setSubscriptionDispatchRate(topic, topicDispatchRate);
 
         Awaitility.await()

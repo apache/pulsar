@@ -5,10 +5,6 @@ sidebar_label: "Simulation tools"
 original_id: develop-tools
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 It is sometimes necessary create an test environment and incur artificial load to observe how well load managers
 handle the load. The load simulation controller, the load simulation client, and the broker monitor were created as an
 effort to make create this load and observe the effects on the managers more easily.

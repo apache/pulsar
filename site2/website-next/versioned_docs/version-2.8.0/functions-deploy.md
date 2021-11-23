@@ -5,10 +5,6 @@ sidebar_label: "How-to: Deploy"
 original_id: functions-deploy
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 ## Requirements
 
 To deploy and manage Pulsar Functions, you need to have a Pulsar cluster running. There are several options for this:
