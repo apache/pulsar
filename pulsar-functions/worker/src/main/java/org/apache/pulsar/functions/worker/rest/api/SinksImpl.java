@@ -29,7 +29,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -55,6 +54,7 @@ import org.apache.pulsar.functions.auth.FunctionAuthData;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.utils.ClassLoaderUtils;
 import org.apache.pulsar.functions.utils.ComponentTypeUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
@@ -745,9 +745,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
 
         SinkConfigUtils.ExtractedSinkDetails sinkDetails = SinkConfigUtils.validateAndExtractDetails(
                 sinkConfig, classLoader, worker().getWorkerConfig().getValidateConnectorConfig());
-        if (classLoader instanceof URLClassLoader) {
-            ((URLClassLoader) classLoader).close();
-        }
+        ClassLoaderUtils.closeClassLoaderIfNeed(classLoader);
         return SinkConfigUtils.convert(sinkConfig, sinkDetails);
     }
 
