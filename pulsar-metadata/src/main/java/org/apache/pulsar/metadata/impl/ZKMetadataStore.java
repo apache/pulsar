@@ -128,7 +128,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
     }
 
     @Override
-    public CompletableFuture<Optional<GetResult>> get(String path) {
+    public CompletableFuture<Optional<GetResult>> storeGet(String path) {
         CompletableFuture<Optional<GetResult>> future = new CompletableFuture<>();
 
         try {
@@ -199,11 +199,6 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         }
 
         return future;
-    }
-
-    @Override
-    public CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> optExpectedVersion) {
-        return put(path, value, optExpectedVersion, EnumSet.noneOf(CreateOption.class));
     }
 
     @Override
