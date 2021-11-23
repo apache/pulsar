@@ -1187,12 +1187,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.info("[{}][{}] Creating producer. producerId={}", remoteAddress, topicName, producerId);
 
             service.getOrCreateTopic(topicName.toString()).thenAccept((Topic topic) -> {
-                if (producerFuture.isDone() || !isActive()) {
-                    // If the topic takes longer to load than the client's timeout, the client sends CloseProducer,
-                    // which completes the producerFuture. If the future is complete or the connection is no longer
-                    // active, there is no reason to continue creating the producer.
-                    return;
-                }
                 // Before creating producer, check if backlog quota exceeded
                 // on topic for size based limit and time based limit
                 for (BacklogQuota.BacklogQuotaType backlogQuotaType : BacklogQuota.BacklogQuotaType.values()) {
@@ -1294,7 +1288,16 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName,
                 getPrincipal(), isEncrypted, metadata, schemaVersion, epoch,
                 userProvidedProducerName, producerAccessMode, topicEpoch);
-
+        // Skip acquiring the topic's lock within addProducer if the producer will fail creation anyway.
+        if (!isActive()) {
+            log.info("[{}] Connection is no longer active. Skipping creation for produceId={} to topic {}.",
+                    remoteAddress, topicName, producerId);
+            return;
+        } else if (producerFuture.isDone()) {
+            log.info("[{}] Producer closed by client side timeout. Skipping creation for produceId={} to topic {}.",
+                    remoteAddress, topicName, producerId);
+            return;
+        }
         topic.addProducer(producer, producerQueuedFuture).thenAccept(newTopicEpoch -> {
             if (isActive()) {
                 if (producerFuture.complete(producer)) {
