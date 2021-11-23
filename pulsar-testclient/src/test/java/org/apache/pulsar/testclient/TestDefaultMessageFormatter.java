@@ -68,6 +68,6 @@ public class TestDefaultMessageFormatter {
         Assert.assertTrue(0 < i2, "i2 was " + i2);
         Assert.assertTrue(f2 < 100000);
         Assert.assertTrue( -100000 < f2);
-
     }
+
 }

@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar.testclient;
 
+import org.apache.commons.lang3.RandomStringUtils;
+
 import java.nio.charset.StandardCharsets;
 import java.util.Random;
 
 public class DefaultMessageFormatter implements IMessageFormatter {
-    Random r  = new Random();
+    private final Random r  = new Random();
 
 
     @Override
@@ -80,12 +82,7 @@ public class DefaultMessageFormatter implements IMessageFormatter {
     }
 
     private String getStringValue(float size) {
-        int s = (int) size;
-        StringBuilder result = new StringBuilder();
-        for(int i = 0; i < s; i++) {
-            result.append((char) ((int) 'a' + (int) (r.nextFloat() * 26)));
-        }
-        return result.toString();
+        return RandomStringUtils.randomAlphabetic((int) size);
     }
 
     private String getFloatValue(float size) {
