@@ -24,7 +24,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.impl.StickyKeyConsumerPredicate;
@@ -153,7 +155,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
 
     public StickyKeyConsumerPredicate generateSpecialPredicate(Consumer consumer,
                                                                final Map<Integer, Consumer> rangeMap){
-        ConcurrentSkipListMap<Integer, String> cpRangeMap = new ConcurrentSkipListMap<>();
+        NavigableMap<Integer, String> cpRangeMap = new TreeMap<>();
         for (Map.Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
             String v = StickyKeyConsumerPredicate.OTHER_CONSUMER_MARK;
             if (consumer == entry.getValue()){

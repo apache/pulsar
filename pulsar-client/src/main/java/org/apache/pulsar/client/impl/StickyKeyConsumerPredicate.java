@@ -26,7 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
-import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.TreeMap;
 import java.util.function.Predicate;
 import lombok.Data;
 import lombok.ToString;
@@ -77,16 +77,16 @@ public interface StickyKeyConsumerPredicate extends Predicate<String> {
                 case 2:{
                     int rangeSize = jsonNode.get("rangeSize").intValue();
                     JsonNode rangeMapNode = jsonNode.get("rangeMap");
-                    ConcurrentSkipListMap<Integer, String> rangeMap =
+                    NavigableMap<Integer, String> rangeMap =
                             OBJECT_MAPPER.readValue(OBJECT_MAPPER.writeValueAsString(rangeMapNode),
-                            new TypeReference<ConcurrentSkipListMap<Integer, String>>() {});
+                            new TypeReference<TreeMap<Integer, String>>() {});
                     return new Predicate4HashRangeExclusiveStickyKeyConsumerSelector(rangeMap, rangeSize);
                 }
                 case 3: {
                     JsonNode rangeMapNode = jsonNode.get("hashRing");
                     NavigableMap<Integer, List<String>> hashRing =
                             OBJECT_MAPPER.readValue(OBJECT_MAPPER.writeValueAsString(rangeMapNode),
-                            new TypeReference<NavigableMap<Integer, List<String>>>() {});
+                            new TypeReference<TreeMap<Integer, List<String>>>() {});
                     return new Predicate4ConsistentHashingStickyKeyConsumerSelector(hashRing);
                 }
                 default:{
@@ -146,11 +146,11 @@ public interface StickyKeyConsumerPredicate extends Predicate<String> {
 
         private int predicateType = 2;
 
-        protected final ConcurrentSkipListMap<Integer, String> rangeMap;
+        protected final NavigableMap<Integer, String> rangeMap;
 
         protected final int rangeSize;
 
-        public Predicate4HashRangeExclusiveStickyKeyConsumerSelector(ConcurrentSkipListMap<Integer, String> rangeMap
+        public Predicate4HashRangeExclusiveStickyKeyConsumerSelector(NavigableMap<Integer, String> rangeMap
                 , int rangeSize){
             this.rangeMap = rangeMap;
             this.rangeSize = rangeSize;
