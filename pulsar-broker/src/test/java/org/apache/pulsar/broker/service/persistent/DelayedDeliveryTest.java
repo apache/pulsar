@@ -339,7 +339,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         DelayedDeliveryPolicies delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()
                 .tickTime(2000)
                 .active(false)
-                .build();;
+                .build();
         admin.topics().setDelayedDeliveryPolicy(topicName, delayedDeliveryPolicies);
         //wait for update
         for (int i = 0; i < 50; i++) {

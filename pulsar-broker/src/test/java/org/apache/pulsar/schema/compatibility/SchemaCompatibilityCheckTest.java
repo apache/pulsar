@@ -218,6 +218,87 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Test(dataProvider = "AllCheckSchemaCompatibilityStrategy")
+    public void testBrokerAllowAutoUpdateSchemaDisabled(SchemaCompatibilityStrategy schemaCompatibilityStrategy)
+            throws Exception {
+
+        final String tenant = PUBLIC_TENANT;
+        final String topic = "test-consumer-compatibility";
+        String namespace = "test-namespace-" + randomName(16);
+        String fqtn = TopicName.get(
+                TopicDomain.persistent.value(),
+                tenant,
+                namespace,
+                topic
+        ).toString();
+
+        NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
+
+        admin.namespaces().createNamespace(
+                tenant + "/" + namespace,
+                Sets.newHashSet(CLUSTER_NAME)
+        );
+
+        assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(namespaceName.toString()),
+                SchemaCompatibilityStrategy.FULL);
+
+        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
+        admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
+
+
+        pulsar.getConfig().setAllowAutoUpdateSchemaEnabled(false);
+        ProducerBuilder<Schemas.PersonTwo> producerThreeBuilder = pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull
+                                (false).withSupportSchemaVersioning(true).
+                        withPojo(Schemas.PersonTwo.class).build()))
+                .topic(fqtn);
+        try {
+            producerThreeBuilder.create();
+        } catch (Exception e) {
+            Assert.assertTrue(e.getMessage().contains("Schema not found and schema auto updating is disabled."));
+        }
+
+        pulsar.getConfig().setAllowAutoUpdateSchemaEnabled(true);
+        ConsumerBuilder<Schemas.PersonTwo> comsumerBuilder = pulsarClient.newConsumer(Schema.AVRO(
+                        SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull
+                                        (false).withSupportSchemaVersioning(true).
+                                withPojo(Schemas.PersonTwo.class).build()))
+                .subscriptionName("test")
+                .topic(fqtn);
+
+        Producer<Schemas.PersonTwo> producer = producerThreeBuilder.create();
+        Consumer<Schemas.PersonTwo> consumerTwo = comsumerBuilder.subscribe();
+
+        producer.send(new Schemas.PersonTwo(2, "Lucy"));
+        Message<Schemas.PersonTwo> message = consumerTwo.receive();
+
+        Schemas.PersonTwo personTwo = message.getValue();
+        consumerTwo.acknowledge(message);
+
+        assertEquals(personTwo.getId(), 2);
+        assertEquals(personTwo.getName(), "Lucy");
+
+        producer.close();
+        consumerTwo.close();
+
+        pulsar.getConfig().setAllowAutoUpdateSchemaEnabled(false);
+
+        producer = producerThreeBuilder.create();
+        consumerTwo = comsumerBuilder.subscribe();
+
+        producer.send(new Schemas.PersonTwo(2, "Lucy"));
+        message = consumerTwo.receive();
+
+        personTwo = message.getValue();
+        consumerTwo.acknowledge(message);
+
+        assertEquals(personTwo.getId(), 2);
+        assertEquals(personTwo.getName(), "Lucy");
+
+        consumerTwo.close();
+        producer.close();
+    }
+
     @Test(dataProvider =  "AllCheckSchemaCompatibilityStrategy")
     public void testIsAutoUpdateSchema(SchemaCompatibilityStrategy schemaCompatibilityStrategy) throws Exception {
         final String tenant = PUBLIC_TENANT;

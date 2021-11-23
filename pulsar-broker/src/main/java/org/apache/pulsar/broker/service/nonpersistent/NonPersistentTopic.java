@@ -149,9 +149,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                         isEncryptionRequired = false;
                     } else {
                         Policies policies = optPolicies.get();
+                        updateTopicPolicyByNamespacePolicy(policies);
                         isEncryptionRequired = policies.encryption_required;
                         isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
-                        topicPolicies.getInactiveTopicPolicies().updateNamespaceValue(policies.inactive_topic_policies);
                         setSchemaCompatibilityStrategy(policies);
                         schemaValidationEnforced = policies.schema_validation_enforced;
                     }
@@ -964,6 +964,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
             log.debug("[{}] isEncryptionRequired changes: {} -> {}", topic, isEncryptionRequired,
                     data.encryption_required);
         }
+
+        updateTopicPolicyByNamespacePolicy(data);
+
         isEncryptionRequired = data.encryption_required;
         setSchemaCompatibilityStrategy(data);
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
@@ -974,8 +977,6 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
             producer.checkEncryption();
         });
         subscriptions.forEach((subName, sub) -> sub.getConsumers().forEach(Consumer::checkPermissions));
-
-        this.topicPolicies.getInactiveTopicPolicies().updateNamespaceValue(data.inactive_topic_policies);
 
         return checkReplicationAndRetryOnFailure();
     }
