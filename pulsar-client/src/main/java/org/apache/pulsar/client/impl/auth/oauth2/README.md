@@ -88,7 +88,7 @@ curl --request POST \
 In which,
 - `issuerUrl` parameter in this plugin is mapped to `--url https://dev-kt-aa9ne.us.auth0.com`
 - `privateKey` file parameter in this plugin should at least contains fields `client_id` and `client_secret`.
-- `audience` parameter in this plugin is mapped to  `"audience":"https://dev-kt-aa9ne.us.auth0.com/api/v2/"`
+- `audience` parameter in this plugin is mapped to  `"audience":"https://dev-kt-aa9ne.us.auth0.com/api/v2/"`. This field is only used by some identity providers.
 
 ## Pulsar Client Config
 You can use the provider with the following Pulsar clients.
