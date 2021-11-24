@@ -238,13 +238,14 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/impl/Persisten
 </tr>
 <tr id="i5" class="rowColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/v1/PersistentTopics.html#deletePartitionedTopic-javax.ws.rs.container.AsyncResponse-java.lang.String-java.lang.String-java.lang.String-java.lang.String-boolean-boolean-">deletePartitionedTopic</a></span>(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/v1/PersistentTopics.html#deletePartitionedTopic-javax.ws.rs.container.AsyncResponse-java.lang.String-java.lang.String-java.lang.String-java.lang.String-boolean-boolean-boolean-">deletePartitionedTopic</a></span>(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                       <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;property,
                       <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;cluster,
                       <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;namespace,
                       <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;encodedTopic,
                       boolean&nbsp;force,
-                      boolean&nbsp;authoritative)</code>&nbsp;</td>
+                      boolean&nbsp;authoritative,
+                      boolean&nbsp;deleteSchema)</code>&nbsp;</td>
 </tr>
 <tr id="i6" class="altColor">
 <td class="colFirst"><code>void</code></td>
@@ -259,12 +260,13 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/impl/Persisten
 </tr>
 <tr id="i7" class="rowColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/v1/PersistentTopics.html#deleteTopic-java.lang.String-java.lang.String-java.lang.String-java.lang.String-boolean-boolean-">deleteTopic</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;property,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/v1/PersistentTopics.html#deleteTopic-java.lang.String-java.lang.String-java.lang.String-java.lang.String-boolean-boolean-boolean-">deleteTopic</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;property,
            <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;cluster,
            <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;namespace,
            <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;encodedTopic,
            boolean&nbsp;force,
-           boolean&nbsp;authoritative)</code>&nbsp;</td>
+           boolean&nbsp;authoritative,
+           boolean&nbsp;deleteSchema)</code>&nbsp;</td>
 </tr>
 <tr id="i8" class="altColor">
 <td class="colFirst"><code>void</code></td>
@@ -803,7 +805,7 @@ public&nbsp;org.apache.pulsar.common.partition.PartitionedTopicMetadata&nbsp;get
                                                                                                                                                                     boolean&nbsp;checkAllowAutoCreation)</pre>
 </li>
 </ul>
-<a name="deletePartitionedTopic-javax.ws.rs.container.AsyncResponse-java.lang.String-java.lang.String-java.lang.String-java.lang.String-boolean-boolean-">
+<a name="deletePartitionedTopic-javax.ws.rs.container.AsyncResponse-java.lang.String-java.lang.String-java.lang.String-java.lang.String-boolean-boolean-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
@@ -824,7 +826,9 @@ public&nbsp;void&nbsp;deletePartitionedTopic(@Suspended
                                                                                                                 @QueryParam(value="force") @DefaultValue(value="false")
                                                                                                                 boolean&nbsp;force,
                                                                                                                 @QueryParam(value="authoritative") @DefaultValue(value="false")
-                                                                                                                boolean&nbsp;authoritative)</pre>
+                                                                                                                boolean&nbsp;authoritative,
+                                                                                                                @QueryParam(value="deleteSchema") @DefaultValue(value="false")
+                                                                                                                boolean&nbsp;deleteSchema)</pre>
 </li>
 </ul>
 <a name="unloadTopic-javax.ws.rs.container.AsyncResponse-java.lang.String-java.lang.String-java.lang.String-java.lang.String-boolean-">
@@ -849,7 +853,7 @@ public&nbsp;void&nbsp;unloadTopic(@Suspended
                                                                                               boolean&nbsp;authoritative)</pre>
 </li>
 </ul>
-<a name="deleteTopic-java.lang.String-java.lang.String-java.lang.String-java.lang.String-boolean-boolean-">
+<a name="deleteTopic-java.lang.String-java.lang.String-java.lang.String-java.lang.String-boolean-boolean-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
@@ -868,7 +872,9 @@ public&nbsp;void&nbsp;deleteTopic(@PathParam(value="property")
                                                                                           @QueryParam(value="force") @DefaultValue(value="false")
                                                                                           boolean&nbsp;force,
                                                                                           @QueryParam(value="authoritative") @DefaultValue(value="false")
-                                                                                          boolean&nbsp;authoritative)</pre>
+                                                                                          boolean&nbsp;authoritative,
+                                                                                          @QueryParam(value="deleteSchema") @DefaultValue(value="false")
+                                                                                          boolean&nbsp;deleteSchema)</pre>
 </li>
 </ul>
 <a name="getSubscriptions-javax.ws.rs.container.AsyncResponse-java.lang.String-java.lang.String-java.lang.String-java.lang.String-boolean-">

@@ -171,16 +171,16 @@
 <span class="hljs-attr">authorizationEnabled</span>=<span class="hljs-string">true</span>
 <span class="hljs-attr">authenticationProviders</span>=<span class="hljs-string">org.apache.pulsar.broker.authentication.AuthenticationProviderToken</span>
 <span class="hljs-comment">
-# 设置Broker 自身的认证。 当 Broker 连接到其他的 Broker 时使用。可以是本集群的 Broker 也可以是其他集群的 Broker。</span>
+# 设置 broker 自身的认证。 当 broker 连接到其他的 broker 时使用。可以是本集群的 broker 也可以是其他集群的 broker。</span>
 <span class="hljs-attr">brokerClientTlsEnabled</span>=<span class="hljs-string">true</span>
 <span class="hljs-attr">brokerClientAuthenticationPlugin</span>=<span class="hljs-string">org.apache.pulsar.client.impl.auth.AuthenticationToken</span>
 <span class="hljs-attr">brokerClientAuthenticationParameters</span>=<span class="hljs-string">token:eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.9OHgE9ZUDeBTZs7nSMEFIuGNEX18FLR3qvy8mqxSxXw</span>
 <span class="hljs-comment">
-# 或者从文件里面读取 Token</span>
+# 或者从文件里面读取 token</span>
 <span class="hljs-comment"># brokerClientAuthenticationParameters=file:///path/to/proxy-token.txt</span>
 <span class="hljs-attr">brokerClientTrustCertsFilePath</span>=<span class="hljs-string">/path/my-ca/certs/ca.cert.pem</span>
 <span class="hljs-comment">
-# 如果设置了，broker将对原始的认证信息进行认证，</span>
+# 如果设置此项，broker 将对原始的认证信息进行认证，</span>
 <span class="hljs-comment"># 否则只接受原始规则，并对其进行认证(如果需要的话)。</span>
 <span class="hljs-attr">authenticateOriginalAuthData</span>=<span class="hljs-string">true</span>
 <span class="hljs-comment">
@@ -201,13 +201,13 @@
 <span class="hljs-attr">authenticationProviders</span>=<span class="hljs-string">org.apache.pulsar.broker.authentication.AuthenticationProviderToken</span>
 <span class="hljs-attr">tokenSecretKey</span>=<span class="hljs-string">file:///path/to/secret.key</span>
 <span class="hljs-comment">
-# 对于连接到broker的代理</span>
+# 对于连接到 broker 的代理</span>
 <span class="hljs-attr">brokerClientAuthenticationPlugin</span>=<span class="hljs-string">org.apache.pulsar.client.impl.auth.AuthenticationToken</span>
 <span class="hljs-attr">brokerClientAuthenticationParameters</span>=<span class="hljs-string">{"token":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.9OHgE9ZUDeBTZs7nSMEFIuGNEX18FLR3qvy8mqxSxXw"}</span>
 <span class="hljs-comment"># 或者从文件里面读取 Token</span>
 <span class="hljs-comment"># brokerClientAuthenticationParameters={"file":"///path/to/proxy-token.txt"}</span>
 <span class="hljs-comment">
-# Whether client authorization credentials are forwarded to the broker for re-authorization.</span>
+# 是否将客户端授权凭据转发给 broker 进行重新授权。</span>
 <span class="hljs-comment"># Authentication must be enabled via authenticationEnabled=true for this to take effect.</span>
 <span class="hljs-attr">forwardAuthorizationCredentials</span>=<span class="hljs-string">true</span>
 </code></pre>
