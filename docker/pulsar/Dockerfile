@@ -63,8 +63,6 @@ ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64
 RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/java-11-openjdk-amd64/conf/security/java.security
 ADD target/python-client/ /pulsar/pulsar-client
 
-VOLUME  ["/pulsar/conf", "/pulsar/data"]
-
 ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
 
 
