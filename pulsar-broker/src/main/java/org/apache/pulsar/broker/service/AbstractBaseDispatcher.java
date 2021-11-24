@@ -27,10 +27,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.plugin.EntryFilter;
+import org.apache.pulsar.broker.service.plugin.EntryFilterProvider;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -48,11 +51,14 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
     protected final ServiceConfiguration serviceConfig;
     protected final boolean dispatchThrottlingOnBatchMessageEnabled;
+    protected final EntryFilter entryFilter;
 
     protected AbstractBaseDispatcher(Subscription subscription, ServiceConfiguration serviceConfig) {
         this.subscription = subscription;
         this.serviceConfig = serviceConfig;
         this.dispatchThrottlingOnBatchMessageEnabled = serviceConfig.isDispatchThrottlingOnBatchMessageEnabled();
+        this.entryFilter = StringUtils.isNotBlank(serviceConfig.getEntryFilterClassName())
+                ? EntryFilterProvider.createEntryFilter(serviceConfig.getEntryFilterClassName()) : null;
     }
 
     /**
@@ -113,6 +119,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         long totalBytes = 0;
         int totalChunkedMessages = 0;
         int totalEntries = 0;
+        EntryFilter.FilterContext filterContext = new EntryFilter.FilterContext();
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
             Entry entry = entries.get(i);
             if (entry == null) {
@@ -127,6 +134,19 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
             msgMetadata = msgMetadata == null
                     ? Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1)
                     : msgMetadata;
+            if (entryFilter != null) {
+                fillContext(filterContext, batchSizes, sendMessageInfo, indexesAcks, cursor, isReplayRead,
+                        msgMetadata, subscription);
+                EntryFilter.FilterResult result = entryFilter.filterEntry(entry, filterContext);
+                if (EntryFilter.FilterResult.REJECT == result) {
+                    PositionImpl pos = (PositionImpl) entry.getPosition();
+                    entries.set(i, null);
+                    entry.release();
+                    subscription.acknowledgeMessage(Collections.singletonList(pos), AckType.Individual,
+                            Collections.emptyMap());
+                    continue;
+                }
+            }
             if (!isReplayRead && msgMetadata != null && msgMetadata.hasTxnidMostBits()
                     && msgMetadata.hasTxnidLeastBits()) {
                 if (Markers.isTxnMarker(msgMetadata)) {
@@ -187,6 +207,21 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         sendMessageInfo.setTotalBytes(totalBytes);
         sendMessageInfo.setTotalChunkedMessages(totalChunkedMessages);
         return totalEntries;
+    }
+
+    private void fillContext(EntryFilter.FilterContext context,
+                             EntryBatchSizes batchSizes, SendMessageInfo sendMessageInfo,
+                             EntryBatchIndexesAcks indexesAcks, ManagedCursor cursor,
+                             boolean isReplayRead, MessageMetadata msgMetadata,
+                             Subscription subscription) {
+        context.reset();
+        context.setBatchSizes(batchSizes);
+        context.setSendMessageInfo(sendMessageInfo);
+        context.setIndexesAcks(indexesAcks);
+        context.setCursor(cursor);
+        context.setReplayRead(isReplayRead);
+        context.setMsgMetadata(msgMetadata);
+        context.setSubscription(subscription);
     }
 
     /**

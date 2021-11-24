@@ -18,47 +18,22 @@
  */
 package org.apache.pulsar.broker.service.plugin;
 
-
 import static com.google.common.base.Preconditions.checkArgument;
-import java.io.IOException;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.service.Subscription;
-import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
 
-public interface EntryFilterProvider {
-    /**
-     *  Use `EntryFilterProvider` to create `EntryFilter` through reflection
-     * @param subscription
-     * @return
-     */
-    EntryFilter createEntriesFilter(Subscription subscription) throws IOException;
+public class EntryFilterProvider {
 
     /**
-     * The default implementation class of EntriesFilterProvider
+     * create entry filter instance
      */
-    class DefaultEntryFilterProviderImpl implements EntryFilterProvider {
-        private final ServiceConfiguration serviceConfiguration;
-        private final Subscription subscription;
-
-        public DefaultEntryFilterProviderImpl(ServiceConfiguration serviceConfiguration, Subscription subscription) {
-            this.serviceConfiguration = serviceConfiguration;
-            this.subscription = subscription;
-        }
-
-        @Override
-        public EntryFilter createEntriesFilter(Subscription subscription) throws IOException {
-            Class<?> providerClass;
-            try {
-                providerClass = Class.forName(serviceConfiguration.getEntryFilterClassName());
-                Object obj = providerClass.getDeclaredConstructor().newInstance();
-                checkArgument(obj instanceof EntryFilter,
-                        "The instance is not an instance of "
-                                + serviceConfiguration.getEntryFilterClassName());
-                return (EntryFilter) obj;
-            } catch (Exception e) {
-                throw new IOException(e);
-            }
+    public static EntryFilter createEntryFilter(String className) {
+        Class<?> entryFilterClass;
+        try {
+            entryFilterClass = Class.forName(className);
+            Object obj = entryFilterClass.getDeclaredConstructor().newInstance();
+            checkArgument(obj instanceof EntryFilter, "The instance is not an instance of " + className);
+            return (EntryFilter) obj;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
-
 }

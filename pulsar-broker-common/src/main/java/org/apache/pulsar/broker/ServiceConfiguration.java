@@ -832,7 +832,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
          dynamic = true,
          category = CATEGORY_SERVER,
-         doc = " Class name of Pluggable entry filter that can decide whether the entry needs to be filtered"
+         doc = " Class name of Pluggable entry filter that can decide whether the entry needs to be filtered."
+                 + "You can use this class to decide which entries can be sent to consumers."
     )
     private String entryFilterClassName = "";
 
