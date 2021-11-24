@@ -1288,6 +1288,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (!isActive()) {
             log.info("[{}] Connection is no longer active. Skipping creation for produceId={} to topic {}.",
                     remoteAddress, topicName, producerId);
+            producerFuture.completeExceptionally(
+                    new IllegalStateException("Connection closed before producer creation"));
+            producers.remove(producerId, producerFuture);
             return;
         } else if (producerFuture.isDone()) {
             log.info("[{}] Producer closed by client side timeout. Skipping creation for produceId={} to topic {}.",
