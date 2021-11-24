@@ -73,6 +73,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.net.BookieId;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -3218,7 +3219,7 @@ public class PersistentTopic extends AbstractTopic
                 if (topicPolicies == null) {
                     return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
                 } else {
-                    if (topicPolicies.getSubscriptionTypesEnabled().isEmpty()) {
+                    if (CollectionUtils.isEmpty(topicPolicies.getSubscriptionTypesEnabled())) {
                         return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
                     }
                     return topicPolicies.getSubscriptionTypesEnabled().contains(subType);
