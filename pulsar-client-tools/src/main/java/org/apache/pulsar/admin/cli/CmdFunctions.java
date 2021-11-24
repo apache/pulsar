@@ -526,7 +526,7 @@ public class CmdFunctions extends CmdBase {
                 Type type = new TypeToken<Map<String, Object>>() {}.getType();
                 Map<String, Object> secretsMap = new Gson().fromJson(secretsString, type);
                 if (secretsMap == null) {
-                    secretsMap = new HashMap<>();
+                    secretsMap = Collections.emptyMap();
                 }
                 functionConfig.setSecrets(secretsMap);
             }
