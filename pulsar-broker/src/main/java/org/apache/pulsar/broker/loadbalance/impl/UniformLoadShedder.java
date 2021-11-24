@@ -37,6 +37,14 @@ import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * This strategy tends to distribute load uniformly across all brokers. This strategy checks laod difference between
+ * broker with highest load and broker with lowest load. If the difference is higher than configured thresholds
+ * {@link ServiceConfiguration#getLoadBalancerMsgRateDifferenceShedderThreshold()} and
+ * {@link ServiceConfiguration#getLoadBalancerMsgRateDifferenceShedderThreshold()} then it finds out bundles which can
+ * be unloaded to distribute traffic evenly across all brokers.
+ *
+ */
 public class UniformLoadShedder implements LoadSheddingStrategy {
 
     private static final Logger log = LoggerFactory.getLogger(UniformLoadShedder.class);

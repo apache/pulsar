@@ -1781,7 +1781,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + "will have 66% msgRate difference and load balancer can unload bundles from broker-1 "
                 + "to broker-2)"
     )
-    private int loadBalancerMsgRateDifferenceShedderThreshold = 50;
+    private double loadBalancerMsgRateDifferenceShedderThreshold = 50;
     @FieldContext(
         dynamic = true,
         category = CATEGORY_LOAD_BALANCER,
@@ -1790,7 +1790,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + "will have 4.5 times msgThroughout difference and load balancer can unload bundles "
                 + "from broker-1 to broker-2)"
     )
-    private int loadBalancerMsgThroughputMultiplierDifferenceShedderThreshold = 4;
+    private double loadBalancerMsgThroughputMultiplierDifferenceShedderThreshold = 4;
 
     @FieldContext(
             dynamic = true,
