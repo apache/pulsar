@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6,"i22":38,"i23":6,"i24":6,"i25":6,"i26":6,"i27":6,"i28":6,"i29":6,"i30":6,"i31":6,"i32":6,"i33":6,"i34":6,"i35":6,"i36":6,"i37":6,"i38":6,"i39":6,"i40":6,"i41":6,"i42":6,"i43":6,"i44":6,"i45":6,"i46":6,"i47":6,"i48":6,"i49":6,"i50":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6,"i22":38,"i23":6,"i24":6,"i25":6,"i26":6,"i27":6,"i28":6,"i29":6,"i30":6,"i31":6,"i32":6,"i33":6,"i34":6,"i35":6,"i36":6,"i37":6,"i38":6,"i39":6,"i40":6,"i41":6,"i42":6,"i43":6,"i44":6,"i45":6,"i46":6,"i47":6,"i48":6,"i49":6,"i50":6,"i51":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],32:["t6","Deprecated Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -422,35 +422,41 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Cloneable.h
 </tr>
 <tr id="i45" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#subscriptionProperties-java.util.Map-">subscriptionProperties</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;subscriptionProperties)</code>
+<div class="block">Specify the subscription properties for this subscription.</div>
+</td>
+</tr>
+<tr id="i46" class="altColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#subscriptionTopicsMode-org.apache.pulsar.client.api.RegexSubscriptionMode-">subscriptionTopicsMode</a></span>(<a href="../../../../../org/apache/pulsar/client/api/RegexSubscriptionMode.html" title="enum in org.apache.pulsar.client.api">RegexSubscriptionMode</a>&nbsp;regexSubscriptionMode)</code>
 <div class="block">Determines to which topics this consumer should be subscribed to - Persistent, Non-Persistent, or both.</div>
 </td>
 </tr>
-<tr id="i46" class="altColor">
+<tr id="i47" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#subscriptionType-org.apache.pulsar.client.api.SubscriptionType-">subscriptionType</a></span>(<a href="../../../../../org/apache/pulsar/client/api/SubscriptionType.html" title="enum in org.apache.pulsar.client.api">SubscriptionType</a>&nbsp;subscriptionType)</code>
 <div class="block">Select the subscription type to be used when subscribing to the topic.</div>
 </td>
 </tr>
-<tr id="i47" class="rowColor">
+<tr id="i48" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#topic-java.lang.String...-">topic</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>...&nbsp;topicNames)</code>
 <div class="block">Specify the topics this consumer will subscribe on.</div>
 </td>
 </tr>
-<tr id="i48" class="altColor">
+<tr id="i49" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#topics-java.util.List-">topics</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/util/List.html?is-external=true" title="class or interface in java.util">List</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;topicNames)</code>
 <div class="block">Specify a list of topics that this consumer will subscribe on.</div>
 </td>
 </tr>
-<tr id="i49" class="rowColor">
+<tr id="i50" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#topicsPattern-java.util.regex.Pattern-">topicsPattern</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html?is-external=true" title="class or interface in java.util.regex">Pattern</a>&nbsp;topicsPattern)</code>
 <div class="block">Specify a pattern for topics that this consumer will subscribe on.</div>
 </td>
 </tr>
-<tr id="i50" class="altColor">
+<tr id="i51" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#topicsPattern-java.lang.String-">topicsPattern</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;topicsPattern)</code>
 <div class="block">Specify a pattern for topics that this consumer will subscribe on.</div>
@@ -665,6 +671,23 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Cloneable.h
 <dd><code>subscriptionName</code> - the name of the subscription that this consumer should attach to</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>the consumer builder instance</dd>
+</dl>
+</li>
+</ul>
+<a name="subscriptionProperties-java.util.Map-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>subscriptionProperties</h4>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;subscriptionProperties(<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;subscriptionProperties)</pre>
+<div class="block">Specify the subscription properties for this subscription.
+ Properties are immutable, and consumers under the same subscription will fail to create a subscription
+ if they use different properties.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>subscriptionProperties</code> - </dd>
+<dt><span class="returnLabel">Returns:</span></dt>
 </dl>
 </li>
 </ul>

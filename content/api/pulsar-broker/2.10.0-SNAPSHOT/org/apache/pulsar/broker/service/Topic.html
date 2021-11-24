@@ -18,8 +18,8 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6,"i22":18,"i23":6,"i24":6,"i25":6,"i26":6,"i27":6,"i28":6,"i29":6,"i30":6,"i31":6,"i32":6,"i33":6,"i34":6,"i35":6,"i36":6,"i37":6,"i38":6,"i39":6,"i40":6,"i41":6,"i42":6,"i43":18,"i44":6,"i45":6,"i46":6,"i47":6,"i48":6,"i49":6,"i50":6,"i51":6,"i52":6,"i53":6,"i54":6,"i55":6};
-var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],16:["t5","Default Methods"]};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6,"i22":18,"i23":6,"i24":6,"i25":6,"i26":6,"i27":6,"i28":6,"i29":6,"i30":6,"i31":6,"i32":6,"i33":6,"i34":6,"i35":6,"i36":6,"i37":6,"i38":6,"i39":6,"i40":6,"i41":6,"i42":6,"i43":18,"i44":6,"i45":6,"i46":6,"i47":6,"i48":6,"i49":6,"i50":6,"i51":6,"i52":6,"i53":38,"i54":6,"i55":6,"i56":6};
+var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],16:["t5","Default Methods"],32:["t6","Deprecated Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
 var tableTab = "tableTab";
@@ -138,7 +138,7 @@ var activeTableTab = "activeTableTab";
 </a>
 <h3>Method Summary</h3>
 <table class="memberSummary" border="0" cellpadding="3" cellspacing="0" summary="Method Summary table, listing methods, and an explanation">
-<caption><span id="t0" class="activeTableTab"><span>All Methods</span><span class="tabEnd">&nbsp;</span></span><span id="t2" class="tableTab"><span><a href="javascript:show(2);">Instance Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t3" class="tableTab"><span><a href="javascript:show(4);">Abstract Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t5" class="tableTab"><span><a href="javascript:show(16);">Default Methods</a></span><span class="tabEnd">&nbsp;</span></span></caption>
+<caption><span id="t0" class="activeTableTab"><span>All Methods</span><span class="tabEnd">&nbsp;</span></span><span id="t2" class="tableTab"><span><a href="javascript:show(2);">Instance Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t3" class="tableTab"><span><a href="javascript:show(4);">Abstract Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t5" class="tableTab"><span><a href="javascript:show(16);">Default Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t6" class="tableTab"><span><a href="javascript:show(32);">Deprecated Methods</a></span><span class="tabEnd">&nbsp;</span></span></caption>
 <tr>
 <th class="colFirst" scope="col">Modifier and Type</th>
 <th class="colLast" scope="col">Method and Description</th>
@@ -391,6 +391,12 @@ var activeTableTab = "activeTableTab";
 </tr>
 <tr id="i52" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/Topic.html#subscribe-org.apache.pulsar.broker.service.SubscriptionOption-">subscribe</a></span>(<a href="../../../../../org/apache/pulsar/broker/service/SubscriptionOption.html" title="class in org.apache.pulsar.broker.service">SubscriptionOption</a>&nbsp;option)</code>
+<div class="block">Subscribe a topic.</div>
+</td>
+</tr>
+<tr id="i53" class="rowColor">
+<td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/Topic.html#subscribe-org.apache.pulsar.broker.service.TransportCnx-java.lang.String-long-org.apache.pulsar.common.api.proto.CommandSubscribe.SubType-int-java.lang.String-boolean-org.apache.pulsar.client.api.MessageId-java.util.Map-boolean-org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition-long-boolean-org.apache.pulsar.common.api.proto.KeySharedMeta-">subscribe</a></span>(<a href="../../../../../org/apache/pulsar/broker/service/TransportCnx.html" title="interface in org.apache.pulsar.broker.service">TransportCnx</a>&nbsp;cnx,
          <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;subscriptionName,
          long&nbsp;consumerId,
@@ -404,19 +410,21 @@ var activeTableTab = "activeTableTab";
          org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition&nbsp;initialPosition,
          long&nbsp;startMessageRollbackDurationSec,
          boolean&nbsp;replicateSubscriptionState,
-         org.apache.pulsar.common.api.proto.KeySharedMeta&nbsp;keySharedMeta)</code>&nbsp;</td>
+         org.apache.pulsar.common.api.proto.KeySharedMeta&nbsp;keySharedMeta)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
+</td>
 </tr>
-<tr id="i53" class="rowColor">
+<tr id="i54" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/Topic.html#truncate--">truncate</a></span>()</code>
 <div class="block">Truncate a topic.</div>
 </td>
 </tr>
-<tr id="i54" class="altColor">
+<tr id="i55" class="rowColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/Topic.html#unsubscribe-java.lang.String-">unsubscribe</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;subName)</code>&nbsp;</td>
 </tr>
-<tr id="i55" class="rowColor">
+<tr id="i56" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/Topic.html#updateRates-org.apache.pulsar.broker.stats.NamespaceStats-org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats-org.apache.pulsar.utils.StatsOutputStream-org.apache.pulsar.broker.stats.ClusterReplicationMetrics-java.lang.String-boolean-">updateRates</a></span>(<a href="../../../../../org/apache/pulsar/broker/stats/NamespaceStats.html" title="class in org.apache.pulsar.broker.stats">NamespaceStats</a>&nbsp;nsStats,
            org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats&nbsp;currentBundleStats,
@@ -520,20 +528,37 @@ var activeTableTab = "activeTableTab";
 <ul class="blockList">
 <li class="blockList">
 <h4>subscribe</h4>
-<pre><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&gt;&nbsp;subscribe(<a href="../../../../../org/apache/pulsar/broker/service/TransportCnx.html" title="interface in org.apache.pulsar.broker.service">TransportCnx</a>&nbsp;cnx,
-                                      <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;subscriptionName,
-                                      long&nbsp;consumerId,
-                                      org.apache.pulsar.common.api.proto.CommandSubscribe.SubType&nbsp;subType,
-                                      int&nbsp;priorityLevel,
-                                      <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;consumerName,
-                                      boolean&nbsp;isDurable,
-                                      org.apache.pulsar.client.api.MessageId&nbsp;startMessageId,
-                                      <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;metadata,
-                                      boolean&nbsp;readCompacted,
-                                      org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition&nbsp;initialPosition,
-                                      long&nbsp;startMessageRollbackDurationSec,
-                                      boolean&nbsp;replicateSubscriptionState,
-                                      org.apache.pulsar.common.api.proto.KeySharedMeta&nbsp;keySharedMeta)</pre>
+<pre><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Deprecated.html?is-external=true" title="class or interface in java.lang">@Deprecated</a>
+<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&gt;&nbsp;subscribe(<a href="../../../../../org/apache/pulsar/broker/service/TransportCnx.html" title="interface in org.apache.pulsar.broker.service">TransportCnx</a>&nbsp;cnx,
+                                                  <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;subscriptionName,
+                                                  long&nbsp;consumerId,
+                                                  org.apache.pulsar.common.api.proto.CommandSubscribe.SubType&nbsp;subType,
+                                                  int&nbsp;priorityLevel,
+                                                  <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;consumerName,
+                                                  boolean&nbsp;isDurable,
+                                                  org.apache.pulsar.client.api.MessageId&nbsp;startMessageId,
+                                                  <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;metadata,
+                                                  boolean&nbsp;readCompacted,
+                                                  org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition&nbsp;initialPosition,
+                                                  long&nbsp;startMessageRollbackDurationSec,
+                                                  boolean&nbsp;replicateSubscriptionState,
+                                                  org.apache.pulsar.common.api.proto.KeySharedMeta&nbsp;keySharedMeta)</pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
+</li>
+</ul>
+<a name="subscribe-org.apache.pulsar.broker.service.SubscriptionOption-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>subscribe</h4>
+<pre><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&gt;&nbsp;subscribe(<a href="../../../../../org/apache/pulsar/broker/service/SubscriptionOption.html" title="class in org.apache.pulsar.broker.service">SubscriptionOption</a>&nbsp;option)</pre>
+<div class="block">Subscribe a topic.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>option</code> - </dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+</dl>
 </li>
 </ul>
 <a name="createSubscription-java.lang.String-org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition-boolean-">

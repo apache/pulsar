@@ -260,6 +260,12 @@
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="../../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&gt;</code></td>
+<td class="colLast"><span class="typeNameLabel">Topic.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/Topic.html#subscribe-org.apache.pulsar.broker.service.SubscriptionOption-">subscribe</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/SubscriptionOption.html" title="class in org.apache.pulsar.broker.service">SubscriptionOption</a>&nbsp;option)</code>
+<div class="block">Subscribe a topic.</div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="../../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&gt;</code></td>
 <td class="colLast"><span class="typeNameLabel">Topic.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/Topic.html#subscribe-org.apache.pulsar.broker.service.TransportCnx-java.lang.String-long-org.apache.pulsar.common.api.proto.CommandSubscribe.SubType-int-java.lang.String-boolean-org.apache.pulsar.client.api.MessageId-java.util.Map-boolean-org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition-long-boolean-org.apache.pulsar.common.api.proto.KeySharedMeta-">subscribe</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/TransportCnx.html" title="interface in org.apache.pulsar.broker.service">TransportCnx</a>&nbsp;cnx,
          <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;subscriptionName,
          long&nbsp;consumerId,
@@ -273,7 +279,9 @@
          org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition&nbsp;initialPosition,
          long&nbsp;startMessageRollbackDurationSec,
          boolean&nbsp;replicateSubscriptionState,
-         org.apache.pulsar.common.api.proto.KeySharedMeta&nbsp;keySharedMeta)</code>&nbsp;</td>
+         org.apache.pulsar.common.api.proto.KeySharedMeta&nbsp;keySharedMeta)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
+</td>
 </tr>
 </tbody>
 </table>
@@ -463,6 +471,10 @@
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="../../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&gt;</code></td>
+<td class="colLast"><span class="typeNameLabel">NonPersistentTopic.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/nonpersistent/NonPersistentTopic.html#subscribe-org.apache.pulsar.broker.service.SubscriptionOption-">subscribe</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/SubscriptionOption.html" title="class in org.apache.pulsar.broker.service">SubscriptionOption</a>&nbsp;option)</code>&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="../../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&gt;</code></td>
 <td class="colLast"><span class="typeNameLabel">NonPersistentTopic.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/nonpersistent/NonPersistentTopic.html#subscribe-org.apache.pulsar.broker.service.TransportCnx-java.lang.String-long-org.apache.pulsar.common.api.proto.CommandSubscribe.SubType-int-java.lang.String-boolean-org.apache.pulsar.client.api.MessageId-java.util.Map-boolean-org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition-long-boolean-org.apache.pulsar.common.api.proto.KeySharedMeta-">subscribe</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/TransportCnx.html" title="interface in org.apache.pulsar.broker.service">TransportCnx</a>&nbsp;cnx,
          <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;subscriptionName,
          long&nbsp;consumerId,
@@ -607,6 +619,10 @@
 <td class="colLast"><span class="typeNameLabel">PersistentStickyKeyDispatcherMultipleConsumers.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/persistent/PersistentStickyKeyDispatcherMultipleConsumers.html#getRecentlyJoinedConsumers--">getRecentlyJoinedConsumers</a></span>()</code>&nbsp;</td>
 </tr>
 <tr class="altColor">
+<td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="../../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&gt;</code></td>
+<td class="colLast"><span class="typeNameLabel">PersistentTopic.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/persistent/PersistentTopic.html#subscribe-org.apache.pulsar.broker.service.SubscriptionOption-">subscribe</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/SubscriptionOption.html" title="class in org.apache.pulsar.broker.service">SubscriptionOption</a>&nbsp;option)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="../../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&gt;</code></td>
 <td class="colLast"><span class="typeNameLabel">PersistentTopic.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/persistent/PersistentTopic.html#subscribe-org.apache.pulsar.broker.service.TransportCnx-java.lang.String-long-org.apache.pulsar.common.api.proto.CommandSubscribe.SubType-int-java.lang.String-boolean-org.apache.pulsar.client.api.MessageId-java.util.Map-boolean-org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition-long-boolean-org.apache.pulsar.common.api.proto.KeySharedMeta-">subscribe</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/TransportCnx.html" title="interface in org.apache.pulsar.broker.service">TransportCnx</a>&nbsp;cnx,
          <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;subscriptionName,
