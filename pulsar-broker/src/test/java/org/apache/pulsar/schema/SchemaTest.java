@@ -725,6 +725,96 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testDeleteTopicAndSchemaForV1() throws Exception {
+        final String tenant = PUBLIC_TENANT;
+        final String cluster = CLUSTER_NAME;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topicOne = "not-partitioned-topic";
+        final String topic2 = "persistent://" + tenant + "/" + cluster + "/" + namespace + "/partitioned-topic";
+
+        // persistent, not-partitioned v1/topic
+        final String topic1 = TopicName.get(
+                TopicDomain.persistent.value(),
+                tenant,
+                cluster,
+                namespace,
+                topicOne).toString();
+
+        // persistent, partitioned v1/topic
+        admin.topics().createPartitionedTopic(topic2, 1);
+
+        @Cleanup
+        Producer<Schemas.PersonOne> p1_1 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonOne.class))
+                .topic(topic1)
+                .create();
+
+        @Cleanup
+        Producer<Schemas.PersonThree> p1_2 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonThree.class))
+                .topic(topic1)
+                .create();
+        @Cleanup
+        Producer<Schemas.PersonThree> p2_1 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonThree.class))
+                .topic(topic2)
+                .create();
+
+        List<CompletableFuture<SchemaRegistry.SchemaAndMetadata>> schemaFutures1 =
+                this.getPulsar().getSchemaRegistryService().getAllSchemas(TopicName.get(topic1).getSchemaName()).get();
+        FutureUtil.waitForAll(schemaFutures1).get();
+        List<SchemaRegistry.SchemaAndMetadata> schemas1 = schemaFutures1.stream().map(future -> {
+            try {
+                return future.get();
+            } catch (Exception e) {
+                return null;
+            }
+        }).collect(Collectors.toList());
+        assertEquals(schemas1.size(), 2);
+        for (SchemaRegistry.SchemaAndMetadata schema : schemas1) {
+            assertNotNull(schema);
+        }
+
+        List<CompletableFuture<SchemaRegistry.SchemaAndMetadata>> schemaFutures2 =
+                this.getPulsar().getSchemaRegistryService().getAllSchemas(TopicName.get(topic2).getSchemaName()).get();
+        FutureUtil.waitForAll(schemaFutures2).get();
+        List<SchemaRegistry.SchemaAndMetadata> schemas2 = schemaFutures2.stream().map(future -> {
+            try {
+                return future.get();
+            } catch (Exception e) {
+                return null;
+            }
+        }).collect(Collectors.toList());
+        assertEquals(schemas2.size(), 1);
+        for (SchemaRegistry.SchemaAndMetadata schema : schemas2) {
+            assertNotNull(schema);
+        }
+
+        // not-force and not-delete-schema when delete topic
+        try {
+            admin.topics().delete(topic1, false, false);
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getMessage().startsWith("Topic has active producers/subscriptions"));
+        }
+        assertEquals(this.getPulsar().getSchemaRegistryService()
+                .trimDeletedSchemaAndGetList(TopicName.get(topic1).getSchemaName()).get().size(), 2);
+        try {
+            admin.topics().deletePartitionedTopic(topic2, false, false);
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getMessage().startsWith("Topic has active producers/subscriptions"));
+        }
+        assertEquals(this.getPulsar().getSchemaRegistryService()
+                .trimDeletedSchemaAndGetList(TopicName.get(topic2).getSchemaName()).get().size(), 1);
+
+        // force and delete-schema when delete topic
+        admin.topics().delete(topic1, true, true);
+        assertEquals(this.getPulsar().getSchemaRegistryService()
+                .trimDeletedSchemaAndGetList(TopicName.get(topic1).getSchemaName()).get().size(), 0);
+        admin.topics().deletePartitionedTopic(topic2, true, true);
+        assertEquals(this.getPulsar().getSchemaRegistryService()
+                .trimDeletedSchemaAndGetList(TopicName.get(topic2).getSchemaName()).get().size(), 0);
+    }
+
+    @Test
     public void testProducerMultipleSchemaMessages() throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);
