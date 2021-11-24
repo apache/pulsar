@@ -541,7 +541,9 @@ public class ClientCnx extends PulsarHandler {
     @Override
     protected void handleLookupResponse(CommandLookupTopicResponse lookupResult) {
         if (log.isDebugEnabled()) {
-            log.debug("Received Broker lookup response: {}", lookupResult.getResponse());
+            CommandLookupTopicResponse.LookupType response =
+                    lookupResult.hasResponse() ? lookupResult.getResponse() : null;
+            log.debug("Received Broker lookup response: {} {}", lookupResult.getRequestId(), response);
         }
 
         long requestId = lookupResult.getRequestId();
@@ -577,7 +579,11 @@ public class ClientCnx extends PulsarHandler {
     @Override
     protected void handlePartitionResponse(CommandPartitionedTopicMetadataResponse lookupResult) {
         if (log.isDebugEnabled()) {
-            log.debug("Received Broker Partition response: {}", lookupResult.getPartitions());
+            CommandPartitionedTopicMetadataResponse.LookupType response =
+                    lookupResult.hasResponse() ? lookupResult.getResponse() : null;
+            int partitions = lookupResult.hasPartitions() ? lookupResult.getPartitions() : -1;
+            log.debug("Received Broker Partition response: {} {} {}", lookupResult.getRequestId(), response,
+                    partitions);
         }
 
         long requestId = lookupResult.getRequestId();

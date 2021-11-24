@@ -3,7 +3,7 @@ const darkCodeTheme = require("prism-react-renderer/themes/dracula");
 
 const linkifyRegex = require("./plugins/remark-linkify-regex");
 
-const url = "https://pulsar.incubator.apache.org";
+const url = "https://pulsar.apache.org";
 const javadocUrl = url + "/api";
 const restApiUrl = url + "/admin-rest-api";
 const functionsApiUrl = url + "/functions-rest-api";
@@ -166,6 +166,10 @@ module.exports = {
             {
               label: "2.6.2",
               to: "docs/2.6.2/",
+            },
+            {
+              label: "2.6.1",
+              to: "docs/2.6.1/",
             },
             {
               label: "2.2.0",
