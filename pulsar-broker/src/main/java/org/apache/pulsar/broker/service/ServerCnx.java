@@ -1203,7 +1203,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
             log.info("[{}][{}] Creating producer. producerId={}", remoteAddress, topicName, producerId);
 
-            service.getOrCreateTopic(topicName.toString()).thenAccept((Topic topic) -> {
+            service.getOrCreateTopic(topicName.toString()).thenCompose((Topic topic) -> {
                 // Before creating producer, check if backlog quota exceeded
                 // on topic for size based limit and time based limit
                 CompletableFuture<Void> backlogQuotaCheckFuture = CompletableFuture.allOf(
@@ -1271,6 +1271,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         });
                     });
                 });
+                return backlogQuotaCheckFuture;
             }).exceptionally(exception -> {
                 Throwable cause = exception.getCause();
                 if (cause instanceof NoSuchElementException) {
