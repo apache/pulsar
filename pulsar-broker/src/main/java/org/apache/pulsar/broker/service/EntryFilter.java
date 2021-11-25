@@ -60,11 +60,11 @@ public interface EntryFilter {
 
     enum FilterResult {
         /**
-         * deliver to the Consumer
+         * deliver to the Consumer.
          */
         ACCEPT,
         /**
-         * skip the message
+         * skip the message.
          */
         REJECT,
     }

@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.plugin;
 
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -53,7 +54,8 @@ public class FilterEntryTest extends BrokerTestBase {
 
     public void testFilter() throws Exception {
         internalCleanup();
-        conf.setEntryFilterClassName("org.apache.pulsar.broker.service.plugin.EntryFilterForTest");
+        conf.setEntryFilterClassNames(Arrays.asList("org.apache.pulsar.broker.service.plugin.EntryFilterForTest",
+                "org.apache.pulsar.broker.service.plugin.EntryFilterForTest2"));
         baseSetup();
 
         String topic = "persistent://prop/ns-abc/topic" + UUID.randomUUID();

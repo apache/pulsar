@@ -23,7 +23,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 public class EntryFilterProvider {
 
     /**
-     * create entry filter instance
+     * create entry filter instance.
      */
     public static EntryFilter createEntryFilter(String className) {
         Class<?> entryFilterClass;

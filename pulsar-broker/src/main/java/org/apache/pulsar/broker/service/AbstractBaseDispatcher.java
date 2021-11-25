@@ -20,6 +20,7 @@
 package org.apache.pulsar.broker.service;
 
 import io.netty.buffer.ByteBuf;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -27,7 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
@@ -49,14 +50,17 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
     protected final ServiceConfiguration serviceConfig;
     protected final boolean dispatchThrottlingOnBatchMessageEnabled;
-    protected final EntryFilter entryFilter;
+    protected final List<EntryFilter> entryFilters = new ArrayList<>();
 
     protected AbstractBaseDispatcher(Subscription subscription, ServiceConfiguration serviceConfig) {
         this.subscription = subscription;
         this.serviceConfig = serviceConfig;
         this.dispatchThrottlingOnBatchMessageEnabled = serviceConfig.isDispatchThrottlingOnBatchMessageEnabled();
-        this.entryFilter = StringUtils.isNotBlank(serviceConfig.getEntryFilterClassName())
-                ? EntryFilterProvider.createEntryFilter(serviceConfig.getEntryFilterClassName()) : null;
+        if (CollectionUtils.isNotEmpty(serviceConfig.getEntryFilterClassNames())) {
+            for (String entryFilterClassName : serviceConfig.getEntryFilterClassNames()) {
+                entryFilters.add(EntryFilterProvider.createEntryFilter(entryFilterClassName));
+            }
+        }
     }
 
     /**
@@ -132,10 +136,16 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
             msgMetadata = msgMetadata == null
                     ? Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1)
                     : msgMetadata;
-            if (entryFilter != null) {
+            if (CollectionUtils.isNotEmpty(entryFilters)) {
                 fillContext(filterContext, batchSizes, sendMessageInfo, indexesAcks, cursor, isReplayRead,
                         msgMetadata, subscription);
-                EntryFilter.FilterResult result = entryFilter.filterEntry(entry, filterContext);
+                EntryFilter.FilterResult result = EntryFilter.FilterResult.REJECT;
+                for (EntryFilter entryFilter : entryFilters) {
+                    if (entryFilter.filterEntry(entry, filterContext) == EntryFilter.FilterResult.ACCEPT) {
+                        result = EntryFilter.FilterResult.ACCEPT;
+                        break;
+                    }
+                }
                 if (EntryFilter.FilterResult.REJECT == result) {
                     PositionImpl pos = (PositionImpl) entry.getPosition();
                     entries.set(i, null);
