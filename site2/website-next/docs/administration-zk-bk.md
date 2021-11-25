@@ -4,10 +4,6 @@ title: ZooKeeper and BookKeeper administration
 sidebar_label: "ZooKeeper and BookKeeper"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 Pulsar relies on two external systems for essential tasks:
 
 * [ZooKeeper](https://zookeeper.apache.org/) is responsible for a wide variety of configuration-related and coordination-related tasks.

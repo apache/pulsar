@@ -5,10 +5,6 @@ sidebar_label: "Building Pulsar C++ client"
 original_id: develop-cpp
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 ## Supported platforms
 
 The Pulsar C++ client has been successfully tested on **MacOS** and **Linux**.

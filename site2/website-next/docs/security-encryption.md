@@ -49,24 +49,7 @@ openssl ec -in test_ecdsa_privkey.pem -pubout -outform pem -out test_ecdsa_pubke
 
 <Tabs 
   defaultValue="Java"
-  values={[
-  {
-    "label": "Java",
-    "value": "Java"
-  },
-  {
-    "label": "C++",
-    "value": "C++"
-  },
-  {
-    "label": "Python",
-    "value": "Python"
-  },
-  {
-    "label": "Node.JS",
-    "value": "Node.JS"
-  }
-]}>
+  values={[{"label":"Java","value":"Java"},{"label":"C++","value":"C++"},{"label":"Python","value":"Python"},{"label":"Node.JS","value":"Node.JS"}]}>
 <TabItem value="Java">
 
 ```java
@@ -222,24 +205,7 @@ await client.close();
 
 <Tabs 
   defaultValue="Java"
-  values={[
-  {
-    "label": "Java",
-    "value": "Java"
-  },
-  {
-    "label": "C++",
-    "value": "C++"
-  },
-  {
-    "label": "Python",
-    "value": "Python"
-  },
-  {
-    "label": "Node.JS",
-    "value": "Node.JS"
-  }
-]}>
+  values={[{"label":"Java","value":"Java"},{"label":"C++","value":"C++"},{"label":"Python","value":"Python"},{"label":"Node.JS","value":"Node.JS"}]}>
 <TabItem value="Java">
 
 ```java

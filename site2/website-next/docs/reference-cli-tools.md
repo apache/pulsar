@@ -4,10 +4,6 @@ title: Pulsar command-line tools
 sidebar_label: "Pulsar CLI tools"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 Pulsar offers several command-line tools that you can use for managing Pulsar installations, performance testing, using command-line producers and consumers, and more.
 
 All Pulsar command-line tools can be run from the `bin` directory of your [installed Pulsar package](getting-started-standalone). The following tools are currently documented:
@@ -28,6 +24,7 @@ All Pulsar command-line tools can be run from the `bin` directory of your [insta
 >
 > 
 > ```
+
 
 ## `pulsar`
 
@@ -387,6 +384,7 @@ Options
 |`-m`, `--messages`|Comma-separated string of messages to send; either -m or -f must be specified|[]|
 |`-n`, `--num-produce`|The number of times to send the message(s); the count of messages/files * num-produce should be below 1000|1|
 |`-r`, `--rate`|Rate (in messages per second) at which to produce; a value 0 means to produce messages as fast as possible|0.0|
+|`-db`, `--disable-batching`|Disable batch sending of messages|false|
 |`-c`, `--chunking`|Split the message and publish in chunks if the message size is larger than the allowed max size|false|
 |`-s`, `--separator`|Character to split messages string with.|","|
 |`-k`, `--key`|Message key to add|key=value string, like k1=v1,k2=v2.|
@@ -417,7 +415,7 @@ Options
 |`-s`, `--subscription-name`|Subscription name||
 |`-t`, `--subscription-type`|The type of the subscription. Possible values: Exclusive, Shared, Failover, Key_Shared.|Exclusive|
 |`-p`, `--subscription-position`|The position of the subscription. Possible values: Latest, Earliest.|Latest|
-|`-m`, `--subscription-mode`|Subscription mode.|Durable|
+|`-m`, `--subscription-mode`|Subscription mode. Possible values: Durable, NonDurable.|Durable|
 |`-q`, `--queue-size`|The size of consumer's receiver queue.|0|
 |`-mc`, `--max_chunked_msg`|Max pending chunk messages.|0|
 |`-ac`, `--auto_ack_chunk_q_full`|Auto ack for the oldest message in consumer's receiver queue if the queue full.|false|
@@ -547,6 +545,7 @@ Options
 |`-mc`, `--max_chunked_msg`|Max pending chunk messages|0|
 |`-n`, `--num-consumers`|Number of consumers (per topic)|1|
 |`-ioThreads`, `--num-io-threads`|Set the number of threads to be used for handling connections to brokers|1|
+|`-lt`, `--num-listener-threads`|Set the number of threads to be used for message listeners|1|
 |`-ns`, `--num-subscriptions`|Number of subscriptions (per topic)|1|
 |`-t`, `--num-topics`|The number of topics|1|
 |`-pm`, `--pool-messages`|Use the pooled message|true|
@@ -647,6 +646,7 @@ Options
 |`-n`, `--num-messages`|Number of messages to consume in total. If the value is equal to or smaller than 0, it keeps consuming messages.|0|
 |`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
 |`-ioThreads`, `--num-io-threads`|Set the number of threads to be used for handling connections to brokers|1|
+|`-lt`, `--num-listener-threads`|Set the number of threads to be used for message listeners|1|
 |`-t`, `--num-topics`|The number of topics|1|
 |`-r`, `--rate`|Simulate a slow message reader (rate in msg/s)|0|
 |`-q`, `--receiver-queue-size`|Size of the receiver queue|1000|

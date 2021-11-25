@@ -87,6 +87,7 @@ Usage: pulsar-perf <command>
 where command is one of:
     produce                 Run a producer
     consume                 Run a consumer
+    transaction             Run a transaction repeatedly
     read                    Run a topic reader
 
     websocket-producer      Run a websocket producer
@@ -137,9 +138,13 @@ OPTS="$OPTS $PULSAR_EXTRA_OPTS"
 PULSAR_LOG_APPENDER=${PULSAR_LOG_APPENDER:-"Console"}
 PULSAR_LOG_DIR=${PULSAR_LOG_DIR:-"$PULSAR_HOME/logs"}
 PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-perftest.log"}
+PULSAR_LOG_LEVEL=${PULSAR_LOG_LEVEL:-"info"}
+PULSAR_LOG_ROOT_LEVEL=${PULSAR_LOG_ROOT_LEVEL:-"${PULSAR_LOG_LEVEL}"}
 
 #Configure log configuration system properties
 OPTS="$OPTS -Dpulsar.log.appender=$PULSAR_LOG_APPENDER"
+OPTS="$OPTS -Dpulsar.log.level=$PULSAR_LOG_LEVEL"
+OPTS="$OPTS -Dpulsar.log.root.level=$PULSAR_LOG_ROOT_LEVEL"
 OPTS="$OPTS -Dpulsar.log.dir=$PULSAR_LOG_DIR"
 OPTS="$OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE"
 
@@ -160,6 +165,8 @@ if [ "$COMMAND" == "produce" ]; then
     exec $JAVA $OPTS org.apache.pulsar.testclient.PerformanceProducer --conf-file $PULSAR_PERFTEST_CONF "$@"
 elif [ "$COMMAND" == "consume" ]; then
     exec $JAVA $OPTS org.apache.pulsar.testclient.PerformanceConsumer --conf-file $PULSAR_PERFTEST_CONF "$@"
+elif [  "$COMMAND" == "transaction" ]; then
+    exec $JAVA $OPTS org.apache.pulsar.testclient.PerformanceTransaction --conf-file $PULSAR_PERFTEST_CONF "$@"
 elif [ "$COMMAND" == "read" ]; then
     exec $JAVA $OPTS org.apache.pulsar.testclient.PerformanceReader --conf-file $PULSAR_PERFTEST_CONF "$@"
 elif [ "$COMMAND" == "monitor-brokers" ]; then

@@ -4,10 +4,6 @@ title: What are transactions?
 sidebar_label: "What are transactions?"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 Transactions strengthen the message delivery semantics of Apache Pulsar and [processing guarantees of Pulsar Functions](https://pulsar.apache.org/docs/en/next/functions-overview/#processing-guarantees). The Pulsar Transaction API supports atomic writes and acknowledgments across multiple topics. 
 
 Transactions allow:

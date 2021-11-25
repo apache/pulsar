@@ -151,12 +151,12 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
             @Override
             public Message<String> beforeSend(Producer<String> producer, Message<String> message) {
-                throw new NullPointerException();
+                throw new IllegalArgumentException();
             }
 
             @Override
             public void onSendAcknowledgement(Producer<String> producer, Message<String> message, MessageId msgId, Throwable exception) {
-                throw new NullPointerException();
+                throw new IllegalArgumentException();
             }
         };
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
