@@ -105,7 +105,7 @@ Here is an example of using the File source connecter.
     $ curl -O https://mirrors.tuna.tsinghua.edu.cn/apache/pulsar/pulsar-{version}/connectors/pulsar-io-file-{version}.nar
     ```
 
-6. Copt the File source connector to the container. 
+6. Copy the File source connector to the container. 
 
     ```bash
     $ docker cp pulsar-io-file-{version}.nar pulsar-standalone:/pulsar/
