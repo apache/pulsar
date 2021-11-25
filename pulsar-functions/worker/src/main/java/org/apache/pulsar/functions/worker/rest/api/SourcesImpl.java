@@ -732,10 +732,10 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
         boolean shouldCloseClassLoader = false;
         try {
             // if source is not builtin, attempt to extract classloader from package file if it exists
-            shouldCloseClassLoader = true;
             if (classLoader == null && sourcePackageFile != null) {
                 classLoader = getClassLoaderFromPackage(sourceConfig.getClassName(),
                         sourcePackageFile, worker().getWorkerConfig().getNarExtractionDirectory());
+                shouldCloseClassLoader = true;
             }
 
             if (classLoader == null) {

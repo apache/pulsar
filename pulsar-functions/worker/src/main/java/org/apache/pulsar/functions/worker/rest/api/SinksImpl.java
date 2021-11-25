@@ -738,9 +738,9 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
 
             // if sink is not builtin, attempt to extract classloader from package file if it exists
             if (classLoader == null && sinkPackageFile != null) {
-                shouldCloseClassLoader = true;
                 classLoader = getClassLoaderFromPackage(sinkConfig.getClassName(),
                         sinkPackageFile, worker().getWorkerConfig().getNarExtractionDirectory());
+                shouldCloseClassLoader = true;
             }
 
             if (classLoader == null) {
