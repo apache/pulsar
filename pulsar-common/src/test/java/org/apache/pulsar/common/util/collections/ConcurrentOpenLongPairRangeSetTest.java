@@ -19,7 +19,9 @@
 package org.apache.pulsar.common.util.collections;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 
 import java.util.List;
 import java.util.Set;
@@ -36,6 +38,17 @@ import com.google.common.collect.TreeRangeSet;
 public class ConcurrentOpenLongPairRangeSetTest {
 
     static final LongPairConsumer<LongPair> consumer = (key, value) -> new LongPair(key, value);
+
+    @Test
+    public void testIsEmpty() {
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
+        assertTrue(set.isEmpty());
+        // lowerValueOpen and upperValue are both -1 so that an empty set will be added
+        set.addOpenClosed(0, -1, 0, -1);
+        assertTrue(set.isEmpty());
+        set.addOpenClosed(1, 1, 1, 5);
+        assertFalse(set.isEmpty());
+    }
 
     @Test
     public void testAddForSameKey() {
