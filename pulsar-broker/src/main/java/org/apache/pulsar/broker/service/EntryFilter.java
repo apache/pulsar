@@ -27,7 +27,7 @@ public interface EntryFilter {
     /**
      * Broker determines whether to filter out this entry based on the return value of this method.
      * Please do not deserialize the entire Entry in this method,
-     * which will have a great impact on Broker's memory and CPU.
+     * which has a great impact on the broker's memory and CPU.
      * @param entry
      * @param context
      * @return
