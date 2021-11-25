@@ -26,7 +26,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 public interface EntryFilter {
     /**
      * Broker determines whether to filter out this entry based on the return value of this method.
-     * Please do not deserialize the entire Entry in this method,
+     * Do not deserialize the entire entry in this method,
      * which has a great impact on the broker's memory and CPU.
      * @param entry
      * @param context
