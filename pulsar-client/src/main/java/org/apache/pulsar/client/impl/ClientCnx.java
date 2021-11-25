@@ -577,7 +577,9 @@ public class ClientCnx extends PulsarHandler {
     @Override
     protected void handlePartitionResponse(CommandPartitionedTopicMetadataResponse lookupResult) {
         if (log.isDebugEnabled()) {
-            log.debug("Received Broker Partition response: {}", lookupResult.getPartitions());
+            log.debug("Received Broker Partition response: {}", ((lookupResult.getResponse() ==
+                    CommandPartitionedTopicMetadataResponse.LookupType.Success) ? lookupResult.getPartitions() :
+                    lookupResult.getError()));
         }
 
         long requestId = lookupResult.getRequestId();
