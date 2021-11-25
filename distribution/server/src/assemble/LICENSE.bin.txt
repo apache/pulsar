@@ -511,7 +511,7 @@ The Apache Software License, Version 2.0
     - io.vertx-vertx-core-3.5.3.jar
     - io.vertx-vertx-web-3.5.3.jar
   * Apache ZooKeeper
-    - org.apache.zookeeper-zookeeper-jute-3.5.7.jar
+    - org.apache.zookeeper-zookeeper-jute-3.5.9.jar
 
 BSD 3-clause "New" or "Revised" License
  * Google auth library
