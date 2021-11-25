@@ -23,7 +23,6 @@ import com.google.protobuf.AbstractMessage.Builder;
 import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.util.JsonFormat;
 import java.io.ByteArrayOutputStream;
-import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -487,20 +486,10 @@ public class FunctionCommon {
             }
         } finally {
             if (!keepJarClassLoader) {
-                closeClassLoader(jarClassLoader);
+                ClassLoaderUtils.closeClassLoader(jarClassLoader);
             }
             if (!keepNarClassLoader) {
-                closeClassLoader(narClassLoader);
-            }
-        }
-    }
-
-    private static void closeClassLoader(ClassLoader classLoader) {
-        if (classLoader instanceof Closeable) {
-            try {
-                ((Closeable) classLoader).close();
-            } catch (IOException e) {
-                log.error("Error closing classloader {}", classLoader, e);
+                ClassLoaderUtils.closeClassLoader(narClassLoader);
             }
         }
     }
