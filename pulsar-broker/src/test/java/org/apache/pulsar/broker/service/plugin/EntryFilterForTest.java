@@ -22,6 +22,7 @@ package org.apache.pulsar.broker.service.plugin;
 import java.util.List;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.commons.collections4.MapUtils;
+import org.apache.pulsar.broker.service.EntryFilter;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.common.api.proto.KeyValue;
 
