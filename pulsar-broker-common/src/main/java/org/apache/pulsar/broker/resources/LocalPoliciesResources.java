@@ -82,6 +82,10 @@ public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
         return deleteAsync(joinPath(LOCAL_POLICIES_ROOT, ns.toString()));
     }
 
+    public CompletableFuture<Void> deleteLocalPoliciesTenantAsync(String tenant) {
+        return deleteAsync(joinPath(LOCAL_POLICIES_ROOT, tenant));
+    }
+
     public static boolean isLocalPoliciesPath(String path) {
         return path.startsWith(LOCAL_POLICIES_ROOT);
     }

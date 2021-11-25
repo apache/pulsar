@@ -280,5 +280,9 @@ public class NamespaceResources extends BaseResources<Policies> {
 
             return completableFuture;
         }
+
+        public CompletableFuture<Void> clearPartitionedTopicTenantAsync(String tenant) {
+            return deleteAsync(joinPath(PARTITIONED_TOPIC_PATH, tenant));
+        }
     }
 }
