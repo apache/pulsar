@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin.v1;
 
-import com.google.common.annotations.VisibleForTesting;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
@@ -26,7 +25,6 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import io.swagger.annotations.Example;
 import io.swagger.annotations.ExampleProperty;
-import java.time.Clock;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -58,11 +56,6 @@ import org.apache.pulsar.common.schema.LongSchemaVersion;
 public class SchemasResource extends SchemasResourceBase {
 
     public SchemasResource() {
-        super();
-    }
-
-    @VisibleForTesting
-    public SchemasResource(Clock clock) {
         super();
     }
 
