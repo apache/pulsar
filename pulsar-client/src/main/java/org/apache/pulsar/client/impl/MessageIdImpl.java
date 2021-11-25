@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.common.collect.ComparisonChain;
 
 import io.netty.buffer.ByteBuf;
@@ -27,6 +25,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.concurrent.FastThreadLocal;
 
 import java.io.IOException;
+import java.util.Objects;
 
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.proto.MessageIdData;
@@ -103,7 +102,7 @@ public class MessageIdImpl implements MessageId {
     };
 
     public static MessageId fromByteArray(byte[] data) throws IOException {
-        checkNotNull(data);
+        Objects.requireNonNull(data);
 
         MessageIdData idData = LOCAL_MESSAGE_ID.get();
         try {
@@ -144,7 +143,7 @@ public class MessageIdImpl implements MessageId {
     }
 
     public static MessageId fromByteArrayWithTopic(byte[] data, TopicName topicName) throws IOException {
-        checkNotNull(data);
+        Objects.requireNonNull(data);
         MessageIdData idData = LOCAL_MESSAGE_ID.get();
         try {
             idData.parseFrom(Unpooled.wrappedBuffer(data, 0, data.length), data.length);

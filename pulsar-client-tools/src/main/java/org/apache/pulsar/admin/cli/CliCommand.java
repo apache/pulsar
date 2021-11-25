@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
@@ -36,7 +37,6 @@ import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Sets;
 
 abstract class CliCommand {
 
@@ -167,7 +167,7 @@ abstract class CliCommand {
     }
 
     static Set<AuthAction> getAuthActions(List<String> actions) {
-        Set<AuthAction> res = Sets.newTreeSet();
+        Set<AuthAction> res = new TreeSet<>();
         AuthAction authAction;
         for (String action : actions) {
             try {

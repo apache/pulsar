@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.collect.Lists;
-
 import io.netty.channel.EventLoopGroup;
 
 import java.io.IOException;
@@ -27,6 +25,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
@@ -133,7 +132,7 @@ public class HttpLookupService implements LookupService {
         httpClient
             .get(String.format(format, namespace, mode.toString()), String[].class)
             .thenAccept(topics -> {
-                List<String> result = Lists.newArrayList();
+                List<String> result = new ArrayList<>();
                 // do not keep partition part of topic name
                 Arrays.asList(topics).forEach(topic -> {
                     String filtered = TopicName.get(topic).getPartitionedTopicName();

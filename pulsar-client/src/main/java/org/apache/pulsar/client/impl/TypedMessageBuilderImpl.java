@@ -21,12 +21,11 @@ package org.apache.pulsar.client.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.client.util.TypeCheckUtil.checkType;
 
-import com.google.common.base.Preconditions;
-
 import java.nio.ByteBuffer;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -215,7 +214,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public TypedMessageBuilder<T> replicationClusters(List<String> clusters) {
-        Preconditions.checkNotNull(clusters);
+        Objects.requireNonNull(clusters);
         msgMetadata.clearReplicateTo();
         msgMetadata.addAllReplicateTos(clusters);
         return this;

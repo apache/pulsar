@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.client.tutorial;
 
-import com.google.common.collect.Lists;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -29,6 +29,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
+
 @Slf4j
 public class SampleAsyncProducerWithSchema {
 
@@ -38,7 +39,7 @@ public class SampleAsyncProducerWithSchema {
         Producer<JsonPojo> producer = pulsarClient.newProducer(JSONSchema.of(SchemaDefinition.<JsonPojo>builder().withPojo(JsonPojo.class).build())).topic("persistent://my-property/use/my-ns/my-topic")
                 .sendTimeout(3, TimeUnit.SECONDS).create();
 
-        List<CompletableFuture<MessageId>> futures = Lists.newArrayList();
+        List<CompletableFuture<MessageId>> futures = new ArrayList<>();
 
         for (int i = 0; i < 10; i++) {
             final String content = "my-message-" + i;

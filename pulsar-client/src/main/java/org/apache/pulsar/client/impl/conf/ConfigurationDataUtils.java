@@ -21,9 +21,9 @@ package org.apache.pulsar.client.impl.conf;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Maps;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -60,7 +60,7 @@ public final class ConfigurationDataUtils {
         try {
             String existingConfigJson = mapper.writeValueAsString(existingData);
             Map<String, Object> existingConfig = mapper.readValue(existingConfigJson, Map.class);
-            Map<String, Object> newConfig = Maps.newHashMap();
+            Map<String, Object> newConfig = new HashMap<>();
             newConfig.putAll(existingConfig);
             newConfig.putAll(config);
             String configJson = mapper.writeValueAsString(newConfig);

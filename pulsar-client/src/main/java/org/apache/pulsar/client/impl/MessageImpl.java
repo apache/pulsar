@@ -21,7 +21,6 @@ package org.apache.pulsar.client.impl;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Maps;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -36,6 +35,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -189,7 +189,7 @@ public class MessageImpl<T> implements Message<T> {
         
         if (singleMessageMetadata != null) {
             if (singleMessageMetadata.getPropertiesCount() > 0) {
-                Map<String, String> properties = Maps.newTreeMap();
+                Map<String, String> properties = new TreeMap<>();
                 for (KeyValue entry : singleMessageMetadata.getPropertiesList()) {
                     properties.put(entry.getKey(), entry.getValue());
                 }

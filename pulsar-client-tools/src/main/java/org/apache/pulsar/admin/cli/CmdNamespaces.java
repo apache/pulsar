@@ -2204,7 +2204,7 @@ public class CmdNamespaces extends CmdBase {
                 long maxBlockSize = validateSizeString(maxBlockSizeStr);
                 if (positiveCheck("MaxBlockSize", maxBlockSize)
                         && maxValueCheck("MaxBlockSize", maxBlockSize, Integer.MAX_VALUE)) {
-                    maxBlockSizeInBytes = new Long(maxBlockSize).intValue();
+                    maxBlockSizeInBytes = Long.valueOf(maxBlockSize).intValue();
                 }
             }
 
@@ -2213,7 +2213,7 @@ public class CmdNamespaces extends CmdBase {
                 long readBufferSize = validateSizeString(readBufferSizeStr);
                 if (positiveCheck("ReadBufferSize", readBufferSize)
                         && maxValueCheck("ReadBufferSize", readBufferSize, Integer.MAX_VALUE)) {
-                    readBufferSizeInBytes = new Long(readBufferSize).intValue();
+                    readBufferSizeInBytes = Long.valueOf(readBufferSize).intValue();
                 }
             }
 

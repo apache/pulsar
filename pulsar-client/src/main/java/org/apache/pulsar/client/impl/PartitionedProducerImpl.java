@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import io.netty.util.Timeout;
@@ -28,6 +27,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
@@ -111,7 +111,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
 
         switch (messageRouteMode) {
             case CustomPartition:
-                messageRouter = checkNotNull(conf.getCustomMessageRouter());
+                messageRouter = Objects.requireNonNull(conf.getCustomMessageRouter());
                 break;
             case SinglePartition:
                 messageRouter = new SinglePartitionMessageRouterImpl(
