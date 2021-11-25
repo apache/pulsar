@@ -152,14 +152,12 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
         if (rangeBitSetMap.isEmpty()) {
             return true;
         }
-        AtomicBoolean isEmpty = new AtomicBoolean(false);
-        rangeBitSetMap.forEach((key, val) -> {
-            if (!isEmpty.get()) {
-                return;
+        for (BitSet rangeBitSet : rangeBitSetMap.values()) {
+            if (!rangeBitSet.isEmpty()) {
+                return false;
             }
-            isEmpty.set(val.isEmpty());
-        });
-        return isEmpty.get();
+        }
+        return true;
     }
 
     @Override
