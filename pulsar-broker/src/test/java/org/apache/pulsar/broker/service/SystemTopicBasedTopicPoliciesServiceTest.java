@@ -256,6 +256,30 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         assertNull(listMap.get(topicName));
     }
 
+    @Test
+    public void testListenerCleanupByPartition() throws Exception {
+        final String topic = "persistent://" + NAMESPACE1 + "/test" + UUID.randomUUID();
+        TopicName topicName = TopicName.get(topic);
+        admin.topics().createPartitionedTopic(topic, 3);
+        pulsarClient.newProducer().topic(topic).create().close();
+
+        Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> listMap =
+                systemTopicBasedTopicPoliciesService.getListeners();
+        Awaitility.await().untilAsserted(() -> {
+            // all 3 topic partition have registered the topic policy listeners.
+            assertEquals(listMap.get(topicName).size(), 3);
+        });
+
+        admin.topics().unload(topicName.getPartition(0).toString());
+        assertEquals(listMap.get(topicName).size(), 2);
+        admin.topics().unload(topicName.getPartition(1).toString());
+        assertEquals(listMap.get(topicName).size(), 1);
+        admin.topics().unload(topicName.getPartition(2).toString());
+        assertNull(listMap.get(topicName));
+    }
+
+
+
     private void prepareData() throws PulsarAdminException {
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         admin.tenants().createTenant("system-topic",

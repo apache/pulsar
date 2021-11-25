@@ -724,10 +724,12 @@ public class ReplicatorTest extends ReplicatorTestBase {
         });
         Optional<Topic> topic = pulsar2.getBrokerService().getTopicReference(topicName);
         assertTrue(topic.isPresent());
-        Set<String> remoteClusters = topic.get().getProducers().values().stream()
-                .map(org.apache.pulsar.broker.service.Producer::getRemoteCluster)
-                .collect(Collectors.toSet());
-        assertTrue(remoteClusters.contains("r1"));
+        Awaitility.await().untilAsserted(() -> {
+            Set<String> remoteClusters = topic.get().getProducers().values().stream()
+                    .map(org.apache.pulsar.broker.service.Producer::getRemoteCluster)
+                    .collect(Collectors.toSet());
+            assertTrue(remoteClusters.contains("r1"));
+        });
     }
 
     @Test(priority = 5, timeOut = 30000)
