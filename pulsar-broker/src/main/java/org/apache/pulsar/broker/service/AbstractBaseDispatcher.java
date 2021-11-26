@@ -64,7 +64,8 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         this.subscription = subscription;
         this.serviceConfig = serviceConfig;
         this.dispatchThrottlingOnBatchMessageEnabled = serviceConfig.isDispatchThrottlingOnBatchMessageEnabled();
-        if (MapUtils.isNotEmpty(subscription.getTopic().getBrokerService().getEntryFilters())) {
+        if (subscription != null && MapUtils.isNotEmpty(subscription.getTopic()
+                .getBrokerService().getEntryFilters())) {
             this.entryFilters = subscription.getTopic().getBrokerService().getEntryFilters().values().asList();
         } else {
             this.entryFilters = ImmutableList.of();
