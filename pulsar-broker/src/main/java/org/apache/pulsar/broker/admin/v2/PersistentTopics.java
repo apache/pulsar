@@ -1332,8 +1332,9 @@ public class PersistentTopics extends PersistentTopicsBase {
                 throw new RestException(Response.Status.BAD_REQUEST, "Create subscription on non-persistent topic"
                         + "can only be done through client");
             }
-            MessageIdImpl messageId = new MessageIdImpl(resetCursorData.getLedgerId(), resetCursorData.getEntryId(),
-                    resetCursorData.getPartitionIndex());
+            MessageIdImpl messageId = resetCursorData == null ? null :
+                    new MessageIdImpl(resetCursorData.getLedgerId(), resetCursorData.getEntryId(),
+                            resetCursorData.getPartitionIndex());
             internalCreateSubscription(asyncResponse, decode(encodedSubName), messageId, authoritative, replicated);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
