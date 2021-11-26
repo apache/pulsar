@@ -18,12 +18,18 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.nio.file.Path;
+import java.util.Map;
+import java.util.TreeMap;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.nar.NarClassLoader;
 
 public interface EntryFilter {
+
     /**
      * Broker will determine whether to filter out this Entry based on the return value of this method.
      * Please do not deserialize the entire Entry in this method,
@@ -67,5 +73,60 @@ public interface EntryFilter {
          * skip the message.
          */
         REJECT,
+    }
+
+    @Data
+    class EntryFilterDefinitions {
+        private final Map<String, EntryFilterMetaData> filters = new TreeMap<>();
+    }
+
+    @Data
+    @NoArgsConstructor
+    class EntryFilterMetaData {
+
+        /**
+         * The definition of the broker interceptor.
+         */
+        private EntryFilterDefinition definition;
+
+        /**
+         * The path to the handler package.
+         */
+        private Path archivePath;
+    }
+
+    @Data
+    @NoArgsConstructor
+    class EntryFilterDefinition {
+
+        /**
+         * The name of the broker interceptor.
+         */
+        private String name;
+
+        /**
+         * The description of the broker interceptor to be used for user help.
+         */
+        private String description;
+
+        /**
+         * The class name for the broker interceptor.
+         */
+        private String entryFilterClass;
+    }
+
+    class EntryFilterWithClassLoader implements EntryFilter {
+        private final EntryFilter entryFilter;
+        private final NarClassLoader classLoader;
+
+        public EntryFilterWithClassLoader(EntryFilter entryFilter, NarClassLoader classLoader) {
+            this.entryFilter = entryFilter;
+            this.classLoader = classLoader;
+        }
+
+        @Override
+        public FilterResult filterEntry(Entry entry, FilterContext context) {
+            return entryFilter.filterEntry(entry, context);
+        }
     }
 }

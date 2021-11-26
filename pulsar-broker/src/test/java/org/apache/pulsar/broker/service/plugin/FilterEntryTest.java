@@ -20,13 +20,16 @@ package org.apache.pulsar.broker.service.plugin;
 
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
-import java.util.Arrays;
+import com.google.common.collect.ImmutableList;
+import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.service.AbstractBaseDispatcher;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -53,15 +56,19 @@ public class FilterEntryTest extends BrokerTestBase {
     }
 
     public void testFilter() throws Exception {
-        internalCleanup();
-        conf.setEntryFilterClassNames(Arrays.asList("org.apache.pulsar.broker.service.plugin.EntryFilterForTest",
-                "org.apache.pulsar.broker.service.plugin.EntryFilterForTest2"));
-        baseSetup();
 
         String topic = "persistent://prop/ns-abc/topic" + UUID.randomUUID();
         String subName = "sub";
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
                 .subscriptionName(subName).subscribe();
+        // mock entry filters
+        PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
+                .getTopicReference(topic).get().getSubscription(subName);
+        Dispatcher dispatcher = subscription.getDispatcher();
+        Field field = AbstractBaseDispatcher.class.getDeclaredField("entryFilters");
+        field.setAccessible(true);
+        field.set(dispatcher, ImmutableList.of(new EntryFilterForTest(), new EntryFilterForTest2()));
+
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .enableBatching(false)
                 .topic(topic).create();
@@ -99,9 +106,6 @@ public class FilterEntryTest extends BrokerTestBase {
         assertEquals(0, counter);
 
         // All messages should be acked, check the MarkDeletedPosition
-        PersistentSubscription subscription =
-                (PersistentSubscription) pulsar.getBrokerService()
-                        .getTopicReference(topic).get().getSubscription(subName);
         assertNotNull(lastMsgId);
         MessageIdImpl finalLastMsgId = lastMsgId;
         Awaitility.await().untilAsserted(() -> {

@@ -19,8 +19,8 @@
 
 package org.apache.pulsar.broker.service;
 
+import com.google.common.collect.ImmutableList;
 import io.netty.buffer.ByteBuf;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -29,6 +29,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
@@ -50,16 +51,20 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
     protected final ServiceConfiguration serviceConfig;
     protected final boolean dispatchThrottlingOnBatchMessageEnabled;
-    protected final List<EntryFilter> entryFilters = new ArrayList<>();
+    /**
+     * Entry filters in Broker.
+     * Not set to final, for the convenience of testing mock.
+     */
+    protected ImmutableList<EntryFilter.EntryFilterWithClassLoader> entryFilters;
 
     protected AbstractBaseDispatcher(Subscription subscription, ServiceConfiguration serviceConfig) {
         this.subscription = subscription;
         this.serviceConfig = serviceConfig;
         this.dispatchThrottlingOnBatchMessageEnabled = serviceConfig.isDispatchThrottlingOnBatchMessageEnabled();
-        if (CollectionUtils.isNotEmpty(serviceConfig.getEntryFilterClassNames())) {
-            for (String entryFilterClassName : serviceConfig.getEntryFilterClassNames()) {
-                entryFilters.add(EntryFilterProvider.createEntryFilter(entryFilterClassName));
-            }
+        if (MapUtils.isNotEmpty(subscription.getTopic().getBrokerService().getEntryFilters())) {
+            this.entryFilters = subscription.getTopic().getBrokerService().getEntryFilters().values().asList();
+        } else {
+            this.entryFilters = ImmutableList.of();
         }
     }
 
@@ -139,13 +144,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
             if (CollectionUtils.isNotEmpty(entryFilters)) {
                 fillContext(filterContext, batchSizes, sendMessageInfo, indexesAcks, cursor, isReplayRead,
                         msgMetadata, subscription);
-                EntryFilter.FilterResult result = EntryFilter.FilterResult.REJECT;
-                for (EntryFilter entryFilter : entryFilters) {
-                    if (entryFilter.filterEntry(entry, filterContext) == EntryFilter.FilterResult.ACCEPT) {
-                        result = EntryFilter.FilterResult.ACCEPT;
-                        break;
-                    }
-                }
+                EntryFilter.FilterResult result = getFilterResult(filterContext, entry);
                 if (EntryFilter.FilterResult.REJECT == result) {
                     PositionImpl pos = (PositionImpl) entry.getPosition();
                     entries.set(i, null);
@@ -215,6 +214,17 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         sendMessageInfo.setTotalBytes(totalBytes);
         sendMessageInfo.setTotalChunkedMessages(totalChunkedMessages);
         return totalEntries;
+    }
+
+    private EntryFilter.FilterResult getFilterResult(EntryFilter.FilterContext filterContext, Entry entry) {
+        EntryFilter.FilterResult result = EntryFilter.FilterResult.REJECT;
+        for (EntryFilter entryFilter : entryFilters) {
+            if (entryFilter.filterEntry(entry, filterContext) == EntryFilter.FilterResult.ACCEPT) {
+                result = EntryFilter.FilterResult.ACCEPT;
+                break;
+            }
+        }
+        return result;
     }
 
     private void fillContext(EntryFilter.FilterContext context,
