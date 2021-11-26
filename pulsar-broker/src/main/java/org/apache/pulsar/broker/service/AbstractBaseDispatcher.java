@@ -34,6 +34,9 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.plugin.EntryFilter;
+import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
+import org.apache.pulsar.broker.service.plugin.FilterContext;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -55,7 +58,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
      * Entry filters in Broker.
      * Not set to final, for the convenience of testing mock.
      */
-    protected ImmutableList<EntryFilter.EntryFilterWithClassLoader> entryFilters;
+    protected ImmutableList<EntryFilterWithClassLoader> entryFilters;
 
     protected AbstractBaseDispatcher(Subscription subscription, ServiceConfiguration serviceConfig) {
         this.subscription = subscription;
@@ -126,7 +129,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         long totalBytes = 0;
         int totalChunkedMessages = 0;
         int totalEntries = 0;
-        EntryFilter.FilterContext filterContext = new EntryFilter.FilterContext();
+        FilterContext filterContext = new FilterContext();
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
             Entry entry = entries.get(i);
             if (entry == null) {
@@ -216,7 +219,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         return totalEntries;
     }
 
-    private EntryFilter.FilterResult getFilterResult(EntryFilter.FilterContext filterContext, Entry entry) {
+    private EntryFilter.FilterResult getFilterResult(FilterContext filterContext, Entry entry) {
         EntryFilter.FilterResult result = EntryFilter.FilterResult.REJECT;
         for (EntryFilter entryFilter : entryFilters) {
             if (entryFilter.filterEntry(entry, filterContext) == EntryFilter.FilterResult.ACCEPT) {
@@ -227,7 +230,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         return result;
     }
 
-    private void fillContext(EntryFilter.FilterContext context,
+    private void fillContext(FilterContext context,
                              EntryBatchSizes batchSizes, SendMessageInfo sendMessageInfo,
                              EntryBatchIndexesAcks indexesAcks, ManagedCursor cursor,
                              boolean isReplayRead, MessageMetadata msgMetadata,

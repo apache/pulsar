@@ -21,10 +21,9 @@ package org.apache.pulsar.broker.service.plugin;
 
 import java.util.List;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.pulsar.broker.service.EntryFilter;
 import org.apache.pulsar.common.api.proto.KeyValue;
 
-public class EntryFilterForTest implements EntryFilter {
+public class EntryFilterTest implements EntryFilter {
     @Override
     public FilterResult filterEntry(Entry entry, FilterContext context) {
         if (context.getMsgMetadata() == null || context.getMsgMetadata().getPropertiesCount() <= 0) {

@@ -67,7 +67,7 @@ public class FilterEntryTest extends BrokerTestBase {
         Dispatcher dispatcher = subscription.getDispatcher();
         Field field = AbstractBaseDispatcher.class.getDeclaredField("entryFilters");
         field.setAccessible(true);
-        field.set(dispatcher, ImmutableList.of(new EntryFilterForTest(), new EntryFilterForTest2()));
+        field.set(dispatcher, ImmutableList.of(new EntryFilterTest(), new EntryFilter2Test()));
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .enableBatching(false)

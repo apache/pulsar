@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service;
+package org.apache.pulsar.broker.service.plugin;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.collect.ImmutableMap;
@@ -42,18 +42,18 @@ public class EntryFilterProvider {
     /**
      * create entry filter instance.
      */
-    public static ImmutableMap<String, EntryFilter.EntryFilterWithClassLoader> createEntryFilters(
+    public static ImmutableMap<String, EntryFilterWithClassLoader> createEntryFilters(
             ServiceConfiguration conf) throws IOException {
-        EntryFilter.EntryFilterDefinitions definitions = searchForEntryFilters(conf.getEntryFiltersDirectory(),
+        EntryFilterDefinitions definitions = searchForEntryFilters(conf.getEntryFiltersDirectory(),
                 conf.getNarExtractionDirectory());
-        ImmutableMap.Builder<String, EntryFilter.EntryFilterWithClassLoader> builder = ImmutableMap.builder();
+        ImmutableMap.Builder<String, EntryFilterWithClassLoader> builder = ImmutableMap.builder();
         conf.getEntryFilterNames().forEach(filterName -> {
-            EntryFilter.EntryFilterMetaData metaData = definitions.getFilters().get(filterName);
+            EntryFilterMetaData metaData = definitions.getFilters().get(filterName);
             if (null == metaData) {
                 throw new RuntimeException("No entry filter is found for name `" + filterName
                         + "`. Available entry filters are : " + definitions.getFilters());
             }
-            EntryFilter.EntryFilterWithClassLoader filter;
+            EntryFilterWithClassLoader filter;
             try {
                 filter = load(metaData, conf.getNarExtractionDirectory());
                 if (filter != null) {
@@ -68,13 +68,13 @@ public class EntryFilterProvider {
         return builder.build();
     }
 
-    private static EntryFilter.EntryFilterDefinitions searchForEntryFilters(String entryFiltersDirectory,
+    private static EntryFilterDefinitions searchForEntryFilters(String entryFiltersDirectory,
                                                                             String narExtractionDirectory)
             throws IOException {
         Path path = Paths.get(entryFiltersDirectory).toAbsolutePath();
         log.info("Searching for entry filters in {}", path);
 
-        EntryFilter.EntryFilterDefinitions entryFilterDefinitions = new EntryFilter.EntryFilterDefinitions();
+        EntryFilterDefinitions entryFilterDefinitions = new EntryFilterDefinitions();
         if (!path.toFile().exists()) {
             log.warn("Pulsar entry filters directory not found");
             return entryFilterDefinitions;
@@ -83,14 +83,14 @@ public class EntryFilterProvider {
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(path, "*.nar")) {
             for (Path archive : stream) {
                 try {
-                    EntryFilter.EntryFilterDefinition def =
+                    EntryFilterDefinition def =
                             getEntryFilterDefinition(archive.toString(), narExtractionDirectory);
                     log.info("Found entry filter from {} : {}", archive, def);
 
                     checkArgument(StringUtils.isNotBlank(def.getName()));
                     checkArgument(StringUtils.isNotBlank(def.getEntryFilterClass()));
 
-                    EntryFilter.EntryFilterMetaData metadata = new EntryFilter.EntryFilterMetaData();
+                    EntryFilterMetaData metadata = new EntryFilterMetaData();
                     metadata.setDefinition(def);
                     metadata.setArchivePath(archive);
 
@@ -107,7 +107,7 @@ public class EntryFilterProvider {
         return entryFilterDefinitions;
     }
 
-    private static EntryFilter.EntryFilterDefinition getEntryFilterDefinition(String narPath,
+    private static EntryFilterDefinition getEntryFilterDefinition(String narPath,
                                                                               String narExtractionDirectory)
             throws IOException {
         try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet(),
@@ -116,15 +116,15 @@ public class EntryFilterProvider {
         }
     }
 
-    private static EntryFilter.EntryFilterDefinition getEntryFilterDefinition(NarClassLoader ncl) throws IOException {
+    private static EntryFilterDefinition getEntryFilterDefinition(NarClassLoader ncl) throws IOException {
         String configStr = ncl.getServiceDefinition(ENTRY_FILTER_DEFINITION_FILE);
 
         return ObjectMapperFactory.getThreadLocalYaml().readValue(
-                configStr, EntryFilter.EntryFilterDefinition.class
+                configStr, EntryFilterDefinition.class
         );
     }
 
-    private static EntryFilter.EntryFilterWithClassLoader load(EntryFilter.EntryFilterMetaData metadata,
+    private static EntryFilterWithClassLoader load(EntryFilterMetaData metadata,
                                                                String narExtractionDirectory)
             throws IOException {
         NarClassLoader ncl = NarClassLoader.getFromArchive(
@@ -132,7 +132,7 @@ public class EntryFilterProvider {
                 Collections.emptySet(),
                 BrokerInterceptor.class.getClassLoader(), narExtractionDirectory);
 
-        EntryFilter.EntryFilterDefinition def = getEntryFilterDefinition(ncl);
+        EntryFilterDefinition def = getEntryFilterDefinition(ncl);
         if (StringUtils.isBlank(def.getEntryFilterClass())) {
             throw new IOException("Entry filters `" + def.getName() + "` does NOT provide a broker"
                     + " interceptors implementation");
@@ -146,7 +146,7 @@ public class EntryFilterProvider {
                         + " does not implement entry filter interface");
             }
             EntryFilter pi = (EntryFilter) filter;
-            return new EntryFilter.EntryFilterWithClassLoader(pi, ncl);
+            return new EntryFilterWithClassLoader(pi, ncl);
         } catch (Throwable t) {
             return null;
         }

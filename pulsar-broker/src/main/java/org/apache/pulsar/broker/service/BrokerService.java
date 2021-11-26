@@ -115,6 +115,8 @@ import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.SystemTopic;
+import org.apache.pulsar.broker.service.plugin.EntryFilterProvider;
+import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.prometheus.metrics.ObserverGauge;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
@@ -268,7 +270,7 @@ public class BrokerService implements Closeable {
     private boolean preciseTopicPublishRateLimitingEnable;
     private final LongAdder pausedConnections = new LongAdder();
     private BrokerInterceptor interceptor;
-    private ImmutableMap<String, EntryFilter.EntryFilterWithClassLoader> entryFilters;
+    private ImmutableMap<String, EntryFilterWithClassLoader> entryFilters;
 
     private Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors;
 
