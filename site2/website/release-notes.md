@@ -242,9 +242,9 @@
 - Refine the key in redis sink when key is null [#11192](https://github.com/apache/pulsar/pull/11192)
 - Change the nar package name for pulsar-io-kafka-connect-adaptor [#10976](https://github.com/apache/pulsar/pull/10976)
 
-### 2.8.0 
+### 2.8.0 <a id=“2.8.0”></a>
 
-2021-06-12 <a id=“2.8.0”></a>
+2021-06-12 
 
 ### Update notice
 
@@ -701,7 +701,9 @@ For more context about this issue, see [[Pulsar Functions and IO] Cannot upgrade
 - [C++] Remove namespace check for MultiTopicsConsumerImpl [#9520](https://github.com/apache/pulsar/pull/9520)
 
 
-### 2.7.3 &mdash; 2021-07-27 <a id=“2.7.3”></a>
+### 2.7.3 <a id=“2.7.3”></a>
+
+2021-07-27 
 
 #### Broker
 - Fix Delayed Messages. [#11374](https://github.com/apache/pulsar/pull/11374)
