@@ -47,24 +47,19 @@ public class EntryFilterProvider {
         EntryFilterDefinitions definitions = searchForEntryFilters(conf.getEntryFiltersDirectory(),
                 conf.getNarExtractionDirectory());
         ImmutableMap.Builder<String, EntryFilterWithClassLoader> builder = ImmutableMap.builder();
-        conf.getEntryFilterNames().forEach(filterName -> {
+        for (String filterName : conf.getEntryFilterNames()) {
             EntryFilterMetaData metaData = definitions.getFilters().get(filterName);
             if (null == metaData) {
                 throw new RuntimeException("No entry filter is found for name `" + filterName
                         + "`. Available entry filters are : " + definitions.getFilters());
             }
             EntryFilterWithClassLoader filter;
-            try {
-                filter = load(metaData, conf.getNarExtractionDirectory());
-                if (filter != null) {
-                    builder.put(filterName, filter);
-                }
-                log.info("Successfully loaded entry filter for name `{}`", filterName);
-            } catch (IOException e) {
-                log.error("Failed to load the entry filter for name `" + filterName + "`", e);
-                throw new RuntimeException("Failed to load the broker interceptor for name `" + filterName + "`");
+            filter = load(metaData, conf.getNarExtractionDirectory());
+            if (filter != null) {
+                builder.put(filterName, filter);
             }
-        });
+            log.info("Successfully loaded entry filter for name `{}`", filterName);
+        }
         return builder.build();
     }
 

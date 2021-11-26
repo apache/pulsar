@@ -29,23 +29,13 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 
 @Data
 public class FilterContext {
-    private EntryBatchSizes batchSizes;
-    private SendMessageInfo sendMessageInfo;
-    private EntryBatchIndexesAcks indexesAcks;
-    private ManagedCursor cursor;
-    private boolean isReplayRead;
     private Subscription subscription;
-    private SubscriptionOption subscriptionOption;
     private MessageMetadata msgMetadata;
 
     public void reset() {
-        batchSizes = null;
-        sendMessageInfo = null;
-        indexesAcks = null;
-        cursor = null;
-        isReplayRead = false;
         subscription = null;
-        subscriptionOption = null;
         msgMetadata = null;
     }
+
+    public static FilterContext FILTER_CONTEXT_DISABLED = new FilterContext();
 }
