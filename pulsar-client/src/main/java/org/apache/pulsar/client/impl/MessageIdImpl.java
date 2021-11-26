@@ -159,7 +159,7 @@ public class MessageIdImpl implements MessageId {
         } else {
             messageId = new MessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition());
         }
-        if (idData.getPartition() > -1 && topicName != null) {
+        if (topicName != null) {
             messageId = new TopicMessageIdImpl(
                     topicName.getPartition(idData.getPartition()).toString(), topicName.toString(), messageId);
         }
