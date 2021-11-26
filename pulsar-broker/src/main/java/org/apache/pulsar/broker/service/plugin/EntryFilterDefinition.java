@@ -26,17 +26,17 @@ import lombok.NoArgsConstructor;
 public class EntryFilterDefinition {
 
     /**
-     * The name of the broker interceptor.
+     * The name of the entry filter.
      */
     private String name;
 
     /**
-     * The description of the broker interceptor to be used for user help.
+     * The description of the entry filter to be used for user help.
      */
     private String description;
 
     /**
-     * The class name for the broker interceptor.
+     * The class name for the entry filter.
      */
     private String entryFilterClass;
 }

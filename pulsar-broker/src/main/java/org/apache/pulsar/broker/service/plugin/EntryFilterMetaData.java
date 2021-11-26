@@ -26,7 +26,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class EntryFilterMetaData {
     /**
-     * The definition of the broker interceptor.
+     * The definition of the entry filter.
      */
     private EntryFilterDefinition definition;
 
