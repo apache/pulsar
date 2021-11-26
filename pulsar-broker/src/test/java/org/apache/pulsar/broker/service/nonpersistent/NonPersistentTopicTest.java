@@ -96,4 +96,30 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         assertEquals(statsAfterUnsubscribe.getBytesOutCounter(), statsBeforeUnsubscribe.getBytesOutCounter());
         assertEquals(statsAfterUnsubscribe.getMsgOutCounter(), statsBeforeUnsubscribe.getMsgOutCounter());
     }
+
+    public void testRegexSubscribe() throws Exception {
+        String topic1 = "non-persistent://public/vv/non-vv-topic-01";
+        String topic2 = "non-persistent://public/vv/non-vv-topic-02";
+        String msgValue = "test";
+
+        Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING).topic(topic1).create();
+        producer1.newMessage().value(msgValue).send();
+        producer1.close();
+
+        Producer<String> producer2 = pulsarClient.newProducer(Schema.STRING).topic(topic2).create();
+        producer2.newMessage().value(msgValue).send();
+        producer2.close();
+
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topicsPattern("non-vv-topic-0*")
+                .subscriptionName("vv-non-sub")
+                .subscribe();
+
+        Message<String> message1 = consumer.receive();
+        assertEquals(message1.getValue(), msgValue);
+
+        Message<String> message2 = consumer.receive();
+        assertEquals(message2.getValue(), msgValue);
+        consumer.close();
+    }
 }
