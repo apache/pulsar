@@ -532,6 +532,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                 break;
             case GET_TOPICS:
             case UNSUBSCRIBE:
+            case CLEAR_BACKLOG:
                 isAuthorizedFuture = allowConsumeOpsAsync(namespaceName, role, authData);
                 break;
             default:
