@@ -583,15 +583,15 @@
         "CompletableFuture": {
             "type": "object",
             "properties": {
-                "done": {
-                    "type": "boolean"
+                "numberOfDependents": {
+                    "type": "integer",
+                    "format": "int32"
                 },
                 "cancelled": {
                     "type": "boolean"
                 },
-                "numberOfDependents": {
-                    "type": "integer",
-                    "format": "int32"
+                "done": {
+                    "type": "boolean"
                 },
                 "completedExceptionally": {
                     "type": "boolean"
@@ -601,15 +601,15 @@
         "CompletableFutureClusterData": {
             "type": "object",
             "properties": {
-                "done": {
-                    "type": "boolean"
+                "numberOfDependents": {
+                    "type": "integer",
+                    "format": "int32"
                 },
                 "cancelled": {
                     "type": "boolean"
                 },
-                "numberOfDependents": {
-                    "type": "integer",
-                    "format": "int32"
+                "done": {
+                    "type": "boolean"
                 },
                 "completedExceptionally": {
                     "type": "boolean"
@@ -636,10 +636,10 @@
                 "displayName": {
                     "type": "string"
                 },
-                "symbol": {
+                "numericCodeAsString": {
                     "type": "string"
                 },
-                "numericCodeAsString": {
+                "symbol": {
                     "type": "string"
                 }
             }
@@ -956,6 +956,10 @@
         "JsonLocation": {
             "type": "object",
             "properties": {
+                "byteOffset": {
+                    "type": "integer",
+                    "format": "int64"
+                },
                 "sourceRef": {
                     "type": "object"
                 },
@@ -968,10 +972,6 @@
                     "format": "int32"
                 },
                 "charOffset": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "byteOffset": {
                     "type": "integer",
                     "format": "int64"
                 }
@@ -987,14 +987,14 @@
                     "type": "integer",
                     "format": "int32"
                 },
+                "text": {
+                    "type": "string"
+                },
                 "textCharacters": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
-                },
-                "text": {
-                    "type": "string"
                 },
                 "longValue": {
                     "type": "integer",
@@ -1357,9 +1357,6 @@
                     "type": "integer",
                     "format": "int32"
                 },
-                "currency": {
-                    "$ref": "#/definitions/Currency"
-                },
                 "roundingMode": {
                     "type": "string",
                     "enum": [
@@ -1372,6 +1369,9 @@
                         "HALF_EVEN",
                         "UNNECESSARY"
                     ]
+                },
+                "currency": {
+                    "$ref": "#/definitions/Currency"
                 }
             }
         },
@@ -1536,10 +1536,10 @@
         "PublicKey": {
             "type": "object",
             "properties": {
-                "algorithm": {
+                "format": {
                     "type": "string"
                 },
-                "format": {
+                "algorithm": {
                     "type": "string"
                 },
                 "encoded": {
@@ -1675,9 +1675,6 @@
         "TimeZone": {
             "type": "object",
             "properties": {
-                "displayName": {
-                    "type": "string"
-                },
                 "dstsavings": {
                     "type": "integer",
                     "format": "int32"
@@ -1687,6 +1684,9 @@
                     "format": "int32"
                 },
                 "id": {
+                    "type": "string"
+                },
+                "displayName": {
                     "type": "string"
                 }
             }
@@ -1773,16 +1773,6 @@
                 "issuerX500Principal": {
                     "$ref": "#/definitions/X500Principal"
                 },
-                "issuerDN": {
-                    "$ref": "#/definitions/Principal"
-                },
-                "subjectDN": {
-                    "$ref": "#/definitions/Principal"
-                },
-                "version": {
-                    "type": "integer",
-                    "format": "int32"
-                },
                 "extendedKeyUsage": {
                     "type": "array",
                     "items": {
@@ -1855,6 +1845,16 @@
                         "type": "string",
                         "format": "byte"
                     }
+                },
+                "version": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "issuerDN": {
+                    "$ref": "#/definitions/Principal"
+                },
+                "subjectDN": {
+                    "$ref": "#/definitions/Principal"
                 },
                 "signature": {
                     "type": "array",
