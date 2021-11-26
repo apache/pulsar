@@ -19,12 +19,7 @@
 package org.apache.pulsar.broker.service.plugin;
 
 import lombok.Data;
-import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
-import org.apache.pulsar.broker.service.EntryBatchSizes;
-import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.Subscription;
-import org.apache.pulsar.broker.service.SubscriptionOption;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 
 @Data
@@ -37,5 +32,5 @@ public class FilterContext {
         msgMetadata = null;
     }
 
-    public static FilterContext FILTER_CONTEXT_DISABLED = new FilterContext();
+    public static final FilterContext FILTER_CONTEXT_DISABLED = new FilterContext();
 }
