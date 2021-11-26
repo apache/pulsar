@@ -1,9 +1,9 @@
 
 ## Apache Pulsar Release Notes
 
-### 2.8.1 
+### 2.8.1 <a id=“2.8.1”></a>
 
-2021-09-10 <a id=“2.8.1”></a>
+2021-09-10 
 
 ### Broker
 - Fix the issue of all web threads get stuck when deleting a namespace [#11596](https://github.com/apache/pulsar/pull/11596)
