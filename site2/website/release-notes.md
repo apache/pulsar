@@ -242,7 +242,7 @@
 - Refine the key in redis sink when key is null [#11192](https://github.com/apache/pulsar/pull/11192)
 - Change the nar package name for pulsar-io-kafka-connect-adaptor [#10976](https://github.com/apache/pulsar/pull/10976)
 
-### 2.8.0 <a id=“2.8.0”></a>
+### [2.8.0](#2.8.0)
 
 2021-06-12 
 
@@ -674,9 +674,9 @@ For more context about this issue, see [[Pulsar Functions and IO] Cannot upgrade
 - Upgrade BookKeeper to 4.14.1 [#10686](https://github.com/apache/pulsar/pull/10686)
 - [CVE-2021-28169] Upgrade Jetty to 9.4.42.v20210604 [#10907](https://github.com/apache/pulsar/pull/10907)
 
-### 2.6.4 
+### <a id="2.6.4">2.6.4</a>
 
-2021-06-02 <a id=“2.6.4”></a>
+2021-06-02
 
 #### Broker
 - Disallow parsing of token with none signature in authenticateToken [#9172](https://github.com/apache/pulsar/pull/9172)
