@@ -19,9 +19,12 @@
 package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
+
 import java.io.IOException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -39,6 +42,28 @@ public class MessageIdSerializationTest {
         MessageId id = new MessageIdImpl(1, 2, -1);
         byte[] serializedId = id.toByteArray();
         assertEquals(MessageId.fromByteArray(serializedId), id);
+    }
+
+    @Test
+    public void testProtobufSerializationWithTopic() throws Exception {
+        MessageId id = new MessageIdImpl(1, 2, -1);
+        byte[] serializedId = id.toByteArray();
+        MessageId actualMessageId = MessageId.fromByteArrayWithTopic(serializedId,"topic-1");
+        if (actualMessageId == null || actualMessageId instanceof TopicMessageIdImpl) {
+            fail("actualMessageId should be TopicMessageIdImpl type");
+        }
+        assertEquals(actualMessageId, id);
+    }
+
+    @Test
+    public void testProtobufSerializationWithPartitionTopic() throws Exception {
+        MessageId id = new MessageIdImpl(1, 2, -1);
+        byte[] serializedId = id.toByteArray();
+        MessageId actualMessageId = MessageId.fromByteArrayWithTopic(serializedId,"topic-partition-1");
+        if (actualMessageId == null || actualMessageId instanceof TopicMessageIdImpl) {
+            fail("actualMessageId should be TopicMessageIdImpl type");
+        }
+        assertEquals(actualMessageId, id);
     }
 
     @Test(expectedExceptions = NullPointerException.class)
