@@ -1310,7 +1310,7 @@ admin.topics().delete(topic);
 </Tabs>
 
 ### List
-You can get the list of topics under a given namespace in the following ways.  
+You can get the list of partitioned topics under a given namespace in the following ways.  
 <Tabs 
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
@@ -1318,7 +1318,7 @@ You can get the list of topics under a given namespace in the following ways.
 
 ```shell
 
-$ pulsar-admin topics list tenant/namespace
+$ pulsar-admin topics list-partitioned-topics tenant/namespace
 persistent://tenant/namespace/topic1
 persistent://tenant/namespace/topic2
 
@@ -1334,7 +1334,7 @@ persistent://tenant/namespace/topic2
 
 ```java
 
-admin.topics().getList(namespace);
+admin.topics().getPartitionedTopicList(namespace);
 
 ```
 
