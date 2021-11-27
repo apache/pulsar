@@ -44,6 +44,7 @@ import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
+import org.apache.pulsar.metadata.impl.batch.MetadataOp;
 import org.apache.zookeeper.AddWatchMode;
 import org.apache.zookeeper.AsyncCallback;
 import org.apache.zookeeper.CreateMode;
@@ -60,7 +61,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
     private final String metadataURL;
     private final MetadataStoreConfig metadataStoreConfig;
     private final boolean isZkManaged;
-    private final ZooKeeper zkc;
+    protected final ZooKeeper zkc;
     private Optional<ZKSessionWatcher> sessionWatcher;
 
     public ZKMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig, boolean enableSessionWatcher)
@@ -127,54 +128,56 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         }
     }
 
+    void processGetResult(int rc, String path, Object ctx, byte[] data, org.apache.zookeeper.data.Stat stat) {
+        MetadataOp.OpGetData op = (MetadataOp.OpGetData) ctx;
+        execute(() -> {
+            Code code = Code.get(rc);
+            if (code == Code.OK) {
+                op.getFuture().complete(Optional.of(new GetResult(data, getStat(path, stat))));
+            } else if (code == Code.NONODE) {
+                op.getFuture().complete(Optional.empty());
+            } else {
+                op.getFuture().completeExceptionally(getException(code, op.getPath()));
+            }
+        }, op.getFuture());
+    }
+
     @Override
     public CompletableFuture<Optional<GetResult>> storeGet(String path) {
-        CompletableFuture<Optional<GetResult>> future = new CompletableFuture<>();
-
+        MetadataOp.OpGetData op = MetadataOp.getData(path);
         try {
-            zkc.getData(path, null, (rc, path1, ctx, data, stat) -> {
-                execute(() -> {
-                    Code code = Code.get(rc);
-                    if (code == Code.OK) {
-                        future.complete(Optional.of(new GetResult(data, getStat(path1, stat))));
-                    } else if (code == Code.NONODE) {
-                        future.complete(Optional.empty());
-                    } else {
-                        future.completeExceptionally(getException(code, path));
-                    }
-                }, future);
-            }, null);
+            zkc.getData(path, null, this::processGetResult, op);
         } catch (Throwable t) {
-            future.completeExceptionally(new MetadataStoreException(t));
+            op.getFuture().completeExceptionally(new MetadataStoreException(t));
         }
+        return op.getFuture();
+    }
 
-        return future;
+    void processGetChildrenResult(int rc, String path, Object ctx, List<String> children) {
+        MetadataOp.OpGetChildren op = (MetadataOp.OpGetChildren) ctx;
+        execute(() -> {
+            Code code = Code.get(rc);
+            if (code == Code.OK) {
+                Collections.sort(children);
+                op.getFuture().complete(children);
+            } else if (code == Code.NONODE) {
+                // Z-node does not exist
+                op.getFuture().complete(Collections.emptyList());
+            } else {
+                op.getFuture().completeExceptionally(getException(code, op.getPath()));
+            }
+        }, op.getFuture());
     }
 
     @Override
     public CompletableFuture<List<String>> getChildrenFromStore(String path) {
-        CompletableFuture<List<String>> future = new CompletableFuture<>();
-
+        MetadataOp.OpGetChildren op = MetadataOp.getChildren(path);
         try {
-            zkc.getChildren(path, null, (rc, path1, ctx, children) -> {
-                execute(() -> {
-                    Code code = Code.get(rc);
-                    if (code == Code.OK) {
-                        Collections.sort(children);
-                        future.complete(children);
-                    } else if (code == Code.NONODE) {
-                        // Z-node does not exist
-                        future.complete(Collections.emptyList());
-                    } else {
-                        future.completeExceptionally(getException(code, path));
-                    }
-                }, future);
-            }, null);
+            zkc.getChildren(path, null, this::processGetChildrenResult, op);
         } catch (Throwable t) {
-            future.completeExceptionally(new MetadataStoreException(t));
+            op.getFuture().completeExceptionally(new MetadataStoreException(t));
         }
-
-        return future;
+        return op.getFuture();
     }
 
     @Override

@@ -195,9 +195,12 @@ public class LockManagerTest extends BaseMetadataStoreTest {
 
         store.delete("/my/path/1", Optional.empty()).join();
 
-        lock.updateValue("value-2").join();
-        assertEquals(lock.getValue(), "value-2");
-        assertEquals(cache.get("/my/path/1").join().get(), "value-2");
+        Awaitility.await().untilAsserted(()->{
+            //There is a race condition between re-acquire the lock by Node delete notification and this updateValue.
+            lock.updateValue("value-2").join();
+            assertEquals(lock.getValue(), "value-2");
+            assertEquals(cache.get("/my/path/1").join().get(), "value-2");
+        });
     }
 
     @Test(dataProvider = "impl")
