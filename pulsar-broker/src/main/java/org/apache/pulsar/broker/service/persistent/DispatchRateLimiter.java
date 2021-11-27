@@ -50,16 +50,12 @@ public class DispatchRateLimiter {
     private final BrokerService brokerService;
     private RateLimiter dispatchRateLimiterOnMessage;
     private RateLimiter dispatchRateLimiterOnByte;
-    private long subscriptionRelativeRatelimiterOnMessage;
-    private long subscriptionRelativeRatelimiterOnByte;
 
     public DispatchRateLimiter(PersistentTopic topic, Type type) {
         this.topic = topic;
         this.topicName = topic.getName();
         this.brokerService = topic.getBrokerService();
         this.type = type;
-        this.subscriptionRelativeRatelimiterOnMessage = -1;
-        this.subscriptionRelativeRatelimiterOnByte = -1;
         updateDispatchRate();
     }
 
