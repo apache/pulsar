@@ -142,6 +142,7 @@ where command is one of:
     sql-worker          Run a sql worker server
     sql                 Run sql CLI
     standalone          Run a broker server with local bookies and local zookeeper
+    autorecovery        Run an autorecovery service
 
     initialize-cluster-metadata     One-time metadata initialization
     delete-cluster-metadata         Delete a cluster's metadata
@@ -353,6 +354,9 @@ elif [ $COMMAND == "functions-worker" ]; then
 elif [ $COMMAND == "standalone" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-standalone.log"}
     exec $JAVA $LOG4J2_SHUTDOWN_HOOK_DISABLED $OPTS ${ZK_OPTS} -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.PulsarStandaloneStarter --config $PULSAR_STANDALONE_CONF $@
+elif [ ${COMMAND} == "autorecovery" ]; then
+    PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-autorecovery.log"}
+    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.bookkeeper.replication.AutoRecoveryMain --conf $PULSAR_BOOKKEEPER_CONF $@
 elif [ $COMMAND == "initialize-cluster-metadata" ]; then
     exec $JAVA $OPTS org.apache.pulsar.PulsarClusterMetadataSetup $@
 elif [ $COMMAND == "delete-cluster-metadata" ]; then

@@ -31,6 +31,7 @@ where command is one of:
     functions-worker    Run a functions worker server
     standalone          Run a standalone Pulsar service
     proxy               Run a Proxy Pulsar service
+    autorecovery        Run an autorecovery service
 
 where argument is one of:
     -force (accepted only with stop command): Decides whether to stop the server forcefully if not stopped by normal shutdown
@@ -104,6 +105,9 @@ case $command in
         echo "doing $startStop $command ..."
         ;;
     (proxy)
+        echo "doing $startStop $command ..."
+        ;;
+    (autorecovery)
         echo "doing $startStop $command ..."
         ;;
     (*)
