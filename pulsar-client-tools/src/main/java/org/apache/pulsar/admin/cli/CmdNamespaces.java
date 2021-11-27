@@ -719,8 +719,14 @@ public class CmdNamespaces extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            long sizeLimit = validateSizeString(limitStr);
+            long sizeLimit;
             long retentionTimeInSec;
+            try {
+                sizeLimit = validateSizeString(limitStr);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException(String.format("Invalid retention size limit '%s'. Valid formats are: %s",
+                        limitStr, "(4096, 100K, 10M, 16G, 2T)"));
+            }
             try {
                 retentionTimeInSec = RelativeTimeUtil.parseRelativeTimeInSeconds(retentionTimeStr);
             } catch (IllegalArgumentException exception) {
@@ -1194,7 +1200,7 @@ public class CmdNamespaces extends CmdBase {
             try {
                 limit = validateSizeString(limitStr);
             } catch (IllegalArgumentException e) {
-                throw new ParameterException(String.format("Invalid retention policy type '%s'. Valid formats are: %s",
+                throw new ParameterException(String.format("Invalid size limit '%s'. Valid formats are: %s",
                         limitStr, "(4096, 100K, 10M, 16G, 2T)"));
             }
 
@@ -1808,12 +1814,19 @@ public class CmdNamespaces extends CmdBase {
                    description = "Maximum number of bytes in a topic backlog before compaction is triggered "
                                  + "(eg: 10M, 16G, 3T). 0 disables automatic compaction",
                    required = true)
-        private String threshold = "0";
+        private String thresholdStr = "0";
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            getAdmin().namespaces().setCompactionThreshold(namespace, validateSizeString(threshold));
+            long threshold;
+            try {
+                threshold = validateSizeString(thresholdStr);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException(String.format("Invalid threshold size '%s'. Valid formats are: %s",
+                        thresholdStr, "(4096, 100K, 10M, 16G, 2T)"));
+            }
+            getAdmin().namespaces().setCompactionThreshold(namespace, threshold);
         }
     }
 
@@ -1841,12 +1854,19 @@ public class CmdNamespaces extends CmdBase {
                                  + " Negative values disable automatic offload."
                                  + " 0 triggers offloading as soon as possible.",
                    required = true)
-        private String threshold = "-1";
+        private String thresholdStr = "-1";
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            getAdmin().namespaces().setOffloadThreshold(namespace, validateSizeString(threshold));
+            long threshold;
+            try {
+                threshold = validateSizeString(thresholdStr);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException(String.format("Invalid threshold size '%s'. Valid formats are: %s",
+                        thresholdStr, "(4096, 100K, 10M, 16G, 2T)"));
+            }
+            getAdmin().namespaces().setOffloadThreshold(namespace, threshold);
         }
     }
 
@@ -2201,7 +2221,13 @@ public class CmdNamespaces extends CmdBase {
 
             int maxBlockSizeInBytes = OffloadPoliciesImpl.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES;
             if (StringUtils.isNotEmpty(maxBlockSizeStr)) {
-                long maxBlockSize = validateSizeString(maxBlockSizeStr);
+                long maxBlockSize;
+                try {
+                    maxBlockSize = validateSizeString(maxBlockSizeStr);
+                } catch (IllegalArgumentException e) {
+                    throw new ParameterException(String.format("Invalid max block size '%s'. Valid formats are: %s",
+                            maxBlockSizeStr, "(4096, 100K, 10M, 16G, 2T)"));
+                }
                 if (positiveCheck("MaxBlockSize", maxBlockSize)
                         && maxValueCheck("MaxBlockSize", maxBlockSize, Integer.MAX_VALUE)) {
                     maxBlockSizeInBytes = new Long(maxBlockSize).intValue();
@@ -2210,7 +2236,13 @@ public class CmdNamespaces extends CmdBase {
 
             int readBufferSizeInBytes = OffloadPoliciesImpl.DEFAULT_READ_BUFFER_SIZE_IN_BYTES;
             if (StringUtils.isNotEmpty(readBufferSizeStr) ) {
-                long readBufferSize = validateSizeString(readBufferSizeStr);
+                long readBufferSize;
+                try {
+                    readBufferSize = validateSizeString(readBufferSizeStr);
+                } catch (IllegalArgumentException e) {
+                    throw new ParameterException(String.format("Invalid read buffer size '%s'. Valid formats are: %s",
+                            readBufferSizeStr, "(4096, 100K, 10M, 16G, 2T)"));
+                }
                 if (positiveCheck("ReadBufferSize", readBufferSize)
                         && maxValueCheck("ReadBufferSize", readBufferSize, Integer.MAX_VALUE)) {
                     readBufferSizeInBytes = new Long(readBufferSize).intValue();
@@ -2234,7 +2266,13 @@ public class CmdNamespaces extends CmdBase {
 
             Long offloadAfterThresholdInBytes = OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
             if (StringUtils.isNotEmpty(offloadAfterThresholdStr)) {
-                long offloadAfterThreshold = validateSizeString(offloadAfterThresholdStr);
+                long offloadAfterThreshold ;
+                try {
+                    offloadAfterThreshold = validateSizeString(offloadAfterThresholdStr);
+                } catch (IllegalArgumentException e) {
+                    throw new ParameterException(String.format("Invalid threshold size '%s'. Valid formats are: %s",
+                            offloadAfterThresholdStr, "(4096, 100K, 10M, 16G, 2T)"));
+                }
                 if (positiveCheck("OffloadAfterThreshold", offloadAfterThreshold)
                         && maxValueCheck("OffloadAfterThreshold", offloadAfterThreshold, Long.MAX_VALUE)) {
                     offloadAfterThresholdInBytes = offloadAfterThreshold;
