@@ -137,7 +137,6 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
             ReferenceCountUtil.release(data);
             cb.addFailed(e, ctx);
             ml.mbean.recordAddEntryError();
-            this.recycle();
         }
     }
 
