@@ -730,7 +730,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
     }
 
     private static final Summary selectBrokerForAssignment = Summary.build(
-            "pulsar_broker_load_manager_bundle_assignment", "-")
+            "pulsar_broker_load_manager_bundle_assigment", "-")
             .quantile(0.50)
             .quantile(0.99)
             .quantile(0.999)
