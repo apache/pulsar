@@ -18,9 +18,12 @@
  */
 package org.apache.pulsar.broker.service.plugin;
 
+import java.io.IOException;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.common.nar.NarClassLoader;
 
+@Slf4j
 public class EntryFilterWithClassLoader implements EntryFilter {
     private final EntryFilter entryFilter;
     private final NarClassLoader classLoader;
@@ -33,5 +36,15 @@ public class EntryFilterWithClassLoader implements EntryFilter {
     @Override
     public FilterResult filterEntry(Entry entry, FilterContext context) {
         return entryFilter.filterEntry(entry, context);
+    }
+
+    @Override
+    public void close() {
+        entryFilter.close();
+        try {
+            classLoader.close();
+        } catch (IOException e) {
+            log.error("close EntryFilterWithClassLoader failed", e);
+        }
     }
 }

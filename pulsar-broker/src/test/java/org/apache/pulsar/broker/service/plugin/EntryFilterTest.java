@@ -40,4 +40,9 @@ public class EntryFilterTest implements EntryFilter {
         }
         return null;
     }
+
+    @Override
+    public void close() {
+
+    }
 }

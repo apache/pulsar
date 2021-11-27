@@ -30,7 +30,6 @@ import java.util.Collections;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
@@ -125,12 +124,12 @@ public class EntryFilterProvider {
         NarClassLoader ncl = NarClassLoader.getFromArchive(
                 metadata.getArchivePath().toAbsolutePath().toFile(),
                 Collections.emptySet(),
-                BrokerInterceptor.class.getClassLoader(), narExtractionDirectory);
+                EntryFilter.class.getClassLoader(), narExtractionDirectory);
 
         EntryFilterDefinition def = getEntryFilterDefinition(ncl);
         if (StringUtils.isBlank(def.getEntryFilterClass())) {
-            throw new IOException("Entry filters `" + def.getName() + "` does NOT provide a broker"
-                    + " interceptors implementation");
+            throw new IOException("Entry filters `" + def.getName() + "` does NOT provide a entry"
+                    + " filters implementation");
         }
 
         try {
@@ -142,8 +141,12 @@ public class EntryFilterProvider {
             }
             EntryFilter pi = (EntryFilter) filter;
             return new EntryFilterWithClassLoader(pi, ncl);
-        } catch (Throwable t) {
-            return null;
+        } catch (Exception e) {
+            if (e instanceof IOException) {
+                throw (IOException) e;
+            }
+            log.error("Failed to load class {}", def.getEntryFilterClass(), e);
+            throw new IOException(e);
         }
     }
 }

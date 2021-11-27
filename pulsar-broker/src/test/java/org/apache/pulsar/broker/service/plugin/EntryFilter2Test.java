@@ -43,4 +43,9 @@ public class EntryFilter2Test implements EntryFilter {
         }
         return FilterResult.REJECT;
     }
+
+    @Override
+    public void close() {
+
+    }
 }

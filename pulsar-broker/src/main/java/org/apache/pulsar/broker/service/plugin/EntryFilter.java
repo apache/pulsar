@@ -32,6 +32,11 @@ public interface EntryFilter {
      */
     FilterResult filterEntry(Entry entry, FilterContext context);
 
+    /**
+     * close the entry filter.
+     */
+    void close();
+
 
     enum FilterResult {
         /**
