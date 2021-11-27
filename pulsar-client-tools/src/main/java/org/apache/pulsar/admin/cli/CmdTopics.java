@@ -1142,14 +1142,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-
-            long sizeThreshold;
-            try {
-                sizeThreshold = validateSizeString(sizeThresholdStr);
-            } catch (IllegalArgumentException e) {
-                throw new ParameterException(String.format("Invalid size threshold '%s'. Valid formats are: %s",
-                        sizeThresholdStr, "(4096, 100K, 10M, 16G, 2T)"));
-            }
+            long sizeThreshold = validateSizeString(sizeThresholdStr);
 
             PersistentTopicInternalStats stats = getTopics().getInternalStats(persistentTopic, false);
             if (stats.ledgers.size() < 1) {
@@ -1270,12 +1263,7 @@ public class CmdTopics extends CmdBase {
                         policyStr, Arrays.toString(BacklogQuota.RetentionPolicy.values())));
             }
 
-            try {
-                limit = validateSizeString(limitStr);
-            } catch (IllegalArgumentException e) {
-                throw new ParameterException(String.format("Invalid size limit '%s'. Valid formats are: %s",
-                        limitStr, "(4096, 100K, 10M, 16G, 2T)"));
-            }
+            limit = validateSizeString(limitStr);
 
             try {
                 backlogQuotaType = BacklogQuota.BacklogQuotaType.valueOf(backlogQuotaTypeStr);
@@ -1542,14 +1530,8 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            long sizeLimit;
+            long sizeLimit = validateSizeString(limitStr);
             long retentionTimeInSec;
-            try {
-                sizeLimit = validateSizeString(limitStr);
-            } catch (IllegalArgumentException e) {
-                throw new ParameterException(String.format("Invalid retention size limit '%s'. Valid formats are: %s",
-                        limitStr, "(4096, 100K, 10M, 16G, 2T)"));
-            }
             try {
                 retentionTimeInSec = RelativeTimeUtil.parseRelativeTimeInSeconds(retentionTimeStr);
             } catch (IllegalArgumentException exception) {
@@ -2040,13 +2022,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            long threshold;
-            try {
-                threshold = validateSizeString(thresholdStr);
-            } catch (IllegalArgumentException e) {
-                throw new ParameterException(String.format("Invalid threshold '%s'. Valid formats are: %s",
-                        thresholdStr, "(4096, 100K, 10M, 16G, 2T)"));
-            }
+            long threshold = validateSizeString(thresholdStr);
             getTopics().setCompactionThreshold(persistentTopic, threshold);
         }
     }
