@@ -41,7 +41,6 @@
       <groupId>ru.yandex.clickhouse</groupId>
       <artifactId>clickhouse-jdbc</artifactId>
       <version>${clickhouse-jdbc.version}</version>
-      <scope>runtime</scope>
     </dependency>
   </dependencies>
 

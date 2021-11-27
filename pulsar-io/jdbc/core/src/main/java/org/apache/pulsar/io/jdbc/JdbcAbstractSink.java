@@ -32,6 +32,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
@@ -43,13 +44,13 @@ import org.apache.pulsar.io.core.SinkContext;
 @Slf4j
 public abstract class JdbcAbstractSink<T> implements Sink<T> {
     // ----- Runtime fields
-    private JdbcSinkConfig jdbcSinkConfig;
+    protected JdbcSinkConfig jdbcSinkConfig;
     @Getter
-    private Connection connection;
-    private String jdbcUrl;
-    private String tableName;
+    protected Connection connection;
+    protected String jdbcUrl;
+    protected String tableName;
 
-    private JdbcUtils.TableId tableId;
+    protected JdbcUtils.TableId tableId;
     private PreparedStatement insertStatement;
     private PreparedStatement updateStatement;
     private PreparedStatement deleteStatement;
@@ -63,11 +64,11 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
     protected JdbcUtils.TableDefinition tableDefinition;
 
     // for flush
-    private List<Record<T>> incomingList;
-    private List<Record<T>> swapList;
-    private AtomicBoolean isFlushing;
-    private int batchSize;
-    private ScheduledExecutorService flushExecutor;
+    protected List<Record<T>> incomingList;
+    protected List<Record<T>> swapList;
+    protected AtomicBoolean isFlushing;
+    protected int batchSize;
+    protected ScheduledExecutorService flushExecutor;
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
@@ -109,7 +110,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
         flushExecutor.scheduleAtFixedRate(this::flush, timeoutMs, timeoutMs, TimeUnit.MILLISECONDS);
     }
 
-    private void initStatement()  throws Exception {
+    protected void initStatement()  throws Exception {
         List<String> keyList = Lists.newArrayList();
         String key = jdbcSinkConfig.getKey();
         if (key !=null && !key.isEmpty()) {
@@ -160,7 +161,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
         PreparedStatement statement,
         Record<T> message, String action) throws Exception;
 
-    private void flush() {
+    protected void flush() {
         // if not in flushing state, do flush, else return;
         if (incomingList.size() > 0 && isFlushing.compareAndSet(false, true)) {
             if (log.isDebugEnabled()) {
