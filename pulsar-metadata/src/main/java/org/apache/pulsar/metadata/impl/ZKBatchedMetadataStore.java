@@ -126,10 +126,10 @@ public class ZKBatchedMetadataStore extends ZKMetadataStore implements AsyncCall
                     OpResult.ErrorResult errorResult = (OpResult.ErrorResult) opResult;
                     if (metadataOp.getType() == MetadataOp.TYPE_GET_DATA) {
                         super.processGetResult(errorResult.getErr(), metadataOp.getPath(),
-                                metadataOp.getFuture(), null, null);
+                                metadataOp, null, null);
                     } else if (metadataOp.getType() == MetadataOp.TYPE_GET_CHILDREN) {
                         super.processGetChildrenResult(errorResult.getErr(), metadataOp.getPath(),
-                                metadataOp.getFuture(), null);
+                                metadataOp, null);
                     } else {
                         log.error("Error Op type error, code:{}, op.type={}", errorResult.getErr(),
                                 metadataOp.getType());
