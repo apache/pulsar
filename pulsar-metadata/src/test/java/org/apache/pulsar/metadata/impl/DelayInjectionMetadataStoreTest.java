@@ -21,6 +21,7 @@ package org.apache.pulsar.metadata.impl;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -62,8 +63,8 @@ public class DelayInjectionMetadataStoreTest {
 
         long start = System.currentTimeMillis();
         CompletableFuture<Optional<GetResult>> getFuture = store.get("/data");
-        Thread.sleep(1000);
-        delay.complete(null); //delay finish.
+        //make get delay complete after 1s.
+        store.getScheduler().schedule(()->{delay.complete(null);}, 1000, TimeUnit.MILLISECONDS);
         Assert.assertEquals(getFuture.get().get().getValue(), data);
         Assert.assertTrue(System.currentTimeMillis() - start >= 1000);
 

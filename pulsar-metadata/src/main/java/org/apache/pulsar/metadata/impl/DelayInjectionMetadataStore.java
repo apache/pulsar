@@ -83,6 +83,9 @@ public class DelayInjectionMetadataStore implements MetadataStoreExtended {
                 new DefaultThreadFactory("metadata-store-delay-injection"));
     }
 
+    public ScheduledExecutorService getScheduler() {
+        return scheduler;
+    }
 
     private CompletableFuture<Void> getRandomDelayStage() {
         CompletableFuture<Void> future = new CompletableFuture<>();
@@ -234,12 +237,12 @@ public class DelayInjectionMetadataStore implements MetadataStoreExtended {
     }
 
     private Optional<CompletableFuture<Void>> programmedDelays(OperationType op, String path) {
-        Optional<Delay> failure = delays.stream()
+        Optional<Delay> delay = delays.stream()
                 .filter(f -> f.predicate.test(op, path))
                 .findFirst();
-
-        failure.ifPresent(delays::remove);
-
-        return failure.map(Delay::getDelay);
+        if (delay.isPresent() && delays.remove(delay.get())) {
+            return delay.map(Delay::getDelay);
+        }
+        return Optional.empty();
     }
 }
