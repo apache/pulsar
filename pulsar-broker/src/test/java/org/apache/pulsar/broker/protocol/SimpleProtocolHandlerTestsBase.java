@@ -54,7 +54,7 @@ import static org.testng.Assert.assertEquals;
 
 @Slf4j
 @Test(groups = "broker")
-public class SimpleProtocolHandlerTest extends BrokerTestBase {
+public abstract class SimpleProtocolHandlerTestsBase extends BrokerTestBase {
 
     public static final class MyProtocolHandler implements ProtocolHandler {
 
@@ -117,11 +117,17 @@ public class SimpleProtocolHandlerTest extends BrokerTestBase {
     }
 
     private File tempDirectory;
+    private boolean useSeparateThreadPool;
+
+    public SimpleProtocolHandlerTestsBase(boolean useSeparateThreadPool) {
+        this.useSeparateThreadPool = useSeparateThreadPool;
+    }
 
     @BeforeClass
     @Override
     protected void setup() throws Exception {
         tempDirectory = Files.createTempDirectory("SimpleProtocolHandlerTest").toFile();
+        conf.setUseSeparateThreadPoolForProtocolHandlers(useSeparateThreadPool);
         conf.setProtocolHandlerDirectory(tempDirectory.getAbsolutePath());
         conf.setMessagingProtocols(Collections.singleton("test"));
         buildMockNarFile(tempDirectory);

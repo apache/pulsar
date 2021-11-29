@@ -54,7 +54,7 @@ import static org.testng.Assert.assertEquals;
 
 @Slf4j
 @Test(groups = "proxy")
-public class SimpleProxyExtensionTest extends MockedPulsarServiceBaseTest {
+public abstract class SimpleProxyExtensionTestBase extends MockedPulsarServiceBaseTest {
 
     public static final class MyProxyExtension implements ProxyExtension {
 
@@ -112,7 +112,12 @@ public class SimpleProxyExtensionTest extends MockedPulsarServiceBaseTest {
 
     private File tempDirectory;
     private ProxyService proxyService;
+    private boolean useSeparateThreadPoolForProxyExtensions;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
+
+    public SimpleProxyExtensionTestBase(boolean useSeparateThreadPoolForProxyExtensions) {
+        this.useSeparateThreadPoolForProxyExtensions = useSeparateThreadPoolForProxyExtensions;
+    }
 
     @BeforeClass
     @Override
@@ -120,6 +125,7 @@ public class SimpleProxyExtensionTest extends MockedPulsarServiceBaseTest {
         tempDirectory = Files.createTempDirectory("SimpleProxyExtensionTest").toFile();
 
         super.internalSetup();
+        proxyConfig.setUseSeparateThreadPoolForProxyExtensions(useSeparateThreadPoolForProxyExtensions);
         proxyConfig.setProxyExtensionsDirectory(tempDirectory.getAbsolutePath());
         proxyConfig.setProxyExtensions(Collections.singleton("test"));
         buildMockNarFile(tempDirectory);
