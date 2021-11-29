@@ -32,7 +32,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
@@ -83,17 +82,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
     @Override
     public List<String> getFunctions(String tenant, String namespace) throws PulsarAdminException {
-        try {
-            return getFunctionsAsync(tenant, namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            handlePulsarAdminException(e);
-            throw new PulsarAdminException(e.getCause());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getFunctionsAsync(tenant, namespace));
     }
 
     @Override
@@ -122,17 +111,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
     @Override
     public FunctionConfig getFunction(String tenant, String namespace, String function) throws PulsarAdminException {
-        try {
-            return getFunctionAsync(tenant, namespace, function).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            handlePulsarAdminException(e);
-            throw new PulsarAdminException(e.getCause());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getFunctionAsync(tenant, namespace, function));
     }
 
     @Override
@@ -161,17 +140,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     @Override
     public FunctionStatus getFunctionStatus(
             String tenant, String namespace, String function) throws PulsarAdminException {
-        try {
-            return getFunctionStatusAsync(tenant, namespace, function).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            handlePulsarAdminException(e);
-            throw new PulsarAdminException(e.getCause());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getFunctionStatusAsync(tenant, namespace, function));
     }
 
     @Override
@@ -200,18 +169,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     @Override
     public FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData getFunctionStatus(
             String tenant, String namespace, String function, int id) throws PulsarAdminException {
-        try {
-            return getFunctionStatusAsync(tenant, namespace, function, id)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            handlePulsarAdminException(e);
-            throw new PulsarAdminException(e.getCause());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getFunctionStatusAsync(tenant, namespace, function, id));
     }
 
     @Override
@@ -244,18 +202,8 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     @Override
     public FunctionInstanceStatsData getFunctionStats(
             String tenant, String namespace, String function, int id) throws PulsarAdminException {
-        try {
-            return getFunctionStatsAsync(tenant, namespace, function, id)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            handlePulsarAdminException(e);
-            throw new PulsarAdminException(e.getCause());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getFunctionStatsAsync(tenant, namespace, function, id)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS););
     }
 
     @Override
@@ -286,17 +234,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     @Override
     public FunctionStats getFunctionStats(String tenant, String namespace, String function)
             throws PulsarAdminException {
-        try {
-            return getFunctionStatsAsync(tenant, namespace, function).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            handlePulsarAdminException(e);
-            throw new PulsarAdminException(e.getCause());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getFunctionStatsAsync(tenant, namespace, function));
     }
 
     @Override
@@ -325,17 +263,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
     @Override
     public void createFunction(FunctionConfig functionConfig, String fileName) throws PulsarAdminException {
-        try {
-            createFunctionAsync(functionConfig, fileName).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            handlePulsarAdminException(e);
-            throw new PulsarAdminException(e.getCause());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> createFunctionAsync(functionConfig, fileName));
     }
 
     @Override
@@ -378,17 +306,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
     @Override
     public void createFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl) throws PulsarAdminException {
-        try {
-            createFunctionWithUrlAsync(functionConfig, pkgUrl).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            handlePulsarAdminException(e);
-            throw new PulsarAdminException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> createFunctionWithUrlAsync(functionConfig, pkgUrl));
     }
 
     @Override
@@ -406,17 +324,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
     @Override
     public void deleteFunction(String cluster, String namespace, String function) throws PulsarAdminException {
-        try {
-            deleteFunctionAsync(cluster, namespace, function).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            handlePulsarAdminException(e);
-            throw new PulsarAdminException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> deleteFunctionAsync(cluster, namespace, function));
     }
 
     @Override
@@ -438,18 +346,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     @Override
     public void updateFunction(FunctionConfig functionConfig, String fileName, UpdateOptions updateOptions)
             throws PulsarAdminException {
-        try {
-            updateFunctionAsync(functionConfig, fileName, updateOptions)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            handlePulsarAdminException(e);
-            throw new PulsarAdminException(e.getCause());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> updateFunctionAsync(functionConfig, fileName, updateOptions));
     }
 
     @Override
@@ -502,18 +399,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     public void updateFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl,
                                       UpdateOptions updateOptions)
             throws PulsarAdminException {
-        try {
-            updateFunctionWithUrlAsync(functionConfig, pkgUrl, updateOptions)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            handlePulsarAdminException(e);
-            throw new PulsarAdminException(e.getCause());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> updateFunctionWithUrlAsync(functionConfig, pkgUrl, updateOptions));
     }
 
     @Override
@@ -557,24 +443,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     public String triggerFunction(
             String tenant, String namespace, String functionName,
             String topic, String triggerValue, String triggerFile) throws PulsarAdminException {
-        try {
-            return triggerFunctionAsync(tenant, namespace, functionName, topic, triggerValue, triggerFile)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            handlePulsarAdminException(e);
-            throw new PulsarAdminException(e.getCause());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
-    }
-
-    private void handlePulsarAdminException(ExecutionException e) throws PulsarAdminException {
-        if (e.getCause() instanceof PulsarAdminException) {
-            throw (PulsarAdminException) e.getCause();
-        }
+        return sync(() -> triggerFunctionAsync(tenant, namespace, functionName, topic, triggerValue, triggerFile));
     }
 
     @Override
@@ -620,18 +489,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     @Override
     public void restartFunction(String tenant, String namespace, String functionName, int instanceId)
             throws PulsarAdminException {
-        try {
-            restartFunctionAsync(tenant, namespace, functionName, instanceId)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            handlePulsarAdminException(e);
-            throw new PulsarAdminException(e.getCause());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> restartFunctionAsync(tenant, namespace, functionName, instanceId));
     }
 
     @Override
@@ -644,18 +502,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
     @Override
     public void restartFunction(String tenant, String namespace, String functionName) throws PulsarAdminException {
-        try {
-            restartFunctionAsync(tenant, namespace, functionName)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            handlePulsarAdminException(e);
-            throw new PulsarAdminException(e.getCause());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> restartFunctionAsync(tenant, namespace, functionName));
     }
 
     @Override
@@ -667,18 +514,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     @Override
     public void stopFunction(String tenant, String namespace, String functionName, int instanceId)
             throws PulsarAdminException {
-        try {
-            stopFunctionAsync(tenant, namespace, functionName, instanceId)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            handlePulsarAdminException(e);
-            throw new PulsarAdminException(e.getCause());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> stopFunctionAsync(tenant, namespace, functionName, instanceId));
     }
 
     @Override
@@ -690,18 +526,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
     @Override
     public void stopFunction(String tenant, String namespace, String functionName) throws PulsarAdminException {
-        try {
-            stopFunctionAsync(tenant, namespace, functionName)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            handlePulsarAdminException(e);
-            throw new PulsarAdminException(e.getCause());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() ->  stopFunctionAsync(tenant, namespace, functionName));
     }
 
     @Override
@@ -713,18 +538,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     @Override
     public void startFunction(String tenant, String namespace, String functionName, int instanceId)
             throws PulsarAdminException {
-        try {
-            startFunctionAsync(tenant, namespace, functionName, instanceId)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            handlePulsarAdminException(e);
-            throw new PulsarAdminException(e.getCause());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> startFunctionAsync(tenant, namespace, functionName, instanceId));
     }
 
     @Override
@@ -737,18 +551,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
     @Override
     public void startFunction(String tenant, String namespace, String functionName) throws PulsarAdminException {
-        try {
-            startFunctionAsync(tenant, namespace, functionName)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            handlePulsarAdminException(e);
-            throw new PulsarAdminException(e.getCause());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> startFunctionAsync(tenant, namespace, functionName));
     }
 
     @Override
@@ -759,17 +562,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
     @Override
     public void uploadFunction(String sourceFile, String path) throws PulsarAdminException {
-        try {
-            uploadFunctionAsync(sourceFile, path).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            handlePulsarAdminException(e);
-            throw new PulsarAdminException(e.getCause());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> uploadFunctionAsync(sourceFile, path));
     }
 
     @Override
@@ -826,17 +619,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     }
 
     private void downloadFile(String destinationPath, WebTarget target) throws PulsarAdminException {
-        try {
-            downloadFileAsync(destinationPath, target).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            handlePulsarAdminException(e);
-            throw new PulsarAdminException(e.getCause());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> downloadFileAsync(destinationPath, target));
     }
 
     private CompletableFuture<Void> downloadFileAsync(String destinationPath, WebTarget target) {
@@ -955,18 +738,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     @Override
     public FunctionState getFunctionState(String tenant, String namespace, String function, String key)
         throws PulsarAdminException {
-        try {
-            return getFunctionStateAsync(tenant, namespace, function, key)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            handlePulsarAdminException(e);
-            throw new PulsarAdminException(e.getCause());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getFunctionStateAsync(tenant, namespace, function, key));
     }
 
     @Override
@@ -996,17 +768,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     @Override
     public void putFunctionState(String tenant, String namespace, String function, FunctionState state)
             throws PulsarAdminException {
-        try {
-            putFunctionStateAsync(tenant, namespace, function, state).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            handlePulsarAdminException(e);
-            throw new PulsarAdminException(e.getCause());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> putFunctionStateAsync(tenant, namespace, function, state));
     }
 
     @Override
@@ -1044,18 +806,8 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     public void updateOnWorkerLeader(String tenant, String namespace,
                                      String function, byte[] functionMetaData,
                                      boolean delete) throws PulsarAdminException {
-        try {
-            updateOnWorkerLeaderAsync(tenant, namespace, function,
-                    functionMetaData, delete).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            handlePulsarAdminException(e);
-            throw new PulsarAdminException(e.getCause());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> updateOnWorkerLeaderAsync(tenant, namespace, function,
+                    functionMetaData, delete));
     }
 
     public CompletableFuture<Void> updateOnWorkerLeaderAsync(String tenant, String namespace,

@@ -81,16 +81,7 @@ public class LookupImpl extends BaseResource implements Lookup {
 
     @Override
     public Map<String, String> lookupPartitionedTopic(String topic) throws PulsarAdminException {
-        try {
-            return lookupPartitionedTopicAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> lookupPartitionedTopicAsync(topic));
     }
 
     @Override
