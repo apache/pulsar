@@ -237,12 +237,16 @@ public class DelayInjectionMetadataStore implements MetadataStoreExtended {
     }
 
     private Optional<CompletableFuture<Void>> programmedDelays(OperationType op, String path) {
-        Optional<Delay> delay = delays.stream()
-                .filter(f -> f.predicate.test(op, path))
-                .findFirst();
-        if (delay.isPresent() && delays.remove(delay.get())) {
-            return delay.map(Delay::getDelay);
+        while (true) {
+            Optional<Delay> delay = delays.stream().filter(f -> f.predicate.test(op, path)).findFirst();
+            if (delay.isPresent()) {
+                if (delays.remove(delay.get())) {
+                    return delay.map(Delay::getDelay);
+                }
+                // delay is taken by other threads. Retry.
+            } else {
+                return Optional.empty();
+            }
         }
-        return Optional.empty();
     }
 }
