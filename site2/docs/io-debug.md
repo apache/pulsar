@@ -49,7 +49,7 @@ Start the Mongo sink in localrun mode using the `localrun` command.
 > For more information about the `localrun` command, see [`localrun`](reference-connector-admin.md/#localrun-1).
 ```bash
 ./bin/pulsar-admin sinks localrun \
---archive pulsar-io-mongo-{{pulsar:version}} \ 
+--archive connectors/pulsar-io-mongo-{{pulsar:version}}.nar \ 
 --tenant public --namespace default \
 --inputs test-mongo \
 --name pulsar-mongo-sink \
