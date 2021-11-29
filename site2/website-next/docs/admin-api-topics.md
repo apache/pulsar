@@ -1175,7 +1175,7 @@ admin.topics().getLastMessage(topic);
 
 ### Get backlog size
 
-You can get backlog size of a single topic partition or a nonpartitioned topic given a message ID (in bytes).
+You can get the backlog size of a single partition topic or a non-partitioned topic with a given message ID (in bytes).
 
 <Tabs
 defaultValue="pulsar-admin"
