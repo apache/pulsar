@@ -154,7 +154,7 @@ public class RuntimeUtils {
             goInstanceConfig.setAutoAck(instanceConfig.getFunctionDetails().getAutoAck());
         }
 
-        if (instanceConfig.getFunctionDetails().getRuntime() != null) {
+        if (instanceConfig.getFunctionDetails().getRuntime() != 0) {
             goInstanceConfig.setRuntime(instanceConfig.getFunctionDetails().setRuntime());
         }
 
