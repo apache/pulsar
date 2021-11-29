@@ -20,7 +20,7 @@
     <homepage rdf:resource="https://pulsar.apache.org/" />
     <asfext:pmc rdf:resource="https://pulsar.apache.org" />
     <shortdesc>A distributed pub-sub messaging system.</shortdesc>
-    <description>Pulsar is a distributed pub-sub messaging platform with a very flexible messaging model and an intuitive client API..</description>
+    <description>Pulsar is a distributed pub-sub messaging platform with a very flexible messaging model and an intuitive client API.</description>
     <bug-database rdf:resource="https://github.com/apache/pulsar/issues" />
     <mailing-list rdf:resource="https://pulsar.apache.org/en/contact/" />
     <download-page rdf:resource="http://pulsar.apache.org/en/download/" />
