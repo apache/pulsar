@@ -1313,8 +1313,12 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         final String managedLedgersPath = "/managed-ledgers/" + tenant;
         final String bundleDataPath = "/loadbalance/bundle-data/" + tenant;
+        final String partitionedTopicPath = "/admin/partitioned-topics/" + tenant;
+        final String localPoliciesPath = "/admin/local-policies/" + tenant;
         assertFalse(pulsar.getLocalMetadataStore().exists(managedLedgersPath).join());
         assertFalse(pulsar.getLocalMetadataStore().exists(bundleDataPath).join());
+        assertFalse(pulsar.getLocalMetadataStore().exists(partitionedTopicPath).join());
+        assertFalse(pulsar.getLocalMetadataStore().exists(localPoliciesPath).join());
     }
 
     @Test
