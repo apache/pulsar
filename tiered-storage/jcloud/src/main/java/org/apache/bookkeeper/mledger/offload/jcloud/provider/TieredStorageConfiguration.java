@@ -71,6 +71,7 @@ public class TieredStorageConfiguration {
     public static final long DEFAULT_MIN_SEGMENT_TIME_IN_SECOND = 0;
     public static final String MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES = "maxOffloadSegmentSizeInBytes";
     public static final long DEFAULT_MAX_SEGMENT_SIZE_IN_BYTES = 1024 * 1024 * 1024;
+    public static final long DEFAULT_REFRESH_STATS_INTERVAL = 60L;
 
     protected static final int MB = 1024 * 1024;
 

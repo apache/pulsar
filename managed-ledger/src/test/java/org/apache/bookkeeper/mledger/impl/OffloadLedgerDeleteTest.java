@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.bookkeeper.mledger.LedgerOffloaderMXBean;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
@@ -84,6 +85,11 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
                 OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES,
                 OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS,
                 OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY);
+
+        @Override
+        public LedgerOffloaderMXBean getStats() {
+            return null;
+        }
 
         @Override
         public String getOffloadDriverName() {

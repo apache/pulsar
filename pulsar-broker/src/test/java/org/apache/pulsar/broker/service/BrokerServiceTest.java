@@ -90,6 +90,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
@@ -1241,9 +1242,43 @@ public class BrokerServiceTest extends BrokerTestBase {
         BufferedReader reader = new BufferedReader(isReader);
         StringBuffer sb = new StringBuffer();
         String str;
-        while((str = reader.readLine()) != null){
+        while ((str = reader.readLine()) != null) {
             sb.append(str);
         }
+        System.out.println(sb.toString());
+        Assert.assertTrue(sb.toString().contains("test_metrics"));
+    }
+
+    @Test
+    public void testTieredStorageMetrics() throws IOException, PulsarAdminException {
+        final String tenant = "public";
+        final String namespace = "public/default";
+        final String topic = "persistent://" + namespace + "/tiered-storage";
+        Set<String> allowedClusters = new HashSet<>();
+        allowedClusters.add("test");
+        admin.tenants().createTenant(tenant, TenantInfo.builder().allowedClusters(allowedClusters).build());
+        admin.namespaces().createNamespace(namespace, 4);
+        try {
+            Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+            producer.close();
+        } catch (Exception e) {
+            fail(e.getMessage());
+        }
+
+        PrometheusRawMetricsProvider rawMetricsProvider = stream -> stream.write("test_metrics{label1=\"xyz\"} 10 \n");
+        getPulsar().addPrometheusRawMetricsProvider(rawMetricsProvider);
+        HttpClient httpClient = HttpClientBuilder.create().build();
+        final String metricsEndPoint = getPulsar().getWebServiceAddress() + "/metrics";
+        HttpResponse response = httpClient.execute(new HttpGet(metricsEndPoint));
+        InputStream inputStream = response.getEntity().getContent();
+        InputStreamReader isReader = new InputStreamReader(inputStream);
+        BufferedReader reader = new BufferedReader(isReader);
+        StringBuffer sb = new StringBuffer();
+        String str;
+        while ((str = reader.readLine()) != null) {
+            sb.append(str);
+        }
+        System.out.println(sb.toString());
         Assert.assertTrue(sb.toString().contains("test_metrics"));
     }
 

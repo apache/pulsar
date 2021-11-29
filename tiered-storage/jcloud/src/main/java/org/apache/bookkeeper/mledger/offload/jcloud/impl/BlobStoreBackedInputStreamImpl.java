@@ -21,6 +21,8 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.concurrent.TimeUnit;
+import org.apache.bookkeeper.mledger.impl.LedgerOffloaderMXBeanImpl;
 import org.apache.bookkeeper.mledger.offload.jcloud.BackedInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.DataBlockUtils.VersionCheck;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -40,6 +42,8 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
     private final ByteBuf buffer;
     private final long objectLen;
     private final int bufferSize;
+    private LedgerOffloaderMXBeanImpl mbean;
+    private String managedLedgerName;
 
     private long cursor;
     private long bufferOffsetStart;
@@ -59,6 +63,15 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
         this.bufferOffsetStart = this.bufferOffsetEnd = -1;
     }
 
+    public BlobStoreBackedInputStreamImpl(BlobStore blobStore, String bucket, String key,
+                                          VersionCheck versionCheck,
+                                          long objectLen, int bufferSize,
+                                          LedgerOffloaderMXBeanImpl mbean, String managedLedgerName) {
+        this(blobStore, bucket, key, versionCheck, objectLen, bufferSize);
+        this.mbean = mbean;
+        this.managedLedgerName = managedLedgerName;
+    }
+
     /**
      * Refill the buffered input if it is empty.
      * @return true if there are bytes to read, false otherwise
@@ -73,7 +86,12 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
                                      objectLen - 1);
 
             try {
+                long startReadTime = System.nanoTime();
                 Blob blob = blobStore.getBlob(bucket, key, new GetOptions().range(startRange, endRange));
+                if (mbean != null) {
+                    mbean.recordReadOffloadDataLatency(managedLedgerName,
+                            System.nanoTime() - startReadTime, TimeUnit.NANOSECONDS);
+                }
                 versionCheck.check(key, blob);
 
                 try (InputStream stream = blob.getPayload().openStream()) {

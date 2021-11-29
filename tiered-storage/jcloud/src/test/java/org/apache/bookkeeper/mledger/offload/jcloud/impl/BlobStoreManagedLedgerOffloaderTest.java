@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.fail;
+import static org.testng.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -35,12 +36,15 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.bookkeeper.mledger.impl.LedgerOffloaderMXBeanImpl;
+import org.apache.bookkeeper.mledger.offload.jcloud.provider.BlobStoreLocation;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
 import org.jclouds.blobstore.BlobStore;
@@ -142,6 +146,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         }
     }
 
+
     @Test(timeOut = 60000)
     public void testReadHandlerState() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 3);
@@ -156,6 +161,42 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         toTest.read(0, 1);
         toTest.close();
         Assert.assertEquals(toTest.getState(), BlobStoreBackedReadHandleImpl.State.Closed);
+    }
+
+    @Test(timeOut = 600000)  // 10 minutes.
+    public void testOffloadAndReadMetrics() throws Exception {
+        ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 3);
+        LedgerOffloader offloader = getOffloader();
+
+        UUID uuid = UUID.randomUUID();
+
+        String topic = "test";
+        Map<String, String> extraMap = new HashMap<>();
+        extraMap.put("ManagedLedgerName", topic);
+        offloader.offload(toWrite, uuid, extraMap).get();
+        LedgerOffloaderMXBeanImpl mbean = (LedgerOffloaderMXBeanImpl)offloader.getStats();
+        mbean.refreshStats(5, TimeUnit.SECONDS);
+        assertTrue(mbean.getOffloadErrors().get(topic) == null);
+        assertTrue(mbean.getOffloadTimes().get(topic).getAverageValue() > 0);
+        assertTrue(mbean.getOffloadRates().get(topic).getRate() > 0 );
+        assertTrue(mbean.getReadLedgerLatencyBuckets().get(topic).getCount() > 0);
+        assertTrue(mbean.getWriteToStorageErrors().get(topic) == null);
+        assertTrue(mbean.getWriteToStorageLatencyBuckets().get(topic).getCount() > 0);
+
+        Map<String, String> map = new HashMap<>();
+        map.putAll(offloader.getOffloadDriverMetadata());
+        map.put("ManagedLedgerName", topic);
+        ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid, map).get();
+        LedgerEntries toTestEntries = toTest.read(0, toTest.getLastAddConfirmed());
+        Iterator<LedgerEntry> toTestIter = toTestEntries.iterator();
+        while (toTestIter.hasNext()) {
+            LedgerEntry toTestEntry = toTestIter.next();
+        }
+        mbean.refreshStats(5, TimeUnit.SECONDS);
+        assertTrue(mbean.getReadOffloadErrors().get(topic) == null);
+        assertTrue(mbean.getReadOffloadRates().get(topic).getRate() > 0);
+        assertTrue(mbean.getReadOffloadDataLatencyBuckets().get(topic).getCount() > 0);
+        assertTrue(mbean.getReadOffloadIndexLatencyBuckets().get(topic).getCount() > 0);
     }
 
     @Test

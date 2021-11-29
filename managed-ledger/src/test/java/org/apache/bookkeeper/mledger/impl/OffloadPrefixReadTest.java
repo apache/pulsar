@@ -52,6 +52,7 @@ import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.bookkeeper.mledger.LedgerOffloaderMXBean;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
@@ -248,6 +249,11 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         @Override
         public OffloadPoliciesImpl getOffloadPolicies() {
             return offloadPolicies;
+        }
+
+        @Override
+        public LedgerOffloaderMXBean getStats() {
+            return null;
         }
 
         @Override

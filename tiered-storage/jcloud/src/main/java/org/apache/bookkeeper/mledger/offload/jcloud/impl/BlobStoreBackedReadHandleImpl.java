@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
-
+import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -36,6 +36,7 @@ import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
+import org.apache.bookkeeper.mledger.impl.LedgerOffloaderMXBeanImpl;
 import org.apache.bookkeeper.mledger.offload.jcloud.BackedInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
@@ -54,6 +55,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     private final BackedInputStream inputStream;
     private final DataInputStream dataStream;
     private final ExecutorService executor;
+    private final LedgerOffloaderMXBeanImpl mbean;
+    private final String managedLedgerName;
 
     enum State {
         Opened,
@@ -63,14 +66,16 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     private State state = null;
 
     private BlobStoreBackedReadHandleImpl(long ledgerId, OffloadIndexBlock index,
-                                          BackedInputStream inputStream,
-                                          ExecutorService executor) {
+                                          BackedInputStream inputStream, ExecutorService executor,
+                                          LedgerOffloaderMXBeanImpl mbean, String managedLedgerName) {
         this.ledgerId = ledgerId;
         this.index = index;
         this.inputStream = inputStream;
         this.dataStream = new DataInputStream(inputStream);
         this.executor = executor;
         state = State.Opened;
+        this.mbean = mbean;
+        this.managedLedgerName = managedLedgerName;
     }
 
     @Override
@@ -145,6 +150,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                         }
                         entriesToRead--;
                         nextExpectedId++;
+                        mbean.recordReadOffloadRate(managedLedgerName, length);
                     } else if (entryId > nextExpectedId && entryId < lastEntry) {
                         log.warn("The read entry {} is not the expected entry {} but in the range of {} - {},"
                             + " seeking to the right position", entryId, nextExpectedId, nextExpectedId, lastEntry);
@@ -170,9 +176,9 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                         long ignore = inputStream.skip(length);
                     }
                 }
-
                 promise.complete(LedgerEntriesImpl.create(entries));
             } catch (Throwable t) {
+                mbean.recordReadOffloadError(managedLedgerName);
                 promise.completeExceptionally(t);
                 entries.forEach(LedgerEntry::close);
             }
@@ -222,7 +228,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     public static ReadHandle open(ScheduledExecutorService executor,
                                   BlobStore blobStore, String bucket, String key, String indexKey,
                                   VersionCheck versionCheck,
-                                  long ledgerId, int readBufferSize)
+                                  long ledgerId, int readBufferSize,
+                                  LedgerOffloaderMXBeanImpl mbean, String managedLedgerName)
             throws IOException {
         int retryCount = 3;
         OffloadIndexBlock index = null;
@@ -233,7 +240,10 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
         // If we use a backoff to control the retry, it will introduce a concurrent operation.
         // We don't want to make it complicated, because in the most of case it shouldn't in the retry loop.
         while (retryCount-- > 0) {
+            long readIndexStartTime = System.nanoTime();
             Blob blob = blobStore.getBlob(bucket, indexKey);
+            mbean.recordReadOffloadIndexLatency(managedLedgerName,
+                    System.nanoTime() - readIndexStartTime, TimeUnit.NANOSECONDS);
             versionCheck.check(indexKey, blob);
             OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create();
             try (InputStream payLoadStream = blob.getPayload().openStream()) {
@@ -255,9 +265,9 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
         BackedInputStream inputStream = new BlobStoreBackedInputStreamImpl(blobStore, bucket, key,
                 versionCheck,
                 index.getDataObjectLength(),
-                readBufferSize);
+                readBufferSize, mbean, managedLedgerName);
 
-        return new BlobStoreBackedReadHandleImpl(ledgerId, index, inputStream, executor);
+        return new BlobStoreBackedReadHandleImpl(ledgerId, index, inputStream, executor,  mbean, managedLedgerName);
     }
 
     // for testing

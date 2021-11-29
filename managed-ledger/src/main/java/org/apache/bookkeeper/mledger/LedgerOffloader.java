@@ -214,6 +214,13 @@ public interface LedgerOffloader {
     OffloadPoliciesImpl getOffloadPolicies();
 
     /**
+     * Get offload stats.
+     *
+     * @return the ledger offloader MBean
+     */
+    LedgerOffloaderMXBean getStats();
+
+    /**
      * Close the resources if necessary
      */
     void close();
