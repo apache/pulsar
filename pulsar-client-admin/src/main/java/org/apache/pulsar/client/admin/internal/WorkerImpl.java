@@ -21,6 +21,7 @@ package org.apache.pulsar.client.admin.internal;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
