@@ -22,9 +22,11 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Utils for loading configuration data.
@@ -58,6 +60,12 @@ public final class ConfigurationDataUtils {
                                  Class<T> dataCls) {
         ObjectMapper mapper = getThreadLocal();
         try {
+            Object topicNames = config.get("topicNames");
+            if (topicNames instanceof String) {
+                String[] split = ((String) topicNames).split(",");
+                Set<String> topicNamesSet = Sets.newHashSet(split);
+                config.put("topicNames", topicNamesSet);
+            }
             String existingConfigJson = mapper.writeValueAsString(existingData);
             Map<String, Object> existingConfig = mapper.readValue(existingConfigJson, Map.class);
             Map<String, Object> newConfig = Maps.newHashMap();
