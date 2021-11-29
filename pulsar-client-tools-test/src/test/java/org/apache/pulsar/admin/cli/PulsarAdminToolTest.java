@@ -30,7 +30,6 @@ import static org.testng.Assert.assertNull;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import java.io.File;
@@ -40,6 +39,7 @@ import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
@@ -1513,7 +1513,7 @@ public class PulsarAdminToolTest {
 
         Properties properties = new Properties();
         properties.put("authPlugin", AuthenticationTls.class.getName());
-        Map<String, String> paramMap = Maps.newHashMap();
+        Map<String, String> paramMap = new HashMap<>();
         final String certFilePath = "/my-file:role=name.cert";
         final String keyFilePath = "/my-file:role=name.key";
         paramMap.put("tlsCertFile", certFilePath);
