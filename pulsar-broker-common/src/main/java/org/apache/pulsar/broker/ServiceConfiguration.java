@@ -1895,6 +1895,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Option to override the auto-detected network interfaces max speed"
     )
     private Double loadBalancerOverrideBrokerNicSpeedGbps;
+    @FieldContext(
+        category = CATEGORY_LOAD_BALANCER,
+        doc = "Time to wait for the unloading of a namespace bundle"
+    )
+    private long namespaceBundleUnloadingTimeoutMs = 60000;
 
     /**** --- Replication --- ****/
     @FieldContext(
