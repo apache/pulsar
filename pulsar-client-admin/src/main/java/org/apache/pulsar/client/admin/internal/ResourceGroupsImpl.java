@@ -28,7 +28,6 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.ResourceGroups;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
-import org.apache.pulsar.common.util.RestException;
 
 
 public class ResourceGroupsImpl extends BaseResource implements ResourceGroups {
@@ -41,7 +40,7 @@ public class ResourceGroupsImpl extends BaseResource implements ResourceGroups {
 
     @Override
     public List<String> getResourceGroups() throws PulsarAdminException {
-        sync(() -> getResourceGroupsAsync());
+        return sync(() -> getResourceGroupsAsync());
     }
 
     @Override
