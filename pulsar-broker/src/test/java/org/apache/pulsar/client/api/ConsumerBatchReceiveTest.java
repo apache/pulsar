@@ -32,7 +32,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
-@Test(groups = "quarantine")
+@Test
 public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
 
     @BeforeClass(alwaysRun = true)

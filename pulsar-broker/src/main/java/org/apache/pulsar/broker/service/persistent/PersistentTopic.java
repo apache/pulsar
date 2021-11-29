@@ -73,6 +73,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.net.BookieId;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -302,6 +303,7 @@ public class PersistentTopic extends AbstractTopic
     @Override
     public CompletableFuture<Void> initialize() {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
+        futures.add(initTopicPolicy());
         for (ManagedCursor cursor : ledger.getCursors()) {
             if (cursor.getName().startsWith(replicatorPrefix)) {
                 String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
@@ -3109,7 +3111,9 @@ public class PersistentTopic extends AbstractTopic
         subscriptions.forEach((subName, sub) -> {
             sub.getConsumers().forEach(Consumer::checkPermissions);
             Dispatcher dispatcher = sub.getDispatcher();
-            dispatcher.updateRateLimiter(policies.getSubscriptionDispatchRate());
+            if (dispatcher != null) {
+                dispatcher.updateRateLimiter(policies.getSubscriptionDispatchRate());
+            }
         });
 
         if (policies.getPublishRate() != null) {
@@ -3173,6 +3177,17 @@ public class PersistentTopic extends AbstractTopic
         }
     }
 
+    protected CompletableFuture<Void> initTopicPolicy() {
+        if (brokerService.pulsar().getConfig().isSystemTopicEnabled()
+                && brokerService.pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
+            return CompletableFuture.completedFuture(null).thenRunAsync(() -> onUpdate(
+                            brokerService.getPulsar().getTopicPoliciesService()
+                                    .getTopicPoliciesIfExists(TopicName.getPartitionedTopicName(topic))),
+                    brokerService.getTopicOrderedExecutor());
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
     private void registerTopicPolicyListener() {
         if (brokerService.pulsar().getConfig().isSystemTopicEnabled()
                 && brokerService.pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
@@ -3218,7 +3233,7 @@ public class PersistentTopic extends AbstractTopic
                 if (topicPolicies == null) {
                     return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
                 } else {
-                    if (topicPolicies.getSubscriptionTypesEnabled().isEmpty()) {
+                    if (CollectionUtils.isEmpty(topicPolicies.getSubscriptionTypesEnabled())) {
                         return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
                     }
                     return topicPolicies.getSubscriptionTypesEnabled().contains(subType);

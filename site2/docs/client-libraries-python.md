@@ -409,7 +409,7 @@ You can load a schema definition from file by using [`avro.schema`]((http://avro
 
 If you use the "JSON definition" method to declare an `AvroSchema`, pay attention to the following points:
 
-- You need to use [Python dict](https://developers.google.com/edu/python/dict-files) to produce and consume messages, which is different from using the "Record" way.
+- You need to use [Python dict](https://developers.google.com/edu/python/dict-files) to produce and consume messages, which is different from using the "Record" method.
 
 - When generating an `AvroSchema` object, set `_record_cls` parameter to `None`.
 
