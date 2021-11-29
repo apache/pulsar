@@ -325,6 +325,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long topicLoadTimeoutSeconds = 60;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Configuration file path for local metadata store. It's supported by RocksdbMetadataStore for now."
+    )
+    private String metadataStoreConfigPath = null;
+
+    @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Enable backlog quota check. Enforces actions on topic when the quota is reached"
     )
