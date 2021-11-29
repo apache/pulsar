@@ -673,6 +673,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.tenants().updateTenant("prop-xyz", newTenantAdmin);
 
         assertEquals(admin.tenants().getTenantInfo("prop-xyz"), newTenantAdmin);
+        try {
+            admin.tenants().deleteTenant("prop-xyz");
+            fail("should have failed");
+        } catch (PulsarAdminException e) {
+            assertTrue(e instanceof ConflictException);
+            assertEquals(e.getStatusCode(), 409);
+            assertEquals(e.getMessage(), "The tenant still has active namespaces");
+        }
 
         admin.namespaces().deleteNamespace("prop-xyz/ns1");
         admin.tenants().deleteTenant("prop-xyz");

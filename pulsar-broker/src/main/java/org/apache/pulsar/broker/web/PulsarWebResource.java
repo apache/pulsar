@@ -955,7 +955,7 @@ public abstract class PulsarWebResource {
                             }
                             if (children != null && !children.isEmpty()) {
                                 checkNs.completeExceptionally(
-                                        new RestException(Status.PRECONDITION_FAILED, "Tenant has active namespace"));
+                                        new IllegalStateException("The tenant still has active namespaces"));
                                 return;
                             }
                             String namespace = NamespaceName.get(tenant, clusterOrNamespace).toString();
@@ -965,8 +965,8 @@ public abstract class PulsarWebResource {
                             // add it to the list
                             namespaceResources().getAsync(path(POLICIES, namespace)).thenApply(data -> {
                                 if (data.isPresent()) {
-                                    checkNs.completeExceptionally(new RestException(Status.PRECONDITION_FAILED,
-                                            "Tenant has active namespace"));
+                                    checkNs.completeExceptionally(
+                                            new IllegalStateException("The tenant still has active namespaces"));
                                 } else {
                                     checkNs.complete(null);
                                 }

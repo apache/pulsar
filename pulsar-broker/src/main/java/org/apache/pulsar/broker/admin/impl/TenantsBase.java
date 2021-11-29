@@ -288,7 +288,11 @@ public class TenantsBase extends PulsarWebResource {
                 }
             }).exceptionally(ex -> {
                 log.error("Failed to delete tenant due to active namespace {}", tenant, ex.getCause());
-                asyncResponse.resume(new RestException(ex));
+                if (ex.getCause() instanceof IllegalStateException) {
+                    asyncResponse.resume(new RestException(Status.CONFLICT, ex.getCause()));
+                } else {
+                    asyncResponse.resume(new RestException(ex));
+                }
                 return null;
             });
         });
