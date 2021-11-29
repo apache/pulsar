@@ -206,9 +206,7 @@ public class TlsHostnameVerifier implements HostnameVerifier {
             if (strict) {
                 final String remainder = host.substring(
                         prefix.length(), host.length() - suffix.length());
-                if (remainder.contains(".")) {
-                    return false;
-                }
+                return !remainder.contains(".");
             }
             return true;
         }
