@@ -32,7 +32,8 @@ order to scope and design them well.</li>
 </ol>
 <p><strong>For all contributions:</strong></p>
 <ol>
-<li><strong>Code:</strong> The best part ;-)</li>
+<li><strong>Code:</strong> code changes are always welcomed.</li>
+<li><strong>Doc</strong>: it is worth taking the time to make users know your code changes. Pulsar's long-term success rests on its ease of use, maintainability, etc.</li>
 <li><strong>Review:</strong> Submit a pull request with your contribution to our
 <a href="https://github.com/apache/pulsar">GitHub Repo</a>. Work with a committer to review and
 iterate on the code, if needed.</li>
@@ -150,7 +151,7 @@ license header. You can add license header to your files by running following co
 <li>Changes: Summary of what this pull request is changing, to help reviewers at better understanding
 the changes.</li>
 </ul>
-<p>Please include a descriptive pull request message to help make the comitter’s job easier when reviewing.
+<p>Please include a descriptive pull request message to help make the committer’s job easier when reviewing.
 It’s fine to refer to existing design docs or the contents of the associated issue as appropriate.</p>
 <p>If the pull request is fixing an issue, include a mention to in the description, like:</p>
 <pre><code class="hljs"><span class="hljs-attribute">Fixes</span> <span class="hljs-comment">#1234</span>
@@ -177,6 +178,11 @@ $ git push origin --delete &lt;my-branch&gt;
 <h2><a class="anchor" aria-hidden="true" id="commit-committers-only"></a><a href="#commit-committers-only" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Commit (committers only)</h2>
 <p>Once the code has been peer reviewed by a committer, the next step is for the committer to merge it into the Github repo.</p>
 <p>Pull requests should not be merged before the review has approved from at least 2 committers.</p>
+<blockquote>
+<p><strong>Tip</strong></p>
+<p>Git commit message is not only the best way to communicate context about code changes, but also shows whether a developer is a good collaborator. If the first commit message of a PR is not clear but the PR description is clear and concise, when merging a PR, consider copying the PR description to the commit message box or writing a proper one rather than using the default (first) commit message (see image below). In this way, others know the changes clearly, which is beneficial to cut a release or write a release note. Be well cared for git log is a healthy and sustainable thing.</p>
+</blockquote>
+<p><img src="../img/commit-message.png" alt="Submit clear commit message"></p>
 <h3><a class="anchor" aria-hidden="true" id="contributor-license-agreement"></a><a href="#contributor-license-agreement" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Contributor License Agreement</h3>
 <p>If you are merging a larger contribution, please make sure that the contributor has an ICLA on file with the Apache Secretary. You can view the list of committers <a href="http://home.apache.org/phonebook.html?unix=committers">here</a>, as well as <a href="http://home.apache.org/unlistedclas.html">ICLA-signers who aren’t yet committers</a>.</p>
 <p>For smaller contributions, however, this is not required. In this case, we rely on <a href="http://www.apache.org/licenses/LICENSE-2.0#contributions">clause five</a> of the Apache License, Version 2.0, describing licensing of intentionally submitted contributions.</p>
