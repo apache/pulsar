@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.resources;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -29,6 +30,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.CacheGetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.zookeeper.KeeperException;
 
 public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
 
@@ -83,7 +85,18 @@ public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
     }
 
     public CompletableFuture<Void> deleteLocalPoliciesTenantAsync(String tenant) {
-        return deleteAsync(joinPath(LOCAL_POLICIES_ROOT, tenant));
+        final String localPoliciesPath = joinPath(LOCAL_POLICIES_ROOT, tenant);
+        CompletableFuture<Void> future = new CompletableFuture<Void>();
+        deleteAsync(localPoliciesPath).whenComplete((ignore, ex) -> {
+            if (ex != null && ex.getCause().getCause() instanceof KeeperException) {
+                future.complete(null);
+            } else if (ex != null) {
+                future.completeExceptionally(ex);
+            } else {
+                future.complete(null);
+            }
+        });
+        return future;
     }
 
     public static boolean isLocalPoliciesPath(String path) {
