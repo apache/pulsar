@@ -202,8 +202,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     @Override
     public FunctionInstanceStatsData getFunctionStats(
             String tenant, String namespace, String function, int id) throws PulsarAdminException {
-        return sync(() -> getFunctionStatsAsync(tenant, namespace, function, id)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS););
+        return sync(() -> getFunctionStatsAsync(tenant, namespace, function, id));
     }
 
     @Override
