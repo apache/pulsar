@@ -25,6 +25,70 @@
           "id": "version-2.5.1/client-libraries"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Concepts and Architecture",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.5.1/concepts-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/concepts-messaging"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/concepts-architecture-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/concepts-clients"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/concepts-replication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/concepts-multi-tenancy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/concepts-authentication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/concepts-topic-compaction"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/concepts-tiered-storage"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar Schema",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.5.1/schema-get-started"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/schema-understand"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/schema-evolution-compatibility"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/schema-manage"
+        }
+      ]
     }
   ]
 }
