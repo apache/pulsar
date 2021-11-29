@@ -1358,7 +1358,11 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertFalse(admin.tenants().getTenants().contains(tenant));
 
         final String managedLedgersPath = "/managed-ledgers/" + tenant;
+        final String partitionedTopicPath = "/admin/partitioned-topics/" + tenant;
+        final String localPoliciesPath = "/admin/local-policies/" + tenant;
         assertFalse(pulsar.getLocalMetadataStore().exists(managedLedgersPath).join());
+        assertFalse(pulsar.getLocalMetadataStore().exists(partitionedTopicPath).join());
+        assertFalse(pulsar.getLocalMetadataStore().exists(localPoliciesPath).join());
     }
 
     @Test
