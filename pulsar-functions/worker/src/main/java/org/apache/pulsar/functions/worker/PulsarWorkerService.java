@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.worker;
 
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
@@ -28,7 +27,6 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
@@ -55,6 +53,7 @@ import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -242,10 +241,7 @@ public class PulsarWorkerService implements WorkerService {
                 if (e.getStatusCode() == Response.Status.NOT_FOUND.getStatusCode()) {
                     // if not found than create
                     try {
-                        Policies policies = new Policies();
-                        policies.retention_policies = new RetentionPolicies(-1, -1);
-                        policies.replication_clusters = new HashSet<>();
-                        policies.replication_clusters.add(workerConfig.getPulsarFunctionsCluster());
+                        Policies policies = createFunctionsNamespacePolicies(workerConfig.getPulsarFunctionsCluster());
                         admin.namespaces().createNamespace(workerConfig.getPulsarFunctionsNamespace(),
                                 policies);
                     } catch (PulsarAdminException e1) {
@@ -344,12 +340,8 @@ public class PulsarWorkerService implements WorkerService {
 
         // create namespace for function worker service
         try {
-            Policies policies = new Policies();
-            policies.retention_policies = new RetentionPolicies(-1, -1);
-            policies.replication_clusters = Collections.singleton(workerConfig.getPulsarFunctionsCluster());
-            int defaultNumberOfBundles = brokerConfig.getDefaultNumberOfNamespaceBundles();
-            policies.bundles = getBundles(defaultNumberOfBundles);
-
+            Policies policies = createFunctionsNamespacePolicies(workerConfig.getPulsarFunctionsCluster());
+            policies.bundles = getBundles(brokerConfig.getDefaultNumberOfNamespaceBundles());
             pulsarResources.getNamespaceResources().createPolicies(NamespaceName.get(namespace), policies);
             LOG.info("Created namespace {} for function worker service", namespace);
         } catch (AlreadyExistsException e) {
@@ -377,6 +369,15 @@ public class PulsarWorkerService implements WorkerService {
         init(workerConfig, dlogURI, false);
 
         LOG.info("Function worker service setup completed");
+    }
+
+    private static Policies createFunctionsNamespacePolicies(String pulsarFunctionsCluster) {
+        Policies policies = new Policies();
+        policies.retention_policies = new RetentionPolicies(-1, -1);
+        policies.replication_clusters = Collections.singleton(pulsarFunctionsCluster);
+        // override inactive_topic_policies so that it's always disabled
+        policies.inactive_topic_policies = new InactiveTopicPolicies();
+        return policies;
     }
 
     private void tryCreateNonPartitionedTopic(final String topic) throws PulsarAdminException {
