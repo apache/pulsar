@@ -192,42 +192,46 @@ implements <a href="../../../../../../org/apache/pulsar/broker/service/Dispatche
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/persistent/PersistentDispatcherMultipleConsumers.html#lastIndividualDeletedRangeFromCursorRecovery">lastIndividualDeletedRangeFromCursorRecovery</a></span></code>&nbsp;</td>
 </tr>
 <tr class="altColor">
+<td class="colFirst"><code>protected org.apache.bookkeeper.mledger.impl.PositionImpl</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/persistent/PersistentDispatcherMultipleConsumers.html#minReplayedPosition">minReplayedPosition</a></span></code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/persistent/PersistentDispatcherMultipleConsumers.html#name">name</a></span></code>&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>protected int</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/persistent/PersistentDispatcherMultipleConsumers.html#readBatchSize">readBatchSize</a></span></code>&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>protected org.apache.pulsar.client.impl.Backoff</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/persistent/PersistentDispatcherMultipleConsumers.html#readFailureBackoff">readFailureBackoff</a></span></code>&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>protected <a href="../../../../../../org/apache/pulsar/broker/service/persistent/MessageRedeliveryController.html" title="class in org.apache.pulsar.broker.service.persistent">MessageRedeliveryController</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/persistent/PersistentDispatcherMultipleConsumers.html#redeliveryMessages">redeliveryMessages</a></span></code>&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>protected <a href="../../../../../../org/apache/pulsar/broker/service/RedeliveryTracker.html" title="interface in org.apache.pulsar.broker.service">RedeliveryTracker</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/persistent/PersistentDispatcherMultipleConsumers.html#redeliveryTracker">redeliveryTracker</a></span></code>&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>protected boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/persistent/PersistentDispatcherMultipleConsumers.html#shouldRewindBeforeReadingOrReplaying">shouldRewindBeforeReadingOrReplaying</a></span></code>&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>protected <a href="../../../../../../org/apache/pulsar/broker/service/persistent/PersistentTopic.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentTopic</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/persistent/PersistentDispatcherMultipleConsumers.html#topic">topic</a></span></code>&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>protected static <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/atomic/AtomicIntegerFieldUpdater.html?is-external=true" title="class or interface in java.util.concurrent.atomic">AtomicIntegerFieldUpdater</a>&lt;<a href="../../../../../../org/apache/pulsar/broker/service/persistent/PersistentDispatcherMultipleConsumers.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentDispatcherMultipleConsumers</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/persistent/PersistentDispatcherMultipleConsumers.html#TOTAL_AVAILABLE_PERMITS_UPDATER">TOTAL_AVAILABLE_PERMITS_UPDATER</a></span></code>&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>protected int</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/persistent/PersistentDispatcherMultipleConsumers.html#totalAvailablePermits">totalAvailablePermits</a></span></code>&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>protected int</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/persistent/PersistentDispatcherMultipleConsumers.html#totalUnackedMessages">totalUnackedMessages</a></span></code>&nbsp;</td>
 </tr>
@@ -602,6 +606,15 @@ implements <a href="../../../../../../org/apache/pulsar/broker/service/Dispatche
 <li class="blockList">
 <h4>havePendingReplayRead</h4>
 <pre>protected volatile&nbsp;boolean havePendingReplayRead</pre>
+</li>
+</ul>
+<a name="minReplayedPosition">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>minReplayedPosition</h4>
+<pre>protected volatile&nbsp;org.apache.bookkeeper.mledger.impl.PositionImpl minReplayedPosition</pre>
 </li>
 </ul>
 <a name="shouldRewindBeforeReadingOrReplaying">
