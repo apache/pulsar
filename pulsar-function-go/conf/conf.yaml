@@ -32,7 +32,7 @@ name: "go-function"
 logTopic: "log-topic"
 processingGuarantees: 0
 secretsMap: ""
-runtime: 0
+runtime: 3
 autoAck: true
 parallelism: 0
 userConfig: '{"word-of-the-day": "hapax legomenon"}'
