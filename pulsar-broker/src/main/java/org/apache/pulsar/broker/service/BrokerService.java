@@ -385,16 +385,25 @@ public class BrokerService implements Closeable {
     private void startProtocolHandler(String protocol,
                                       SocketAddress address,
                                       ChannelInitializer<SocketChannel> initializer) throws IOException {
-        ServerBootstrap bootstrap = defaultServerBootstrap.clone();
+
         ServiceConfiguration configuration = pulsar.getConfiguration();
         boolean useSeparateThreadPool = configuration.isUseSeparateThreadPoolForProtocolHandlers();
+        ServerBootstrap bootstrap;
         if (useSeparateThreadPool) {
+            bootstrap = new ServerBootstrap();
+            bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
+            bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
+            bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
+                    new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
+            EventLoopUtil.enableTriggeredMode(bootstrap);
             DefaultThreadFactory defaultThreadFactory = new DefaultThreadFactory("pulsar-ph-" + protocol);
             EventLoopGroup dedicatedWorkerGroup =
                     EventLoopUtil.newEventLoopGroup(configuration.getNumIOThreads(), false, defaultThreadFactory);
             bootstrap.channel(EventLoopUtil.getServerSocketChannelClass(dedicatedWorkerGroup));
             protocolHandlersWorkerGroups.add(dedicatedWorkerGroup);
             bootstrap.group(this.acceptorGroup, dedicatedWorkerGroup);
+        } else {
+            bootstrap = defaultServerBootstrap.clone();
         }
         bootstrap.childHandler(initializer);
         try {
@@ -845,7 +854,9 @@ public class BrokerService implements Closeable {
             serviceUnits.forEach(su -> {
                 if (su instanceof NamespaceBundle) {
                     try {
-                        pulsar.getNamespaceService().unloadNamespaceBundle(su, 1, TimeUnit.MINUTES).get();
+                        pulsar.getNamespaceService().unloadNamespaceBundle(su,
+                                pulsar.getConfiguration().getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS)
+                                .get();
                     } catch (Exception e) {
                         log.warn("Failed to unload namespace bundle {}", su, e);
                     }

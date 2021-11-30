@@ -1078,6 +1078,7 @@ public class PersistentSubscription implements Subscription {
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
         subStats.totalMsgExpired = expiryMonitor.getTotalMessageExpired();
         subStats.isReplicated = isReplicated();
+        subStats.subscriptionProperties = subscriptionProperties;
         subStats.isDurable = cursor.isDurable();
         if (getType() == SubType.Key_Shared && dispatcher instanceof PersistentStickyKeyDispatcherMultipleConsumers) {
             PersistentStickyKeyDispatcherMultipleConsumers keySharedDispatcher =
