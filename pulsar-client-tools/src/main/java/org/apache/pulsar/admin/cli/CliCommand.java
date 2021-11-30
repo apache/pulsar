@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
+import com.google.common.collect.Sets;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -82,25 +83,34 @@ abstract class CliCommand {
     static long validateSizeString(String s) {
         char last = s.charAt(s.length() - 1);
         String subStr = s.substring(0, s.length() - 1);
+        long size;
+        try {
+            size = sizeUint.contains(last)
+                    ? Long.parseLong(subStr)
+                    : Long.parseLong(s);
+        } catch (IllegalArgumentException e) {
+            throw new ParameterException(String.format("Invalid size '%s'. Valid formats are: %s",
+                    s, "(4096, 100K, 10M, 16G, 2T)"));
+        }
         switch (last) {
         case 'k':
         case 'K':
-            return Long.parseLong(subStr) * 1024;
+            return size * 1024;
 
         case 'm':
         case 'M':
-            return Long.parseLong(subStr) * 1024 * 1024;
+            return size * 1024 * 1024;
 
         case 'g':
         case 'G':
-            return Long.parseLong(subStr) * 1024 * 1024 * 1024;
+            return size * 1024 * 1024 * 1024;
 
         case 't':
         case 'T':
-            return Long.parseLong(subStr) * 1024 * 1024 * 1024 * 1024;
+            return size * 1024 * 1024 * 1024 * 1024;
 
         default:
-            return Long.parseLong(s);
+            return size;
         }
     }
 
@@ -208,6 +218,7 @@ abstract class CliCommand {
 
     private static ObjectMapper mapper = ObjectMapperFactory.create();
     private static ObjectWriter writer = mapper.writerWithDefaultPrettyPrinter();
+    private static Set<Character> sizeUint = Sets.newHashSet('k', 'K', 'm', 'M', 'g', 'G', 't', 'T');
 
     abstract void run() throws Exception;
 }
