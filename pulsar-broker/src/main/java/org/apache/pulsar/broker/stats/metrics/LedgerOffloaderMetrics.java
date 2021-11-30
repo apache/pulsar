@@ -88,7 +88,6 @@ public class LedgerOffloaderMetrics extends AbstractMetrics {
             }
     }
 
-
     private Map<String, Double> aggregate(Map<String, Double> tempAggregatedMetricsMap, String topicName) {
         String managedLedgerName = "";
         try {
@@ -203,7 +202,6 @@ public class LedgerOffloaderMetrics extends AbstractMetrics {
             metrics.put(ma.getKey(), ma.getValue());
         }
         metricsCollection.add(metrics);
-
         return metricsCollection;
     }
 }
