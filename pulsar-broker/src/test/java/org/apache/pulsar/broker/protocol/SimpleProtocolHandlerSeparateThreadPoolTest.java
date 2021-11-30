@@ -16,33 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.metadata.api;
+package org.apache.pulsar.broker.protocol;
 
-import lombok.Builder;
-import lombok.Getter;
-
-/**
- * The configuration builder for a {@link MetadataStore} config.
- */
-@Builder
-@Getter
-public class MetadataStoreConfig {
-
-    /**
-     * The (implementation specific) session timeout, in milliseconds.
-     */
-    @Builder.Default
-    private final int sessionTimeoutMillis = 30_000;
-
-    /**
-     * Whether we should allow the metadata client to operate in read-only mode, when the backend store is not writable.
-     */
-    @Builder.Default
-    private final boolean allowReadOnlyOperations = false;
-
-    /**
-     * Config file path for the underlying metadata store implementation.
-     */
-    @Builder.Default
-    private final String configFilePath = null;
+public class SimpleProtocolHandlerSeparateThreadPoolTest extends SimpleProtocolHandlerTestsBase {
+    public SimpleProtocolHandlerSeparateThreadPoolTest() {
+        super(true);
+    }
 }

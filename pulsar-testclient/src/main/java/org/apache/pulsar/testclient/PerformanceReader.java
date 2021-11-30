@@ -199,7 +199,7 @@ public class PerformanceReader {
                 arguments.authParams = prop.getProperty("authParams", null);
             }
 
-            if (arguments.useTls == false) {
+            if (!arguments.useTls) {
                 arguments.useTls = Boolean.parseBoolean(prop.getProperty("useTls"));
             }
 
