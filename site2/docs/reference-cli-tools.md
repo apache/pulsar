@@ -272,6 +272,7 @@ Options
 Runs an auto-recovery service.
 
 Usage
+
 ```bash
 $ pulsar autorecovery options
 ```
