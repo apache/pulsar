@@ -2539,15 +2539,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     /**
      * @return determine if backlog quota enforcement needs to be done for topic based on time limit
      */
-    public boolean isTimeBacklogExceeded() {
-        try {
-            return checkTimeBacklogExceeded().get();
-        } catch (Throwable e) {
-            log.error("[{}] checkTimeBacklogExceeded failed.", topic, e);
-            return false;
-        }
-    }
-
     public CompletableFuture<Boolean> checkTimeBacklogExceeded() {
         TopicName topicName = TopicName.get(getName());
         int backlogQuotaLimitInSecond = getBacklogQuota(BacklogQuotaType.message_age).getLimitTime();

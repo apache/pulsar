@@ -1741,14 +1741,22 @@ public class BrokerService implements Closeable {
                 if (persistentTopic.isSizeBacklogExceeded()) {
                     getBacklogQuotaManager().handleExceededBacklogQuota(persistentTopic,
                             BacklogQuota.BacklogQuotaType.destination_storage, false);
-                } else if (persistentTopic.isTimeBacklogExceeded()) {
-                    getBacklogQuotaManager().handleExceededBacklogQuota(persistentTopic,
-                            BacklogQuota.BacklogQuotaType.message_age,
-                            pulsar.getConfiguration().isPreciseTimeBasedBacklogQuotaCheck());
                 } else {
-                    if (log.isDebugEnabled()) {
-                        log.debug("quota not exceeded for [{}]", topic.getName());
-                    }
+                    persistentTopic.checkTimeBacklogExceeded().thenAccept(isExceeded -> {
+                        if (isExceeded) {
+                            getBacklogQuotaManager().handleExceededBacklogQuota(persistentTopic,
+                                    BacklogQuota.BacklogQuotaType.message_age,
+                                    pulsar.getConfiguration().isPreciseTimeBasedBacklogQuotaCheck());
+                        } else {
+                            if (log.isDebugEnabled()) {
+                                log.debug("quota not exceeded for [{}]", topic.getName());
+                            }
+                        }
+                    }).exceptionally(throwable -> {
+                        log.error("Error when checkTimeBacklogExceeded({}) in monitorBacklogQuota",
+                                persistentTopic.getName(), throwable);
+                        return null;
+                    });
                 }
             }
         });
