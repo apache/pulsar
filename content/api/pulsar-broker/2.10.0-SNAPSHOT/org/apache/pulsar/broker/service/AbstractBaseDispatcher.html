@@ -143,6 +143,16 @@ implements <a href="../../../../../org/apache/pulsar/broker/service/Dispatcher.h
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractBaseDispatcher.html#dispatchThrottlingOnBatchMessageEnabled">dispatchThrottlingOnBatchMessageEnabled</a></span></code>&nbsp;</td>
 </tr>
 <tr class="rowColor">
+<td class="colFirst"><code>protected com.google.common.collect.ImmutableList&lt;<a href="../../../../../org/apache/pulsar/broker/service/plugin/EntryFilterWithClassLoader.html" title="class in org.apache.pulsar.broker.service.plugin">EntryFilterWithClassLoader</a>&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractBaseDispatcher.html#entryFilters">entryFilters</a></span></code>
+<div class="block">Entry filters in Broker.</div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code>protected <a href="../../../../../org/apache/pulsar/broker/service/plugin/FilterContext.html" title="class in org.apache.pulsar.broker.service.plugin">FilterContext</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractBaseDispatcher.html#filterContext">filterContext</a></span></code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
 <td class="colFirst"><code>protected org.apache.pulsar.broker.ServiceConfiguration</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractBaseDispatcher.html#serviceConfig">serviceConfig</a></span></code>&nbsp;</td>
 </tr>
@@ -291,10 +301,30 @@ implements <a href="../../../../../org/apache/pulsar/broker/service/Dispatcher.h
 <a name="dispatchThrottlingOnBatchMessageEnabled">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>dispatchThrottlingOnBatchMessageEnabled</h4>
 <pre>protected final&nbsp;boolean dispatchThrottlingOnBatchMessageEnabled</pre>
+</li>
+</ul>
+<a name="entryFilters">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>entryFilters</h4>
+<pre>protected&nbsp;com.google.common.collect.ImmutableList&lt;<a href="../../../../../org/apache/pulsar/broker/service/plugin/EntryFilterWithClassLoader.html" title="class in org.apache.pulsar.broker.service.plugin">EntryFilterWithClassLoader</a>&gt; entryFilters</pre>
+<div class="block">Entry filters in Broker.
+ Not set to final, for the convenience of testing mock.</div>
+</li>
+</ul>
+<a name="filterContext">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>filterContext</h4>
+<pre>protected final&nbsp;<a href="../../../../../org/apache/pulsar/broker/service/plugin/FilterContext.html" title="class in org.apache.pulsar.broker.service.plugin">FilterContext</a> filterContext</pre>
 </li>
 </ul>
 </li>

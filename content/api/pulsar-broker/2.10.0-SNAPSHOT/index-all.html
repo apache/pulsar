@@ -1652,6 +1652,12 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/SubscribeRateLimiter.html#close--">close()</a></span> - Method in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/SubscribeRateLimiter.html" title="class in org.apache.pulsar.broker.service.persistent">SubscribeRateLimiter</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/plugin/EntryFilter.html#close--">close()</a></span> - Method in interface org.apache.pulsar.broker.service.plugin.<a href="org/apache/pulsar/broker/service/plugin/EntryFilter.html" title="interface in org.apache.pulsar.broker.service.plugin">EntryFilter</a></dt>
+<dd>
+<div class="block">close the entry filter.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/plugin/EntryFilterWithClassLoader.html#close--">close()</a></span> - Method in class org.apache.pulsar.broker.service.plugin.<a href="org/apache/pulsar/broker/service/plugin/EntryFilterWithClassLoader.html" title="class in org.apache.pulsar.broker.service.plugin">EntryFilterWithClassLoader</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/PrecisPublishLimiter.html#close--">close()</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/PrecisPublishLimiter.html" title="class in org.apache.pulsar.broker.service">PrecisPublishLimiter</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/Producer.html#close-boolean-">close(boolean)</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a></dt>
@@ -2120,6 +2126,10 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/stats/prometheus/AggregatedTransactionCoordinatorStats.html#createdCount">createdCount</a></span> - Variable in class org.apache.pulsar.broker.stats.prometheus.<a href="org/apache/pulsar/broker/stats/prometheus/AggregatedTransactionCoordinatorStats.html" title="class in org.apache.pulsar.broker.stats.prometheus">AggregatedTransactionCoordinatorStats</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/plugin/EntryFilterProvider.html#createEntryFilters-org.apache.pulsar.broker.ServiceConfiguration-">createEntryFilters(ServiceConfiguration)</a></span> - Static method in class org.apache.pulsar.broker.service.plugin.<a href="org/apache/pulsar/broker/service/plugin/EntryFilterProvider.html" title="class in org.apache.pulsar.broker.service.plugin">EntryFilterProvider</a></dt>
+<dd>
+<div class="block">create entry filter instance.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/naming/NamespaceBundleFactory.html#createFactory-org.apache.pulsar.broker.PulsarService-com.google.common.hash.HashFunction-">createFactory(PulsarService, HashFunction)</a></span> - Static method in class org.apache.pulsar.common.naming.<a href="org/apache/pulsar/common/naming/NamespaceBundleFactory.html" title="class in org.apache.pulsar.common.naming">NamespaceBundleFactory</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/PulsarService.html#createLocalMetadataStore--">createLocalMetadataStore()</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a></dt>
@@ -2777,6 +2787,34 @@
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/service/EntryBatchSizes.html" title="class in org.apache.pulsar.broker.service"><span class="typeNameLink">EntryBatchSizes</span></a> - Class in <a href="org/apache/pulsar/broker/service/package-summary.html">org.apache.pulsar.broker.service</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/broker/service/plugin/EntryFilter.html" title="interface in org.apache.pulsar.broker.service.plugin"><span class="typeNameLink">EntryFilter</span></a> - Interface in <a href="org/apache/pulsar/broker/service/plugin/package-summary.html">org.apache.pulsar.broker.service.plugin</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/broker/service/plugin/EntryFilter.FilterResult.html" title="enum in org.apache.pulsar.broker.service.plugin"><span class="typeNameLink">EntryFilter.FilterResult</span></a> - Enum in <a href="org/apache/pulsar/broker/service/plugin/package-summary.html">org.apache.pulsar.broker.service.plugin</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/broker/service/plugin/EntryFilterDefinition.html" title="class in org.apache.pulsar.broker.service.plugin"><span class="typeNameLink">EntryFilterDefinition</span></a> - Class in <a href="org/apache/pulsar/broker/service/plugin/package-summary.html">org.apache.pulsar.broker.service.plugin</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/plugin/EntryFilterDefinition.html#EntryFilterDefinition--">EntryFilterDefinition()</a></span> - Constructor for class org.apache.pulsar.broker.service.plugin.<a href="org/apache/pulsar/broker/service/plugin/EntryFilterDefinition.html" title="class in org.apache.pulsar.broker.service.plugin">EntryFilterDefinition</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/broker/service/plugin/EntryFilterDefinitions.html" title="class in org.apache.pulsar.broker.service.plugin"><span class="typeNameLink">EntryFilterDefinitions</span></a> - Class in <a href="org/apache/pulsar/broker/service/plugin/package-summary.html">org.apache.pulsar.broker.service.plugin</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/plugin/EntryFilterDefinitions.html#EntryFilterDefinitions--">EntryFilterDefinitions()</a></span> - Constructor for class org.apache.pulsar.broker.service.plugin.<a href="org/apache/pulsar/broker/service/plugin/EntryFilterDefinitions.html" title="class in org.apache.pulsar.broker.service.plugin">EntryFilterDefinitions</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/broker/service/plugin/EntryFilterMetaData.html" title="class in org.apache.pulsar.broker.service.plugin"><span class="typeNameLink">EntryFilterMetaData</span></a> - Class in <a href="org/apache/pulsar/broker/service/plugin/package-summary.html">org.apache.pulsar.broker.service.plugin</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/plugin/EntryFilterMetaData.html#EntryFilterMetaData--">EntryFilterMetaData()</a></span> - Constructor for class org.apache.pulsar.broker.service.plugin.<a href="org/apache/pulsar/broker/service/plugin/EntryFilterMetaData.html" title="class in org.apache.pulsar.broker.service.plugin">EntryFilterMetaData</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/broker/service/plugin/EntryFilterProvider.html" title="class in org.apache.pulsar.broker.service.plugin"><span class="typeNameLink">EntryFilterProvider</span></a> - Class in <a href="org/apache/pulsar/broker/service/plugin/package-summary.html">org.apache.pulsar.broker.service.plugin</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/plugin/EntryFilterProvider.html#EntryFilterProvider--">EntryFilterProvider()</a></span> - Constructor for class org.apache.pulsar.broker.service.plugin.<a href="org/apache/pulsar/broker/service/plugin/EntryFilterProvider.html" title="class in org.apache.pulsar.broker.service.plugin">EntryFilterProvider</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/AbstractBaseDispatcher.html#entryFilters">entryFilters</a></span> - Variable in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/AbstractBaseDispatcher.html" title="class in org.apache.pulsar.broker.service">AbstractBaseDispatcher</a></dt>
+<dd>
+<div class="block">Entry filters in Broker.</div>
+</dd>
+<dt><a href="org/apache/pulsar/broker/service/plugin/EntryFilterWithClassLoader.html" title="class in org.apache.pulsar.broker.service.plugin"><span class="typeNameLink">EntryFilterWithClassLoader</span></a> - Class in <a href="org/apache/pulsar/broker/service/plugin/package-summary.html">org.apache.pulsar.broker.service.plugin</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/plugin/EntryFilterWithClassLoader.html#EntryFilterWithClassLoader-org.apache.pulsar.broker.service.plugin.EntryFilter-org.apache.pulsar.common.nar.NarClassLoader-">EntryFilterWithClassLoader(EntryFilter, NarClassLoader)</a></span> - Constructor for class org.apache.pulsar.broker.service.plugin.<a href="org/apache/pulsar/broker/service/plugin/EntryFilterWithClassLoader.html" title="class in org.apache.pulsar.broker.service.plugin">EntryFilterWithClassLoader</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/schema/SchemaStorageFormat.PositionInfo.html#ENTRYID_FIELD_NUMBER">ENTRYID_FIELD_NUMBER</a></span> - Static variable in class org.apache.pulsar.broker.service.schema.<a href="org/apache/pulsar/broker/service/schema/SchemaStorageFormat.PositionInfo.html" title="class in org.apache.pulsar.broker.service.schema">SchemaStorageFormat.PositionInfo</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/service/EntryWrapper.html" title="class in org.apache.pulsar.broker.service"><span class="typeNameLink">EntryWrapper</span></a> - Class in <a href="org/apache/pulsar/broker/service/package-summary.html">org.apache.pulsar.broker.service</a></dt>
@@ -2901,6 +2939,8 @@
 <dd>
 <div class="block">From the given set of available broker candidates, filter those using the version numbers.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/plugin/FilterContext.html#FILTER_CONTEXT_DISABLED">FILTER_CONTEXT_DISABLED</a></span> - Static variable in class org.apache.pulsar.broker.service.plugin.<a href="org/apache/pulsar/broker/service/plugin/FilterContext.html" title="class in org.apache.pulsar.broker.service.plugin">FilterContext</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/impl/LoadManagerShared.html#filterAntiAffinityGroupOwnedBrokers-org.apache.pulsar.broker.PulsarService-java.lang.String-java.util.Set-org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap-java.util.Map-">filterAntiAffinityGroupOwnedBrokers(PulsarService, String, Set&lt;String&gt;, ConcurrentOpenHashMap&lt;String, ConcurrentOpenHashMap&lt;String, ConcurrentOpenHashSet&lt;String&gt;&gt;&gt;, Map&lt;String, String&gt;)</a></span> - Static method in class org.apache.pulsar.broker.loadbalance.impl.<a href="org/apache/pulsar/broker/loadbalance/impl/LoadManagerShared.html" title="class in org.apache.pulsar.broker.loadbalance.impl">LoadManagerShared</a></dt>
 <dd>
 <div class="block">It tries to filter out brokers which own namespace with same anti-affinity-group as given namespace.</div>
@@ -2910,11 +2950,23 @@
 <div class="block">It filters out brokers which owns topic higher than configured threshold at
  <code>ServiceConfiguration.loadBalancerBrokerMaxTopics</code>.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/AbstractBaseDispatcher.html#filterContext">filterContext</a></span> - Variable in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/AbstractBaseDispatcher.html" title="class in org.apache.pulsar.broker.service">AbstractBaseDispatcher</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/broker/service/plugin/FilterContext.html" title="class in org.apache.pulsar.broker.service.plugin"><span class="typeNameLink">FilterContext</span></a> - Class in <a href="org/apache/pulsar/broker/service/plugin/package-summary.html">org.apache.pulsar.broker.service.plugin</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/plugin/FilterContext.html#FilterContext--">FilterContext()</a></span> - Constructor for class org.apache.pulsar.broker.service.plugin.<a href="org/apache/pulsar/broker/service/plugin/FilterContext.html" title="class in org.apache.pulsar.broker.service.plugin">FilterContext</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/AbstractBaseDispatcher.html#filterEntriesForConsumer-java.util.List-org.apache.pulsar.broker.service.EntryBatchSizes-org.apache.pulsar.broker.service.SendMessageInfo-org.apache.pulsar.broker.service.EntryBatchIndexesAcks-org.apache.bookkeeper.mledger.ManagedCursor-boolean-">filterEntriesForConsumer(List&lt;Entry&gt;, EntryBatchSizes, SendMessageInfo, EntryBatchIndexesAcks, ManagedCursor, boolean)</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/AbstractBaseDispatcher.html" title="class in org.apache.pulsar.broker.service">AbstractBaseDispatcher</a></dt>
 <dd>
 <div class="block">Filter messages that are being sent to a consumers.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/AbstractBaseDispatcher.html#filterEntriesForConsumer-java.util.Optional-int-java.util.List-org.apache.pulsar.broker.service.EntryBatchSizes-org.apache.pulsar.broker.service.SendMessageInfo-org.apache.pulsar.broker.service.EntryBatchIndexesAcks-org.apache.bookkeeper.mledger.ManagedCursor-boolean-">filterEntriesForConsumer(Optional&lt;EntryWrapper[]&gt;, int, List&lt;Entry&gt;, EntryBatchSizes, SendMessageInfo, EntryBatchIndexesAcks, ManagedCursor, boolean)</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/AbstractBaseDispatcher.html" title="class in org.apache.pulsar.broker.service">AbstractBaseDispatcher</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/plugin/EntryFilter.html#filterEntry-org.apache.bookkeeper.mledger.Entry-org.apache.pulsar.broker.service.plugin.FilterContext-">filterEntry(Entry, FilterContext)</a></span> - Method in interface org.apache.pulsar.broker.service.plugin.<a href="org/apache/pulsar/broker/service/plugin/EntryFilter.html" title="interface in org.apache.pulsar.broker.service.plugin">EntryFilter</a></dt>
+<dd>
+<div class="block">1.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/plugin/EntryFilterWithClassLoader.html#filterEntry-org.apache.bookkeeper.mledger.Entry-org.apache.pulsar.broker.service.plugin.FilterContext-">filterEntry(Entry, FilterContext)</a></span> - Method in class org.apache.pulsar.broker.service.plugin.<a href="org/apache/pulsar/broker/service/plugin/EntryFilterWithClassLoader.html" title="class in org.apache.pulsar.broker.service.plugin">EntryFilterWithClassLoader</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/impl/WRRPlacementStrategy.html#findBrokerForPlacement-com.google.common.collect.Multimap-">findBrokerForPlacement(Multimap&lt;Long, ResourceUnit&gt;)</a></span> - Method in class org.apache.pulsar.broker.loadbalance.impl.<a href="org/apache/pulsar/broker/loadbalance/impl/WRRPlacementStrategy.html" title="class in org.apache.pulsar.broker.loadbalance.impl">WRRPlacementStrategy</a></dt>
 <dd>
@@ -3319,6 +3371,10 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/ServerCnx.html#getBrokerService--">getBrokerService()</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/Topic.html#getBrokerService--">getBrokerService()</a></span> - Method in interface org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/Topic.html" title="interface in org.apache.pulsar.broker.service">Topic</a></dt>
+<dd>
+<div class="block">Get BrokerService.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/TransportCnx.html#getBrokerService--">getBrokerService()</a></span> - Method in interface org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/TransportCnx.html" title="interface in org.apache.pulsar.broker.service">TransportCnx</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/namespace/NamespaceService.html#getBrokerServiceUrlAsync-org.apache.pulsar.common.naming.TopicName-org.apache.pulsar.broker.namespace.LookupOptions-">getBrokerServiceUrlAsync(TopicName, LookupOptions)</a></span> - Method in class org.apache.pulsar.broker.namespace.<a href="org/apache/pulsar/broker/namespace/NamespaceService.html" title="class in org.apache.pulsar.broker.namespace">NamespaceService</a></dt>
@@ -8582,6 +8638,11 @@
 <div class="block">Licensed to the Apache Software Foundation (ASF) under one
  or more contributor license agreements.</div>
 </dd>
+<dt><a href="org/apache/pulsar/broker/service/plugin/package-summary.html">org.apache.pulsar.broker.service.plugin</a> - package org.apache.pulsar.broker.service.plugin</dt>
+<dd>
+<div class="block">Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.</div>
+</dd>
 <dt><a href="org/apache/pulsar/broker/service/resource/usage/package-summary.html">org.apache.pulsar.broker.service.resource.usage</a> - package org.apache.pulsar.broker.service.resource.usage</dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/service/schema/package-summary.html">org.apache.pulsar.broker.service.schema</a> - package org.apache.pulsar.broker.service.schema</dt>
@@ -10163,6 +10224,8 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/nonpersistent/NonPersistentDispatcherMultipleConsumers.html#reset--">reset()</a></span> - Method in class org.apache.pulsar.broker.service.nonpersistent.<a href="org/apache/pulsar/broker/service/nonpersistent/NonPersistentDispatcherMultipleConsumers.html" title="class in org.apache.pulsar.broker.service.nonpersistent">NonPersistentDispatcherMultipleConsumers</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/PersistentDispatcherMultipleConsumers.html#reset--">reset()</a></span> - Method in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/PersistentDispatcherMultipleConsumers.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentDispatcherMultipleConsumers</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/plugin/FilterContext.html#reset--">reset()</a></span> - Method in class org.apache.pulsar.broker.service.plugin.<a href="org/apache/pulsar/broker/service/plugin/FilterContext.html" title="class in org.apache.pulsar.broker.service.plugin">FilterContext</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/stats/BrokerOperabilityMetrics.html#reset--">reset()</a></span> - Method in class org.apache.pulsar.broker.stats.<a href="org/apache/pulsar/broker/stats/BrokerOperabilityMetrics.html" title="class in org.apache.pulsar.broker.stats">BrokerOperabilityMetrics</a></dt>
 <dd>&nbsp;</dd>
@@ -12802,6 +12865,10 @@
 <dd>
 <div class="block">Returns the enum constant of this type with the specified name.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/plugin/EntryFilter.FilterResult.html#valueOf-java.lang.String-">valueOf(String)</a></span> - Static method in enum org.apache.pulsar.broker.service.plugin.<a href="org/apache/pulsar/broker/service/plugin/EntryFilter.FilterResult.html" title="enum in org.apache.pulsar.broker.service.plugin">EntryFilter.FilterResult</a></dt>
+<dd>
+<div class="block">Returns the enum constant of this type with the specified name.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.SchemaInfo.SchemaType.html#valueOf-java.lang.String-">valueOf(String)</a></span> - Static method in enum org.apache.pulsar.broker.service.schema.proto.<a href="org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.SchemaInfo.SchemaType.html" title="enum in org.apache.pulsar.broker.service.schema.proto">SchemaRegistryFormat.SchemaInfo.SchemaType</a></dt>
 <dd>
 <div class="block">Returns the enum constant of this type with the specified name.</div>
@@ -12884,6 +12951,11 @@ the order they are declared.</div>
 the order they are declared.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/PersistentSubscription.DeleteTransactionMarkerState.html#values--">values()</a></span> - Static method in enum org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/PersistentSubscription.DeleteTransactionMarkerState.html" title="enum in org.apache.pulsar.broker.service.persistent">PersistentSubscription.DeleteTransactionMarkerState</a></dt>
+<dd>
+<div class="block">Returns an array containing the constants of this enum type, in
+the order they are declared.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/plugin/EntryFilter.FilterResult.html#values--">values()</a></span> - Static method in enum org.apache.pulsar.broker.service.plugin.<a href="org/apache/pulsar/broker/service/plugin/EntryFilter.FilterResult.html" title="enum in org.apache.pulsar.broker.service.plugin">EntryFilter.FilterResult</a></dt>
 <dd>
 <div class="block">Returns an array containing the constants of this enum type, in
 the order they are declared.</div>

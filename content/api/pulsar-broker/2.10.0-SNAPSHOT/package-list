@@ -20,6 +20,7 @@ org.apache.pulsar.broker.rest
 org.apache.pulsar.broker.service
 org.apache.pulsar.broker.service.nonpersistent
 org.apache.pulsar.broker.service.persistent
+org.apache.pulsar.broker.service.plugin
 org.apache.pulsar.broker.service.resource.usage
 org.apache.pulsar.broker.service.schema
 org.apache.pulsar.broker.service.schema.exceptions
