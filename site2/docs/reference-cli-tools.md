@@ -269,7 +269,7 @@ Options
 
 ### `autorecovery`
 
-Runs an autorecovery service
+Runs an auto-recovery service.
 
 Usage
 ```bash
