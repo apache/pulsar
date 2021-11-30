@@ -181,13 +181,13 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore implements Met
                             break;
 
                         default:
-                            op.getFuture().completeExceptionally(new IllegalStateException(
+                            op.getFuture().completeExceptionally(new MetadataStoreException(
                                     "Operation type not supported in multi: " + op.getType()));
                     }
                 }
             }, null);
         } catch (Throwable t) {
-            ops.forEach(o -> o.getFuture().completeExceptionally(t));
+            ops.forEach(o -> o.getFuture().completeExceptionally(new MetadataStoreException(t)));
         }
     }
 
@@ -380,7 +380,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore implements Met
                                 put(opPut.getPath(), opPut.getData(), Optional.of(-1L)).thenAccept(
                                                 s -> future.complete(s))
                                         .exceptionally(ex -> {
-                                            future.completeExceptionally(ex.getCause());
+                                            future.completeExceptionally(new MetadataStoreException(ex.getCause()));
                                             return null;
                                         });
                             }
