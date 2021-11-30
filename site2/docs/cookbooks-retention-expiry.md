@@ -153,11 +153,9 @@ admin.namespaces().getRetention(namespace);
 
 *Backlogs* are sets of unacknowledged messages for a topic that have been stored by bookies. Pulsar stores all unacknowledged messages in backlogs until they are processed and acknowledged.
 
-You can control the allowable size of backlogs, at the namespace level, using *backlog quotas*. Setting a backlog quota involves setting:
+You can control the allowable size and/or time of backlogs, at the namespace level, using *backlog quotas*. Setting a backlog quota involves setting:
 
-TODO: Expand on is this per backlog or per topic?
-
-* an allowable *size threshold* for each topic in the namespace
+* an allowable *size and/or time threshold* for each topic in the namespace
 * a *retention policy* that determines which action the [broker](reference-terminology.md#broker) takes if the threshold is exceeded.
 
 The following retention policies are available:

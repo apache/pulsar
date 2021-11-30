@@ -1175,7 +1175,10 @@ public class CmdNamespaces extends CmdBase {
         private String policyStr;
 
         @Parameter(names = {"-t", "--type"}, description = "Backlog quota type to set. Valid options are: " +
-                "destination_storage, message_age")
+                "destination_storage and message_age. " + 
+                "destination_storage limits backlog by size (in bytes). " +
+                "message_age limits backlog by time, that is, message timestamp (broker or publish timestamp). " +
+                "You can set size or time to control the backlog, or combine them together to control the backlog. "
         private String backlogQuotaTypeStr = BacklogQuota.BacklogQuotaType.destination_storage.name();
 
         @Override
