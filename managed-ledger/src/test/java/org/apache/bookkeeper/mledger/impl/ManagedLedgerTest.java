@@ -3424,4 +3424,29 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertTrue(timeoutTask2.isCancelled());
         assertTrue(checkLedgerRollTask2.isCancelled());
     }
+
+    @Test
+    public void testInactiveLedgerRollOver() throws Exception {
+        int inactiveLedgerRollOverTimeMs = 5;
+        ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setInactiveLedgerRollOverTime(inactiveLedgerRollOverTimeMs, TimeUnit.MILLISECONDS);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("rollover_inactive", config);
+        ManagedCursor cursor = ledger.openCursor("c1");
+
+        int totalAddEntries = 5;
+        for (int i = 0; i < totalAddEntries; i++) {
+            String content = "entry"; // 5 bytes
+            ledger.checkInactiveLedgerAndRollOver();
+            ledger.addEntry(content.getBytes());
+            Thread.sleep(inactiveLedgerRollOverTimeMs * 5);
+        }
+
+        List<LedgerInfo> ledgers = ledger.getLedgersInfoAsList();
+        assertEquals(ledgers.size(), totalAddEntries);
+        ledger.close();
+        factory.shutdown();
+    }
+
 }

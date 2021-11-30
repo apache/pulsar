@@ -2337,6 +2337,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
     }
 
+    public void checkInactiveLedgers() {
+        ledger.checkInactiveLedgerAndRollOver();
+    }
+
     @Override
     public void checkDeduplicationSnapshot() {
         messageDeduplication.takeSnapshot();

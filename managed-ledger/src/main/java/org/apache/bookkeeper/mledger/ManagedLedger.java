@@ -649,4 +649,10 @@ public interface ManagedLedger {
      * @return the future of managed ledger internal stats
      */
     CompletableFuture<ManagedLedgerInternalStats> getManagedLedgerInternalStats(boolean includeLedgerMetadata);
+
+    /**
+     * Check current inactive ledger (based on {@link ManagedLedgerConfig#getInactiveLedgerRollOverTimeMs()} and
+     * roll over that ledger if inactive.
+     */
+    void checkInactiveLedgerAndRollOver();
 }

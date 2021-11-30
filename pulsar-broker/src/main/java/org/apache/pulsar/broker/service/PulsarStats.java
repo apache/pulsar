@@ -139,6 +139,8 @@ public class PulsarStats implements Closeable {
                                 // this task: helps to activate inactive-backlog-cursors which have caught up and
                                 // connected, also deactivate active-backlog-cursors which has backlog
                                 topic.checkBackloggedCursors();
+                                // check if topic is inactive and require ledger rollover
+                                ((PersistentTopic) topic).checkInactiveLedgers();
                             } else if (topic instanceof NonPersistentTopic) {
                                 tempNonPersistentTopics.add((NonPersistentTopic) topic);
                             } else {
