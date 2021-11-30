@@ -19,6 +19,7 @@
 package org.apache.zookeeper;
 
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimaps;
@@ -924,21 +925,53 @@ public class MockZooKeeper extends ZooKeeper {
     @Override
     public List<OpResult> multi(Iterable<org.apache.zookeeper.Op> ops) throws InterruptedException, KeeperException {
         List<OpResult> res = new ArrayList<>();
-        for (org.apache.zookeeper.Op op : ops) {
-            switch (op.getType()) {
-                case ZooDefs.OpCode.create:
-                    this.create(op.getPath(), ((org.apache.zookeeper.Op.Create)op).data, null, null);
-                    res.add(new OpResult.CreateResult(op.getPath()));
-                    break;
-                case ZooDefs.OpCode.delete:
-                    this.delete(op.getPath(), -1);
-                    res.add(new OpResult.DeleteResult());
-                    break;
-                case ZooDefs.OpCode.setData:
-                    this.create(op.getPath(), ((org.apache.zookeeper.Op.Create)op).data, null, null);
-                    res.add(new OpResult.SetDataResult(null));
-                    break;
-                default:
+        try {
+            for (org.apache.zookeeper.Op op : ops) {
+                switch (op.getType()) {
+                    case ZooDefs.OpCode.create: {
+                        org.apache.zookeeper.Op.Create opc = ((org.apache.zookeeper.Op.Create) op);
+                        CreateMode cm = CreateMode.fromFlag(opc.flags);
+                        String path = this.create(op.getPath(), opc.data, null, cm);
+                        res.add(new OpResult.CreateResult(path));
+                        break;
+                    }
+                    case ZooDefs.OpCode.delete:
+                        this.delete(op.getPath(), Whitebox.getInternalState(op, "version"));
+                        res.add(new OpResult.DeleteResult());
+                        break;
+                    case ZooDefs.OpCode.setData: {
+                        Stat stat = this.setData(op.getPath(), Whitebox.getInternalState(op, "data"),
+                                Whitebox.getInternalState(op, "version"));
+                        res.add(new OpResult.SetDataResult(stat));
+                        break;
+                    }
+                    case ZooDefs.OpCode.getChildren: {
+                        try {
+                            List<String> children = this.getChildren(op.getPath(), null);
+                            res.add(new OpResult.GetChildrenResult(children));
+                        } catch (KeeperException e) {
+                            res.add(new OpResult.ErrorResult(e.code().intValue()));
+                        }
+                        break;
+                    }
+                    case ZooDefs.OpCode.getData: {
+                        Stat stat = new Stat();
+                        try {
+                            byte[] payload = this.getData(op.getPath(), null, stat);
+                            res.add(new OpResult.GetDataResult(payload, stat));
+                        } catch (KeeperException e) {
+                            res.add(new OpResult.ErrorResult(e.code().intValue()));
+                        }
+                        break;
+                    }
+                    default:
+                }
+            }
+        } catch (KeeperException e) {
+            res.add(new OpResult.ErrorResult(e.code().intValue()));
+            int total = Iterables.size(ops);
+            for (int i = res.size(); i < total; i++) {
+                res.add(new OpResult.ErrorResult(KeeperException.Code.RUNTIMEINCONSISTENCY.intValue()));
             }
         }
         return res;
