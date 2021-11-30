@@ -227,8 +227,8 @@ public class PulsarWorkerService implements WorkerService {
                             workerConfig.getPulsarFunctionsNamespace(), maxRetries);
                     throw e;
                 }
-                retries ++;
-                Thread.sleep(1000);
+                retries++;
+                Thread.sleep(1000L);
             }
         }
 
@@ -277,8 +277,8 @@ public class PulsarWorkerService implements WorkerService {
                 dlogURI = WorkerUtils.initializeDlogNamespace(internalConf);
             }
         } catch (IOException ioe) {
-            log.error("Failed to initialize dlog namespace with zookeeper {} at metadata service uri {} for storing " +
-                            "function packages", internalConf.getZookeeperServers(),
+            log.error("Failed to initialize dlog namespace with zookeeper {} at metadata service uri {} for storing "
+                            + "function packages", internalConf.getZookeeperServers(),
                     internalConf.getBookkeeperMetadataServiceUri(), ioe);
             throw ioe;
         }
@@ -360,9 +360,9 @@ public class PulsarWorkerService implements WorkerService {
                 dlogURI = WorkerUtils.initializeDlogNamespace(internalConf);
             }
         } catch (IOException ioe) {
-            LOG.error("Failed to initialize dlog namespace with zookeeper {} at at metadata service uri {} for " +
-                            "storing function packages",
-                internalConf.getZookeeperServers(), internalConf.getBookkeeperMetadataServiceUri(), ioe);
+            LOG.error("Failed to initialize dlog namespace with zookeeper {} at at metadata service uri {} for "
+                            + "storing function packages",
+                    internalConf.getZookeeperServers(), internalConf.getBookkeeperMetadataServiceUri(), ioe);
             throw ioe;
         }
 
@@ -415,8 +415,7 @@ public class PulsarWorkerService implements WorkerService {
                         .uri(dlogUri)
                         .build();
             } catch (Exception e) {
-                log.error("Failed to initialize dlog namespace {} for storing function packages",
-                        dlogUri, e);
+                log.error("Failed to initialize dlog namespace {} for storing function packages", dlogUri, e);
                 throw new RuntimeException(e);
             }
 
@@ -443,7 +442,8 @@ public class PulsarWorkerService implements WorkerService {
             tryCreateNonPartitionedTopic(workerConfig.getClusterCoordinationTopic());
             tryCreateNonPartitionedTopic(workerConfig.getFunctionMetadataTopic());
             //create scheduler manager
-            this.schedulerManager = new SchedulerManager(workerConfig, client, getBrokerAdmin(), workerStatsManager, errorNotifier);
+            this.schedulerManager = new SchedulerManager(workerConfig, client, getBrokerAdmin(), workerStatsManager,
+                    errorNotifier);
 
             //create function meta data manager
             this.functionMetaDataManager = new FunctionMetaDataManager(
@@ -454,7 +454,8 @@ public class PulsarWorkerService implements WorkerService {
 
             //create membership manager
             String coordinationTopic = workerConfig.getClusterCoordinationTopic();
-            if (!getBrokerAdmin().topics().getSubscriptions(coordinationTopic).contains(MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION)) {
+            if (!getBrokerAdmin().topics().getSubscriptions(coordinationTopic)
+                    .contains(MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION)) {
                 getBrokerAdmin().topics()
                         .createSubscription(coordinationTopic, MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION,
                                 MessageId.earliest);
@@ -503,7 +504,8 @@ public class PulsarWorkerService implements WorkerService {
             log.info("/** Initializing Runtime Manager **/");
 
             MessageId lastAssignmentMessageId = functionRuntimeManager.initialize();
-            Supplier<Boolean> checkIsStillLeader = () -> membershipManager.getLeader().getWorkerId().equals(workerConfig.getWorkerId());
+            Supplier<Boolean> checkIsStillLeader =
+                    () -> membershipManager.getLeader().getWorkerId().equals(workerConfig.getWorkerId());
 
             // Setting references to managers in scheduler
             schedulerManager.setFunctionMetaDataManager(functionMetaDataManager);
@@ -559,7 +561,7 @@ public class PulsarWorkerService implements WorkerService {
 
             if (workerConfig.getWorkerListProbeIntervalSec() > 0) {
                 clusterServiceCoordinator.addTask("drain-worker-list-probe-periodic-check",
-                        workerConfig.getWorkerListProbeIntervalSec() * 1000,
+                        workerConfig.getWorkerListProbeIntervalSec() * 1000L,
                         () -> {
                                 schedulerManager.updateWorkerDrainMap();
                         });
