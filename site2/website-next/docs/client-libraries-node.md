@@ -4,10 +4,6 @@ title: The Pulsar Node.js client
 sidebar_label: "Node.js"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The Pulsar Node.js client can be used to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Node.js.
 
 All the methods in [producers](#producers), [consumers](#consumers), and [readers](#readers) of a Node.js client are thread-safe.

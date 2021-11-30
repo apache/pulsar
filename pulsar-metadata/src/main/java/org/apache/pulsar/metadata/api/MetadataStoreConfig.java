@@ -39,4 +39,10 @@ public class MetadataStoreConfig {
      */
     @Builder.Default
     private final boolean allowReadOnlyOperations = false;
+
+    /**
+     * Config file path for the underlying metadata store implementation.
+     */
+    @Builder.Default
+    private final String configFilePath = null;
 }

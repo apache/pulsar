@@ -5,10 +5,6 @@ sidebar_label: "HDFS3 sink connector"
 original_id: io-hdfs3-sink
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The HDFS3 sink connector pulls the messages from Pulsar topics 
 and persists the messages to HDFS files.
 

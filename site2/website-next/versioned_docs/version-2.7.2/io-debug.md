@@ -4,10 +4,6 @@ title: How to debug Pulsar connectors
 sidebar_label: "Debug"
 original_id: io-debug
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 This guide explains how to debug connectors in localrun or cluster mode and gives a debugging checklist.
 To better demonstrate how to debug Pulsar connectors, here takes a Mongo sink connector as an example.   
 

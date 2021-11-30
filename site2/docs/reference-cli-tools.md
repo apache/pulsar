@@ -63,7 +63,7 @@ The table below lists the environment variables that you can use to configure th
 |`PULSAR_EXTRA_CLASSPATH`|Extra paths for Pulsar's classpath||
 |`PULSAR_PID_DIR`|Folder where the pulsar server PID file should be stored||
 |`PULSAR_STOP_TIMEOUT`|Wait time before forcefully killing the Bookie server instance if attempts to stop it are not successful||
-
+|`PULSAR_GC_LOG`|Gc options to be passed to the jvm||
 
 
 ### `bookie`
@@ -422,6 +422,7 @@ The table below lists the environment variables that you can use to configure th
 |`PULSAR_CLIENT_CONF`|Configuration file for the client|conf/client.conf|
 |`PULSAR_EXTRA_OPTS`|Extra options to be passed to the JVM||
 |`PULSAR_EXTRA_CLASSPATH`|Extra paths for Pulsar's classpath||
+|`PULSAR_GC_LOG`|Gc options to be passed to the jvm||
 
 
 ### `consume`
@@ -452,6 +453,7 @@ Options
 |`-mc`, `--max_chunked_msg`|Max pending chunk messages|0|
 |`-n`, `--num-consumers`|Number of consumers (per topic)|1|
 |`-ioThreads`, `--num-io-threads`|Set the number of threads to be used for handling connections to brokers|1|
+|`-lt`, `--num-listener-threads`|Set the number of threads to be used for message listeners|1|
 |`-ns`, `--num-subscriptions`|Number of subscriptions (per topic)|1|
 |`-t`, `--num-topics`|The number of topics|1|
 |`-pm`, `--pool-messages`|Use the pooled message|true|
@@ -546,6 +548,7 @@ Options
 |`-n`, `--num-messages`|Number of messages to consume in total. If the value is equal to or smaller than 0, it keeps consuming messages.|0|
 |`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
 |`-ioThreads`, `--num-io-threads`|Set the number of threads to be used for handling connections to brokers|1|
+|`-lt`, `--num-listener-threads`|Set the number of threads to be used for message listeners|1|
 |`-t`, `--num-topics`|The number of topics|1|
 |`-r`, `--rate`|Simulate a slow message reader (rate in msg/s)|0|
 |`-q`, `--receiver-queue-size`|Size of the receiver queue|1000|
@@ -701,6 +704,7 @@ The table below lists the environment variables that you can use to configure th
 |ENTRY_FORMATTER_CLASS|The Java class used to format entries||
 |BOOKIE_PID_DIR|Folder where the BookKeeper server PID file should be stored||
 |BOOKIE_STOP_TIMEOUT|Wait time before forcefully killing the Bookie server instance if attempts to stop it are not successful||
+|BOOKIE_GC_LOG|Gc options to be passed to the jvm||
 
 
 ### `auto-recovery`

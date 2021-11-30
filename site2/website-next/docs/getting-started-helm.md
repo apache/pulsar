@@ -4,10 +4,6 @@ title: Get started in Kubernetes
 sidebar_label: "Run Pulsar in Kubernetes"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 This section guides you through every step of installing and running Apache Pulsar with Helm on Kubernetes quickly, including the following sections:
 
 - Install the Apache Pulsar on Kubernetes using Helm

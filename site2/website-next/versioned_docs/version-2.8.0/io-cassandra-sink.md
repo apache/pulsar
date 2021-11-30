@@ -5,10 +5,6 @@ sidebar_label: "Cassandra sink connector"
 original_id: io-cassandra-sink
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The Cassandra sink connector pulls messages from Pulsar topics to Cassandra clusters.
 
 ## Configuration

@@ -34,14 +34,19 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 
 import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+
+import lombok.Getter;
 
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
@@ -71,19 +76,21 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
+@Getter
 @Parameters(commandDescription = "Operations on persistent topics")
 public class CmdTopics extends CmdBase {
+    private final CmdTopics.PartitionedLookup partitionedLookup;
 
     public CmdTopics(Supplier<PulsarAdmin> admin) {
         super("topics", admin);
-
+        partitionedLookup = new PartitionedLookup();
         jcommander.addCommand("list", new ListCmd());
         jcommander.addCommand("list-partitioned-topics", new PartitionedTopicListCmd());
         jcommander.addCommand("permissions", new Permissions());
         jcommander.addCommand("grant-permission", new GrantPermissions());
         jcommander.addCommand("revoke-permission", new RevokePermissions());
         jcommander.addCommand("lookup", new Lookup());
-        jcommander.addCommand("partitioned-lookup", new PartitionedLookup());
+        jcommander.addCommand("partitioned-lookup", partitionedLookup);
         jcommander.addCommand("bundle-range", new GetBundleRange());
         jcommander.addCommand("delete", new DeleteCmd());
         jcommander.addCommand("truncate", new TruncateCmd());
@@ -349,15 +356,33 @@ public class CmdTopics extends CmdBase {
     }
 
     @Parameters(commandDescription = "Lookup a partitioned topic from the current serving broker")
-    private class PartitionedLookup extends CliCommand {
+    protected class PartitionedLookup extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/partitionedTopic", required = true)
-        private java.util.List<String> params;
+        protected java.util.List<String> params;
+        @Parameter(names = { "-s",
+                                "--sort-by-broker" }, description = "Sort partitioned-topic by Broker Url")
+        protected boolean sortByBroker = false;
 
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            print(getAdmin().lookups().lookupPartitionedTopic(topic));
+            if (sortByBroker) {
+                print(lookupPartitionedTopicSortByBroker(topic));
+            } else {
+                print(getAdmin().lookups().lookupPartitionedTopic(topic));
+            }
         }
+    }
+
+    private Map<String, List<String>> lookupPartitionedTopicSortByBroker(String topic) throws PulsarAdminException {
+        Map<String, String> partitionLookup = getAdmin().lookups().lookupPartitionedTopic(topic);
+        Map<String, List<String>> result = new HashMap<>();
+        for (Map.Entry<String, String> entry : partitionLookup.entrySet()) {
+            List<String> topics = result.getOrDefault(entry.getValue(), new ArrayList<String>());
+            topics.add(entry.getKey());
+            result.put(entry.getValue(), topics);
+        }
+        return result;
     }
 
     @Parameters(commandDescription = "Get Namespace bundle range of a topic")
@@ -804,8 +829,13 @@ public class CmdTopics extends CmdBase {
                     getTopics().resetCursor(persistentTopic, subName, messageId);
                 }
             } else if (isNotBlank(resetTimeStr)) {
-                long resetTimeInMillis = TimeUnit.SECONDS
-                        .toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(resetTimeStr));
+                long resetTimeInMillis;
+                try {
+                    resetTimeInMillis = TimeUnit.SECONDS.toMillis(
+                            RelativeTimeUtil.parseRelativeTimeInSeconds(resetTimeStr));
+                } catch (IllegalArgumentException exception) {
+                    throw new ParameterException(exception.getMessage());
+                }
                 // now - go back time
                 long timestamp = System.currentTimeMillis() - resetTimeInMillis;
                 getTopics().resetCursor(persistentTopic, subName, timestamp);
@@ -1111,8 +1141,8 @@ public class CmdTopics extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            long sizeThreshold = validateSizeString(sizeThresholdStr);
             String persistentTopic = validatePersistentTopic(params);
+            long sizeThreshold = validateSizeString(sizeThresholdStr);
 
             PersistentTopicInternalStats stats = getTopics().getInternalStats(persistentTopic, false);
             if (stats.ledgers.size() < 1) {
@@ -1216,13 +1246,15 @@ public class CmdTopics extends CmdBase {
                 + "Valid options are: [producer_request_hold, producer_exception, consumer_backlog_eviction]", required = true)
         private String policyStr;
 
-        @Parameter(names = {"-t", "--type"}, description = "Backlog quota type to set")
-        private String backlogQuotaType = BacklogQuota.BacklogQuotaType.destination_storage.name();
+        @Parameter(names = {"-t", "--type"}, description = "Backlog quota type to set. Valid options are: " +
+                "destination_storage, message_age")
+        private String backlogQuotaTypeStr = BacklogQuota.BacklogQuotaType.destination_storage.name();
 
         @Override
         void run() throws PulsarAdminException {
             BacklogQuota.RetentionPolicy policy;
             long limit;
+            BacklogQuota.BacklogQuotaType backlogQuotaType;
 
             try {
                 policy = BacklogQuota.RetentionPolicy.valueOf(policyStr);
@@ -1233,13 +1265,20 @@ public class CmdTopics extends CmdBase {
 
             limit = validateSizeString(limitStr);
 
+            try {
+                backlogQuotaType = BacklogQuota.BacklogQuotaType.valueOf(backlogQuotaTypeStr);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException(String.format("Invalid backlog quota type '%s'. Valid options are: %s",
+                        backlogQuotaTypeStr, Arrays.toString(BacklogQuota.BacklogQuotaType.values())));
+            }
+
             String persistentTopic = validatePersistentTopic(params);
-            getTopics().setBacklogQuota(persistentTopic, BacklogQuota.builder()
-                    .limitSize(limit)
-                    .limitTime(limitTime)
-                    .retentionPolicy(policy)
-                    .build(),
-                    BacklogQuota.BacklogQuotaType.valueOf(backlogQuotaType));
+            getTopics().setBacklogQuota(persistentTopic,
+                    BacklogQuota.builder().limitSize(limit)
+                            .limitTime(limitTime)
+                            .retentionPolicy(policy)
+                            .build(),
+                    backlogQuotaType);
         }
     }
 
@@ -1336,7 +1375,13 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String topicName = validateTopicName(params);
-            long delayedDeliveryTimeInMills = TimeUnit.SECONDS.toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(delayedDeliveryTimeStr));
+            long delayedDeliveryTimeInMills;
+            try {
+                delayedDeliveryTimeInMills = TimeUnit.SECONDS.toMillis(
+                        RelativeTimeUtil.parseRelativeTimeInSeconds(delayedDeliveryTimeStr));
+            } catch (IllegalArgumentException exception) {
+                throw new ParameterException(exception.getMessage());
+            }
 
             if (enable == disable) {
                 throw new ParameterException("Need to specify either --enable or --disable");
@@ -1486,7 +1531,12 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             long sizeLimit = validateSizeString(limitStr);
-            long retentionTimeInSec = RelativeTimeUtil.parseRelativeTimeInSeconds(retentionTimeStr);
+            long retentionTimeInSec;
+            try {
+                retentionTimeInSec = RelativeTimeUtil.parseRelativeTimeInSeconds(retentionTimeStr);
+            } catch (IllegalArgumentException exception) {
+                throw new ParameterException(exception.getMessage());
+            }
 
             final int retentionTimeInMin;
             if (retentionTimeInSec != -1) {
@@ -1967,12 +2017,13 @@ public class CmdTopics extends CmdBase {
             description = "Maximum number of bytes in a topic backlog before compaction is triggered "
                 + "(eg: 10M, 16G, 3T). 0 disables automatic compaction",
             required = true)
-        private String threshold = "0";
+        private String thresholdStr = "0";
 
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getTopics().setCompactionThreshold(persistentTopic, validateSizeString(threshold));
+            long threshold = validateSizeString(thresholdStr);
+            getTopics().setCompactionThreshold(persistentTopic, threshold);
         }
     }
 
@@ -2352,7 +2403,13 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            long maxInactiveDurationInSeconds = TimeUnit.SECONDS.toSeconds(RelativeTimeUtil.parseRelativeTimeInSeconds(deleteInactiveTopicsMaxInactiveDuration));
+            long maxInactiveDurationInSeconds;
+            try {
+                maxInactiveDurationInSeconds = TimeUnit.SECONDS.toSeconds(
+                        RelativeTimeUtil.parseRelativeTimeInSeconds(deleteInactiveTopicsMaxInactiveDuration));
+            } catch (IllegalArgumentException exception) {
+                throw new ParameterException(exception.getMessage());
+            }
 
             if (enableDeleteWhileInactive == disableDeleteWhileInactive) {
                 throw new ParameterException("Need to specify either enable-delete-while-inactive or disable-delete-while-inactive");

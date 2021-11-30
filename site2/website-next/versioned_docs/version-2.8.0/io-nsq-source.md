@@ -5,10 +5,6 @@ sidebar_label: "NSQ source connector"
 original_id: io-nsq-source
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The NSQ source connector receives messages from NSQ topics 
 and writes messages to Pulsar topics.
 

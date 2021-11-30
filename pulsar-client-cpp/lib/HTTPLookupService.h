@@ -22,7 +22,7 @@
 #include <lib/LookupService.h>
 #include <lib/ClientImpl.h>
 #include <lib/Url.h>
-#include <lib/Version.h>
+#include <lib/VersionInternal.h>
 
 namespace pulsar {
 class HTTPLookupService : public LookupService, public std::enable_shared_from_this<HTTPLookupService> {

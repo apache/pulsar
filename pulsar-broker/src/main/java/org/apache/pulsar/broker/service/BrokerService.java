@@ -26,6 +26,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.PulsarService.isTransactionSystemTopic;
 import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsEventsNames;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
@@ -115,6 +116,8 @@ import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.SystemTopic;
+import org.apache.pulsar.broker.service.plugin.EntryFilterProvider;
+import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.prometheus.metrics.ObserverGauge;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
@@ -253,6 +256,7 @@ public class BrokerService implements Closeable {
 
     private final DelayedDeliveryTrackerFactory delayedDeliveryTrackerFactory;
     private final ServerBootstrap defaultServerBootstrap;
+    private final List<EventLoopGroup> protocolHandlersWorkerGroups = new ArrayList<>();
 
     @Getter
     private final BundlesQuotas bundlesQuotas;
@@ -266,6 +270,7 @@ public class BrokerService implements Closeable {
     private boolean preciseTopicPublishRateLimitingEnable;
     private final LongAdder pausedConnections = new LongAdder();
     private BrokerInterceptor interceptor;
+    private ImmutableMap<String, EntryFilterWithClassLoader> entryFilters;
 
     private Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors;
 
@@ -298,6 +303,9 @@ public class BrokerService implements Closeable {
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-stats-updater"));
         this.authorizationService = new AuthorizationService(
                 pulsar.getConfiguration(), pulsar().getPulsarResources());
+        if (!pulsar.getConfiguration().getEntryFilterNames().isEmpty()) {
+            this.entryFilters = EntryFilterProvider.createEntryFilters(pulsar.getConfiguration());
+        }
 
         pulsar.getLocalMetadataStore().registerListener(this::handleMetadataChanges);
         pulsar.getConfigurationMetadataStore().registerListener(this::handleMetadataChanges);
@@ -331,7 +339,7 @@ public class BrokerService implements Closeable {
             log.info("Enabling per-broker unack-message limit {} and dispatcher-limit {} on blocked-broker",
                     maxUnackedMessages, maxUnackedMsgsPerDispatcher);
             // block misbehaving dispatcher by checking periodically
-            pulsar.getExecutor().scheduleAtFixedRate(() -> checkUnAckMessageDispatching(),
+            pulsar.getExecutor().scheduleAtFixedRate(safeRun(this::checkUnAckMessageDispatching),
                     600, 30, TimeUnit.SECONDS);
         } else {
             this.maxUnackedMessages = 0;
@@ -384,7 +392,26 @@ public class BrokerService implements Closeable {
     private void startProtocolHandler(String protocol,
                                       SocketAddress address,
                                       ChannelInitializer<SocketChannel> initializer) throws IOException {
-        ServerBootstrap bootstrap = defaultServerBootstrap.clone();
+
+        ServiceConfiguration configuration = pulsar.getConfiguration();
+        boolean useSeparateThreadPool = configuration.isUseSeparateThreadPoolForProtocolHandlers();
+        ServerBootstrap bootstrap;
+        if (useSeparateThreadPool) {
+            bootstrap = new ServerBootstrap();
+            bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
+            bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
+            bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
+                    new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
+            EventLoopUtil.enableTriggeredMode(bootstrap);
+            DefaultThreadFactory defaultThreadFactory = new DefaultThreadFactory("pulsar-ph-" + protocol);
+            EventLoopGroup dedicatedWorkerGroup =
+                    EventLoopUtil.newEventLoopGroup(configuration.getNumIOThreads(), false, defaultThreadFactory);
+            bootstrap.channel(EventLoopUtil.getServerSocketChannelClass(dedicatedWorkerGroup));
+            protocolHandlersWorkerGroups.add(dedicatedWorkerGroup);
+            bootstrap.group(this.acceptorGroup, dedicatedWorkerGroup);
+        } else {
+            bootstrap = defaultServerBootstrap.clone();
+        }
         bootstrap.childHandler(initializer);
         try {
             bootstrap.bind(address).sync();
@@ -565,14 +592,12 @@ public class BrokerService implements Closeable {
             if (this.topicPublishRateLimiterMonitor == null) {
                 this.topicPublishRateLimiterMonitor = Executors.newSingleThreadScheduledExecutor(
                         new DefaultThreadFactory("pulsar-topic-publish-rate-limiter-monitor"));
-                if (topicTickTimeMs > 0) {
-                    // schedule task that sums up publish-rate across all cnx on a topic
-                    topicPublishRateLimiterMonitor.scheduleAtFixedRate(safeRun(() -> checkTopicPublishThrottlingRate()),
-                            topicTickTimeMs, topicTickTimeMs, TimeUnit.MILLISECONDS);
-                    // schedule task that refreshes rate-limiting bucket
-                    topicPublishRateLimiterMonitor.scheduleAtFixedRate(safeRun(() -> refreshTopicPublishRate()), 1, 1,
-                            TimeUnit.SECONDS);
-                }
+                // schedule task that sums up publish-rate across all cnx on a topic
+                topicPublishRateLimiterMonitor.scheduleAtFixedRate(safeRun(() -> checkTopicPublishThrottlingRate()),
+                        topicTickTimeMs, topicTickTimeMs, TimeUnit.MILLISECONDS);
+                // schedule task that refreshes rate-limiting bucket
+                topicPublishRateLimiterMonitor.scheduleAtFixedRate(safeRun(() -> refreshTopicPublishRate()), 1, 1,
+                        TimeUnit.SECONDS);
             }
         } else {
             // disable publish-throttling for all topics
@@ -600,21 +625,19 @@ public class BrokerService implements Closeable {
             if (this.brokerPublishRateLimiterMonitor == null) {
                 this.brokerPublishRateLimiterMonitor = Executors.newSingleThreadScheduledExecutor(
                     new DefaultThreadFactory("pulsar-broker-publish-rate-limiter-monitor"));
-                if (brokerTickTimeMs > 0) {
-                    // schedule task that sums up publish-rate across all cnx on a topic,
-                    // and check the rate limit exceeded or not.
-                    brokerPublishRateLimiterMonitor.scheduleAtFixedRate(
-                        safeRun(() -> checkBrokerPublishThrottlingRate()),
-                        brokerTickTimeMs,
-                        brokerTickTimeMs,
-                        TimeUnit.MILLISECONDS);
-                    // schedule task that refreshes rate-limiting bucket
-                    brokerPublishRateLimiterMonitor.scheduleAtFixedRate(
-                        safeRun(() -> refreshBrokerPublishRate()),
-                        1,
-                        1,
-                        TimeUnit.SECONDS);
-                }
+                // schedule task that sums up publish-rate across all cnx on a topic,
+                // and check the rate limit exceeded or not.
+                brokerPublishRateLimiterMonitor.scheduleAtFixedRate(
+                    safeRun(() -> checkBrokerPublishThrottlingRate()),
+                    brokerTickTimeMs,
+                    brokerTickTimeMs,
+                    TimeUnit.MILLISECONDS);
+                // schedule task that refreshes rate-limiting bucket
+                brokerPublishRateLimiterMonitor.scheduleAtFixedRate(
+                    safeRun(() -> refreshBrokerPublishRate()),
+                    1,
+                    1,
+                    TimeUnit.SECONDS);
             }
         } else {
             // disable publish-throttling for broker.
@@ -696,11 +719,27 @@ public class BrokerService implements Closeable {
                 }
             });
 
+            //close entry filters
+            if (entryFilters != null) {
+                entryFilters.forEach((name, filter) -> {
+                    try {
+                        filter.close();
+                    } catch (Exception e) {
+                        log.warn("Error shutting down entry filter {}", name, e);
+                    }
+                });
+            }
+
             CompletableFuture<CompletableFuture<Void>> cancellableDownstreamFutureReference = new CompletableFuture<>();
             log.info("Event loops shutting down gracefully...");
+            List<CompletableFuture<?>> shutdownEventLoops = new ArrayList<>();
+            shutdownEventLoops.add(shutdownEventLoopGracefully(acceptorGroup));
+            shutdownEventLoops.add(shutdownEventLoopGracefully(workerGroup));
+            for (EventLoopGroup group : protocolHandlersWorkerGroups) {
+                shutdownEventLoops.add(shutdownEventLoopGracefully(group));
+            }
             CompletableFuture<Void> shutdownFuture =
-                    CompletableFuture.allOf(shutdownEventLoopGracefully(acceptorGroup),
-                            shutdownEventLoopGracefully(workerGroup))
+                    CompletableFuture.allOf(shutdownEventLoops.toArray(new CompletableFuture[0]))
                             .handle((v, t) -> {
                                 if (t != null) {
                                     log.warn("Error shutting down event loops gracefully", t);
@@ -833,7 +872,9 @@ public class BrokerService implements Closeable {
             serviceUnits.forEach(su -> {
                 if (su instanceof NamespaceBundle) {
                     try {
-                        pulsar.getNamespaceService().unloadNamespaceBundle(su, 1, TimeUnit.MINUTES).get();
+                        pulsar.getNamespaceService().unloadNamespaceBundle(su,
+                                pulsar.getConfiguration().getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS)
+                                .get();
                     } catch (Exception e) {
                         log.warn("Failed to unload namespace bundle {}", su, e);
                     }

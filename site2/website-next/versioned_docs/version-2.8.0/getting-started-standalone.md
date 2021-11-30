@@ -6,10 +6,6 @@ sidebar_label: "Run Pulsar locally"
 original_id: standalone
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 For local development and testing, you can run Pulsar in standalone mode on your machine. The standalone mode includes a Pulsar broker, the necessary ZooKeeper and BookKeeper components running inside of a single Java Virtual Machine (JVM) process.
 
 > #### Pulsar in production? 

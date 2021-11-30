@@ -5,10 +5,6 @@ sidebar_label: "Setup: Configure Functions runtime"
 original_id: functions-runtime
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 You can use the following methods to run functions.
 
 - *Thread*: Invoke functions threads in functions worker.

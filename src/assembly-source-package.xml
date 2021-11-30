@@ -90,6 +90,7 @@
       <outputDirectory>/src</outputDirectory>
       <includes>
         <include>*.sh</include>
+        <include>*.py</include>
       </includes>
       <fileMode>0755</fileMode>
     </fileSet>

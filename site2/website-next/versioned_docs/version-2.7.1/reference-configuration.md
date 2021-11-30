@@ -5,10 +5,6 @@ sidebar_label: "Pulsar configuration"
 original_id: reference-configuration
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 
 
 

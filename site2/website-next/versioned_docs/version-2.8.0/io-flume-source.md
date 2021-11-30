@@ -5,10 +5,6 @@ sidebar_label: "Flume source connector"
 original_id: io-flume-source
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The Flume source connector pulls messages from logs to Pulsar topics.
 
 ## Configuration

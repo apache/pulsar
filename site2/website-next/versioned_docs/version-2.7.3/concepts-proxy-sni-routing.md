@@ -5,10 +5,6 @@ sidebar_label: "Proxy support with SNI routing"
 original_id: concepts-proxy-sni-routing
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 ## Pulsar Proxy with SNI routing
 A proxy server is an intermediary server that forwards requests from multiple clients to different servers across the Internet. The proxy server acts as a "traffic cop" in both forward and reverse proxy scenarios, and benefits your system such as load balancing, performance, security, auto-scaling, and so on.
 

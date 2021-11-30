@@ -167,20 +167,7 @@ To upload (register) a new schema for a topic, you can use one of the following 
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java Admin API",
-    "value": "Java Admin API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -263,7 +250,7 @@ The post payload includes the following fields:
 | --- | --- |
 |  `type`  |   The schema type. | 
 |  `schema`  |   The schema definition data, which is encoded in UTF 8 charset. <li>If the schema is a </li>**primitive**<li>schema, this field should be blank. </li><li>If the schema is a </li>**struct**<li>schema, this field should be a JSON string of the Avro schema definition. </li> | 
-|  `properties`  |  The additional properties associated with the schema. | 
+|  `properties`  |  The additional properties associated with the schema. |
 
 </TabItem>
 <TabItem value="Java Admin API">
@@ -306,20 +293,7 @@ To get the latest schema for a topic, you can use one of the following methods.
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java Admin API",
-    "value": "Java Admin API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -369,7 +343,7 @@ The response includes the following fields:
 |  `type`  |   The schema type. | 
 |  `timestamp`  |   The timestamp of creating this version of schema. | 
 |  `data`  |   The schema definition data, which is encoded in UTF 8 charset. <li>If the schema is a </li>**primitive**<li>schema, this field should be blank. </li><li>If the schema is a </li>**struct**<li>schema, this field should be a JSON string of the Avro schema definition. </li> | 
-|  `properties`  |  The additional properties associated with the schema. | 
+|  `properties`  |  The additional properties associated with the schema. |
 
 </TabItem>
 <TabItem value="Java Admin API">
@@ -409,20 +383,7 @@ To get a specific version of a schema, you can use one of the following methods.
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java Admin API",
-    "value": "Java Admin API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -461,7 +422,7 @@ The response includes the following fields:
 |  `type`  |   The schema type. | 
 |  `timestamp`  |   The timestamp of creating this version of schema. | 
 |  `data`  |   The schema definition data, which is encoded in UTF 8 charset. <li>If the schema is a </li>**primitive**<li>schema, this field should be blank. </li><li>If the schema is a </li>**struct**<li>schema, this field should be a JSON string of the Avro schema definition. </li> | 
-|  `properties`  |  The additional properties associated with the schema. | 
+|  `properties`  |  The additional properties associated with the schema. |
 
 </TabItem>
 <TabItem value="Java Admin API">
@@ -501,12 +462,7 @@ To provide a schema via a topic, you can use the following method.
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -534,20 +490,7 @@ In any case, the **delete** action deletes **all versions** of a schema register
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java Admin API",
-    "value": "Java Admin API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -578,7 +521,7 @@ The response includes the following field:
 
 Field | Description |
 ---|---|
-`version` | The schema version, which is a long number. | 
+`version` | The schema version, which is a long number. |
 
 </TabItem>
 <TabItem value="Java Admin API">
@@ -681,3 +624,66 @@ To use your custom schema storage implementation, perform the following steps.
 3. Change the `schemaRegistryStorageClassName` configuration in `broker.conf` to your custom factory class.
       
 4. Start Pulsar.
+
+## Set schema compatibility check strategy 
+
+You can set [schema compatibility check strategy](schema-evolution-compatibility.md#schema-compatibility-check-strategy) at namespace or broker level. 
+
+- If you set schema compatibility check strategy at both namespace or broker level, it uses the strategy set for the namespace level.
+
+- If you do not set schema compatibility check strategy at both namespace or broker level, it uses the `FULL` strategy.
+
+- If you set schema compatibility check strategy at broker level rather than namespace level, it uses the strategy set for the broker level.
+
+- If you set schema compatibility check strategy at namespace level rather than broker level, it uses the strategy set for the namespace level.
+
+### Namespace 
+
+You can set schema compatibility check strategy at namespace level using one of the following methods.
+
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+
+<TabItem value="pulsar-admin">
+
+Use the [`pulsar-admin namespaces set-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
+
+```shell
+
+pulsar-admin namespaces set-schema-compatibility-strategy options
+
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace|operation/schemaCompatibilityStrategy?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
+Use the [`setSchemaCompatibilityStrategy`](https://pulsar.apache.org/api/admin/)method.
+
+```java
+
+admin.namespaces().setSchemaCompatibilityStrategy("test", SchemaCompatibilityStrategy.FULL);
+
+```
+
+</TabItem>
+
+</Tabs>
+
+### Broker 
+
+You can set schema compatibility check strategy at broker level by setting `schemaCompatibilityStrategy` in [`broker.conf`](https://github.com/apache/pulsar/blob/f24b4890c278f72a67fe30e7bf22dc36d71aac6a/conf/broker.conf#L1240) or [`standalone.conf`](https://github.com/apache/pulsar/blob/master/conf/standalone.conf) file.
+
+**Example**
+
+```
+
+schemaCompatibilityStrategy=ALWAYS_INCOMPATIBLE
+
+```
+

@@ -5,10 +5,6 @@ sidebar_label: "Aliyun OSS offloader"
 original_id: tiered-storage-aliyun
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 This chapter guides you through every step of installing and configuring the Aliyun Object Storage Service (OSS) offloader and using it with Pulsar.
 
 ## Installation

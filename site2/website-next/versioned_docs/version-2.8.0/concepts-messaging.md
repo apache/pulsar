@@ -108,7 +108,7 @@ By default, batch index acknowledgement is disabled (`acknowledgmentAtBatchIndex
 When you enable chunking, read the following instructions.
 - Batching and chunking cannot be enabled simultaneously. To enable chunking, you must disable batching in advance.
 - Chunking is only supported for persisted topics.
-- Chunking is only supported for Exclusive and Failover subscription types.
+- Chunking is only supported for the exclusive and failover subscription types.
 
 When chunking is enabled (`chunkingEnabled=true`), if the message size is greater than the allowed maximum publish-payload size, the producer splits the original message into chunked messages and publishes them with chunked metadata to the broker separately and in order. At the broker side, the chunked messages are stored in the managed-ledger in the same way as that of ordinary messages. The only difference is that the consumer needs to buffer the chunked messages and combines them into the real message when all chunked messages have been collected. The chunked messages in the managed-ledger can be interwoven with ordinary messages. If producer fails to publish all the chunks of a message, the consumer can expire incomplete chunks if consumer fail to receive all chunks in expire time. By default, the expire time is set to one hour.
 
@@ -160,7 +160,7 @@ Messages can be acknowledged in the following two ways:
 
 :::note
 
-Cumulative acknowledgement cannot be used in [Shared subscription type](#subscription-types), because Shared subscription type involves multiple consumers who have access to the same subscription. In Shared subscription type, messages are acknowledged individually.
+Cumulative acknowledgement cannot be used in [Shared subscription type](#subscription-types), because this subscription type involves multiple consumers which have access to the same subscription. In Shared subscription type, messages are acknowledged individually.
 
 :::
 
@@ -168,11 +168,11 @@ Cumulative acknowledgement cannot be used in [Shared subscription type](#subscri
 
 When a consumer does not consume a message successfully at a time, and wants to consume the message again, the consumer sends a negative acknowledgement to the broker, and then the broker redelivers the message.
 
-Messages are negatively acknowledged one by one or cumulatively, which depends on the consumption subscription type.
+Messages are negatively acknowledged either individually or cumulatively, depending on the consumption subscription type.
 
-In Exclusive and Failover subscription types, consumers only negatively acknowledge the last message they receive.
+In the exclusive and failover subscription types, consumers only negatively acknowledge the last message they receive.
 
-In Shared and Key_Shared subscription types, you can negatively acknowledge messages individually.
+In the shared and Key_Shared subscription types, you can negatively acknowledge messages individually.
 
 Be aware that negative acknowledgment on ordered subscription types, such as Exclusive, Failover and Key_Shared, can cause failed messages to arrive consumers out of the original order.
 
@@ -246,7 +246,7 @@ Dead letter topic depends on message re-delivery. Messages are redelivered eithe
 
 :::note
 
-Currently, dead letter topic is enabled in Shared and Key_Shared subscription types.
+Currently, dead letter topic is enabled In the shared and Key_Shared subscription types.
 
 :::
 
@@ -313,8 +313,7 @@ A subscription is a named configuration rule that determines how messages are de
 > * If you want to achieve both effects simultaneously, combine exclusive subscription type with other subscription types for consumers.
 
 ### Subscription types
-
-When a subscription has no consumers, its subscription type is undefined. A subscription's type is defined when a consumer connects to the subscription, and the type can be changed by restarting all consumers with a different configuration.
+When a subscription has no consumers, its subscription type is undefined. The type of a subscription is defined when a consumer connects to it, and the type can be changed by restarting all consumers with a different configuration.
 
 #### Exclusive
 
@@ -328,7 +327,7 @@ In the diagram below, only **Consumer A-0** is allowed to consume messages.
 
 #### Failover
 
-In *failover* type, multiple consumers can attach to the same subscription. A master consumer is picked for non-partitioned topic or each partition of partitioned topic and receives messages. When the master consumer disconnects, all (non-acknowledged and subsequent) messages are delivered to the next consumer in line.
+In *Failover* type, multiple consumers can attach to the same subscription. A master consumer is picked for non-partitioned topic or each partition of partitioned topic and receives messages. When the master consumer disconnects, all (non-acknowledged and subsequent) messages are delivered to the next consumer in line.
 
 For partitioned topics, broker will sort consumers by priority level and lexicographical order of consumer name. Then broker will try to evenly assigns topics to consumers with the highest priority level.
 
@@ -338,7 +337,7 @@ In the diagram below, **Consumer-B-0** is the master consumer while **Consumer-B
 
 ![Failover subscriptions](/assets/pulsar-failover-subscriptions.png)
 
-### Shared
+#### Shared
 
 In *shared* or *round robin* mode, multiple consumers can attach to the same subscription. Messages are delivered in a round robin distribution across consumers, and any given message is delivered to only one consumer. When a consumer disconnects, all the messages that were sent to it and not acknowledged will be rescheduled for sending to the remaining consumers.
 
@@ -351,7 +350,7 @@ In the diagram below, **Consumer-C-1** and **Consumer-C-2** are able to subscrib
 
 ![Shared subscriptions](/assets/pulsar-shared-subscriptions.png)
 
-### Key_Shared
+#### Key_Shared
 
 In *Key_Shared* type, multiple consumers can attach to the same subscription. Messages are delivered in a distribution across consumers and message with same key or same ordering key are delivered to only one consumer. No matter how many times the message is re-delivered, it is delivered to the same consumer. When a consumer connected or disconnected will cause served consumer change for some key of message.
 
@@ -376,42 +375,51 @@ The subscription mode indicates the cursor type.
 
 Subscription mode | Description | Note
 |---|---|---
-`Durable`|The cursor is durable, which retains messages and persists the current position. <br></br>If a broker restarts from a failure, it can recover the cursor from the persistent storage (BookKeeper), so that messages can continue to be consumed from the last consumed position.|`Durable` is the **default** subscription mode.
-`NonDurable`|The cursor is non-durable. <br></br>Once a broker stops, the cursor is lost and can never be recovered, so that messages **can not** continue to be consumed from the last consumed position.|Reader’s subscription mode is `NonDurable` in nature and it does not prevent data in a topic from being deleted. Reader’s subscription mode **can not** be changed. 
+`Durable`|The cursor is durable, which retains messages and persists the current position. <br /><br />If a broker restarts from a failure, it can recover the cursor from the persistent storage (BookKeeper), so that messages can continue to be consumed from the last consumed position.|`Durable` is the **default** subscription mode.
+`NonDurable`|The cursor is non-durable. <br /><br />Once a broker stops, the cursor is lost and can never be recovered, so that messages **can not** continue to be consumed from the last consumed position.|Reader’s subscription mode is `NonDurable` in nature and it does not prevent data in a topic from being deleted. Reader’s subscription mode **can not** be changed. 
 
 A [subscription](#concepts-messaging.md/#subscriptions) can have one or more consumers. When a consumer subscribes to a topic, it must specify the subscription name. A durable subscription and a non-durable subscription can have the same name, they are independent of each other. If a consumer specifies a subscription which does not exist before, the subscription is automatically created.
 
 #### When to use
 
-By default, messages of a topic without any durable subscriptions are marked as deleted. If you want to prevent the messages being marked as deleted, you can create a durable subscription for this topic. In this case, only acknowledged messages are marked as deleted. For more information, see [message retention and expiry](cookbooks-retention-expiry.md).
+By default, messages of a topic without any durable subscriptions are marked as deleted. If you want to prevent the messages being marked as deleted, you can create a durable subscription for this topic. In this case, only acknowledged messages are marked as deleted. For more information, see [message retention and expiry](cookbooks-retention-expiry).
 
 #### How to use
 
 After a consumer is created, the default subscription mode of the consumer is `Durable`. You can change the subscription mode to `NonDurable` by making changes to the consumer’s configuration.
 
-<!--DOCUSAURUS_CODE_TABS-->
+<Tabs 
+  defaultValue="Durable"
+  values={[{"label":"Durable","value":"Durable"},{"label":"Non-durable","value":"Non-durable"}]}>
 
-<!--Durable-->
+<TabItem value="Durable">
 
 ```java
+
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic("my-topic")
                 .subscriptionName("my-sub")
                 .subscriptionMode(SubscriptionMode.Durable)
                 .subscribe();
+
 ```
 
-<!--Non-durable-->
+</TabItem>
+<TabItem value="Non-durable">
 
 ```java
+
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic("my-topic")
                 .subscriptionName("my-sub")
                 .subscriptionMode(SubscriptionMode.NonDurable)
                 .subscribe();
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
 
 For how to create, check, or delete a durable subscription, see [manage subscriptions](admin-api-topics.md/#manage-subscriptions).
 

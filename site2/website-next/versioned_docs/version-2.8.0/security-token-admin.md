@@ -5,10 +5,6 @@ sidebar_label: "Token authentication admin"
 original_id: security-token-admin
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 ## Token Authentication Overview
 
 Pulsar supports authenticating clients using security tokens that are based on [JSON Web Tokens](https://jwt.io/introduction/) ([RFC-7519](https://tools.ietf.org/html/rfc7519)).

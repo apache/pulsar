@@ -5,10 +5,6 @@ sidebar_label: "Debezium source connector"
 original_id: io-cdc-debezium
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The Debezium source connector pulls messages from MySQL or PostgreSQL 
 and persists the messages to Pulsar topics.
 

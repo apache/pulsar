@@ -202,8 +202,16 @@ server.1=zk1.us-west.example.com:2888:3888
 server.2=zk2.us-west.example.com:2888:3888
 server.3=zk3.us-west.example.com:2888:3888
 ```
-
 > If you only have one machine on which to deploy Pulsar, you only need to add one server entry in the configuration file.
+
+> If your machines are behind NAT use 0.0.0.0 as server entry for the local address. If the node use external IP in configuration for itself, behind NAT, zookeper service won't start because it tries to put a listener on an external ip that the linux box doesn't own. Using 0.0.0.0 start a listener on ALL ip, so that NAT network traffic can reach it.
+
+Example of configuration on _server.3_
+```properties
+server.1=zk1.us-west.example.com:2888:3888
+server.2=zk2.us-west.example.com:2888:3888
+server.3=0.0.0.0:2888:3888
+```
 
 On each host, you need to specify the ID of the node in the `myid` file, which is in the `data/zookeeper` folder of each server by default (you can change the file location via the [`dataDir`](reference-configuration.md#zookeeper-dataDir) parameter).
 

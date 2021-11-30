@@ -325,6 +325,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long topicLoadTimeoutSeconds = 60;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Configuration file path for local metadata store. It's supported by RocksdbMetadataStore for now."
+    )
+    private String metadataStoreConfigPath = null;
+
+    @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Enable backlog quota check. Enforces actions on topic when the quota is reached"
     )
@@ -572,6 +578,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "The maximum number of connections per IP. If it exceeds, new connections are rejected."
     )
     private int brokerMaxConnectionsPerIp = 0;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        dynamic = true,
+        doc = "Allow schema to be auto updated at broker level. User can override this by 'is_allow_auto_update_schema'"
+            + " of namespace policy. This is enabled by default."
+    )
+    private boolean isAllowAutoUpdateSchemaEnabled = true;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -822,6 +836,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean preciseDispatcherFlowControl = false;
 
     @FieldContext(
+         dynamic = true,
+         category = CATEGORY_SERVER,
+         doc = " Class name of pluggable entry filter that decides whether the entry needs to be filtered."
+                 + "You can use this class to decide which entries can be sent to consumers."
+                 + "Multiple names need to be separated by commas."
+    )
+    private List<String> entryFilterNames = new ArrayList<>();
+
+    @FieldContext(
+         dynamic = true,
+         category = CATEGORY_SERVER,
+         doc = " The directory for all the entry filter implementations."
+    )
+    private String entryFiltersDirectory = "";
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Whether to use streaming read dispatcher. Currently is in preview and can be changed " +
                 "in subsequent release."
@@ -980,12 +1010,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "Check between intervals to see if max message size of topic policy has updated. default is 60s"
-    )
-    private int maxMessageSizeCheckIntervalInSeconds = 60;
-
-    @FieldContext(
-            category = CATEGORY_SERVER,
             doc = "The number of partitions per partitioned topic.\n"
                 + "If try to create or update partitioned topics by exceeded number of partitions, then fail."
     )
@@ -1030,6 +1054,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "The directory to locate messaging protocol handlers"
     )
     private String protocolHandlerDirectory = "./protocols";
+
+    @FieldContext(
+            category = CATEGORY_PROTOCOLS,
+            doc = "Use a separate ThreadPool for each Protocol Handler"
+    )
+    private boolean useSeparateThreadPoolForProtocolHandlers = true;
 
     @FieldContext(
         category = CATEGORY_PROTOCOLS,
@@ -1881,6 +1911,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Option to override the auto-detected network interfaces max speed"
     )
     private Double loadBalancerOverrideBrokerNicSpeedGbps;
+    @FieldContext(
+        category = CATEGORY_LOAD_BALANCER,
+        doc = "Time to wait for the unloading of a namespace bundle"
+    )
+    private long namespaceBundleUnloadingTimeoutMs = 60000;
 
     /**** --- Replication --- ****/
     @FieldContext(

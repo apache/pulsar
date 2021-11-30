@@ -609,7 +609,7 @@ public class CmdNamespaces extends CmdBase {
                 }
 
                 if (TopicType.PARTITIONED.toString().equals(type)
-                        && (defaultNumPartitions == null || !(defaultNumPartitions > 0))) {
+                        && (defaultNumPartitions == null || defaultNumPartitions <= 0)) {
                     throw new ParameterException("Must specify num-partitions or num-partitions > 0 " +
                             "for partitioned topic type.");
                 }
@@ -720,7 +720,12 @@ public class CmdNamespaces extends CmdBase {
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             long sizeLimit = validateSizeString(limitStr);
-            long retentionTimeInSec = RelativeTimeUtil.parseRelativeTimeInSeconds(retentionTimeStr);
+            long retentionTimeInSec;
+            try {
+                retentionTimeInSec = RelativeTimeUtil.parseRelativeTimeInSeconds(retentionTimeStr);
+            } catch (IllegalArgumentException exception) {
+                throw new ParameterException(exception.getMessage());
+            }
 
             final int retentionTimeInMin;
             if (retentionTimeInSec != -1) {
@@ -1176,7 +1181,7 @@ public class CmdNamespaces extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             BacklogQuota.RetentionPolicy policy;
-            long limit;
+            long limit = validateSizeString(limitStr);
             BacklogQuota.BacklogQuotaType backlogQuotaType;
 
             try {
@@ -1184,13 +1189,6 @@ public class CmdNamespaces extends CmdBase {
             } catch (IllegalArgumentException e) {
                 throw new ParameterException(String.format("Invalid retention policy type '%s'. Valid options are: %s",
                         policyStr, Arrays.toString(BacklogQuota.RetentionPolicy.values())));
-            }
-
-            try {
-                limit = validateSizeString(limitStr);
-            } catch (IllegalArgumentException e) {
-                throw new ParameterException(String.format("Invalid retention policy type '%s'. Valid formats are: %s",
-                        limitStr, "(4096, 100K, 10M, 16G, 2T)"));
             }
 
             try {
@@ -1449,7 +1447,13 @@ public class CmdNamespaces extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            long maxInactiveDurationInSeconds = TimeUnit.SECONDS.toSeconds(RelativeTimeUtil.parseRelativeTimeInSeconds(deleteInactiveTopicsMaxInactiveDuration));
+            long maxInactiveDurationInSeconds;
+            try {
+                maxInactiveDurationInSeconds = TimeUnit.SECONDS.toSeconds(
+                        RelativeTimeUtil.parseRelativeTimeInSeconds(deleteInactiveTopicsMaxInactiveDuration));
+            } catch (IllegalArgumentException exception) {
+                throw new ParameterException(exception.getMessage());
+            }
 
             if (enableDeleteWhileInactive == disableDeleteWhileInactive) {
                 throw new ParameterException("Need to specify either enable-delete-while-inactive or disable-delete-while-inactive");
@@ -1482,7 +1486,13 @@ public class CmdNamespaces extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            long delayedDeliveryTimeInMills = TimeUnit.SECONDS.toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(delayedDeliveryTimeStr));
+            long delayedDeliveryTimeInMills;
+            try {
+                delayedDeliveryTimeInMills = TimeUnit.SECONDS.toMillis(
+                        RelativeTimeUtil.parseRelativeTimeInSeconds(delayedDeliveryTimeStr));
+            } catch (IllegalArgumentException exception) {
+                throw new ParameterException(exception.getMessage());
+            }
 
             if (enable == disable) {
                 throw new ParameterException("Need to specify either --enable or --disable");
@@ -1791,12 +1801,13 @@ public class CmdNamespaces extends CmdBase {
                    description = "Maximum number of bytes in a topic backlog before compaction is triggered "
                                  + "(eg: 10M, 16G, 3T). 0 disables automatic compaction",
                    required = true)
-        private String threshold = "0";
+        private String thresholdStr = "0";
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            getAdmin().namespaces().setCompactionThreshold(namespace, validateSizeString(threshold));
+            long threshold = validateSizeString(thresholdStr);
+            getAdmin().namespaces().setCompactionThreshold(namespace, threshold);
         }
     }
 
@@ -1824,12 +1835,13 @@ public class CmdNamespaces extends CmdBase {
                                  + " Negative values disable automatic offload."
                                  + " 0 triggers offloading as soon as possible.",
                    required = true)
-        private String threshold = "-1";
+        private String thresholdStr = "-1";
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            getAdmin().namespaces().setOffloadThreshold(namespace, validateSizeString(threshold));
+            long threshold = validateSizeString(thresholdStr);
+            getAdmin().namespaces().setOffloadThreshold(namespace, threshold);
         }
     }
 
@@ -1864,7 +1876,13 @@ public class CmdNamespaces extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            getAdmin().namespaces().setOffloadDeleteLag(namespace, RelativeTimeUtil.parseRelativeTimeInSeconds(lag),
+            long lagInSec;
+            try {
+                lagInSec = RelativeTimeUtil.parseRelativeTimeInSeconds(lag);
+            } catch (IllegalArgumentException exception) {
+                throw new ParameterException(exception.getMessage());
+            }
+            getAdmin().namespaces().setOffloadDeleteLag(namespace, lagInSec,
                     TimeUnit.SECONDS);
         }
     }
@@ -2181,7 +2199,7 @@ public class CmdNamespaces extends CmdBase {
                 long maxBlockSize = validateSizeString(maxBlockSizeStr);
                 if (positiveCheck("MaxBlockSize", maxBlockSize)
                         && maxValueCheck("MaxBlockSize", maxBlockSize, Integer.MAX_VALUE)) {
-                    maxBlockSizeInBytes = new Long(maxBlockSize).intValue();
+                    maxBlockSizeInBytes = Long.valueOf(maxBlockSize).intValue();
                 }
             }
 
@@ -2190,13 +2208,19 @@ public class CmdNamespaces extends CmdBase {
                 long readBufferSize = validateSizeString(readBufferSizeStr);
                 if (positiveCheck("ReadBufferSize", readBufferSize)
                         && maxValueCheck("ReadBufferSize", readBufferSize, Integer.MAX_VALUE)) {
-                    readBufferSizeInBytes = new Long(readBufferSize).intValue();
+                    readBufferSizeInBytes = Long.valueOf(readBufferSize).intValue();
                 }
             }
 
             Long offloadAfterElapsedInMillis = OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS;
             if (StringUtils.isNotEmpty(offloadAfterElapsedStr)) {
-                Long offloadAfterElapsed = TimeUnit.SECONDS.toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(offloadAfterElapsedStr));
+                Long offloadAfterElapsed;
+                try {
+                    offloadAfterElapsed = TimeUnit.SECONDS.toMillis(
+                            RelativeTimeUtil.parseRelativeTimeInSeconds(offloadAfterElapsedStr));
+                } catch (IllegalArgumentException exception) {
+                    throw new ParameterException(exception.getMessage());
+                }
                 if (positiveCheck("OffloadAfterElapsed", offloadAfterElapsed)
                         && maxValueCheck("OffloadAfterElapsed", offloadAfterElapsed, Long.MAX_VALUE)) {
                     offloadAfterElapsedInMillis = offloadAfterElapsed;

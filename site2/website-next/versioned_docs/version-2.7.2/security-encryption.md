@@ -5,10 +5,6 @@ sidebar_label: "End-to-End Encryption"
 original_id: security-encryption
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 Applications can use Pulsar encryption to encrypt messages at the producer side and decrypt messages at the consumer side. You can use the public and private key pair that the application configures to perform encryption. Only the consumers with a valid key can decrypt the encrypted messages.
 
 ## Asymmetric and symmetric encryption

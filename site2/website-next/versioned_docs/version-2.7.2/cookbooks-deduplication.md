@@ -77,20 +77,7 @@ The instructions for Java, Python, and C++ clients are different.
 
 <Tabs 
   defaultValue="Java clients"
-  values={[
-  {
-    "label": "Java clients",
-    "value": "Java clients"
-  },
-  {
-    "label": "Python clients",
-    "value": "Python clients"
-  },
-  {
-    "label": "C++ clients",
-    "value": "C++ clients"
-  }
-]}>
+  values={[{"label":"Java clients","value":"Java clients"},{"label":"Python clients","value":"Python clients"},{"label":"C++ clients","value":"C++ clients"}]}>
 <TabItem value="Java clients">
 
 To enable message deduplication on a [Java producer](client-libraries-java.md#producers), set the producer name using the `producerName` setter, and set the timeout to `0` using the `sendTimeout` setter. 

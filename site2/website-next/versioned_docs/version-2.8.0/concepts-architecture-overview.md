@@ -5,10 +5,6 @@ sidebar_label: "Architecture"
 original_id: concepts-architecture-overview
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 At the highest level, a Pulsar instance is composed of one or more Pulsar clusters. Clusters within an instance can [replicate](concepts-replication) data amongst themselves.
 
 In a Pulsar cluster:

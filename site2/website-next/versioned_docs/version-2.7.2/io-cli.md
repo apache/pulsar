@@ -5,10 +5,6 @@ sidebar_label: "CLI"
 original_id: io-cli
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The `pulsar-admin` tool helps you manage Pulsar connectors.
   
 ## `sources`

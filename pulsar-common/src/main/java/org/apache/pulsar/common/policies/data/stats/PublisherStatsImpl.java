@@ -85,7 +85,7 @@ public class PublisherStatsImpl implements PublisherStats {
 
     public PublisherStatsImpl add(PublisherStatsImpl stats) {
         if (stats == null) {
-            throw new NullPointerException();
+            throw new IllegalArgumentException("stats can't be null");
         }
         this.count++;
         this.msgRateIn += stats.msgRateIn;

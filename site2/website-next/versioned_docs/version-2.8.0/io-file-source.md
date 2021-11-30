@@ -5,10 +5,6 @@ sidebar_label: "File source connector"
 original_id: io-file-source
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The File source connector pulls messages from files in directories and persists the messages to Pulsar topics.
 
 ## Configuration

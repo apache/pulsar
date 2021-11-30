@@ -31,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -181,37 +182,70 @@ public class BaseResources<T> {
         return sb.toString();
     }
 
-
-
-    protected static void deleteRecursive(BaseResources resources, final String pathRoot) throws MetadataStoreException {
+    protected static CompletableFuture<Void> deleteRecursiveAsync(BaseResources resources, final String pathRoot) {
         PathUtils.validatePath(pathRoot);
-        List<String> tree = listSubTreeBFS(resources, pathRoot);
-        log.debug("Deleting {} with size {}", tree, tree.size());
-        log.debug("Deleting " + tree.size() + " subnodes ");
-        for (int i = tree.size() - 1; i >= 0; --i) {
-            // Delete the leaves first and eventually get rid of the root
-            resources.delete(tree.get(i));
-        }
+
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        listSubTreeBFSAsync(resources, pathRoot).whenComplete((tree, ex) -> {
+            if (ex == null) {
+                log.debug("Deleting {} with size {}", tree, tree.size());
+
+                final List<CompletableFuture<Void>> futures = new ArrayList<>();
+                for (int i = tree.size() - 1; i >= 0; --i) {
+                    // Delete the leaves first and eventually get rid of the root
+                    futures.add(resources.deleteAsync(tree.get(i)));
+                }
+
+                FutureUtil.waitForAll(futures).handle((result, exception) -> {
+                    if (exception != null) {
+                        log.error("Failed to remove partitioned topics", exception);
+                        return completableFuture.completeExceptionally(exception.getCause());
+                    }
+                    return completableFuture.complete(null);
+                });
+            } else {
+                log.warn("Failed to delete partitioned topics z-node [{}]", pathRoot, ex.getCause());
+            }
+        });
+
+        return completableFuture;
     }
 
-    protected static List<String> listSubTreeBFS(BaseResources resources, final String pathRoot)
-            throws MetadataStoreException {
+    protected static CompletableFuture<List<String>> listSubTreeBFSAsync(BaseResources resources,
+            final String pathRoot) {
         Deque<String> queue = new LinkedList<>();
         List<String> tree = new ArrayList<>();
         queue.add(pathRoot);
         tree.add(pathRoot);
-        while (true) {
+        CompletableFuture<List<String>> completableFuture = new CompletableFuture<>();
+        final List<CompletableFuture<Void>> futures = new ArrayList<>();
+        for (int i = 0; i < queue.size(); i++) {
             String node = queue.pollFirst();
             if (node == null) {
                 break;
             }
-            List<String> children = resources.getChildren(node);
-            for (final String child : children) {
-                final String childPath = node + "/" + child;
-                queue.add(childPath);
-                tree.add(childPath);
-            }
+            futures.add(resources.getChildrenAsync(node)
+                    .whenComplete((children, ex) -> {
+                        if (ex == null) {
+                            for (final String child : (List<String>) children) {
+                                final String childPath = node + "/" + child;
+                                queue.add(childPath);
+                                tree.add(childPath);
+                            }
+                        } else {
+                            log.warn("Failed to get data error from z-node [{}]", node);
+                        }
+                    }));
         }
-        return tree;
+
+        FutureUtil.waitForAll(futures).handle((result, exception) -> {
+            if (exception != null) {
+                log.error("Failed to get partitioned topics", exception);
+                return completableFuture.completeExceptionally(exception.getCause());
+            }
+            return completableFuture.complete(tree);
+        });
+
+        return completableFuture;
     }
 }

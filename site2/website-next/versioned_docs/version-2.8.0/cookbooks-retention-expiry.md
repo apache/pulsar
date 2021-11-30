@@ -64,20 +64,7 @@ You can set a retention policy for a namespace by specifying the namespace, a si
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 You can use the [`set-retention`](reference-pulsar-admin.md#namespaces-set-retention) subcommand and specify a namespace, a size limit using the `-s`/`--size` flag, and a time limit using the `-t`/`--time` flag. 
@@ -141,7 +128,7 @@ $ pulsar-admin namespaces set-retention my-tenant/my-ns \
 
 :::note
 
-To disable the retention policy, you need to set both the size and time limit to `0`. Set either size or time limit to `0` is invalid. 
+To disable the retention policy, you need to set both the size and time limit to `0`. Set either size or time limit to `0` is invalid.
 
 :::
 

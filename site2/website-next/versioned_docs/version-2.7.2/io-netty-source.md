@@ -5,10 +5,6 @@ sidebar_label: "Netty source connector"
 original_id: io-netty-source
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The Netty source connector opens a port that accepts incoming data via the configured network protocol 
 and publish it to user-defined Pulsar topics.
 

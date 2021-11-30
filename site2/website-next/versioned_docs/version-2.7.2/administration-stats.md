@@ -5,10 +5,6 @@ sidebar_label: "Pulsar statistics"
 original_id: administration-stats
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 ## Partitioned topics
 
 |Stat|Description|
