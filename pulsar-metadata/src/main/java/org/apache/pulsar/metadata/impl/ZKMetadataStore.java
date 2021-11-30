@@ -179,6 +179,10 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore implements Met
                         case GET_CHILDREN:
                             handleGetChildrenResult(op.asGetChildren(), opr);
                             break;
+
+                        default:
+                            op.getFuture().completeExceptionally(new IllegalStateException(
+                                    "Operation type not supported in multi: " + op.getType()));
                     }
                 }
             }, null);
