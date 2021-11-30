@@ -99,6 +99,7 @@ public class RuntimeUtilsTest {
                 .setName("go-func")
                 .setLogTopic("go-func-log")
                 .setProcessingGuarantees(Function.ProcessingGuarantees.ATLEAST_ONCE)
+                .setRuntime(Function.FunctionDetails.Runtime.GO)
                 .setSecretsMap(secretsMap.toJSONString())
                 .setParallelism(1)
                 .setSource(sources)
