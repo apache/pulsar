@@ -658,7 +658,7 @@ The table below lists the environment variables that you can use to configure th
 
 
 ### `autorecovery`
-Runs an autorecovery service
+Runs an auto-recovery service
 
 Usage
 ```bash
