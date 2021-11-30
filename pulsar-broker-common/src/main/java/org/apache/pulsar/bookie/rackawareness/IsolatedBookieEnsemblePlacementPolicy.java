@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException.BKNotEnoughBookiesException;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicyImpl;
@@ -48,9 +50,8 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@Slf4j
 public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlacementPolicy {
-    private static final Logger LOG = LoggerFactory.getLogger(IsolatedBookieEnsemblePlacementPolicy.class);
-
     public static final String ISOLATION_BOOKIE_GROUPS = "isolationBookieGroups";
     public static final String SECONDARY_ISOLATION_BOOKIE_GROUPS = "secondaryIsolationBookieGroups";
 
@@ -170,7 +171,7 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
             try {
                 return Optional.ofNullable(EnsemblePlacementPolicyConfig.decode(ensemblePlacementPolicyConfigData));
             } catch (EnsemblePlacementPolicyConfig.ParseEnsemblePlacementPolicyConfigException e) {
-                LOG.error("Failed to parse the ensemble placement policy config from the custom metadata", e);
+                log.error("Failed to parse the ensemble placement policy config from the custom metadata", e);
                 return Optional.empty();
             }
         }
@@ -199,8 +200,11 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         Set<BookieId> blacklistedBookies = new HashSet<>();
         try {
             if (bookieMappingCache != null) {
-                Optional<BookiesRackConfiguration> optRes = bookieMappingCache
-                    .getIfCached(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH);
+                CompletableFuture<Optional<BookiesRackConfiguration>> future =
+                        bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH);
+
+                Optional<BookiesRackConfiguration> optRes = (future.isDone() && !future.isCompletedExceptionally())
+                        ? future.join() : Optional.empty();
 
                 if (!optRes.isPresent()) {
                     return blacklistedBookies;
@@ -242,7 +246,7 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                 }
                 // if primary-isolated-bookies are not enough then add consider secondary isolated bookie group as well.
                 if (totalAvailableBookiesInPrimaryGroup < ensembleSize) {
-                    LOG.info(
+                    log.info(
                         "Not found enough available-bookies from primary isolation group [{}] , checking secondary group [{}]",
                         primaryIsolationGroup, secondaryIsolationGroup);
                     for (String group : secondaryIsolationGroup) {
@@ -256,7 +260,7 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                 }
             }
         } catch (Exception e) {
-            LOG.warn("Error getting bookie isolation info from zk: {}", e.getMessage());
+            log.warn("Error getting bookie isolation info from metadata store: {}", e.getMessage());
         }
         return blacklistedBookies;
     }

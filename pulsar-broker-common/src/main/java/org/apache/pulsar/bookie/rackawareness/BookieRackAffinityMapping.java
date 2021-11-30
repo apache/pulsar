@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.client.ITopologyAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackChangeNotifier;
 import org.apache.bookkeeper.net.AbstractDNSToSwitchMapping;
@@ -131,7 +132,11 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     private String getRack(String bookieAddress) {
         try {
             // Trigger load of z-node in case it didn't exist
-            Optional<BookiesRackConfiguration> racks = bookieMappingCache.getIfCached(BOOKIE_INFO_ROOT_PATH);
+            CompletableFuture<Optional<BookiesRackConfiguration>> future =
+                    bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH);
+
+            Optional<BookiesRackConfiguration> racks = (future.isDone() && !future.isCompletedExceptionally())
+                    ? future.join() : Optional.empty();
             updateRacksWithHost(racks.orElseGet(BookiesRackConfiguration::new));
             if (!racks.isPresent()) {
                 // since different placement policy will have different default rack,
