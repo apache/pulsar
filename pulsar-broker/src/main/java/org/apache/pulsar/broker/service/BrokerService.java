@@ -710,6 +710,17 @@ public class BrokerService implements Closeable {
                 }
             });
 
+            //close entry filters
+            if (entryFilters != null) {
+                entryFilters.forEach((name, filter) -> {
+                    try {
+                        filter.close();
+                    } catch (Exception e) {
+                        log.warn("Error shutting down entry filter {}", name, e);
+                    }
+                });
+            }
+
             CompletableFuture<CompletableFuture<Void>> cancellableDownstreamFutureReference = new CompletableFuture<>();
             log.info("Event loops shutting down gracefully...");
             List<CompletableFuture<?>> shutdownEventLoops = new ArrayList<>();

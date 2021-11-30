@@ -152,7 +152,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                     : msgMetadata;
             if (CollectionUtils.isNotEmpty(entryFilters)) {
                 fillContext(filterContext, msgMetadata, subscription);
-                if (EntryFilter.FilterResult.REJECT == getFilterResult(filterContext, entry)) {
+                if (EntryFilter.FilterResult.REJECT == getFilterResult(filterContext, entry, entryFilters)) {
                     entriesToFiltered.add(entry.getPosition());
                     entries.set(i, null);
                     entry.release();
@@ -226,7 +226,8 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         return totalEntries;
     }
 
-    private EntryFilter.FilterResult getFilterResult(FilterContext filterContext, Entry entry) {
+    private static EntryFilter.FilterResult getFilterResult(FilterContext filterContext, Entry entry,
+                                                            ImmutableList<EntryFilterWithClassLoader> entryFilters) {
         EntryFilter.FilterResult result = EntryFilter.FilterResult.ACCEPT;
         for (EntryFilter entryFilter : entryFilters) {
             if (entryFilter.filterEntry(entry, filterContext) == EntryFilter.FilterResult.REJECT) {

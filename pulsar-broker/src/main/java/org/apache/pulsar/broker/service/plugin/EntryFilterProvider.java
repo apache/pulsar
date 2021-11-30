@@ -70,7 +70,7 @@ public class EntryFilterProvider {
 
         EntryFilterDefinitions entryFilterDefinitions = new EntryFilterDefinitions();
         if (!path.toFile().exists()) {
-            log.warn("Pulsar entry filters directory not found");
+            log.info("Pulsar entry filters directory not found");
             return entryFilterDefinitions;
         }
 

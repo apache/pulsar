@@ -23,9 +23,10 @@ import org.apache.bookkeeper.mledger.Entry;
 public interface EntryFilter {
 
     /**
-     * Broker determines whether to filter out this entry based on the return value of this method.
-     * Do not deserialize the entire entry in this method,
+     * 1. Broker determines whether to filter out this entry based on the return value of this method.
+     * 2. Do not deserialize the entire entry in this method,
      * which has a great impact on the broker's memory and CPU.
+     * 3. Return ACCEPT or null will be regarded as ACCEPT.
      * @param entry
      * @param context
      * @return

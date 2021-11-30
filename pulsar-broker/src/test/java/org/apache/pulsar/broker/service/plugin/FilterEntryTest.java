@@ -18,9 +18,14 @@
  */
 package org.apache.pulsar.broker.service.plugin;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,6 +33,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.AbstractBaseDispatcher;
+import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -36,6 +42,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.nar.NarClassLoader;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -67,11 +74,15 @@ public class FilterEntryTest extends BrokerTestBase {
         Dispatcher dispatcher = subscription.getDispatcher();
         Field field = AbstractBaseDispatcher.class.getDeclaredField("entryFilters");
         field.setAccessible(true);
-        field.set(dispatcher, ImmutableList.of(new EntryFilterTest(), new EntryFilter2Test()));
+        NarClassLoader narClassLoader = mock(NarClassLoader.class);
+        EntryFilter filter1 = new EntryFilterTest();
+        EntryFilterWithClassLoader loader1 = spy(new EntryFilterWithClassLoader(filter1, narClassLoader));
+        EntryFilter filter2 = new EntryFilter2Test();
+        EntryFilterWithClassLoader loader2 = spy(new EntryFilterWithClassLoader(filter2, narClassLoader));
+        field.set(dispatcher, ImmutableList.of(loader1, loader2));
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .enableBatching(false)
-                .topic(topic).create();
+                .enableBatching(false).topic(topic).create();
         for (int i = 0; i < 10; i++) {
             producer.send("test");
         }
@@ -138,7 +149,14 @@ public class FilterEntryTest extends BrokerTestBase {
         producer.close();
         consumer.close();
 
-    }
+        BrokerService brokerService = pulsar.getBrokerService();
+        Field field1 = BrokerService.class.getDeclaredField("entryFilters");
+        field1.setAccessible(true);
+        field1.set(brokerService, ImmutableMap.of("1", loader1, "2", loader2));
+        cleanup();
+        verify(loader1, times(1)).close();
+        verify(loader2, times(1)).close();
 
+    }
 
 }
