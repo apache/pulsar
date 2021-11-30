@@ -1968,6 +1968,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertNull(admin.topicPolicies().getMaxMessageSize(topic));
         // set msg size
         admin.topicPolicies().setMaxMessageSize(topic, 10);
+        Awaitility.await().until(() -> pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)) != null);
         if (isPartitioned) {
             for (int i = 0; i <3; i++) {
                 String partitionName = TopicName.get(topic).getPartition(i).toString();
