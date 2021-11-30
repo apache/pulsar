@@ -47,6 +47,6 @@ public class OpPut implements MetadataOp {
 
     @Override
     public int size() {
-        return path.length() + data.length;
+        return path.length() + (data != null ? data.length : 0);
     }
 }

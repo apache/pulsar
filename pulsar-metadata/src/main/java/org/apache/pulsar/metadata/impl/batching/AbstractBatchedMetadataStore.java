@@ -58,18 +58,26 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
         this.maxOperations = conf.getBatchingMaxOperations();
         this.maxSize = conf.getBatchingMaxSizeKb() * 1_024;
 
-        readOps = new MpscUnboundedArrayQueue<>(10_000);
-        writeOps = new MpscUnboundedArrayQueue<>(10_000);
         if (enabled) {
-            scheduledTask = executor.scheduleAtFixedRate(this::flush, 5, 5, TimeUnit.MILLISECONDS);
+            readOps = new MpscUnboundedArrayQueue<>(10_000);
+            writeOps = new MpscUnboundedArrayQueue<>(10_000);
+            scheduledTask =
+                    executor.scheduleAtFixedRate(this::flush, maxDelayMillis, maxDelayMillis, TimeUnit.MILLISECONDS);
         } else {
             scheduledTask = null;
+            readOps = null;
+            writeOps = null;
         }
     }
 
     @Override
     public void close() throws Exception {
-        if (scheduledTask != null) {
+        if (enabled) {
+            // Fail all the pending items
+            Exception ex = new IllegalStateException("Metadata store is getting closed");
+            readOps.drain(op -> op.getFuture().completeExceptionally(ex));
+            writeOps.drain(op -> op.getFuture().completeExceptionally(ex));
+
             scheduledTask.cancel(true);
         }
         super.close();
@@ -138,7 +146,8 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     private void enqueue(MessagePassingQueue queue, MetadataOp op) {
         if (enabled) {
             if (!queue.offer(op)) {
-                op.getFuture().completeExceptionally(new IllegalStateException("metadata queue is full"));
+                // Execute individually if we're failing to enqueue
+                batchOperation(Collections.singletonList(op));
                 return;
             }
             if (queue.size() > maxOperations && flushInProgress.compareAndSet(false, true)) {

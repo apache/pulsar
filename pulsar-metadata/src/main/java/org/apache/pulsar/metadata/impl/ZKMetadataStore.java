@@ -149,11 +149,9 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore implements Met
                 if (results == null ) {
                     Code code = Code.get(rc);
                     if (code == Code.CONNECTIONLOSS) {
-                        log.info("CONNECTION LOSS");
                         // There is the chance that we caused a connection reset by sending or requesting a batch
                         // that passed the max ZK limit. Retry with the individual operations
                         executor.schedule(() -> {
-                            log.info("FUTURE IS TRIGGERED");
                             ops.forEach(o -> batchOperation(Collections.singletonList(o)));
                         }, 100, TimeUnit.MILLISECONDS);
                     } else {
