@@ -48,9 +48,9 @@ public class MessageIdSerializationTest {
     public void testProtobufSerializationWithTopic() throws Exception {
         MessageId id = new MessageIdImpl(1, 2, -1);
         byte[] serializedId = id.toByteArray();
-        MessageId actualMessageId = MessageId.fromByteArrayWithTopic(serializedId,"topic-1");
-        if (actualMessageId == null || actualMessageId instanceof TopicMessageIdImpl) {
-            fail("actualMessageId should be TopicMessageIdImpl type");
+        MessageId actualMessageId = MessageId.fromByteArrayWithTopic(serializedId, "topic-1");
+        if (!(actualMessageId instanceof TopicMessageIdImpl)) {
+            fail("actualMessageId should be " + TopicMessageIdImpl.class);
         }
         assertEquals(actualMessageId, id);
     }
@@ -59,9 +59,9 @@ public class MessageIdSerializationTest {
     public void testProtobufSerializationWithPartitionTopic() throws Exception {
         MessageId id = new MessageIdImpl(1, 2, -1);
         byte[] serializedId = id.toByteArray();
-        MessageId actualMessageId = MessageId.fromByteArrayWithTopic(serializedId,"topic-partition-1");
-        if (actualMessageId == null || actualMessageId instanceof TopicMessageIdImpl) {
-            fail("actualMessageId should be TopicMessageIdImpl type");
+        MessageId actualMessageId = MessageId.fromByteArrayWithTopic(serializedId, "topic-partition-1");
+        if (!(actualMessageId instanceof TopicMessageIdImpl)) {
+            fail("actualMessageId should be " + TopicMessageIdImpl.class);
         }
         assertEquals(actualMessageId, id);
     }
