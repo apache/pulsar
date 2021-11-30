@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -44,6 +45,7 @@ import java.util.function.BiPredicate;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.zookeeper.AsyncCallback.Children2Callback;
 import org.apache.zookeeper.AsyncCallback.ChildrenCallback;
@@ -464,27 +466,23 @@ public class MockZooKeeper extends ZooKeeper {
                 throw new KeeperException.NoNodeException();
             }
 
-            List<String> children = Lists.newArrayList();
-            for (String item : tree.tailMap(path).keySet()) {
-                if (!item.startsWith(path)) {
-                    break;
-                } else {
-                    if (path.length() >= item.length()) {
-                        continue;
-                    }
+            String firstKey = path.equals("/") ? path : path + "/";
+            String lastKey = path.equals("/") ? "0" : path + "0"; // '0' is lexicographically just after '/'
 
-                    String child = item.substring(path.length() + 1);
-                    if (!child.contains("/")) {
-                        children.add(child);
-                    }
-                }
-            }
+            Set<String> children = new TreeSet<>();
+            tree.subMap(firstKey, false, lastKey, false).forEach((key, value) -> {
+                String relativePath = key.replace(firstKey, "");
+
+                // Only return first-level children
+                String child = relativePath.split("/", 2)[0];
+                children.add(child);
+            });
 
             if (watcher != null) {
                 watchers.put(path, watcher);
             }
 
-            return children;
+            return new ArrayList<>(children);
         } finally {
             mutex.unlock();
         }
@@ -502,25 +500,19 @@ public class MockZooKeeper extends ZooKeeper {
                 throw new KeeperException.NoNodeException();
             }
 
-            List<String> children = Lists.newArrayList();
-            for (String item : tree.tailMap(path).keySet()) {
-                if (!item.startsWith(path)) {
-                    break;
-                } else {
-                    if (path.length() >= item.length()) {
-                        continue;
-                    }
-                    String child = item.substring(path.length());
-                    if (child.indexOf("/") == 0) {
-                        child = child.substring(1);
-                        log.debug("child: '{}'", child);
-                        if (!child.contains("/")) {
-                            children.add(child);
-                        }
-                    }
-                }
-            }
-            return children;
+            String firstKey = path.equals("/") ? path : path + "/";
+            String lastKey = path.equals("/") ? "0" : path + "0"; // '0' is lexicographically just after '/'
+
+            Set<String> children = new TreeSet<>();
+            tree.subMap(firstKey, false, lastKey, false).forEach((key, value) -> {
+                String relativePath = key.replace(firstKey, "");
+
+                // Only return first-level children
+                String child = relativePath.split("/", 2)[0];
+                children.add(child);
+            });
+
+            return new ArrayList<>(children);
         } finally {
             mutex.unlock();
         }
@@ -546,29 +538,20 @@ public class MockZooKeeper extends ZooKeeper {
                 return;
             }
 
-            log.debug("getChildren path={}", path);
-            List<String> children = Lists.newArrayList();
-            for (String item : tree.tailMap(path).keySet()) {
-                log.debug("Checking path {}", item);
-                if (!item.startsWith(path)) {
-                    break;
-                } else if (item.equals(path)) {
-                    continue;
-                } else {
-                    String child = item.substring(path.length());
-                    if (child.indexOf("/") == 0) {
-                        child = child.substring(1);
-                        log.debug("child: '{}'", child);
-                        if (!child.contains("/")) {
-                            children.add(child);
-                        }
-                    }
-                }
-            }
+            String firstKey = path.equals("/") ? path : path + "/";
+            String lastKey = path.equals("/") ? "0" : path + "0"; // '0' is lexicographically just after '/'
 
-            log.debug("getChildren done path={} result={}", path, children);
+            Set<String> children = new TreeSet<>();
+            tree.subMap(firstKey, false, lastKey, false).forEach((key, value) -> {
+                String relativePath = key.replace(firstKey, "");
+
+                // Only return first-level children
+                String child = relativePath.split("/", 2)[0];
+                children.add(child);
+            });
+
             mutex.unlock();
-            cb.processResult(0, path, ctx, children, new Stat());
+            cb.processResult(0, path, ctx, new ArrayList<>(children), new Stat());
         });
 
     }
