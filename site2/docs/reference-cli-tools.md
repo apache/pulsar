@@ -281,7 +281,7 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`-c`, `--conf`|Configuration for the autorecovery||
+|`-c`, `--conf`|Configuration for the autorecovery|N/A|
 
 
 ## `pulsar-client`
