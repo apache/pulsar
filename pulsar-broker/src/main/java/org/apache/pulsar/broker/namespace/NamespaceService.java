@@ -454,6 +454,7 @@ public class NamespaceService implements AutoCloseable {
             // The leader election service was not initialized yet. This can happen because the broker service is
             // initialized first and it might start receiving lookup requests before the leader election service is
             // fully initialized.
+            LOG.warn("Leader election service isn't initialized yet. Returning empty result to lookup.");
             lookupFuture.complete(Optional.empty());
             return;
         }
@@ -480,26 +481,40 @@ public class NamespaceService implements AutoCloseable {
                 if (options.isAuthoritative()) {
                     // leader broker already assigned the current broker as owner
                     candidateBroker = pulsar.getSafeWebServiceAddress();
-                } else if (!this.loadManager.get().isCentralized()
-                        || pulsar.getLeaderElectionService().isLeader()
-                        || !currentLeader.isPresent()
-
-                        // If leader is not active, fallback to pick the least loaded from current broker loadmanager
-                        || !isBrokerActive(currentLeader.get().getServiceUrl())
-                ) {
-                    if (!currentLeader.isPresent()) {
-                        LOG.warn("The information about the current leader broker wasn't available. Handling load manager decisions in a decentralized way for {}", bundle);
-                    }
-                    Optional<String> availableBroker = getLeastLoadedFromLoadManager(bundle);
-                    if (!availableBroker.isPresent()) {
-                        lookupFuture.complete(Optional.empty());
-                        return;
-                    }
-                    candidateBroker = availableBroker.get();
-                    authoritativeRedirect = true;
                 } else {
-                    // forward to leader broker to make assignment
-                    candidateBroker = currentLeader.get().getServiceUrl();
+                    LoadManager loadManager = this.loadManager.get();
+                    boolean makeLoadManagerDecisionOnThisBroker = !loadManager.isCentralized() || les.isLeader();
+                    if (!makeLoadManagerDecisionOnThisBroker) {
+                        // If leader is not active, fallback to pick the least loaded from current broker loadmanager
+                        boolean leaderBrokerActive = currentLeader.isPresent()
+                                && isBrokerActive(currentLeader.get().getServiceUrl());
+                        if (!leaderBrokerActive) {
+                            makeLoadManagerDecisionOnThisBroker = true;
+                            if (!currentLeader.isPresent()) {
+                                LOG.warn(
+                                        "The information about the current leader broker wasn't available. "
+                                                + "Handling load manager decisions in a decentralized way for {}",
+                                        bundle);
+                            } else {
+                                LOG.warn(
+                                        "The current leader broker {} isn't active. "
+                                                + "Handling load manager decisions in a decentralized way for {}",
+                                        currentLeader.get(), bundle);
+                            }
+                        }
+                    }
+                    if (makeLoadManagerDecisionOnThisBroker) {
+                        Optional<String> availableBroker = getLeastLoadedFromLoadManager(bundle);
+                        if (!availableBroker.isPresent()) {
+                            lookupFuture.complete(Optional.empty());
+                            return;
+                        }
+                        candidateBroker = availableBroker.get();
+                        authoritativeRedirect = true;
+                    } else {
+                        // forward to leader broker to make assignment
+                        candidateBroker = currentLeader.get().getServiceUrl();
+                    }
                 }
             }
         } catch (Exception e) {
