@@ -19,10 +19,12 @@
 package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertTrue;
+import java.io.File;
 import java.util.UUID;
 import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
 import org.apache.pulsar.tests.TestRetrySupport;
+import org.assertj.core.util.Files;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -44,6 +46,12 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
         zks.close();
     }
 
+    private static String createTempFolder() {
+        File temp = Files.newTemporaryFolder();
+        temp.deleteOnExit();
+        return temp.getAbsolutePath();
+    }
+
     @DataProvider(name = "impl")
     public Object[][] implementations() {
         // A Supplier<String> must be used for the Zookeeper connection string parameter. The retried test run will
@@ -54,6 +62,7 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
         return new Object[][] {
                 { "ZooKeeper", stringSupplier(() -> zks.getConnectionString()) },
                 { "Memory", stringSupplier(() -> "memory://" + UUID.randomUUID()) },
+                { "RocksDB", stringSupplier(() -> "rocksdb://" + createTempFolder()) },
         };
     }
 

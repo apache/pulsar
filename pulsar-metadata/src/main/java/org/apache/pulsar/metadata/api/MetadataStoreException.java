@@ -184,4 +184,12 @@ public class MetadataStoreException extends IOException {
             return new MetadataStoreException(t);
         }
     }
+
+    public static MetadataStoreException wrap(Throwable t) {
+        if (t instanceof MetadataStoreException) {
+            return (MetadataStoreException) t;
+        } else {
+            return new MetadataStoreException(t);
+        }
+    }
 }

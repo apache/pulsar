@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import lombok.Getter;
 
@@ -32,10 +31,10 @@ public class PolicyHierarchyValue<T> {
 
     private volatile T brokerValue;
 
-    @VisibleForTesting
     @Getter
     private volatile T namespaceValue;
 
+    @Getter
     private volatile T topicValue;
 
     private volatile T value;

@@ -44,6 +44,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
     private long version;
     private final CompletableFuture<Void> expiredFuture;
     private boolean revalidateAfterReconnection = false;
+    private CompletableFuture<Void> revalidateFuture;
 
     private enum State {
         Init,
@@ -144,6 +145,9 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
 
     // Simple operation of acquiring the lock with no retries, or checking for the lock content
     private CompletableFuture<Void> acquireWithNoRevalidation(T newValue) {
+        if (log.isDebugEnabled()) {
+            log.debug("acquireWithNoRevalidation,newValue={},version={}", newValue, version);
+        }
         byte[] payload;
         try {
             payload = serde.serialize(path, newValue);
@@ -212,6 +216,30 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
     }
 
     synchronized CompletableFuture<Void> revalidate(T newValue) {
+        if (revalidateFuture == null || revalidateFuture.isDone()) {
+            revalidateFuture = doRevalidate(newValue);
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("Previous revalidating is not finished while revalidate newValue={}, value={}, version={}",
+                        newValue, value, version);
+            }
+            CompletableFuture<Void> newFuture = new CompletableFuture<>();
+            revalidateFuture.whenComplete((unused, throwable) -> {
+                doRevalidate(newValue).thenRun(() -> newFuture.complete(null))
+                        .exceptionally(throwable1 -> {
+                            newFuture.completeExceptionally(throwable1);
+                            return null;
+                        });
+            });
+            revalidateFuture = newFuture;
+        }
+        return revalidateFuture;
+    }
+
+    private synchronized CompletableFuture<Void> doRevalidate(T newValue) {
+        if (log.isDebugEnabled()) {
+            log.debug("doRevalidate with newValue={}, version={}", newValue, version);
+        }
         return store.get(path)
                 .thenCompose(optGetResult -> {
                     if (!optGetResult.isPresent()) {

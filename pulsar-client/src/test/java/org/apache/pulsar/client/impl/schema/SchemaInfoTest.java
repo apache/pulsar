@@ -298,12 +298,12 @@ public class SchemaInfoTest {
             assertEquals(schemaInfo.getSchema(), new byte[0]);
             assertEquals(schemaInfo.getType(), SchemaType.STRING);
             assertEquals(schemaInfo.getName(), "string");
-            assertEquals(schemaInfo.getProperties(), Maps.newHashMap());
+            assertEquals(schemaInfo.getProperties(), new HashMap<>());
         }
 
         @Test
         public void testSetProperties() {
-            final Map<String, String> map = Maps.newHashMap();
+            final Map<String, String> map = new HashMap<>();
             map.put("test", "value");
             final SchemaInfo schemaInfo = SchemaInfo.builder()
                     .type(SchemaType.STRING)
@@ -315,7 +315,7 @@ public class SchemaInfoTest {
             assertEquals(schemaInfo.getSchema(), new byte[0]);
             assertEquals(schemaInfo.getType(), SchemaType.STRING);
             assertEquals(schemaInfo.getName(), "string");
-            assertEquals(schemaInfo.getProperties(), Maps.newHashMap(map));
+            assertEquals(schemaInfo.getProperties(), new HashMap<>(map));
         }
 
         @Test
