@@ -32,6 +32,7 @@ public class HierarchyTopicPolicies {
     final PolicyHierarchyValue<InactiveTopicPolicies> inactiveTopicPolicies;
     final PolicyHierarchyValue<Integer> maxSubscriptionsPerTopic;
     final Map<BacklogQuotaType, PolicyHierarchyValue<BacklogQuota>> backLogQuotaMap;
+    final PolicyHierarchyValue<Integer> topicMaxMessageSize;
 
     public HierarchyTopicPolicies() {
         inactiveTopicPolicies = new PolicyHierarchyValue<>();
@@ -40,5 +41,6 @@ public class HierarchyTopicPolicies {
                 .put(BacklogQuotaType.destination_storage, new PolicyHierarchyValue<>())
                 .put(BacklogQuotaType.message_age, new PolicyHierarchyValue<>())
                 .build();
+        topicMaxMessageSize = new PolicyHierarchyValue<>();
     }
 }

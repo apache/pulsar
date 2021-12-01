@@ -119,9 +119,8 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
                                             SocketAddress remoteAddress,
                                             SSLSession sslSession) throws AuthenticationException {
         try {
-            return new SaslAuthenticationState(
-                new SaslAuthenticationDataSource(
-                    new PulsarSaslServer(jaasCredentialsContainer.getSubject(), allowedIdsPattern)));
+            PulsarSaslServer server = new PulsarSaslServer(jaasCredentialsContainer.getSubject(), allowedIdsPattern);
+            return new SaslAuthenticationState(server);
         } catch (Throwable t) {
             log.error("Failed create sasl auth state" , t);
             throw new AuthenticationException(t.getMessage());

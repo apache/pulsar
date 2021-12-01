@@ -43,10 +43,7 @@ public class FlumeConnector {
         SSLUtil.initGlobalSSLParameters();
         String agentName = flumeConfig.getName();
         boolean reload = !flumeConfig.getNoReloadConf();
-        boolean isZkConfigured = false;
-        if (flumeConfig.getZkConnString().length() > 0) {
-            isZkConfigured = true;
-        }
+        boolean isZkConfigured = flumeConfig.getZkConnString().length() > 0;
         if (isZkConfigured) {
             // get options
             String zkConnectionStr = flumeConfig.getZkConnString();

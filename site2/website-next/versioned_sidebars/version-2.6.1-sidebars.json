@@ -455,6 +455,100 @@
           "id": "version-2.6.1/adaptors-storm"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Cookbooks",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.6.1/cookbooks-tiered-storage"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.1/cookbooks-compaction"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.1/cookbooks-deduplication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.1/cookbooks-non-persistent"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.1/cookbooks-partitioned"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.1/cookbooks-retention-expiry"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.1/cookbooks-encryption"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.1/cookbooks-message-queue"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.1/cookbooks-bookkeepermetadata"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Development",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.6.1/develop-tools"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.1/develop-binary-protocol"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.1/develop-schema"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.1/develop-load-manager"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.1/develop-cpp"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Reference",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.6.1/reference-terminology"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.1/reference-cli-tools"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.1/pulsar-admin"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.1/reference-configuration"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.6.1/reference-metrics"
+        }
+      ]
     }
   ]
 }

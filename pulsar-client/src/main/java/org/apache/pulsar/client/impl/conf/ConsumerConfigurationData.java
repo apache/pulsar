@@ -21,7 +21,6 @@ package org.apache.pulsar.client.impl.conf;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import java.io.Serializable;
@@ -29,6 +28,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
@@ -56,7 +56,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
 
-    private Set<String> topicNames = Sets.newTreeSet();
+    private Set<String> topicNames = new TreeSet<>();
 
     private Pattern topicsPattern;
 
@@ -176,7 +176,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
             @SuppressWarnings("unchecked")
             ConsumerConfigurationData<T> c = (ConsumerConfigurationData<T>) super.clone();
             c.topicNames = Sets.newTreeSet(this.topicNames);
-            c.properties = Maps.newTreeMap(this.properties);
+            c.properties = new TreeMap<>(this.properties);
             return c;
         } catch (CloneNotSupportedException e) {
             throw new RuntimeException("Failed to clone ConsumerConfigurationData");

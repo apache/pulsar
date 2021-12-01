@@ -20,6 +20,8 @@
 #pragma once
 
 #include <pulsar/defines.h>
+#include <pulsar/c/message.h>
+#include <pulsar/c/reader.h>
 
 #ifdef __cplusplus
 extern "C" {

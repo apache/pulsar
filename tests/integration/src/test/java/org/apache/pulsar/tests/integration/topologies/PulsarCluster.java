@@ -62,6 +62,7 @@ public class PulsarCluster {
     public static final String ADMIN_SCRIPT = "/pulsar/bin/pulsar-admin";
     public static final String CLIENT_SCRIPT = "/pulsar/bin/pulsar-client";
     public static final String PULSAR_COMMAND_SCRIPT = "/pulsar/bin/pulsar";
+    public static final String CURL = "/usr/bin/curl";
 
     /**
      * Pulsar Cluster Spec
@@ -525,6 +526,22 @@ public class PulsarCluster {
         log.info("Successfully started {} worker containers.", workerContainers.size());
     }
 
+    public synchronized void stopWorker(String workerName) {
+        if (PULSAR_CONTAINERS_LEAVE_RUNNING) {
+            logIgnoringStopDueToLeaveRunning();
+            return;
+        }
+        // Stop the named worker.
+        WorkerContainer worker = workerContainers.get(workerName);
+        if (worker == null) {
+            log.warn("Failed to find the worker to stop ({})", workerName);
+            return;
+        }
+        worker.stop();
+        workerContainers.remove(workerName);
+        log.info("Worker {} stopped and removed from the map of worker containers", workerName);
+    }
+
     public synchronized void stopWorkers() {
         if (PULSAR_CONTAINERS_LEAVE_RUNNING) {
             logIgnoringStopDueToLeaveRunning();
@@ -577,6 +594,10 @@ public class PulsarCluster {
 
     public synchronized WorkerContainer getWorker(int index) {
         return getAnyContainer(workerContainers, "pulsar-functions-worker", index);
+    }
+
+    public synchronized WorkerContainer getWorker(String workerName) {
+        return workerContainers.get(workerName);
     }
 
     private <T> T getAnyContainer(Map<String, T> containers, String serviceName) {
