@@ -493,6 +493,32 @@
           "id": "version-2.5.2/develop-cpp"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Reference",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.5.2/reference-terminology"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.2/reference-cli-tools"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.2/pulsar-admin"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.2/reference-configuration"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.2/reference-metrics"
+        }
+      ]
     }
   ]
 }
