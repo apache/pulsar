@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
 import com.google.common.collect.Lists;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -39,6 +40,8 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -138,6 +141,42 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
                     admin.topics().getSubscriptions(TopicName.get(topic).getPartition(i).toString()),
                     Lists.newArrayList("sub-1"));
         }
+    }
+
+    @Test
+    public void testSubscriptionPropertiesStats() throws Exception {
+        // test non-partitioned topic
+        final String topic = "persistent://my-property/my-ns/topic" + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topic);
+        Map<String, String> map = new HashMap<>();
+        map.put("test-topic", "tag1");
+        String subName = "my-sub";
+        pulsarClient.newConsumer().topic(topic).receiverQueueSize(1)
+                .subscriptionProperties(map).subscriptionName(subName).subscribe();
+        TopicStats stats = admin.topics().getStats(topic);
+        Map<String, String> subProperties = stats.getSubscriptions().get(subName).getSubscriptionProperties();
+        assertEquals(subProperties, map);
+
+        // test partitioned-topic
+        final String partitionedTopic  = "persistent://my-property/my-ns/topic" + UUID.randomUUID();
+        admin.topics().createPartitionedTopic(partitionedTopic, 10);
+        Map<String, String> pMap = new HashMap<>();
+        pMap.put("topic1", "tag1");
+        pMap.put("topic2", "tag2");
+        pMap.put("topic3", "tag3");
+        String pSubName = "my-sub-1";
+        pulsarClient.newConsumer().topic(partitionedTopic).receiverQueueSize(1)
+                .subscriptionProperties(pMap).subscriptionName(pSubName).subscribe();
+
+        PartitionedTopicStats pStats = admin.topics().getPartitionedStats(partitionedTopic, false);
+        Map<String, String> pSubProperties = pStats.getSubscriptions().get(pSubName)
+                .getSubscriptionProperties();
+        assertEquals(pSubProperties, pMap);
+
+        PartitionedTopicStats pStatsForPerPartition = admin.topics().getPartitionedStats(partitionedTopic, true);
+        Map<String, String> pSubPropForPerPartition = pStatsForPerPartition.getSubscriptions().get(pSubName)
+                .getSubscriptionProperties();
+        assertEquals(pSubPropForPerPartition, pMap);
     }
 
     @Test
