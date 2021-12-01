@@ -1790,6 +1790,25 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int loadBalancerBrokerThresholdShedderPercentage = 10;
 
     @FieldContext(
+        dynamic = true,
+        category = CATEGORY_LOAD_BALANCER,
+        doc = "Message-rate percentage threshold between highest and least loaded brokers for "
+                + "uniform load shedding. (eg: broker1 with 50K msgRate and broker2 with 30K msgRate "
+                + "will have 66% msgRate difference and load balancer can unload bundles from broker-1 "
+                + "to broker-2)"
+    )
+    private double loadBalancerMsgRateDifferenceShedderThreshold = 50;
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_LOAD_BALANCER,
+        doc = "Message-throughput threshold between highest and least loaded brokers for "
+                + "uniform load shedding. (eg: broker1 with 450MB msgRate and broker2 with 100MB msgRate "
+                + "will have 4.5 times msgThroughout difference and load balancer can unload bundles "
+                + "from broker-1 to broker-2)"
+    )
+    private double loadBalancerMsgThroughputMultiplierDifferenceShedderThreshold = 4;
+
+    @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
             doc = "Resource history Usage Percentage When adding new resource usage info"

@@ -636,6 +636,8 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |loadBalancerNamespaceBundleMaxBandwidthMbytes|   |100|
 |loadBalancerNamespaceMaximumBundles|   |128|
 | loadBalancerBrokerThresholdShedderPercentage | The broker resource usage threshold. When the broker resource usage is greater than the pulsar cluster average resource usage, the threshold shedder is triggered to offload bundles from the broker. It only takes effect in the ThresholdShedder strategy. | 10 |
+| loadBalancerMsgRateDifferenceShedderThreshold | Message-rate percentage threshold between highest and least loaded brokers for uniform load shedding. | 50 |
+| loadBalancerMsgThroughputMultiplierDifferenceShedderThreshold | Message-throughput threshold between highest and least loaded brokers for uniform load shedding. | 4 |
 | loadBalancerHistoryResourcePercentage | The history usage when calculating new resource usage. It only takes effect in the ThresholdShedder strategy. | 0.9 |
 | loadBalancerBandwithInResourceWeight | The BandWithIn usage weight when calculating new resource usage. It only takes effect in the ThresholdShedder strategy. | 1.0 |
 | loadBalancerBandwithOutResourceWeight | The BandWithOut usage weight when calculating new resource usage. It only takes effect in the ThresholdShedder strategy. | 1.0 |
