@@ -29,6 +29,7 @@ import io.netty.util.concurrent.FastThreadLocal;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +48,8 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
+import org.apache.pulsar.common.api.proto.KeyLongValue;
+import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.api.proto.AuthMethod;
 import org.apache.pulsar.common.api.proto.BaseCommand;
@@ -125,6 +128,10 @@ public class Commands {
             return new BaseCommand();
         }
     };
+
+    // Return the last ProtocolVersion enum value
+    private static final int CURRENT_PROTOCOL_VERSION =
+            ProtocolVersion.values()[ProtocolVersion.values().length - 1].getValue();
 
     private static BaseCommand localCmd(BaseCommand.Type type) {
         return LOCAL_BASE_COMMAND.get()
@@ -528,14 +535,16 @@ public class Commands {
             boolean createTopicIfDoesNotExist) {
         return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
                 isDurable, startMessageId, metadata, readCompacted, isReplicated, subscriptionInitialPosition,
-                startMessageRollbackDurationInSec, schemaInfo, createTopicIfDoesNotExist, null);
+                startMessageRollbackDurationInSec, schemaInfo, createTopicIfDoesNotExist, null,
+                Collections.emptyMap());
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
                SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
                Map<String, String> metadata, boolean readCompacted, boolean isReplicated,
                InitialPosition subscriptionInitialPosition, long startMessageRollbackDurationInSec,
-               SchemaInfo schemaInfo, boolean createTopicIfDoesNotExist, KeySharedPolicy keySharedPolicy) {
+               SchemaInfo schemaInfo, boolean createTopicIfDoesNotExist, KeySharedPolicy keySharedPolicy,
+               Map<String, String> subscriptionProperties) {
         BaseCommand cmd = localCmd(Type.SUBSCRIBE);
         CommandSubscribe subscribe = cmd.setSubscribe()
                 .setTopic(topic)
@@ -550,6 +559,17 @@ public class Commands {
                 .setInitialPosition(subscriptionInitialPosition)
                 .setReplicateSubscriptionState(isReplicated)
                 .setForceTopicCreation(createTopicIfDoesNotExist);
+
+        if (subscriptionProperties != null && !subscriptionProperties.isEmpty()) {
+            List<KeyValue> keyValues = new ArrayList<>();
+            subscriptionProperties.forEach((key, value) -> {
+                KeyValue keyValue = new KeyValue();
+                keyValue.setKey(key);
+                keyValue.setValue(value);
+                keyValues.add(keyValue);
+            });
+            subscribe.addAllSubscriptionProperties(keyValues);
+        }
 
         if (keySharedPolicy != null) {
             KeySharedMeta keySharedMeta = subscribe.setKeySharedMeta();
@@ -1736,8 +1756,7 @@ public class Commands {
     }
 
     public static int getCurrentProtocolVersion() {
-        // Return the last ProtocolVersion enum value
-        return ProtocolVersion.values()[ProtocolVersion.values().length - 1].getValue();
+        return CURRENT_PROTOCOL_VERSION;
     }
 
     /**

@@ -16,11 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef LIB_VERSION_H_
-#define LIB_VERSION_H_
-
-#ifndef _PULSAR_VERSION_
-#define _PULSAR_VERSION_ "1.17"
-#endif
-
-#endif /* LIB_VERSION_H_ */
+package org.apache.pulsar.broker.service.plugin;

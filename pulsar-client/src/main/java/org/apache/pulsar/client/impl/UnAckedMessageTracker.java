@@ -129,7 +129,7 @@ public class UnAckedMessageTracker implements Closeable {
                 try {
                     ConcurrentOpenHashSet<MessageId> headPartition = timePartitions.removeFirst();
                     if (!headPartition.isEmpty()) {
-                        log.warn("[{}] {} messages have timed-out", consumerBase, headPartition.size());
+                        log.info("[{}] {} messages will be re-delivered", consumerBase, headPartition.size());
                         headPartition.forEach(messageId -> {
                             addChunkedMessageIdsAndRemoveFromSequenceMap(messageId, messageIds, consumerBase);
                             messageIds.add(messageId);

@@ -184,6 +184,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     @Override
+    public TopicPolicies getTopicPoliciesIfExists(TopicName topicName) {
+        return policiesCache.get(TopicName.get(topicName.getPartitionedTopicName()));
+    }
+
+    @Override
     public CompletableFuture<TopicPolicies> getTopicPoliciesBypassCacheAsync(TopicName topicName) {
         CompletableFuture<TopicPolicies> result = new CompletableFuture<>();
         createSystemTopicFactoryIfNeeded();
@@ -480,7 +485,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     @VisibleForTesting
-    Boolean getPoliciesCacheInit(NamespaceName namespaceName) {
+    public Boolean getPoliciesCacheInit(NamespaceName namespaceName) {
         return policyCacheInitMap.get(namespaceName);
     }
 
@@ -506,16 +511,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             }
             return topicListeners;
         });
-    }
-
-    @Override
-    public void clean(TopicName topicName) {
-        TopicName realTopicName = topicName;
-        if (topicName.isPartitioned()) {
-            //change persistent://tenant/namespace/xxx-partition-0  to persistent://tenant/namespace/xxx
-            realTopicName = TopicName.get(topicName.getPartitionedTopicName());
-        }
-        listeners.remove(realTopicName);
     }
 
     @VisibleForTesting

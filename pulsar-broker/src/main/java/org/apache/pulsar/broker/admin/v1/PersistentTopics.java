@@ -264,10 +264,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("force") @DefaultValue("false") boolean force,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("deleteSchema") @DefaultValue("false") boolean deleteSchema) {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
-            internalDeletePartitionedTopic(asyncResponse, authoritative, force, false);
+            internalDeletePartitionedTopic(asyncResponse, authoritative, force, deleteSchema);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
@@ -302,9 +303,10 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void deleteTopic(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("force") @DefaultValue("false") boolean force,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("deleteSchema") @DefaultValue("false") boolean deleteSchema) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        internalDeleteTopic(authoritative, force);
+        internalDeleteTopic(authoritative, force, deleteSchema);
     }
 
     @GET
@@ -878,4 +880,32 @@ public class PersistentTopics extends PersistentTopicsBase {
             asyncResponse.resume(new RestException(e));
         }
     }
+
+    @GET
+    @Path("/{tenant}/{cluster}/{namespace}/{topic}/subscription/{subName}/replicatedSubscriptionStatus")
+    @ApiOperation(value = "Get replicated subscription status on a topic.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 412, message = "Can't find owner for topic"),
+            @ApiResponse(code = 500, message = "Internal server error")})
+    public void getReplicatedSubscriptionStatus(
+            @Suspended AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the cluster", required = true)
+            @PathParam("cluster") String cluster,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Name of subscription", required = true)
+            @PathParam("subName") String encodedSubName,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, cluster, namespace, encodedTopic);
+        internalGetReplicatedSubscriptionStatus(asyncResponse, decode(encodedSubName), authoritative);
+    }
+
 }

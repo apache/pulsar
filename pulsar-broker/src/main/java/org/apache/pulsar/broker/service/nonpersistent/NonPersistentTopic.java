@@ -55,7 +55,9 @@ import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.StreamingStats;
 import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.SubscriptionOption;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.TopicPolicyListener;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
@@ -71,6 +73,7 @@ import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorS
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublisherStats;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPublisherStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentReplicatorStatsImpl;
@@ -87,7 +90,7 @@ import org.apache.pulsar.utils.StatsOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class NonPersistentTopic extends AbstractTopic implements Topic {
+public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPolicyListener<TopicPolicies> {
 
     // Subscriptions to this topic
     private final ConcurrentOpenHashMap<String, NonPersistentSubscription> subscriptions;
@@ -138,6 +141,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         this.subscriptions = new ConcurrentOpenHashMap<>(16, 1);
         this.replicators = new ConcurrentOpenHashMap<>(16, 1);
         this.isFenced = false;
+        registerTopicPolicyListener();
     }
 
     public CompletableFuture<Void> initialize() {
@@ -225,6 +229,16 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     }
 
     @Override
+    public CompletableFuture<Consumer> subscribe(SubscriptionOption option) {
+        return internalSubscribe(option.getCnx(), option.getSubscriptionName(), option.getConsumerId(),
+                option.getSubType(), option.getPriorityLevel(), option.getConsumerName(),
+                option.isDurable(), option.getStartMessageId(), option.getMetadata(),
+                option.isReadCompacted(), option.getInitialPosition(),
+                option.getStartMessageRollbackDurationSec(), option.isReplicatedSubscriptionStateArg(),
+                option.getKeySharedMeta());
+    }
+
+    @Override
     public CompletableFuture<Consumer> subscribe(final TransportCnx cnx, String subscriptionName, long consumerId,
                                                  SubType subType, int priorityLevel, String consumerName,
                                                  boolean isDurable, MessageId startMessageId,
@@ -232,6 +246,19 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                                                  InitialPosition initialPosition,
                                                  long resetStartMessageBackInSec, boolean replicateSubscriptionState,
                                                  KeySharedMeta keySharedMeta) {
+        return internalSubscribe(cnx, subscriptionName, consumerId, subType, priorityLevel, consumerName,
+                isDurable, startMessageId, metadata, readCompacted, initialPosition, resetStartMessageBackInSec,
+                replicateSubscriptionState, keySharedMeta);
+    }
+
+    private CompletableFuture<Consumer> internalSubscribe(final TransportCnx cnx, String subscriptionName,
+                                                          long consumerId, SubType subType, int priorityLevel,
+                                                          String consumerName, boolean isDurable,
+                                                          MessageId startMessageId, Map<String, String> metadata,
+                                                          boolean readCompacted, InitialPosition initialPosition,
+                                                          long resetStartMessageBackInSec,
+                                                          boolean replicateSubscriptionState,
+                                                          KeySharedMeta keySharedMeta) {
 
         return brokerService.checkTopicNsOwnership(getName()).thenCompose(__ -> {
             final CompletableFuture<Consumer> future = new CompletableFuture<>();
@@ -399,6 +426,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                             // deadlock. so, execute it in different thread
                             brokerService.executor().execute(() -> {
                                 brokerService.removeTopicFromCache(topic);
+                                unregisterTopicPolicyListener();
                                 log.info("[{}] Topic deleted", topic);
                                 deleteFuture.complete(null);
                             });
@@ -469,6 +497,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
             // so, execute it in different thread
             brokerService.executor().execute(() -> {
                 brokerService.removeTopicFromCache(topic);
+                unregisterTopicPolicyListener();
                 closeFuture.complete(null);
             });
         }).exceptionally(exception -> {
@@ -979,6 +1008,14 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         subscriptions.forEach((subName, sub) -> sub.getConsumers().forEach(Consumer::checkPermissions));
 
         return checkReplicationAndRetryOnFailure();
+    }
+
+    @Override
+    public void onUpdate(TopicPolicies data) {
+        if (data == null) {
+            return;
+        }
+        updateTopicPolicy(data);
     }
 
     /**
