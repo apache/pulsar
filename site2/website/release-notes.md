@@ -44,39 +44,41 @@
 - PIP-85: [pulsar-io] pass pulsar client via context to connector. [11056](https://github.com/apache/pulsar/pull/11056)
 
 ### Java Client
-- [Java Client] Use failPendingMessages to ensure proper cleanup. [12259](https://github.com/apache/pulsar/pull/12259)
-- [Java Client] Remove unnecessary stats incremement. [12229](https://github.com/apache/pulsar/pull/12229)
-- [Java Client] Remove unnecessary synchronization and simplify initialization. [12228](https://github.com/apache/pulsar/pull/12228)
-- [pulsar-client] Add partition-change API for producer or consumer interceptors. [12287](https://github.com/apache/pulsar/pull/12287)
+- Use failPendingMessages to ensure proper cleanup. [12259](https://github.com/apache/pulsar/pull/12259)
+- Remove unnecessary stats incremement. [12229](https://github.com/apache/pulsar/pull/12229)
+- Remove unnecessary synchronization and simplify initialization. [12228](https://github.com/apache/pulsar/pull/12228)
+- Add partition-change API for producer or consumer interceptors. [12287](https://github.com/apache/pulsar/pull/12287)
 - Fix deadLetterPolicy is not working with key shared subscription under partitioned topic. [12148](https://github.com/apache/pulsar/pull/12148)
-- [Client] Fix endless receiveAsync loop in MultiTopicsConsumer. [12044](https://github.com/apache/pulsar/pull/12044)
-- [Client] Reduce redundant FLOW requests for non-durable multi-topics consumer. [11802](https://github.com/apache/pulsar/pull/11802)
-- [pulsar-client] Set and return topic names on message API. [11743](https://github.com/apache/pulsar/pull/11743)
+- Fix endless receiveAsync loop in MultiTopicsConsumer. [12044](https://github.com/apache/pulsar/pull/12044)
+- Reduce redundant FLOW requests for non-durable multi-topics consumer. [11802](https://github.com/apache/pulsar/pull/11802)
+- Set and return topic names on message API. [11743](https://github.com/apache/pulsar/pull/11743)
 - PIP-91: Separate lookup timeout from operation timeout. [11627](https://github.com/apache/pulsar/pull/11627)
-- [Java Client] Switch from pretty print to compact print for configs. [11609](https://github.com/apache/pulsar/pull/11609)
+- Switch from pretty print to compact print for configs. [11609](https://github.com/apache/pulsar/pull/11609)
 - Java Client: remove usage of reflection while using Pulsar Implementation classes. [11636](https://github.com/apache/pulsar/pull/11636)
-- [pulsar-client]Add a optional params scope for pulsar oauth2 client. [11931](https://github.com/apache/pulsar/pull/11931)
+- Add a optional params scope for pulsar oauth2 client. [11931](https://github.com/apache/pulsar/pull/11931)
 
-### C++ and Python Client
-- [C++] Support configuring optional scope field for OAuth2 authentication. [12305](https://github.com/apache/pulsar/pull/12305)
-- [Python] Do not sort schema fields by default. [12232](https://github.com/apache/pulsar/pull/12232)
-- [Python Schema] Support setting namespace for python schema. [12175](https://github.com/apache/pulsar/pull/12175)
-- [C++] Support setting priority for the consumer. [12076](https://github.com/apache/pulsar/pull/12076)
-- [C++] Fixed attempting to connect to multiple IP addresses. [11958](https://github.com/apache/pulsar/pull/11958)
-- [Python] Expose Client.shutdown() method. [11955](https://github.com/apache/pulsar/pull/11955)
-- [C++] Handle error when shutting down client after forks. [11954](https://github.com/apache/pulsar/pull/11954)
-- [C++] Move all C symbols into C++ pulsar namespace. [11919](https://github.com/apache/pulsar/pull/11919)
-- [pulsar-client-cpp] Expose getLastMessageId in the Reader API. [11723](https://github.com/apache/pulsar/pull/11723)
-- [C++] Add padding characters to base64 encoded protobuf native schema. [11492](https://github.com/apache/pulsar/pull/11492)
+### C++ Client
+- Support configuring optional scope field for OAuth2 authentication. [12305](https://github.com/apache/pulsar/pull/12305)
+- Support setting priority for the consumer. [12076](https://github.com/apache/pulsar/pull/12076)
+- Fixed attempting to connect to multiple IP addresses. [11958](https://github.com/apache/pulsar/pull/11958)
+- Handle error when shutting down client after forks. [11954](https://github.com/apache/pulsar/pull/11954)
+- Move all C symbols into C++ pulsar namespace. [11919](https://github.com/apache/pulsar/pull/11919)
+- Expose getLastMessageId in the Reader API. [11723](https://github.com/apache/pulsar/pull/11723)
+- Add padding characters to base64 encoded protobuf native schema. [11492](https://github.com/apache/pulsar/pull/11492)
+
+### Python Client
+- Do not sort schema fields by default. [12232](https://github.com/apache/pulsar/pull/12232)
+- Support setting namespace for python schema. [12175](https://github.com/apache/pulsar/pull/12175)
+- Expose Client.shutdown() method. [11955](https://github.com/apache/pulsar/pull/11955)
 
 ### Proxy
-- [Proxy] set default httpProxyTimeout to 5 minutes. [12299](https://github.com/apache/pulsar/pull/12299)
+- set default httpProxyTimeout to 5 minutes. [12299](https://github.com/apache/pulsar/pull/12299)
 - Fixed NPE in ProxyConnection with no auth data. [12111](https://github.com/apache/pulsar/pull/12111)
-- [Issue-11966][pulsar-proxy] set default http proxy request timeout. [11971](https://github.com/apache/pulsar/pull/11971)
+- [Issue-11966] set default http proxy request timeout. [11971](https://github.com/apache/pulsar/pull/11971)
 - Fixed Proxy leaking oubound connections. [11848](https://github.com/apache/pulsar/pull/11848)
 
 ### Metrics
-- [Metrics] Add support for splitting topic and partition label in Prometheus. [12225](https://github.com/apache/pulsar/pull/12225)
+- Add support for splitting topic and partition label in Prometheus. [12225](https://github.com/apache/pulsar/pull/12225)
 
 ### Library updates
 - [security] Upgrade netty to 4.1.68.Final. [12218](https://github.com/apache/pulsar/pull/12218)
