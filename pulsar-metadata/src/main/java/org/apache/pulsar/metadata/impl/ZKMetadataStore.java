@@ -202,7 +202,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore implements Met
             } else if (code == Code.NODEEXISTS) {
                 // We're emulating a request to create node, so the version is invalid
                 op.getFuture().completeExceptionally(getException(Code.BADVERSION, op.getPath()));
-            } else if (code == Code.RUNTIMEINCONSISTENCY) {
+            } else if (code == Code.RUNTIMEINCONSISTENCY || code == Code.OK) {
                 // This error will happen when other items in the batch did already fail. In this case, we're
                 // retrying the operation individually
                 internalStorePut(op);
@@ -254,7 +254,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore implements Met
         if (opr instanceof OpResult.ErrorResult) {
             OpResult.ErrorResult er = (OpResult.ErrorResult) opr;
             Code code = Code.get(er.getErr());
-            if (code == Code.RUNTIMEINCONSISTENCY) {
+            if (code == Code.RUNTIMEINCONSISTENCY || code == Code.OK) {
                 // This error will happen when other items in the batch did already fail. In this case, we're
                 // retrying the operation individually
                 internalStoreDelete(op);
