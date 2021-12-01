@@ -448,16 +448,21 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         return this.keySharedMode;
     }
 
+    public boolean isAllowOutOfOrderDelivery() {
+        return this.allowOutOfOrderDelivery;
+    }
+
+    public boolean hasSameKeySharedPolicy(KeySharedMeta ksm) {
+        return (ksm.getKeySharedMode() == this.keySharedMode
+                && ksm.isAllowOutOfOrderDelivery() == this.allowOutOfOrderDelivery);
+    }
+
     public LinkedHashMap<Consumer, PositionImpl> getRecentlyJoinedConsumers() {
         return recentlyJoinedConsumers;
     }
 
     public Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
         return selector.getConsumerKeyHashRanges();
-    }
-
-    public boolean isAllowOutOfOrderDelivery() {
-        return allowOutOfOrderDelivery;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentStickyKeyDispatcherMultipleConsumers.class);
