@@ -24,6 +24,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
+
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -92,7 +94,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
             }
 
             List<String> newTopics = PulsarClientImpl.topicsPatternFilter(topics, topicsPattern);
-            List<String> oldTopics = Lists.newArrayList();
+            List<String> oldTopics = new ArrayList<>();
             oldTopics.addAll(getPartitionedTopics());
             getPartitions().forEach(p -> {
                 TopicName t = TopicName.get(p);
