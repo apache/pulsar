@@ -16,9 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.zookeeper;
+package org.apache.pulsar.bookie.rackawareness;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.util.HashedWheelTimer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,7 +28,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletableFuture;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException.BKNotEnoughBookiesException;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicyImpl;
@@ -39,36 +39,30 @@ import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.DNSToSwitchMapping;
 import org.apache.bookkeeper.proto.BookieAddressResolver;
 import org.apache.bookkeeper.stats.StatsLogger;
-import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
-import org.apache.commons.configuration.Configuration;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.zookeeper.ZooKeeperCache.Deserializer;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.ZooKeeper;
+import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlacementPolicy
-        implements Deserializer<BookiesRackConfiguration> {
-    private static final Logger LOG = LoggerFactory.getLogger(ZkIsolatedBookieEnsemblePlacementPolicy.class);
-
+@Slf4j
+public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlacementPolicy {
     public static final String ISOLATION_BOOKIE_GROUPS = "isolationBookieGroups";
     public static final String SECONDARY_ISOLATION_BOOKIE_GROUPS = "secondaryIsolationBookieGroups";
 
-    private ZooKeeperCache bookieMappingCache = null;
-
-    private final ObjectMapper jsonMapper = ObjectMapperFactory.create();
     // Using a pair to save the isolation groups, the left value is the primary group and the right value is
     // the secondary group.
     private ImmutablePair<Set<String>, Set<String>> defaultIsolationGroups;
 
-    public ZkIsolatedBookieEnsemblePlacementPolicy() {
+    private MetadataCache<BookiesRackConfiguration> bookieMappingCache;
+
+
+    public IsolatedBookieEnsemblePlacementPolicy() {
         super();
     }
 
@@ -76,6 +70,20 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
     public RackawareEnsemblePlacementPolicyImpl initialize(ClientConfiguration conf,
             Optional<DNSToSwitchMapping> optionalDnsResolver, HashedWheelTimer timer, FeatureProvider featureProvider,
             StatsLogger statsLogger, BookieAddressResolver bookieAddressResolver) {
+
+        Object storeProperty = conf.getProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE);
+        if (storeProperty == null) {
+            throw new RuntimeException(BookieRackAffinityMapping.METADATA_STORE_INSTANCE
+                    + " configuration was not set in the BK client configuration");
+        }
+
+        if (!(storeProperty instanceof MetadataStore)) {
+            throw new RuntimeException(
+                    BookieRackAffinityMapping.METADATA_STORE_INSTANCE + " is not an instance of MetadataStore");
+        }
+
+        MetadataStore store = (MetadataStore) storeProperty;
+
         Set<String> primaryIsolationGroups = new HashSet<>();
         Set<String> secondaryIsolationGroups = new HashSet<>();
         if (conf.getProperty(ISOLATION_BOOKIE_GROUPS) != null) {
@@ -84,7 +92,10 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
                 for (String isolationGroup : isolationGroupsString.split(",")) {
                     primaryIsolationGroups.add(isolationGroup);
                 }
-                bookieMappingCache = getAndSetZkCache(conf);
+
+                // Only add the bookieMappingCache if we have defined an isolation group
+                bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
+                bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).join();
             }
         }
         if (conf.getProperty(SECONDARY_ISOLATION_BOOKIE_GROUPS) != null) {
@@ -112,33 +123,6 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
         } else {
             return obj.toString();
         }
-    }
-
-    private ZooKeeperCache getAndSetZkCache(Configuration conf) {
-        ZooKeeperCache zkCache = null;
-        if (conf.getProperty(ZooKeeperCache.ZK_CACHE_INSTANCE) != null) {
-            zkCache = (ZooKeeperCache) conf.getProperty(ZooKeeperCache.ZK_CACHE_INSTANCE);
-        } else {
-            int zkTimeout;
-            String zkServers;
-            if (conf instanceof ClientConfiguration) {
-                zkTimeout = ((ClientConfiguration) conf).getZkTimeout();
-                zkServers = ((ClientConfiguration) conf).getZkServers();
-                try {
-                    ZooKeeper zkClient = ZooKeeperClient.newBuilder().connectString(zkServers)
-                            .sessionTimeoutMs(zkTimeout).build();
-                    zkCache = new ZooKeeperCache("bookies-isolation", zkClient,
-                            (int) TimeUnit.MILLISECONDS.toSeconds(zkTimeout)) {
-                    };
-                    conf.addProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, zkCache);
-                } catch (Exception e) {
-                    LOG.error("Error creating zookeeper client", e);
-                }
-            } else {
-                LOG.error("No zk configurations available");
-            }
-        }
-        return zkCache;
     }
 
     @Override
@@ -189,7 +173,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
             try {
                 return Optional.ofNullable(EnsemblePlacementPolicyConfig.decode(ensemblePlacementPolicyConfigData));
             } catch (EnsemblePlacementPolicyConfig.ParseEnsemblePlacementPolicyConfigException e) {
-                LOG.error("Failed to parse the ensemble placement policy config from the custom metadata", e);
+                log.error("Failed to parse the ensemble placement policy config from the custom metadata", e);
                 return Optional.empty();
             }
         }
@@ -198,7 +182,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
 
     private static Pair<Set<String>, Set<String>> getIsolationGroup(EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig) {
         MutablePair<Set<String>, Set<String>> pair = new MutablePair<>();
-        String className = ZkIsolatedBookieEnsemblePlacementPolicy.class.getName();
+        String className = IsolatedBookieEnsemblePlacementPolicy.class.getName();
         if (ensemblePlacementPolicyConfig.getPolicyClass().getName().equals(className)) {
             Map<String, Object> properties = ensemblePlacementPolicyConfig.getProperties();
             String primaryIsolationGroupString = castToString(properties.getOrDefault(ISOLATION_BOOKIE_GROUPS, ""));
@@ -218,10 +202,17 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
         Set<BookieId> blacklistedBookies = new HashSet<>();
         try {
             if (bookieMappingCache != null) {
-                BookiesRackConfiguration allGroupsBookieMapping = bookieMappingCache
-                    .getData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, this)
-                    .orElseThrow(() -> new KeeperException.NoNodeException(
-                        ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH));
+                CompletableFuture<Optional<BookiesRackConfiguration>> future =
+                        bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH);
+
+                Optional<BookiesRackConfiguration> optRes = (future.isDone() && !future.isCompletedExceptionally())
+                        ? future.join() : Optional.empty();
+
+                if (!optRes.isPresent()) {
+                    return blacklistedBookies;
+                }
+
+                BookiesRackConfiguration allGroupsBookieMapping = optRes.get();
                 Set<String> allBookies = allGroupsBookieMapping.keySet();
                 int totalAvailableBookiesInPrimaryGroup = 0;
                 Set<String> primaryIsolationGroup = Collections.emptySet();
@@ -257,7 +248,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
                 }
                 // if primary-isolated-bookies are not enough then add consider secondary isolated bookie group as well.
                 if (totalAvailableBookiesInPrimaryGroup < ensembleSize) {
-                    LOG.info(
+                    log.info(
                         "Not found enough available-bookies from primary isolation group [{}] , checking secondary group [{}]",
                         primaryIsolationGroup, secondaryIsolationGroup);
                     for (String group : secondaryIsolationGroup) {
@@ -271,17 +262,8 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
                 }
             }
         } catch (Exception e) {
-            LOG.warn("Error getting bookie isolation info from zk: {}", e.getMessage());
+            log.warn("Error getting bookie isolation info from metadata store: {}", e.getMessage());
         }
         return blacklistedBookies;
-    }
-
-    @Override
-    public BookiesRackConfiguration deserialize(String key, byte[] content) throws Exception {
-        LOG.info("Reloading the bookie isolation groups mapping cache.");
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Loading the bookie mappings with bookie info data: {}", new String(content));
-        }
-        return jsonMapper.readValue(content, BookiesRackConfiguration.class);
     }
 }

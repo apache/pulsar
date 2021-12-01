@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service.schema;
+package org.apache.pulsar.zookeeper;
 
-import javax.validation.constraints.NotNull;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.common.protocol.schema.SchemaStorage;
+import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
 
-public interface SchemaStorageFactory {
-    @NotNull
-    SchemaStorage create(PulsarService pulsar) throws Exception;
+/**
+ * Retained for compatibility since this class can be referred to from config files.
+ */
+public class ZkIsolatedBookieEnsemblePlacementPolicy extends IsolatedBookieEnsemblePlacementPolicy {
+
 }

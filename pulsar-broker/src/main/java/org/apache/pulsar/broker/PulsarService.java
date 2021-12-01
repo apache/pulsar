@@ -1233,9 +1233,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private SchemaStorage createAndStartSchemaStorage() throws Exception {
         final Class<?> storageClass = Class.forName(config.getSchemaRegistryStorageClassName());
         Object factoryInstance = storageClass.getDeclaredConstructor().newInstance();
-        Method createMethod = storageClass.getMethod("create", PulsarService.class, ZooKeeper.class);
-        SchemaStorage schemaStorage = (SchemaStorage) createMethod.invoke(factoryInstance, this,
-                getZkClient());
+        Method createMethod = storageClass.getMethod("create", PulsarService.class);
+        SchemaStorage schemaStorage = (SchemaStorage) createMethod.invoke(factoryInstance, this);
         schemaStorage.start();
         return schemaStorage;
     }

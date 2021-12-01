@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.zookeeper;
+package org.apache.pulsar.bookie.rackawareness;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -40,28 +40,25 @@ import org.apache.bookkeeper.feature.SettableFeatureProvider;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.stats.NullStatsLogger;
-import org.apache.bookkeeper.util.ZkUtils;
-import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.ZooDefs;
-import org.apache.zookeeper.ZooKeeper;
+import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
+public class IsolatedBookieEnsemblePlacementPolicyTest {
 
     private static final String BOOKIE1 = "127.0.0.1:3181";
     private static final String BOOKIE2 = "127.0.0.2:3181";
     private static final String BOOKIE3 = "127.0.0.3:3181";
     private static final String BOOKIE4 = "127.0.0.4:3181";
     private static final String BOOKIE5 = "127.0.0.5:3181";
-    private ZookeeperServerTest localZkS;
-    private ZooKeeper localZkc;
+    private MetadataStore store;
 
     private final ObjectMapper jsonMapper = ObjectMapperFactory.create();
     Set<BookieId> writableBookies = new HashSet<>();
@@ -73,10 +70,8 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
     @BeforeMethod
     public void setUp() throws Exception {
         timer = new HashedWheelTimer();
-        localZkS = new ZookeeperServerTest(0);
-        localZkS.start();
+        store = MetadataStoreFactory.create("memory://local", MetadataStoreConfig.builder().build());
 
-        localZkc = ZooKeeperClient.newBuilder().connectString("127.0.0.1" + ":" + localZkS.getZookeeperPort()).build();
         writableBookies.add(new BookieSocketAddress(BOOKIE1).toBookieId());
         writableBookies.add(new BookieSocketAddress(BOOKIE2).toBookieId());
         writableBookies.add(new BookieSocketAddress(BOOKIE3).toBookieId());
@@ -88,7 +83,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
     void teardown() throws Exception {
         writableBookies.clear();
         isolationGroups.clear();
-        localZkS.close();
+        store.close();
         timer.stop();
     }
 
@@ -106,17 +101,13 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         bookieMapping.put("group1", mainBookieGroup);
         bookieMapping.put("group2", secondaryBookieGroup);
 
-        ZkUtils.createFullPathOptimistic(localZkc, ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH,
-                jsonMapper.writeValueAsBytes(bookieMapping), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
+                Optional.empty()).join();
 
-        Awaitility.await()
-                .until(() -> localZkc.exists(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false) != null);
-
-        ZkIsolatedBookieEnsemblePlacementPolicy isolationPolicy = new ZkIsolatedBookieEnsemblePlacementPolicy();
+        IsolatedBookieEnsemblePlacementPolicy isolationPolicy = new IsolatedBookieEnsemblePlacementPolicy();
         ClientConfiguration bkClientConf = new ClientConfiguration();
-        bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache("test", localZkc, 30) {
-        });
-        bkClientConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolationGroups);
+        bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+        bkClientConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolationGroups);
         isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL, NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
 
@@ -144,11 +135,8 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         secondaryBookieGroup.put(BOOKIE4, BookieInfo.builder().rack("rack0").build());
         bookieMapping.put("group2", secondaryBookieGroup);
 
-        byte[] data = jsonMapper.writeValueAsBytes(bookieMapping);
-        localZkc.setData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, data, -1);
-
-        Awaitility.await().until(() -> Arrays
-                .equals(data, localZkc.getData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null)));
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
+                Optional.empty()).join();
 
         ensemble = isolationPolicy.newEnsemble(2, 2, 2, Collections.emptyMap(), null).getResult();
 
@@ -176,17 +164,14 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         BookieId chosenBookie = isolationPolicy.replaceBookie(1, 1, 1, Collections.emptyMap(),
                 ensemble, ensemble.get(0), new HashSet<>()).getResult();
         assertEquals(new BookieSocketAddress(BOOKIE1).toBookieId(), chosenBookie);
-
-        localZkc.delete(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, -1);
     }
 
     @Test
     public void testNoBookieInfo() throws Exception {
-        ZkIsolatedBookieEnsemblePlacementPolicy isolationPolicy = new ZkIsolatedBookieEnsemblePlacementPolicy();
+        IsolatedBookieEnsemblePlacementPolicy isolationPolicy = new IsolatedBookieEnsemblePlacementPolicy();
         ClientConfiguration bkClientConf = new ClientConfiguration();
-        bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache("test", localZkc, 30) {
-        });
-        bkClientConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolationGroups);
+        bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+        bkClientConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolationGroups);
         isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL, NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
 
@@ -198,11 +183,8 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
                 + "\": {\"rack\": \"rack0\", \"hostname\": \"bookie3.example.com\"}, \"" + BOOKIE4
                 + "\": {\"rack\": \"rack2\", \"hostname\": \"bookie4.example.com\"}}}";
 
-        ZkUtils.createFullPathOptimistic(localZkc, ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, data.getBytes(),
-                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-
-        Awaitility.await().until(() -> Arrays.equals(data.getBytes(StandardCharsets.UTF_8),
-                localZkc.getData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null)));
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, data.getBytes(StandardCharsets.UTF_8),
+                Optional.empty()).join();
 
         List<BookieId> ensemble = isolationPolicy.newEnsemble(2, 2, 2, Collections.emptyMap(), new HashSet<>()).getResult();
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE1).toBookieId()));
@@ -214,8 +196,6 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         } catch (BKNotEnoughBookiesException e) {
             // ok
         }
-
-        localZkc.delete(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, -1);
     }
 
     @Test
@@ -232,18 +212,13 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         bookieMapping.put("group1", mainBookieGroup);
         bookieMapping.put("group2", secondaryBookieGroup);
 
-        byte[] data = jsonMapper.writeValueAsBytes(bookieMapping);
-        ZkUtils.createFullPathOptimistic(localZkc, ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, data,
-                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
+                Optional.empty()).join();
 
-        Awaitility.await().until(() -> Arrays.equals(data,
-                localZkc.getData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null)));
-
-        ZkIsolatedBookieEnsemblePlacementPolicy isolationPolicy = new ZkIsolatedBookieEnsemblePlacementPolicy();
+        IsolatedBookieEnsemblePlacementPolicy isolationPolicy = new IsolatedBookieEnsemblePlacementPolicy();
         ClientConfiguration bkClientConf = new ClientConfiguration();
-        bkClientConf.setZkServers("127.0.0.1" + ":" + localZkS.getZookeeperPort());
-        bkClientConf.setZkTimeout(1000);
-        bkClientConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolationGroups);
+        bkClientConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolationGroups);
+        bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
         isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL, NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
 
@@ -263,24 +238,13 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         bookieMapping.put("group1", mainBookieGroup);
         bookieMapping.put("group2", secondaryBookieGroup);
 
-        byte[] data2 = jsonMapper.writeValueAsBytes(bookieMapping);
-        localZkc.setData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, data2, -1);
-
-        // wait for the zk to notify and update the mappings
-        Awaitility.await().until(() -> Arrays
-                .equals(data2, localZkc.getData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null)));
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
+                Optional.empty()).join();
 
         ensemble = isolationPolicy.newEnsemble(3, 3, 3, Collections.emptyMap(), new HashSet<>()).getResult();
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE1).toBookieId()));
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2).toBookieId()));
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE3).toBookieId()));
-
-        localZkc.delete(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, -1);
-
-        Awaitility.await()
-                .until(() -> localZkc.exists(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false) == null);
-
-        isolationPolicy.newEnsemble(1, 1, 1, Collections.emptyMap(), new HashSet<>());
     }
 
     @Test
@@ -291,16 +255,14 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
                 + "\": {\"rack\": \"rack0\", \"hostname\": \"bookie3.example.com\"}, \"" + BOOKIE4
                 + "\": {\"rack\": \"rack2\", \"hostname\": \"bookie4.example.com\"}}}";
 
-        ZkUtils.createFullPathOptimistic(localZkc, ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, data.getBytes(),
-                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, data.getBytes(StandardCharsets.UTF_8),
+                Optional.empty()).join();
 
-        Awaitility.await()
-                .until(() -> localZkc.exists(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false) != null);
+        Awaitility.await().until(() -> store.exists(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).join());
 
-        ZkIsolatedBookieEnsemblePlacementPolicy isolationPolicy = new ZkIsolatedBookieEnsemblePlacementPolicy();
+        IsolatedBookieEnsemblePlacementPolicy isolationPolicy = new IsolatedBookieEnsemblePlacementPolicy();
         ClientConfiguration bkClientConf = new ClientConfiguration();
-        bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache("test", localZkc, 30) {
-        });
+        bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
         isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL,
                 NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
@@ -339,17 +301,13 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         bookieMapping.put("default", defaultBookieGroup);
         bookieMapping.put(isolatedGroup, isolatedBookieGroup);
 
-        ZkUtils.createFullPathOptimistic(localZkc, ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH,
-                jsonMapper.writeValueAsBytes(bookieMapping), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
+                Optional.empty()).join();
 
-        Awaitility.await()
-                .until(() -> localZkc.exists(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false) != null);
-
-        ZkIsolatedBookieEnsemblePlacementPolicy isolationPolicy = new ZkIsolatedBookieEnsemblePlacementPolicy();
+        IsolatedBookieEnsemblePlacementPolicy isolationPolicy = new IsolatedBookieEnsemblePlacementPolicy();
         ClientConfiguration bkClientConf = new ClientConfiguration();
-        bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache("test", localZkc, 30) {
-        });
-        bkClientConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolatedGroup);
+        bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+        bkClientConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolatedGroup);
         isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL,
                 NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
@@ -359,8 +317,6 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE1).toBookieId()));
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2).toBookieId()));
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE4).toBookieId()));
-
-        localZkc.delete(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, -1);
     }
 
     @Test
@@ -387,18 +343,14 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         bookieMapping.put(isolatedGroup, primaryIsolatedBookieGroup);
         bookieMapping.put(secondaryIsolatedGroup, secondaryIsolatedBookieGroup);
 
-        ZkUtils.createFullPathOptimistic(localZkc, ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH,
-                jsonMapper.writeValueAsBytes(bookieMapping), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
+                Optional.empty()).join();
 
-        Awaitility.await()
-                .until(() -> localZkc.exists(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false) != null);
-
-        ZkIsolatedBookieEnsemblePlacementPolicy isolationPolicy = new ZkIsolatedBookieEnsemblePlacementPolicy();
+        IsolatedBookieEnsemblePlacementPolicy isolationPolicy = new IsolatedBookieEnsemblePlacementPolicy();
         ClientConfiguration bkClientConf = new ClientConfiguration();
-        bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache("test", localZkc, 30) {
-        });
-        bkClientConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolatedGroup);
-        bkClientConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS, secondaryIsolatedGroup);
+        bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+        bkClientConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolatedGroup);
+        bkClientConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS, secondaryIsolatedGroup);
         isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL,
                 NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
@@ -408,8 +360,6 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE1).toBookieId()));
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2).toBookieId()));
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE4).toBookieId()));
-
-        localZkc.delete(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, -1);
     }
 
     @Test
@@ -432,18 +382,14 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         bookieMapping.put("default", defaultBookieGroup);
         bookieMapping.put(isolatedGroup, primaryIsolatedBookieGroup);
 
-        ZkUtils.createFullPathOptimistic(localZkc, ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH,
-                jsonMapper.writeValueAsBytes(bookieMapping), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
+                Optional.empty()).join();
 
-        Awaitility.await()
-                .until(() -> localZkc.exists(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false) != null);
-
-        ZkIsolatedBookieEnsemblePlacementPolicy isolationPolicy = new ZkIsolatedBookieEnsemblePlacementPolicy();
+        IsolatedBookieEnsemblePlacementPolicy isolationPolicy = new IsolatedBookieEnsemblePlacementPolicy();
         ClientConfiguration bkClientConf = new ClientConfiguration();
-        bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache("test", localZkc, 30) {
-        });
-        bkClientConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolatedGroup);
-        bkClientConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
+        bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+        bkClientConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolatedGroup);
+        bkClientConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
                 secondaryIsolatedGroup);
         isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL,
                 NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
@@ -456,8 +402,6 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         } catch (BKNotEnoughBookiesException ne) {
             // Ok..
         }
-
-        localZkc.delete(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, -1);
     }
 
     /**
@@ -483,32 +427,28 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         bookieMapping.put(primaryGroupName, primaryIsolationBookieGroups);
         bookieMapping.put(secondaryGroupName, secondaryIsolationBookieGroups);
 
-        ZkUtils.createFullPathOptimistic(localZkc, ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH,
-            jsonMapper.writeValueAsBytes(bookieMapping), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-
-        Awaitility.await()
-                .until(() -> localZkc.exists(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false) != null);
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
+                Optional.empty()).join();
 
         // prepare a custom placement policy and put it into the custom metadata. The isolation policy should decode
         // from the custom metadata and apply it to the get black list method.
         Map<String, Object> placementPolicyProperties = new HashMap<>();
         placementPolicyProperties.put(
-            ZkIsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, primaryGroupName);
+            IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, primaryGroupName);
         placementPolicyProperties.put(
-            ZkIsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS, secondaryGroupName);
+            IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS, secondaryGroupName);
         EnsemblePlacementPolicyConfig policyConfig = new EnsemblePlacementPolicyConfig(
-            ZkIsolatedBookieEnsemblePlacementPolicy.class,
+            IsolatedBookieEnsemblePlacementPolicy.class,
             placementPolicyProperties
         );
         Map<String, byte[]> customMetadata = new HashMap<>();
         customMetadata.put(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG, policyConfig.encode());
 
         // do the test logic
-        ZkIsolatedBookieEnsemblePlacementPolicy isolationPolicy = new ZkIsolatedBookieEnsemblePlacementPolicy();
+        IsolatedBookieEnsemblePlacementPolicy isolationPolicy = new IsolatedBookieEnsemblePlacementPolicy();
         ClientConfiguration bkClientConf = new ClientConfiguration();
-        bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache("test", localZkc, 30) {
-        });
-        bkClientConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, primaryGroupName);
+        bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+        bkClientConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, primaryGroupName);
         isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL,
             NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);

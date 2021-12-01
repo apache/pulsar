@@ -16,46 +16,39 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.zookeeper;
+package org.apache.pulsar.bookie.rackawareness;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.net.BookieSocketAddress;
-import org.apache.bookkeeper.util.ZkUtils;
-import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.ZooDefs;
-import org.apache.zookeeper.ZooKeeper;
+import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-public class ZkBookieRackAffinityMappingTest {
+public class BookieRackAffinityMappingTest {
 
     private BookieSocketAddress BOOKIE1 = null;
     private BookieSocketAddress BOOKIE2 = null;
     private BookieSocketAddress BOOKIE3 = null;
-    private ZookeeperServerTest localZkS;
-    private ZooKeeper localZkc;
+    private MetadataStore store;
 
     private final ObjectMapper jsonMapper = ObjectMapperFactory.create();
 
     @BeforeMethod
     public void setUp() throws Exception {
-        localZkS = new ZookeeperServerTest(0);
-        localZkS.start();
-        localZkc = ZooKeeperClient.newBuilder().connectString("127.0.0.1:" + localZkS.getZookeeperPort()).build();
+        store = MetadataStoreFactory.create("memory://local", MetadataStoreConfig.builder().build());
         BOOKIE1 = new BookieSocketAddress("127.0.0.1:3181");
         BOOKIE2 = new BookieSocketAddress("127.0.0.2:3181");
         BOOKIE3 = new BookieSocketAddress("127.0.0.3:3181");
@@ -63,7 +56,7 @@ public class ZkBookieRackAffinityMappingTest {
 
     @AfterMethod(alwaysRun = true)
     void teardown() throws Exception {
-        localZkS.close();
+        store.close();
     }
 
     @Test
@@ -71,15 +64,13 @@ public class ZkBookieRackAffinityMappingTest {
         String data = "{\"group1\": {\"" + BOOKIE1
                 + "\": {\"rack\": \"/rack0\", \"hostname\": \"bookie1.example.com\"}, \"" + BOOKIE2
                 + "\": {\"rack\": \"/rack1\", \"hostname\": \"bookie2.example.com\"}}}";
-        ZkUtils.createFullPathOptimistic(localZkc, ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, data.getBytes(),
-                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, data.getBytes(), Optional.empty()).join();
 
         // Case1: ZKCache is given
-        ZkBookieRackAffinityMapping mapping1 = new ZkBookieRackAffinityMapping();
+        BookieRackAffinityMapping mapping1 = new BookieRackAffinityMapping();
         ClientConfiguration bkClientConf1 = new ClientConfiguration();
-        bkClientConf1.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache("test", localZkc, 30) {
-        });
-        assertNull(bkClientConf1.getProperty(ZkBookieRackAffinityMapping.ZK_DATA_CACHE_BK_RACK_CONF_INSTANCE));
+        bkClientConf1.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+
         mapping1.setBookieAddressResolver(BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         mapping1.setConf(bkClientConf1);
         List<String> racks1 = mapping1
@@ -87,31 +78,14 @@ public class ZkBookieRackAffinityMappingTest {
         assertEquals(racks1.get(0), "/rack0");
         assertEquals(racks1.get(1), "/rack1");
         assertEquals(racks1.get(2), null);
-        assertNotNull(bkClientConf1.getProperty(ZkBookieRackAffinityMapping.ZK_DATA_CACHE_BK_RACK_CONF_INSTANCE));
-
-        // Case 2: ZkServers and ZkTimeout are given (ZKCache will be constructed in
-        // ZkBookieRackAffinityMapping#setConf)
-        ZkBookieRackAffinityMapping mapping2 = new ZkBookieRackAffinityMapping();
-        ClientConfiguration bkClientConf2 = new ClientConfiguration();
-        bkClientConf2.setZkServers("127.0.0.1" + ":" + localZkS.getZookeeperPort());
-        bkClientConf2.setZkTimeout(1000);
-        mapping2.setBookieAddressResolver(BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
-        mapping2.setConf(bkClientConf2);
-        List<String> racks2 = mapping2
-                .resolve(Lists.newArrayList(BOOKIE1.getHostName(), BOOKIE2.getHostName(), BOOKIE3.getHostName()));
-        assertEquals(racks2.get(0), "/rack0");
-        assertEquals(racks2.get(1), "/rack1");
-        assertEquals(racks2.get(2), null);
-
-        localZkc.delete(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, -1);
     }
 
     @Test
     public void testNoBookieInfo() throws Exception {
-        ZkBookieRackAffinityMapping mapping = new ZkBookieRackAffinityMapping();
+        BookieRackAffinityMapping mapping = new BookieRackAffinityMapping();
         ClientConfiguration bkClientConf = new ClientConfiguration();
-        bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache("test", localZkc, 30) {
-        });
+        bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+
         mapping.setBookieAddressResolver(BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         mapping.setConf(bkClientConf);
         List<String> racks = mapping.resolve(Lists.newArrayList("127.0.0.1", "127.0.0.2", "127.0.0.3"));
@@ -127,18 +101,16 @@ public class ZkBookieRackAffinityMappingTest {
 
         bookieMapping.put("group1", mainBookieGroup);
 
-        ZkUtils.createFullPathOptimistic(localZkc, ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH,
-                jsonMapper.writeValueAsBytes(bookieMapping), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
+                Optional.empty()).join();
 
-        Awaitility.await()
-                .until(() -> localZkc.exists(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false) != null);
+        Awaitility.await().untilAsserted(() -> {
+            List<String> r = mapping.resolve(Lists.newArrayList("127.0.0.1", "127.0.0.2", "127.0.0.3"));
+            assertEquals(r.get(0), "/rack0");
+            assertEquals(r.get(1), "/rack1");
+            assertEquals(r.get(2), null);
+        });
 
-        racks = mapping.resolve(Lists.newArrayList("127.0.0.1", "127.0.0.2", "127.0.0.3"));
-        assertEquals(racks.get(0), "/rack0");
-        assertEquals(racks.get(1), "/rack1");
-        assertEquals(racks.get(2), null);
-
-        localZkc.delete(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, -1);
     }
 
     @Test
@@ -151,13 +123,13 @@ public class ZkBookieRackAffinityMappingTest {
 
         bookieMapping.put("group1", mainBookieGroup);
 
-        ZkUtils.createFullPathOptimistic(localZkc, ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH,
-                jsonMapper.writeValueAsBytes(bookieMapping), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
+                Optional.empty()).join();
 
-        ZkBookieRackAffinityMapping mapping = new ZkBookieRackAffinityMapping();
+        BookieRackAffinityMapping mapping = new BookieRackAffinityMapping();
         ClientConfiguration bkClientConf = new ClientConfiguration();
-        bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache("test", localZkc, 30) {
-        });
+        bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+
         mapping.setBookieAddressResolver(BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         mapping.setConf(bkClientConf);
         List<String> racks = mapping
@@ -171,26 +143,22 @@ public class ZkBookieRackAffinityMappingTest {
         secondaryBookieGroup.put(BOOKIE3, BookieInfo.builder().rack("rack0").build());
 
         bookieMapping.put("group2", secondaryBookieGroup);
-        byte[] data = jsonMapper.writeValueAsBytes(bookieMapping);
-        localZkc.setData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, data,-1);
-
-        // wait for the zk to notify and update the mappings
-        Awaitility.await().until(() -> Arrays
-                .equals(data, localZkc.getData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null)));
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
+                Optional.empty()).join();
 
         racks = mapping.resolve(Lists.newArrayList("127.0.0.1", "127.0.0.2", "127.0.0.3"));
         assertEquals(racks.get(0), "/rack0");
         assertEquals(racks.get(1), "/rack1");
         assertEquals(racks.get(2), "/rack0");
 
-        localZkc.setData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, "{}".getBytes(), -1);
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, "{}".getBytes(),
+                Optional.empty()).join();
 
-        Awaitility.await().until(() -> Arrays.equals("{}".getBytes(),
-                localZkc.getData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null)));
-
-        racks = mapping.resolve(Lists.newArrayList("127.0.0.1", "127.0.0.2", "127.0.0.3"));
-        assertEquals(racks.get(0), null);
-        assertEquals(racks.get(1), null);
-        assertEquals(racks.get(2), null);
+        Awaitility.await().untilAsserted(() -> {
+            List<String> r = mapping.resolve(Lists.newArrayList("127.0.0.1", "127.0.0.2", "127.0.0.3"));
+            assertEquals(r.get(0), null);
+            assertEquals(r.get(1), null);
+            assertEquals(r.get(2), null);
+        });
     }
 }
