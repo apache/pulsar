@@ -640,22 +640,31 @@ public class NamespaceService implements AutoCloseable {
     }
 
     private boolean isBrokerActive(String candidateBroker) {
-        List<String> brokers = pulsar.getLocalMetadataStore().getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT).join();
-
-        for (String brokerHostPort : brokers) {
-            if (candidateBroker.equals("http://" + brokerHostPort)) {
+        URI uri = URI.create(candidateBroker);
+        String candidateBrokerHostAndPort = uri.getHost() + ":" + uri.getPort();
+        Set<String> availableBrokers = getAvailableBrokers();
+        for (String brokerHostPort : availableBrokers) {
+            if (candidateBrokerHostAndPort.equals(brokerHostPort)) {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("Broker {} found for SLA Monitoring Namespace", brokerHostPort);
+                    LOG.debug("Broker {} is available.", brokerHostPort);
                 }
                 return true;
             }
         }
 
         if (LOG.isDebugEnabled()) {
-            LOG.debug("Broker not found for SLA Monitoring Namespace {}",
-                    candidateBroker + ":" + config.getWebServicePort());
+            LOG.debug("Broker {} couldn't be found in available brokers {}",
+                    candidateBroker, availableBrokers);
         }
         return false;
+    }
+
+    private Set<String> getAvailableBrokers() {
+        try {
+            return loadManager.get().getAvailableBrokers();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
