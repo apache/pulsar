@@ -861,6 +861,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean preciseDispatcherFlowControl = false;
 
     @FieldContext(
+         dynamic = true,
+         category = CATEGORY_SERVER,
+         doc = " Class name of pluggable entry filter that decides whether the entry needs to be filtered."
+                 + "You can use this class to decide which entries can be sent to consumers."
+                 + "Multiple names need to be separated by commas."
+    )
+    private List<String> entryFilterNames = new ArrayList<>();
+
+    @FieldContext(
+         dynamic = true,
+         category = CATEGORY_SERVER,
+         doc = " The directory for all the entry filter implementations."
+    )
+    private String entryFiltersDirectory = "";
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Whether to use streaming read dispatcher. Currently is in preview and can be changed " +
                 "in subsequent release."
@@ -1016,12 +1032,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Check between intervals to see if consumed ledgers need to be trimmed"
     )
     private int retentionCheckIntervalInSeconds = 120;
-
-    @FieldContext(
-            category = CATEGORY_SERVER,
-            doc = "Check between intervals to see if max message size of topic policy has updated. default is 60s"
-    )
-    private int maxMessageSizeCheckIntervalInSeconds = 60;
 
     @FieldContext(
             category = CATEGORY_SERVER,
