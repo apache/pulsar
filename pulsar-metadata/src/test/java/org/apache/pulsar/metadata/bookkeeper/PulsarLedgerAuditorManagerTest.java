@@ -70,7 +70,7 @@ public class PulsarLedgerAuditorManagerTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
     public void testSimple(String provider, Supplier<String> urlSupplier) throws Exception {
-        if (provider.equals("Memory")) {
+        if (provider.equals("Memory") || provider.equals("RocksDB")) {
             // With memory provider there are not multiple sessions to test with
             return;
         }

@@ -57,6 +57,7 @@ class BKTestCluster implements AutoCloseable {
 
     // Metadata service related variables
     private final String metadataServiceUri;
+    private final MetadataStoreExtended store;
 
     // BookKeeper related variables
     private final List<File> tmpDirs = new ArrayList<>();
@@ -69,7 +70,10 @@ class BKTestCluster implements AutoCloseable {
 
     public BKTestCluster(String metadataServiceUri, int numBookies) throws Exception {
         this.metadataServiceUri = metadataServiceUri;
+        this.store = MetadataStoreExtended.create(metadataServiceUri, MetadataStoreConfig.builder().build());
         baseConf.setJournalRemovePagesFromCache(false);
+        baseConf.setProperty(AbstractMetadataDriver.METADATA_STORE_INSTANCE, store);
+        baseClientConf.setProperty(AbstractMetadataDriver.METADATA_STORE_INSTANCE, store);
         System.setProperty("bookkeeper.metadata.bookie.drivers", PulsarMetadataBookieDriver.class.getName());
         System.setProperty("bookkeeper.metadata.client.drivers", PulsarMetadataClientDriver.class.getName());
         startBKCluster(numBookies);
@@ -96,6 +100,8 @@ class BKTestCluster implements AutoCloseable {
         } catch (Exception e) {
             log.error("Got Exception while trying to cleanupTempDirs", e);
         }
+
+        this.store.close();
     }
 
     private File createTempDir(String prefix, String suffix) throws IOException {
@@ -111,9 +117,6 @@ class BKTestCluster implements AutoCloseable {
      * @throws Exception
      */
     private void startBKCluster(int numBookies) throws Exception {
-        @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(metadataServiceUri, MetadataStoreConfig.builder()
-                .build());
         PulsarRegistrationManager rm = new PulsarRegistrationManager(store, "/ledgers", baseConf);
         rm.initNewCluster();
 
