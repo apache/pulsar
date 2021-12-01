@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10};
+var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -209,10 +209,14 @@ extends <a href="../../../../../../org/apache/pulsar/broker/service/nonpersisten
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/nonpersistent/NonPersistentStickyKeyDispatcherMultipleConsumers.html#getType--">getType</a></span>()</code>&nbsp;</td>
 </tr>
 <tr id="i3" class="rowColor">
+<td class="colFirst"><code>boolean</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/nonpersistent/NonPersistentStickyKeyDispatcherMultipleConsumers.html#hasSameKeySharedPolicy-org.apache.pulsar.common.api.proto.KeySharedMeta-">hasSameKeySharedPolicy</a></span>(org.apache.pulsar.common.api.proto.KeySharedMeta&nbsp;ksm)</code>&nbsp;</td>
+</tr>
+<tr id="i4" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/nonpersistent/NonPersistentStickyKeyDispatcherMultipleConsumers.html#removeConsumer-org.apache.pulsar.broker.service.Consumer-">removeConsumer</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer)</code>&nbsp;</td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/nonpersistent/NonPersistentStickyKeyDispatcherMultipleConsumers.html#sendMessages-java.util.List-">sendMessages</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/util/List.html?is-external=true" title="class or interface in java.util">List</a>&lt;org.apache.bookkeeper.mledger.Entry&gt;&nbsp;entries)</code>&nbsp;</td>
 </tr>
@@ -367,10 +371,19 @@ extends <a href="../../../../../../org/apache/pulsar/broker/service/nonpersisten
 <a name="getKeySharedMode--">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>getKeySharedMode</h4>
 <pre>public&nbsp;org.apache.pulsar.common.api.proto.KeySharedMode&nbsp;getKeySharedMode()</pre>
+</li>
+</ul>
+<a name="hasSameKeySharedPolicy-org.apache.pulsar.common.api.proto.KeySharedMeta-">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>hasSameKeySharedPolicy</h4>
+<pre>public&nbsp;boolean&nbsp;hasSameKeySharedPolicy(org.apache.pulsar.common.api.proto.KeySharedMeta&nbsp;ksm)</pre>
 </li>
 </ul>
 </li>
