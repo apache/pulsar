@@ -258,7 +258,7 @@ public class ElasticSearchClient implements AutoCloseable {
         try {
             checkNotFailed();
             checkIndexExists(record.getTopicName());
-            IndexRequest indexRequest = Requests.indexRequest(config.getIndexName());
+            IndexRequest indexRequest = Requests.indexRequest(indexName(record.getTopicName()));
             if (!Strings.isNullOrEmpty(idAndDoc.getLeft()))
                 indexRequest.id(idAndDoc.getLeft());
             indexRequest.type(config.getTypeName());
@@ -284,7 +284,7 @@ public class ElasticSearchClient implements AutoCloseable {
         try {
             checkNotFailed();
             checkIndexExists(record.getTopicName());
-            IndexRequest indexRequest = Requests.indexRequest(config.getIndexName());
+            IndexRequest indexRequest = Requests.indexRequest(indexName(record.getTopicName()));
             if (!Strings.isNullOrEmpty(idAndDoc.getLeft()))
                 indexRequest.id(idAndDoc.getLeft());
             indexRequest.type(config.getTypeName());
@@ -309,7 +309,7 @@ public class ElasticSearchClient implements AutoCloseable {
         try {
             checkNotFailed();
             checkIndexExists(record.getTopicName());
-            DeleteRequest deleteRequest = Requests.deleteRequest(config.getIndexName());
+            DeleteRequest deleteRequest = Requests.deleteRequest(indexName(record.getTopicName()));
             deleteRequest.id(id);
             deleteRequest.type(config.getTypeName());
 
@@ -333,7 +333,7 @@ public class ElasticSearchClient implements AutoCloseable {
         try {
             checkNotFailed();
             checkIndexExists(record.getTopicName());
-            DeleteRequest deleteRequest = Requests.deleteRequest(config.getIndexName());
+            DeleteRequest deleteRequest = Requests.deleteRequest(indexName(record.getTopicName()));
             deleteRequest.id(id);
             deleteRequest.type(config.getTypeName());
             DeleteResponse deleteResponse = client.delete(deleteRequest, RequestOptions.DEFAULT);
