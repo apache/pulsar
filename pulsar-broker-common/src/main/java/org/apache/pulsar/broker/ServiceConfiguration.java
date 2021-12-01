@@ -981,6 +981,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SERVER,
+        dynamic = true,
         doc = "Max memory size for broker handling messages sending from producers.\n\n"
             + " If the processing message size exceed this value, broker will stop read data"
             + " from the connection. The processing messages means messages are sends to broker"
@@ -1722,6 +1723,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
             doc = "load balance load shedding strategy"
     )
     private String loadBalancerLoadSheddingStrategy = "org.apache.pulsar.broker.loadbalance.impl.OverloadShedder";
@@ -1740,6 +1742,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int loadBalancerReportUpdateMaxIntervalMinutes = 15;
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
+        dynamic = true,
         doc = "Frequency of report to collect, in minutes"
     )
     private int loadBalancerHostUsageCheckIntervalMinutes = 1;
@@ -1751,12 +1754,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean loadBalancerSheddingEnabled = true;
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
+        dynamic = true,
         doc = "Load shedding interval. \n\nBroker periodically checks whether some traffic"
             + " should be offload from some over-loaded broker to other under-loaded brokers"
     )
     private int loadBalancerSheddingIntervalMinutes = 1;
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
+        dynamic = true,
         doc = "Prevent the same topics to be shed and moved to other broker more than"
             + " once within this timeframe"
     )
@@ -1884,26 +1889,31 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean loadBalancerAutoUnloadSplitBundlesEnabled = true;
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
+        dynamic = true,
         doc = "maximum topics in a bundle, otherwise bundle split will be triggered"
     )
     private int loadBalancerNamespaceBundleMaxTopics = 1000;
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
+        dynamic = true,
         doc = "maximum sessions (producers + consumers) in a bundle, otherwise bundle split will be triggered"
     )
     private int loadBalancerNamespaceBundleMaxSessions = 1000;
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
+        dynamic = true,
         doc = "maximum msgRate (in + out) in a bundle, otherwise bundle split will be triggered"
     )
     private int loadBalancerNamespaceBundleMaxMsgRate = 30000;
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
+        dynamic = true,
         doc = "maximum bandwidth (in + out) in a bundle, otherwise bundle split will be triggered"
     )
     private int loadBalancerNamespaceBundleMaxBandwidthMbytes = 100;
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
+        dynamic = true,
         doc = "maximum number of bundles in a namespace"
     )
     private int loadBalancerNamespaceMaximumBundles = 128;
@@ -1932,6 +1942,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Double loadBalancerOverrideBrokerNicSpeedGbps;
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
+        dynamic = true,
         doc = "Time to wait for the unloading of a namespace bundle"
     )
     private long namespaceBundleUnloadingTimeoutMs = 60000;
