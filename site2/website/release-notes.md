@@ -20,7 +20,7 @@
 ### PIPs
 - [PIP 96] Add message payload processor for Pulsar client [#12088](https://github.com/apache/pulsar/pull/12088)
 - [PIP 99] Pulsar Proxy Extensions [#11838](https://github.com/apache/pulsar/pull/11838)
-- [PIP 89] PIP-89: Timed log events [#11944](https://github.com/apache/pulsar/pull/11944)
+- [PIP 89] Timed log events [#11944](https://github.com/apache/pulsar/pull/11944)
 - [PIP 82] Tenant and namespace level rate limiting [#11918](https://github.com/apache/pulsar/pull/11918)
 - [PIP 91] Separate lookup timeout from operation timeout [#11627](https://github.com/apache/pulsar/pull/11627)
 - [PIP 88] Replicate schemas across clusters [#11441](https://github.com/apache/pulsar/pull/11441)
