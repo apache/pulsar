@@ -602,11 +602,11 @@ public class MockZooKeeper extends ZooKeeper {
         }
     }
 
-    private Stat createStatForZNode(MockZNode zNode) {
+    private static Stat createStatForZNode(MockZNode zNode) {
         return applyToStat(zNode, new Stat());
     }
 
-    private Stat applyToStat(MockZNode zNode, Stat stat) {
+    private static Stat applyToStat(MockZNode zNode, Stat stat) {
         stat.setVersion(zNode.getVersion());
         if (zNode.getEphemeralOwner() != -1L) {
             stat.setEphemeralOwner(zNode.getEphemeralOwner());
