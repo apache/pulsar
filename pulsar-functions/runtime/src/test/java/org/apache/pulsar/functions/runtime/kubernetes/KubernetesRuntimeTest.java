@@ -870,7 +870,7 @@ public class KubernetesRuntimeTest {
         assertEquals(goInstanceConfig.get("autoAck"), false);
         assertEquals(goInstanceConfig.get("regexPatternSubscription"), false);
         assertEquals(goInstanceConfig.get("pulsarServiceURL"), pulsarServiceUrl);
-        assertEquals(goInstanceConfig.get("runtime"), 0);
+        assertEquals(goInstanceConfig.get("runtime"), 3);
         assertEquals(goInstanceConfig.get("cpu"), 1.0);
         assertEquals(goInstanceConfig.get("funcVersion"), "1.0");
         assertEquals(goInstanceConfig.get("disk"), 10000);
