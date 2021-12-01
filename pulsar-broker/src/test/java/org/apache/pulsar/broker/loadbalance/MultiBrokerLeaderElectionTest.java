@@ -20,15 +20,32 @@ package org.apache.pulsar.broker.loadbalance;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
+@Slf4j
 @Test(groups = "broker")
 public class MultiBrokerLeaderElectionTest extends MultiBrokerBaseTest {
+    @Override
+    protected int numberOfAdditionalBrokers() {
+        return 9;
+    }
 
     @Test
     public void shouldElectOneLeader() {
@@ -67,5 +84,36 @@ public class MultiBrokerLeaderElectionTest extends MultiBrokerBaseTest {
                 }
             }
         });
+    }
+
+    @Test
+    public void shouldProvideConsistentAnswerToTopicLookup()
+            throws PulsarAdminException, PulsarClientException, ExecutionException, InterruptedException {
+        String topicName = "persistent://public/default/lookuptest" + UUID.randomUUID();
+
+        List<PulsarAdmin> allAdmins = getAllAdmins();
+        @Cleanup("shutdown")
+        ExecutorService executorService = Executors.newFixedThreadPool(allAdmins.size());
+        List<Future<String>> resultFutures = new ArrayList<>();
+        String leaderBrokerUrl = admin.brokers().getLeaderBroker().getServiceUrl();
+        log.info("LEADER is {}", leaderBrokerUrl);
+        // wait 2 seconds to increase the likelyhood of the race condition
+        Thread.sleep(2000L);
+        for (PulsarAdmin brokerAdmin : allAdmins) {
+            if (!leaderBrokerUrl.equals(brokerAdmin.getServiceUrl())) {
+                log.info("Doing lookup to broker {}", brokerAdmin.getServiceUrl());
+                resultFutures.add(executorService.submit(() -> brokerAdmin.lookups().lookupTopic(topicName)));
+            }
+        }
+        String firstResult = null;
+        for (Future<String> resultFuture : resultFutures) {
+            String result = resultFuture.get();
+            log.info("LOOKUP RESULT {}", result);
+            if (firstResult == null) {
+                firstResult = result;
+            } else {
+                assertEquals(result, firstResult, "The lookup results weren't consistent.");
+            }
+        }
     }
 }
