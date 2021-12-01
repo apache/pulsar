@@ -280,5 +280,20 @@ public class NamespaceResources extends BaseResources<Policies> {
 
             return completableFuture;
         }
+
+        public CompletableFuture<Void> clearPartitionedTopicTenantAsync(String tenant) {
+            final String partitionedTopicPath = joinPath(PARTITIONED_TOPIC_PATH, tenant);
+            CompletableFuture<Void> future = new CompletableFuture<Void>();
+            deleteAsync(partitionedTopicPath).whenComplete((ignore, ex) -> {
+                if (ex != null && ex.getCause().getCause() instanceof KeeperException.NoNodeException) {
+                    future.complete(null);
+                } else if (ex != null) {
+                    future.completeExceptionally(ex);
+                } else {
+                    future.complete(null);
+                }
+            });
+            return future;
+        }
     }
 }

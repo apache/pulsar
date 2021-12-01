@@ -31,7 +31,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.time.Clock;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -103,7 +102,6 @@ import org.apache.pulsar.broker.service.StreamingStats;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.SubscriptionOption;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.service.TopicPolicyListener;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
@@ -164,8 +162,7 @@ import org.apache.pulsar.utils.StatsOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PersistentTopic extends AbstractTopic
-        implements Topic, AddEntryCallback, TopicPolicyListener<TopicPolicies> {
+public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCallback {
 
     // Managed ledger associated with the topic
     protected final ManagedLedger ledger;
@@ -1014,27 +1011,32 @@ public class PersistentTopic extends AbstractTopic
     @Override
     public CompletableFuture<Void> unsubscribe(String subscriptionName) {
         CompletableFuture<Void> unsubscribeFuture = new CompletableFuture<>();
-        getBrokerService().getManagedLedgerFactory().asyncDelete(TopicName.get(MLPendingAckStore
-                .getTransactionPendingAckStoreSuffix(topic,
-                        Codec.encode(subscriptionName))).getPersistenceNamingEncoding(),
-                new AsyncCallbacks.DeleteLedgerCallback() {
-            @Override
-            public void deleteLedgerComplete(Object ctx) {
-                asyncDeleteCursor(subscriptionName, unsubscribeFuture);
-            }
 
-            @Override
-            public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                if (exception instanceof MetadataNotFoundException) {
-                    asyncDeleteCursor(subscriptionName, unsubscribeFuture);
-                    return;
-                }
+        if (brokerService.pulsar().getConfiguration().isTransactionCoordinatorEnabled()) {
+            getBrokerService().getManagedLedgerFactory().asyncDelete(TopicName.get(MLPendingAckStore
+                            .getTransactionPendingAckStoreSuffix(topic,
+                                    Codec.encode(subscriptionName))).getPersistenceNamingEncoding(),
+                    new AsyncCallbacks.DeleteLedgerCallback() {
+                        @Override
+                        public void deleteLedgerComplete(Object ctx) {
+                            asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+                        }
 
-                unsubscribeFuture.completeExceptionally(exception);
-                log.error("[{}][{}] Error deleting subscription pending ack store",
-                        topic, subscriptionName, exception);
-            }
-        }, null);
+                        @Override
+                        public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                            if (exception instanceof MetadataNotFoundException) {
+                                asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+                                return;
+                            }
+
+                            unsubscribeFuture.completeExceptionally(exception);
+                            log.error("[{}][{}] Error deleting subscription pending ack store",
+                                    topic, subscriptionName, exception);
+                        }
+                    }, null);
+        } else {
+            asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+        }
 
         return unsubscribeFuture;
     }
@@ -3097,6 +3099,8 @@ public class PersistentTopic extends AbstractTopic
         if (policies == null) {
             return;
         }
+        updateTopicPolicy(policies);
+
         Optional<Policies> namespacePolicies = getNamespacePolicies();
         initializeTopicDispatchRateLimiterIfNeeded(policies);
 
@@ -3121,15 +3125,6 @@ public class PersistentTopic extends AbstractTopic
         } else {
             updateMaxPublishRate(namespacePolicies.orElse(null));
         }
-
-        topicPolicies.getMaxSubscriptionsPerTopic().updateTopicValue(policies.getMaxSubscriptionsPerTopic());
-        topicPolicies.getInactiveTopicPolicies().updateTopicValue(policies.getInactiveTopicPolicies());
-        Arrays.stream(BacklogQuotaType.values()).forEach(type ->
-                this.topicPolicies.getBackLogQuotaMap().get(type).updateTopicValue(
-                        policies.getBackLogQuotaMap() == null ? null :
-                                policies.getBackLogQuotaMap().get(type.toString()))
-        );
-
 
         updateUnackedMessagesAppliedOnSubscription(namespacePolicies.orElse(null));
         initializeTopicSubscribeRateLimiterIfNeeded(Optional.ofNullable(policies));
@@ -3186,22 +3181,6 @@ public class PersistentTopic extends AbstractTopic
                     brokerService.getTopicOrderedExecutor());
         }
         return CompletableFuture.completedFuture(null);
-    }
-
-    private void registerTopicPolicyListener() {
-        if (brokerService.pulsar().getConfig().isSystemTopicEnabled()
-                && brokerService.pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
-            brokerService.getPulsar().getTopicPoliciesService()
-                    .registerListener(TopicName.getPartitionedTopicName(topic), this);
-        }
-    }
-
-    private void unregisterTopicPolicyListener() {
-        if (brokerService.pulsar().getConfig().isSystemTopicEnabled()
-                && brokerService.pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
-            brokerService.getPulsar().getTopicPoliciesService()
-                    .unregisterListener(TopicName.getPartitionedTopicName(topic), this);
-        }
     }
 
     @VisibleForTesting

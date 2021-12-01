@@ -21,9 +21,9 @@ package org.apache.pulsar.client.api;
 import org.apache.commons.lang3.StringUtils;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.client.impl.v1.ReaderV1Impl;
@@ -56,7 +56,7 @@ public class ReaderConfiguration implements Serializable {
      *            the listener object
      */
     public ReaderConfiguration setReaderListener(ReaderListener<byte[]> readerListener) {
-        checkNotNull(readerListener);
+        Objects.requireNonNull(readerListener);
         this.readerListener = readerListener;
         conf.setReaderListener(new org.apache.pulsar.shade.client.api.v2.ReaderListener<byte[]>() {
 
@@ -94,7 +94,7 @@ public class ReaderConfiguration implements Serializable {
      *            CryptoKeyReader object
      */
     public ReaderConfiguration setCryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
-        checkNotNull(cryptoKeyReader);
+        Objects.requireNonNull(cryptoKeyReader);
         conf.setCryptoKeyReader(cryptoKeyReader);
         return this;
     }

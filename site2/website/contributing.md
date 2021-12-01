@@ -15,11 +15,12 @@ We use a review-then-commit workflow in Pulsar for all contributions.
 
 **For all contributions:**
 
-1. **Code:** The best part ;-)
-1. **Review:** Submit a pull request with your contribution to our
+1. **Code:** code changes are always welcomed. 
+2. **Doc**: it is worth taking the time to make users know your code changes. Pulsar's long-term success rests on its ease of use, maintainability, etc. 
+3. **Review:** Submit a pull request with your contribution to our
    [GitHub Repo](https://github.com/apache/pulsar). Work with a committer to review and
    iterate on the code, if needed.
-1. **Commit:** Once at least 2 Pulsar committers have approved the pull request, a Pulsar committer
+4. **Commit:** Once at least 2 Pulsar committers have approved the pull request, a Pulsar committer
     will merge it into the master branch (and potentially backport to stable branches in case of
     bug fixes).
 
@@ -201,7 +202,7 @@ In the pull request description, please include:
  * Changes: Summary of what this pull request is changing, to help reviewers at better understanding
    the changes.
 
-Please include a descriptive pull request message to help make the comitter’s job easier when reviewing.
+Please include a descriptive pull request message to help make the committer’s job easier when reviewing.
 It’s fine to refer to existing design docs or the contents of the associated issue as appropriate.
 
 If the pull request is fixing an issue, include a mention to in the description, like:
@@ -246,6 +247,12 @@ From another local branch, run:
 Once the code has been peer reviewed by a committer, the next step is for the committer to merge it into the Github repo.
 
 Pull requests should not be merged before the review has approved from at least 2 committers.
+
+> **Tip**
+> 
+> Git commit message is not only the best way to communicate context about code changes, but also shows whether a developer is a good collaborator. If the first commit message of a PR is not clear but the PR description is clear and concise, when merging a PR, consider copying the PR description to the commit message box or writing a proper one rather than using the default (first) commit message (see image below). In this way, others know the changes clearly, which is beneficial to cut a release or write a release note. Be well cared for git log is a healthy and sustainable thing.
+ 
+![Submit clear commit message](../img/commit-message.png)
 
 ### Contributor License Agreement
 
