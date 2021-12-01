@@ -26,6 +26,8 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.apache.zookeeper.MockZooKeeperSession;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 
@@ -71,6 +73,18 @@ public abstract class MultiBrokerBaseTest extends MockedPulsarServiceBaseTest {
 
     protected PulsarService createAdditionalBroker(int additionalBrokerIndex) throws Exception {
         return startBroker(createConfForAdditionalBroker(additionalBrokerIndex));
+    }
+
+    @Override
+    protected ZKMetadataStore createLocalMetadataStore() {
+        // use MockZooKeeperSession to provide a unique session id for each instance
+        return new ZKMetadataStore(MockZooKeeperSession.newInstance(mockZooKeeper));
+    }
+
+    @Override
+    protected ZKMetadataStore createConfigurationMetadataStore() {
+        // use MockZooKeeperSession to provide a unique session id for each instance
+        return new ZKMetadataStore(MockZooKeeperSession.newInstance(mockZooKeeperGlobal));
     }
 
     @AfterClass(alwaysRun = true)
