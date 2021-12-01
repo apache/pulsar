@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
 import org.apache.pulsar.broker.PulsarService;
 import org.awaitility.Awaitility;
@@ -46,6 +47,24 @@ public class MultiBrokerLeaderElectionTest extends MultiBrokerBaseTest {
             for (PulsarService broker : getAllBrokers()) {
                 Optional<LeaderBroker> currentLeader = broker.getLeaderElectionService().getCurrentLeader();
                 assertTrue(currentLeader.isPresent(), "Leader wasn't known on broker " + broker.getBrokerServiceUrl());
+            }
+        });
+    }
+
+    @Test
+    public void shouldAllBrokersBeAbleToGetTheLeader() {
+        Awaitility.await().untilAsserted(() -> {
+            LeaderBroker leader = null;
+            for (PulsarService broker : getAllBrokers()) {
+                Optional<LeaderBroker> currentLeader =
+                        broker.getLeaderElectionService().readCurrentLeader().get(1, TimeUnit.SECONDS);
+                assertTrue(currentLeader.isPresent(), "Leader wasn't known on broker " + broker.getBrokerServiceUrl());
+                if (leader != null) {
+                    assertEquals(currentLeader.get(), leader,
+                            "Different leader on broker " + broker.getBrokerServiceUrl());
+                } else {
+                    leader = currentLeader.get();
+                }
             }
         });
     }
