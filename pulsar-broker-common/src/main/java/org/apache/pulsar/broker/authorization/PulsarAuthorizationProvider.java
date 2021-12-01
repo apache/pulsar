@@ -586,6 +586,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             case RESET_CURSOR:
             case GET_BACKLOG_SIZE:
             case SET_REPLICATED_SUBSCRIPTION_STATUS:
+            case GET_REPLICATED_SUBSCRIPTION_STATUS:
                 isAuthorizedFuture = canConsumeAsync(topicName, role, authData, authData.getSubscription());
                 break;
             case TERMINATE:

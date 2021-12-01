@@ -42,18 +42,6 @@ public class AuthenticationServiceTest {
     private static final String s_authentication_success = "authenticated";
 
     @Test(timeOut = 10000)
-    public void testAuthentication() throws Exception {
-        ServiceConfiguration config = new ServiceConfiguration();
-        Set<String> providersClassNames = Sets.newHashSet(MockAuthenticationProvider.class.getName());
-        config.setAuthenticationProviders(providersClassNames);
-        config.setAuthenticationEnabled(true);
-        AuthenticationService service = new AuthenticationService(config);
-        String result = service.authenticate(null, "auth");
-        assertEquals(result, s_authentication_success);
-        service.close();
-    }
-
-    @Test(timeOut = 10000)
     public void testAuthenticationHttp() throws Exception {
         ServiceConfiguration config = new ServiceConfiguration();
         Set<String> providersClassNames = Sets.newHashSet(MockAuthenticationProvider.class.getName());
