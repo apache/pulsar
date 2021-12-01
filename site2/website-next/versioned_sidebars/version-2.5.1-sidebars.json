@@ -281,6 +281,132 @@
           "id": "version-2.5.1/administration-upgrade"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Security",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.5.1/security-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/security-tls-transport"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/security-tls-authentication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/security-jwt"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/security-athenz"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/security-kerberos"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/security-authorization"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/security-encryption"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/security-extending"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/security-bouncy-castle"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Client Libraries",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.5.1/client-libraries-java"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/client-libraries-go"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/client-libraries-python"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/client-libraries-cpp"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/client-libraries-node"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/client-libraries-websocket"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Admin API",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.5.1/admin-api-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/admin-api-clusters"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/admin-api-tenants"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/admin-api-brokers"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/admin-api-namespaces"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/admin-api-permissions"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/admin-api-persistent-topics"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/admin-api-non-persistent-topics"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/admin-api-partitioned-topics"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/admin-api-non-partitioned-topics"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.1/admin-api-functions"
+        }
+      ]
     }
   ]
 }
