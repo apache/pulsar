@@ -234,7 +234,7 @@ public class LockManagerTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
     public void revalidateLockOnDifferentSession(String provider, Supplier<String> urlSupplier) throws Exception {
-        if (provider.equals("Memory")) {
+        if (provider.equals("Memory") || provider.equals("RocksDB")) {
             // Local memory provider doesn't really have the concept of multiple sessions
             return;
         }

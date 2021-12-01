@@ -210,12 +210,4 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
             }
         }
     }
-
-    private void notifyParentChildrenChanged(String path) {
-        String parent = parent(path);
-        while (parent != null) {
-            receivedNotification(new Notification(NotificationType.ChildrenChanged, parent));
-            parent = parent(parent);
-        }
-    }
 }

@@ -106,6 +106,9 @@ public interface SubscriptionStats {
     /** This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription. */
     Map<String, String> getConsumersAfterMarkDeletePosition();
 
+    /** SubscriptionProperties (key/value strings) associated with this subscribe. */
+    Map<String, String> getSubscriptionProperties();
+
     /** The number of non-contiguous deleted messages ranges. */
     int getNonContiguousDeletedMessagesRanges();
 
