@@ -487,6 +487,9 @@ public class NamespaceService implements AutoCloseable {
                         // If leader is not active, fallback to pick the least loaded from current broker loadmanager
                         || !isBrokerActive(currentLeader.get().getServiceUrl())
                 ) {
+                    if (!currentLeader.isPresent()) {
+                        LOG.warn("The information about the current leader broker wasn't available. Handling load manager decisions in a decentralized way for {}", bundle);
+                    }
                     Optional<String> availableBroker = getLeastLoadedFromLoadManager(bundle);
                     if (!availableBroker.isPresent()) {
                         lookupFuture.complete(Optional.empty());
