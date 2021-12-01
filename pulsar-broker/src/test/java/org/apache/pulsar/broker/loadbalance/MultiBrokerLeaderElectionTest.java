@@ -28,6 +28,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -97,14 +98,20 @@ public class MultiBrokerLeaderElectionTest extends MultiBrokerBaseTest {
         List<Future<String>> resultFutures = new ArrayList<>();
         String leaderBrokerUrl = admin.brokers().getLeaderBroker().getServiceUrl();
         log.info("LEADER is {}", leaderBrokerUrl);
-        // wait 2 seconds to increase the likelyhood of the race condition
-        Thread.sleep(2000L);
+        // use Phaser to increase the chances of a race condition by triggering all threads once
+        // they are waiting just before the lookupTopic call
+        final Phaser phaser = new Phaser(1);
         for (PulsarAdmin brokerAdmin : allAdmins) {
             if (!leaderBrokerUrl.equals(brokerAdmin.getServiceUrl())) {
+                phaser.register();
                 log.info("Doing lookup to broker {}", brokerAdmin.getServiceUrl());
-                resultFutures.add(executorService.submit(() -> brokerAdmin.lookups().lookupTopic(topicName)));
+                resultFutures.add(executorService.submit(() -> {
+                    phaser.arriveAndAwaitAdvance();
+                    return brokerAdmin.lookups().lookupTopic(topicName);
+                }));
             }
         }
+        phaser.arriveAndAwaitAdvance();
         String firstResult = null;
         for (Future<String> resultFuture : resultFutures) {
             String result = resultFuture.get();
