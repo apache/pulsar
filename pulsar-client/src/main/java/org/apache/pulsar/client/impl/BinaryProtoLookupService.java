@@ -20,12 +20,11 @@ package org.apache.pulsar.client.impl;
 
 import static java.lang.String.format;
 
-import com.google.common.collect.Lists;
-
 import io.netty.buffer.ByteBuf;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -280,7 +279,7 @@ public class BinaryProtoLookupService implements LookupService {
                     }
 
                     // do not keep partition part of topic name
-                    List<String> result = Lists.newArrayList();
+                    List<String> result = new ArrayList<>();
                     r.forEach(topic -> {
                         String filtered = TopicName.get(topic).getPartitionedTopicName();
                         if (!result.contains(filtered)) {

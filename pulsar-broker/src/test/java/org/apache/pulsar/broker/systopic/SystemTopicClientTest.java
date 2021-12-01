@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.systopic;
 
+import static org.apache.pulsar.common.naming.TopicName.TRANSACTION_COORDINATOR_ASSIGN;
+import static org.apache.pulsar.common.naming.TopicName.TRANSACTION_COORDINATOR_LOG;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import org.apache.pulsar.common.naming.TopicName;
@@ -43,5 +45,7 @@ public class SystemTopicClientTest {
         assertTrue(SystemTopicClient.isSystemTopic(
                 TopicName.get("topicxxx-multiTopicsReader-f433329d68__transaction_pending_ack")));
 
+        assertTrue(SystemTopicClient.isSystemTopic(TRANSACTION_COORDINATOR_ASSIGN));
+        assertTrue(SystemTopicClient.isSystemTopic(TRANSACTION_COORDINATOR_LOG));
     }
 }
