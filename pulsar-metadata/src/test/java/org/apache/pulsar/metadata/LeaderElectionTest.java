@@ -74,7 +74,7 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
     public void multipleMembers(String provider, Supplier<String> urlSupplier) throws Exception {
-        if (provider.equals("Memory")) {
+        if (provider.equals("Memory") || provider.equals("RocksDB")) {
             // There are no multiple session in local mem provider
             return;
         }
@@ -215,6 +215,11 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void revalidateLeaderWithDifferentSessionsSameValue(String provider, Supplier<String> urlSupplier)
             throws Exception {
+        if (provider.equals("Memory") || provider.equals("RocksDB")) {
+            // There are no multiple sessions for the local memory provider
+            return;
+        }
+
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
                 MetadataStoreConfig.builder().build());
@@ -246,7 +251,7 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void revalidateLeaderWithDifferentSessionsDifferentValue(String provider, Supplier<String> urlSupplier)
             throws Exception {
-        if (provider.equals("Memory")) {
+        if (provider.equals("Memory") || provider.equals("RocksDB")) {
             // There are no multiple sessions for the local memory provider
             return;
         }

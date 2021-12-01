@@ -204,14 +204,11 @@ public class FunctionActioner {
         }
 
         File tempPkgFile;
-        while (true) {
+        do {
             tempPkgFile = new File(
                     pkgDir,
                     pkgFile.getName() + "." + instanceId + "." + UUID.randomUUID().toString());
-            if (!tempPkgFile.exists() && tempPkgFile.createNewFile()) {
-                break;
-            }
-        }
+        } while (tempPkgFile.exists() || !tempPkgFile.createNewFile());
         String pkgLocationPath = functionMetaData.getPackageLocation().getPackagePath();
         boolean downloadFromHttp = isPkgUrlProvided && pkgLocationPath.startsWith(HTTP);
         log.info("{}/{}/{} Function package file {} will be downloaded from {}", tempPkgFile, details.getTenant(),

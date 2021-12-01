@@ -664,7 +664,7 @@ public class NamespaceService implements AutoCloseable {
 
     public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle) {
         // unload namespace bundle
-        return unloadNamespaceBundle(bundle, 5, TimeUnit.MINUTES);
+        return unloadNamespaceBundle(bundle, config.getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS);
     }
 
     public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle, long timeout, TimeUnit timeoutUnit) {
