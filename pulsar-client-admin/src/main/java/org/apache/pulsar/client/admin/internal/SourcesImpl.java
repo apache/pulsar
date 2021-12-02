@@ -24,9 +24,6 @@ import com.google.gson.Gson;
 import java.io.File;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
@@ -65,16 +62,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
 
     @Override
     public List<String> listSources(String tenant, String namespace) throws PulsarAdminException {
-        try {
-            return listSourcesAsync(tenant, namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> listSourcesAsync(tenant, namespace));
     }
 
     @Override
@@ -102,16 +90,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
 
     @Override
     public SourceConfig getSource(String tenant, String namespace, String sourceName) throws PulsarAdminException {
-        try {
-            return getSourceAsync(tenant, namespace, sourceName).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getSourceAsync(tenant, namespace, sourceName));
     }
 
     @Override
@@ -140,16 +119,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     @Override
     public SourceStatus getSourceStatus(
             String tenant, String namespace, String sourceName) throws PulsarAdminException {
-        try {
-            return getSourceStatusAsync(tenant, namespace, sourceName).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getSourceStatusAsync(tenant, namespace, sourceName));
     }
 
     @Override
@@ -178,17 +148,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     @Override
     public SourceStatus.SourceInstanceStatus.SourceInstanceStatusData getSourceStatus(
             String tenant, String namespace, String sourceName, int id) throws PulsarAdminException {
-        try {
-            return getSourceStatusAsync(tenant, namespace, sourceName, id)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getSourceStatusAsync(tenant, namespace, sourceName, id));
     }
 
     @Override
@@ -219,16 +179,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
 
     @Override
     public void createSource(SourceConfig sourceConfig, String fileName) throws PulsarAdminException {
-        try {
-            createSourceAsync(sourceConfig, fileName).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> createSourceAsync(sourceConfig, fileName));
     }
 
     @Override
@@ -269,16 +220,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
 
     @Override
     public void createSourceWithUrl(SourceConfig sourceConfig, String pkgUrl) throws PulsarAdminException {
-        try {
-            createSourceWithUrlAsync(sourceConfig, pkgUrl).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> createSourceWithUrlAsync(sourceConfig, pkgUrl));
     }
 
     @Override
@@ -295,16 +237,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
 
     @Override
     public void deleteSource(String cluster, String namespace, String function) throws PulsarAdminException {
-        try {
-            deleteSourceAsync(cluster, namespace, function).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> deleteSourceAsync(cluster, namespace, function));
     }
 
     @Override
@@ -316,16 +249,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     @Override
     public void updateSource(SourceConfig sourceConfig, String fileName, UpdateOptions updateOptions)
             throws PulsarAdminException {
-        try {
-            updateSourceAsync(sourceConfig, fileName, updateOptions).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> updateSourceAsync(sourceConfig, fileName, updateOptions));
     }
 
     @Override
@@ -385,17 +309,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     @Override
     public void updateSourceWithUrl(SourceConfig sourceConfig, String pkgUrl, UpdateOptions updateOptions)
             throws PulsarAdminException {
-        try {
-            updateSourceWithUrlAsync(sourceConfig, pkgUrl, updateOptions)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> updateSourceWithUrlAsync(sourceConfig, pkgUrl, updateOptions));
     }
 
     @Override
@@ -438,17 +352,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     @Override
     public void restartSource(String tenant, String namespace, String functionName, int instanceId)
             throws PulsarAdminException {
-        try {
-            restartSourceAsync(tenant, namespace, functionName, instanceId)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> restartSourceAsync(tenant, namespace, functionName, instanceId));
     }
 
     @Override
@@ -461,16 +365,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
 
     @Override
     public void restartSource(String tenant, String namespace, String functionName) throws PulsarAdminException {
-        try {
-            restartSourceAsync(tenant, namespace, functionName).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> restartSourceAsync(tenant, namespace, functionName));
     }
 
     @Override
@@ -482,16 +377,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     @Override
     public void stopSource(String tenant, String namespace, String sourceName, int instanceId)
             throws PulsarAdminException {
-        try {
-            stopSourceAsync(tenant, namespace, sourceName, instanceId).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> stopSourceAsync(tenant, namespace, sourceName, instanceId));
     }
 
     @Override
@@ -503,16 +389,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
 
     @Override
     public void stopSource(String tenant, String namespace, String sourceName) throws PulsarAdminException {
-        try {
-            stopSourceAsync(tenant, namespace, sourceName).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> stopSourceAsync(tenant, namespace, sourceName));
     }
 
     @Override
@@ -524,16 +401,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     @Override
     public void startSource(String tenant, String namespace, String sourceName, int instanceId)
             throws PulsarAdminException {
-        try {
-            startSourceAsync(tenant, namespace, sourceName, instanceId).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> startSourceAsync(tenant, namespace, sourceName, instanceId));
     }
 
     @Override
@@ -546,16 +414,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
 
     @Override
     public void startSource(String tenant, String namespace, String sourceName) throws PulsarAdminException {
-        try {
-            startSourceAsync(tenant, namespace, sourceName).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> startSourceAsync(tenant, namespace, sourceName));
     }
 
     @Override
@@ -566,16 +425,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
 
     @Override
     public List<ConnectorDefinition> getBuiltInSources() throws PulsarAdminException {
-        try {
-            return getBuiltInSourcesAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getBuiltInSourcesAsync());
     }
 
     @Override
@@ -604,16 +454,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
 
     @Override
     public void reloadBuiltInSources() throws PulsarAdminException {
-        try {
-            reloadBuiltInSourcesAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> reloadBuiltInSourcesAsync());
     }
 
     @Override
