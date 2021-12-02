@@ -390,15 +390,6 @@ public class WebServiceTest {
         pulsar = spy(new PulsarService(config));
      // mock zk
         MockZooKeeper mockZooKeeper = MockedPulsarServiceBaseTest.createMockZooKeeper();
-        ZooKeeperClientFactory mockZooKeeperClientFactory = new ZooKeeperClientFactory() {
-
-             @Override
-             public CompletableFuture<ZooKeeper> create(String serverList, SessionType sessionType,
-                     int zkSessionTimeoutMillis) {
-                 // Always return the same instance (so that we don't loose the mock ZK content on broker restart
-                 return CompletableFuture.completedFuture(mockZooKeeper);
-             }
-         };
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(pulsar).createConfigurationMetadataStore();
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(pulsar).createLocalMetadataStore();
         doReturn(new MockedBookKeeperClientFactory()).when(pulsar).newBookKeeperClientFactory();
