@@ -45,6 +45,7 @@ import org.assertj.core.util.Files;
 
 @Slf4j
 public class TestZKServer implements AutoCloseable {
+    public static final int TICK_TIME = 1000;
     protected ZooKeeperServer zks;
     private final File zkDataDir;
     private ServerCnxnFactory serverFactory;
@@ -63,7 +64,7 @@ public class TestZKServer implements AutoCloseable {
     }
 
     public void start() throws Exception {
-        this.zks = new ZooKeeperServer(zkDataDir, zkDataDir, ZooKeeperServer.DEFAULT_TICK_TIME);
+        this.zks = new ZooKeeperServer(zkDataDir, zkDataDir, TICK_TIME);
         this.serverFactory = new NIOServerCnxnFactory();
         this.serverFactory.configure(new InetSocketAddress(zkPort), 1000);
         this.serverFactory.startup(zks, true);
@@ -97,16 +98,28 @@ public class TestZKServer implements AutoCloseable {
     }
 
     public void stop() throws Exception {
-        if (zks != null) {
-            zks.shutdown();
-            zks.getZKDatabase().close();
-            zks = null;
+        if (containerManager != null) {
+            containerManager.stop();
+            containerManager = null;
         }
 
         if (serverFactory != null) {
             serverFactory.shutdown();
             serverFactory = null;
         }
+
+        if (zks != null) {
+            SessionTracker sessionTracker = zks.getSessionTracker();
+            zks.shutdown();
+            zks.getZKDatabase().close();
+            if (sessionTracker instanceof Thread) {
+                Thread sessionTrackerThread = (Thread) sessionTracker;
+                sessionTrackerThread.interrupt();
+                sessionTrackerThread.join();
+            }
+            zks = null;
+        }
+
         log.info("Stopped test ZK server");
     }
 
