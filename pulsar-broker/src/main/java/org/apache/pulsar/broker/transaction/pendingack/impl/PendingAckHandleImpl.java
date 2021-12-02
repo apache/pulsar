@@ -923,7 +923,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     public CompletableFuture<ManagedLedger> getStoreManageLedger() {
-        if (this.pendingAckStoreFuture.isDone()) {
+        if (this.pendingAckStoreFuture != null && this.pendingAckStoreFuture.isDone()) {
             return this.pendingAckStoreFuture.thenCompose(pendingAckStore -> {
                 if (pendingAckStore instanceof MLPendingAckStore) {
                     return ((MLPendingAckStore) pendingAckStore).getManagedLedger();
@@ -935,6 +935,10 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         } else {
             return FutureUtil.failedFuture(new ServiceUnitNotReadyException("Pending ack have not init success!"));
         }
+    }
+
+    public boolean checkIfPendingAckStoreInit() {
+        return pendingAckStoreFuture != null;
     }
 
     protected void handleCacheRequest() {
