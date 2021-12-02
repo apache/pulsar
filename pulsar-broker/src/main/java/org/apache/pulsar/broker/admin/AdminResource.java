@@ -278,7 +278,6 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected Policies getNamespacePolicies(NamespaceName namespaceName) {
         try {
-            final String namespace = namespaceName.toString();
             Policies policies = namespaceResources().getPolicies(namespaceName)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
             // fetch bundles from LocalZK-policies
@@ -318,17 +317,6 @@ public abstract class AdminResource extends PulsarWebResource {
                 return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
             }
         });
-    }
-
-    protected void mergeNamespaceWithDefaults(Policies policies, String namespace, String namespacePath) {
-        final ServiceConfiguration config = pulsar().getConfiguration();
-
-        if (policies.max_consumers_per_subscription < 1) {
-            policies.max_consumers_per_subscription = config.getMaxConsumersPerSubscription();
-        }
-
-        final String cluster = config.getClusterName();
-
     }
 
     protected BacklogQuota namespaceBacklogQuota(NamespaceName namespace,

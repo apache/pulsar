@@ -299,6 +299,11 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
         return latencyPctValues[5];
     }
 
+    @Override
+    public int getPendingQueueSize() {
+        return producer.getPendingQueueSize();
+    }
+
     public void cancelStatsTimeout() {
         this.updateStats();
         if (statTimeout != null) {

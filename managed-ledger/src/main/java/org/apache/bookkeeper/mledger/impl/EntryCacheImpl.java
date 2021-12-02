@@ -209,14 +209,8 @@ public class EntryCacheImpl implements EntryCache {
             manager.mlFactoryMBean.recordCacheHit(cachedEntry.getLength());
             callback.readEntryComplete(cachedEntry, ctx);
         } else {
-            lh.readAsync(position.getEntryId(), position.getEntryId()).whenCompleteAsync(
-                    (ledgerEntries, exception) -> {
-                        if (exception != null) {
-                            ml.invalidateLedgerHandle(lh);
-                            callback.readEntryFailed(createManagedLedgerException(exception), ctx);
-                            return;
-                        }
-
+            lh.readAsync(position.getEntryId(), position.getEntryId()).thenAcceptAsync(
+                    ledgerEntries -> {
                         try {
                             Iterator<LedgerEntry> iterator = ledgerEntries.iterator();
                             if (iterator.hasNext()) {
@@ -234,12 +228,11 @@ public class EntryCacheImpl implements EntryCache {
                         } finally {
                             ledgerEntries.close();
                         }
-                    }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception->{
-                          ml.invalidateLedgerHandle(lh);
-                          callback.readEntryFailed(createManagedLedgerException(exception), ctx);
-                          return null;
-                    }
-                    );
+                    }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception -> {
+                        ml.invalidateLedgerHandle(lh);
+                        callback.readEntryFailed(createManagedLedgerException(exception), ctx);
+                        return null;
+            });
         }
     }
 
@@ -297,20 +290,8 @@ public class EntryCacheImpl implements EntryCache {
             }
 
             // Read all the entries from bookkeeper
-            lh.readAsync(firstEntry, lastEntry).whenCompleteAsync(
-                    (ledgerEntries, exception) -> {
-                        if (exception != null) {
-                            if (exception instanceof BKException
-                                && ((BKException)exception).getCode() == BKException.Code.TooManyRequestsException) {
-                                callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
-                            } else {
-                                ml.invalidateLedgerHandle(lh);
-                                ManagedLedgerException mlException = createManagedLedgerException(exception);
-                                callback.readEntriesFailed(mlException, ctx);
-                            }
-                            return;
-                        }
-
+            lh.readAsync(firstEntry, lastEntry).thenAcceptAsync(
+                    ledgerEntries -> {
                         checkNotNull(ml.getName());
                         checkNotNull(ml.getExecutor());
 
@@ -333,17 +314,17 @@ public class EntryCacheImpl implements EntryCache {
                         } finally {
                             ledgerEntries.close();
                         }
-                    }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception->{
-                    	  if (exception instanceof BKException
-                                  && ((BKException)exception).getCode() == BKException.Code.TooManyRequestsException) {
-                                  callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
-                              } else {
-                                  ml.invalidateLedgerHandle(lh);
-                                  ManagedLedgerException mlException = createManagedLedgerException(exception);
-                                  callback.readEntriesFailed(mlException, ctx);
-                              }
-                    	return null;
-                    });
+                    }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception -> {
+                        if (exception instanceof BKException
+                                && ((BKException)exception).getCode() == BKException.Code.TooManyRequestsException) {
+                            callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
+                        } else {
+                            ml.invalidateLedgerHandle(lh);
+                            ManagedLedgerException mlException = createManagedLedgerException(exception);
+                            callback.readEntriesFailed(mlException, ctx);
+                        }
+                        return null;
+            });
         }
     }
 

@@ -5,10 +5,6 @@ sidebar_label: "Get started"
 original_id: io-quickstart
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 This tutorial provides a hands-on look at how you can move data out of Pulsar without writing a single line of code.  
 
 It is helpful to review the [concepts](io-overview) for Pulsar I/O with running the steps in this guide to gain a deeper understanding.   

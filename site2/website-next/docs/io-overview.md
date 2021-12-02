@@ -72,16 +72,7 @@ Here takes **Admin CLI** as an example. For more information about **REST API** 
 
 <Tabs 
   defaultValue="Source"
-  values={[
-  {
-    "label": "Source",
-    "value": "Source"
-  },
-  {
-    "label": "Sink",
-    "value": "Sink"
-  }
-]}>
+  values={[{"label":"Source","value":"Source"},{"label":"Sink","value":"Sink"}]}>
 
 <TabItem value="Source">
 
@@ -126,16 +117,7 @@ Here takes **Admin CLI** as an example. For more information about **REST API** 
 
 <Tabs 
   defaultValue="Source"
-  values={[
-  {
-    "label": "Source",
-    "value": "Source"
-  },
-  {
-    "label": "Sink",
-    "value": "Sink"
-  }
-]}>
+  values={[{"label":"Source","value":"Source"},{"label":"Sink","value":"Sink"}]}>
 
 <TabItem value="Source">
 

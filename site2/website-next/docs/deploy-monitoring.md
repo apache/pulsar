@@ -4,10 +4,6 @@ title: Monitor
 sidebar_label: "Monitor"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 You can use different ways to monitor a Pulsar cluster, exposing both metrics related to the usage of topics and the overall health of the individual components of the cluster.
 
 ## Collect metrics

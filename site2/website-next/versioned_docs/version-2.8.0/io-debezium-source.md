@@ -5,10 +5,6 @@ sidebar_label: "Debezium source connector"
 original_id: io-debezium-source
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The Debezium source connector pulls messages from MySQL or PostgreSQL 
 and persists the messages to Pulsar topics.
 
@@ -466,8 +462,7 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
 
 2. Start a Pulsar service locally in standalone mode.
 
-   ```
-
+   ```bash
    
    $ bin/pulsar standalone
    
@@ -479,8 +474,7 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
     
     Make sure the nar file is available at `connectors/pulsar-io-mongodb-@pulsar:version@.nar`.
 
-       ```
-
+       ```bash
        
        $ bin/pulsar-admin source localrun \
        --archive connectors/pulsar-io-debezium-mongodb-@pulsar:version@.nar \
@@ -494,8 +488,7 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
 
    * Use the **YAML** configuration file as shown previously.
 
-       ```
-
+       ```bash
        
        $ bin/pulsar-admin source localrun  \
        --source-config-file debezium-mongodb-source-config.yaml
@@ -505,7 +498,6 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
 4. Subscribe the topic _sub-products_ for the _inventory.products_ table.
 
    ```
-
    
    $ bin/pulsar-client consume -s "sub-products" public/default/dbserver1.inventory.products -n 0
    
@@ -513,8 +505,7 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
 
 5. Start a MongoDB client in docker.
 
-   ```
-
+   ```bash
    
    $ docker exec -it pulsar-mongodb /bin/bash
    
@@ -522,8 +513,7 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
 
 6. A MongoDB client pops out. 
 
-   ```
-
+   ```bash
    
    mongo -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory
    db.products.update({"_id":NumberLong(104)},{$set:{weight:1.25}})
@@ -532,8 +522,7 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
 
    In the terminal window of subscribing topic, you can receive the following messages.
 
-   ```
-
+   ```bash
    
    ----- got message -----
    {"schema":{"type":"struct","fields":[{"type":"string","optional":false,"field":"id"}],"optional":false,"name":"dbserver1.inventory.products.Key"},"payload":{"id":"104"}}, value = {"schema":{"type":"struct","fields":[{"type":"string","optional":true,"name":"io.debezium.data.Json","version":1,"field":"after"},{"type":"string","optional":true,"name":"io.debezium.data.Json","version":1,"field":"patch"},{"type":"struct","fields":[{"type":"string","optional":false,"field":"version"},{"type":"string","optional":false,"field":"connector"},{"type":"string","optional":false,"field":"name"},{"type":"int64","optional":false,"field":"ts_ms"},{"type":"string","optional":true,"name":"io.debezium.data.Enum","version":1,"parameters":{"allowed":"true,last,false"},"default":"false","field":"snapshot"},{"type":"string","optional":false,"field":"db"},{"type":"string","optional":false,"field":"rs"},{"type":"string","optional":false,"field":"collection"},{"type":"int32","optional":false,"field":"ord"},{"type":"int64","optional":true,"field":"h"}],"optional":false,"name":"io.debezium.connector.mongo.Source","field":"source"},{"type":"string","optional":true,"field":"op"},{"type":"int64","optional":true,"field":"ts_ms"}],"optional":false,"name":"dbserver1.inventory.products.Envelope"},"payload":{"after":"{\"_id\": {\"$numberLong\": \"104\"},\"name\": \"hammer\",\"description\": \"12oz carpenter's hammer\",\"weight\": 1.25,\"quantity\": 4}","patch":null,"source":{"version":"0.10.0.Final","connector":"mongodb","name":"dbserver1","ts_ms":1573541905000,"snapshot":"true","db":"inventory","rs":"rs0","collection":"products","ord":1,"h":4983083486544392763},"op":"r","ts_ms":1573541909761}}.
@@ -544,7 +533,7 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
  
 ### Debezium postgres connector will hang when create snap
 
-```
+```$xslt
 
 #18 prio=5 os_prio=31 tid=0x00007fd83096f800 nid=0xa403 waiting on condition [0x000070000f534000]
     java.lang.Thread.State: WAITING (parking)
@@ -581,7 +570,7 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
 
 If you encounter the above problems in synchronizing data, please refer to [this](https://github.com/apache/pulsar/issues/4075) and add the following configuration to the configuration file:
 
-```
+```$xslt
 
 max.queue.size=
 

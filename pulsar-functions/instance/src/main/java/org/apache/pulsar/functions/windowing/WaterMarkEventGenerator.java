@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.windowing;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.ThreadContext;
@@ -134,7 +135,9 @@ public class WaterMarkEventGenerator<T> implements Runnable {
     }
 
     public void start() {
-        this.executorFuture = executorService.scheduleAtFixedRate(this, intervalMs, intervalMs, TimeUnit.MILLISECONDS);
+        this.executorFuture =
+                executorService.scheduleAtFixedRate(catchingAndLoggingThrowables(this), intervalMs, intervalMs,
+                        TimeUnit.MILLISECONDS);
     }
 
     public void shutdown() {

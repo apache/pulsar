@@ -77,12 +77,11 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.zookeeper.KeeperException;
 import org.mockito.ArgumentCaptor;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -90,8 +89,6 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@PrepareForTest(PersistentTopics.class)
-@PowerMockIgnore("com.sun.management.*")
 @Slf4j
 @Test(groups = "broker")
 public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
@@ -667,27 +664,26 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testPeekWithSubscriptionNameNotExist() throws Exception {
-        final String topicName = "testTopic";
-        final String topic = TopicName.get(
-                TopicDomain.persistent.value(),
-                testTenant,
-                testNamespace,
-                topicName).toString();
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant("tenant-xyz", tenantInfo);
+        admin.namespaces().createNamespace("tenant-xyz/ns-abc", Sets.newHashSet("test"));
+        RetentionPolicies retention = new RetentionPolicies(10,10);
+        admin.namespaces().setRetention("tenant-xyz/ns-abc", retention);
+        final String topic = "persistent://tenant-xyz/ns-abc/topic-testPeekWithSubscriptionNameNotExist";
         final String subscriptionName = "sub";
-
         ((TopicsImpl) admin.topics()).createPartitionedTopicAsync(topic, 3, true).get();
 
         final String partitionedTopic = topic + "-partition-0";
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
-        for (int i = 0; i < 100; ++i) {
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).enableBatching(false).topic(topic).create();
+
+        for (int i = 0; i < 10; ++i) {
             producer.send("test" + i);
         }
 
-        List<Message<byte[]>> messages = admin.topics()
-                .peekMessages(partitionedTopic, subscriptionName, 5);
+        List<Message<byte[]>> messages = admin.topics().peekMessages(partitionedTopic, subscriptionName, 3);
 
-        Assert.assertEquals(messages.size(), 5);
+        Assert.assertEquals(messages.size(), 3);
 
         producer.close();
     }

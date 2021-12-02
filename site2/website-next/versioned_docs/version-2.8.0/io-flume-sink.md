@@ -5,10 +5,6 @@ sidebar_label: "Flume sink connector"
 original_id: io-flume-sink
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The Flume sink connector pulls messages from Pulsar topics to logs.
 
 ## Configuration

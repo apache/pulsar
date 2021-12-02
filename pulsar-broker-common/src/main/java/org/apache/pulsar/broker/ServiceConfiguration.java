@@ -30,6 +30,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.client.api.DigestType;
@@ -325,6 +326,36 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long topicLoadTimeoutSeconds = 60;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Whether we should enable metadata operations batching"
+    )
+    private boolean metadataStoreBatchingEnabled = true;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Maximum delay to impose on batching grouping"
+    )
+    private int metadataStoreBatchingMaxDelayMillis = 5;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Maximum number of operations to include in a singular batch"
+    )
+    private int metadataStoreBatchingMaxOperations = 1_000;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Maximum size of a batch"
+    )
+    private int metadataStoreBatchingMaxSizeKb = 128;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Configuration file path for local metadata store. It's supported by RocksdbMetadataStore for now."
+    )
+    private String metadataStoreConfigPath = null;
+
+    @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Enable backlog quota check. Enforces actions on topic when the quota is reached"
     )
@@ -572,6 +603,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "The maximum number of connections per IP. If it exceeds, new connections are rejected."
     )
     private int brokerMaxConnectionsPerIp = 0;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        dynamic = true,
+        doc = "Allow schema to be auto updated at broker level. User can override this by 'is_allow_auto_update_schema'"
+            + " of namespace policy. This is enabled by default."
+    )
+    private boolean isAllowAutoUpdateSchemaEnabled = true;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -822,6 +861,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean preciseDispatcherFlowControl = false;
 
     @FieldContext(
+         dynamic = true,
+         category = CATEGORY_SERVER,
+         doc = " Class name of pluggable entry filter that decides whether the entry needs to be filtered."
+                 + "You can use this class to decide which entries can be sent to consumers."
+                 + "Multiple names need to be separated by commas."
+    )
+    private List<String> entryFilterNames = new ArrayList<>();
+
+    @FieldContext(
+         dynamic = true,
+         category = CATEGORY_SERVER,
+         doc = " The directory for all the entry filter implementations."
+    )
+    private String entryFiltersDirectory = "";
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Whether to use streaming read dispatcher. Currently is in preview and can be changed " +
                 "in subsequent release."
@@ -980,12 +1035,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "Check between intervals to see if max message size of topic policy has updated. default is 60s"
-    )
-    private int maxMessageSizeCheckIntervalInSeconds = 60;
-
-    @FieldContext(
-            category = CATEGORY_SERVER,
             doc = "The number of partitions per partitioned topic.\n"
                 + "If try to create or update partitioned topics by exceeded number of partitions, then fail."
     )
@@ -1030,6 +1079,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "The directory to locate messaging protocol handlers"
     )
     private String protocolHandlerDirectory = "./protocols";
+
+    @FieldContext(
+            category = CATEGORY_PROTOCOLS,
+            doc = "Use a separate ThreadPool for each Protocol Handler"
+    )
+    private boolean useSeparateThreadPoolForProtocolHandlers = true;
 
     @FieldContext(
         category = CATEGORY_PROTOCOLS,
@@ -1760,6 +1815,25 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int loadBalancerBrokerThresholdShedderPercentage = 10;
 
     @FieldContext(
+        dynamic = true,
+        category = CATEGORY_LOAD_BALANCER,
+        doc = "Message-rate percentage threshold between highest and least loaded brokers for "
+                + "uniform load shedding. (eg: broker1 with 50K msgRate and broker2 with 30K msgRate "
+                + "will have 66% msgRate difference and load balancer can unload bundles from broker-1 "
+                + "to broker-2)"
+    )
+    private double loadBalancerMsgRateDifferenceShedderThreshold = 50;
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_LOAD_BALANCER,
+        doc = "Message-throughput threshold between highest and least loaded brokers for "
+                + "uniform load shedding. (eg: broker1 with 450MB msgRate and broker2 with 100MB msgRate "
+                + "will have 4.5 times msgThroughout difference and load balancer can unload bundles "
+                + "from broker-1 to broker-2)"
+    )
+    private double loadBalancerMsgThroughputMultiplierDifferenceShedderThreshold = 4;
+
+    @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
             doc = "Resource history Usage Percentage When adding new resource usage info"
@@ -1881,6 +1955,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Option to override the auto-detected network interfaces max speed"
     )
     private Double loadBalancerOverrideBrokerNicSpeedGbps;
+    @FieldContext(
+        category = CATEGORY_LOAD_BALANCER,
+        doc = "Time to wait for the unloading of a namespace bundle"
+    )
+    private long namespaceBundleUnloadingTimeoutMs = 60000;
 
     /**** --- Replication --- ****/
     @FieldContext(
@@ -2102,6 +2181,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     " Default is false."
     )
     private boolean splitTopicAndPartitionLabelInPrometheus = false;
+
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Enable expose the broker bundles metrics."
+    )
+    private boolean exposeBunlesMetricsInPrometheus = false;
 
     /**** --- Functions --- ****/
     @FieldContext(

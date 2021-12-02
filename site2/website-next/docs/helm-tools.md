@@ -4,10 +4,6 @@ title: Required tools for deploying Pulsar Helm Chart
 sidebar_label: "Required Tools"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 Before deploying Pulsar to your Kubernetes cluster, there are some tools you must have installed locally.
 
 ## kubectl

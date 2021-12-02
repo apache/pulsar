@@ -168,6 +168,16 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> subscriptionName(String subscriptionName);
 
     /**
+     * Specify the subscription properties for this subscription.
+     * Properties are immutable, and consumers under the same subscription will fail to create a subscription
+     * if they use different properties.
+     * @param subscriptionProperties
+     * @return
+     */
+    ConsumerBuilder<T> subscriptionProperties(Map<String, String> subscriptionProperties);
+
+
+    /**
      * Set the timeout for unacked messages, truncated to the nearest millisecond. The timeout needs to be greater than
      * 1 second.
      *

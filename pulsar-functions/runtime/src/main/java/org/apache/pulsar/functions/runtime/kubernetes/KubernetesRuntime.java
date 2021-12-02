@@ -72,7 +72,6 @@ import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.packages.management.core.common.PackageType;
 
 import java.io.IOException;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;

@@ -5,10 +5,6 @@ sidebar_label: "C++"
 original_id: client-libraries-cpp
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 You can use Pulsar C++ client to create Pulsar producers and consumers in C++.
 
 All the methods in producer, consumer, and reader of a C++ client are thread-safe.

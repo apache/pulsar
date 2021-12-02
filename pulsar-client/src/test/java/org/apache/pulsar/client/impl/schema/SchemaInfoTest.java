@@ -289,7 +289,7 @@ public class SchemaInfoTest {
 
         @Test
         public void testUnsetProperties() {
-            final SchemaInfo schemaInfo = SchemaInfoImpl.builder()
+            final SchemaInfo schemaInfo = SchemaInfo.builder()
                     .type(SchemaType.STRING)
                     .schema(new byte[0])
                     .name("string")
@@ -298,14 +298,14 @@ public class SchemaInfoTest {
             assertEquals(schemaInfo.getSchema(), new byte[0]);
             assertEquals(schemaInfo.getType(), SchemaType.STRING);
             assertEquals(schemaInfo.getName(), "string");
-            assertEquals(schemaInfo.getProperties(), Maps.newHashMap());
+            assertEquals(schemaInfo.getProperties(), new HashMap<>());
         }
 
         @Test
         public void testSetProperties() {
-            final Map<String, String> map = Maps.newHashMap();
+            final Map<String, String> map = new HashMap<>();
             map.put("test", "value");
-            final SchemaInfo schemaInfo = SchemaInfoImpl.builder()
+            final SchemaInfo schemaInfo = SchemaInfo.builder()
                     .type(SchemaType.STRING)
                     .schema(new byte[0])
                     .name("string")
@@ -315,7 +315,7 @@ public class SchemaInfoTest {
             assertEquals(schemaInfo.getSchema(), new byte[0]);
             assertEquals(schemaInfo.getType(), SchemaType.STRING);
             assertEquals(schemaInfo.getName(), "string");
-            assertEquals(schemaInfo.getProperties(), Maps.newHashMap(map));
+            assertEquals(schemaInfo.getProperties(), new HashMap<>(map));
         }
 
         @Test
@@ -323,7 +323,7 @@ public class SchemaInfoTest {
             final Map<String, String> map = new HashMap<>();
             map.put("key", null);
 
-            SchemaInfo si = SchemaInfoImpl.builder()
+            SchemaInfo si = SchemaInfo.builder()
                     .name("INT32")
                     .schema(new byte[0])
                     .type(SchemaType.INT32)

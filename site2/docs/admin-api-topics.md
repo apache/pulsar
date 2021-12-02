@@ -840,6 +840,40 @@ admin.lookup().lookupDestination(topic);
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
+### Lookup of partitioned topic
+
+You can locate the broker URL of each partitioned topic which is serving the given topic in the following ways.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
+```shell
+$ pulsar-admin topics partitioned-lookup \
+  persistent://test-tenant/ns1/my-topic \
+
+  "persistent://test-tenant/ns1/my-topic-partition-0   pulsar://localhost:6650"
+  "persistent://test-tenant/ns1/my-topic-partition-1   pulsar://localhost:6650"
+  "persistent://test-tenant/ns1/my-topic-partition-2   pulsar://localhost:6650"
+  "persistent://test-tenant/ns1/my-topic-partition-3   pulsar://localhost:6650"
+```
+
+<!--Java-->
+```java
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+admin.lookup().lookupPartitionedTopic(topic);
+```
+
+Lookup the partitioned topics sorted by broker URL
+
+```shell
+$ pulsar-admin topics partitioned-lookup \
+  persistent://test-tenant/ns1/my-topic --sort-by-broker \
+
+  "pulsar://localhost:6650   [persistent://test-tenant/ns1/my-topic-partition-0, persistent://test-tenant/ns1/my-topic-partition-1, persistent://test-tenant/ns1/my-topic-partition-2, persistent://test-tenant/ns1/my-topic-partition-3]"
+```
+
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
 ### Get bundle
 
 You can check the range of the bundle which contains given topic in the following ways.
@@ -888,30 +922,6 @@ admin.topics().getSubscriptions(topic);
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-### Unsubscribe
-
-When a subscription does not process messages any more, you can unsubscribe it in the following ways. 
-
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
-```shell
-$ pulsar-admin topics unsubscribe \
-  --subscription my-subscription \
-  persistent://test-tenant/ns1/tp1 \
-```
-
-<!--REST API-->
-{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/:topic/subscription/:subscription|operation/deleteSubscription?version=[[pulsar:version_number]]}
-
-<!--Java-->
-```java
-String topic = "persistent://my-tenant/my-namespace/my-topic";
-String subscriptionName = "my-subscription";
-admin.topics().deleteSubscription(topic, subscriptionName);
-```
-
-<!--END_DOCUSAURUS_CODE_TABS-->
-
 ### Last Message Id
 
 You can get the last committed message ID for a persistent topic. It is available since 2.3.0 release.
@@ -929,6 +939,30 @@ pulsar-admin topics last-message-id topic-name
 ```Java
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.topics().getLastMessage(topic);
+```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+### Get backlog size
+
+You can get the backlog size of a single partition topic or a non-partitioned topic with a given message ID (in bytes).
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
+```shell
+$ pulsar-admin topics get-backlog-size \
+  -m 1:1 \
+  persistent://test-tenant/ns1/tp1-partition-0 \
+```
+
+<!--REST API-->
+{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/backlogSize|operation/getBacklogSizeByMessageId?version=[[pulsar:version_number]]}
+
+<!--Java-->
+```java
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+MessageId messageId = MessageId.earliest;
+admin.topics().getBacklogSizeByMessageId(topic, messageId);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -1200,11 +1234,11 @@ admin.topics().delete(topic);
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ### List
-You can get the list of topics under a given namespace in the following ways.  
+You can get the list of partitioned topics under a given namespace in the following ways.  
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
 ```shell
-$ pulsar-admin topics list tenant/namespace
+$ pulsar-admin topics list-partitioned-topics tenant/namespace
 persistent://tenant/namespace/topic1
 persistent://tenant/namespace/topic2
 ```
@@ -1214,7 +1248,7 @@ persistent://tenant/namespace/topic2
 
 <!--Java-->
 ```java
-admin.topics().getList(namespace);
+admin.topics().getPartitionedTopicList(namespace);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -1358,29 +1392,6 @@ admin.topics().getInternalStats(topic);
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-### Get backlog size
-
-You can get backlog size of a single topic partition or a nonpartitioned topic given a message ID (in bytes).
-
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
-```shell
-$ pulsar-admin topics get-backlog-size \
-  -m 1:1 \
-  persistent://test-tenant/ns1/tp1-partition-0 \
-```
-
-<!--REST API-->
-{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/backlogSize|operation/getBacklogSizeByMessageId?version=[[pulsar:version_number]]}
-
-<!--Java-->
-```java
-String topic = "persistent://my-tenant/my-namespace/my-topic";
-MessageId messageId = MessageId.earliest;
-admin.topics().getBacklogSizeByMessageId(topic, messageId);
-```
-
-<!--END_DOCUSAURUS_CODE_TABS-->
 
 ## Publish to partitioned topics
 
@@ -1464,3 +1475,90 @@ If a message has a key, it supersedes the round robin routing policy. The follow
             return signSafeMod(PARTITION_INDEX_UPDATER.getAndIncrement(this), topicMetadata.numPartitions());
         }
 ```        
+
+## Manage subscriptions
+
+You can use [Pulsar admin API](admin-api-overview.md) to create, check, and delete subscriptions.
+
+### Create subscription
+
+You can create a subscription for a topic using one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+
+<!--pulsar-admin-->
+
+```shell
+pulsar-admin topics create-subscription \
+--subscription my-subscription \
+persistent://test-tenant/ns1/tp1
+```
+
+<!--REST API-->
+
+{@inject: endpoint|PUT|/admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subscription|operation/createSubscriptions?version=[[pulsar:version_number]]}
+
+<!--Java-->
+
+```java
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+String subscriptionName = "my-subscription";
+admin.topics().createSubscription(topic, subscriptionName, MessageId.latest);
+```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+### Get subscription
+
+You can check all subscription names for a given topic using one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+
+<!--pulsar-admin-->
+
+```shell
+pulsar-admin topics subscriptions \
+persistent://test-tenant/ns1/tp1 \
+my-subscription
+```
+
+<!--REST API-->
+
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscriptions|operation/getSubscriptions?version=[[pulsar:version_number]]}
+
+<!--Java-->
+
+```java
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+admin.topics().getSubscriptions(topic);
+```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+### Unsubscribe subscription 
+
+When a subscription does not process messages any more, you can unsubscribe it using one of the following methods. 
+
+<!--DOCUSAURUS_CODE_TABS-->
+
+<!--pulsar-admin-->
+
+```shell
+pulsar-admin topics unsubscribe \
+--subscription my-subscription \
+persistent://test-tenant/ns1/tp1 
+```
+
+<!--REST API-->
+
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/:topic/subscription/:subscription|operation/deleteSubscription?version=[[pulsar:version_number]]}
+
+<!--Java-->
+
+```java
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+String subscriptionName = "my-subscription";
+admin.topics().deleteSubscription(topic, subscriptionName);
+```
+
+<!--END_DOCUSAURUS_CODE_TABS-->

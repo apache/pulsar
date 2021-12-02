@@ -4,10 +4,6 @@ title: Flume source connector
 sidebar_label: "Flume source connector"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The Flume source connector pulls messages from logs to Pulsar topics.
 
 ## Configuration
@@ -35,11 +31,13 @@ Before using the Flume source connector, you need to create a configuration file
   ```json
   
   {
-      "name": "a1",
-      "confFile": "source.conf",
-      "noReloadConf": "false",
-      "zkConnString": "",
-      "zkBasePath": ""
+     "configs": {
+        "name": "a1",
+        "confFile": "source.conf",
+        "noReloadConf": "false",
+        "zkConnString": "",
+        "zkBasePath": ""
+     }
   }
   
   ```

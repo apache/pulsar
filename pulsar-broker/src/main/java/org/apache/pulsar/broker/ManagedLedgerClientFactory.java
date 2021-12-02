@@ -39,7 +39,6 @@ import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusMetricsProvid
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,7 +53,6 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
     private StatsProvider statsProvider = new NullStatsProvider();
 
     public void initialize(ServiceConfiguration conf, MetadataStoreExtended metadataStore,
-                           ZooKeeper zkClient,
                            BookKeeperClientFactory bookkeeperProvider,
                            EventLoopGroup eventLoopGroup) throws Exception {
         ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
@@ -83,7 +81,8 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
         statsProvider.start(configuration);
         StatsLogger statsLogger = statsProvider.getStatsLogger("pulsar_managedLedger_client");
 
-        this.defaultBkClient = bookkeeperProvider.create(conf, zkClient, eventLoopGroup, Optional.empty(), null);
+        this.defaultBkClient =
+                bookkeeperProvider.create(conf, metadataStore, eventLoopGroup, Optional.empty(), null);
 
         BookkeeperFactoryForCustomEnsemblePlacementPolicy bkFactory = (
                 EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig) -> {
@@ -92,7 +91,7 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
             if (ensemblePlacementPolicyConfig != null && ensemblePlacementPolicyConfig.getPolicyClass() != null) {
                 bkClient = bkEnsemblePolicyToBkClientMap.computeIfAbsent(ensemblePlacementPolicyConfig, (key) -> {
                     try {
-                        return bookkeeperProvider.create(conf, zkClient, eventLoopGroup,
+                        return bookkeeperProvider.create(conf, metadataStore, eventLoopGroup,
                                 Optional.ofNullable(ensemblePlacementPolicyConfig.getPolicyClass()),
                                 ensemblePlacementPolicyConfig.getProperties());
                     } catch (Exception e) {

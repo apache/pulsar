@@ -4,10 +4,6 @@ title: Authentication and authorization in Pulsar
 sidebar_label: "Authorization and ACLs"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 
 In Pulsar, the [authentication provider](security-overview.md#authentication-providers) is responsible for properly identifying clients and associating the clients with [role tokens](security-overview.md#role-tokens). If you only enable authentication, an authenticated role token has the ability to access all resources in the cluster. *Authorization* is the process that determines *what* clients are able to do.
 
@@ -49,7 +45,7 @@ Another approach is to make the proxy role a superuser. This allows the proxy to
 
 You can specify the roles as proxy roles in [`conf/broker.conf`](reference-configuration.md#broker).
 
-```
+```properties
 
 proxyRoles=my-proxy-role
 
@@ -68,7 +64,7 @@ You can manage tenants using the [`pulsar-admin`](reference-pulsar-admin) tool.
 
 The following is an example tenant creation command:
 
-```
+```shell
 
 $ bin/pulsar-admin tenants create my-tenant \
   --admin-roles my-admin-role \
@@ -82,7 +78,7 @@ A client that successfully identifies itself as having the role `my-admin-role` 
 
 The structure of topic names in Pulsar reflects the hierarchy between tenants, clusters, and namespaces:
 
-```
+```shell
 
 persistent://tenant/namespace/topic
 
@@ -94,7 +90,7 @@ You can use [Pulsar Admin Tools](admin-api-permissions) for managing permission 
 
 ### Pulsar admin authentication
 
-```
+```java
 
 PulsarAdmin admin = PulsarAdmin.builder()
                     .serviceHttpUrl("http://broker:8080")
@@ -105,7 +101,7 @@ PulsarAdmin admin = PulsarAdmin.builder()
 
 To use TLS:
 
-```
+```java
 
 PulsarAdmin admin = PulsarAdmin.builder()
                     .serviceHttpUrl("https://broker:8080")

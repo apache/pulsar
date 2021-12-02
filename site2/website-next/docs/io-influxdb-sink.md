@@ -4,10 +4,6 @@ title: InfluxDB sink connector
 sidebar_label: "InfluxDB sink connector"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The InfluxDB sink connector pulls messages from Pulsar topics 
 and persists the messages to InfluxDB.
 
@@ -48,25 +44,27 @@ The configuration of the InfluxDB sink connector has the following properties.
 ### Example
 Before using the InfluxDB sink connector, you need to create a configuration file through one of the following methods.
 #### InfluxDBv2
+
 * JSON
 
   ```json
   
   {
-      "influxdbUrl": "http://localhost:9999",
-      "organization": "example-org",
-      "bucket": "example-bucket",
-      "token": "xxxx",
-      "precision": "ns",
-      "logLevel": "NONE",
-      "gzipEnable": false,
-      "batchTimeMs": 1000,
-      "batchSize": 100
+     "configs": {
+        "influxdbUrl": "http://localhost:9999",
+        "organization": "example-org",
+        "bucket": "example-bucket",
+        "token": "xxxx",
+        "precision": "ns",
+        "logLevel": "NONE",
+        "gzipEnable": false,
+        "batchTimeMs": 1000,
+        "batchSize": 100
+     }
   }
   
   ```
 
-  
 * YAML
 
   ```yaml
@@ -84,7 +82,6 @@ Before using the InfluxDB sink connector, you need to create a configuration fil
   
   ```
 
-  
 #### InfluxDBv1
 
 * JSON 
@@ -92,14 +89,16 @@ Before using the InfluxDB sink connector, you need to create a configuration fil
   ```json
   
   {
-      "influxdbUrl": "http://localhost:8086",
-      "database": "test_db",
-      "consistencyLevel": "ONE",
-      "logLevel": "NONE",
-      "retentionPolicy": "autogen",
-      "gzipEnable": false,
-      "batchTimeMs": 1000,
-      "batchSize": 100
+     "configs": {
+        "influxdbUrl": "http://localhost:8086",
+        "database": "test_db",
+        "consistencyLevel": "ONE",
+        "logLevel": "NONE",
+        "retentionPolicy": "autogen",
+        "gzipEnable": false,
+        "batchTimeMs": 1000,
+        "batchSize": 100
+     }
   }
   
   ```

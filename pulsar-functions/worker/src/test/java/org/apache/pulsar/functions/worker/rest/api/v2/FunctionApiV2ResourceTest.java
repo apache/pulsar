@@ -590,7 +590,7 @@ public class FunctionApiV2ResourceTest {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookeeper(
+            WorkerUtils.uploadToBookKeeper(
                     any(Namespace.class),
                     any(InputStream.class),
                     anyString());
@@ -632,7 +632,7 @@ public class FunctionApiV2ResourceTest {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookeeper(
+            WorkerUtils.uploadToBookKeeper(
                     any(Namespace.class),
                     any(InputStream.class),
                     anyString());
@@ -654,7 +654,7 @@ public class FunctionApiV2ResourceTest {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookeeper(
+            WorkerUtils.uploadToBookKeeper(
                     any(Namespace.class),
                     any(InputStream.class),
                     anyString());
@@ -1014,7 +1014,7 @@ public class FunctionApiV2ResourceTest {
     public void testUpdateFunctionSuccess() throws Exception {
         mockStatic(WorkerUtils.class);
         doNothing().when(WorkerUtils.class);
-        WorkerUtils.uploadToBookeeper(
+        WorkerUtils.uploadToBookKeeper(
                 any(Namespace.class),
                 any(InputStream.class),
                 anyString());
@@ -1068,7 +1068,7 @@ public class FunctionApiV2ResourceTest {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookeeper(
+            WorkerUtils.uploadToBookKeeper(
                     any(Namespace.class),
                     any(InputStream.class),
                     anyString());
@@ -1091,7 +1091,7 @@ public class FunctionApiV2ResourceTest {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookeeper(
+            WorkerUtils.uploadToBookKeeper(
                     any(Namespace.class),
                     any(InputStream.class),
                     anyString());

@@ -581,6 +581,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private Set<String> proxyExtensions = new TreeSet<>();
 
+    @FieldContext(
+            category = CATEGORY_PLUGIN,
+            doc = "Use a separate ThreadPool for each Proxy Extension"
+    )
+    private boolean useSeparateThreadPoolForProxyExtensions = true;
+
     /***** --- WebSocket --- ****/
     @FieldContext(
             category = CATEGORY_WEBSOCKET,

@@ -71,6 +71,12 @@ module.exports = {
       roles: 'Committer'
     },
     {
+      name: 'Guo Jiwei',
+      apacheId: 'technoboy',
+      org: 'StreamNative',
+      roles: 'Committer'
+    },
+    {
       name: 'Hang Chen',
       apacheId: 'chenhang',
       org: 'BIGO Technology',

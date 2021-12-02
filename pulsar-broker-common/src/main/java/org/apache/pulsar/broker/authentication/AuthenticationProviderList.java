@@ -206,7 +206,7 @@ public class AuthenticationProviderList implements AuthenticationProvider {
                 }
             }
         );
-        return authenticated.booleanValue();
+        return authenticated;
     }
 
     @Override

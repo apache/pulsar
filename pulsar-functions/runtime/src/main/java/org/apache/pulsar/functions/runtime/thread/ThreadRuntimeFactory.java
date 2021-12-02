@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.runtime.thread;
 
 import com.google.common.base.Preconditions;
 import io.netty.util.internal.PlatformDependent;
-import io.prometheus.client.CollectorRegistry;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,8 +46,6 @@ import org.apache.pulsar.functions.worker.ConnectorsManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 
 import java.util.Optional;
-
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 /**
  * Thread based function container factory implementation.

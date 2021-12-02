@@ -27,7 +27,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.json.JsonConverter;
 import org.apache.kafka.connect.storage.Converter;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -45,7 +44,7 @@ public class KafkaSchemaWrappedSchema implements Schema<byte[]>, Serializable {
         Map<String, String> props = new HashMap<>();
         boolean isJsonConverter = converter instanceof JsonConverter;
         props.put(GenericAvroSchema.OFFSET_PROP, isJsonConverter ? "0" : "5");
-        this.schemaInfo = SchemaInfoImpl.builder()
+        this.schemaInfo = SchemaInfo.builder()
                 .name(isJsonConverter? "KafKaJson" : "KafkaAvro")
                 .type(isJsonConverter ? SchemaType.JSON : SchemaType.AVRO)
                 .schema(schema.toString().getBytes(UTF_8))

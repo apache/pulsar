@@ -343,6 +343,23 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     }
 
     @Test
+    public void testAfterDeleteTopicOtherTopicCanRecover() throws Exception {
+        String topicOne = "persistent://" + NAMESPACE1 + "/topic-one";
+        String topicTwo = "persistent://" + NAMESPACE1 + "/topic-two";
+        String sub = "test";
+        admin.topics().createNonPartitionedTopic(topicOne);
+        admin.topics().createSubscription(topicOne, "test", MessageId.earliest);
+        admin.topics().delete(topicOne);
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicTwo).create();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicTwo).subscriptionName(sub).subscribe();
+        String content = "test";
+        producer.send(content);
+        assertEquals(consumer.receive().getValue(), content);
+    }
+
+    @Test
     public void txnMessageAckTest() throws Exception {
         String topic = TOPIC_MESSAGE_ACK_TEST;
         final String subName = "test";
@@ -396,7 +413,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Assert.assertNull(message);
 
         String checkTopic = TopicName.get(topic).getPartition(0).toString();
-        PersistentTopicInternalStats stats = admin.topics().getInternalStats(checkTopic, false);;
+        PersistentTopicInternalStats stats = admin.topics().getInternalStats(checkTopic, false);
 
         Assert.assertNotEquals(stats.cursors.get(subName).markDeletePosition, stats.lastConfirmedEntry);
 

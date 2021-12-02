@@ -5,10 +5,6 @@ sidebar_label: "Configuration and deployment"
 original_id: sql-deployment-configurations
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 You can configure Presto Pulsar connector and deploy a cluster with the following instruction.
 
 ## Configure Presto Pulsar Connector

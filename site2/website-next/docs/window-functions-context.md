@@ -4,10 +4,6 @@ title: Window Functions Context
 sidebar_label: "Window Functions: Context"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 Java SDK provides access to a **window context object** that can be used by a window function. This context object provides a wide variety of information and functionality for Pulsar window functions as below.
 
 - [Spec](#spec)

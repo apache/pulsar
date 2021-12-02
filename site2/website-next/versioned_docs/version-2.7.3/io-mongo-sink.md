@@ -5,10 +5,6 @@ sidebar_label: "MongoDB sink connector"
 original_id: io-mongo-sink
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The MongoDB sink connector pulls messages from Pulsar topics 
 and persists the messages to collections.
 

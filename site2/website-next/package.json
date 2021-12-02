@@ -11,26 +11,30 @@
     "clear": "docusaurus clear",
     "serve": "docusaurus serve",
     "write-translations": "docusaurus write-translations",
-    "write-heading-ids": "docusaurus write-heading-ids"
+    "write-heading-ids": "docusaurus write-heading-ids",
+    "crowdin": "crowdin",
+    "upload": "CROWDIN_PERSONAL_TOKEN=20a2c29bfe39397f7ae63ce318c04c96 crowdin upload",
+    "download": "CROWDIN_PERSONAL_TOKEN=20a2c29bfe39397f7ae63ce318c04c96 crowdin download"
   },
   "dependencies": {
-    "@docusaurus/core": "2.0.0-beta.8",
-    "@docusaurus/plugin-client-redirects": "^2.0.0-beta.8",
-    "@docusaurus/preset-classic": "2.0.0-beta.8",
-    "@emotion/react": "^11.5.0",
-    "@emotion/styled": "^11.3.0",
+    "@crowdin/cli": "3",
+    "@docusaurus/core": "2.0.0-beta.9",
+    "@docusaurus/plugin-client-redirects": "^2.0.0-beta.9",
+    "@docusaurus/preset-classic": "2.0.0-beta.9",
+    "@emotion/react": "^11.6.0",
+    "@emotion/styled": "^11.6.0",
     "@mdx-js/react": "^1.6.22",
-    "@mui/material": "^5.0.6",
+    "@mui/material": "^5.1.0",
     "@svgr/webpack": "^5.5.0",
     "clsx": "^1.1.1",
     "file-loader": "^6.2.0",
     "install": "^0.13.0",
-    "npm": "^8.1.1",
+    "npm": "^8.1.3",
     "prism-react-renderer": "^1.2.1",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "react-markdown": "^7.1.0",
-    "react-svg": "^14.0.17",
+    "react-svg": "^14.1.2",
     "remark-linkify-regex": "^1.0.0",
     "replace-in-file": "^6.3.2",
     "url-loader": "^4.1.1"
@@ -48,12 +52,12 @@
     ]
   },
   "devDependencies": {
-    "autoprefixer": "^10.3.7",
-    "postcss": "^8.3.9",
-    "postcss-cli": "^9.0.1",
+    "autoprefixer": "^10.4.0",
+    "postcss": "^8.3.11",
+    "postcss-cli": "^9.0.2",
     "postcss-import": "^14.0.2",
     "postcss-nested": "^5.0.6",
     "postcss-preset-env": "^6.7.0",
-    "tailwindcss": "^2.2.17"
+    "tailwindcss": "^2.2.19"
   }
 }

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.testclient;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.testng.Assert;
 import org.testng.annotations.Test;

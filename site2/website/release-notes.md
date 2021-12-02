@@ -2484,7 +2484,7 @@ https://github.com/apache/pulsar/releases/tag/v2.4.0
  * When creating namespace, use local cluster by default [#3571](https://github.com/apache/pulsar/pull/3571)
  * Tag BookKeeper ledgers created by Pulsar with topic/subscription names for info/debug purposes
    [#3525](https://github.com/apache/pulsar/pull/3525)
- * Enabled sticky reads in BooKeeper reads to increase IO efficiency with read-ahead [#3569](https://github.com/apache/pulsar/pull/3569)
+ * Enabled sticky reads in BookKeeper reads to increase IO efficiency with read-ahead [#3569](https://github.com/apache/pulsar/pull/3569)
  * Several optimization in Pulsar SQL Presto connector ([#3128](https://github.com/apache/pulsar/pull/3128),
     [#3135](https://github.com/apache/pulsar/pull/3135), [#3139](https://github.com/apache/pulsar/pull/3139),
     [#3144](https://github.com/apache/pulsar/pull/3144), [#3143](https://github.com/apache/pulsar/pull/3143))
