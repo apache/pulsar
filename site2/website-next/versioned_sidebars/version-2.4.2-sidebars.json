@@ -199,6 +199,120 @@
           "id": "version-2.4.2/sql-deployment-configurations"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Deployment",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.4.2/deploy-aws"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.2/deploy-kubernetes"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.2/deploy-bare-metal"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.2/deploy-bare-metal-multi-cluster"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.2/deploy-dcos"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.2/deploy-monitoring"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Administration",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.4.2/administration-zk-bk"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.2/administration-geo"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.2/administration-dashboard"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.2/administration-stats"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.2/administration-load-balance"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.2/administration-proxy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.2/administration-upgrade"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Security",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.4.2/security-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.2/security-tls-transport"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.2/security-tls-authentication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.2/security-token-client"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.2/security-token-admin"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.2/security-athenz"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.2/security-kerberos"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.2/security-jwt"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.2/security-authorization"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.2/security-encryption"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.2/security-extending"
+        }
+      ]
     }
   ]
 }
