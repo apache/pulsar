@@ -26,12 +26,17 @@ RUN apt-get update && \
     apt-get install -y software-properties-common && \
     add-apt-repository ppa:openjdk-r/ppa && \
     apt-get update && \
-    apt-get install -y tig g++ cmake libssl-dev libcurl4-openssl-dev \
+    apt-get install -y tig g++ libssl-dev libcurl4-openssl-dev \
                 liblog4cxx-dev google-mock libgtest-dev \
                 libboost-dev libboost-program-options-dev libboost-system-dev libboost-python-dev \
                 libxml2-utils protobuf-compiler wget \
                 curl doxygen openjdk-8-jdk-headless openjdk-11-jdk-headless clang-format-5.0 \
                 gnupg2 golang-1.13-go zip unzip libzstd-dev libsnappy-dev python3-pip libpython-dev
+
+# Install newer version of CMake
+RUN curl -O -L https://github.com/Kitware/CMake/releases/download/v3.22.0/cmake-3.22.0-linux-x86_64.tar.gz && \
+        tar xvfz cmake-3.22.0-linux-x86_64.tar.gz
+ENV PATH PATH "$PATH:/cmake-3.22.0-linux-x86_64/bin/"
 
 # Build protobuf 3.x.y from source since the default protobuf from Ubuntu's apt source is 2.x.y
 RUN curl -O -L https://github.com/protocolbuffers/protobuf/releases/download/v3.17.3/protobuf-cpp-3.17.3.tar.gz && \
@@ -84,11 +89,11 @@ ARG MAVEN_FILENAME="apache-maven-${MAVEN_VERSION}-bin.tar.gz"
 ARG MAVEN_HOME=/opt/maven
 ARG MAVEN_URL="http://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/${MAVEN_FILENAME}"
 ARG MAVEN_TMP="/tmp/${MAVEN_FILENAME}"
-RUN wget --no-verbose -O ${MAVEN_TMP} ${MAVEN_URL} 
+RUN wget --no-verbose -O ${MAVEN_TMP} ${MAVEN_URL}
 
 # Cleanup
 RUN tar xzf ${MAVEN_TMP}  -C /opt/ \
         && ln -s /opt/apache-maven-${MAVEN_VERSION} ${MAVEN_HOME} \
-        && ln -s ${MAVEN_HOME}/bin/mvn /usr/local/bin 
+        && ln -s ${MAVEN_HOME}/bin/mvn /usr/local/bin
 
 RUN unset MAVEN_VERSION
