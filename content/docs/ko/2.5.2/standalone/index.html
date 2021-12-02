@@ -87,6 +87,10 @@
 <h4><a class="anchor" aria-hidden="true" id="tip"></a><a href="#tip" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
 <p>By default, Pulsar allocates 2G JVM heap memory to start. It can be changed in <code>conf/pulsar_env.sh</code> file under <code>PULSAR_MEM</code>. This is extra options passed into JVM.</p>
 </blockquote>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>Broker is only supported on 64-bit JVM.</p>
+</blockquote>
 <h3><a class="anchor" aria-hidden="true" id="binary-release를-이용한-pulsar-설치"></a><a href="#binary-release를-이용한-pulsar-설치" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Binary release를 이용한 Pulsar 설치</h3>
 <p>Pulsar를 시작하려면 다음 방법 중 하나로 바이너리 tarball 릴리스를 다운로드하십시오.</p>
 <ul>
@@ -108,7 +112,7 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.8.1
 <tr><th style="text-align:left">디렉토리</th><th style="text-align:left">포함</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>bin</code></td><td style="text-align:left"><a href="/docs/ko/2.5.2/reference-cli-tools#pulsar"><code>pulsar</code></a> 와 <a href="/docs/ko/2.5.2/pulsar-admin"><code>pulsar-admin</code></a> 과 같은 Pulsar의 명령줄 도구들이 있습니다.</td></tr>
+<tr><td style="text-align:left"><code>bin</code></td><td style="text-align:left">Pulsar's command-line tools, such as <a href="/docs/ko/2.5.2/reference-cli-tools#pulsar"><code>pulsar</code></a> and <a href="https://pulsar.apache.org/tools/pulsar-admin/"><code>pulsar-admin</code></a>.</td></tr>
 <tr><td style="text-align:left"><code>conf</code></td><td style="text-align:left">구성 파일들이 있습니다. <a href="/docs/ko/2.5.2/reference-configuration#broker">broker configuration</a>, <a href="/docs/ko/2.5.2/reference-configuration#zookeeper">ZooKeeper configuration</a> 등.</td></tr>
 <tr><td style="text-align:left"><code>examples</code></td><td style="text-align:left"><a href="/docs/ko/2.5.2/functions-overview">Pulsar Functions</a> 예제가 포함된 Java Jar 파일들이 있습니다.</td></tr>
 <tr><td style="text-align:left"><code>lib</code></td><td style="text-align:left">The <a href="https://en.wikipedia.org/wiki/JAR_(file_format)">JAR</a> files used by Pulsar.</td></tr>
@@ -205,7 +209,8 @@ tiered-storage-jcloud-2.8.1.nar
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="tip-3"></a><a href="#tip-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
 <ul>
-<li><p>The service is running on your terminal, which is under your direct control. If you need to run other commands, open a new terminal window. You can also run the service as a background process using the <code>pulsar-daemon start standalone</code> command. For more information, see <a href="https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon">pulsar-daemon</a>.</p></li>
+<li><p>The service is running on your terminal, which is under your direct control. If you need to run other commands, open a new terminal window.<br>
+You can also run the service as a background process using the <code>pulsar-daemon start standalone</code> command. For more information, see <a href="https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon">pulsar-daemon</a>.</p></li>
 <li><p>By default, there is no encryption, authentication, or authorization configured. Apache Pulsar는 원격 서버에서 특별한 권한 없이도 억세스 할 수 있습니다. 배포에 보안을 적용하려면 <a href="/docs/ko/2.5.2/security-overview">보안 개요</a> 문서를 확인하십시오.</p></li>
 <li><p>When you start a local standalone cluster, a <code>public/default</code> <a href="/docs/ko/2.5.2/concepts-messaging#namespaces">namespace</a> is created automatically. namespace는 개발 목적으로 사용됩니다. All Pulsar topics are managed within namespaces. 자세한 내용은 <a href="/docs/ko/2.5.2/concepts-messaging#topics">Topics</a>를 참조하십시오.</p></li>
 </ul>

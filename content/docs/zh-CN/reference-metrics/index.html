@@ -104,11 +104,11 @@
 <tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
-<tr><td>zookeeper_server_znode_count</td><td>计量表</td><td>存储的 z-nodes 数量。</td></tr>
-<tr><td>zookeeper_server_data_size_bytes</td><td>计量表</td><td>储存的所有 z-nodes 的总大小。</td></tr>
-<tr><td>zookeeper_server_connections</td><td>计量表</td><td>当前打开的连接数量。</td></tr>
-<tr><td>zookeeper_server_watches_count</td><td>计量表</td><td>注册的观察者数量。</td></tr>
-<tr><td>zookeeper_server_ephemerals_count</td><td>计量表</td><td>临时 z-nodes 的数量。</td></tr>
+<tr><td>znode_count</td><td>计量表</td><td>存储的 z-nodes 数量。</td></tr>
+<tr><td>approximate_data_size</td><td>计量表</td><td>储存的所有 z-nodes 的大概大小。</td></tr>
+<tr><td>num_alive_connection</td><td>计量表</td><td>当前有效连接的数量。</td></tr>
+<tr><td>watch_count</td><td>计量表</td><td>注册的观察者数量。</td></tr>
+<tr><td>ephemerals_count</td><td>计量表</td><td>临时 z-nodes 的数量。</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="请求度量值"></a><a href="#请求度量值" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>请求度量值</h3>
@@ -117,8 +117,9 @@
 <tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
-<tr><td>zookeeper_server_requests</td><td>计数器</td><td>特定服务器收到请求的总数。</td></tr>
-<tr><td>zookeeper_server_requests_latency_ms</td><td>总结</td><td>按毫秒计算的请求延迟。 <br> Available labels: <em>type</em> (write, read). <br> <ul><li><em>write</em>: 将数据写入 ZooKeeper 的请求。</li><li><em>read</em>: 从 ZooKeeper 读数据的请求。</li></ul></td></tr>
+<tr><td>request_commit_queued</td><td>计数器</td><td>特定服务器已提交请求的总数。</td></tr>
+<tr><td>updatelatency</td><td>总结</td><td>更新请求以毫秒为单位计算延迟。</td></tr>
+<tr><td>readlatency</td><td>总结</td><td>以毫秒计算的读取请求延迟。</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="bookkeeper"></a><a href="#bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BookKeeper</h2>

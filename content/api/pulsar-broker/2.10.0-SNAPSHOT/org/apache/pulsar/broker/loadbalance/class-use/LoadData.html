@@ -190,27 +190,34 @@
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>com.google.common.collect.Multimap&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;</code></td>
+<td class="colLast"><span class="typeNameLabel">UniformLoadShedder.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/loadbalance/impl/UniformLoadShedder.html#findBundlesForUnloading-org.apache.pulsar.broker.loadbalance.LoadData-org.apache.pulsar.broker.ServiceConfiguration-">findBundlesForUnloading</a></span>(<a href="../../../../../../org/apache/pulsar/broker/loadbalance/LoadData.html" title="class in org.apache.pulsar.broker.loadbalance">LoadData</a>&nbsp;loadData,
+                       org.apache.pulsar.broker.ServiceConfiguration&nbsp;conf)</code>
+<div class="block">Attempt to shed some bundles off every broker which is overloaded.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>com.google.common.collect.Multimap&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;</code></td>
 <td class="colLast"><span class="typeNameLabel">DeviationShedder.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/loadbalance/impl/DeviationShedder.html#findBundlesForUnloading-org.apache.pulsar.broker.loadbalance.LoadData-org.apache.pulsar.broker.ServiceConfiguration-">findBundlesForUnloading</a></span>(<a href="../../../../../../org/apache/pulsar/broker/loadbalance/LoadData.html" title="class in org.apache.pulsar.broker.loadbalance">LoadData</a>&nbsp;loadData,
                        org.apache.pulsar.broker.ServiceConfiguration&nbsp;conf)</code>
 <div class="block">Recommend that all of the returned bundles be unloaded based on observing excessive standard deviations according
  to some metric.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/Set.html?is-external=true" title="class or interface in java.util">Set</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;</code></td>
 <td class="colLast"><span class="typeNameLabel">BundleSplitterTask.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/loadbalance/impl/BundleSplitterTask.html#findBundlesToSplit-org.apache.pulsar.broker.loadbalance.LoadData-org.apache.pulsar.broker.PulsarService-">findBundlesToSplit</a></span>(<a href="../../../../../../org/apache/pulsar/broker/loadbalance/LoadData.html" title="class in org.apache.pulsar.broker.loadbalance">LoadData</a>&nbsp;loadData,
                   <a href="../../../../../../org/apache/pulsar/broker/PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar)</code>
 <div class="block">Determines which bundles should be split based on various thresholds.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>com.github.zafarkhaja.semver.Version</code></td>
 <td class="colLast"><span class="typeNameLabel">BrokerVersionFilter.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/loadbalance/impl/BrokerVersionFilter.html#getLatestVersionNumber-java.util.Set-org.apache.pulsar.broker.loadbalance.LoadData-">getLatestVersionNumber</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Set.html?is-external=true" title="class or interface in java.util">Set</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;brokers,
                       <a href="../../../../../../org/apache/pulsar/broker/loadbalance/LoadData.html" title="class in org.apache.pulsar.broker.loadbalance">LoadData</a>&nbsp;loadData)</code>
 <div class="block">Get the most recent broker version number from the load reports of all the running brokers.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/Optional.html?is-external=true" title="class or interface in java.util">Optional</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;</code></td>
 <td class="colLast"><span class="typeNameLabel">LeastLongTermMessageRate.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/loadbalance/impl/LeastLongTermMessageRate.html#selectBroker-java.util.Set-org.apache.pulsar.broker.BundleData-org.apache.pulsar.broker.loadbalance.LoadData-org.apache.pulsar.broker.ServiceConfiguration-">selectBroker</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Set.html?is-external=true" title="class or interface in java.util">Set</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;candidates,
             <a href="../../../../../../org/apache/pulsar/broker/BundleData.html" title="class in org.apache.pulsar.broker">BundleData</a>&nbsp;bundleToAssign,

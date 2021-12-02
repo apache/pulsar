@@ -131,16 +131,16 @@ var activeTableTab = "activeTableTab";
 </tr>
 <tr id="i1" class="rowColor">
 <td class="colFirst"><code>org.apache.bookkeeper.client.BookKeeper</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../org/apache/pulsar/broker/BookKeeperClientFactory.html#create-org.apache.pulsar.broker.ServiceConfiguration-org.apache.zookeeper.ZooKeeper-io.netty.channel.EventLoopGroup-java.util.Optional-java.util.Map-">create</a></span>(org.apache.pulsar.broker.ServiceConfiguration&nbsp;conf,
-      org.apache.zookeeper.ZooKeeper&nbsp;zkClient,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../org/apache/pulsar/broker/BookKeeperClientFactory.html#create-org.apache.pulsar.broker.ServiceConfiguration-org.apache.pulsar.metadata.api.extended.MetadataStoreExtended-io.netty.channel.EventLoopGroup-java.util.Optional-java.util.Map-">create</a></span>(org.apache.pulsar.broker.ServiceConfiguration&nbsp;conf,
+      org.apache.pulsar.metadata.api.extended.MetadataStoreExtended&nbsp;store,
       io.netty.channel.EventLoopGroup&nbsp;eventLoopGroup,
       <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Optional.html?is-external=true" title="class or interface in java.util">Optional</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Class.html?is-external=true" title="class or interface in java.lang">Class</a>&lt;? extends org.apache.bookkeeper.client.EnsemblePlacementPolicy&gt;&gt;&nbsp;ensemblePlacementPolicyClass,
       <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&gt;&nbsp;ensemblePlacementPolicyProperties)</code>&nbsp;</td>
 </tr>
 <tr id="i2" class="altColor">
 <td class="colFirst"><code>org.apache.bookkeeper.client.BookKeeper</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../org/apache/pulsar/broker/BookKeeperClientFactory.html#create-org.apache.pulsar.broker.ServiceConfiguration-org.apache.zookeeper.ZooKeeper-io.netty.channel.EventLoopGroup-java.util.Optional-java.util.Map-org.apache.bookkeeper.stats.StatsLogger-">create</a></span>(org.apache.pulsar.broker.ServiceConfiguration&nbsp;conf,
-      org.apache.zookeeper.ZooKeeper&nbsp;zkClient,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../org/apache/pulsar/broker/BookKeeperClientFactory.html#create-org.apache.pulsar.broker.ServiceConfiguration-org.apache.pulsar.metadata.api.extended.MetadataStoreExtended-io.netty.channel.EventLoopGroup-java.util.Optional-java.util.Map-org.apache.bookkeeper.stats.StatsLogger-">create</a></span>(org.apache.pulsar.broker.ServiceConfiguration&nbsp;conf,
+      org.apache.pulsar.metadata.api.extended.MetadataStoreExtended&nbsp;store,
       io.netty.channel.EventLoopGroup&nbsp;eventLoopGroup,
       <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Optional.html?is-external=true" title="class or interface in java.util">Optional</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Class.html?is-external=true" title="class or interface in java.lang">Class</a>&lt;? extends org.apache.bookkeeper.client.EnsemblePlacementPolicy&gt;&gt;&nbsp;ensemblePlacementPolicyClass,
       <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&gt;&nbsp;ensemblePlacementPolicyProperties,
@@ -161,14 +161,14 @@ var activeTableTab = "activeTableTab";
 <!--   -->
 </a>
 <h3>Method Detail</h3>
-<a name="create-org.apache.pulsar.broker.ServiceConfiguration-org.apache.zookeeper.ZooKeeper-io.netty.channel.EventLoopGroup-java.util.Optional-java.util.Map-">
+<a name="create-org.apache.pulsar.broker.ServiceConfiguration-org.apache.pulsar.metadata.api.extended.MetadataStoreExtended-io.netty.channel.EventLoopGroup-java.util.Optional-java.util.Map-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>create</h4>
 <pre>org.apache.bookkeeper.client.BookKeeper&nbsp;create(org.apache.pulsar.broker.ServiceConfiguration&nbsp;conf,
-                                               org.apache.zookeeper.ZooKeeper&nbsp;zkClient,
+                                               org.apache.pulsar.metadata.api.extended.MetadataStoreExtended&nbsp;store,
                                                io.netty.channel.EventLoopGroup&nbsp;eventLoopGroup,
                                                <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Optional.html?is-external=true" title="class or interface in java.util">Optional</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Class.html?is-external=true" title="class or interface in java.lang">Class</a>&lt;? extends org.apache.bookkeeper.client.EnsemblePlacementPolicy&gt;&gt;&nbsp;ensemblePlacementPolicyClass,
                                                <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&gt;&nbsp;ensemblePlacementPolicyProperties)
@@ -179,14 +179,14 @@ var activeTableTab = "activeTableTab";
 </dl>
 </li>
 </ul>
-<a name="create-org.apache.pulsar.broker.ServiceConfiguration-org.apache.zookeeper.ZooKeeper-io.netty.channel.EventLoopGroup-java.util.Optional-java.util.Map-org.apache.bookkeeper.stats.StatsLogger-">
+<a name="create-org.apache.pulsar.broker.ServiceConfiguration-org.apache.pulsar.metadata.api.extended.MetadataStoreExtended-io.netty.channel.EventLoopGroup-java.util.Optional-java.util.Map-org.apache.bookkeeper.stats.StatsLogger-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>create</h4>
 <pre>org.apache.bookkeeper.client.BookKeeper&nbsp;create(org.apache.pulsar.broker.ServiceConfiguration&nbsp;conf,
-                                               org.apache.zookeeper.ZooKeeper&nbsp;zkClient,
+                                               org.apache.pulsar.metadata.api.extended.MetadataStoreExtended&nbsp;store,
                                                io.netty.channel.EventLoopGroup&nbsp;eventLoopGroup,
                                                <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Optional.html?is-external=true" title="class or interface in java.util">Optional</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Class.html?is-external=true" title="class or interface in java.lang">Class</a>&lt;? extends org.apache.bookkeeper.client.EnsemblePlacementPolicy&gt;&gt;&nbsp;ensemblePlacementPolicyClass,
                                                <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&gt;&nbsp;ensemblePlacementPolicyProperties,

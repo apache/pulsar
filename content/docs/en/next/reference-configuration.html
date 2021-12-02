@@ -713,6 +713,8 @@
 <tr><td>loadBalancerNamespaceBundleMaxBandwidthMbytes</td><td></td><td>100</td></tr>
 <tr><td>loadBalancerNamespaceMaximumBundles</td><td></td><td>128</td></tr>
 <tr><td>loadBalancerBrokerThresholdShedderPercentage</td><td>The broker resource usage threshold. When the broker resource usage is greater than the pulsar cluster average resource usage, the threshold shedder is triggered to offload bundles from the broker. It only takes effect in the ThresholdShedder strategy.</td><td>10</td></tr>
+<tr><td>loadBalancerMsgRateDifferenceShedderThreshold</td><td>Message-rate percentage threshold between highest and least loaded brokers for uniform load shedding.</td><td>50</td></tr>
+<tr><td>loadBalancerMsgThroughputMultiplierDifferenceShedderThreshold</td><td>Message-throughput threshold between highest and least loaded brokers for uniform load shedding.</td><td>4</td></tr>
 <tr><td>loadBalancerHistoryResourcePercentage</td><td>The history usage when calculating new resource usage. It only takes effect in the ThresholdShedder strategy.</td><td>0.9</td></tr>
 <tr><td>loadBalancerBandwithInResourceWeight</td><td>The BandWithIn usage weight when calculating new resource usage. It only takes effect in the ThresholdShedder strategy.</td><td>1.0</td></tr>
 <tr><td>loadBalancerBandwithOutResourceWeight</td><td>The BandWithOut usage weight when calculating new resource usage. It only takes effect in the ThresholdShedder strategy.</td><td>1.0</td></tr>

@@ -168,9 +168,8 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/AutoCloseab
 </tr>
 <tr id="i5" class="rowColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/storage/ManagedLedgerStorage.html#initialize-org.apache.pulsar.broker.ServiceConfiguration-org.apache.pulsar.metadata.api.extended.MetadataStoreExtended-org.apache.zookeeper.ZooKeeper-org.apache.pulsar.broker.BookKeeperClientFactory-io.netty.channel.EventLoopGroup-">initialize</a></span>(org.apache.pulsar.broker.ServiceConfiguration&nbsp;conf,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/storage/ManagedLedgerStorage.html#initialize-org.apache.pulsar.broker.ServiceConfiguration-org.apache.pulsar.metadata.api.extended.MetadataStoreExtended-org.apache.pulsar.broker.BookKeeperClientFactory-io.netty.channel.EventLoopGroup-">initialize</a></span>(org.apache.pulsar.broker.ServiceConfiguration&nbsp;conf,
           org.apache.pulsar.metadata.api.extended.MetadataStoreExtended&nbsp;metadataStore,
-          org.apache.zookeeper.ZooKeeper&nbsp;zkClient,
           <a href="../../../../../org/apache/pulsar/broker/BookKeeperClientFactory.html" title="interface in org.apache.pulsar.broker">BookKeeperClientFactory</a>&nbsp;bookkeeperProvider,
           io.netty.channel.EventLoopGroup&nbsp;eventLoopGroup)</code>
 <div class="block">Initialize the managed ledger storage.</div>
@@ -191,7 +190,7 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/AutoCloseab
 <!--   -->
 </a>
 <h3>Method Detail</h3>
-<a name="initialize-org.apache.pulsar.broker.ServiceConfiguration-org.apache.pulsar.metadata.api.extended.MetadataStoreExtended-org.apache.zookeeper.ZooKeeper-org.apache.pulsar.broker.BookKeeperClientFactory-io.netty.channel.EventLoopGroup-">
+<a name="initialize-org.apache.pulsar.broker.ServiceConfiguration-org.apache.pulsar.metadata.api.extended.MetadataStoreExtended-org.apache.pulsar.broker.BookKeeperClientFactory-io.netty.channel.EventLoopGroup-">
 <!--   -->
 </a>
 <ul class="blockList">
@@ -199,7 +198,6 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/AutoCloseab
 <h4>initialize</h4>
 <pre>void&nbsp;initialize(org.apache.pulsar.broker.ServiceConfiguration&nbsp;conf,
                 org.apache.pulsar.metadata.api.extended.MetadataStoreExtended&nbsp;metadataStore,
-                org.apache.zookeeper.ZooKeeper&nbsp;zkClient,
                 <a href="../../../../../org/apache/pulsar/broker/BookKeeperClientFactory.html" title="interface in org.apache.pulsar.broker">BookKeeperClientFactory</a>&nbsp;bookkeeperProvider,
                 io.netty.channel.EventLoopGroup&nbsp;eventLoopGroup)
          throws <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Exception.html?is-external=true" title="class or interface in java.lang">Exception</a></pre>
@@ -207,7 +205,6 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/AutoCloseab
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>conf</code> - service config</dd>
-<dd><code>zkClient</code> - zk client</dd>
 <dd><code>bookkeeperProvider</code> - bookkeeper provider</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Exception.html?is-external=true" title="class or interface in java.lang">Exception</a></code></dd>
