@@ -81,7 +81,7 @@ public class TopicLookupBase extends PulsarWebResource {
         }
 
         pulsar().getNamespaceService().checkTopicExists(topicName).thenAccept(exist -> {
-            if (!exist) {
+            if (!exist && !pulsar().getBrokerService().isAllowAutoTopicCreation(topicName)) {
                 completeLookupResponseExceptionally(asyncResponse, new RestException(Response.Status.NOT_FOUND,
                         "Topic not found."));
                 return;
