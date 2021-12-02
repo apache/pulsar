@@ -134,16 +134,7 @@ public class MockZooKeeper extends ZooKeeper {
 
     public static MockZooKeeper newInstanceForGlobalZK(ExecutorService executor, int readOpDelayMs) {
         try {
-            ObjectInstantiator<MockZooKeeper> mockZooKeeperInstantiator =
-                    new ObjenesisStd().getInstantiatorOf(MockZooKeeper.class);
-            MockZooKeeper zk = (MockZooKeeper) mockZooKeeperInstantiator.newInstance();
-            zk.epheralOwnerThreadLocal = new ThreadLocal<>();
-            zk.init(executor);
-            zk.readOpDelayMs = readOpDelayMs;
-            zk.mutex = new ReentrantLock();
-            zk.lockInstance = ThreadLocal.withInitial(zk::createLock);
-            zk.sequentialIdGenerator = new AtomicLong();
-            return zk;
+            return createMockZooKeeperInstance(executor, readOpDelayMs);
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
@@ -153,23 +144,28 @@ public class MockZooKeeper extends ZooKeeper {
 
     public static MockZooKeeper newInstance(ExecutorService executor, int readOpDelayMs) {
         try {
-            ObjectInstantiator<MockZooKeeper> mockZooKeeperInstantiator =
-                    objenesis.getInstantiatorOf(MockZooKeeper.class);
-            MockZooKeeper zk = (MockZooKeeper) mockZooKeeperInstantiator.newInstance();
-            zk.epheralOwnerThreadLocal = new ThreadLocal<>();
-            zk.init(executor);
-            zk.readOpDelayMs = readOpDelayMs;
-            zk.mutex = new ReentrantLock();
-            zk.lockInstance = ThreadLocal.withInitial(zk::createLock);
+            MockZooKeeper zk = createMockZooKeeperInstance(executor, readOpDelayMs);
             ObjectInstantiator<ClientCnxn> clientCnxnObjectInstantiator = objenesis.getInstantiatorOf(ClientCnxn.class);
             Whitebox.setInternalState(zk, "cnxn", clientCnxnObjectInstantiator.newInstance());
-            zk.sequentialIdGenerator = new AtomicLong();
             return zk;
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
             throw new IllegalStateException("Cannot create object", e);
         }
+    }
+
+    private static MockZooKeeper createMockZooKeeperInstance(ExecutorService executor, int readOpDelayMs) {
+        ObjectInstantiator<MockZooKeeper> mockZooKeeperInstantiator =
+                objenesis.getInstantiatorOf(MockZooKeeper.class);
+        MockZooKeeper zk = mockZooKeeperInstantiator.newInstance();
+        zk.epheralOwnerThreadLocal = new ThreadLocal<>();
+        zk.init(executor);
+        zk.readOpDelayMs = readOpDelayMs;
+        zk.mutex = new ReentrantLock();
+        zk.lockInstance = ThreadLocal.withInitial(zk::createLock);
+        zk.sequentialIdGenerator = new AtomicLong();
+        return zk;
     }
 
     private void init(ExecutorService executor) {
@@ -357,7 +353,7 @@ public class MockZooKeeper extends ZooKeeper {
 
                 final String name;
                 if (createMode != null && createMode.isSequential()) {
-                    name = path + Long.toString(sequentialIdGenerator.getAndIncrement());
+                    name = path + sequentialIdGenerator.getAndIncrement();
                 } else {
                     name = path;
                 }
@@ -699,31 +695,7 @@ public class MockZooKeeper extends ZooKeeper {
 
     @Override
     public void exists(String path, boolean watch, StatCallback cb, Object ctx) {
-        executor.execute(() -> {
-            lock();
-            try {
-                Optional<KeeperException.Code> failure = programmedFailure(Op.EXISTS, path);
-                if (failure.isPresent()) {
-                    unlockIfLocked();
-                    cb.processResult(failure.get().intValue(), path, ctx, null);
-                    return;
-                } else if (stopped) {
-                    unlockIfLocked();
-                    cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null);
-                    return;
-                }
-
-                if (tree.containsKey(path)) {
-                    unlockIfLocked();
-                    cb.processResult(0, path, ctx, new Stat());
-                } else {
-                    unlockIfLocked();
-                    cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
-                }
-            } finally {
-                unlockIfLocked();
-            }
-        });
+        exists(path, null, cb, ctx);
     }
 
     @Override
@@ -998,7 +970,6 @@ public class MockZooKeeper extends ZooKeeper {
             executor.execute(r);
         } catch (RejectedExecutionException ree) {
             cb.processResult(KeeperException.Code.SESSIONEXPIRED.intValue(), path, ctx);
-            return;
         }
 
     }
@@ -1007,9 +978,9 @@ public class MockZooKeeper extends ZooKeeper {
     public void multi(Iterable<org.apache.zookeeper.Op> ops, AsyncCallback.MultiCallback cb, Object ctx) {
         try {
             List<OpResult> res = multi(ops);
-            cb.processResult(KeeperException.Code.OK.intValue(), (String) null, ctx, res);
+            cb.processResult(KeeperException.Code.OK.intValue(), null, ctx, res);
         } catch (Exception e) {
-            cb.processResult(KeeperException.Code.APIERROR.intValue(), (String) null, ctx, null);
+            cb.processResult(KeeperException.Code.APIERROR.intValue(), null, ctx, null);
         }
     }
 
