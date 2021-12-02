@@ -358,6 +358,30 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
+            doc = "Whether we should enable metadata operations batching"
+    )
+    private boolean metadataStoreBatchingEnabled = true;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Maximum delay to impose on batching grouping"
+    )
+    private int metadataStoreBatchingMaxDelayMillis = 5;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Maximum number of operations to include in a singular batch"
+    )
+    private int metadataStoreBatchingMaxOperations = 1_000;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Maximum size of a batch"
+    )
+    private int metadataStoreBatchingMaxSizeKb = 128;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
             doc = "Configuration file path for local metadata store. It's supported by RocksdbMetadataStore for now."
     )
     private String metadataStoreConfigPath = null;
