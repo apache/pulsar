@@ -26,7 +26,6 @@ import com.google.common.collect.Multimaps;
 import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 import io.netty.util.concurrent.DefaultThreadFactory;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -42,11 +41,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiPredicate;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.zookeeper.AsyncCallback.Children2Callback;
 import org.apache.zookeeper.AsyncCallback.ChildrenCallback;
 import org.apache.zookeeper.AsyncCallback.DataCallback;
@@ -65,7 +62,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MockZooKeeper extends ZooKeeper {
-    private TreeMap<String, Pair<byte[], Integer>> tree;
+    @Data
+    @AllArgsConstructor
+    private static class MockZNode {
+        byte[] content;
+        int version;
+        long ephemeralOwner;
+
+        static MockZNode of(byte[] content, int version, long ephemeralOwner) {
+            return new MockZNode(content, version, ephemeralOwner);
+        }
+    }
+
+    private TreeMap<String, MockZNode> tree;
     private SetMultimap<String, Watcher> watchers;
     private volatile boolean stopped;
     private AtomicReference<KeeperException.Code> alwaysFail;
@@ -79,6 +88,7 @@ public class MockZooKeeper extends ZooKeeper {
     private ReentrantLock mutex;
 
     private AtomicLong sequentialIdGenerator;
+    private ThreadLocal<Long> epheralOwnerThreadLocal;
 
     //see details of Objenesis caching - http://objenesis.org/details.html
     //see supported jvms - https://github.com/easymock/objenesis/blob/master/SupportedJVMs.md
@@ -86,9 +96,9 @@ public class MockZooKeeper extends ZooKeeper {
 
     public enum Op {
         CREATE, GET, SET, GET_CHILDREN, DELETE, EXISTS, SYNC,
-    };
+    }
 
-    private class Failure {
+    private static class Failure {
         final KeeperException.Code failReturnCode;
         final BiPredicate<Op, String> predicate;
 
@@ -125,6 +135,7 @@ public class MockZooKeeper extends ZooKeeper {
             ObjectInstantiator<MockZooKeeper> mockZooKeeperInstantiator =
                     new ObjenesisStd().getInstantiatorOf(MockZooKeeper.class);
             MockZooKeeper zk = (MockZooKeeper) mockZooKeeperInstantiator.newInstance();
+            zk.epheralOwnerThreadLocal = new ThreadLocal<>();
             zk.init(executor);
             zk.readOpDelayMs = readOpDelayMs;
             zk.mutex = new ReentrantLock();
@@ -141,6 +152,7 @@ public class MockZooKeeper extends ZooKeeper {
         try {
             ObjectInstantiator<MockZooKeeper> mockZooKeeperInstantiator = objenesis.getInstantiatorOf(MockZooKeeper.class);
             MockZooKeeper zk = (MockZooKeeper) mockZooKeeperInstantiator.newInstance();
+            zk.epheralOwnerThreadLocal = new ThreadLocal<>();
             zk.init(executor);
             zk.readOpDelayMs = readOpDelayMs;
             zk.mutex = new ReentrantLock();
@@ -205,8 +217,9 @@ public class MockZooKeeper extends ZooKeeper {
         try {
             maybeThrowProgrammedFailure(Op.CREATE, path);
 
-            if (stopped)
+            if (stopped) {
                 throw new KeeperException.ConnectionLossException();
+            }
 
             if (tree.containsKey(path)) {
                 throw new KeeperException.NodeExistsException(path);
@@ -216,16 +229,16 @@ public class MockZooKeeper extends ZooKeeper {
                 throw new KeeperException.NoNodeException();
             }
 
-            if (createMode == CreateMode.EPHEMERAL_SEQUENTIAL || createMode == CreateMode.PERSISTENT_SEQUENTIAL) {
-                byte[] parentData = tree.get(parent).getLeft();
-                int parentVersion = tree.get(parent).getRight();
+            if (createMode.isSequential()) {
+                MockZNode parentNode = tree.get(parent);
+                int parentVersion = tree.get(parent).getVersion();
                 path = path + parentVersion;
 
                 // Update parent version
-                tree.put(parent, Pair.of(parentData, parentVersion + 1));
+                tree.put(parent, MockZNode.of(parentNode.getContent(), parentVersion + 1, parentNode.getEphemeralOwner()));
             }
 
-            tree.put(path, Pair.of(data, 0));
+            tree.put(path, MockZNode.of(data, 0, createMode.isEphemeral() ? getEphemeralOwner() : -1L));
 
             toNotifyCreate.addAll(watchers.get(path));
 
@@ -255,6 +268,22 @@ public class MockZooKeeper extends ZooKeeper {
         });
 
         return path;
+    }
+
+    protected long getEphemeralOwner() {
+        Long epheralOwner = epheralOwnerThreadLocal.get();
+        if (epheralOwner != null) {
+            return epheralOwner;
+        }
+        return getSessionId();
+    }
+
+    public void overrideEpheralOwner(long epheralOwner) {
+        epheralOwnerThreadLocal.set(epheralOwner);
+    }
+
+    public void removeEpheralOwnerOverride() {
+        epheralOwnerThreadLocal.remove();
     }
 
     @Override
@@ -302,7 +331,7 @@ public class MockZooKeeper extends ZooKeeper {
                         .process(new WatchedEvent(EventType.NodeChildrenChanged, KeeperState.SyncConnected, parent)));
                 cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
             } else {
-                tree.put(name, Pair.of(data, 0));
+                tree.put(name, MockZNode.of(data, 0, createMode.isEphemeral() ? getEphemeralOwner() : -1L));
                 watchers.removeAll(name);
                 mutex.unlock();
                 cb.processResult(0, path, ctx, name);
@@ -329,7 +358,7 @@ public class MockZooKeeper extends ZooKeeper {
         mutex.lock();
         try {
             maybeThrowProgrammedFailure(Op.GET, path);
-            Pair<byte[], Integer> value = tree.get(path);
+            MockZNode value = tree.get(path);
             if (value == null) {
                 throw new KeeperException.NoNodeException(path);
             } else {
@@ -337,9 +366,9 @@ public class MockZooKeeper extends ZooKeeper {
                     watchers.put(path, watcher);
                 }
                 if (stat != null) {
-                    stat.setVersion(value.getRight());
+                    applyToStat(value, stat);
                 }
-                return value.getLeft();
+                return value.getContent();
             }
         } finally {
             mutex.unlock();
@@ -359,7 +388,7 @@ public class MockZooKeeper extends ZooKeeper {
                 return;
             }
 
-            Pair<byte[], Integer> value;
+            MockZNode value;
             mutex.lock();
             try {
                 value = tree.get(path);
@@ -370,9 +399,7 @@ public class MockZooKeeper extends ZooKeeper {
             if (value == null) {
                 cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null, null);
             } else {
-                Stat stat = new Stat();
-                stat.setVersion(value.getRight());
-                cb.processResult(0, path, ctx, value.getLeft(), stat);
+                cb.processResult(0, path, ctx, value.getContent(), createStatForZNode(value));
             }
         });
     }
@@ -393,7 +420,7 @@ public class MockZooKeeper extends ZooKeeper {
                 return;
             }
 
-            Pair<byte[], Integer> value = tree.get(path);
+            MockZNode value = tree.get(path);
             if (value == null) {
                 mutex.unlock();
                 cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null, null);
@@ -402,10 +429,9 @@ public class MockZooKeeper extends ZooKeeper {
                     watchers.put(path, watcher);
                 }
 
-                Stat stat = new Stat();
-                stat.setVersion(value.getRight());
+                Stat stat = createStatForZNode(value);
                 mutex.unlock();
-                cb.processResult(0, path, ctx, value.getLeft(), stat);
+                cb.processResult(0, path, ctx, value.getContent(), stat);
             }
         });
     }
@@ -562,13 +588,12 @@ public class MockZooKeeper extends ZooKeeper {
         try {
             maybeThrowProgrammedFailure(Op.EXISTS, path);
 
-            if (stopped)
+            if (stopped) {
                 throw new KeeperException.ConnectionLossException();
+            }
 
             if (tree.containsKey(path)) {
-                Stat stat = new Stat();
-                stat.setVersion(tree.get(path).getRight());
-                return stat;
+                return createStatForZNode(tree.get(path));
             } else {
                 return null;
             }
@@ -577,23 +602,34 @@ public class MockZooKeeper extends ZooKeeper {
         }
     }
 
+    private Stat createStatForZNode(MockZNode zNode) {
+        return applyToStat(zNode, new Stat());
+    }
+
+    private Stat applyToStat(MockZNode zNode, Stat stat) {
+        stat.setVersion(zNode.getVersion());
+        if (zNode.getEphemeralOwner() != -1L) {
+            stat.setEphemeralOwner(zNode.getEphemeralOwner());
+        }
+        return stat;
+    }
+
     @Override
     public Stat exists(String path, Watcher watcher) throws KeeperException, InterruptedException {
         mutex.lock();
         try {
             maybeThrowProgrammedFailure(Op.EXISTS, path);
 
-            if (stopped)
+            if (stopped) {
                 throw new KeeperException.ConnectionLossException();
+            }
 
             if (watcher != null) {
                 watchers.put(path, watcher);
             }
 
             if (tree.containsKey(path)) {
-                Stat stat = new Stat();
-                stat.setVersion(tree.get(path).getRight());
-                return stat;
+                return createStatForZNode(tree.get(path));
             } else {
                 return null;
             }
@@ -678,7 +714,7 @@ public class MockZooKeeper extends ZooKeeper {
         mutex.lock();
 
         final Set<Watcher> toNotify = Sets.newHashSet();
-        int newVersion;
+        MockZNode newZNode;
 
         try {
             maybeThrowProgrammedFailure(Op.SET, path);
@@ -691,16 +727,17 @@ public class MockZooKeeper extends ZooKeeper {
                 throw new KeeperException.NoNodeException();
             }
 
-            int currentVersion = tree.get(path).getRight();
+            MockZNode mockZNode = tree.get(path);
+            int currentVersion = mockZNode.getVersion();
 
             // Check version
             if (version != -1 && version != currentVersion) {
                 throw new KeeperException.BadVersionException(path);
             }
 
-            newVersion = currentVersion + 1;
             log.debug("[{}] Updating -- current version: {}", path, currentVersion);
-            tree.put(path, Pair.of(data, newVersion));
+            newZNode = MockZNode.of(data, currentVersion + 1, mockZNode.getEphemeralOwner());
+            tree.put(path, newZNode);
 
             toNotify.addAll(watchers.get(path));
             watchers.removeAll(path);
@@ -715,9 +752,7 @@ public class MockZooKeeper extends ZooKeeper {
                     .process(new WatchedEvent(EventType.NodeDataChanged, KeeperState.SyncConnected, path)));
         });
 
-        Stat stat = new Stat();
-        stat.setVersion(newVersion);
-        return stat;
+        return createStatForZNode(newZNode);
     }
 
     @Override
@@ -749,7 +784,8 @@ public class MockZooKeeper extends ZooKeeper {
                 return;
             }
 
-            int currentVersion = tree.get(path).getRight();
+            MockZNode mockZNode = tree.get(path);
+            int currentVersion = mockZNode.getVersion();
 
             // Check version
             if (version != -1 && version != currentVersion) {
@@ -759,11 +795,10 @@ public class MockZooKeeper extends ZooKeeper {
                 return;
             }
 
-            int newVersion = currentVersion + 1;
             log.debug("[{}] Updating -- current version: {}", path, currentVersion);
-            tree.put(path, Pair.of(data, newVersion));
-            Stat stat = new Stat();
-            stat.setVersion(newVersion);
+            MockZNode newZNode = MockZNode.of(data, currentVersion + 1, mockZNode.getEphemeralOwner());
+            tree.put(path, newZNode);
+            Stat stat = createStatForZNode(newZNode);
 
             mutex.unlock();
             cb.processResult(0, path, ctx, stat);
@@ -798,7 +833,7 @@ public class MockZooKeeper extends ZooKeeper {
             }
 
             if (version != -1) {
-                int currentVersion = tree.get(path).getRight();
+                int currentVersion = tree.get(path).getVersion();
                 if (version != currentVersion) {
                     throw new KeeperException.BadVersionException(path);
                 }
@@ -865,7 +900,7 @@ public class MockZooKeeper extends ZooKeeper {
                 cb.processResult(KeeperException.Code.NOTEMPTY.intValue(), path, ctx);
             } else {
                 if (version != -1) {
-                    int currentVersion = tree.get(path).getRight();
+                    int currentVersion = tree.get(path).getVersion();
                     if (version != currentVersion) {
                         mutex.unlock();
                         cb.processResult(KeeperException.Code.BADVERSION.intValue(), path, ctx);
