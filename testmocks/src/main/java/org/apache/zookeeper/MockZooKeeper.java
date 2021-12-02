@@ -375,7 +375,8 @@ public class MockZooKeeper extends ZooKeeper {
                                     parent)));
                     cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
                 } else {
-                    tree.put(name, MockZNode.of(data, 0, createMode.isEphemeral() ? getEphemeralOwner() : -1L));
+                    tree.put(name, MockZNode.of(data, 0,
+                            createMode != null && createMode.isEphemeral() ? getEphemeralOwner() : -1L));
                     watchers.removeAll(name);
                     unlockIfLocked();
                     cb.processResult(0, path, ctx, name);
