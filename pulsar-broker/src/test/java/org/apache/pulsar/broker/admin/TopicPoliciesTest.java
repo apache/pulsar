@@ -2404,6 +2404,12 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             //restore
             pulsar.getConfiguration().getSubscriptionTypesEnabled().addAll(old);
         }
+
+        Awaitility.await().untilAsserted(() ->
+                assertFalse(admin.topics().getSubscriptionTypesEnabled(topic).isEmpty()));
+        admin.topics().removeSubscriptionTypesEnabled(topic);
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(admin.topics().getSubscriptionTypesEnabled(topic).isEmpty()));
     }
 
     @Test(timeOut = 30000)

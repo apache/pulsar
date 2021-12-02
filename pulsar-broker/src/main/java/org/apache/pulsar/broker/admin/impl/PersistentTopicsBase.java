@@ -4237,6 +4237,17 @@ public class PersistentTopicsBase extends AdminResource {
             });
     }
 
+    protected CompletableFuture<Void> internalRemoveSubscriptionTypesEnabled() {
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    if (!op.isPresent()) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    op.get().setSubscriptionTypesEnabled(Lists.newArrayList());
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
+                });
+    }
+
     protected CompletableFuture<Void> internalRemovePublishRate() {
         return getTopicPoliciesAsyncWithRetry(topicName)
             .thenCompose(op -> {
