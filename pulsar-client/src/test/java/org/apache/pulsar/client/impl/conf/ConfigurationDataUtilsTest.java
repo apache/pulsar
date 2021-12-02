@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl.conf;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableSet;
-import org.apache.commons.collections4.CollectionUtils;
 import org.testng.Assert;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -229,25 +228,5 @@ public class ConfigurationDataUtilsTest {
             assertTrue(ex.getMessage().contains("Invalid config [socks5Proxy.address]"));
         }
         System.clearProperty("socks5Proxy.address");
-    }
-
-    @Test
-    public void testLoadStringTopicNames() {
-        String topic1 = "persistent://public/default/test-string1";
-        String topic2 = "persistent://public/default/test-string2";
-        ConsumerConfigurationData confData = new ConsumerConfigurationData();
-        Map<String, Object> config = new HashMap<>();
-        config.put("topicNames", String.format("%s,%s", topic1, topic2));
-
-        confData = ConfigurationDataUtils.loadData(config, confData, ConsumerConfigurationData.class);
-        assertTrue(confData.getTopicNames().contains(topic1));
-        assertTrue(confData.getTopicNames().contains(topic2));
-    }
-    @Test
-    public void testLoadEmptyTopicNames() {
-        ConsumerConfigurationData confData = new ConsumerConfigurationData();
-        Map<String, Object> config = new HashMap<>();
-        confData = ConfigurationDataUtils.loadData(config, confData, ConsumerConfigurationData.class);
-        assertTrue(CollectionUtils.isEmpty(confData.getTopicNames()));
     }
 }
