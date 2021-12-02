@@ -1562,6 +1562,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     log.info("[{}] Producer creation failed for producer {} after producerTimeout", topic, producerId);
                 }
                 setState(State.Failed);
+                // release resource if the produce is going to be cleaned
+                try {
+                    this.close();
+                } catch (PulsarClientException e) {
+                    log.warn("[{}] Close a failed produce {} failed", topic, producerId, e);
+                }
                 client.cleanupProducer(this);
             }
         } else {
