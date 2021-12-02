@@ -28,7 +28,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.classification.InterfaceAudience.Private;
 import org.apache.pulsar.common.classification.InterfaceStability.Unstable;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.zookeeper.ZooKeeper;
 
 /**
  * Storage to access {@link org.apache.bookkeeper.mledger.ManagedLedger}s.
