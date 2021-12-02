@@ -38,6 +38,7 @@ import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.bookkeeper.meta.MetadataDrivers;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
@@ -47,6 +48,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver;
+import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
 
 @SuppressWarnings("deprecation")
 @Slf4j
@@ -66,6 +68,8 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                              EventLoopGroup eventLoopGroup,
                              Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
                              Map<String, Object> properties, StatsLogger statsLogger) throws IOException {
+        MetadataDrivers.registerClientDriver("metadata-store", PulsarMetadataClientDriver.class);
+
         ClientConfiguration bkConf = createBkClientConfiguration(store, conf);
         if (properties != null) {
             properties.forEach((key, value) -> bkConf.setProperty(key, value));
