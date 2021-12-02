@@ -1724,7 +1724,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
             dynamic = true,
-            doc = "load balance load shedding strategy"
+            doc = "load balance load shedding strategy (It requires broker restart if value is changed using dynamic config)"
     )
     private String loadBalancerLoadSheddingStrategy = "org.apache.pulsar.broker.loadbalance.impl.OverloadShedder";
 
