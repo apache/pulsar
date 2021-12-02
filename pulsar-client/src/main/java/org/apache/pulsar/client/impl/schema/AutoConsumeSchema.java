@@ -29,6 +29,7 @@ import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericProtobufSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.client.impl.schema.util.SchemaUtil;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
@@ -177,6 +178,8 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
             case JSON:
             case AVRO:
                 return extractFromAvroSchema(schemaInfo, useProvidedSchemaAsReaderSchema);
+            case PROTOBUF:
+                return GenericProtobufSchema.of(schemaInfo,useProvidedSchemaAsReaderSchema);
             case PROTOBUF_NATIVE:
                 return GenericProtobufNativeSchema.of(schemaInfo, useProvidedSchemaAsReaderSchema);
             default:
@@ -243,6 +246,8 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
             case JSON:
             case AVRO:
                 return GenericSchemaImpl.of(schemaInfo, false);
+            case PROTOBUF:
+                return GenericProtobufSchema.of(schemaInfo);
             case PROTOBUF_NATIVE:
                 return GenericProtobufNativeSchema.of(schemaInfo);
             case KEY_VALUE:
