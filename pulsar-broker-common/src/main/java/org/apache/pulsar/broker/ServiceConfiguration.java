@@ -1481,6 +1481,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int bookkeeperClientNumWorkerThreads = Runtime.getRuntime().availableProcessors();
 
+    @FieldContext(
+            category = CATEGORY_STORAGE_BK,
+            doc = "Max number allowed for ensemble change, if exceeds this limit, ledger will be closed. Default is Integer.MAX_VALUE"
+    )
+    private int bookkeeperMaxNumEnsembleChanges = Integer.MAX_VALUE;
 
     /**** --- Managed Ledger --- ****/
     @FieldContext(
