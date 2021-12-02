@@ -84,6 +84,7 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
     private Map<String, String> configuration;
     private String loginContextName;
     private String serverType = null;
+    private AuthenticationDataProvider authenticationDataProvider;
 
     public AuthenticationSasl() {
     }
@@ -191,13 +192,11 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
     }
 
     @SneakyThrows(Exception.class)
-    private Builder newRequestBuilder(WebTarget target,
-                                      AuthenticationDataProvider authData,
-                                      Map<String, String> previousResHeaders) {
+    private Builder newRequestBuilder(WebTarget target, Map<String, String> previousResHeaders) {
         Builder builder = target.request(MediaType.APPLICATION_JSON);
         Set<Entry<String, String>>  headers = newRequestHeader(
-            target.getUri().toString(),
-            authData,
+            target.getUri().getHost(),
+            authenticationDataProvider,
             previousResHeaders);
 
         headers.forEach(entry -> {
@@ -214,8 +213,8 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
 
         Map<String, String> headers = Maps.newHashMap();
 
-        if (authData.hasDataForHttp()) {
-            authData.getHttpHeaders().forEach(header ->
+        if (authenticationDataProvider.hasDataForHttp()) {
+            authenticationDataProvider.getHttpHeaders().forEach(header ->
                 headers.put(header.getKey(), header.getValue())
             );
         }
@@ -224,7 +223,7 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
         if (isRoleTokenExpired(previousRespHeaders)) {
             previousRespHeaders = null;
             saslRoleToken = null;
-            authData = getAuthData(hostName);
+            authenticationDataProvider = getAuthData(hostName);
         }
 
         // role token is not expired and OK to use.
@@ -261,14 +260,14 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
             }
             // first time init
             headers.put(SASL_HEADER_STATE, SASL_STATE_CLIENT_INIT);
-            AuthData initData = authData.authenticate(AuthData.INIT_AUTH_DATA);
+            AuthData initData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
             headers.put(SASL_AUTH_TOKEN,
                 Base64.getEncoder().encodeToString(initData.getBytes()));
         } else {
             AuthData brokerData = AuthData.of(
                 Base64.getDecoder().decode(
                     previousRespHeaders.get(SASL_AUTH_TOKEN)));
-            AuthData clientData = authData.authenticate(brokerData);
+            AuthData clientData = authenticationDataProvider.authenticate(brokerData);
 
             headers.put(SASL_STATE_SERVER, previousRespHeaders.get(SASL_STATE_SERVER));
             headers.put(SASL_HEADER_TYPE, SASL_TYPE_VALUE);
@@ -304,13 +303,14 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
                                     Map<String, String> previousResHeaders,
                                     CompletableFuture<Map<String, String>> authFuture) {
         // a new request for sasl auth
-        Builder builder = newRequestBuilder(client.target(requestUrl), authData, previousResHeaders);
+        this.authenticationDataProvider = authData;
+        Builder builder = newRequestBuilder(client.target(requestUrl), previousResHeaders);
         builder.async().get(new InvocationCallback<Response>() {
             @Override
             public void completed(Response response) {
                 if (response.getStatus() == HTTP_UNAUTHORIZED) {
                     // sasl auth on going
-                    authenticationStage(requestUrl, authData, getHeaders(response), authFuture);
+                    authenticationStage(requestUrl, authenticationDataProvider, getHeaders(response), authFuture);
                     return;
                 }
 
