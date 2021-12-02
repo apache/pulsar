@@ -24,6 +24,7 @@ import java.util.List;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
@@ -45,8 +46,13 @@ public abstract class MultiBrokerBaseTest extends MockedPulsarServiceBaseTest {
     public final void setup() throws Exception {
         super.internalSetup();
         additionalBrokersSetup();
+        pulsarResourcesSetup();
+    }
+
+    protected void pulsarResourcesSetup() throws PulsarAdminException {
         admin.tenants().createTenant("public", createDefaultTenantInfo());
-        admin.namespaces().createNamespace("public/default", getPulsar().getConfiguration().getDefaultNumberOfNamespaceBundles());
+        admin.namespaces()
+                .createNamespace("public/default", getPulsar().getConfiguration().getDefaultNumberOfNamespaceBundles());
     }
 
     protected void additionalBrokersSetup() throws Exception {
