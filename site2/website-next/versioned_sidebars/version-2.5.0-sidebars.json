@@ -281,6 +281,146 @@
           "id": "version-2.5.0/administration-upgrade"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Security",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.5.0/security-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/security-tls-transport"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/security-tls-authentication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/security-jwt"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/security-athenz"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/security-kerberos"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/security-authorization"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/security-encryption"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/security-extending"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Client Libraries",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.5.0/client-libraries-java"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/client-libraries-go"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/client-libraries-python"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/client-libraries-cpp"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/client-libraries-node"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/client-libraries-websocket"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Admin API",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.5.0/admin-api-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/admin-api-clusters"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/admin-api-tenants"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/admin-api-brokers"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/admin-api-namespaces"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/admin-api-permissions"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/admin-api-persistent-topics"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/admin-api-non-persistent-topics"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/admin-api-partitioned-topics"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/admin-api-non-partitioned-topics"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/admin-api-functions"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Adaptors",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.5.0/adaptors-kafka"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/adaptors-spark"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/adaptors-storm"
+        }
+      ]
     }
   ]
 }
