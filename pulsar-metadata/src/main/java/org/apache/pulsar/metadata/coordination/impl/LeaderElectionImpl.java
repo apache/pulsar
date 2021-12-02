@@ -111,7 +111,10 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
             } else {
                 return tryToBecomeLeader();
             }
-        });
+        }).thenCompose(leaderElectionState ->
+                // make sure that the cache contains the current leader
+                // so that getLeaderValueIfPresent works on all brokers
+                cache.get(path).thenApply(__ -> leaderElectionState));
     }
 
     private synchronized CompletableFuture<LeaderElectionState> handleExistingLeaderValue(GetResult res) {
