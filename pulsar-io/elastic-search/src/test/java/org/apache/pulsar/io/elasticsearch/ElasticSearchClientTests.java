@@ -24,7 +24,10 @@ import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.elasticsearch.testcontainers.ChaosContainer;
 import org.awaitility.Awaitility;
+import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.index.IndexRequest;
 import org.junit.AfterClass;
+import org.mockito.Mockito;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -34,6 +37,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -75,6 +80,44 @@ public class ElasticSearchClientTests {
         @Override
         public void fail() {
             failed++;
+        }
+    }
+
+    @Test
+    public void testIndexRequest() throws Exception {
+        String index = "myindex-" + UUID.randomUUID();
+        Record<GenericObject> record = Mockito.mock(Record.class);
+        String topicName = "topic-" + UUID.randomUUID();
+        when(record.getTopicName()).thenReturn(Optional.of(topicName));
+        try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
+                .setElasticSearchUrl("http://" + container.getHttpHostAddress())
+                .setIndexName(index))) {
+            IndexRequest request = client.makeIndexRequest(record, Pair.of("1", "{ \"a\":1}"));
+            assertEquals(request.index(), index);
+        }
+        try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
+                .setElasticSearchUrl("http://" + container.getHttpHostAddress()))) {
+            IndexRequest request = client.makeIndexRequest(record, Pair.of("1", "{ \"a\":1}"));
+            assertEquals(request.index(), topicName);
+        }
+    }
+
+    @Test
+    public void testDeleteRequest() throws Exception {
+        String index = "myindex-" + UUID.randomUUID();
+        Record<GenericObject> record = Mockito.mock(Record.class);
+        String topicName = "topic-" + UUID.randomUUID();
+        when(record.getTopicName()).thenReturn(Optional.of(topicName));
+        try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
+                .setElasticSearchUrl("http://" + container.getHttpHostAddress())
+                .setIndexName(index))) {
+            DeleteRequest request = client.makeDeleteRequest(record, "1");
+            assertEquals(request.index(), index);
+        }
+        try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
+                .setElasticSearchUrl("http://" + container.getHttpHostAddress()))) {
+            DeleteRequest request = client.makeDeleteRequest(record, "1");
+            assertEquals(request.index(), topicName);
         }
     }
 
