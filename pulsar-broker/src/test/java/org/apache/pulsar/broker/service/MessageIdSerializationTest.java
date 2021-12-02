@@ -21,7 +21,9 @@ package org.apache.pulsar.broker.service;
 import static org.testng.Assert.assertEquals;
 import java.io.IOException;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -49,5 +51,23 @@ public class MessageIdSerializationTest {
     @Test(expectedExceptions = IOException.class)
     void testProtobufSerializationEmpty() throws Exception {
         MessageId.fromByteArray(new byte[0]);
+    }
+
+    @Test
+    public void testMessageIdCreate() throws Exception {
+        MessageId id = new MessageIdImpl(1L, 2L, 3);
+        MessageId newId = MessageIdImpl.fromByteArray(id.toByteArray());
+        assert(newId instanceof MessageIdImpl);
+
+        BatchMessageIdImpl batchMessageId = new BatchMessageIdImpl(1L, 2L, 3, 4);
+        MessageId newBatchMessageId = MessageIdImpl.fromByteArray(batchMessageId.toByteArray());
+        assert(newBatchMessageId instanceof BatchMessageIdImpl);
+
+        TopicMessageIdImpl topicMessageId = new TopicMessageIdImpl("vv-topic-partition", "vv-topic", id);
+        MessageId newTopicMessageId = MessageIdImpl.fromByteArrayWithTopic(id.toByteArray(), topicMessageId.getTopicName());
+        assert(newTopicMessageId instanceof TopicMessageIdImpl);
+
+        MessageId newTopicMessageId2 = MessageIdImpl.fromByteArrayWithTopic(batchMessageId.toByteArray(), topicMessageId.getTopicName());
+        assert(newTopicMessageId2 instanceof TopicMessageIdImpl);
     }
 }
