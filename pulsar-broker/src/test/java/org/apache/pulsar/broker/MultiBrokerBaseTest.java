@@ -110,7 +110,7 @@ public abstract class MultiBrokerBaseTest extends MockedPulsarServiceBaseTest {
         if (additionalBrokerClients != null) {
             for (PulsarClient additionalBrokerClient : additionalBrokerClients) {
                 try {
-                    additionalBrokerClient.close();
+                    additionalBrokerClient.shutdown();
                 } catch (PulsarClientException e) {
                     // ignore
                 }
@@ -120,6 +120,7 @@ public abstract class MultiBrokerBaseTest extends MockedPulsarServiceBaseTest {
         if (additionalBrokers != null) {
             for (PulsarService pulsarService : additionalBrokers) {
                 try {
+                    pulsarService.getConfiguration().setBrokerShutdownTimeoutMs(0L);
                     pulsarService.close();
                 } catch (PulsarServerException e) {
                     // ignore
