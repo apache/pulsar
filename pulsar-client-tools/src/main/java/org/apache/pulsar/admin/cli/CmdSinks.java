@@ -38,7 +38,13 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -340,6 +346,8 @@ public class CmdSinks extends CmdBase {
         protected Long negativeAckRedeliveryDelayMs;
         @Parameter(names = "--custom-runtime-options", description = "A string that encodes options to customize the runtime, see docs for configured runtime for details")
         protected String customRuntimeOptions;
+        @Parameter(names = "--secrets", description = "The map of secretName to an object that encapsulates how the secret is fetched by the underlying secrets provider")
+        protected String secretsString;
 
         protected SinkConfig sinkConfig;
 
@@ -487,6 +495,15 @@ public class CmdSinks extends CmdBase {
 
             if (customRuntimeOptions != null) {
                 sinkConfig.setCustomRuntimeOptions(customRuntimeOptions);
+            }
+
+            if (secretsString != null) {
+                Type type = new TypeToken<Map<String, Object>>() {}.getType();
+                Map<String, Object> secretsMap = new Gson().fromJson(secretsString, type);
+                if (secretsMap == null) {
+                    secretsMap = Collections.emptyMap();
+                }
+                sinkConfig.setSecrets(secretsMap);
             }
 
             // check if configs are valid
