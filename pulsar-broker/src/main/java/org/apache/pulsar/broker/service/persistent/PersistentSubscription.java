@@ -48,6 +48,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
@@ -69,7 +70,6 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
-import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.api.proto.TxnAction;
@@ -158,7 +158,7 @@ public class PersistentSubscription implements Subscription {
         this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor, this);
         this.setReplicated(replicated);
-        this.subscriptionProperties = subscriptionProperties == null
+        this.subscriptionProperties = MapUtils.isEmpty(subscriptionProperties)
                 ? new HashMap<>() : Collections.unmodifiableMap(subscriptionProperties);
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
                 && !checkTopicIsEventsNames(TopicName.get(topicName))) {
@@ -269,10 +269,9 @@ public class PersistentSubscription implements Subscription {
                             break;
                         case Key_Shared:
                             KeySharedMeta ksm = consumer.getKeySharedMeta();
-                            KeySharedMode keySharedMode = ksm.getKeySharedMode();
                             if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared
-                                    || ((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher).getKeySharedMode()
-                                    != keySharedMode) {
+                                    || !((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher)
+                                            .hasSameKeySharedPolicy(ksm)) {
                                 previousDispatcher = dispatcher;
                                 dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
                                         topic.getBrokerService().getPulsar().getConfiguration(), ksm);
@@ -1078,6 +1077,7 @@ public class PersistentSubscription implements Subscription {
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
         subStats.totalMsgExpired = expiryMonitor.getTotalMessageExpired();
         subStats.isReplicated = isReplicated();
+        subStats.subscriptionProperties = subscriptionProperties;
         subStats.isDurable = cursor.isDurable();
         if (getType() == SubType.Key_Shared && dispatcher instanceof PersistentStickyKeyDispatcherMultipleConsumers) {
             PersistentStickyKeyDispatcherMultipleConsumers keySharedDispatcher =

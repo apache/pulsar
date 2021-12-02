@@ -254,16 +254,27 @@ public class ElasticSearchClient implements AutoCloseable {
         }
     }
 
+    IndexRequest makeIndexRequest(Record<GenericObject> record, Pair<String, String> idAndDoc) throws IOException {
+        IndexRequest indexRequest = Requests.indexRequest(indexName(record.getTopicName()));
+        if (!Strings.isNullOrEmpty(idAndDoc.getLeft()))
+            indexRequest.id(idAndDoc.getLeft());
+        indexRequest.type(config.getTypeName());
+        indexRequest.source(idAndDoc.getRight(), XContentType.JSON);
+        return indexRequest;
+    }
+
+    DeleteRequest makeDeleteRequest(Record<GenericObject> record, String id) throws IOException {
+        DeleteRequest deleteRequest = Requests.deleteRequest(indexName(record.getTopicName()));
+        deleteRequest.id(id);
+        deleteRequest.type(config.getTypeName());
+        return deleteRequest;
+    }
+
     public void bulkIndex(Record record, Pair<String, String> idAndDoc) throws Exception {
         try {
             checkNotFailed();
             checkIndexExists(record.getTopicName());
-            IndexRequest indexRequest = Requests.indexRequest(config.getIndexName());
-            if (!Strings.isNullOrEmpty(idAndDoc.getLeft()))
-                indexRequest.id(idAndDoc.getLeft());
-            indexRequest.type(config.getTypeName());
-            indexRequest.source(idAndDoc.getRight(), XContentType.JSON);
-
+            IndexRequest indexRequest = makeIndexRequest(record, idAndDoc);
             records.put(indexRequest, record);
             bulkProcessor.add(indexRequest);
         } catch(Exception e) {
@@ -284,12 +295,7 @@ public class ElasticSearchClient implements AutoCloseable {
         try {
             checkNotFailed();
             checkIndexExists(record.getTopicName());
-            IndexRequest indexRequest = Requests.indexRequest(config.getIndexName());
-            if (!Strings.isNullOrEmpty(idAndDoc.getLeft()))
-                indexRequest.id(idAndDoc.getLeft());
-            indexRequest.type(config.getTypeName());
-            indexRequest.source(idAndDoc.getRight(), XContentType.JSON);
-            IndexResponse indexResponse = client.index(indexRequest, RequestOptions.DEFAULT);
+            IndexResponse indexResponse = client.index(makeIndexRequest(record, idAndDoc), RequestOptions.DEFAULT);
             if (indexResponse.getResult().equals(DocWriteResponse.Result.CREATED) ||
                     indexResponse.getResult().equals(DocWriteResponse.Result.UPDATED)) {
                 record.ack();
@@ -309,10 +315,7 @@ public class ElasticSearchClient implements AutoCloseable {
         try {
             checkNotFailed();
             checkIndexExists(record.getTopicName());
-            DeleteRequest deleteRequest = Requests.deleteRequest(config.getIndexName());
-            deleteRequest.id(id);
-            deleteRequest.type(config.getTypeName());
-
+            DeleteRequest deleteRequest = makeDeleteRequest(record, id);
             records.put(deleteRequest, record);
             bulkProcessor.add(deleteRequest);
         } catch(Exception e) {
@@ -333,10 +336,7 @@ public class ElasticSearchClient implements AutoCloseable {
         try {
             checkNotFailed();
             checkIndexExists(record.getTopicName());
-            DeleteRequest deleteRequest = Requests.deleteRequest(config.getIndexName());
-            deleteRequest.id(id);
-            deleteRequest.type(config.getTypeName());
-            DeleteResponse deleteResponse = client.delete(deleteRequest, RequestOptions.DEFAULT);
+            DeleteResponse deleteResponse = client.delete(makeDeleteRequest(record, id), RequestOptions.DEFAULT);
             log.debug("delete result=" + deleteResponse.getResult());
             if (deleteResponse.getResult().equals(DocWriteResponse.Result.DELETED) ||
                     deleteResponse.getResult().equals(DocWriteResponse.Result.NOT_FOUND)) {

@@ -22,9 +22,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
@@ -52,16 +49,7 @@ public class WorkerImpl extends BaseResource implements Worker {
 
     @Override
     public List<WorkerFunctionInstanceStats> getFunctionsStats() throws PulsarAdminException {
-        try {
-            return getFunctionsStatsAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getFunctionsStatsAsync());
     }
 
     @Override
@@ -91,16 +79,7 @@ public class WorkerImpl extends BaseResource implements Worker {
 
     @Override
     public Collection<Metrics> getMetrics() throws PulsarAdminException {
-        try {
-            return getMetricsAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getMetricsAsync());
     }
 
     @Override
@@ -129,16 +108,7 @@ public class WorkerImpl extends BaseResource implements Worker {
 
     @Override
     public List<WorkerInfo> getCluster() throws PulsarAdminException {
-        try {
-            return getClusterAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getClusterAsync());
     }
 
     @Override
@@ -167,16 +137,7 @@ public class WorkerImpl extends BaseResource implements Worker {
 
     @Override
     public WorkerInfo getClusterLeader() throws PulsarAdminException {
-        try {
-            return getClusterLeaderAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getClusterLeaderAsync());
     }
 
     @Override
@@ -204,16 +165,7 @@ public class WorkerImpl extends BaseResource implements Worker {
 
     @Override
     public Map<String, Collection<String>> getAssignments() throws PulsarAdminException {
-        try {
-            return getAssignmentsAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getAssignmentsAsync());
     }
 
     @Override

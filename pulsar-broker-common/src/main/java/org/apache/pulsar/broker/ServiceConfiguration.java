@@ -30,6 +30,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.client.api.DigestType;
@@ -323,6 +324,36 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Amount of seconds to timeout when loading a topic. In situations with many geo-replicated clusters, this may need raised."
     )
     private long topicLoadTimeoutSeconds = 60;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Whether we should enable metadata operations batching"
+    )
+    private boolean metadataStoreBatchingEnabled = true;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Maximum delay to impose on batching grouping"
+    )
+    private int metadataStoreBatchingMaxDelayMillis = 5;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Maximum number of operations to include in a singular batch"
+    )
+    private int metadataStoreBatchingMaxOperations = 1_000;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Maximum size of a batch"
+    )
+    private int metadataStoreBatchingMaxSizeKb = 128;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Configuration file path for local metadata store. It's supported by RocksdbMetadataStore for now."
+    )
+    private String metadataStoreConfigPath = null;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -830,6 +861,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean preciseDispatcherFlowControl = false;
 
     @FieldContext(
+         dynamic = true,
+         category = CATEGORY_SERVER,
+         doc = " Class name of pluggable entry filter that decides whether the entry needs to be filtered."
+                 + "You can use this class to decide which entries can be sent to consumers."
+                 + "Multiple names need to be separated by commas."
+    )
+    private List<String> entryFilterNames = new ArrayList<>();
+
+    @FieldContext(
+         dynamic = true,
+         category = CATEGORY_SERVER,
+         doc = " The directory for all the entry filter implementations."
+    )
+    private String entryFiltersDirectory = "";
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Whether to use streaming read dispatcher. Currently is in preview and can be changed " +
                 "in subsequent release."
@@ -985,12 +1032,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Check between intervals to see if consumed ledgers need to be trimmed"
     )
     private int retentionCheckIntervalInSeconds = 120;
-
-    @FieldContext(
-            category = CATEGORY_SERVER,
-            doc = "Check between intervals to see if max message size of topic policy has updated. default is 60s"
-    )
-    private int maxMessageSizeCheckIntervalInSeconds = 60;
 
     @FieldContext(
             category = CATEGORY_SERVER,
@@ -1774,6 +1815,25 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int loadBalancerBrokerThresholdShedderPercentage = 10;
 
     @FieldContext(
+        dynamic = true,
+        category = CATEGORY_LOAD_BALANCER,
+        doc = "Message-rate percentage threshold between highest and least loaded brokers for "
+                + "uniform load shedding. (eg: broker1 with 50K msgRate and broker2 with 30K msgRate "
+                + "will have 66% msgRate difference and load balancer can unload bundles from broker-1 "
+                + "to broker-2)"
+    )
+    private double loadBalancerMsgRateDifferenceShedderThreshold = 50;
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_LOAD_BALANCER,
+        doc = "Message-throughput threshold between highest and least loaded brokers for "
+                + "uniform load shedding. (eg: broker1 with 450MB msgRate and broker2 with 100MB msgRate "
+                + "will have 4.5 times msgThroughout difference and load balancer can unload bundles "
+                + "from broker-1 to broker-2)"
+    )
+    private double loadBalancerMsgThroughputMultiplierDifferenceShedderThreshold = 4;
+
+    @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
             doc = "Resource history Usage Percentage When adding new resource usage info"
@@ -1895,6 +1955,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Option to override the auto-detected network interfaces max speed"
     )
     private Double loadBalancerOverrideBrokerNicSpeedGbps;
+    @FieldContext(
+        category = CATEGORY_LOAD_BALANCER,
+        doc = "Time to wait for the unloading of a namespace bundle"
+    )
+    private long namespaceBundleUnloadingTimeoutMs = 60000;
 
     /**** --- Replication --- ****/
     @FieldContext(

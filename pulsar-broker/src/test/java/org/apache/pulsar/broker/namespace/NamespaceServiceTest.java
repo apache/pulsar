@@ -381,7 +381,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         pulsar.getLocalMetadataStore().put(path,
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(ld),
                 Optional.empty(),
-                EnumSet.of(CreateOption.Ephemeral));
+                EnumSet.of(CreateOption.Ephemeral)).join();
 
         LookupResult noListener = pulsar.getNamespaceService().createLookupResult(candidateBroker, false, null).get();
         LookupResult withListener = pulsar.getNamespaceService().createLookupResult(candidateBroker, false, listener).get();

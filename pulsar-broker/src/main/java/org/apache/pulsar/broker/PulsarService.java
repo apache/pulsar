@@ -167,8 +167,6 @@ import org.apache.pulsar.websocket.WebSocketPingPongServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
 import org.apache.zookeeper.ZooKeeper;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
@@ -213,7 +211,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private final AtomicReference<LoadManager> loadManager = new AtomicReference<>();
     private PulsarAdmin adminClient = null;
     private PulsarClient client = null;
-    private ZooKeeperClientFactory zkClientFactory = null;
     private final String bindAddress;
     /**
      * The host component of the broker's canonical name.
@@ -330,6 +327,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 MetadataStoreConfig.builder()
                         .sessionTimeoutMillis((int) config.getZooKeeperSessionTimeoutMillis())
                         .allowReadOnlyOperations(false)
+                        .configFilePath(config.getMetadataStoreConfigPath())
+                        .batchingEnabled(config.isMetadataStoreBatchingEnabled())
+                        .batchingMaxDelayMillis(config.getMetadataStoreBatchingMaxDelayMillis())
+                        .batchingMaxOperations(config.getMetadataStoreBatchingMaxOperations())
+                        .batchingMaxSizeKb(config.getMetadataStoreBatchingMaxSizeKb())
                         .build());
     }
 
@@ -911,6 +913,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 MetadataStoreConfig.builder()
                         .sessionTimeoutMillis((int) config.getZooKeeperSessionTimeoutMillis())
                         .allowReadOnlyOperations(false)
+                        .configFilePath(config.getMetadataStoreConfigPath())
+                        .batchingEnabled(config.isMetadataStoreBatchingEnabled())
+                        .batchingMaxDelayMillis(config.getMetadataStoreBatchingMaxDelayMillis())
+                        .batchingMaxOperations(config.getMetadataStoreBatchingMaxOperations())
+                        .batchingMaxSizeKb(config.getMetadataStoreBatchingMaxSizeKb())
                         .build());
     }
 
@@ -1231,9 +1238,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private SchemaStorage createAndStartSchemaStorage() throws Exception {
         final Class<?> storageClass = Class.forName(config.getSchemaRegistryStorageClassName());
         Object factoryInstance = storageClass.getDeclaredConstructor().newInstance();
-        Method createMethod = storageClass.getMethod("create", PulsarService.class, ZooKeeper.class);
-        SchemaStorage schemaStorage = (SchemaStorage) createMethod.invoke(factoryInstance, this,
-                getZkClient());
+        Method createMethod = storageClass.getMethod("create", PulsarService.class);
+        SchemaStorage schemaStorage = (SchemaStorage) createMethod.invoke(factoryInstance, this);
         schemaStorage.start();
         return schemaStorage;
     }
@@ -1256,14 +1262,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     public OrderedExecutor getOrderedExecutor() {
         return orderedExecutor;
-    }
-
-    public ZooKeeperClientFactory getZooKeeperClientFactory() {
-        if (zkClientFactory == null) {
-            zkClientFactory = new ZookeeperBkClientFactoryImpl(orderedExecutor);
-        }
-        // Return default factory
-        return zkClientFactory;
     }
 
     public BookKeeperClientFactory newBookKeeperClientFactory() {

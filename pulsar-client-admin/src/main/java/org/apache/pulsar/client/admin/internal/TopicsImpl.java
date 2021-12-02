@@ -19,8 +19,6 @@
 package org.apache.pulsar.client.admin.internal;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.io.InputStream;
@@ -31,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -1145,7 +1144,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages) {
         checkArgument(numMessages > 0);
         CompletableFuture<List<Message<byte[]>>> future = new CompletableFuture<List<Message<byte[]>>>();
-        peekMessagesAsync(topic, subName, numMessages, Lists.newArrayList(), future, 1);
+        peekMessagesAsync(topic, subName, numMessages, new ArrayList<>(), future, 1);
         return future;
     }
 
@@ -1615,7 +1614,7 @@ public class TopicsImpl extends BaseResource implements Topics {
             byte[] data = new byte[stream.available()];
             stream.read(data);
 
-            Map<String, String> properties = Maps.newTreeMap();
+            Map<String, String> properties = new TreeMap<>();
             MultivaluedMap<String, Object> headers = response.getHeaders();
             Object tmp = headers.getFirst(PUBLISH_TIME);
             if (tmp != null) {
@@ -3635,6 +3634,28 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public void removeSubscriptionTypesEnabled(String topic) throws PulsarAdminException {
+        try {
+            removeSubscriptionTypesEnabledAsync(topic)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeSubscriptionTypesEnabledAsync(String topic) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "subscriptionTypesEnabled");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
     public DispatchRate getReplicatorDispatchRate(String topic) throws PulsarAdminException {
         return getReplicatorDispatchRate(topic, false);
     }
@@ -3830,6 +3851,41 @@ public class TopicsImpl extends BaseResource implements Topics {
         String encodedSubName = Codec.encode(subName);
         WebTarget path = topicPath(topicName, "subscription", encodedSubName, "replicatedSubscriptionStatus");
         return asyncPostRequest(path, Entity.entity(enabled, MediaType.APPLICATION_JSON));
+    }
+
+    public Map<String, Boolean> getReplicatedSubscriptionStatus(String topic,
+                                                                String subName) throws PulsarAdminException {
+        try {
+            return getReplicatedSubscriptionStatusAsync(topic, subName)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    public CompletableFuture<Map<String, Boolean>> getReplicatedSubscriptionStatusAsync(String topic, String subName) {
+        TopicName topicName = validateTopic(topic);
+        String encodedSubName = Codec.encode(subName);
+        WebTarget path = topicPath(topicName, "subscription", encodedSubName, "replicatedSubscriptionStatus");
+        final CompletableFuture<Map<String, Boolean>> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Map<String, Boolean>>() {
+                    @Override
+                    public void completed(Map<String, Boolean> subscriptionStatus) {
+                        future.complete(subscriptionStatus);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
     }
 
     @Override

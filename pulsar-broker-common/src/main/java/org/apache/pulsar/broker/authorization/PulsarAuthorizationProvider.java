@@ -533,6 +533,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                 break;
             case GET_TOPICS:
             case UNSUBSCRIBE:
+            case CLEAR_BACKLOG:
                 isAuthorizedFuture = allowConsumeOpsAsync(namespaceName, role, authData);
                 break;
             default:
@@ -585,6 +586,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             case RESET_CURSOR:
             case GET_BACKLOG_SIZE:
             case SET_REPLICATED_SUBSCRIPTION_STATUS:
+            case GET_REPLICATED_SUBSCRIPTION_STATUS:
                 isAuthorizedFuture = canConsumeAsync(topicName, role, authData, authData.getSubscription());
                 break;
             case TERMINATE:

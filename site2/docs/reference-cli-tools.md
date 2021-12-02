@@ -15,8 +15,12 @@ All Pulsar command-line tools can be run from the `bin` directory of your [insta
 * [`bookkeeper`](#bookkeeper)
 * [`broker-tool`](#broker-tool)
 
-> ### Getting help
-> You can get help for any CLI tool, command, or subcommand using the `--help` flag, or `-h` for short. Here's an example:
+> **Important** 
+>
+> - This page only shows **some frequently used commands**. For the latest information about `pulsar`, `pulsar-client`, and `pulsar-perf`, including commands, flags, descriptions, and more information, see [Pulsar tools](https://pulsar.apache.org/tools/).
+>  
+> - You can get help for any CLI tool, command, or subcommand using the `--help` flag, or `-h` for short. Here's an example:
+> 
 > ```shell
 > $ bin/pulsar broker --help
 > ```
@@ -42,6 +46,7 @@ Commands:
 * `websocket`
 * `zookeeper`
 * `zookeeper-shell`
+* `autorecovery`
 
 Example:
 ```bash
@@ -266,6 +271,21 @@ Options
 |`-c`, `--conf`|Configuration file for ZooKeeper||
 |`-server`|Configuration zk address, eg: `127.0.0.1:2181`||
 
+### `autorecovery`
+
+Runs an auto-recovery service.
+
+Usage
+
+```bash
+$ pulsar autorecovery options
+```
+
+Options
+
+|Flag|Description|Default|
+|---|---|---|
+|`-c`, `--conf`|Configuration for the autorecovery|N/A|
 
 
 ## `pulsar-client`

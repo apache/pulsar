@@ -1,5 +1,12 @@
 module.exports = {
   articles: [
+  {
+      forum: 'Pedro Silvestre',
+      forum_link: 'https://www.doc.ic.ac.uk/~pms20/',
+      date: 'Oct 2021',
+      title: "On the Internals of Stream Processing Systems",
+      link: 'https://www.doc.ic.ac.uk/~pms20/post/stream-processing-thread-model/'
+    },
     {
       forum: 'RT Instights',
       forum_link: 'https://www.rtinsights.com/',
@@ -57,6 +64,31 @@ module.exports = {
    * 
    ******************************/ 
   presentations: [
+   {
+      forum: 'P99Conf',
+      forum_link: 'https://www.p99conf.io/',
+      presenter: 'Karthik Ramasamy',
+      date: 'Oct 2021',
+      title: "Scaling Apache Pulsar to 10 PB/day",
+      link: 'https://www.youtube.com/watch?v=x76sX4BU2mA'
+    },
+   {
+      forum: 'Apache Pulsar Summit',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Many',
+      date: 'Oct 2021',
+      title: "Apache Pulsar Summit Europe 2021 Playlist",
+      link: 'https://www.youtube.com/playlist?list=PLqRma1oIkcWh7zes7mNeTUCr2iU-2C1jB'
+    },
+
+    {
+      forum: 'ApacheCon @Home 2021',
+      forum_link: 'https://www.apachecon.com/acah2021/',
+      presenter: 'Many',
+      date: 'Sept 2021',
+      title: "Apache Pulsar Playlist",
+      link: 'https://www.youtube.com/watch?v=igwxegspSGw&list=PLIt9PL1-3shvC0dGjaPyd0Rqfg1_PZLvS'
+    },
    {
       forum: 'Apache Pulsar Neighborhood YouTube',
       forum_link: 'https://www.youtube.com/apachepulsarneighborhood',

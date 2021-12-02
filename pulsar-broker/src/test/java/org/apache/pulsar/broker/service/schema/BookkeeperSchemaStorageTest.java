@@ -63,7 +63,7 @@ public class BookkeeperSchemaStorageTest {
 
         PulsarService mockPulsarService = mock(PulsarService.class);
         when(mockPulsarService.getLocalMetadataStore()).thenReturn(mock(MetadataStoreExtended.class));
-        BookkeeperSchemaStorage schemaStorage = new BookkeeperSchemaStorage(mockPulsarService, mock(ZooKeeper.class));
+        BookkeeperSchemaStorage schemaStorage = new BookkeeperSchemaStorage(mockPulsarService);
         assertEquals(new LongSchemaVersion(version), schemaStorage.versionFromBytes(versionBytesPre240));
         assertEquals(new LongSchemaVersion(version), schemaStorage.versionFromBytes(versionBytesPost240));
     }

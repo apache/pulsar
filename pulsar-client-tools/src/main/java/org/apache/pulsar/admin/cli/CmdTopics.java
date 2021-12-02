@@ -198,6 +198,7 @@ public class CmdTopics extends CmdBase {
 
         jcommander.addCommand("set-subscription-types-enabled", new SetSubscriptionTypesEnabled());
         jcommander.addCommand("get-subscription-types-enabled", new GetSubscriptionTypesEnabled());
+        jcommander.addCommand("remove-subscription-types-enabled", new RemoveSubscriptionTypesEnabled());
 
         //deprecated commands
         jcommander.addCommand("get-maxProducers", new GetMaxProducers());
@@ -233,6 +234,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("remove-subscribe-rate", new RemoveSubscribeRate());
 
         jcommander.addCommand("set-replicated-subscription-status", new SetReplicatedSubscriptionStatus());
+        jcommander.addCommand("get-replicated-subscription-status", new GetReplicatedSubscriptionStatus());
         jcommander.addCommand("get-backlog-size", new GetBacklogSizeByMessageId());
 
         jcommander.addCommand("get-replication-clusters", new GetReplicationClusters());
@@ -1141,8 +1143,8 @@ public class CmdTopics extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            long sizeThreshold = validateSizeString(sizeThresholdStr);
             String persistentTopic = validatePersistentTopic(params);
+            long sizeThreshold = validateSizeString(sizeThresholdStr);
 
             PersistentTopicInternalStats stats = getTopics().getInternalStats(persistentTopic, false);
             if (stats.ledgers.size() < 1) {
@@ -1246,13 +1248,18 @@ public class CmdTopics extends CmdBase {
                 + "Valid options are: [producer_request_hold, producer_exception, consumer_backlog_eviction]", required = true)
         private String policyStr;
 
-        @Parameter(names = {"-t", "--type"}, description = "Backlog quota type to set")
-        private String backlogQuotaType = BacklogQuota.BacklogQuotaType.destination_storage.name();
+        @Parameter(names = {"-t", "--type"}, description = "Backlog quota type to set. Valid options are: " +
+                "destination_storage and message_age. " + 
+                "destination_storage limits backlog by size (in bytes). " +
+                "message_age limits backlog by time, that is, message timestamp (broker or publish timestamp). " +
+                "You can set size or time to control the backlog, or combine them together to control the backlog. ")
+        private String backlogQuotaTypeStr = BacklogQuota.BacklogQuotaType.destination_storage.name();
 
         @Override
         void run() throws PulsarAdminException {
             BacklogQuota.RetentionPolicy policy;
             long limit;
+            BacklogQuota.BacklogQuotaType backlogQuotaType;
 
             try {
                 policy = BacklogQuota.RetentionPolicy.valueOf(policyStr);
@@ -1263,13 +1270,20 @@ public class CmdTopics extends CmdBase {
 
             limit = validateSizeString(limitStr);
 
+            try {
+                backlogQuotaType = BacklogQuota.BacklogQuotaType.valueOf(backlogQuotaTypeStr);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException(String.format("Invalid backlog quota type '%s'. Valid options are: %s",
+                        backlogQuotaTypeStr, Arrays.toString(BacklogQuota.BacklogQuotaType.values())));
+            }
+
             String persistentTopic = validatePersistentTopic(params);
-            getTopics().setBacklogQuota(persistentTopic, BacklogQuota.builder()
-                    .limitSize(limit)
-                    .limitTime(limitTime)
-                    .retentionPolicy(policy)
-                    .build(),
-                    BacklogQuota.BacklogQuotaType.valueOf(backlogQuotaType));
+            getTopics().setBacklogQuota(persistentTopic,
+                    BacklogQuota.builder().limitSize(limit)
+                            .limitTime(limitTime)
+                            .retentionPolicy(policy)
+                            .build(),
+                    backlogQuotaType);
         }
     }
 
@@ -1984,6 +1998,18 @@ public class CmdTopics extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Remove subscription types enabled for a topic")
+    private class RemoveSubscriptionTypesEnabled extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopics().removeSubscriptionTypesEnabled(persistentTopic);
+        }
+    }
+
     @Parameters(commandDescription = "Get compaction threshold for a topic")
     private class GetCompactionThreshold extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
@@ -2008,12 +2034,13 @@ public class CmdTopics extends CmdBase {
             description = "Maximum number of bytes in a topic backlog before compaction is triggered "
                 + "(eg: 10M, 16G, 3T). 0 disables automatic compaction",
             required = true)
-        private String threshold = "0";
+        private String thresholdStr = "0";
 
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getTopics().setCompactionThreshold(persistentTopic, validateSizeString(threshold));
+            long threshold = validateSizeString(thresholdStr);
+            getTopics().setCompactionThreshold(persistentTopic, threshold);
         }
     }
 
@@ -2539,6 +2566,22 @@ public class CmdTopics extends CmdBase {
                 throw new ParameterException("Need to specify either --enable or --disable");
             }
             getTopics().setReplicatedSubscriptionStatus(persistentTopic, subName, enable);
+        }
+    }
+
+    @Parameters(commandDescription = "Get replicated subscription status on a topic")
+    private class GetReplicatedSubscriptionStatus extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"-s",
+                "--subscription"}, description = "Subscription name", required = true)
+        private String subName;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(getTopics().getReplicatedSubscriptionStatus(persistentTopic, subName));
         }
     }
 
