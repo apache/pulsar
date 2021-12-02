@@ -411,7 +411,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         byte[] data = new byte[]{0};
         String path = newKey();
         int maxValue = 100;
-        store.put(path, data, Optional.of(-1L));
+        store.put(path, data, Optional.of(-1L)).join();
 
         AtomicInteger successWrites = new AtomicInteger(0);
         Runnable task = new Runnable() {

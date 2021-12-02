@@ -333,7 +333,9 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
 
     @Override
     public CompletableFuture<Optional<GetResult>> storeGet(String path) {
-        log.info("getChildrenFromStore.path={},instanceId={}", path, instanceId);
+        if (log.isDebugEnabled()) {
+            log.debug("getFromStore.path={},instanceId={}", path, instanceId);
+        }
         try {
             dbStateLock.readLock().lock();
             if (state == State.CLOSED) {
@@ -366,7 +368,9 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
 
     @Override
     protected CompletableFuture<List<String>> getChildrenFromStore(String path) {
-        log.info("getChildrenFromStore.path={},instanceId={}", path, instanceId);
+        if (log.isDebugEnabled()) {
+            log.debug("getChildrenFromStore.path={},instanceId={}", path, instanceId);
+        }
         try {
             dbStateLock.readLock().lock();
             if (state == State.CLOSED) {
@@ -409,7 +413,9 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
 
     @Override
     protected CompletableFuture<Boolean> existsFromStore(String path) {
-        log.info("existsFromStore.path={},instanceId={}", path, instanceId);
+        if (log.isDebugEnabled()) {
+            log.debug("existsFromStore.path={},instanceId={}", path, instanceId);
+        }
         try {
             dbStateLock.readLock().lock();
             if (state == State.CLOSED) {
@@ -432,7 +438,9 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
 
     @Override
     protected CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion) {
-        log.info("storeDelete.path={},instanceId={}", path, instanceId);
+        if (log.isDebugEnabled()) {
+            log.debug("storeDelete.path={},instanceId={}", path, instanceId);
+        }
         try {
             dbStateLock.readLock().lock();
             if (state == State.CLOSED) {
@@ -466,7 +474,9 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     @Override
     protected CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> expectedVersion,
                                                EnumSet<CreateOption> options) {
-        log.info("storePut.path={},instanceId={}", path, instanceId);
+        if (log.isDebugEnabled()) {
+            log.debug("storePut.path={},instanceId={}", path, instanceId);
+        }
         try {
             dbStateLock.readLock().lock();
             if (state == State.CLOSED) {
