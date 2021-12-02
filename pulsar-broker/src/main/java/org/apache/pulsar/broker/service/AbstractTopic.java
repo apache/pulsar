@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import java.util.Arrays;
 import java.util.List;
@@ -150,6 +149,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     protected void updateTopicPolicy(TopicPolicies data) {
         topicPolicies.getMaxSubscriptionsPerTopic().updateTopicValue(data.getMaxSubscriptionsPerTopic());
         topicPolicies.getInactiveTopicPolicies().updateTopicValue(data.getInactiveTopicPolicies());
+        topicPolicies.getDeduplicationEnabled().updateTopicValue(data.getDeduplicationEnabled());
         Arrays.stream(BacklogQuota.BacklogQuotaType.values()).forEach(type ->
                 this.topicPolicies.getBackLogQuotaMap().get(type).updateTopicValue(
                         data.getBackLogQuotaMap() == null ? null : data.getBackLogQuotaMap().get(type.toString())));
@@ -165,6 +165,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         }
         topicPolicies.getMaxSubscriptionsPerTopic().updateNamespaceValue(namespacePolicies.max_subscriptions_per_topic);
         topicPolicies.getInactiveTopicPolicies().updateNamespaceValue(namespacePolicies.inactive_topic_policies);
+        topicPolicies.getDeduplicationEnabled().updateNamespaceValue(namespacePolicies.deduplicationEnabled);
         Arrays.stream(BacklogQuota.BacklogQuotaType.values()).forEach(
                 type -> this.topicPolicies.getBackLogQuotaMap().get(type)
                         .updateNamespaceValue(MapUtils.getObject(namespacePolicies.backlog_quota_map, type)));
@@ -178,7 +179,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                 config.isBrokerDeleteInactiveTopicsEnabled()));
 
         topicPolicies.getMaxSubscriptionsPerTopic().updateBrokerValue(config.getMaxSubscriptionsPerTopic());
-
+        topicPolicies.getDeduplicationEnabled().updateBrokerValue(config.isBrokerDeduplicationEnabled());
         //init backlogQuota
         topicPolicies.getBackLogQuotaMap()
                 .get(BacklogQuota.BacklogQuotaType.destination_storage)
@@ -991,7 +992,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         }
     }
 
-    @VisibleForTesting
     public HierarchyTopicPolicies getHierarchyTopicPolicies() {
         return topicPolicies;
     }
