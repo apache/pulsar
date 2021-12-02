@@ -41,7 +41,7 @@ public abstract class MultiBrokerBaseTest extends MockedPulsarServiceBaseTest {
         return 2;
     }
 
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     @Override
     public final void setup() throws Exception {
         super.internalSetup();
