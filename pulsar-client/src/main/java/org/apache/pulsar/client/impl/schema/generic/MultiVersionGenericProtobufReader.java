@@ -31,6 +31,7 @@ import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 
 @Slf4j
 public class MultiVersionGenericProtobufReader extends AbstractMultiVersionReader<GenericRecord>
@@ -75,7 +76,7 @@ public class MultiVersionGenericProtobufReader extends AbstractMultiVersionReade
      */
     protected static Descriptors.Descriptor parseAvroBaseSchemaToProtobuf(SchemaInfo schemaInfo) {
         Schema.Parser parser = new Schema.Parser();
-        Schema schema = parser.parse(new String(schemaInfo.getSchema()));
+        Schema schema = parser.parse(new String(schemaInfo.getSchema(), StandardCharsets.UTF_8));
         Object pojo = ProtobufData.get().newRecord(null, schema);
         try {
             Method getDescriptorForType = pojo.getClass().getMethod("getDescriptorForType");
