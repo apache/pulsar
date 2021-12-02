@@ -82,8 +82,18 @@ public class BookKeeperPackagesStorage implements PackagesStorage {
     }
 
     private URI initializeDlogNamespace() throws IOException {
-        BKDLConfig bkdlConfig = new BKDLConfig(configuration.getZookeeperServers(),
-            configuration.getPackagesManagementLedgerRootPath());
+        String bookkeeperMetadataServiceUri = configuration.getProperty("bookkeeperMetadataServiceUri");
+        String ledgersRootPath;
+        String ledgersStoreServers;
+        if (bookkeeperMetadataServiceUri == null) {
+            ledgersRootPath = configuration.getPackagesManagementLedgerRootPath();
+            ledgersStoreServers = configuration.getZookeeperServers();
+        } else {
+            URI metadataServiceUri = URI.create(bookkeeperMetadataServiceUri);
+            ledgersStoreServers = metadataServiceUri.getAuthority().replace(";", ",");
+            ledgersRootPath = metadataServiceUri.getPath();
+        }
+        BKDLConfig bkdlConfig = new BKDLConfig(ledgersStoreServers, ledgersRootPath);
         DLMetadata dlMetadata = DLMetadata.create(bkdlConfig);
         URI dlogURI = URI.create(String.format("distributedlog://%s/pulsar/packages",
             configuration.getZookeeperServers()));
