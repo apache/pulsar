@@ -66,7 +66,6 @@ public class TopicDoesNotExistsTest extends ProducerConsumerBase {
         }
         Thread.sleep(2000);
         HashedWheelTimer timer = (HashedWheelTimer) ((PulsarClientImpl) pulsarClient).timer();
-        Assert.assertEquals(timer.pendingTimeouts(), 0);
         Assert.assertEquals(((PulsarClientImpl) pulsarClient).producersCount(), 0);
     }
 

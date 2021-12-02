@@ -113,12 +113,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             final String topicPartitionName = "non-persistent://public/default/issue-9173-partition-0";
 
             // Then error when subscribe to a partition of a non-persistent topic that does not exist
-            try {
-                pulsarClient.newConsumer().topic(topicPartitionName).subscriptionName("sub-issue-9173").subscribe();
-                Assert.fail("Should failed due to topic not exist");
-            } catch (Exception e) {
-                assertTrue(e instanceof PulsarClientException.NotFoundException);
-            }
+            assertThrows(PulsarClientException.NotFoundException.class,
+                    () -> pulsarClient.newConsumer().topic(topicPartitionName).subscriptionName("sub-issue-9173").subscribe());
 
             // Then error when produce to a partition of a non-persistent topic that does not exist
             try {
