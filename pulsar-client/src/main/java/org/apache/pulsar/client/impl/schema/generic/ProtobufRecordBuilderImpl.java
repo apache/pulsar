@@ -24,13 +24,13 @@ import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 
-public class ProtobufRecordBuilder implements GenericRecordBuilder {
+public class ProtobufRecordBuilderImpl implements GenericRecordBuilder {
 
     private final GenericProtobufSchema genericSchema;
     private final DynamicMessage.Builder builder;
     private final Descriptors.Descriptor msgDesc;
 
-    public ProtobufRecordBuilder(GenericProtobufSchema schema) {
+    public ProtobufRecordBuilderImpl(GenericProtobufSchema schema) {
         this.genericSchema = schema;
         this.msgDesc = genericSchema.getProtobufSchema();
         builder = DynamicMessage.newBuilder(msgDesc);
@@ -62,7 +62,7 @@ public class ProtobufRecordBuilder implements GenericRecordBuilder {
 
     @Override
     public GenericRecord build() {
-        return new GenericProtobufNativeRecord(
+        return new GenericProtobufRecord(
                 null,
                 genericSchema.getProtobufSchema(),
                 genericSchema.getFields(),

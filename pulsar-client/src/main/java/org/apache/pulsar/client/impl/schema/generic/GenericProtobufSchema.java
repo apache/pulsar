@@ -59,12 +59,12 @@ public class GenericProtobufSchema extends AbstractGenericSchema {
                 .map(f -> new Field(f.getName(), f.getIndex()))
                 .collect(Collectors.toList());
         setReader(new MultiVersionGenericProtobufReader(useProvidedSchemaAsReaderSchema, schemaInfo));
-        setWriter(new GenericProtobufNativeWriter());
+        setWriter(new GenericProtobufWriter());
     }
 
     @Override
     public GenericRecordBuilder newRecordBuilder() {
-        return new ProtobufRecordBuilder(this);
+        return new ProtobufRecordBuilderImpl(this);
     }
 
     public static GenericSchema<?> of(SchemaInfo schemaInfo) {
