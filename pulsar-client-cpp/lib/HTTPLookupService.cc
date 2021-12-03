@@ -39,11 +39,7 @@ const static std::string PARTITION_METHOD_NAME = "partitions";
 const static int NUMBER_OF_LOOKUP_THREADS = 1;
 
 static inline bool needRedirection(long code) {
-    if (code == 307 || code == 302 || code == 301) {
-        return true;
-    }
-
-    return false;
+    return (code == 307 || code == 302 || code == 301);
 }
 
 HTTPLookupService::CurlInitializer::CurlInitializer() {
