@@ -659,7 +659,7 @@ public class NamespaceService implements AutoCloseable {
         }
     }
 
-    private String parseHostAndPort(String candidateBroker) {
+    private static String parseHostAndPort(String candidateBroker) {
         int uriSeparatorPos = candidateBroker.indexOf("://");
         if (uriSeparatorPos == -1) {
             throw new IllegalArgumentException("'" + candidateBroker + "' isn't an URI.");

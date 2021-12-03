@@ -139,7 +139,7 @@ public class NamespaceBundleFactory {
         }
     }
 
-    private Backoff createBackoff() {
+    private static Backoff createBackoff() {
         return new Backoff(100, TimeUnit.MILLISECONDS, 5, TimeUnit.SECONDS, 0, TimeUnit.MILLISECONDS);
     }
 
