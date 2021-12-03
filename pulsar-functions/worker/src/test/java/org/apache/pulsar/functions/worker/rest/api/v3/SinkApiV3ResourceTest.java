@@ -73,7 +73,9 @@ import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
+import org.apache.pulsar.functions.utils.io.Connector;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
+import org.apache.pulsar.functions.worker.ConnectorsManager;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.LeaderService;
@@ -87,6 +89,7 @@ import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.testng.Assert;
 import org.testng.IObjectFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -1599,5 +1602,126 @@ public class SinkApiV3ResourceTest {
     private FunctionDetails createDefaultFunctionDetails() throws IOException {
         return SinkConfigUtils.convert(createDefaultSinkConfig(),
                 new SinkConfigUtils.ExtractedSinkDetails(null, null));
+    }
+
+    /*
+    Externally managed runtime,
+    uploadBuiltinSinksSources == false
+    Make sure uploadFileToBookkeeper is not called
+    */
+    @Test
+    public void testRegisterSinkSuccessK8sNoUpload() throws Exception {
+        mockedWorkerService.getWorkerConfig().setUploadBuiltinSinksSources(false);
+
+        mockStatic(WorkerUtils.class);
+        doThrow(new RuntimeException("uploadFileToBookkeeper triggered")).when(WorkerUtils.class);
+        WorkerUtils.uploadFileToBookkeeper(
+                anyString(),
+                any(File.class),
+                any(Namespace.class));
+
+        mockStatic(FunctionCommon.class);
+        doReturn(String.class).when(FunctionCommon.class);
+        FunctionCommon.getSinkType(any());
+        PowerMockito.when(FunctionCommon.class, "extractFileFromPkgURL", any()).thenCallRealMethod();
+        PowerMockito.when(FunctionCommon.class, "getClassLoaderFromPackage", any(), any(), any(), any())
+                .thenCallRealMethod();
+
+        doReturn(true).when(FunctionCommon.class);
+        FunctionCommon.isFunctionCodeBuiltin(any());
+
+        doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
+        FunctionCommon.extractNarClassLoader(any(), any());
+
+        NarClassLoader mockedClassLoader = mock(NarClassLoader.class);
+        ConnectorsManager mockedConnManager = mock(ConnectorsManager.class);
+        Connector connector = Connector.builder()
+                .classLoader(mockedClassLoader)
+                .build();
+        when(mockedConnManager.getConnector("cassandra")).thenReturn(connector);
+        when(mockedWorkerService.getConnectorsManager()).thenReturn(mockedConnManager);
+
+        when(mockedRuntimeFactory.externallyManaged()).thenReturn(true);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
+
+        SinkConfig sinkConfig = createDefaultSinkConfig();
+        sinkConfig.setArchive("builtin://cassandra");
+
+        try (FileInputStream inputStream = new FileInputStream(getPulsarIOCassandraNar())) {
+            resource.registerSink(
+                    tenant,
+                    namespace,
+                    sink,
+                    inputStream,
+                    mockedFormData,
+                    null,
+                    sinkConfig,
+                    null, null);
+        }
+    }
+
+    /*
+    Externally managed runtime,
+    uploadBuiltinSinksSources == true
+    Make sure uploadFileToBookkeeper is called
+    */
+    @Test
+    public void testRegisterSinkSuccessK8sWithUpload() throws Exception {
+        final String injectedErrMsg = "uploadFileToBookkeeper triggered";
+        mockedWorkerService.getWorkerConfig().setUploadBuiltinSinksSources(true);
+
+        mockStatic(WorkerUtils.class);
+        doThrow(new RuntimeException(injectedErrMsg)).when(WorkerUtils.class);
+        WorkerUtils.uploadFileToBookkeeper(
+                anyString(),
+                any(File.class),
+                any(Namespace.class));
+
+        mockStatic(FunctionCommon.class);
+        doReturn(String.class).when(FunctionCommon.class);
+        FunctionCommon.getSinkType(any());
+        PowerMockito.when(FunctionCommon.class, "extractFileFromPkgURL", any()).thenCallRealMethod();
+        PowerMockito.when(FunctionCommon.class, "getClassLoaderFromPackage", any(), any(), any(), any())
+                .thenCallRealMethod();
+
+        doReturn(true).when(FunctionCommon.class);
+        FunctionCommon.isFunctionCodeBuiltin(any());
+
+        doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
+        FunctionCommon.extractNarClassLoader(any(), any());
+
+        NarClassLoader mockedClassLoader = mock(NarClassLoader.class);
+        ConnectorsManager mockedConnManager = mock(ConnectorsManager.class);
+        Connector connector = Connector.builder()
+                .classLoader(mockedClassLoader)
+                .build();
+        when(mockedConnManager.getConnector("cassandra")).thenReturn(connector);
+        when(mockedConnManager.getSinkArchive(any())).thenReturn(getPulsarIOCassandraNar().toPath());
+
+        when(mockedWorkerService.getConnectorsManager()).thenReturn(mockedConnManager);
+
+
+        when(mockedRuntimeFactory.externallyManaged()).thenReturn(true);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
+
+        SinkConfig sinkConfig = createDefaultSinkConfig();
+        sinkConfig.setArchive("builtin://cassandra");
+
+        try (FileInputStream inputStream = new FileInputStream(getPulsarIOCassandraNar())) {
+            try {
+                resource.registerSink(
+                        tenant,
+                        namespace,
+                        sink,
+                        inputStream,
+                        mockedFormData,
+                        null,
+                        sinkConfig,
+                        null, null);
+                Assert.fail();
+            } catch (RuntimeException e) {
+                Assert.assertEquals(e.getMessage(), injectedErrMsg);
+            }
+        }
     }
 }
