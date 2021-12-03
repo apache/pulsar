@@ -54,20 +54,35 @@ public class MessageIdSerializationTest {
     }
 
     @Test
-    public void testMessageIdCreate() throws Exception {
-        MessageId id = new MessageIdImpl(1L, 2L, 3);
-        MessageId newId = MessageIdImpl.fromByteArray(id.toByteArray());
+    public void testMultiMessageIdTypeSerialization() throws Exception {
+        MessageId id = new MessageIdImpl(1L, 2L, -1);
+        MessageId partitionedMessageId = new MessageIdImpl(1L, 2L, 2);
+        BatchMessageIdImpl batchMessageId = new BatchMessageIdImpl(1L, 2L, -1, 4);
+        BatchMessageIdImpl batchPartitionedMessageId = new BatchMessageIdImpl(1L, 2L, 2, 4);
+        String topic = "topic-01";
+
+        MessageId newId = MessageId.fromByteArray(id.toByteArray());
         assert(newId instanceof MessageIdImpl);
 
-        BatchMessageIdImpl batchMessageId = new BatchMessageIdImpl(1L, 2L, 3, 4);
-        MessageId newBatchMessageId = MessageIdImpl.fromByteArray(batchMessageId.toByteArray());
-        assert(newBatchMessageId instanceof BatchMessageIdImpl);
+        newId = MessageId.fromByteArray(batchMessageId.toByteArray());
+        assert(newId instanceof BatchMessageIdImpl);
 
-        TopicMessageIdImpl topicMessageId = new TopicMessageIdImpl("vv-topic-partition", "vv-topic", id);
-        MessageId newTopicMessageId = MessageIdImpl.fromByteArrayWithTopic(id.toByteArray(), topicMessageId.getTopicName());
-        assert(newTopicMessageId instanceof TopicMessageIdImpl);
+        newId = MessageId.fromByteArrayWithTopic(id.toByteArray(), topic);
+        assert(newId instanceof MessageIdImpl);
 
-        MessageId newTopicMessageId2 = MessageIdImpl.fromByteArrayWithTopic(batchMessageId.toByteArray(), topicMessageId.getTopicName());
-        assert(newTopicMessageId2 instanceof TopicMessageIdImpl);
+        newId = MessageId.fromByteArrayWithTopic(batchMessageId.toByteArray(), topic);
+        assert(newId instanceof MessageIdImpl);
+
+        newId = MessageId.fromByteArrayWithTopic(partitionedMessageId.toByteArray(), topic);
+        assert(newId instanceof TopicMessageIdImpl);
+
+        newId = MessageId.fromByteArrayWithTopic(batchPartitionedMessageId.toByteArray(), topic);
+        assert(newId instanceof TopicMessageIdImpl);
+
+        newId = MessageIdImpl.fromByteArrayWithTopic(id.toByteArray(), topic, true);
+        assert(newId instanceof TopicMessageIdImpl);
+
+        newId = MessageIdImpl.fromByteArrayWithTopic(batchMessageId.toByteArray(), topic, true);
+        assert(newId instanceof TopicMessageIdImpl);
     }
 }

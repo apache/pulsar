@@ -139,11 +139,19 @@ public class MessageIdImpl implements MessageId {
         return null;
     }
 
+    public static MessageId fromByteArrayWithTopic(byte[] data, String topicName, boolean topicRequired) throws IOException {
+        return fromByteArrayWithTopic(data, TopicName.get(topicName), topicRequired);
+    }
+
     public static MessageId fromByteArrayWithTopic(byte[] data, String topicName) throws IOException {
-        return fromByteArrayWithTopic(data, TopicName.get(topicName));
+        return fromByteArrayWithTopic(data, TopicName.get(topicName), false);
     }
 
     public static MessageId fromByteArrayWithTopic(byte[] data, TopicName topicName) throws IOException {
+        return fromByteArrayWithTopic(data, topicName, false);
+    }
+
+    private static MessageId fromByteArrayWithTopic(byte[] data, TopicName topicName, boolean topicRequired) throws IOException {
         checkNotNull(data);
         MessageIdData idData = LOCAL_MESSAGE_ID.get();
         try {
@@ -155,11 +163,11 @@ public class MessageIdImpl implements MessageId {
         MessageId messageId;
         if (idData.hasBatchIndex()) {
             messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
-                idData.getBatchIndex(), idData.getBatchSize(), BatchMessageAcker.newAcker(idData.getBatchSize()));
+                    idData.getBatchIndex(), idData.getBatchSize(), BatchMessageAcker.newAcker(idData.getBatchSize()));
         } else {
             messageId = new MessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition());
         }
-        if (topicName != null) {
+        if ((idData.getPartition() > -1 || topicRequired) && topicName != null) {
             messageId = new TopicMessageIdImpl(
                     topicName.getPartition(idData.getPartition()).toString(), topicName.toString(), messageId);
         }
