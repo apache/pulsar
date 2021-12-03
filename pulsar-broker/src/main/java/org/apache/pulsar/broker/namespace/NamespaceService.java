@@ -595,19 +595,16 @@ public class NamespaceService implements AutoCloseable {
     }
 
     protected CompletableFuture<LookupResult> createLookupResult(String candidateBroker, boolean authoritativeRedirect,
-                                                                 final String advertisedListenerName)
-            throws Exception {
+                                                                 final String advertisedListenerName) {
 
         CompletableFuture<LookupResult> lookupFuture = new CompletableFuture<>();
         try {
-            checkArgument(StringUtils.isNotBlank(candidateBroker), "Lookup broker can't be null " + candidateBroker);
-            URI uri = new URI(candidateBroker);
-            String path = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri.getHost(),
-                    uri.getPort());
+            checkArgument(StringUtils.isNotBlank(candidateBroker), "Lookup broker can't be null %s", candidateBroker);
+            String path = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + parseHostAndPort(candidateBroker);
 
             localBrokerDataCache.get(path).thenAccept(reportData -> {
                 if (reportData.isPresent()) {
-                    LocalBrokerData lookupData = (LocalBrokerData) reportData.get();
+                    LocalBrokerData lookupData = reportData.get();
                     if (StringUtils.isNotBlank(advertisedListenerName)) {
                         AdvertisedListener listener = lookupData.getAdvertisedListeners().get(advertisedListenerName);
                         if (listener == null) {
@@ -640,23 +637,28 @@ public class NamespaceService implements AutoCloseable {
     }
 
     private boolean isBrokerActive(String candidateBroker) {
-        URI uri = URI.create(candidateBroker);
-        String candidateBrokerHostAndPort = uri.getHost() + ":" + uri.getPort();
+        String candidateBrokerHostAndPort = parseHostAndPort(candidateBroker);
         Set<String> availableBrokers = getAvailableBrokers();
-        for (String brokerHostPort : availableBrokers) {
-            if (candidateBrokerHostAndPort.equals(brokerHostPort)) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Broker {} is available.", brokerHostPort);
-                }
-                return true;
+        if (availableBrokers.contains(candidateBrokerHostAndPort)) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Broker {} ({}) is available for.", candidateBroker, candidateBrokerHostAndPort);
             }
+            return true;
+        } else {
+            LOG.warn("Broker {} ({}) couldn't be found in available brokers {}",
+                    candidateBroker, candidateBrokerHostAndPort,
+                    availableBrokers.stream().collect(Collectors.joining(",")));
+            return false;
         }
+    }
 
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Broker {} couldn't be found in available brokers {}",
-                    candidateBroker, availableBrokers);
+    private String parseHostAndPort(String candidateBroker) {
+        int uriSeparatorPos = candidateBroker.indexOf("://");
+        if (uriSeparatorPos == -1) {
+            throw new IllegalArgumentException("'" + candidateBroker + "' isn't an URI.");
         }
-        return false;
+        String candidateBrokerHostAndPort = candidateBroker.substring(uriSeparatorPos + 3);
+        return candidateBrokerHostAndPort;
     }
 
     private Set<String> getAvailableBrokers() {
