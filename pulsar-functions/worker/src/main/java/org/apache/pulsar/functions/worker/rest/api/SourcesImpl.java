@@ -50,6 +50,7 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.SourceStatus;
+import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.auth.FunctionAuthData;
 import org.apache.pulsar.functions.instance.InstanceUtils;
@@ -730,20 +731,28 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
             }
         }
 
-        // if source is not builtin, attempt to extract classloader from package file if it exists
-        if (classLoader == null && sourcePackageFile != null) {
-            classLoader = getClassLoaderFromPackage(sourceConfig.getClassName(),
-                    sourcePackageFile, worker().getWorkerConfig().getNarExtractionDirectory());
-        }
+        boolean shouldCloseClassLoader = false;
+        try {
+            // if source is not builtin, attempt to extract classloader from package file if it exists
+            if (classLoader == null && sourcePackageFile != null) {
+                classLoader = getClassLoaderFromPackage(sourceConfig.getClassName(),
+                        sourcePackageFile, worker().getWorkerConfig().getNarExtractionDirectory());
+                shouldCloseClassLoader = true;
+            }
 
-        if (classLoader == null) {
-            throw new IllegalArgumentException("Source package is not provided");
-        }
+            if (classLoader == null) {
+                throw new IllegalArgumentException("Source package is not provided");
+            }
 
-        SourceConfigUtils.ExtractedSourceDetails sourceDetails
-                = SourceConfigUtils.validateAndExtractDetails(
-                        sourceConfig, classLoader, worker().getWorkerConfig().getValidateConnectorConfig());
-        return SourceConfigUtils.convert(sourceConfig, sourceDetails);
+            SourceConfigUtils.ExtractedSourceDetails sourceDetails
+                    = SourceConfigUtils.validateAndExtractDetails(
+                            sourceConfig, classLoader, worker().getWorkerConfig().getValidateConnectorConfig());
+            return SourceConfigUtils.convert(sourceConfig, sourceDetails);
+        } finally {
+            if (shouldCloseClassLoader) {
+                ClassLoaderUtils.closeClassLoader(classLoader);
+            }
+        }
     }
 
     private File downloadPackageFile(String packageName) throws IOException, PulsarAdminException {
