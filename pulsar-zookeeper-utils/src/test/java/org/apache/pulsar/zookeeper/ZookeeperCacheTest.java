@@ -52,6 +52,7 @@ import lombok.Cleanup;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.zookeeper.AsyncCallback.DataCallback;
+import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.WatchedEvent;
@@ -110,7 +111,7 @@ public class ZookeeperCacheTest {
         };
 
         String value = "test";
-        zkClient.create("/my_test", value.getBytes(), null, null);
+        zkClient.create("/my_test", value.getBytes(), null, CreateMode.PERSISTENT);
 
         assertEquals(zkCache.get("/my_test").get(), value);
         assertEquals(zkCache.getDataIfPresent("/my_test"), value);
@@ -143,7 +144,7 @@ public class ZookeeperCacheTest {
 
     @Test(timeOut = 10000)
     public void testChildrenCache() throws Exception {
-        zkClient.create("/test", new byte[0], null, null);
+        zkClient.create("/test", new byte[0], null, CreateMode.PERSISTENT);
 
         ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, 30, executor);
         ZooKeeperChildrenCache cache = new ZooKeeperChildrenCache(zkCacheService, "/test");
@@ -161,8 +162,8 @@ public class ZookeeperCacheTest {
         assertEquals(notificationCount.get(), 0);
         assertEquals(cache.get(), Sets.newTreeSet());
 
-        zkClient.create("/test/z1", new byte[0], null, null);
-        zkClient.create("/test/z2", new byte[0], null, null);
+        zkClient.create("/test/z1", new byte[0], null, CreateMode.PERSISTENT);
+        zkClient.create("/test/z2", new byte[0], null, CreateMode.PERSISTENT);
 
         // Wait for cache to be updated in background
         while (notificationCount.get() < 2) {
@@ -216,8 +217,8 @@ public class ZookeeperCacheTest {
         assertEquals(notificationCount.get(), 0);
         assertEquals(cache.get(), Collections.emptySet());
 
-        zkClient.create("/test", new byte[0], null, null);
-        zkClient.create("/test/z1", new byte[0], null, null);
+        zkClient.create("/test", new byte[0], null, CreateMode.PERSISTENT);
+        zkClient.create("/test/z1", new byte[0], null, CreateMode.PERSISTENT);
 
         // Wait for cache to be updated in background
         while (notificationCount.get() < 1) {
@@ -254,7 +255,7 @@ public class ZookeeperCacheTest {
     @Test(timeOut = 10000)
     public void testExistsCache() throws Exception {
         // Check existence after creation of the node
-        zkClient.create("/test", new byte[0], null, null);
+        zkClient.create("/test", new byte[0], null, CreateMode.PERSISTENT);
         Thread.sleep(20);
         ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, 30, executor);
         boolean exists = zkCacheService.exists("/test");
@@ -269,9 +270,9 @@ public class ZookeeperCacheTest {
 
     @Test(timeOut = 10000)
     public void testInvalidateCache() throws Exception {
-        zkClient.create("/test", new byte[0], null, null);
-        zkClient.create("/test/c1", new byte[0], null, null);
-        zkClient.create("/test/c2", new byte[0], null, null);
+        zkClient.create("/test", new byte[0], null, CreateMode.PERSISTENT);
+        zkClient.create("/test/c1", new byte[0], null, CreateMode.PERSISTENT);
+        zkClient.create("/test/c2", new byte[0], null, CreateMode.PERSISTENT);
         Thread.sleep(20);
         ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, 30, executor);
         boolean exists = zkCacheService.exists("/test");
@@ -334,7 +335,7 @@ public class ZookeeperCacheTest {
         zkCache.unregisterListener(counter);
 
         String value = "test";
-        zkClient.create("/my_test", value.getBytes(), null, null);
+        zkClient.create("/my_test", value.getBytes(), null, CreateMode.PERSISTENT);
 
         assertEquals(zkCache.get("/my_test").get(), value);
 
@@ -343,7 +344,7 @@ public class ZookeeperCacheTest {
         // case 1: update and create znode directly and verify that the cache is retrieving the correct data
         assertEquals(notificationCount.get(), 0);
         zkClient.setData("/my_test", newValue.getBytes(), -1);
-        zkClient.create("/my_test2", value.getBytes(), null, null);
+        zkClient.create("/my_test2", value.getBytes(), null, CreateMode.PERSISTENT);
 
         // Wait for the watch to be triggered
         while (notificationCount.get() < 1) {
@@ -364,7 +365,7 @@ public class ZookeeperCacheTest {
 
         // case 3: update the znode directly while the client session is marked as expired. Verify that the new updates
         // is not seen in the cache
-        zkClient.create("/other", newValue.getBytes(), null, null);
+        zkClient.create("/other", newValue.getBytes(), null, CreateMode.PERSISTENT);
         zkClient.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
                 return op == MockZooKeeper.Op.GET
                     && path.equals("/other");
@@ -390,7 +391,7 @@ public class ZookeeperCacheTest {
 
         // case 5: trigger a ZooKeeper disconnected event and make sure the cache content is not changed.
         zkCacheService.process(new WatchedEvent(Event.EventType.None, KeeperState.Disconnected, null));
-        zkClient.create("/other2", newValue.getBytes(), null, null);
+        zkClient.create("/other2", newValue.getBytes(), null, CreateMode.PERSISTENT);
 
         // case 6: trigger a ZooKeeper SyncConnected event and make sure that the cache content is invalidated s.t. we
         // can see the updated content now
@@ -433,9 +434,9 @@ public class ZookeeperCacheTest {
         String key = "/" + UUID.randomUUID().toString().substring(0, 8);
         String key1 = "/" + UUID.randomUUID().toString().substring(0, 8);
         String key2 = "/" + UUID.randomUUID().toString().substring(0, 8);
-        zkClient.create(key, value.getBytes(), null, null);
-        zkClient.create(key1, value.getBytes(), null, null);
-        zkClient.create(key2, value.getBytes(), null, null);
+        zkClient.create(key, value.getBytes(), null, CreateMode.PERSISTENT);
+        zkClient.create(key1, value.getBytes(), null, CreateMode.PERSISTENT);
+        zkClient.create(key2, value.getBytes(), null, CreateMode.PERSISTENT);
 
         CountDownLatch latch = new CountDownLatch(1);
 
@@ -484,8 +485,8 @@ public class ZookeeperCacheTest {
         String value = "test";
         String key1 = "/zkDesrializationExceptionTest";
         String key2 = "/zkSessionExceptionTest";
-        zkClient.create(key1, value.getBytes(), null, null);
-        zkClient.create(key2, value.getBytes(), null, null);
+        zkClient.create(key1, value.getBytes(), null, CreateMode.PERSISTENT);
+        zkClient.create(key2, value.getBytes(), null, CreateMode.PERSISTENT);
 
         // (1) deserialization will fail so, result should be exception
         try {
@@ -537,7 +538,7 @@ public class ZookeeperCacheTest {
 
         String path = "test";
         doNothing().when(zkSession).getData(anyString(), any(Watcher.class), any(DataCallback.class), any());
-        zkClient.create("/test", new byte[0], null, null);
+        zkClient.create("/test", new byte[0], null, CreateMode.PERSISTENT);
 
         // add readOpDelayMs so, main thread will not serve zkCacahe-returned future and let zkExecutor-thread handle
         // callback-result process
@@ -581,7 +582,7 @@ public class ZookeeperCacheTest {
         String path = "/test";
         String val1 = "test-1";
         String val2 = "test-2";
-        zkClient.create(path, val1.getBytes(), null, null);
+        zkClient.create(path, val1.getBytes(), null, CreateMode.PERSISTENT);
 
         // add readOpDelayMs so, main thread will not serve zkCacahe-returned future and let zkExecutor-thread handle
         // callback-result process

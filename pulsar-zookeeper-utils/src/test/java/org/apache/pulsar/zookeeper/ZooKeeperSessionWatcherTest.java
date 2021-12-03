@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
+import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.WatchedEvent;
@@ -190,7 +191,7 @@ public class ZooKeeperSessionWatcherTest {
 
     @Test
     public void testRun5() throws Exception {
-        zkClient.create("/", new byte[0], null, null);
+        zkClient.create("/", new byte[0], null, CreateMode.PERSISTENT);
         sessionWatcher.run();
         assertFalse(sessionWatcher.isShutdownStarted());
         assertEquals(sessionWatcher.getKeeperState(), KeeperState.SyncConnected);
