@@ -20,15 +20,83 @@ package org.apache.pulsar.broker.loadbalance;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.metadata.TestZKServer;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
+import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
+import org.apache.zookeeper.ZooKeeper;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
+@Slf4j
 @Test(groups = "broker")
 public class MultiBrokerLeaderElectionTest extends MultiBrokerBaseTest {
+    @Override
+    protected int numberOfAdditionalBrokers() {
+        return 9;
+    }
+
+    TestZKServer testZKServer;
+
+    @Override
+    protected void doInitConf() throws Exception {
+        super.doInitConf();
+        testZKServer = new TestZKServer();
+    }
+
+    @Override
+    protected void onCleanup() {
+        super.onCleanup();
+        if (testZKServer != null) {
+            try {
+                testZKServer.close();
+            } catch (Exception e) {
+                log.error("Error in stopping ZK server", e);
+            }
+        }
+    }
+
+    @Override
+    protected ZooKeeperClientFactory createZooKeeperClientFactory() {
+        return new ZookeeperClientFactoryImpl() {
+            @Override
+            public CompletableFuture<ZooKeeper> create(String serverList, SessionType sessionType,
+                                                       int zkSessionTimeoutMillis) {
+                return super.create(testZKServer.getConnectionString(), sessionType, zkSessionTimeoutMillis);
+            }
+        };
+    }
+
+    @Override
+    protected MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
+        return MetadataStoreExtended.create(testZKServer.getConnectionString(), MetadataStoreConfig.builder().build());
+    }
+
+    @Override
+    protected MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
+        return MetadataStoreExtended.create(testZKServer.getConnectionString(), MetadataStoreConfig.builder().build());
+    }
 
     @Test
     public void shouldElectOneLeader() {
@@ -67,5 +135,49 @@ public class MultiBrokerLeaderElectionTest extends MultiBrokerBaseTest {
                 }
             }
         });
+    }
+
+    @Test
+    public void shouldProvideConsistentAnswerToTopicLookups()
+            throws PulsarAdminException, ExecutionException, InterruptedException {
+        String topicNameBase = "persistent://public/default/lookuptest" + UUID.randomUUID() + "-";
+        List<String> topicNames = IntStream.range(0, 500).mapToObj(i -> topicNameBase + i)
+                .collect(Collectors.toList());
+        List<PulsarAdmin> allAdmins = getAllAdmins();
+        @Cleanup("shutdown")
+        ExecutorService executorService = Executors.newFixedThreadPool(allAdmins.size());
+        List<Future<List<String>>> resultFutures = new ArrayList<>();
+        String leaderBrokerUrl = admin.brokers().getLeaderBroker().getServiceUrl();
+        log.info("LEADER is {}", leaderBrokerUrl);
+        // use Phaser to increase the chances of a race condition by triggering all threads once
+        // they are waiting just before the lookupTopic call
+        final Phaser phaser = new Phaser(1);
+        for (PulsarAdmin brokerAdmin : allAdmins) {
+            if (!leaderBrokerUrl.equals(brokerAdmin.getServiceUrl())) {
+                phaser.register();
+                log.info("Doing lookup to broker {}", brokerAdmin.getServiceUrl());
+                resultFutures.add(executorService.submit(() -> {
+                    phaser.arriveAndAwaitAdvance();
+                    return topicNames.stream().map(topicName -> {
+                        try {
+                            return brokerAdmin.lookups().lookupTopic(topicName);
+                        } catch (PulsarAdminException e) {
+                            log.error("Error looking up topic {} in {}", topicName, brokerAdmin.getServiceUrl());
+                            throw new RuntimeException(e);
+                        }
+                    }).collect(Collectors.toList());
+                }));
+            }
+        }
+        phaser.arriveAndAwaitAdvance();
+        List<String> firstResult = null;
+        for (Future<List<String>> resultFuture : resultFutures) {
+            List<String> result = resultFuture.get();
+            if (firstResult == null) {
+                firstResult = result;
+            } else {
+                assertEquals(result, firstResult, "The lookup results weren't consistent.");
+            }
+        }
     }
 }
