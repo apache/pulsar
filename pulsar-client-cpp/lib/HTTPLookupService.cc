@@ -251,7 +251,7 @@ Result HTTPLookupService::sendHTTPRequest(std::string completeUrl, std::string &
                 LOG_INFO("Response received for url " << completeUrl << " code " << response_code);
                 if (response_code == 200) {
                     retResult = ResultOk;
-                } else if (response_code == 307) {
+                } else if (response_code == 307 || response_code == 302 || response_code == 301) {
                     char *url = NULL;
                     curl_easy_getinfo(handle, CURLINFO_REDIRECT_URL, &url);
                     LOG_INFO("Response from url " << completeUrl << " to new url " << url);
@@ -282,7 +282,7 @@ Result HTTPLookupService::sendHTTPRequest(std::string completeUrl, std::string &
                 break;
         }
         curl_easy_cleanup(handle);
-        if (response_code != 307) {
+        if (response_code != 307 && response_code != 302 && response_code != 301) {
             break;
         }
     }
