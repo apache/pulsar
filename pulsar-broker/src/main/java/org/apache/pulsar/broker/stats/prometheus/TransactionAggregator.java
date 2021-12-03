@@ -65,6 +65,7 @@ public class TransactionAggregator {
                                 try {
                                     localManageLedgerStats.get().reset();
                                     if (!checkTopicIsEventsNames(TopicName.get(subscription.getTopic().getName()))
+                                            && subscription instanceof  PersistentSubscription
                                             && ((PersistentSubscription) subscription).checkIfPendingAckStoreInit()) {
                                         ManagedLedger managedLedger =
                                                 ((PersistentSubscription) subscription)

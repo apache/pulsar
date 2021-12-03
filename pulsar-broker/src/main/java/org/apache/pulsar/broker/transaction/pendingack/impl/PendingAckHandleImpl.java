@@ -938,7 +938,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     public boolean checkIfPendingAckStoreInit() {
-        return pendingAckStoreFuture != null;
+        return this.pendingAckStoreFuture != null && this.pendingAckStoreFuture.isDone();
     }
 
     protected void handleCacheRequest() {
