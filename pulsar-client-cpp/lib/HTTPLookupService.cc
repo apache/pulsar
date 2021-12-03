@@ -38,6 +38,14 @@ const static int MAX_HTTP_REDIRECTS = 20;
 const static std::string PARTITION_METHOD_NAME = "partitions";
 const static int NUMBER_OF_LOOKUP_THREADS = 1;
 
+static inline bool needRedirection(long code) {
+    if (code == 307 || code == 302 || code == 301) {
+        return true;
+    }
+
+    return false;
+}
+
 HTTPLookupService::CurlInitializer::CurlInitializer() {
     // Once per application - https://curl.haxx.se/mail/lib-2015-11/0052.html
     curl_global_init(CURL_GLOBAL_ALL);
@@ -236,7 +244,7 @@ Result HTTPLookupService::sendHTTPRequest(std::string completeUrl, std::string &
         // Make get call to server
         res = curl_easy_perform(handle);
 
-        long response_code;
+        long response_code = -1;
         curl_easy_getinfo(handle, CURLINFO_RESPONSE_CODE, &response_code);
         LOG_INFO("Response received for url " << completeUrl << " response_code " << response_code
                                               << " curl res " << res);
@@ -251,7 +259,7 @@ Result HTTPLookupService::sendHTTPRequest(std::string completeUrl, std::string &
                 LOG_INFO("Response received for url " << completeUrl << " code " << response_code);
                 if (response_code == 200) {
                     retResult = ResultOk;
-                } else if (response_code == 307 || response_code == 302 || response_code == 301) {
+                } else if (needRedirection(response_code)) {
                     char *url = NULL;
                     curl_easy_getinfo(handle, CURLINFO_REDIRECT_URL, &url);
                     LOG_INFO("Response from url " << completeUrl << " to new url " << url);
@@ -282,7 +290,7 @@ Result HTTPLookupService::sendHTTPRequest(std::string completeUrl, std::string &
                 break;
         }
         curl_easy_cleanup(handle);
-        if (response_code != 307 && response_code != 302 && response_code != 301) {
+        if (!needRedirection(response_code)) {
             break;
         }
     }
