@@ -182,10 +182,6 @@ Result HTTPLookupService::sendHTTPRequest(std::string completeUrl, std::string &
         // Set User Agent
         curl_easy_setopt(handle, CURLOPT_USERAGENT, version.c_str());
 
-        // Redirects
-        // curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1L);
-        // curl_easy_setopt(handle, CURLOPT_MAXREDIRS, MAX_HTTP_REDIRECTS);
-
         // Fail if HTTP return code >=400
         curl_easy_setopt(handle, CURLOPT_FAILONERROR, 1L);
 
