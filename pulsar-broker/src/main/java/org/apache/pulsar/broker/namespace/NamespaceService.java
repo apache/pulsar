@@ -495,12 +495,14 @@ public class NamespaceService implements AutoCloseable {
                             if (!currentLeader.isPresent()) {
                                 LOG.warn(
                                         "The information about the current leader broker wasn't available. "
-                                                + "Handling load manager decisions in a decentralized way for {}",
+                                                + "Handling load manager decisions in a decentralized way. "
+                                                + "NamespaceBundle[{}]",
                                         bundle);
                             } else {
                                 LOG.warn(
                                         "The current leader broker {} isn't active. "
-                                                + "Handling load manager decisions in a decentralized way for {}",
+                                                + "Handling load manager decisions in a decentralized way. "
+                                                + "NamespaceBundle[{}]",
                                         currentLeader.get(), bundle);
                             }
                         }
@@ -508,6 +510,9 @@ public class NamespaceService implements AutoCloseable {
                     if (makeLoadManagerDecisionOnThisBroker) {
                         Optional<String> availableBroker = getLeastLoadedFromLoadManager(bundle);
                         if (!availableBroker.isPresent()) {
+                            LOG.warn("Load manager didn't return any available broker. "
+                                            + "Returning empty result to lookup. NamespaceBundle[{}]",
+                                    bundle);
                             lookupFuture.complete(Optional.empty());
                             return;
                         }
