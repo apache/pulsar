@@ -1096,7 +1096,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             config.getMetadataStoreUrl(),
             config.getConfigurationMetadataStoreUrl(),
             new ClientConfiguration().getZkLedgersRootPath(),
-            config.getBookkeeperMetadataStoreUrl(),
+            config.isBookkeeperMetadataStoreSeparated() ? config.getBookkeeperMetadataStoreUrl() : null,
             this.getWorkerConfig().map(wc -> wc.getStateStorageServiceUrl()).orElse(null));
     }
 
