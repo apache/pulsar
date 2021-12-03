@@ -382,97 +382,114 @@ public class FunctionCommon {
             String narExtractionDirectory) {
         String connectorClassName = className;
         ClassLoader jarClassLoader = null;
+        boolean keepJarClassLoader = false;
         ClassLoader narClassLoader = null;
+        boolean keepNarClassLoader = false;
 
         Exception jarClassLoaderException = null;
         Exception narClassLoaderException = null;
 
         try {
-            jarClassLoader = ClassLoaderUtils.extractClassLoader(packageFile);
-        } catch (Exception e) {
-            jarClassLoaderException = e;
-        }
-        try {
-            narClassLoader = FunctionCommon.extractNarClassLoader(packageFile, narExtractionDirectory);
-        } catch (Exception e) {
-            narClassLoaderException = e;
-        }
-
-        // if connector class name is not provided, we can only try to load archive as a NAR
-        if (isEmpty(connectorClassName)) {
-            if (narClassLoader == null) {
-                throw new IllegalArgumentException(String.format("%s package does not have the correct format. " +
-                                "Pulsar cannot determine if the package is a NAR package or JAR package. " +
-                                "%s classname is not provided and attempts to load it as a NAR package produced the following error.",
-                        capFirstLetter(componentType), capFirstLetter(componentType)),
-                        narClassLoaderException);
+            try {
+                jarClassLoader = ClassLoaderUtils.extractClassLoader(packageFile);
+            } catch (Exception e) {
+                jarClassLoaderException = e;
             }
             try {
-                if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
-                    connectorClassName = ConnectorUtils.getIOSourceClass((NarClassLoader) narClassLoader);
-                } else {
-                    connectorClassName = ConnectorUtils.getIOSinkClass((NarClassLoader) narClassLoader);
+                narClassLoader = FunctionCommon.extractNarClassLoader(packageFile, narExtractionDirectory);
+            } catch (Exception e) {
+                narClassLoaderException = e;
+            }
+
+            // if connector class name is not provided, we can only try to load archive as a NAR
+            if (isEmpty(connectorClassName)) {
+                if (narClassLoader == null) {
+                    throw new IllegalArgumentException(String.format("%s package does not have the correct format. " +
+                                    "Pulsar cannot determine if the package is a NAR package or JAR package. " +
+                                    "%s classname is not provided and attempts to load it as a NAR package produced " +
+                                    "the following error.",
+                            capFirstLetter(componentType), capFirstLetter(componentType)),
+                            narClassLoaderException);
                 }
-            } catch (IOException e) {
-                throw new IllegalArgumentException(String.format("Failed to extract %s class from archive",
-                        componentType.toString().toLowerCase()), e);
-            }
-
-            try {
-                narClassLoader.loadClass(connectorClassName);
-                return narClassLoader;
-            } catch (ClassNotFoundException | NoClassDefFoundError e) {
-                throw new IllegalArgumentException(
-                        String.format("%s class %s must be in class path", capFirstLetter(componentType), connectorClassName), e);
-            }
-
-        } else {
-            // if connector class name is provided, we need to try to load it as a JAR and as a NAR.
-            if (jarClassLoader != null) {
                 try {
-                    jarClassLoader.loadClass(connectorClassName);
-                    return jarClassLoader;
-                } catch (ClassNotFoundException | NoClassDefFoundError e) {
-                    // class not found in JAR try loading as a NAR and searching for the class
-                    if (narClassLoader != null) {
-
-                        try {
-                            narClassLoader.loadClass(connectorClassName);
-                            return narClassLoader;
-                        } catch (ClassNotFoundException | NoClassDefFoundError e1) {
-                            throw new IllegalArgumentException(
-                                    String.format("%s class %s must be in class path",
-                                            capFirstLetter(componentType), connectorClassName), e1);
-                        }
+                    if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
+                        connectorClassName = ConnectorUtils.getIOSourceClass((NarClassLoader) narClassLoader);
                     } else {
-                        throw new IllegalArgumentException(
-                                String.format("%s class %s must be in class path", capFirstLetter(componentType),
-                                        connectorClassName), e);
+                        connectorClassName = ConnectorUtils.getIOSinkClass((NarClassLoader) narClassLoader);
                     }
+                } catch (IOException e) {
+                    throw new IllegalArgumentException(String.format("Failed to extract %s class from archive",
+                            componentType.toString().toLowerCase()), e);
                 }
-            } else if (narClassLoader != null) {
+
                 try {
                     narClassLoader.loadClass(connectorClassName);
+                    keepNarClassLoader = true;
                     return narClassLoader;
-                } catch (ClassNotFoundException | NoClassDefFoundError e1) {
+                } catch (ClassNotFoundException | NoClassDefFoundError e) {
                     throw new IllegalArgumentException(
-                            String.format("%s class %s must be in class path",
-                                    capFirstLetter(componentType), connectorClassName), e1);
+                            String.format("%s class %s must be in class path", capFirstLetter(componentType),
+                                    connectorClassName), e);
                 }
+
             } else {
-                StringBuilder errorMsg = new StringBuilder(capFirstLetter(componentType)
-                        + " package does not have the correct format."
-                        + " Pulsar cannot determine if the package is a NAR package or JAR package.");
+                // if connector class name is provided, we need to try to load it as a JAR and as a NAR.
+                if (jarClassLoader != null) {
+                    try {
+                        jarClassLoader.loadClass(connectorClassName);
+                        keepJarClassLoader = true;
+                        return jarClassLoader;
+                    } catch (ClassNotFoundException | NoClassDefFoundError e) {
+                        // class not found in JAR try loading as a NAR and searching for the class
+                        if (narClassLoader != null) {
 
-                if (jarClassLoaderException != null) {
-                    errorMsg.append(" Attempts to load it as a JAR package produced error: " + jarClassLoaderException.getMessage());
+                            try {
+                                narClassLoader.loadClass(connectorClassName);
+                                keepNarClassLoader = true;
+                                return narClassLoader;
+                            } catch (ClassNotFoundException | NoClassDefFoundError e1) {
+                                throw new IllegalArgumentException(
+                                        String.format("%s class %s must be in class path",
+                                                capFirstLetter(componentType), connectorClassName), e1);
+                            }
+                        } else {
+                            throw new IllegalArgumentException(
+                                    String.format("%s class %s must be in class path", capFirstLetter(componentType),
+                                            connectorClassName), e);
+                        }
+                    }
+                } else if (narClassLoader != null) {
+                    try {
+                        narClassLoader.loadClass(connectorClassName);
+                        keepNarClassLoader = true;
+                        return narClassLoader;
+                    } catch (ClassNotFoundException | NoClassDefFoundError e1) {
+                        throw new IllegalArgumentException(
+                                String.format("%s class %s must be in class path",
+                                        capFirstLetter(componentType), connectorClassName), e1);
+                    }
+                } else {
+                    StringBuilder errorMsg = new StringBuilder(capFirstLetter(componentType)
+                            + " package does not have the correct format."
+                            + " Pulsar cannot determine if the package is a NAR package or JAR package.");
+
+                    if (jarClassLoaderException != null) {
+                        errorMsg.append(" Attempts to load it as a JAR package produced error: " + jarClassLoaderException.getMessage());
+                    }
+
+                    if (narClassLoaderException != null) {
+                        errorMsg.append(" Attempts to load it as a NAR package produced error: " + narClassLoaderException.getMessage());
+                    }
+
+                    throw new IllegalArgumentException(errorMsg.toString());
                 }
-
-                if (narClassLoaderException != null) {
-                    errorMsg.append(" Attempts to load it as a NAR package produced error: " + narClassLoaderException.getMessage());
-                }
-
-                throw new IllegalArgumentException(errorMsg.toString());
+            }
+        } finally {
+            if (!keepJarClassLoader) {
+                ClassLoaderUtils.closeClassLoader(jarClassLoader);
+            }
+            if (!keepNarClassLoader) {
+                ClassLoaderUtils.closeClassLoader(narClassLoader);
             }
         }
     }
