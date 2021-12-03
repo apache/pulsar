@@ -21,6 +21,7 @@
 #include <lib/LogUtils.h>
 
 #include <functional>
+#include <sstream>
 
 namespace pulsar {
 DECLARE_LOG_OBJECT();
@@ -30,20 +31,10 @@ ConsumerStatsImpl::ConsumerStatsImpl(std::string consumerStr, ExecutorServicePtr
     : consumerStr_(consumerStr),
       executor_(executor),
       timer_(executor_->createDeadlineTimer()),
-      statsIntervalInSeconds_(statsIntervalInSeconds) {
-    timer_->expires_from_now(boost::posix_time::seconds(statsIntervalInSeconds_));
-    timer_->async_wait(std::bind(&pulsar::ConsumerStatsImpl::flushAndReset, this, std::placeholders::_1));
+      statsIntervalInSeconds_(statsIntervalInSeconds),
+      callbackLock_(std::make_shared<stats::AsyncCallbackLock>()) {
+    scheduleReport();
 }
-
-ConsumerStatsImpl::ConsumerStatsImpl(const ConsumerStatsImpl& stats)
-    : consumerStr_(stats.consumerStr_),
-      numBytesRecieved_(stats.numBytesRecieved_),
-      receivedMsgMap_(stats.receivedMsgMap_),
-      ackedMsgMap_(stats.ackedMsgMap_),
-      totalNumBytesRecieved_(stats.totalNumBytesRecieved_),
-      totalReceivedMsgMap_(stats.totalReceivedMsgMap_),
-      totalAckedMsgMap_(stats.totalAckedMsgMap_),
-      statsIntervalInSeconds_(stats.statsIntervalInSeconds_) {}
 
 void ConsumerStatsImpl::flushAndReset(const boost::system::error_code& ec) {
     if (ec) {
@@ -51,37 +42,65 @@ void ConsumerStatsImpl::flushAndReset(const boost::system::error_code& ec) {
         return;
     }
 
-    Lock lock(mutex_);
-    ConsumerStatsImpl tmp = *this;
-    numBytesRecieved_ = 0;
-    receivedMsgMap_.clear();
-    ackedMsgMap_.clear();
-    lock.unlock();
+    const bool isLogLevelEnabled = logger()->isEnabled(Logger::LEVEL_INFO);
+    std::string logMessage;
 
-    timer_->expires_from_now(boost::posix_time::seconds(statsIntervalInSeconds_));
-    timer_->async_wait(std::bind(&pulsar::ConsumerStatsImpl::flushAndReset, this, std::placeholders::_1));
-    LOG_INFO(tmp);
+    {
+        Lock lockRcv(rcvMutex_);
+        Lock lockAck(ackMutex_);
+
+        if (isLogLevelEnabled) {
+            std::ostringstream ss;
+            ss << *this;
+            logMessage = ss.str();
+        }
+
+        numBytesReceived_ = 0;
+        receivedMsgMap_.clear();
+        ackedMsgMap_.clear();
+    };
+
+    scheduleReport();
+
+    if (isLogLevelEnabled) {
+        LOG_INFO(logMessage);
+    }
 }
 
 ConsumerStatsImpl::~ConsumerStatsImpl() {
-    Lock lock(mutex_);
-    if (timer_) {
+    if (callbackLock_) {
+        Lock lock(callbackLock_->mutex);
+
+        callbackLock_->enabled = false;
         timer_->cancel();
     }
 }
 
+void ConsumerStatsImpl::scheduleReport() {
+    auto callbackLock = callbackLock_;
+    auto flushCallback = [this, callbackLock](const boost::system::error_code& error_code) {
+        Lock lock(callbackLock->mutex);
+        if (callbackLock->enabled) {
+            flushAndReset(error_code);
+        }
+    };
+
+    timer_->expires_from_now(boost::posix_time::seconds(statsIntervalInSeconds_));
+    timer_->async_wait(std::move(flushCallback));
+}
+
 void ConsumerStatsImpl::receivedMessage(Message& msg, Result res) {
-    Lock lock(mutex_);
+    Lock lock(rcvMutex_);
     if (res == ResultOk) {
         totalNumBytesRecieved_ += msg.getLength();
-        numBytesRecieved_ += msg.getLength();
+        numBytesReceived_ += msg.getLength();
     }
     receivedMsgMap_[res] += 1;
     totalReceivedMsgMap_[res] += 1;
 }
 
 void ConsumerStatsImpl::messageAcknowledged(Result res, proto::CommandAck_AckType ackType) {
-    Lock lock(mutex_);
+    Lock lock(ackMutex_);
     ackedMsgMap_[std::make_pair(res, ackType)] += 1;
     totalAckedMsgMap_[std::make_pair(res, ackType)] += 1;
 }
@@ -101,7 +120,7 @@ std::ostream& operator<<(std::ostream& os,
 
 std::ostream& operator<<(std::ostream& os, const ConsumerStatsImpl& obj) {
     os << "Consumer " << obj.consumerStr_ << ", ConsumerStatsImpl ("
-       << "numBytesRecieved_ = " << obj.numBytesRecieved_
+       << "numBytessReceived_ = " << obj.numBytesReceived_
        << ", totalNumBytesRecieved_ = " << obj.totalNumBytesRecieved_
        << ", receivedMsgMap_ = " << obj.receivedMsgMap_ << ", ackedMsgMap_ = " << obj.ackedMsgMap_
        << ", totalReceivedMsgMap_ = " << obj.totalReceivedMsgMap_

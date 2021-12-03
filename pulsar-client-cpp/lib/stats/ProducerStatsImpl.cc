@@ -22,6 +22,7 @@
 #include <lib/LogUtils.h>
 
 #include <array>
+#include <sstream>
 
 namespace pulsar {
 DECLARE_LOG_OBJECT();
@@ -44,26 +45,14 @@ std::string ProducerStatsImpl::latencyToString(const LatencyAccumulator& obj) {
 ProducerStatsImpl::ProducerStatsImpl(std::string producerStr, ExecutorServicePtr executor,
                                      unsigned int statsIntervalInSeconds)
     : producerStr_(producerStr),
-      latencyAccumulator_(boost::accumulators::tag::extended_p_square::probabilities = probs),
-      totalLatencyAccumulator_(boost::accumulators::tag::extended_p_square::probabilities = probs),
       executor_(executor),
       timer_(executor->createDeadlineTimer()),
-      statsIntervalInSeconds_(statsIntervalInSeconds) {
-    timer_->expires_from_now(boost::posix_time::seconds(statsIntervalInSeconds_));
-    timer_->async_wait(std::bind(&pulsar::ProducerStatsImpl::flushAndReset, this, std::placeholders::_1));
+      statsIntervalInSeconds_(statsIntervalInSeconds),
+      callbackLock_(std::make_shared<stats::AsyncCallbackLock>()),
+      latencyAccumulator_(boost::accumulators::tag::extended_p_square::probabilities = probs),
+      totalLatencyAccumulator_(boost::accumulators::tag::extended_p_square::probabilities = probs) {
+    scheduleReport();
 }
-
-ProducerStatsImpl::ProducerStatsImpl(const ProducerStatsImpl& stats)
-    : producerStr_(stats.producerStr_),
-      numMsgsSent_(stats.numMsgsSent_),
-      numBytesSent_(stats.numBytesSent_),
-      sendMap_(stats.sendMap_),
-      latencyAccumulator_(stats.latencyAccumulator_),
-      totalMsgsSent_(stats.totalMsgsSent_),
-      totalBytesSent_(stats.totalBytesSent_),
-      totalSendMap_(stats.totalSendMap_),
-      totalLatencyAccumulator_(stats.totalLatencyAccumulator_),
-      statsIntervalInSeconds_(stats.statsIntervalInSeconds_) {}
 
 void ProducerStatsImpl::flushAndReset(const boost::system::error_code& ec) {
     if (ec) {
@@ -71,22 +60,35 @@ void ProducerStatsImpl::flushAndReset(const boost::system::error_code& ec) {
         return;
     }
 
-    Lock lock(mutex_);
-    ProducerStatsImpl tmp = *this;
-    numMsgsSent_ = 0;
-    numBytesSent_ = 0;
-    sendMap_.clear();
-    latencyAccumulator_ =
-        LatencyAccumulator(boost::accumulators::tag::extended_p_square::probabilities = probs);
-    lock.unlock();
+    const bool isLogLevelEnabled = logger()->isEnabled(Logger::LEVEL_INFO);
+    std::string logMessage;
 
-    timer_->expires_from_now(boost::posix_time::seconds(statsIntervalInSeconds_));
-    timer_->async_wait(std::bind(&pulsar::ProducerStatsImpl::flushAndReset, this, std::placeholders::_1));
-    LOG_INFO(tmp);
+    {
+        Lock lockSent(sentMutex_);
+        Lock lockRcv(rcvMutex_);
+
+        if (isLogLevelEnabled) {
+            std::ostringstream ss;
+            ss << *this;
+            logMessage = ss.str();
+        }
+
+        numMsgsSent_ = 0;
+        numBytesSent_ = 0;
+        sendMap_.clear();
+        latencyAccumulator_ =
+            LatencyAccumulator(boost::accumulators::tag::extended_p_square::probabilities = probs);
+    };
+
+    scheduleReport();
+
+    if (isLogLevelEnabled) {
+        LOG_INFO(logMessage);
+    }
 }
 
 void ProducerStatsImpl::messageSent(const Message& msg) {
-    Lock lock(mutex_);
+    Lock lock(sentMutex_);
     numMsgsSent_++;
     totalMsgsSent_++;
     numBytesSent_ += msg.getLength();
@@ -96,7 +98,8 @@ void ProducerStatsImpl::messageSent(const Message& msg) {
 void ProducerStatsImpl::messageReceived(Result& res, boost::posix_time::ptime& publishTime) {
     boost::posix_time::ptime currentTime = boost::posix_time::microsec_clock::universal_time();
     double diffInMicros = (currentTime - publishTime).total_microseconds();
-    Lock lock(mutex_);
+
+    Lock lock(rcvMutex_);
     totalLatencyAccumulator_(diffInMicros);
     latencyAccumulator_(diffInMicros);
     sendMap_[res] += 1;       // Value will automatically be initialized to 0 in the constructor
@@ -104,10 +107,25 @@ void ProducerStatsImpl::messageReceived(Result& res, boost::posix_time::ptime& p
 }
 
 ProducerStatsImpl::~ProducerStatsImpl() {
-    Lock lock(mutex_);
-    if (timer_) {
+    if (callbackLock_) {
+        Lock lock(callbackLock_->mutex);
+
+        callbackLock_->enabled = false;
         timer_->cancel();
     }
+}
+
+void ProducerStatsImpl::scheduleReport() {
+    auto callbackLock = callbackLock_;
+    auto flushCallback = [this, callbackLock](const boost::system::error_code& error_code) {
+        Lock lock(callbackLock->mutex);
+        if (callbackLock->enabled) {
+            flushAndReset(error_code);
+        }
+    };
+
+    timer_->expires_from_now(boost::posix_time::seconds(statsIntervalInSeconds_));
+    timer_->async_wait(std::move(flushCallback));
 }
 
 std::ostream& operator<<(std::ostream& os, const ProducerStatsImpl& obj) {

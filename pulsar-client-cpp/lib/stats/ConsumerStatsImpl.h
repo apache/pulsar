@@ -20,47 +20,55 @@
 #ifndef PULSAR_CONSUMER_STATS_IMPL_H_
 #define PULSAR_CONSUMER_STATS_IMPL_H_
 
+#include <lib/stats/AsyncCallbackLock.h>
 #include <lib/stats/ConsumerStatsBase.h>
 #include <lib/ExecutorService.h>
 #include <lib/Utils.h>
 #include <utility>
+
 namespace pulsar {
 
 class ConsumerStatsImpl : public ConsumerStatsBase {
    private:
     std::string consumerStr_;
 
-    unsigned long numBytesRecieved_ = 0;
-    std::map<Result, unsigned long> receivedMsgMap_;
-    std::map<std::pair<Result, proto::CommandAck_AckType>, unsigned long> ackedMsgMap_;
-
-    unsigned long totalNumBytesRecieved_ = 0;
-    std::map<Result, unsigned long> totalReceivedMsgMap_;
-    std::map<std::pair<Result, proto::CommandAck_AckType>, unsigned long> totalAckedMsgMap_;
-
     ExecutorServicePtr executor_;
     DeadlineTimerPtr timer_;
-    std::mutex mutex_;
     unsigned int statsIntervalInSeconds_;
 
+    std::shared_ptr<stats::AsyncCallbackLock> callbackLock_;
+
+    std::mutex rcvMutex_;
+    unsigned long numBytesReceived_ = 0;
+    unsigned long totalNumBytesRecieved_ = 0;
+    std::map<Result, unsigned long> receivedMsgMap_;
+    std::map<Result, unsigned long> totalReceivedMsgMap_;
+
+    std::mutex ackMutex_;
+    std::map<std::pair<Result, proto::CommandAck_AckType>, unsigned long> ackedMsgMap_;
+    std::map<std::pair<Result, proto::CommandAck_AckType>, unsigned long> totalAckedMsgMap_;
+
+   private:
     friend std::ostream& operator<<(std::ostream&, const ConsumerStatsImpl&);
     friend std::ostream& operator<<(std::ostream&, const std::map<Result, unsigned long>&);
     friend class PulsarFriend;
 
    public:
     ConsumerStatsImpl(std::string, ExecutorServicePtr, unsigned int);
-    ConsumerStatsImpl(const ConsumerStatsImpl& stats);
+    ConsumerStatsImpl() = delete;
+    ~ConsumerStatsImpl() override;
+
+    void scheduleReport();
     void flushAndReset(const boost::system::error_code&);
-    virtual void receivedMessage(Message&, Result);
-    virtual void messageAcknowledged(Result, proto::CommandAck_AckType);
-    virtual ~ConsumerStatsImpl();
+    void receivedMessage(Message&, Result) override;
+    void messageAcknowledged(Result, proto::CommandAck_AckType) override;
 
     const inline std::map<std::pair<Result, proto::CommandAck_AckType>, unsigned long>& getAckedMsgMap()
         const {
         return ackedMsgMap_;
     }
 
-    inline unsigned long getNumBytesRecieved() const { return numBytesRecieved_; }
+    inline unsigned long getNumBytesReceived() const { return numBytesReceived_; }
 
     const inline std::map<Result, unsigned long>& getReceivedMsgMap() const { return receivedMsgMap_; }
 

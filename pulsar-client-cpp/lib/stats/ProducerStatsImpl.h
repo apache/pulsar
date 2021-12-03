@@ -40,6 +40,7 @@
 #include <iostream>
 #include <vector>
 #include <lib/Utils.h>
+#include <lib/stats/AsyncCallbackLock.h>
 #include <lib/stats/ProducerStatsBase.h>
 
 namespace pulsar {
@@ -48,25 +49,29 @@ typedef boost::accumulators::accumulator_set<
     boost::accumulators::stats<boost::accumulators::tag::mean, boost::accumulators::tag::extended_p_square> >
     LatencyAccumulator;
 
-class ProducerStatsImpl : public std::enable_shared_from_this<ProducerStatsImpl>, public ProducerStatsBase {
+class ProducerStatsImpl : public ProducerStatsBase {
    private:
     std::string producerStr_;
 
-    unsigned long numMsgsSent_ = 0;
-    unsigned long numBytesSent_ = 0;
-    std::map<Result, unsigned long> sendMap_;
-    LatencyAccumulator latencyAccumulator_;
-
-    unsigned long totalMsgsSent_ = 0;
-    unsigned long totalBytesSent_ = 0;
-    std::map<Result, unsigned long> totalSendMap_;
-    LatencyAccumulator totalLatencyAccumulator_;
-
     ExecutorServicePtr executor_;
     DeadlineTimerPtr timer_;
-    std::mutex mutex_;
     unsigned int statsIntervalInSeconds_;
 
+    std::shared_ptr<stats::AsyncCallbackLock> callbackLock_;
+
+    std::mutex sentMutex_;
+    unsigned long numMsgsSent_ = 0;
+    unsigned long numBytesSent_ = 0;
+    unsigned long totalMsgsSent_ = 0;
+    unsigned long totalBytesSent_ = 0;
+
+    std::mutex rcvMutex_;
+    std::map<Result, unsigned long> sendMap_;
+    std::map<Result, unsigned long> totalSendMap_;
+    LatencyAccumulator latencyAccumulator_;
+    LatencyAccumulator totalLatencyAccumulator_;
+
+   private:
     friend std::ostream& operator<<(std::ostream&, const ProducerStatsImpl&);
     friend std::ostream& operator<<(std::ostream&, const std::map<Result, unsigned long>&);
     friend class PulsarFriend;
@@ -75,16 +80,16 @@ class ProducerStatsImpl : public std::enable_shared_from_this<ProducerStatsImpl>
 
    public:
     ProducerStatsImpl(std::string, ExecutorServicePtr, unsigned int);
+    ProducerStatsImpl(const ProducerStatsImpl&) = delete;
+    ~ProducerStatsImpl() override;
 
-    ProducerStatsImpl(const ProducerStatsImpl& stats);
+    void scheduleReport();
 
     void flushAndReset(const boost::system::error_code&);
 
-    void messageSent(const Message&);
+    void messageSent(const Message&) override;
 
-    void messageReceived(Result&, boost::posix_time::ptime&);
-
-    ~ProducerStatsImpl();
+    void messageReceived(Result&, boost::posix_time::ptime&) override;
 
     inline unsigned long getNumMsgsSent() { return numMsgsSent_; }
 
