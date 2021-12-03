@@ -4,77 +4,91 @@ title: Manage packages
 sidebar_label: Packages
 ---
 
-> **Important**
->
-> This page only shows **some frequently used operations**.
->
-> - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/)
-> 
-> - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
-> 
-> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/).
+# Package Management
 
-Package management enables version management and simplifies the upgrade and rollback processes for Functions, Sinks, and Sources. When you use the same function, sink and source in different namespaces, you can upload them to a common package management system.
+Package managers or package-management systems automatically manage packages in a consistent manner. These tools simplify the installation tasks, upgrade process, and deletion operations for users. A package is the minimal unit that a package manager deals with. In Pulsar, packages are organized at the tenant- and namespace-level to manage Pulsar Functions and Pulsar IO connectors (i.e., source and sink).
 
-## Package name
+# What is a package
 
-A `package` is identified by five parts: `type`, `tenant`, `namespace`, `package name`, and `version`.
+A package is a set of elements that the user would like to reuse in later operations. In Pulsar, a package can be a group of functions, sources, and sinks. You can define a package according to your needs. 
 
-| Part  | Description |
-|-------|-------------|
-|`type` |The type of the package. The following types are supported: `function`, `sink` and `source`. |
-| `name`|The fully qualified name of the package: `<tenant>/<namespace>/<package name>`.|
-|`version`|The version of the package.|
+The package management system in Pulsar stores the data and metadata of each package (as shown in table below) and tracks the package versions. 
 
-The following is a code sample.
+<table>
+  <tr>
+   <td><strong>Metadata</strong>
+   </td>
+   <td><strong>Description</strong>
+   </td>
+  </tr>
+  <tr>
+   <td>description
+   </td>
+   <td>The description of the package.
+   </td>
+  </tr>
+  <tr>
+   <td>contact
+   </td>
+   <td>The contact information of a package. For example, an email address of the developer team.
+   </td>
+  </tr>
+  <tr>
+   <td>create_time
+   </td>
+   <td>The time when the package is created.
+   </td>
+  </tr>
+  <tr>
+   <td>modification_time
+   </td>
+   <td>The time when the package is lastly modified.
+   </td>
+  </tr>
+  <tr>
+   <td>properties
+   </td>
+   <td>A user-defined key/value map to store other information.
+   </td>
+  </tr>
+</table>
 
-```java
-class PackageName {
-   private final PackageType type;
-   private final String namespace;
-   private final String tenant;
-   private final String name;
-   private final String version;
-}
 
-enum PackageType {
-   FUNCTION("function"), SINK("sink"), SOURCE("source");
-}
+# How to use a package
+
+Packages can efficiently use the same set of functions and IO connectors. For example, you can use the same function, source, and sink in multiple namespaces. The main steps are:
+
+1. Create a package in the package manager by providing the following information: type, tenant, namespace, package name, and version.
+
+   |Component|Description|
+   |-|-|
+   |type|Specify one of the supported package types: function, sink and source.|
+   |tenant|Specify the tenant where you want to create the package.|
+   |namespace|Specify the namespace where you want to create the package.|
+   |name|Specify the complete name of the package, using the format &lt;tenant>/&lt;namespace>/&lt;package name>.|
+   |version|Specify the version of the package using the format `MajorVerion.MinorVersion` in numerals.|
+
+   The information you provide creates a URL for a package, in the format `<type>://<tenant>/<namespace>/<package name>/<version>`.
+
+2. Upload the elements to the package, i.e., the functions, sources, and sinks that you want to use across namespaces.
+
+3. Apply permissions to this package from various namespaces.
+
+Now, you can use the elements you defined in the package by calling this package from within the package manager. The package manager locates it by the URL. For example,
 
 ```
-
-## Package URL
-A package is located using a URL. The package URL is written in the following format:
-
-```shell
-<type>://<tenant>/<namespace>/<package name>@<version>
+sink://public/default/mysql-sink@1.0
+function://my-tenant/my-ns/my-function@0.1
+source://my-tenant/my-ns/mysql-cdc-source@2.3
 ```
 
-The following are package URL examples:
+# Package management in Pulsar
 
-`sink://public/default/mysql-sink@1.0`   
-`function://my-tenant/my-ns/my-function@0.1`   
-`source://my-tenant/my-ns/mysql-cdc-source@2.3`
+You can use the command line tools, REST API, or the Java client to manage your package resources in Pulsar. More specifically, you can use these tools to [upload](#upload-a-package), [download](#download-a-package), and [delete](#delete-a-package) a package, [get the metadata](#get-the-metadata-of-a-package) and [update the metadata](#update-the-metadata-of-a-package) of a package, [get the versions](#list-all-versions-of-a-package) of a package, and [get all packages of a specific type under a namespace](#list-all-packages-of-a-specific-type-under-a-namespace). 
 
-The package management system stores the data, versions and metadata of each package. The metadata is shown in the following table.
+## Upload a package
 
-| metadata | Description |
-|----------|-------------|
-|description|The description of the package.|
-|contact    |The contact information of a package. For example, team email.|
-|create_time| The time when the package is created.|
-|modification_time| The time when the package is modified.|
-|properties |A key/value map that stores your own information.|
-
-## Permissions
-
-The packages are organized by the tenant and namespace, so you can apply the tenant and namespace permissions to packages directly.
-
-## Package resources
-You can use the package management with command line tools, REST API and Java client.
-
-### Upload a package
-You can upload a package to the package management service in the following ways.
+You can use the following commands to upload a package.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
@@ -90,16 +104,19 @@ bin/pulsar-admin packages upload functions://public/default/example@v0.1 --path 
 Upload a package to the package management service synchronously.
 
 ```java
-   void upload(PackageMetadata metadata, String packageName, String path) throws PulsarAdminException;
+  void upload(PackageMetadata metadata, String packageName, String path) throws PulsarAdminException;
 ```
+
 Upload a package to the package management service asynchronously.
+
 ```java
-   CompletableFuture<Void> uploadAsync(PackageMetadata metadata, String packageName, String path);
+  CompletableFuture<Void> uploadAsync(PackageMetadata metadata, String packageName, String path);
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-### Download a package
-You can download a package to the package management service in the following ways.
+## Download a package
+
+You can use the following commands to download a package.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
@@ -115,65 +132,49 @@ bin/pulsar-admin packages download functions://public/default/example@v0.1 --pat
 Download a package to the package management service synchronously.
 
 ```java
-   void download(String packageName, String path) throws PulsarAdminException;
+  void download(String packageName, String path) throws PulsarAdminException;
 ```
 
 Download a package to the package management service asynchronously.
+
 ```java
-   CompletableFuture<Void> downloadAsync(String packageName, String path);
+  CompletableFuture<Void> downloadAsync(String packageName, String path);
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-### List all versions of a package
-You can get a list of all versions of a package in the following ways.
+## Delete a package
+
+You can use the following commands to delete a package.
+
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
+The following command deletes a package of version 0.1.
+
 ```shell
-bin/pulsar-admin packages list --type function public/default
+bin/pulsar-admin packages delete functions://public/default/example@v0.1
 ```
 
 <!--REST API-->
 
-{@inject: endpoint|GET|/admin/v3/packages/:type/:tenant/:namespace/:packageName/?version=[[pulsar:version_number]]}
+{@inject: endpoint|DELETE|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/?version=[[pulsar:version_number]]}
 
 <!--JAVA-->
-List all versions of a package synchronously.
+Delete a specified package synchronously.
 
 ```java
-   List<String> listPackageVersions(String packageName) throws PulsarAdminException;
+  void delete(String packageName) throws PulsarAdminException;
 ```
-List all versions of a package asynchronously.
+
+Delete a specified package asynchronously.
+
 ```java
-   CompletableFuture<List<String>> listPackageVersionsAsync(String packageName);
+  CompletableFuture<Void> deleteAsync(String packageName);
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-### List all the specified type packages under a namespace
-You can get a list of all the packages with the given type in a namespace in the following ways.
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
-```shell
-bin/pulsar-admin packages list --type function public/default
-```
+## Get the metadata of a package
 
-<!--REST API-->
-
-{@inject: endpoint|PUT|/admin/v3/packages/:type/:tenant/:namespace/?version=[[pulsar:version_number]]}
-
-<!--JAVA-->
-List all the packages with the given type in a namespace synchronously.
-
-```java
-   List<String> listPackages(String type, String namespace) throws PulsarAdminException;
-```
-List all the packages with the given type in a namespace asynchronously.
-```java
-   CompletableFuture<List<String>> listPackagesAsync(String type, String namespace);
-```
-<!--END_DOCUSAURUS_CODE_TABS-->
-
-### Get the metadata of a package
-You can get the metadata of a package in the following ways.
+You can use the following commands to get the metadate of a package.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
@@ -190,16 +191,20 @@ bin/pulsar-admin packages get-metadata function://public/default/test@v1
 Get the metadata of a package synchronously.
 
 ```java
-   PackageMetadata getMetadata(String packageName) throws PulsarAdminException;
+  PackageMetadata getMetadata(String packageName) throws PulsarAdminException;
 ```
+
 Get the metadata of a package asynchronously.
+
 ```java
-   CompletableFuture<PackageMetadata> getMetadataAsync(String packageName);
+  CompletableFuture<PackageMetadata> getMetadataAsync(String packageName);
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-### Update the metadata of a package
-You can update the metadata of a package in the following ways.
+## Update the metadata of a package
+
+You can use the following commands to update the metadata of a package.
+
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
 ```shell
@@ -211,40 +216,78 @@ bin/pulsar-admin packages update-metadata function://public/default/example@v0.1
 {@inject: endpoint|PUT|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/metadata/?version=[[pulsar:version_number]]}
 
 <!--JAVA-->
-Update a package metadata information synchronously.
+Update the metadata of a package synchronously.
 
 ```java
-   void updateMetadata(String packageName, PackageMetadata metadata) throws PulsarAdminException;
+  void updateMetadata(String packageName, PackageMetadata metadata) throws PulsarAdminException;
 ```
-Update a package metadata information asynchronously.
+
+Update the metadata of a package asynchronously.
+
 ```java
-   CompletableFuture<Void> updateMetadataAsync(String packageName, PackageMetadata metadata);
+  CompletableFuture<Void> updateMetadataAsync(String packageName, PackageMetadata metadata);
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-### Delete a specified package
-You can delete a specified package with its package name in the following ways.
+## List all versions of a package
+
+You can use the following commands to list all versions of a package.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
-The following command example deletes a package of version 0.1.
-
 ```shell
-bin/pulsar-admin packages delete functions://public/default/example@v0.1
+bin/pulsar-admin packages list --type function public/default
 ```
 
 <!--REST API-->
 
-{@inject: endpoint|DELETE|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v3/packages/:type/:tenant/:namespace/:packageName/?version=[[pulsar:version_number]]}
 
 <!--JAVA-->
-Delete a specified package synchronously.
+List all versions of a package synchronously.
 
 ```java
-   void delete(String packageName) throws PulsarAdminException;
+  List<String> listPackageVersions(String packageName) throws PulsarAdminException;
 ```
-Delete a specified package asynchronously.
+
+List all versions of a package asynchronously.
 ```java
-   CompletableFuture<Void> deleteAsync(String packageName);
+  CompletableFuture<List<String>> listPackageVersionsAsync(String packageName);
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
+
+## List all packages of a specific type under a namespace
+
+You can use the following commands to list all packages of a specific type under a namespace.
+
+<!--DOCUSAURUS_CODE_TABS-->
+
+<!--pulsar-admin-->
+```shell
+bin/pulsar-admin packages list --type function public/default
+```
+
+<!--REST API-->
+
+{@inject: endpoint|PUT|/admin/v3/packages/:type/:tenant/:namespace/?version=[[pulsar:version_number]]}
+
+<!--JAVA-->
+List all packages of a specific type under a namespace synchronously.
+
+```java
+  List<String> listPackages(String type, String namespace) throws PulsarAdminException;
+```
+
+List all packages of a specific type under a namespace asynchronously.
+
+```java
+  CompletableFuture<List<String>> listPackagesAsync(String type, String namespace);
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+
+> **Note**  
+> This page only includes some of the most frequently used operations.
+> * For more information about the commands, flags, descriptions, and more in Pulsar administrator, see [Pulsar admin](https://pulsar.apache.org/tools/pulsar-admin/) page.
+> * For more information about the parameters, responses, samples, and more in REST API, see [REST API](https://pulsar.incubator.apache.org/admin-rest-api#/) page.
+> * For more information about the classes, methods, descriptions, and more Java administrator API, see [Java admin API](https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/) page.
