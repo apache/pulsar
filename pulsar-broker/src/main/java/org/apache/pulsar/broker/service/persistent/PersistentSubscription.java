@@ -1235,7 +1235,7 @@ public class PersistentSubscription implements Subscription {
 
     public boolean checkIfPendingAckStoreInit() {
         if (this.pendingAckHandle instanceof PendingAckHandleImpl) {
-            return ((PendingAckHandleImpl) this.pendingAckHandle).checkIfPendingAckStoreInit();
+            return this.pendingAckHandle.checkIfPendingAckStoreInit();
         } else {
             return false;
         }
