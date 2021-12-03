@@ -28,6 +28,7 @@ import org.apache.bookkeeper.meta.LedgerIdGenerator;
 import org.apache.bookkeeper.proto.BookkeeperInternalCallbacks;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
@@ -64,6 +65,7 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
                 }).thenAccept(ledgerId ->
                 genericCallback.operationComplete(BKException.Code.OK, ledgerId)
         ).exceptionally(ex -> {
+            log.error("Error generating ledger id: {}", ex.getMessage());
             genericCallback.operationComplete(BKException.Code.MetaStoreException, -1L);
             return null;
         });
@@ -71,7 +73,21 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
     }
 
     private CompletableFuture<Long> generateShortLedgerId() {
-        final String ledgerPrefix = this.ledgerIdGenPath + "/" + SHORT_ID_PREFIX;
+        // Make sure the short-id gen path exists as a persistent node
+        return store.exists(shortIdGenPath)
+                .thenCompose(exists -> {
+                    if (exists) {
+                        // Proceed
+                        return internalGenerateShortLedgerId();
+                    } else {
+                        return store.put(shortIdGenPath, new byte[0], Optional.empty())
+                                .thenCompose(__ -> internalGenerateShortLedgerId());
+                    }
+                });
+    }
+
+    private CompletableFuture<Long> internalGenerateShortLedgerId() {
+        final String ledgerPrefix = this.shortIdGenPath + "/" + SHORT_ID_PREFIX;
 
         return store.put(ledgerPrefix, new byte[0], Optional.of(-1L),
                 EnumSet.of(CreateOption.Ephemeral, CreateOption.Sequential))
@@ -149,7 +165,6 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
                                 store.delete(path, Optional.of(0L));
                             }
                         }
-
                         return ledgerId;
                     });
         });
@@ -169,10 +184,25 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
             log.debug("Creating HOB path: {}", ledgerPrefix + formatHalfId(hob));
         }
 
-        return store.put(ledgerPrefix + formatHalfId(hob), new byte[0], Optional.empty())
-                .thenCompose(__ ->
+        CompletableFuture<Long> future = new CompletableFuture<>();
+        store.put(ledgerPrefix + formatHalfId(hob), new byte[0], Optional.empty())
+                .whenComplete((__, ex) -> {
+                    if (ex != null && !(ex.getCause()
+                            .getCause() instanceof MetadataStoreException.BadVersionException)) {
+                        // BadVersion is OK here because we can have multiple threads (or nodes) trying to create the
+                        // new HOB path
+                        future.completeExceptionally(ex);
+                    } else {
                         // We just created a new HOB directory, try again
-                        generateLongLedgerId());
+                        generateLongLedgerId().thenAccept(future::complete)
+                                .exceptionally(e -> {
+                                    future.completeExceptionally(e);
+                                    return null;
+                                });
+                    }
+                });
+
+        return future;
     }
 
     private CompletableFuture<Long> generateLongLedgerIdLowBits(final String ledgerPrefix, long highBits) {
@@ -193,7 +223,6 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
         return store
                 .put(prefix, new byte[0], Optional.of(-1L), EnumSet.of(CreateOption.Ephemeral, CreateOption.Sequential))
                 .thenCompose(stat -> {
-
                     // delete the znode for id generation
                     store.delete(stat.getPath(), Optional.empty()).
                             exceptionally(ex -> {
