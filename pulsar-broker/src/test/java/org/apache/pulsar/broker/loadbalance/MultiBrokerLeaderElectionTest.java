@@ -126,7 +126,7 @@ public class MultiBrokerLeaderElectionTest extends MultiBrokerBaseTest {
     public void shouldProvideConsistentAnswerToTopicLookups()
             throws PulsarAdminException, ExecutionException, InterruptedException {
         String topicNameBase = "persistent://public/default/lookuptest" + UUID.randomUUID() + "-";
-        List<String> topicNames = IntStream.range(0, 50).mapToObj(i -> topicNameBase + i)
+        List<String> topicNames = IntStream.range(0, 500).mapToObj(i -> topicNameBase + i)
                 .collect(Collectors.toList());
         List<PulsarAdmin> allAdmins = getAllAdmins();
         @Cleanup("shutdown")
@@ -158,7 +158,6 @@ public class MultiBrokerLeaderElectionTest extends MultiBrokerBaseTest {
         List<String> firstResult = null;
         for (Future<List<String>> resultFuture : resultFutures) {
             List<String> result = resultFuture.get();
-            log.info("LOOKUP RESULT {}", result);
             if (firstResult == null) {
                 firstResult = result;
             } else {
