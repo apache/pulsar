@@ -61,6 +61,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.tests.TestRetrySupport;
@@ -246,6 +247,11 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
             }
             bkExecutor = null;
         }
+        onCleanup();
+    }
+
+    protected void onCleanup() {
+
     }
 
     protected abstract void setup() throws Exception;
@@ -332,11 +338,11 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         }
     }
 
-    protected ZKMetadataStore createLocalMetadataStore() {
+    protected MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
         return new ZKMetadataStore(mockZooKeeper);
     }
 
-    protected ZKMetadataStore createConfigurationMetadataStore() {
+    protected MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
         return new ZKMetadataStore(mockZooKeeperGlobal);
     }
 
