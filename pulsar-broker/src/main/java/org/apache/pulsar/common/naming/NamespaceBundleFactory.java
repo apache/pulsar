@@ -33,16 +33,19 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.hash.HashFunction;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.SortedSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -63,6 +66,7 @@ public class NamespaceBundleFactory {
 
     private final PulsarService pulsar;
     private final MetadataCache<Policies> policiesCache;
+    private final Duration maxRetryDuration = Duration.ofSeconds(10);
 
     public NamespaceBundleFactory(PulsarService pulsar, HashFunction hashFunc) {
         this.hashFunc = hashFunc;
@@ -90,22 +94,27 @@ public class NamespaceBundleFactory {
         }
 
         CompletableFuture<NamespaceBundles> future = new CompletableFuture<>();
+        doLoadBundles(namespace, path, future, createBackoff(), System.nanoTime() + maxRetryDuration.toNanos());
+        return future;
+    }
+
+    private void doLoadBundles(NamespaceName namespace, String path, CompletableFuture<NamespaceBundles> future,
+                               Backoff backoff, long retryDeadline) {
         // Read the static bundle data from the policies
         pulsar.getLocalMetadataStore().get(path).thenAccept(result -> {
-
             if (result.isPresent()) {
                 try {
                     future.complete(readBundles(namespace,
                             result.get().getValue(), result.get().getStat().getVersion()));
                 } catch (IOException e) {
-                    future.completeExceptionally(e);
+                    handleLoadBundlesRetry(namespace, path, future, backoff, retryDeadline, e);
                 }
             } else {
                 // If no local policies defined for namespace, copy from global config
                 copyToLocalPolicies(namespace)
                         .thenAccept(b -> future.complete(b))
                         .exceptionally(ex -> {
-                            future.completeExceptionally(ex);
+                            handleLoadBundlesRetry(namespace, path, future, backoff, retryDeadline, ex);
                             return null;
                         });
             }
@@ -113,7 +122,23 @@ public class NamespaceBundleFactory {
             future.completeExceptionally(ex);
             return null;
         });
-        return future;
+    }
+
+    private void handleLoadBundlesRetry(NamespaceName namespace, String path,
+                                        CompletableFuture<NamespaceBundles> future,
+                                        Backoff backoff, long retryDeadline, Throwable e) {
+        if (e instanceof Error || System.nanoTime() > retryDeadline) {
+            future.completeExceptionally(e);
+        } else {
+            LOG.warn("Error loading bundle for {} from path {}. Retrying exception", namespace, path, e);
+            long retryDelay = backoff.next();
+            pulsar.getExecutor().schedule(() ->
+                    doLoadBundles(namespace, path, future, backoff, retryDeadline), retryDelay, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    private static Backoff createBackoff() {
+        return new Backoff(100, TimeUnit.MILLISECONDS, 5, TimeUnit.SECONDS, 0, TimeUnit.MILLISECONDS);
     }
 
     private NamespaceBundles readBundles(NamespaceName namespace, byte[] value, long version) throws IOException {
