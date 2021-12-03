@@ -151,7 +151,7 @@ void HTTPLookupService::handleNamespaceTopicsHTTPRequest(NamespaceTopicsPromise 
 Result HTTPLookupService::sendHTTPRequest(std::string completeUrl, std::string &responseData) {
     uint16_t reqCount = 0;
     Result retResult = ResultOk;
-    while(++reqCount <= MAX_HTTP_REDIRECTS) {
+    while (++reqCount <= MAX_HTTP_REDIRECTS) {
         CURL *handle;
         CURLcode res;
         std::string version = std::string("Pulsar-CPP-v") + _PULSAR_VERSION_INTERNAL_;
@@ -235,14 +235,15 @@ Result HTTPLookupService::sendHTTPRequest(std::string completeUrl, std::string &
             }
         }
 
-        LOG_INFO("Curl [" << reqCount <<  "] Lookup Request sent for " << completeUrl);
+        LOG_INFO("Curl [" << reqCount << "] Lookup Request sent for " << completeUrl);
 
         // Make get call to server
         res = curl_easy_perform(handle);
-        
+
         long response_code;
         curl_easy_getinfo(handle, CURLINFO_RESPONSE_CODE, &response_code);
-        LOG_INFO("Response received for url " << completeUrl << " response_code " << response_code << " curl res " << res);
+        LOG_INFO("Response received for url " << completeUrl << " response_code " << response_code
+                                              << " curl res " << res);
 
         // Free header list
         curl_slist_free_all(list);
