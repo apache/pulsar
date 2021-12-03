@@ -36,9 +36,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.net.URI;
-import java.time.Clock;
-import java.time.Instant;
-import java.time.ZoneId;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -110,10 +107,6 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     private BrokerStats brokerStats;
     private SchemasResource schemasResource;
     private Field uriField;
-    private final Clock mockClock = Clock.fixed(
-        Instant.ofEpochSecond(365248800),
-        ZoneId.of("-05:00")
-    );
 
     public AdminTest() {
         super();
@@ -175,7 +168,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doReturn("test").when(persistentTopics).clientAppId();
         doReturn(mock(AuthenticationDataHttps.class)).when(persistentTopics).clientAuthData();
 
-        schemasResource = spy(new SchemasResource(mockClock));
+        schemasResource = spy(new SchemasResource());
         schemasResource.setServletContext(new MockServletContext());
         schemasResource.setPulsar(pulsar);
     }

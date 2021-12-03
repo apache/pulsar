@@ -218,6 +218,13 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
             assertTrue(e.getMessage().startsWith(
                     "Unauthorized to validateTopicOperation for operation [GET_STATS]"));
         }
+        try {
+            sub1Admin.topics().getBacklogSizeByMessageId(topicName, MessageId.earliest);
+            fail("should have failed with authorization exception");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().startsWith(
+                    "Unauthorized to validateTopicOperation for operation"));
+        }
 
         // grant topic consume authorization to the subscriptionRole
         tenantAdmin.topics().grantPermission(topicName, subscriptionRole,
@@ -239,8 +246,10 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         assertEquals(subscriptions.size(), 2);
 
         // now, subscriptionRole have consume authorization on topic, so it will successfully get topic internal stats
-        PersistentTopicInternalStats internalStats = superAdmin.topics().getInternalStats(topicName, true);
+        PersistentTopicInternalStats internalStats = sub1Admin.topics().getInternalStats(topicName, true);
         assertNotNull(internalStats);
+        Long backlogSize = sub1Admin.topics().getBacklogSizeByMessageId(topicName, MessageId.earliest);
+        assertEquals(backlogSize.longValue(), 0);
 
         // verify tenant is able to perform all subscription-admin api
         tenantAdmin.topics().skipAllMessages(topicName, subscriptionName);

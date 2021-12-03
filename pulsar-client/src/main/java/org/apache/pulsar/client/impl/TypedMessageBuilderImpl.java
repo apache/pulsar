@@ -109,7 +109,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     public TypedMessageBuilder<T> key(String key) {
         if (schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
             KeyValueSchemaImpl kvSchema = (KeyValueSchemaImpl) schema;
-            checkArgument(!(kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED),
+            checkArgument(kvSchema.getKeyValueEncodingType() != KeyValueEncodingType.SEPARATED,
                     "This method is not allowed to set keys when in encoding type is SEPARATED");
             if (key == null) {
                 msgMetadata.setNullPartitionKey(true);

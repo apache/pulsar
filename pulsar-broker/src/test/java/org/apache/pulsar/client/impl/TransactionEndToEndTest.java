@@ -413,7 +413,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Assert.assertNull(message);
 
         String checkTopic = TopicName.get(topic).getPartition(0).toString();
-        PersistentTopicInternalStats stats = admin.topics().getInternalStats(checkTopic, false);;
+        PersistentTopicInternalStats stats = admin.topics().getInternalStats(checkTopic, false);
 
         Assert.assertNotEquals(stats.cursors.get(subName).markDeletePosition, stats.lastConfirmedEntry);
 

@@ -253,6 +253,7 @@ public class BrokerService implements Closeable {
 
     private final DelayedDeliveryTrackerFactory delayedDeliveryTrackerFactory;
     private final ServerBootstrap defaultServerBootstrap;
+    private final List<EventLoopGroup> protocolHandlersWorkerGroups = new ArrayList<>();
 
     @Getter
     private final BundlesQuotas bundlesQuotas;
@@ -331,7 +332,7 @@ public class BrokerService implements Closeable {
             log.info("Enabling per-broker unack-message limit {} and dispatcher-limit {} on blocked-broker",
                     maxUnackedMessages, maxUnackedMsgsPerDispatcher);
             // block misbehaving dispatcher by checking periodically
-            pulsar.getExecutor().scheduleAtFixedRate(() -> checkUnAckMessageDispatching(),
+            pulsar.getExecutor().scheduleAtFixedRate(safeRun(this::checkUnAckMessageDispatching),
                     600, 30, TimeUnit.SECONDS);
         } else {
             this.maxUnackedMessages = 0;
@@ -385,6 +386,16 @@ public class BrokerService implements Closeable {
                                       SocketAddress address,
                                       ChannelInitializer<SocketChannel> initializer) throws IOException {
         ServerBootstrap bootstrap = defaultServerBootstrap.clone();
+        ServiceConfiguration configuration = pulsar.getConfiguration();
+        boolean useSeparateThreadPool = configuration.isUseSeparateThreadPoolForProtocolHandlers();
+        if (useSeparateThreadPool) {
+            DefaultThreadFactory defaultThreadFactory = new DefaultThreadFactory("pulsar-ph-" + protocol);
+            EventLoopGroup dedicatedWorkerGroup =
+                    EventLoopUtil.newEventLoopGroup(configuration.getNumIOThreads(), false, defaultThreadFactory);
+            bootstrap.channel(EventLoopUtil.getServerSocketChannelClass(dedicatedWorkerGroup));
+            protocolHandlersWorkerGroups.add(dedicatedWorkerGroup);
+            bootstrap.group(this.acceptorGroup, dedicatedWorkerGroup);
+        }
         bootstrap.childHandler(initializer);
         try {
             bootstrap.bind(address).sync();
@@ -565,14 +576,12 @@ public class BrokerService implements Closeable {
             if (this.topicPublishRateLimiterMonitor == null) {
                 this.topicPublishRateLimiterMonitor = Executors.newSingleThreadScheduledExecutor(
                         new DefaultThreadFactory("pulsar-topic-publish-rate-limiter-monitor"));
-                if (topicTickTimeMs > 0) {
-                    // schedule task that sums up publish-rate across all cnx on a topic
-                    topicPublishRateLimiterMonitor.scheduleAtFixedRate(safeRun(() -> checkTopicPublishThrottlingRate()),
-                            topicTickTimeMs, topicTickTimeMs, TimeUnit.MILLISECONDS);
-                    // schedule task that refreshes rate-limiting bucket
-                    topicPublishRateLimiterMonitor.scheduleAtFixedRate(safeRun(() -> refreshTopicPublishRate()), 1, 1,
-                            TimeUnit.SECONDS);
-                }
+                // schedule task that sums up publish-rate across all cnx on a topic
+                topicPublishRateLimiterMonitor.scheduleAtFixedRate(safeRun(() -> checkTopicPublishThrottlingRate()),
+                        topicTickTimeMs, topicTickTimeMs, TimeUnit.MILLISECONDS);
+                // schedule task that refreshes rate-limiting bucket
+                topicPublishRateLimiterMonitor.scheduleAtFixedRate(safeRun(() -> refreshTopicPublishRate()), 1, 1,
+                        TimeUnit.SECONDS);
             }
         } else {
             // disable publish-throttling for all topics
@@ -600,21 +609,19 @@ public class BrokerService implements Closeable {
             if (this.brokerPublishRateLimiterMonitor == null) {
                 this.brokerPublishRateLimiterMonitor = Executors.newSingleThreadScheduledExecutor(
                     new DefaultThreadFactory("pulsar-broker-publish-rate-limiter-monitor"));
-                if (brokerTickTimeMs > 0) {
-                    // schedule task that sums up publish-rate across all cnx on a topic,
-                    // and check the rate limit exceeded or not.
-                    brokerPublishRateLimiterMonitor.scheduleAtFixedRate(
-                        safeRun(() -> checkBrokerPublishThrottlingRate()),
-                        brokerTickTimeMs,
-                        brokerTickTimeMs,
-                        TimeUnit.MILLISECONDS);
-                    // schedule task that refreshes rate-limiting bucket
-                    brokerPublishRateLimiterMonitor.scheduleAtFixedRate(
-                        safeRun(() -> refreshBrokerPublishRate()),
-                        1,
-                        1,
-                        TimeUnit.SECONDS);
-                }
+                // schedule task that sums up publish-rate across all cnx on a topic,
+                // and check the rate limit exceeded or not.
+                brokerPublishRateLimiterMonitor.scheduleAtFixedRate(
+                    safeRun(() -> checkBrokerPublishThrottlingRate()),
+                    brokerTickTimeMs,
+                    brokerTickTimeMs,
+                    TimeUnit.MILLISECONDS);
+                // schedule task that refreshes rate-limiting bucket
+                brokerPublishRateLimiterMonitor.scheduleAtFixedRate(
+                    safeRun(() -> refreshBrokerPublishRate()),
+                    1,
+                    1,
+                    TimeUnit.SECONDS);
             }
         } else {
             // disable publish-throttling for broker.
@@ -698,9 +705,14 @@ public class BrokerService implements Closeable {
 
             CompletableFuture<CompletableFuture<Void>> cancellableDownstreamFutureReference = new CompletableFuture<>();
             log.info("Event loops shutting down gracefully...");
+            List<CompletableFuture<?>> shutdownEventLoops = new ArrayList<>();
+            shutdownEventLoops.add(shutdownEventLoopGracefully(acceptorGroup));
+            shutdownEventLoops.add(shutdownEventLoopGracefully(workerGroup));
+            for (EventLoopGroup group : protocolHandlersWorkerGroups) {
+                shutdownEventLoops.add(shutdownEventLoopGracefully(group));
+            }
             CompletableFuture<Void> shutdownFuture =
-                    CompletableFuture.allOf(shutdownEventLoopGracefully(acceptorGroup),
-                            shutdownEventLoopGracefully(workerGroup))
+                    CompletableFuture.allOf(shutdownEventLoops.toArray(new CompletableFuture[0]))
                             .handle((v, t) -> {
                                 if (t != null) {
                                     log.warn("Error shutting down event loops gracefully", t);

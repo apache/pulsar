@@ -609,7 +609,7 @@ public class CmdNamespaces extends CmdBase {
                 }
 
                 if (TopicType.PARTITIONED.toString().equals(type)
-                        && (defaultNumPartitions == null || !(defaultNumPartitions > 0))) {
+                        && (defaultNumPartitions == null || defaultNumPartitions <= 0)) {
                     throw new ParameterException("Must specify num-partitions or num-partitions > 0 " +
                             "for partitioned topic type.");
                 }

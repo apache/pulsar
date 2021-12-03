@@ -1041,7 +1041,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         log.info(" 1 get lookup url {}", brokerUrl);
 
         //  2. update isolation policy, without broker matched, lookup will fail.
-        nsPolicyData1.getPrimary().clear();;
+        nsPolicyData1.getPrimary().clear();
         nsPolicyData1.getPrimary().add(brokerName + "not_match");
         admin.clusters().updateNamespaceIsolationPolicyAsync(cluster, policyName1, nsPolicyData1).get();
 

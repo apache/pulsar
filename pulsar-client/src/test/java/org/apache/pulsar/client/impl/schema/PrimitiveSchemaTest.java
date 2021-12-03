@@ -124,7 +124,7 @@ public class PrimitiveSchemaTest {
                 assertNull(((AbstractSchema) schema).decode(byteBuf),
                     "Should support null in " + schema.getSchemaInfo().getName() + " deserialization");
             } catch (NullPointerException npe) {
-                throw new NullPointerException("NPE when using schema " + schema + " : " + npe.getMessage());
+                throw new IllegalArgumentException("NPE when using schema " + schema + " : " + npe.getMessage(), npe);
             }
         }
     }
@@ -141,8 +141,8 @@ public class PrimitiveSchemaTest {
                         "Should get the original " + test.getKey().getSchemaInfo().getName() +
                             " after serialization and deserialization");
                 } catch (NullPointerException npe) {
-                    throw new NullPointerException("NPE when using schema " + test.getKey()
-                        + " : " + npe.getMessage());
+                    throw new IllegalArgumentException("NPE when using schema " + test.getKey()
+                        + " : " + npe.getMessage(), npe);
                 }
             }
         }

@@ -244,7 +244,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private AdditionalServlets brokerAdditionalServlets;
 
     // packages management service
-    private PackagesManagement packagesManagement;
+    private Optional<PackagesManagement> packagesManagement = Optional.empty();
     private PrometheusMetricsServlet metricsServlet;
     private List<PrometheusRawMetricsProvider> pendingMetricsProviders;
 
@@ -1544,16 +1544,22 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         }
     }
 
+    public PackagesManagement getPackagesManagement() throws UnsupportedOperationException {
+        return packagesManagement.orElseThrow(() -> new UnsupportedOperationException("Package Management Service "
+                + "is not enabled in the broker."));
+    }
+
     private void startPackagesManagementService() throws IOException {
         // TODO: using provider to initialize the packages management service.
-        this.packagesManagement = new PackagesManagementImpl();
+        PackagesManagement packagesManagementService = new PackagesManagementImpl();
+        this.packagesManagement = Optional.of(packagesManagementService);
         PackagesStorageProvider storageProvider = PackagesStorageProvider
             .newProvider(config.getPackagesManagementStorageProvider());
         DefaultPackagesStorageConfiguration storageConfiguration = new DefaultPackagesStorageConfiguration();
         storageConfiguration.setProperty(config.getProperties());
         PackagesStorage storage = storageProvider.getStorage(storageConfiguration);
         storage.initialize();
-        packagesManagement.initialize(storage);
+        packagesManagementService.initialize(storage);
     }
 
     public Optional<Integer> getListenPortHTTP() {

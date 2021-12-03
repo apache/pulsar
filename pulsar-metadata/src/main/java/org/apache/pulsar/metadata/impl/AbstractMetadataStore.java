@@ -41,6 +41,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -139,6 +140,21 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         MetadataCacheImpl<T> metadataCache = new MetadataCacheImpl<>(this, serde);
         metadataCaches.add(metadataCache);
         return metadataCache;
+    }
+
+    @Override
+    public CompletableFuture<Optional<GetResult>> get(String path) {
+        if (!isValidPath(path)) {
+            return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
+        }
+        return storeGet(path);
+    }
+
+    protected abstract CompletableFuture<Optional<GetResult>> storeGet(String path);
+
+    @Override
+    public CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion) {
+        return put(path, value, expectedVersion, EnumSet.noneOf(CreateOption.class));
     }
 
     @Override
