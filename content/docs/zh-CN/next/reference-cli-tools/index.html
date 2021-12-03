@@ -100,7 +100,7 @@
 <p>用法：</p>
 <pre><code class="hljs css language-bash">$ pulsar <span class="hljs-built_in">command</span>
 </code></pre>
-<p>命令: * <code>bookie</code> * <code>broker</code> * <code>compact-topic</code> * <code>configuration-store</code> * <code>initialize-cluster-metadata</code> * <code>proxy</code> * <code>standalone</code> * <code>websocket</code> * <code>zookeeper</code> * <code>zookeeper-shell</code></p>
+<p>Commands: * <code>bookie</code> * <code>broker</code> * <code>compact-topic</code> * <code>configuration-store</code> * <code>initialize-cluster-metadata</code> * <code>proxy</code> * <code>standalone</code> * <code>websocket</code> * <code>zookeeper</code> * <code>zookeeper-shell</code> * <code>autorecovery</code></p>
 <p>例子：</p>
 <pre><code class="hljs css language-bash">$ PULSAR_BROKER_CONF=/path/to/broker.conf pulsar broker
 </code></pre>
@@ -288,6 +288,20 @@
 <tr><td><code>-server</code></td><td>配置 zk 地址，比如 <code>127.0.0.1:2181</code></td><td></td></tr>
 </tbody>
 </table>
+<h3><a class="anchor" aria-hidden="true" id="autorecovery"></a><a href="#autorecovery" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>autorecovery</code></h3>
+<p>Runs an auto-recovery service.</p>
+<p>用法</p>
+<pre><code class="hljs css language-bash">$ pulsar autorecovery options
+</code></pre>
+<p>选项</p>
+<table>
+<thead>
+<tr><th>参数</th><th>说明</th><th>默认值</th></tr>
+</thead>
+<tbody>
+<tr><td><code>-c</code>, <code>--conf</code></td><td>Configuration for the autorecovery</td><td>N/A</td></tr>
+</tbody>
+</table>
 <h2><a class="anchor" aria-hidden="true" id="pulsar-client"></a><a href="#pulsar-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>pulsar-client</code></h2>
 <p>pulsar-client 工具</p>
 <p>用法</p>
@@ -325,13 +339,13 @@
 <tr><td><code>-m</code>, <code>--messages</code></td><td>将要发送的消息字符串，以逗号分隔；必须指定 -m 或 -f</td><td>[]</td></tr>
 <tr><td><code>-n</code>, <code>--num-produce</code></td><td>发送单条或多条消息的次数；消息/文件 * 生产次数 应小于 1000</td><td>1</td></tr>
 <tr><td><code>-r</code>, <code>--rate</code></td><td>生产消息的频率（单位是消息/秒），值为 0 表示尽可能快地生产消息</td><td>0.0</td></tr>
-<tr><td><code>-db</code>, <code>--disable-batching</code></td><td>禁用批量发送消息</td><td>false</td></tr>
+<tr><td><code>-db</code>, <code>--disable-batching</code></td><td>Disable batch sending of messages</td><td>false</td></tr>
 <tr><td><code>-c</code>, <code>--chunking</code></td><td>如果消息超过允许的最大大小，则将消息分割并分块发布。</td><td>false</td></tr>
 <tr><td><code>-s</code>, <code>--separator</code></td><td>用于分割消息字符的字符串。</td><td>&quot;,&quot;</td></tr>
 <tr><td><code>-k</code>, <code>--key</code></td><td>要添加的消息键（Message Key）</td><td>key=value string, like k1=v1,k2=v2.</td></tr>
-<tr><td><code>-p</code>, <code>--properties</code></td><td>要添加的属性。如果添加多个属性，要使用逗号作为分隔符，比如：<code>k1=v1,k2=v2</code>。</td><td></td></tr>
+<tr><td><code>-p</code>, <code>--properties</code></td><td>Properties to add. If you want to add multiple properties, use the comma as the separator, e.g. <code>k1=v1,k2=v2</code>.</td><td></td></tr>
 <tr><td><code>-ekn</code>, <code>--encryption-key-name</code></td><td>The public key name to encrypt payload.</td><td></td></tr>
-<tr><td><code>-ekv</code>, <code>--encryption-key-value</code></td><td>用于加密有效的公钥的URI。例如，<code>file://path/to/public.key</code>或<code>data:application/x-pem-file;base64,*****</code>。</td><td></td></tr>
+<tr><td><code>-ekv</code>, <code>--encryption-key-value</code></td><td>The URI of public key to encrypt payload. For example, <code>file:///path/to/public.key</code> or <code>data:application/x-pem-file;base64,*****</code>.</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="consume"></a><a href="#consume" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>consume</code></h3>
@@ -350,15 +364,15 @@
 <tr><td><code>-r</code>, <code>--rate</code></td><td>消费消息的频率（单位是消息/秒），值为 0 表示尽可能快地消费消息</td><td>0.0</td></tr>
 <tr><td><code>--regex</code></td><td>表明主题名称为正则表达式</td><td>false</td></tr>
 <tr><td><code>-s</code>, <code>--subscription-name</code></td><td>Subscription name</td><td></td></tr>
-<tr><td><code>-t</code>, <code>--subscription-type</code></td><td>订阅类型。可能的值有：Exclusive, Shared, Failover, Key_Shared。</td><td>Exclusive</td></tr>
-<tr><td><code>-p</code>, <code>--subscription-position</code></td><td>订阅的位置。可能的值有：Latest, Earliest。</td><td>Latest</td></tr>
-<tr><td><code>-m</code>, <code>--subscription-mode</code></td><td>订阅模式。可能的值：Durable ，NonDurable</td><td>Durable</td></tr>
+<tr><td><code>-t</code>, <code>--subscription-type</code></td><td>The type of the subscription. Possible values: Exclusive, Shared, Failover, Key_Shared.</td><td>Exclusive</td></tr>
+<tr><td><code>-p</code>, <code>--subscription-position</code></td><td>The position of the subscription. Possible values: Latest, Earliest.</td><td>Latest</td></tr>
+<tr><td><code>-m</code>, <code>--subscription-mode</code></td><td>Subscription mode. Possible values: Durable, NonDurable.</td><td>Durable</td></tr>
 <tr><td><code>-q</code>, <code>--queue-size</code></td><td>消费者接收队列的大小。</td><td>0</td></tr>
 <tr><td><code>-mc</code>, <code>--max_chunked_msg</code></td><td>最大的待处理块消息。</td><td>0</td></tr>
 <tr><td><code>-ac</code>, <code>--auto_ack_chunk_q_full</code></td><td>如果队列已满，则自动确认消费者的接收队列中最早的消息。</td><td>false</td></tr>
 <tr><td><code>--hide-content</code></td><td>不要将消息打印到控制台。</td><td>false</td></tr>
-<tr><td><code>-st</code>, <code>--schema-type</code></td><td>设置 Schema 类型。使用 <code>auto_consume</code> 导出 AVRO 或其他结构化数据类型。可用值有：bytes, auto_consume。</td><td>bytes</td></tr>
-<tr><td><code>-ekv</code>, <code>--encryption-key-value</code></td><td>用于加密有效的公钥的URI。例如，<code>file://path/to/public.key</code>或<code>data:application/x-pem-file;base64,*****</code>。</td><td></td></tr>
+<tr><td><code>-st</code>, <code>--schema-type</code></td><td>Set the schema type. Use <code>auto_consume</code> to dump AVRO and other structured data types. Possible values: bytes, auto_consume.</td><td>bytes</td></tr>
+<tr><td><code>-ekv</code>, <code>--encryption-key-value</code></td><td>The URI of public key to encrypt payload. For example, <code>file:///path/to/public.key</code> or <code>data:application/x-pem-file;base64,*****</code>.</td><td></td></tr>
 <tr><td><code>-pm</code>, <code>--pool-messages</code></td><td>使用池化消息</td><td>true</td></tr>
 </tbody>
 </table>
@@ -368,7 +382,7 @@
 <p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-daemon <span class="hljs-built_in">command</span>
 </code></pre>
-<p>命令： * <code>start</code> * <code>stop</code> * <code>restart</code></p>
+<p>Commands * <code>start</code> * <code>stop</code> * <code>restart</code></p>
 <h3><a class="anchor" aria-hidden="true" id="start"></a><a href="#start" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>start</code></h3>
 <p>使用 nohup 在后台启动服务</p>
 <p>用法</p>
@@ -389,7 +403,7 @@
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="restart"></a><a href="#restart" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>restart</code></h3>
-<p>重新启动一个已经启动的服务。</p>
+<p>Restart a service that has already been started.</p>
 <pre><code class="hljs css language-bash">$ pulsar-daemon restart service
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="pulsar-perf"></a><a href="#pulsar-perf" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>pulsar-perf</code></h2>
@@ -397,7 +411,7 @@
 <p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-perf <span class="hljs-built_in">command</span>
 </code></pre>
-<p>命令： * <code>consume</code> * <code>produce</code> * <code>read</code> * <code>websocket-producer</code> * <code>managed-ledger</code> * <code>monitor-brokers</code> * <code>simulation-client</code> * <code>simulation-controller</code> * <code>help</code></p>
+<p>Commands * <code>consume</code> * <code>produce</code> * <code>read</code> * <code>websocket-producer</code> * <code>managed-ledger</code> * <code>monitor-brokers</code> * <code>simulation-client</code> * <code>simulation-controller</code> * <code>help</code></p>
 <p>环境变量</p>
 <p>下表列出了你可以用来配置 pulsar-perf 工具的环境变量。</p>
 <table>
@@ -433,7 +447,7 @@
 <tr><td><code>-v</code>, <code>--encryption-key-value-file</code></td><td>包含解密有效荷载的私钥的文件</td><td></td></tr>
 <tr><td><code>-h</code>, <code>--help</code></td><td>帮助信息</td><td>false</td></tr>
 <tr><td><code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
-<tr><td><code>-m</code>, <code>--num-messages</code></td><td>总共要消费的消息数量。如果值小于、等于 0，将持续消费消息。</td><td>0</td></tr>
+<tr><td><code>-m</code>, <code>--num-messages</code></td><td>Number of messages to consume in total. If the value is equal to or smaller than 0, it keeps consuming messages.</td><td>0</td></tr>
 <tr><td><code>-e</code>, <code>--expire_time_incomplete_chunked_messages</code></td><td>不完整区块消息的到期时间 (毫秒)</td><td>0</td></tr>
 <tr><td><code>-c</code>, <code>--max-connections</code></td><td>Max number of TCP connections to a single broker</td><td>100</td></tr>
 <tr><td><code>-mc</code>, <code>--max_chunked_msg</code></td><td>最大的待处理块消息。</td><td>0</td></tr>
@@ -469,7 +483,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-am</code>, <code>--access-mode</code></td><td>生产者访问模式。有效值是 <code>Shared</code>, <code>Exclusive</code> 和 <code>WaitForExclusive</code></td><td>Shared（共享）</td></tr>
+<tr><td><code>-am</code>, <code>--access-mode</code></td><td>Producer access mode. Valid values are <code>Shared</code>, <code>Exclusive</code> and <code>WaitForExclusive</code></td><td>Shared（共享）</td></tr>
 <tr><td><code>-au</code>, <code>--admin-url</code></td><td>Pulsar admin URL</td><td></td></tr>
 <tr><td><code>--auth-params</code></td><td>认证参数，其格式由认证插件类中<code>configure</code>方法的实现决定。 例如， <code>key1:val1,key2:val2</code> or <code>{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}</code></td><td></td></tr>
 <tr><td><code>--auth-plugin</code></td><td>认证插件类名称</td><td></td></tr>
@@ -480,7 +494,7 @@
 <tr><td><code>-bw</code>, <code>--busy-wait</code></td><td>在 Pulsar 客户端启用或禁用 Busy-Wait</td><td>false</td></tr>
 <tr><td><code>-bm</code>, <code>--batch-max-messages</code></td><td>如果消息超过允许的最大大小，则将消息分割并分块发布。</td><td>false</td></tr>
 <tr><td><code>-d</code>, <code>--delay</code></td><td>给消息标记延迟时间（秒）</td><td>0s</td></tr>
-<tr><td><code>-z</code>, <code>--compression</code></td><td>压缩消息的 payload。可能的值有：NONE, LZ4, ZLIB, ZSTD 或 SNAPPY。</td><td></td></tr>
+<tr><td><code>-z</code>, <code>--compression</code></td><td>Compress messages’ payload. Possible values are NONE, LZ4, ZLIB, ZSTD or SNAPPY.</td><td></td></tr>
 <tr><td><code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
 <tr><td><code>-k</code>, <code>--encryption-key-name</code></td><td>加密有效载荷的公钥名称</td><td></td></tr>
 <tr><td><code>-v</code>, <code>--encryption-key-value-file</code></td><td>包含用于加密有效载荷的公钥文件</td><td></td></tr>
@@ -491,13 +505,13 @@
 <tr><td><code>-c</code>, <code>--max-connections</code></td><td>Max number of TCP connections to a single broker</td><td>100</td></tr>
 <tr><td><code>-o</code>, <code>--max-outstanding</code></td><td>Max number of outstanding messages</td><td>1000</td></tr>
 <tr><td><code>-p</code>, <code>--max-outstanding-across-partitions</code></td><td>跨分区场景下的最大未处理消息数</td><td>50000</td></tr>
-<tr><td><code>-m</code>, <code>--num-messages</code></td><td>总共要发布的消息的数量。如果这个值小于或等于0，它就会继续发布消息。</td><td>0</td></tr>
-<tr><td><code>-mk</code>, <code>--message-key-generation-mode</code></td><td>消息密钥的生成模式。有效选项是 <code>autoIncrement</code>, <code>random</code></td><td></td></tr>
+<tr><td><code>-m</code>, <code>--num-messages</code></td><td>Number of messages to publish in total. If this value is less than or equal to 0, it keeps publishing messages.</td><td>0</td></tr>
+<tr><td><code>-mk</code>, <code>--message-key-generation-mode</code></td><td>The generation mode of message key. Valid options are <code>autoIncrement</code>, <code>random</code></td><td></td></tr>
 <tr><td><code>-ioThreads</code>, <code>--num-io-threads</code></td><td>设置用于处理 broker 连接的线程数</td><td>1</td></tr>
 <tr><td><code>-n</code>, <code>--num-producers</code></td><td>The number of producers (per topic)</td><td>1</td></tr>
 <tr><td><code>-threads</code>, <code>--num-test-threads</code></td><td>测试线程数</td><td>1</td></tr>
 <tr><td><code>-t</code>, <code>--num-topic</code></td><td>The number of topics</td><td>1</td></tr>
-<tr><td><code>-np</code>, <code>--partitions</code></td><td>以给定的分区数量创建分区主题。将此值设置为0意味着不尝试创建主题</td><td></td></tr>
+<tr><td><code>-np</code>, <code>--partitions</code></td><td>Create partitioned topics with the given number of partitions. Setting this value to 0 means not trying to create a topic</td><td></td></tr>
 <tr><td><code>-f</code>, <code>--payload-file</code></td><td>使用 UTF-8 编码的文本文件的有效载荷（payload），会在发布消息时随机选择一个有效载荷</td><td></td></tr>
 <tr><td><code>-e</code>, <code>--payload-delimiter</code></td><td>当使用来自文件的有效载荷（ payload）时，设置每行之间的分隔符</td><td>\n</td></tr>
 <tr><td><code>-pn</code>, <code>--producer-name</code></td><td>生产者名称</td><td></td></tr>
@@ -507,7 +521,7 @@
 <tr><td><code>-u</code>, <code>--service-url</code></td><td>Pulsar service URL</td><td></td></tr>
 <tr><td><code>-s</code>, <code>--size</code></td><td>Message size (in bytes)</td><td>1024</td></tr>
 <tr><td><code>-i</code>, <code>--stats-interval-seconds</code></td><td>Statistics interval seconds. If 0, statistics will be disabled.</td><td>0</td></tr>
-<tr><td><code>-time</code>, <code>--test-duration</code></td><td>测试持续时间（单位：秒）。如果这个值小于或等于0，它就会一直发布消息。</td><td>0</td></tr>
+<tr><td><code>-time</code>, <code>--test-duration</code></td><td>Test duration (in seconds). If this value is less than or equal to 0, it keeps publishing messages.</td><td>0</td></tr>
 <tr><td><code>--trust-cert-file</code></td><td>Path for the trusted TLS certificate file</td><td></td></tr>
 <tr><td><code>--warmup-time</code></td><td>预热时间（秒）</td><td>1</td></tr>
 <tr><td><code>--tls-allow-insecure</code></td><td>允许不安全的 TLS 连接。</td><td></td></tr>
@@ -529,7 +543,7 @@
 <tr><td><code>--listener-name</code></td><td>broker 监听器名称</td><td></td></tr>
 <tr><td><code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
 <tr><td><code>-h</code>, <code>--help</code></td><td>帮助信息</td><td>false</td></tr>
-<tr><td><code>-n</code>, <code>--num-messages</code></td><td>总共要消费的消息数量。如果值小于、等于 0，将持续消费消息。</td><td>0</td></tr>
+<tr><td><code>-n</code>, <code>--num-messages</code></td><td>Number of messages to consume in total. If the value is equal to or smaller than 0, it keeps consuming messages.</td><td>0</td></tr>
 <tr><td><code>-c</code>, <code>--max-connections</code></td><td>Max number of TCP connections to a single broker</td><td>100</td></tr>
 <tr><td><code>-ioThreads</code>, <code>--num-io-threads</code></td><td>设置用于处理 broker 连接的线程数</td><td>1</td></tr>
 <tr><td><code>-lt</code>, <code>--num-listener-threads</code></td><td>Set the number of threads to be used for message listeners</td><td>1</td></tr>
@@ -560,16 +574,16 @@
 <tr><td><code>--auth-plugin</code></td><td>认证插件类名称</td><td></td></tr>
 <tr><td><code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
 <tr><td><code>-h</code>, <code>--help</code></td><td>帮助信息</td><td>false</td></tr>
-<tr><td><code>-m</code>, <code>--num-messages</code></td><td>总共要发布的消息的数量。如果这个值小于或等于0，它就会继续发布消息。</td><td>0</td></tr>
+<tr><td><code>-m</code>, <code>--num-messages</code></td><td>Number of messages to publish in total. If this value is less than or equal to 0, it keeps publishing messages.</td><td>0</td></tr>
 <tr><td><code>-t</code>, <code>--num-topic</code></td><td>The number of topics</td><td>1</td></tr>
 <tr><td><code>-f</code>, <code>--payload-file</code></td><td>使用文件中的 payload 而不是空缓存中的</td><td></td></tr>
 <tr><td><code>-e</code>, <code>--payload-delimiter</code></td><td>当使用来自文件的有效载荷（ payload）时，设置每行之间的分隔符</td><td>\n</td></tr>
 <tr><td><code>-fp</code>, <code>--format-payload</code></td><td>格式化为来自 producer 和/或流中的消息索引作为时间戳，单位为 nanoseconds</td><td>false</td></tr>
-<tr><td><code>-fc</code>, <code>--format-class</code></td><td>自定义 formatter 类名</td><td><code>org.apache.pulsar.testclient.DefaultMessageFormatter</code></td></tr>
+<tr><td><code>-fc</code>, <code>--format-class</code></td><td>Custom formatter class name</td><td><code>org.apache.pulsar.testclient.DefaultMessageFormatter</code></td></tr>
 <tr><td><code>-u</code>, <code>--proxy-url</code></td><td>Pulsar 代理 URL，比如 &quot;<a href="ws://localhost:8080/">ws://localhost:8080/</a>&quot;</td><td></td></tr>
 <tr><td><code>-r</code>, <code>--rate</code></td><td>Publish rate msg/s across topics</td><td>100</td></tr>
 <tr><td><code>-s</code>, <code>--size</code></td><td>消息大小（字节）</td><td>1024</td></tr>
-<tr><td><code>-time</code>, <code>--test-duration</code></td><td>测试持续时间（单位：秒）。如果这个值小于或等于0，它就会一直发布消息。</td><td>0</td></tr>
+<tr><td><code>-time</code>, <code>--test-duration</code></td><td>Test duration (in seconds). If this value is less than or equal to 0, it keeps publishing messages.</td><td>0</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="managed-ledger"></a><a href="#managed-ledger" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>managed-ledger</code></h3>
@@ -584,16 +598,16 @@
 </thead>
 <tbody>
 <tr><td><code>-a</code>, <code>--ack-quorum</code></td><td>Ledger ack quorum</td><td>1</td></tr>
-<tr><td><code>-dt</code>, <code>--digest-type</code></td><td>BookKeeper 摘要类型。可能的值有：[CRC32, MAC, CRC32C, DUMMY]</td><td>CRC32C</td></tr>
+<tr><td><code>-dt</code>, <code>--digest-type</code></td><td>BookKeeper digest type. Possible Values: [CRC32, MAC, CRC32C, DUMMY]</td><td>CRC32C</td></tr>
 <tr><td><code>-e</code>, <code>--ensemble-size</code></td><td>Ledger 整体大小</td><td>1</td></tr>
 <tr><td><code>-h</code>, <code>--help</code></td><td>帮助信息</td><td>false</td></tr>
 <tr><td><code>-c</code>, <code>--max-connections</code></td><td>单个 bookie 的最大 TCP 连接数</td><td>1</td></tr>
 <tr><td><code>-o</code>, <code>--max-outstanding</code></td><td>未处理请求的最大数量</td><td>1000</td></tr>
-<tr><td><code>-m</code>, <code>--num-messages</code></td><td>总共要发布的消息的数量。如果这个值小于或等于0，它就会继续发布消息。</td><td>0</td></tr>
+<tr><td><code>-m</code>, <code>--num-messages</code></td><td>Number of messages to publish in total. If this value is less than or equal to 0, it keeps publishing messages.</td><td>0</td></tr>
 <tr><td><code>-t</code>, <code>--num-topic</code></td><td>managed ledger 的数量</td><td>1</td></tr>
 <tr><td><code>-r</code>, <code>--rate</code></td><td>在managed ledger中的写入速率（消息/秒）</td><td>100</td></tr>
 <tr><td><code>-s</code>, <code>--size</code></td><td>消息大小（字节）</td><td>1024</td></tr>
-<tr><td><code>-time</code>, <code>--test-duration</code></td><td>测试持续时间（单位：秒）。如果这个值小于或等于0，它就会一直发布消息。</td><td>0</td></tr>
+<tr><td><code>-time</code>, <code>--test-duration</code></td><td>Test duration (in seconds). If this value is less than or equal to 0, it keeps publishing messages.</td><td>0</td></tr>
 <tr><td><code>--threads</code></td><td>正在写入的线程数</td><td>1</td></tr>
 <tr><td><code>-w</code>, <code>--write-quorum</code></td><td>Ledger write quorum</td><td>1</td></tr>
 <tr><td><code>-zk</code>, <code>--zookeeperServers</code></td><td>ZooKeeper 连接字符串</td><td></td></tr>
@@ -615,7 +629,7 @@
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="simulation-client"></a><a href="#simulation-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>simulation-client</code></h3>
-<p>运行一个 Pulsar 客户端的模拟服务器。使用在 <code>conf/client.conf</code> 中指定的客户端配置。</p>
+<p>Run a simulation server acting as a Pulsar client. Uses the client configuration specified in <code>conf/client.conf</code>.</p>
 <p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-perf simulation-client options
 </code></pre>
@@ -738,13 +752,13 @@
 <p>用法</p>
 <pre><code class="hljs css language-bash">$ broker-tool <span class="hljs-built_in">command</span>
 </code></pre>
-<p>命令 * <code>load-report</code> * <code>help</code></p>
+<p>Commands * <code>load-report</code> * <code>help</code></p>
 <p>示例 获取关于某条命令的更多信息的两种方式：</p>
 <pre><code class="hljs css language-bash">$ broker-tool <span class="hljs-built_in">help</span> <span class="hljs-built_in">command</span>
 $ broker-tool <span class="hljs-built_in">command</span> --<span class="hljs-built_in">help</span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="load-report"></a><a href="#load-report" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>load-report</code></h3>
-<p>收集指定 broker 的负载报告。 命令会运行在 broker 上，会被用于排除 broker 无法收集正确负载报告的故障。</p>
+<p>Collect the load report of a specific broker. The command is run on a broker, and used for troubleshooting why broker can’t collect right load report.</p>
 <p>选项</p>
 <table>
 <thead>
@@ -755,7 +769,7 @@ $ broker-tool <span class="hljs-built_in">command</span> --<span class="hljs-bui
 <tr><td><code>-h</code>, <code>--help</code></td><td>显示帮助信息</td><td></td></tr>
 </tbody>
 </table>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/reference-terminology"><span class="arrow-prev">← </span><span>术语</span></a><a class="docs-next button" href="/docs/zh-CN/next/reference-configuration"><span>Pulsar configuration</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#pulsar"><code>pulsar</code></a><ul class="toc-headings"><li><a href="#bookie"><code>bookie</code></a></li><li><a href="#broker"><code>broker</code></a></li><li><a href="#compact-topic"><code>compact-topic</code></a></li><li><a href="#configuration-store"><code>configuration-store</code></a></li><li><a href="#initialize-cluster-metadata"><code>initialize-cluster-metadata</code></a></li><li><a href="#proxy"><code>proxy</code></a></li><li><a href="#standalone"><code>standalone</code></a></li><li><a href="#websocket"><code>websocket</code></a></li><li><a href="#zookeeper"><code>zookeeper</code></a></li><li><a href="#zookeeper-shell"><code>zookeeper-shell</code></a></li></ul></li><li><a href="#pulsar-client"><code>pulsar-client</code></a><ul class="toc-headings"><li><a href="#produce"><code>produce</code></a></li><li><a href="#consume"><code>consume</code></a></li></ul></li><li><a href="#pulsar-daemon"><code>pulsar-daemon</code></a><ul class="toc-headings"><li><a href="#start"><code>start</code></a></li><li><a href="#stop"><code>stop</code></a></li><li><a href="#restart"><code>restart</code></a></li></ul></li><li><a href="#pulsar-perf"><code>pulsar-perf</code></a><ul class="toc-headings"><li><a href="#consume-1"><code>consume</code></a></li><li><a href="#produce-1"><code>produce</code></a></li><li><a href="#read"><code>read</code></a></li><li><a href="#websocket-producer"><code>websocket-producer</code></a></li><li><a href="#managed-ledger"><code>managed-ledger</code></a></li><li><a href="#monitor-brokers"><code>monitor-brokers</code></a></li><li><a href="#simulation-client"><code>simulation-client</code></a></li><li><a href="#simulation-controller"><code>simulation-controller</code></a></li><li><a href="#help"><code>help</code></a></li></ul></li><li><a href="#bookkeeper"><code>bookkeeper</code></a><ul class="toc-headings"><li><a href="#auto-recovery"><code>auto-recovery</code></a></li><li><a href="#bookie-1"><code>bookie</code></a></li><li><a href="#localbookie"><code>localbookie</code></a></li><li><a href="#upgrade"><code>upgrade</code></a></li><li><a href="#shell"><code>shell</code></a></li></ul></li><li><a href="#broker-tool"><code>broker-tool</code></a><ul class="toc-headings"><li><a href="#load-report"><code>load-report</code></a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/reference-terminology"><span class="arrow-prev">← </span><span>术语</span></a><a class="docs-next button" href="/docs/zh-CN/next/reference-configuration"><span>Pulsar configuration</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#pulsar"><code>pulsar</code></a><ul class="toc-headings"><li><a href="#bookie"><code>bookie</code></a></li><li><a href="#broker"><code>broker</code></a></li><li><a href="#compact-topic"><code>compact-topic</code></a></li><li><a href="#configuration-store"><code>configuration-store</code></a></li><li><a href="#initialize-cluster-metadata"><code>initialize-cluster-metadata</code></a></li><li><a href="#proxy"><code>proxy</code></a></li><li><a href="#standalone"><code>standalone</code></a></li><li><a href="#websocket"><code>websocket</code></a></li><li><a href="#zookeeper"><code>zookeeper</code></a></li><li><a href="#zookeeper-shell"><code>zookeeper-shell</code></a></li><li><a href="#autorecovery"><code>autorecovery</code></a></li></ul></li><li><a href="#pulsar-client"><code>pulsar-client</code></a><ul class="toc-headings"><li><a href="#produce"><code>produce</code></a></li><li><a href="#consume"><code>consume</code></a></li></ul></li><li><a href="#pulsar-daemon"><code>pulsar-daemon</code></a><ul class="toc-headings"><li><a href="#start"><code>start</code></a></li><li><a href="#stop"><code>stop</code></a></li><li><a href="#restart"><code>restart</code></a></li></ul></li><li><a href="#pulsar-perf"><code>pulsar-perf</code></a><ul class="toc-headings"><li><a href="#consume-1"><code>consume</code></a></li><li><a href="#produce-1"><code>produce</code></a></li><li><a href="#read"><code>read</code></a></li><li><a href="#websocket-producer"><code>websocket-producer</code></a></li><li><a href="#managed-ledger"><code>managed-ledger</code></a></li><li><a href="#monitor-brokers"><code>monitor-brokers</code></a></li><li><a href="#simulation-client"><code>simulation-client</code></a></li><li><a href="#simulation-controller"><code>simulation-controller</code></a></li><li><a href="#help"><code>help</code></a></li></ul></li><li><a href="#bookkeeper"><code>bookkeeper</code></a><ul class="toc-headings"><li><a href="#auto-recovery"><code>auto-recovery</code></a></li><li><a href="#bookie-1"><code>bookie</code></a></li><li><a href="#localbookie"><code>localbookie</code></a></li><li><a href="#upgrade"><code>upgrade</code></a></li><li><a href="#shell"><code>shell</code></a></li></ul></li><li><a href="#broker-tool"><code>broker-tool</code></a><ul class="toc-headings"><li><a href="#load-report"><code>load-report</code></a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

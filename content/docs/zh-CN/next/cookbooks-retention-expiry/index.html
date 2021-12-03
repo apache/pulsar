@@ -145,10 +145,9 @@
 </span></div></div></div></div>
 <h2><a class="anchor" aria-hidden="true" id="backlog-quotas"></a><a href="#backlog-quotas" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Backlog quotas</h2>
 <p><em>Backlogs</em>是由bookies存储的主题的未确认消息集。 Pulsar把所有未确认的消息存储在Backlog中，直到它们被处理和确认为止。</p>
-<p>可以使用 <em>backlog quotas</em> 在命名空间级别限制 Backlog 的大小。 设置backlog quota 涉及以下设置：</p>
-<p>待办：如何对每个主题或每个 backlog 进行扩展？</p>
+<p>You can control the allowable size and/or time of backlogs, at the namespace level, using <em>backlog quotas</em>. Setting a backlog quota involves setting:</p>
 <ul>
-<li>命名空间中每个主题允许的<em>大小阈值</em></li>
+<li>an allowable <em>size and/or time threshold</em> for each topic in the namespace</li>
 <li><em>保留策略</em>，决定了如果超过阈值，<a href="/docs/zh-CN/next/reference-terminology#broker">broker</a> 将采取什么操作。</li>
 </ul>
 <p>可以使用以下保留策略：</p>

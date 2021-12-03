@@ -144,10 +144,9 @@ To disable the retention policy, you need to set both the size and time limit to
 </span></div></div></div></div>
 <h2><a class="anchor" aria-hidden="true" id="backlog-quotas"></a><a href="#backlog-quotas" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Backlog quotas</h2>
 <p><em>Backlogs</em> are sets of unacknowledged messages for a topic that have been stored by bookies. Pulsar stores all unacknowledged messages in backlogs until they are processed and acknowledged.</p>
-<p>You can control the allowable size of backlogs, at the namespace level, using <em>backlog quotas</em>. Setting a backlog quota involves setting:</p>
-<p>TODO: Expand on is this per backlog or per topic?</p>
+<p>You can control the allowable size and/or time of backlogs, at the namespace level, using <em>backlog quotas</em>. Setting a backlog quota involves setting:</p>
 <ul>
-<li>an allowable <em>size threshold</em> for each topic in the namespace</li>
+<li>an allowable <em>size and/or time threshold</em> for each topic in the namespace</li>
 <li>a <em>retention policy</em> that determines which action the <a href="/docs/ko/next/reference-terminology#broker">broker</a> takes if the threshold is exceeded.</li>
 </ul>
 <p>The following retention policies are available:</p>
