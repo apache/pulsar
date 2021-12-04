@@ -707,7 +707,7 @@ The table below lists the environment variables that you can use to configure th
 |BOOKIE_GC_LOG|Gc options to be passed to the jvm||
 
 
-### `autorecovery`
+### `auto-recovery`
 Runs an auto-recovery service
 
 Usage
@@ -736,7 +736,7 @@ Options
 |---|---|---|
 |`-c`, `--conf`|Configuration for the auto-recovery||
 |-readOnly|Force start a read-only bookie server|false|
-|-withAutoRecovery|Start autorecovery service bookie server|false|
+|-withAutoRecovery|Start auto-recovery service bookie server|false|
 
 
 ### `localbookie`

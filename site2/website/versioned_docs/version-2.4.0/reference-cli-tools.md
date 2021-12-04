@@ -650,7 +650,7 @@ The table below lists the environment variables that you can use to configure th
 |BOOKIE_STOP_TIMEOUT|Wait time before forcefully killing the Bookie server instance if attempts to stop it are not successful||
 
 
-### `autorecovery`
+### `auto-recovery`
 Runs an auto-recovery service
 
 Usage
@@ -679,7 +679,7 @@ Options
 |---|---|---|
 |`-c`, `--conf`|Configuration for the auto-recovery||
 |-readOnly|Force start a read-only bookie server|false|
-|-withAutoRecovery|Start autorecovery service bookie server|false|
+|-withAutoRecovery|Start auto-recovery service bookie server|false|
 
 
 ### `localbookie`

@@ -69,7 +69,7 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |numJournalCallbackThreads|The number of threads that should handle journal callbacks|8|
 |openLedgerRereplicationGracePeriod | The grace period, in milliseconds, that the replication worker waits before fencing and replicating a ledger fragment that's still being written to upon bookie failure. | 30000 |
 |rereplicationEntryBatchSize|The number of max entries to keep in fragment for re-replication|100|
-|autoRecoveryDaemonEnabled|Whether the bookie itself can start autorecovery service.|true|
+|autoRecoveryDaemonEnabled|Whether the bookie itself can start auto-recovery service.|true|
 |lostBookieRecoveryDelay|How long to wait, in seconds, before starting auto recovery of a lost bookie.|0|
 |gcWaitTime|How long the interval to trigger next garbage collection, in milliseconds. Since garbage collection is running in background, too frequent gc will heart performance. It is better to give a higher number of gc interval if there is enough disk capacity.|900000|
 |gcOverreplicatedLedgerWaitTime|How long the interval to trigger next garbage collection of overreplicated ledgers, in milliseconds. This should not be run very frequently since we read the metadata for all the ledgers on the bookie from zk.|86400000|
