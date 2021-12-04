@@ -100,7 +100,7 @@ tar xvfz apache-pulsar-offloaders-2.5.1-bin.tar.gz
 <blockquote>
 <p><strong>Note</strong></p>
 <ul>
-<li><p>如果在裸机集群中运行 Pulsar，请确保<code>offloaders</code> tar 包在每个代理的 Pulsar 目录中解压缩。</p></li>
+<li><p>如果在一个裸机集群中运行 Pulsar，请确保<code>offloaders</code>安装包已经在 broker 的所有 Pulsar 目录下解压缩。</p></li>
 <li><p>如果在 Docker 中运行 Pulsar 或使用 Docker 镜像（如 K8S 和 DCOS）部署 Pulsar，则可以使用 <code>apachepulsar/pulsar-all</code> 镜像。 <code>apachepulsar/pulsar-all</code> 镜像已经绑定了分层存储 offloader。</p></li>
 </ul>
 </blockquote></li>
@@ -116,7 +116,7 @@ ls offloaders
 <blockquote>
 <p><strong>Note</strong></p>
 <ul>
-<li><p>如果在裸机集群中运行 Pulsar，请确保<code>offloaders</code> tar 包在每个代理的 Pulsar 目录中解压缩。</p></li>
+<li><p>如果在一个裸机集群中运行 Pulsar，请确保<code>offloaders</code>安装包已经在 broker 的所有 Pulsar 目录下解压缩。</p></li>
 <li><p>如果在 Docker 中运行 Pulsar 或使用 Docker 镜像（如 K8S 和 DCOS）部署 Pulsar，则可以使用 <code>apachepulsar/pulsar-all</code> 镜像。 <code>apachepulsar/pulsar-all</code> 镜像已经绑定了分层存储 offloader。</p></li>
 </ul>
 </blockquote></li>
@@ -217,7 +217,7 @@ Reason: <span class="hljs-builtin-name">Error</span> offloading: org.apache.book
 <li><p>设置无密码 ssh。</p>
 <pre><code class="hljs"><span class="hljs-comment"># 现在检查无需密码是否可以使用 ssh 连接到 localhost：</span><br /><span class="hljs-variable">$ </span>ssh localhost<br /><span class="hljs-comment"># 如果在无密码的情况下无法 ssh 连接到 localhost，请执行以下命令</span><br /><span class="hljs-variable">$ </span>ssh-keygen -t rsa -P <span class="hljs-string">''</span> -f ~<span class="hljs-regexp">/.ssh/id</span>_rsa<br /><span class="hljs-variable">$ </span>cat ~<span class="hljs-regexp">/.ssh/id</span>_rsa.pub &gt;&gt; ~<span class="hljs-regexp">/.ssh/authorized</span>_keys<br /><span class="hljs-variable">$ </span>chmod 0600 ~<span class="hljs-regexp">/.ssh/authorized</span>_keys<br /></code></pre></li>
 <li><p>启动 HDFS。</p>
-<pre><code class="hljs"><span class="hljs-comment"># 不重复执行此命令， 重复执行会捕获数据集群标识符与命名方式</span><br /><span class="hljs-variable">$HADOOP_HOME</span><span class="hljs-regexp">/bin/</span>hadoop namenode -format<br /><span class="hljs-variable">$HADOOP_HOME</span><span class="hljs-regexp">/sbin/</span>start-dfs.sh<br /></code></pre></li>
+<pre><code class="hljs"><span class="hljs-comment"># 不要重复执行该命令，重复执行会导致数据节点的 clusterId 与 namenode 不一致</span><br /><span class="hljs-variable">$HADOOP_HOME</span><span class="hljs-regexp">/bin/</span>hadoop namenode -format<br /><span class="hljs-variable">$HADOOP_HOME</span><span class="hljs-regexp">/sbin/</span>start-dfs.sh<br /></code></pre></li>
 <li><p>导航到 <a href="http://localhost:9870/">HDFS 网站</a>。</p>
 <p>您可以查看 <strong>概述</strong> 页面。</p>
 <p><img src="/docs/assets/FileSystem-1.png" alt=""></p></li>
@@ -226,7 +226,7 @@ Reason: <span class="hljs-builtin-name">Error</span> offloading: org.apache.book
 <h3><a class="anchor" aria-hidden="true" id="第-2-步-安装-filesystem-offloader"></a><a href="#第-2-步-安装-filesystem-offloader" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>第 2 步: 安装 filesystem offloader</h3>
 <p>更多详细信息，请参阅 <a href="#installation">安装</a>。</p>
 <h3><a class="anchor" aria-hidden="true" id="第-3-步-配置-filesystem-offloader"></a><a href="#第-3-步-配置-filesystem-offloader" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>第 3 步: 配置 filesystem offloader</h3>
-<p>正如 <a href="#configuration">配置</a> 部分所指明的那样，需要先配置  filesystem offloader 驱动程序的一些属性，然后才能使用。 本教程假设您已按以下方式配置  filesystem offloader 驱动程序，并在<strong>独立</strong>模式下运行 Pulsar。</p>
+<p>正如 <a href="#configuration">配置</a> 部分所指明的那样，需要先配置  filesystem offloader 驱动程序的一些属性，然后才能使用。 本教程假设您已按以下方式配置 filesystem offloader 驱动程序，并在<strong>单机（Standalone）</strong>模式下运行 Pulsar。</p>
 <p>在 <code>conf/standalone.conf</code> 文件中设置以下配置。</p>
 <pre><code class="hljs css language-conf"><span class="hljs-attr">managedLedgerOffloadDriver</span>=filesystem<br /><span class="hljs-attr">fileSystemURI</span>=hdfs://<span class="hljs-number">127.0</span>.<span class="hljs-number">0.1</span>:<span class="hljs-number">9000</span><br /><span class="hljs-attr">fileSystemProfilePath</span>=../conf/filesystem_<span class="hljs-literal">off</span>load_core_site.xml<br /></code></pre>
 <blockquote>
@@ -245,7 +245,7 @@ Reason: <span class="hljs-builtin-name">Error</span> offloading: org.apache.book
 <p>此示例将挂载 <em>/Users/pulsar_nfs</em> 到 <em>/Users/test</em>。</p>
 <pre><code class="hljs">mount -e <span class="hljs-number">192.168</span>.0.<span class="hljs-number">103</span><span class="hljs-symbol">:/Users/test/Users/pulsar_nfs</span><br /></code></pre>
 <h3><a class="anchor" aria-hidden="true" id="第-3-步-配置-filesystem-offloader-驱动程序"></a><a href="#第-3-步-配置-filesystem-offloader-驱动程序" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>第 3 步: 配置 filesystem offloader 驱动程序</h3>
-<p>正如 <a href="#configuration">配置</a> 部分所指明的那样，需要先配置  filesystem offloader 驱动程序的一些属性，然后才能使用。 本教程假设您已按以下方式配置  filesystem offloader 驱动程序，并在<strong>独立</strong>模式下运行 Pulsar。</p>
+<p>正如 <a href="#configuration">配置</a> 部分所指明的那样，需要先配置  filesystem offloader 驱动程序的一些属性，然后才能使用。 本教程假设您已按以下方式配置 filesystem offloader 驱动程序，并在<strong>单机（Standalone）</strong>模式下运行 Pulsar。</p>
 <ol>
 <li><p>在 <code>conf/standalone.conf</code> 文件中设置以下配置。</p>
 <pre><code class="hljs css language-conf"><span class="hljs-attr">managedLedgerOffloadDriver</span>=filesystem<br /><span class="hljs-attr">fileSystemProfilePath</span>=../conf/filesystem_<span class="hljs-literal">off</span>load_core_site.xml<br /></code></pre></li>
@@ -264,16 +264,16 @@ Reason: <span class="hljs-builtin-name">Error</span> offloading: org.apache.book
 </span></code></pre>
 <blockquote>
 <p><strong>提示</strong></p>
-<p>关于 <code>pulsar-admin namespaces set-offload-threshold options</code> 命令的更多信息，包括标志、描述、默认值和速记方法，参见<a href="https://docs.streamnative.io/pulsarctl/v2.7.0.6/#-em-set-retention-em-">这里</a>。</p>
+<p>关于 <code>pulsarctl namespaces set-retention options</code> 命令的更多信息，包括参数、描述、默认值和速记方法，参见<a href="https://docs.streamnative.io/pulsarctl/v2.7.0.6/#-em-set-retention-em-">这里</a>。</p>
 </blockquote></li>
 <li><p>使用 pulsar-client 生成数据。</p>
 <pre><code class="hljs">./bin/pulsar-client produce -m <span class="hljs-string">"Hello FileSystem Offloader"</span> -n <span class="hljs-number">1000</span> <span class="hljs-meta">public</span>/<span class="hljs-meta">default</span>/<span class="hljs-built_in">fs</span>-<span class="hljs-keyword">test</span>
 </code></pre></li>
-<li><p>卸载操作在触发 ledger 切换后开始。 为了确保卸载数据成功，建议您等待多个 ledger 切换被触发。 在这种情况下，可能需要等待一秒钟。 您可以使用 pulsarctl 检查 ledger 状态。</p>
+<li><p>卸载操作在触发 ledger 切换后开始。 为了确保卸载数据成功，建议您等待下，直到触发多个 ledger 切换。 在这种情况下，可能需要等待一会。 您可以使用 pulsarctl 检查 ledger 状态。</p>
 <pre><code class="hljs">./bin/pulsarctl topics internal-stats <span class="hljs-meta">public</span>/<span class="hljs-meta">default</span>/<span class="hljs-built_in">fs</span>-<span class="hljs-keyword">test</span>
 </code></pre>
 <p><strong>输出</strong></p>
-<p>ledger 696 的数据未卸载。</p>
+<p>The data of the ledger 696 is not offloaded.</p>
 <pre><code class="hljs">{
 <span class="hljs-attr">"version"</span>: <span class="hljs-number">1</span>,
 <span class="hljs-attr">"creationDate"</span>: <span class="hljs-string">"2020-06-16T21:46:25.807+08:00"</span>,
@@ -294,7 +294,7 @@ Reason: <span class="hljs-builtin-name">Error</span> offloading: org.apache.book
 <pre><code class="hljs">./bin/pulsarctl topics internal-stats <span class="hljs-meta">public</span>/<span class="hljs-meta">default</span>/<span class="hljs-built_in">fs</span>-<span class="hljs-keyword">test</span>
 </code></pre>
 <p><strong>输出</strong></p>
-<p>ledger 696已经切换。</p>
+<p>Ledger 696 的数据未卸载。</p>
 <pre><code class="hljs">{
 <span class="hljs-attr">"version"</span>: <span class="hljs-number">2</span>,
 <span class="hljs-attr">"creationDate"</span>: <span class="hljs-string">"2020-06-16T21:46:25.807+08:00"</span>,

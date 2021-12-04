@@ -77,7 +77,7 @@
 <pre><code class="hljs css language-bash">$ docker pull redis:5.0.5
 $ docker run -d -p 6379:6379 --name my-redis redis:5.0.5 --requirepass <span class="hljs-string">"mypassword"</span>
 </code></pre></li>
-<li><p>以独立模式启动本地的 Pulsar 服务。</p>
+<li><p>以单机模式启动本地的 Pulsar 服务。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar standalone
 </code></pre>
 <p>请确保 NAR 文件以 <code>connectors/pulsar-io-redis-2.8.1.nar</code> 的样式存在。</p></li>

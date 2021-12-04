@@ -81,28 +81,28 @@
 <pre><code class="hljs css language-properties"><span class="hljs-comment"># 目录中显示的 connector 名称</span>
 <span class="hljs-meta">connector.name</span>=<span class="hljs-string">pulsar</span>
 <span class="hljs-comment">
-# Pulsar broker 服务的URL</span>
+# Pulsar broker 服务 URL</span>
 <span class="hljs-meta">pulsar.web-service-url</span>=<span class="hljs-string">http://localhost:8080</span>
 <span class="hljs-comment">
-# Zookeeper集群的URI</span>
+# ZooKeeper 集群 URI</span>
 <span class="hljs-meta">pulsar.zookeeper-uri</span>=<span class="hljs-string">localhost:2181</span>
 <span class="hljs-comment">
-# 一次性读取的最小条目数</span>
+# 单次读取的最小条目（entry）数</span>
 <span class="hljs-meta">pulsar.entry-read-batch-size</span>=<span class="hljs-string">100</span>
 <span class="hljs-comment">
 # 每次查询默认使用的分片数量</span>
 <span class="hljs-meta">pulsar.target-num-splits</span>=<span class="hljs-string">4</span>
 <span class="hljs-comment">
-# 一个批处理信息的最大大小（默认值为5MB）。</span>
+# 一个批处理信息的最大大小（默认值为 5MB）。</span>
 <span class="hljs-meta">pulsar.max-message-size</span>=<span class="hljs-string">5242880</span>
 <span class="hljs-comment">
-# 从pulsar查询数据时使用的分片数</span>
+# 从 Pulsar 查询数据时使用的分片数</span>
 <span class="hljs-meta">pulsar.target-num-splits</span>=<span class="hljs-string">2</span>
 <span class="hljs-comment">
-# 缓冲从 pulsar 读取的entry的队列大小</span>
+# 缓存从 Pulsar 读取的 entry 的队列大小</span>
 <span class="hljs-meta">pulsar.max-split-entry-queue-size</span>=<span class="hljs-string">1000</span>
 <span class="hljs-comment">
-# 队列的大小，缓冲从 entries 中提取的消息</span>
+# 缓存从 entry 提取消息的队列大小</span>
 <span class="hljs-meta">pulsar.max-split-message-queue-size</span>=<span class="hljs-string">10000</span>
 <span class="hljs-comment">
 # 状态提供者，记录 connector 的指标</span>
@@ -111,10 +111,10 @@
 # 以 map 格式提供给状态 provider ，例如：{"key1": "val1", "key2": "val2"}。</span>
 <span class="hljs-meta">pulsar.stats-provider-configs</span>=<span class="hljs-string">{}。</span>
 <span class="hljs-comment">
-# 是否重写Pulsar的默认主题分隔符'/'。</span>
+# 是否重写 Pulsar 的默认主题分隔符'/'</span>
 <span class="hljs-meta">pulsar.namespace-delimiter-rewrite-enable</span>=<span class="hljs-string">false</span>
 <span class="hljs-comment">
-# 用于改写Pulsar默认的分隔符'/'，如果默认的分隔符会导致与其他系统（如Superset）不兼容，则使用该分隔符</span>
+# 用于改写 Pulsar 默认的分隔符'/'，如果默认的分隔符会导致与其他系统（如 Superset）不兼容，则使用该分隔符</span>
 <span class="hljs-meta">pulsar.rewrite-namespace-delimiter</span>=<span class="hljs-string">"/"</span>
 <span class="hljs-comment">
 # ledger 卸载器的最大线程池数量。</span>
@@ -126,13 +126,13 @@
 # 用来加载卸载器nar文件的目录。</span>
 <span class="hljs-meta">pulsar.offloaders-directory</span>=<span class="hljs-string">"./offloaders"</span>
 <span class="hljs-comment">
-# 与特定卸载器实现相关的属性和配置为地图，例如{"key1": "val1", "key2": "val2"}。</span>
+# 与特定卸载器实现相关的属性和配置，格式例如{"key1": "val1", "key2": "val2"} </span>
 <span class="hljs-meta">pulsar.offloader-properties</span>=<span class="hljs-string">{}。</span>
 <span class="hljs-comment">
-# 用来验证Pulsar集群的认证插件</span>
+# 用来验证 Pulsar 集群的认证插件</span>
 <span class="hljs-meta">pulsar.auth-plugin</span>=<span class="hljs-string">null</span>
 <span class="hljs-comment">
-# 用来向Pulsar集群认证的认证参数是一个字符串，例如："key1:val1,key2:val2"。</span>
+# 用来向 Pulsar 集群认证的认证参数，格式为字符串，例如："key1:val1,key2:val2"。</span>
 <span class="hljs-meta">pulsar.auth-params</span>=<span class="hljs-string">null</span>
 <span class="hljs-comment">
 # Pulsar客户端是否接受来自 Broker 的不受信任的TLS证书</span>

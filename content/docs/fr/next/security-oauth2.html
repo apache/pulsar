@@ -94,7 +94,7 @@
 <tr><td><code>type</code></td><td>Oauth 2.0 authentication type.</td><td><code>client_credentials</code> (default)</td><td>Optional</td></tr>
 <tr><td><code>issuerUrl</code></td><td>URL of the authentication provider which allows the Pulsar client to obtain an access token</td><td><code>https://accounts.google.com</code></td><td>Required</td></tr>
 <tr><td><code>privateKey</code></td><td>URL to a JSON credentials file</td><td>Support the following pattern formats: <br> <li> <code>file:///path/to/file</code> <li><code>file:/path/to/file</code> <li> <code>data:application/json;base64,&lt;base64-encoded value&gt;</code></td><td>Required</td></tr>
-<tr><td><code>audience</code></td><td>An OAuth 2.0 &quot;resource server&quot; identifier for the Pulsar cluster</td><td><code>https://broker.example.com</code></td><td>Required</td></tr>
+<tr><td><code>audience</code></td><td>An OAuth 2.0 &quot;resource server&quot; identifier for the Pulsar cluster</td><td><code>https://broker.example.com</code></td><td>Optional</td></tr>
 <tr><td><code>scope</code></td><td>Scope of an access request. <br />For more more information, see <a href="https://datatracker.ietf.org/doc/html/rfc6749#section-3.3">access token scope</a>.</td><td><a href="api://pulsar-cluster-1/.default">api://pulsar-cluster-1/.default</a></td><td>Optional</td></tr>
 </tbody>
 </table>
@@ -123,7 +123,7 @@
 <ul>
 <li>The <code>issuerUrl</code> parameter in this plugin is mapped to <code>--url https://dev-kt-aa9ne.us.auth0.com</code>.</li>
 <li>The <code>privateKey</code> file parameter in this plugin should at least contains the <code>client_id</code> and <code>client_secret</code> fields.</li>
-<li>The <code>audience</code> parameter in this plugin is mapped to  <code>&quot;audience&quot;:&quot;https://dev-kt-aa9ne.us.auth0.com/api/v2/&quot;</code>.</li>
+<li>The <code>audience</code> parameter in this plugin is mapped to  <code>&quot;audience&quot;:&quot;https://dev-kt-aa9ne.us.auth0.com/api/v2/&quot;</code>. This field is only used by some identity providers.</li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="client-configuration"></a><a href="#client-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Client Configuration</h2>
 <p>You can use the OAuth2 authentication provider with the following Pulsar clients.</p>
