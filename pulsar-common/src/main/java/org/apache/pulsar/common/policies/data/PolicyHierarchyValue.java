@@ -29,6 +29,7 @@ public class PolicyHierarchyValue<T> {
     private static final AtomicReferenceFieldUpdater<PolicyHierarchyValue, Object> VALUE_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(PolicyHierarchyValue.class, Object.class, "value");
 
+    @Getter
     private volatile T brokerValue;
 
     @Getter
