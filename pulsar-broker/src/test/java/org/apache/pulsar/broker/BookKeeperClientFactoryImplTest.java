@@ -179,7 +179,7 @@ public class BookKeeperClientFactoryImplTest {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setZookeeperServers("localhost:2181");
         try {
-            String defaultUri = "zk+null://localhost:2181/ledgers";
+            String defaultUri = "metadata-store:localhost:2181";
             assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
                     .getMetadataServiceUri(), defaultUri);
             String expectedUri = "zk+hierarchical://localhost:2181/chroot/ledgers";
