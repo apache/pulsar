@@ -62,15 +62,9 @@ public class TransactionClientConnectTest extends TransactionTestBase {
     public void testTransactionNewReconnect() throws Exception {
         start();
 
-        // when throw CoordinatorNotFoundException client will reconnect tc
-        try {
-            pulsarClient.newTransaction()
-                    .withTransactionTimeout(200, TimeUnit.MILLISECONDS).build().get();
-            fail();
-        } catch (ExecutionException e) {
-            assertTrue(e.getCause() instanceof TransactionCoordinatorClientException.CoordinatorNotFoundException);
-        }
-        reconnect();
+        //We will not throw a CoordinatorNotFoundException to client. Since it will be reconnect automatically.
+        pulsarClient.newTransaction()
+                .withTransactionTimeout(200, TimeUnit.MILLISECONDS).build().get();
 
         fence(getPulsarServiceList().get(0).getTransactionMetadataStoreService());
 
@@ -93,14 +87,8 @@ public class TransactionClientConnectTest extends TransactionTestBase {
         TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
         start();
 
-        try {
-            transactionCoordinatorClient.addSubscriptionToTxnAsync(new TxnID(0, 0), "test", "test").get();
-            fail();
-        } catch (ExecutionException e) {
-            assertTrue(e.getCause() instanceof TransactionCoordinatorClientException.CoordinatorNotFoundException);
-        }
+        transactionCoordinatorClient.addSubscriptionToTxnAsync(new TxnID(0, 0), "test", "test").get();
 
-        reconnect();
         fence(getPulsarServiceList().get(0).getTransactionMetadataStoreService());
         try {
             transactionCoordinatorClient.addSubscriptionToTxnAsync(new TxnID(0, 0), "test", "test").get();
@@ -120,14 +108,8 @@ public class TransactionClientConnectTest extends TransactionTestBase {
         TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
         start();
 
-        try {
-            transactionCoordinatorClient.abortAsync(new TxnID(0, 0)).get();
-            fail();
-        } catch (ExecutionException e) {
-            assertTrue(e.getCause() instanceof TransactionCoordinatorClientException.CoordinatorNotFoundException);
-        }
+        transactionCoordinatorClient.abortAsync(new TxnID(0, 0)).get();
 
-        reconnect();
         fence(getPulsarServiceList().get(0).getTransactionMetadataStoreService());
         try {
             transactionCoordinatorClient.abortAsync(new TxnID(0, 0)).get();
@@ -147,14 +129,8 @@ public class TransactionClientConnectTest extends TransactionTestBase {
         TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
         start();
 
-        try {
-            transactionCoordinatorClient.commitAsync(new TxnID(0, 0)).get();
-            fail();
-        } catch (ExecutionException e) {
-            assertTrue(e.getCause() instanceof TransactionCoordinatorClientException.CoordinatorNotFoundException);
-        }
+        transactionCoordinatorClient.commitAsync(new TxnID(0, 0)).get();
 
-        reconnect();
         fence(getPulsarServiceList().get(0).getTransactionMetadataStoreService());
         try {
             transactionCoordinatorClient.commitAsync(new TxnID(0, 0)).get();
@@ -174,15 +150,9 @@ public class TransactionClientConnectTest extends TransactionTestBase {
         TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
         start();
 
-        try {
-            transactionCoordinatorClient.addPublishPartitionToTxnAsync(new TxnID(0, 0),
+        transactionCoordinatorClient.addPublishPartitionToTxnAsync(new TxnID(0, 0),
                     Collections.singletonList("test")).get();
-            fail();
-        } catch (ExecutionException e) {
-            assertTrue(e.getCause() instanceof TransactionCoordinatorClientException.CoordinatorNotFoundException);
-        }
 
-        reconnect();
         fence(getPulsarServiceList().get(0).getTransactionMetadataStoreService());
         try {
             transactionCoordinatorClient.addPublishPartitionToTxnAsync(new TxnID(0, 0),
@@ -228,14 +198,14 @@ public class TransactionClientConnectTest extends TransactionTestBase {
         Awaitility.await().until(() -> {
             try {
                 pulsarClient.newTransaction()
-                        .withTransactionTimeout(200, TimeUnit.MILLISECONDS).build().get();
+                        .withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
             } catch (Exception e) {
                 return false;
             }
             return true;
         });
         pulsarClient.newTransaction()
-                .withTransactionTimeout(200, TimeUnit.MILLISECONDS).build().get();
+                .withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
 
         TransactionMetadataStoreService transactionMetadataStoreService =
                 getPulsarServiceList().get(0).getTransactionMetadataStoreService();
