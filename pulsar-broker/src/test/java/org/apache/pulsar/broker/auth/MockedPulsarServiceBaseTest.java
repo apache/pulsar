@@ -23,12 +23,10 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
-
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
-
-import java.lang.reflect.Field;
 import io.netty.channel.EventLoopGroup;
+import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URL;
@@ -422,7 +420,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
                 int zkSessionTimeoutMillis) {
 
             if (serverList != null
-                    && (serverList.equalsIgnoreCase(conf.getConfigurationStoreServers())
+                    && (serverList.equalsIgnoreCase(conf.getConfigurationMetadataStoreUrl())
                     || serverList.equalsIgnoreCase(GLOBAL_DUMMY_VALUE))) {
                 return CompletableFuture.completedFuture(mockZooKeeperGlobal);
             }
