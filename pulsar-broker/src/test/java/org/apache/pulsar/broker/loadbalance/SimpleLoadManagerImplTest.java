@@ -29,7 +29,6 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
-
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.Collections;

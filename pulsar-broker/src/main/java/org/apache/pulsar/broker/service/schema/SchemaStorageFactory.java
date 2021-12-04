@@ -21,9 +21,8 @@ package org.apache.pulsar.broker.service.schema;
 import javax.validation.constraints.NotNull;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
-import org.apache.zookeeper.ZooKeeper;
 
 public interface SchemaStorageFactory {
     @NotNull
-    SchemaStorage create(PulsarService pulsar, ZooKeeper zookeeper) throws Exception;
+    SchemaStorage create(PulsarService pulsar) throws Exception;
 }

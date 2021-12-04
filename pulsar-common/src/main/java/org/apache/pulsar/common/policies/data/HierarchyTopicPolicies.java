@@ -29,16 +29,22 @@ import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
  */
 @Getter
 public class HierarchyTopicPolicies {
+    final PolicyHierarchyValue<Boolean> deduplicationEnabled;
     final PolicyHierarchyValue<InactiveTopicPolicies> inactiveTopicPolicies;
     final PolicyHierarchyValue<Integer> maxSubscriptionsPerTopic;
+    final PolicyHierarchyValue<Integer> maxProducersPerTopic;
     final Map<BacklogQuotaType, PolicyHierarchyValue<BacklogQuota>> backLogQuotaMap;
+    final PolicyHierarchyValue<Integer> topicMaxMessageSize;
 
     public HierarchyTopicPolicies() {
+        deduplicationEnabled = new PolicyHierarchyValue<>();
         inactiveTopicPolicies = new PolicyHierarchyValue<>();
         maxSubscriptionsPerTopic = new PolicyHierarchyValue<>();
+        maxProducersPerTopic = new PolicyHierarchyValue<>();
         backLogQuotaMap = new ImmutableMap.Builder<BacklogQuotaType, PolicyHierarchyValue<BacklogQuota>>()
                 .put(BacklogQuotaType.destination_storage, new PolicyHierarchyValue<>())
                 .put(BacklogQuotaType.message_age, new PolicyHierarchyValue<>())
                 .build();
+        topicMaxMessageSize = new PolicyHierarchyValue<>();
     }
 }
