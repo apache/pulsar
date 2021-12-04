@@ -24,16 +24,17 @@ import org.apache.avro.protobuf.ProtobufData;
 import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.junit.Test;
 import org.testng.Assert;
+import org.testng.annotations.Test;
 import java.nio.charset.StandardCharsets;
+import static org.apache.pulsar.client.schema.proto.Test.TestMessage;
 
 public class MultiVersionGenericProtobufReaderTest {
 
     @Test
     public void testParseAvroBaseSchemaToProtobuf(){
-        org.apache.pulsar.client.schema.proto.Test.TestMessage testPojo =
-                org.apache.pulsar.client.schema.proto.Test.TestMessage.newBuilder()
+        TestMessage testPojo =
+                TestMessage.newBuilder()
                 .setDoubleField(1).build();
         Schema schema = ProtobufData.get().getSchema(testPojo.getClass());
         SchemaInfo schemaInfo = SchemaInfoImpl.builder()
