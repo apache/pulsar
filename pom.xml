@@ -1815,6 +1815,29 @@ flexible messaging model and an intuitive client API.</description>
       </build>
     </profile>
     <profile>
+      <id>jdk17</id>
+      <activation>
+        <jdk>[17,)</jdk>
+      </activation>
+      <properties>
+        <maven.compiler.release>${maven.compiler.target}</maven.compiler.release>
+        <!-- required for running tests on JDK17+ -->
+        <test.additional.args> --add-opens java.base/java.lang=ALL-UNNAMED </test.additional.args>
+      </properties>
+      <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <artifactId>maven-compiler-plugin</artifactId>
+              <configuration>
+                <release>${maven.compiler.release}</release>
+              </configuration>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+      </build>
+    </profile>
+    <profile>
       <id>coverage</id>
       <build>
         <plugins>
