@@ -127,9 +127,10 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
                     (int) ((maxThroughputRate.getValue() - minThroughputgRate.getValue()) / 2));
             LocalBrokerData overloadedBrokerData = brokersData.get(overloadedBroker.getValue()).getLocalData();
 
-            if(msgThroughtputRequiredFromUnloadedBundles.getValue() < minThroughputThreshold){
+            if (msgThroughtputRequiredFromUnloadedBundles.getValue() < minThroughputThreshold) {
                 if (log.isDebugEnabled()) {
-                    log.debug("Planning to shed throughput {} MByte/s less than minimumThroughputThreshold {} MByte/s, stop unload.",
+                    log.debug("Planning to shed throughput {} MByte/s less than "
+                                    + "minimumThroughputThreshold {} MByte/s, stop unload.",
                             msgThroughtputRequiredFromUnloadedBundles.getValue() / MB, minThroughputThreshold / MB);
                 }
                 return selectedBundlesCache;
