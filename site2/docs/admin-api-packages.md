@@ -4,11 +4,9 @@ title: Manage packages
 sidebar_label: Packages
 ---
 
-# Package Management
-
 Package managers or package-management systems automatically manage packages in a consistent manner. These tools simplify the installation tasks, upgrade process, and deletion operations for users. A package is the minimal unit that a package manager deals with. In Pulsar, packages are organized at the tenant- and namespace-level to manage Pulsar Functions and Pulsar IO connectors (i.e., source and sink).
 
-# What is a package
+## What is a package?
 
 A package is a set of elements that the user would like to reuse in later operations. In Pulsar, a package can be a group of functions, sources, and sinks. You can define a package according to your needs. 
 
@@ -54,7 +52,7 @@ The package management system in Pulsar stores the data and metadata of each pac
 </table>
 
 
-# How to use a package
+## How to use a package
 
 Packages can efficiently use the same set of functions and IO connectors. For example, you can use the same function, source, and sink in multiple namespaces. The main steps are:
 
@@ -82,11 +80,11 @@ function://my-tenant/my-ns/my-function@0.1
 source://my-tenant/my-ns/mysql-cdc-source@2.3
 ```
 
-# Package management in Pulsar
+## Package management in Pulsar
 
-You can use the command line tools, REST API, or the Java client to manage your package resources in Pulsar. More specifically, you can use these tools to [upload](#upload-a-package), [download](#download-a-package), and [delete](#delete-a-package) a package, [get the metadata](#get-the-metadata-of-a-package) and [update the metadata](#update-the-metadata-of-a-package) of a package, [get the versions](#list-all-versions-of-a-package) of a package, and [get all packages of a specific type under a namespace](#list-all-packages-of-a-specific-type-under-a-namespace). 
+You can use the command line tools, REST API, or the Java client to manage your package resources in Pulsar. More specifically, you can use these tools to [upload](#upload-a-package), [download](#download-a-package), and [delete](#delete-a-package) a package, [get the metadata](#get-the-metadata-of-a-package) and [update the metadata](#update-the-metadata-of-a-package) of a package, [get the versions](#list-all-versions-of-a-package) of a package, and [get all packages of a specific type under a namespace](#list-all-packages-of-a-specific-type-under-a-namespace).  
 
-## Upload a package
+### Upload a package
 
 You can use the following commands to upload a package.
 
@@ -114,7 +112,7 @@ Upload a package to the package management service asynchronously.
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-## Download a package
+### Download a package
 
 You can use the following commands to download a package.
 
@@ -142,7 +140,7 @@ Download a package to the package management service asynchronously.
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-## Delete a package
+### Delete a package
 
 You can use the following commands to delete a package.
 
@@ -172,7 +170,7 @@ Delete a specified package asynchronously.
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-## Get the metadata of a package
+### Get the metadata of a package
 
 You can use the following commands to get the metadate of a package.
 
@@ -201,7 +199,7 @@ Get the metadata of a package asynchronously.
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-## Update the metadata of a package
+### Update the metadata of a package
 
 You can use the following commands to update the metadata of a package.
 
@@ -229,7 +227,7 @@ Update the metadata of a package asynchronously.
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-## List all versions of a package
+### List all versions of a package
 
 You can use the following commands to list all versions of a package.
 
@@ -256,7 +254,7 @@ List all versions of a package asynchronously.
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-## List all packages of a specific type under a namespace
+### List all packages of a specific type under a namespace
 
 You can use the following commands to list all packages of a specific type under a namespace.
 
