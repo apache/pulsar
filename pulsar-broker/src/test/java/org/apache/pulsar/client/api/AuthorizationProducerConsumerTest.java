@@ -24,6 +24,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import java.io.IOException;
@@ -417,6 +418,13 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
 
         // subscriptionRole doesn't have namespace-level authorization, so it will fail to clear backlog
         try {
+            sub1Admin.topics().getPartitionedTopicList(namespace);
+            fail("should have failed with authorization exception");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().startsWith(
+                    "Unauthorized to validateNamespaceOperation for operation [GET_TOPICS]"));
+        }
+        try {
             sub1Admin.namespaces().clearNamespaceBundleBacklog(namespace, "0x00000000_0xffffffff");
             fail("should have failed with authorization exception");
         } catch (Exception e) {
@@ -427,6 +435,8 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         superAdmin.namespaces().grantPermissionOnNamespace(namespace, subscriptionRole,
                 Sets.newHashSet(AuthAction.consume));
         // now, subscriptionRole have consume authorization on namespace, so it will successfully clear backlog
+        assertEquals(sub1Admin.topics().getPartitionedTopicList(namespace),
+                Lists.newArrayList(topicName));
         sub1Admin.namespaces().clearNamespaceBundleBacklog(namespace, "0x00000000_0xffffffff");
         assertEquals(sub1Admin.topics().getStats(topicName + "-partition-0").getSubscriptions()
                 .get(subscriptionName).getMsgBacklog(), 0);
