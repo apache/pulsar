@@ -156,8 +156,8 @@ public class ThresholdShedder implements LoadSheddingStrategy {
         return totalBrokers > 0 ? totalUsage / totalBrokers : 0;
     }
 
-    private double updateAvgResourceUsage(String broker, LocalBrokerData localBrokerData, final double historyPercentage,
-                                        final ServiceConfiguration conf) {
+    private double updateAvgResourceUsage(String broker, LocalBrokerData localBrokerData,
+                                          final double historyPercentage, final ServiceConfiguration conf) {
         Double historyUsage =
                 brokerAvgResourceUsage.get(broker);
         double resourceUsage = localBrokerData.getMaxResourceUsageWithWeight(
@@ -165,8 +165,8 @@ public class ThresholdShedder implements LoadSheddingStrategy {
                 conf.getLoadBalancerMemoryResourceWeight(), conf.getLoadBalancerDirectMemoryResourceWeight(),
                 conf.getLoadBalancerBandwithInResourceWeight(),
                 conf.getLoadBalancerBandwithOutResourceWeight());
-        historyUsage = historyUsage == null ?
-                resourceUsage : historyUsage * historyPercentage + (1 - historyPercentage) * resourceUsage;
+        historyUsage = historyUsage == null
+                ? resourceUsage : historyUsage * historyPercentage + (1 - historyPercentage) * resourceUsage;
 
         brokerAvgResourceUsage.put(broker, historyUsage);
         return historyUsage;
