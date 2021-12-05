@@ -352,8 +352,18 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                         // Managed ledger is in unusable state. Recreate it.
                         log.warn("[{}] Attempted to open ledger in {} state. Removing from the map to recreate it",
                                 name, l.getState());
-                        l.close();
                         ledgers.remove(name, existingFuture);
+                        l.asyncClose(new CloseCallback() {
+                            @Override
+                            public void closeComplete(Object ctx) {
+                                log.info("[{}] [{}] closed", name, l.getName());
+                            }
+
+                            @Override
+                            public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                                log.warn("[{}] [{}] Failed to close: {}", name, l.getName(), exception.getMessage());
+                            }
+                        }, null);
                     }
                 } catch (Exception e) {
                     // Unable to get the future

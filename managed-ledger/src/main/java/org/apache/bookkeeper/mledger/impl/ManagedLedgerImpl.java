@@ -1192,6 +1192,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public synchronized void asyncTerminate(TerminateCallback callback, Object ctx) {
         if (state == State.Fenced) {
+            cancelScheduledTasks();
             callback.terminateFailed(new ManagedLedgerFencedException(), ctx);
             return;
         } else if (state == State.Terminated) {
