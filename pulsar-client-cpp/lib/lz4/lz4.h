@@ -402,4 +402,4 @@ int LZ4_decompress_safe_withPrefix64k(const char *src, char *dst, int compressed
 LZ4_DEPRECATED("use LZ4_decompress_fast_usingDict() instead")
 
 int LZ4_decompress_fast_withPrefix64k(const char *src, char *dst, int originalSize);
-}
+}  // namespace pulsar
