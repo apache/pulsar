@@ -49,6 +49,8 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
 
     private static final Logger log = LoggerFactory.getLogger(UniformLoadShedder.class);
 
+    private static final double MB = 1024 * 1024;
+
     private final Multimap<String, String> selectedBundlesCache = ArrayListMultimap.create();
 
     /**
@@ -73,6 +75,9 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
         MutableDouble maxThroughputRate = new MutableDouble(-1);
         MutableDouble minMsgRate = new MutableDouble(Integer.MAX_VALUE);
         MutableDouble minThroughputgRate = new MutableDouble(Integer.MAX_VALUE);
+
+        double minThroughputThreshold = conf.getLoadBalancerBundleUnloadMinThroughputThreshold() * MB;
+
         brokersData.forEach((broker, data) -> {
             double msgRate = data.getLocalData().getMsgRateIn() + data.getLocalData().getMsgRateOut();
             double throughputRate = data.getLocalData().getMsgThroughputIn()
@@ -121,6 +126,15 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
             MutableInt msgThroughtputRequiredFromUnloadedBundles = new MutableInt(
                     (int) ((maxThroughputRate.getValue() - minThroughputgRate.getValue()) / 2));
             LocalBrokerData overloadedBrokerData = brokersData.get(overloadedBroker.getValue()).getLocalData();
+
+            if(msgThroughtputRequiredFromUnloadedBundles.getValue() < minThroughputThreshold){
+                if (log.isDebugEnabled()) {
+                    log.debug("Planning to shed throughput {} MByte/s less than "
+                                    + "minimumThroughputThreshold {} MByte/s, stop unload.",
+                            msgThroughtputRequiredFromUnloadedBundles.getValue() / MB, minThroughputThreshold / MB);
+                }
+                return selectedBundlesCache;
+            }
 
             if (overloadedBrokerData.getBundles().size() > 1) {
                 // Sort bundles by throughput, then pick the bundle which can help to reduce load uniformly with
