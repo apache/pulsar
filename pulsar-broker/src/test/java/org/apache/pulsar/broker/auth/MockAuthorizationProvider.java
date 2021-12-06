@@ -105,12 +105,6 @@ public class MockAuthorizationProvider implements AuthorizationProvider {
     }
 
     @Override
-    public CompletableFuture<Boolean> allowConsumeOpsAsync(NamespaceName namespaceName, String role,
-                                                    AuthenticationDataSource authenticationData) {
-        return roleAuthorizedAsync(role);
-    }
-
-    @Override
     public CompletableFuture<Void> grantPermissionAsync(NamespaceName namespace, Set<AuthAction> actions, String role,
                                                         String authDataJson) {
         return CompletableFuture.completedFuture(null);
