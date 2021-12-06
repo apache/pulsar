@@ -94,6 +94,9 @@ public class TestZKServer implements AutoCloseable {
     }
 
     public void checkContainers() throws Exception {
+        // Make sure the container nodes are actually deleted
+        Thread.sleep(1000);
+
         containerManager.checkContainers();
     }
 
