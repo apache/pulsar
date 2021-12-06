@@ -38,9 +38,7 @@ const static int MAX_HTTP_REDIRECTS = 20;
 const static std::string PARTITION_METHOD_NAME = "partitions";
 const static int NUMBER_OF_LOOKUP_THREADS = 1;
 
-static inline bool needRedirection(long code) {
-    return (code == 307 || code == 302 || code == 301);
-}
+static inline bool needRedirection(long code) { return (code == 307 || code == 302 || code == 301); }
 
 HTTPLookupService::CurlInitializer::CurlInitializer() {
     // Once per application - https://curl.haxx.se/mail/lib-2015-11/0052.html
