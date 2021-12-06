@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10};
+var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -163,23 +163,29 @@ implements <a href="../../../../../../../org/apache/pulsar/broker/transaction/pe
 </tr>
 <tr id="i1" class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../org/apache/pulsar/broker/transaction/pendingack/impl/PendingAckHandleDisabled.html#checkIfPendingAckStoreInit--">checkIfPendingAckStoreInit</a></span>()</code>
+<div class="block">Check if the PendingAckStore is init.</div>
+</td>
+</tr>
+<tr id="i2" class="altColor">
+<td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../org/apache/pulsar/broker/transaction/pendingack/impl/PendingAckHandleDisabled.html#checkIsCanDeleteConsumerPendingAck-org.apache.bookkeeper.mledger.impl.PositionImpl-">checkIsCanDeleteConsumerPendingAck</a></span>(org.apache.bookkeeper.mledger.impl.PositionImpl&nbsp;position)</code>
 <div class="block">Judge the all ack set point have acked by normal ack and transaction pending ack.</div>
 </td>
 </tr>
-<tr id="i2" class="altColor">
+<tr id="i3" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../org/apache/pulsar/broker/transaction/pendingack/impl/PendingAckHandleDisabled.html#clearIndividualPosition-org.apache.bookkeeper.mledger.Position-">clearIndividualPosition</a></span>(org.apache.bookkeeper.mledger.Position&nbsp;position)</code>
 <div class="block">When the position is actually deleted, we can use this method to clear the cache for individual ack messages.</div>
 </td>
 </tr>
-<tr id="i3" class="rowColor">
+<tr id="i4" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../org/apache/pulsar/broker/transaction/pendingack/impl/PendingAckHandleDisabled.html#close--">close</a></span>()</code>
 <div class="block">Close the pending ack handle.</div>
 </td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../org/apache/pulsar/broker/transaction/pendingack/impl/PendingAckHandleDisabled.html#commitTxn-org.apache.pulsar.client.api.transaction.TxnID-java.util.Map-long-boolean-">commitTxn</a></span>(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnID,
          <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Long.html?is-external=true" title="class or interface in java.lang">Long</a>&gt;&nbsp;properties,
@@ -188,7 +194,7 @@ implements <a href="../../../../../../../org/apache/pulsar/broker/transaction/pe
 <div class="block">Commit a transaction.</div>
 </td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i6" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../org/apache/pulsar/broker/transaction/pendingack/impl/PendingAckHandleDisabled.html#cumulativeAcknowledgeMessage-org.apache.pulsar.client.api.transaction.TxnID-java.util.List-boolean-">cumulativeAcknowledgeMessage</a></span>(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnID,
                             <a href="https://docs.oracle.com/javase/8/docs/api/java/util/List.html?is-external=true" title="class or interface in java.util">List</a>&lt;org.apache.bookkeeper.mledger.impl.PositionImpl&gt;&nbsp;positions,
@@ -196,19 +202,19 @@ implements <a href="../../../../../../../org/apache/pulsar/broker/transaction/pe
 <div class="block">Acknowledge message(s) for an ongoing transaction.</div>
 </td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code>org.apache.pulsar.common.policies.data.TransactionPendingAckStats</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../org/apache/pulsar/broker/transaction/pendingack/impl/PendingAckHandleDisabled.html#getStats--">getStats</a></span>()</code>
 <div class="block">Get pending ack handle stats.</div>
 </td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code>org.apache.pulsar.common.policies.data.TransactionInPendingAckStats</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../org/apache/pulsar/broker/transaction/pendingack/impl/PendingAckHandleDisabled.html#getTransactionInPendingAckStats-org.apache.pulsar.client.api.transaction.TxnID-">getTransactionInPendingAckStats</a></span>(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnID)</code>
 <div class="block">Get transaction in pending ack stats.</div>
 </td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../org/apache/pulsar/broker/transaction/pendingack/impl/PendingAckHandleDisabled.html#individualAcknowledgeMessage-org.apache.pulsar.client.api.transaction.TxnID-java.util.List-boolean-">individualAcknowledgeMessage</a></span>(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnID,
                             <a href="https://docs.oracle.com/javase/8/docs/api/java/util/List.html?is-external=true" title="class or interface in java.util">List</a>&lt;org.apache.commons.lang3.tuple.MutablePair&lt;org.apache.bookkeeper.mledger.impl.PositionImpl,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Integer.html?is-external=true" title="class or interface in java.lang">Integer</a>&gt;&gt;&nbsp;positions,
@@ -216,13 +222,13 @@ implements <a href="../../../../../../../org/apache/pulsar/broker/transaction/pe
 <div class="block">Acknowledge message(s) for an ongoing transaction.</div>
 </td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="../../../../../../../org/apache/pulsar/broker/transaction/pendingack/PendingAckHandle.html" title="interface in org.apache.pulsar.broker.transaction.pendingack">PendingAckHandle</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../org/apache/pulsar/broker/transaction/pendingack/impl/PendingAckHandleDisabled.html#pendingAckHandleFuture--">pendingAckHandleFuture</a></span>()</code>
 <div class="block">Pending ack recover whether ready future.</div>
 </td>
 </tr>
-<tr id="i10" class="altColor">
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../org/apache/pulsar/broker/transaction/pendingack/impl/PendingAckHandleDisabled.html#syncBatchPositionAckSetForTransaction-org.apache.bookkeeper.mledger.impl.PositionImpl-">syncBatchPositionAckSetForTransaction</a></span>(org.apache.bookkeeper.mledger.impl.PositionImpl&nbsp;position)</code>
 <div class="block">Sync the position ack set, in order to clean up the cache of this position for pending ack handle.</div>
@@ -491,7 +497,7 @@ implements <a href="../../../../../../../org/apache/pulsar/broker/transaction/pe
 <a name="close--">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>close</h4>
 <pre>public&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;close()</pre>
@@ -502,6 +508,23 @@ implements <a href="../../../../../../../org/apache/pulsar/broker/transaction/pe
 <dd><code><a href="../../../../../../../org/apache/pulsar/broker/transaction/pendingack/PendingAckHandle.html#close--">close</a></code>&nbsp;in interface&nbsp;<code><a href="../../../../../../../org/apache/pulsar/broker/transaction/pendingack/PendingAckHandle.html" title="interface in org.apache.pulsar.broker.transaction.pendingack">PendingAckHandle</a></code></dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>the future of this operation.</dd>
+</dl>
+</li>
+</ul>
+<a name="checkIfPendingAckStoreInit--">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>checkIfPendingAckStoreInit</h4>
+<pre>public&nbsp;boolean&nbsp;checkIfPendingAckStoreInit()</pre>
+<div class="block"><span class="descfrmTypeLabel">Description copied from interface:&nbsp;<code><a href="../../../../../../../org/apache/pulsar/broker/transaction/pendingack/PendingAckHandle.html#checkIfPendingAckStoreInit--">PendingAckHandle</a></code></span></div>
+<div class="block">Check if the PendingAckStore is init.</div>
+<dl>
+<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
+<dd><code><a href="../../../../../../../org/apache/pulsar/broker/transaction/pendingack/PendingAckHandle.html#checkIfPendingAckStoreInit--">checkIfPendingAckStoreInit</a></code>&nbsp;in interface&nbsp;<code><a href="../../../../../../../org/apache/pulsar/broker/transaction/pendingack/PendingAckHandle.html" title="interface in org.apache.pulsar.broker.transaction.pendingack">PendingAckHandle</a></code></dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>if the PendingAckStore is init.</dd>
 </dl>
 </li>
 </ul>
