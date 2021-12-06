@@ -1,0 +1,94 @@
+{
+  "version-2.5.0/docsSidebar": [
+    {
+      "type": "category",
+      "label": "Get Started",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.5.0/pulsar-2.0"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/standalone"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/standalone-docker"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/kubernetes-helm"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/client-libraries"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Concepts and Architecture",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.5.0/concepts-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/concepts-messaging"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/concepts-architecture-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/concepts-clients"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/concepts-replication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/concepts-multi-tenancy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/concepts-authentication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/concepts-topic-compaction"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/concepts-tiered-storage"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar Schema",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.5.0/schema-get-started"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/schema-understand"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/schema-evolution-compatibility"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.5.0/schema-manage"
+        }
+      ]
+    }
+  ]
+}
