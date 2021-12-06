@@ -81,6 +81,7 @@ import org.apache.pulsar.common.policies.data.stats.NonPersistentSubscriptionSta
 import org.apache.pulsar.common.policies.data.stats.NonPersistentTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -164,7 +165,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
     @Override
     public void publishMessage(ByteBuf data, PublishContext callback) {
-        if (isExceedMaximumMessageSize(data.readableBytes())) {
+        if (isExceedMaximumMessageSize(Commands.getPayloadSize(data))) {
             callback.completed(new NotAllowedException("Exceed maximum message size")
                     , -1, -1);
             return;

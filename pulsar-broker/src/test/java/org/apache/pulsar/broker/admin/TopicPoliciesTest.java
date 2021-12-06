@@ -2878,4 +2878,13 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             });
         }
     }
+
+    @Test
+    public void testTopicMaxMessageSizeThreshHold() throws Exception {
+        @Cleanup
+        Producer<byte[]> p = pulsarClient.newProducer().topic(testTopic).enableBatching(false).create();
+        admin.topicPolicies().setMaxMessageSize(testTopic,1000);
+        Awaitility.await().until(() -> pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(testTopic)) != null);
+        p.send(new byte[1000]);
+    }
 }
