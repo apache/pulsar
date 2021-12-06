@@ -36,6 +36,7 @@ import org.apache.bookkeeper.net.CachedDNSToSwitchMapping;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.testng.annotations.Test;
 
 /**
@@ -152,9 +153,11 @@ public class BookKeeperClientFactoryImplTest {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setZookeeperServers("localhost:2181");
-        assertFalse(factory.createBkClientConfiguration(conf).getDiskWeightBasedPlacementEnabled());
+        assertFalse(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                .getDiskWeightBasedPlacementEnabled());
         conf.setBookkeeperDiskWeightBasedPlacementEnabled(true);
-        assertTrue(factory.createBkClientConfiguration(conf).getDiskWeightBasedPlacementEnabled());
+        assertTrue(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                .getDiskWeightBasedPlacementEnabled());
     }
 
     @Test
@@ -162,9 +165,12 @@ public class BookKeeperClientFactoryImplTest {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setZookeeperServers("localhost:2181");
-        assertEquals(factory.createBkClientConfiguration(conf).getExplictLacInterval(), 0);
+        assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf).getExplictLacInterval(),
+                0);
         conf.setBookkeeperExplicitLacIntervalInMills(5);
-        assertEquals(factory.createBkClientConfiguration(conf).getExplictLacInterval(), 5);
+        assertEquals(
+                factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf).getExplictLacInterval(),
+                5);
     }
 
     @Test
@@ -173,11 +179,13 @@ public class BookKeeperClientFactoryImplTest {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setZookeeperServers("localhost:2181");
         try {
-            String defaultUri = "zk+null://localhost:2181/ledgers";
-            assertEquals(factory.createBkClientConfiguration(conf).getMetadataServiceUri(), defaultUri);
+            String defaultUri = "metadata-store:localhost:2181";
+            assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                    .getMetadataServiceUri(), defaultUri);
             String expectedUri = "zk+hierarchical://localhost:2181/chroot/ledgers";
             conf.setBookkeeperMetadataServiceUri(expectedUri);
-            assertEquals(factory.createBkClientConfiguration(conf).getMetadataServiceUri(), expectedUri);
+            assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                    .getMetadataServiceUri(), expectedUri);
         } catch (ConfigurationException e) {
             e.printStackTrace();
             fail("Get metadata service uri should be successful", e);
@@ -189,11 +197,14 @@ public class BookKeeperClientFactoryImplTest {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
         // default value
-        assertFalse(factory.createBkClientConfiguration(conf).getOpportunisticStriping());
+        assertFalse(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                .getOpportunisticStriping());
         conf.getProperties().setProperty("bookkeeper_opportunisticStriping", "true");
-        assertTrue(factory.createBkClientConfiguration(conf).getOpportunisticStriping());
+        assertTrue(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                .getOpportunisticStriping());
         conf.getProperties().setProperty("bookkeeper_opportunisticStriping", "false");
-        assertFalse(factory.createBkClientConfiguration(conf).getOpportunisticStriping());
+        assertFalse(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                .getOpportunisticStriping());
 
     }
 
