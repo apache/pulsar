@@ -23,6 +23,7 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import java.io.FileInputStream;
 import java.util.Arrays;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
@@ -84,16 +85,13 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
 
         // Set ZK server's host to localhost
         // Priority: args > conf > default
-        if (argsContains(args, "--zookeeper-port")) {
-            config.setZookeeperServers(zkServers + ":" + this.getZkPort());
-            config.setConfigurationStoreServers(zkServers + ":" + this.getZkPort());
-        } else {
-            if (config.getZookeeperServers() != null) {
-                this.setZkPort(Integer.parseInt(config.getZookeeperServers().split(":")[1]));
+        if (!argsContains(args, "--zookeeper-port")) {
+            if (StringUtils.isNotBlank(config.getMetadataStoreUrl())) {
+                this.setZkPort(Integer.parseInt(config.getMetadataStoreUrl().split(":")[1]));
             }
-            config.setZookeeperServers(zkServers + ":" + this.getZkPort());
-            config.setConfigurationStoreServers(zkServers + ":" + this.getZkPort());
         }
+        config.setZookeeperServers(zkServers + ":" + this.getZkPort());
+        config.setConfigurationStoreServers(zkServers + ":" + this.getZkPort());
 
         config.setRunningStandalone(true);
 
