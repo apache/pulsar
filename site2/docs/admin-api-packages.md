@@ -96,7 +96,7 @@ bin/pulsar-admin packages upload functions://public/default/example@v0.1 --path 
 
 <!--REST API-->
 
-{@inject: endpoint|POST|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/?version=[[pulsar:version_number]]}
+{@inject: endpoint|POST|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:versio}
 
 <!--JAVA-->
 Upload a package to the package management service synchronously.
@@ -124,16 +124,16 @@ bin/pulsar-admin packages download functions://public/default/example@v0.1 --pat
 
 <!--REST API-->
 
-{@inject: endpoint|GET|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version}
 
 <!--JAVA-->
-Download a package to the package management service synchronously.
+Download a package from the package management service synchronously.
 
 ```java
   void download(String packageName, String path) throws PulsarAdminException;
 ```
 
-Download a package to the package management service asynchronously.
+Download a package from the package management service asynchronously.
 
 ```java
   CompletableFuture<Void> downloadAsync(String packageName, String path);
@@ -154,7 +154,7 @@ bin/pulsar-admin packages delete functions://public/default/example@v0.1
 
 <!--REST API-->
 
-{@inject: endpoint|DELETE|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/?version=[[pulsar:version_number]]}
+{@inject: endpoint|DELETE|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version}
 
 <!--JAVA-->
 Delete a specified package synchronously.
@@ -183,7 +183,7 @@ bin/pulsar-admin packages get-metadata function://public/default/test@v1
 
 <!--REST API-->
 
-{@inject: endpoint|GET|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/metadata/?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/metadata}
 
 <!--JAVA-->
 Get the metadata of a package synchronously.
@@ -211,7 +211,7 @@ bin/pulsar-admin packages update-metadata function://public/default/example@v0.1
 
 <!--REST API-->
 
-{@inject: endpoint|PUT|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/metadata/?version=[[pulsar:version_number]]}
+{@inject: endpoint|PUT|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/metadata}
 
 <!--JAVA-->
 Update the metadata of a package synchronously.
@@ -234,12 +234,12 @@ You can use the following commands to list all versions of a package.
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
 ```shell
-bin/pulsar-admin packages list --type function public/default
+bin/pulsar-admin packages list-versions type://tenant/namespace/packageName
 ```
 
 <!--REST API-->
 
-{@inject: endpoint|GET|/admin/v3/packages/:type/:tenant/:namespace/:packageName/?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v3/packages/:type/:tenant/:namespace/:packageName}
 
 <!--JAVA-->
 List all versions of a package synchronously.
@@ -267,7 +267,7 @@ bin/pulsar-admin packages list --type function public/default
 
 <!--REST API-->
 
-{@inject: endpoint|PUT|/admin/v3/packages/:type/:tenant/:namespace/?version=[[pulsar:version_number]]}
+{@inject: endpoint|PUT|/admin/v3/packages/:type/:tenant/:namespace}
 
 <!--JAVA-->
 List all packages of a specific type under a namespace synchronously.
