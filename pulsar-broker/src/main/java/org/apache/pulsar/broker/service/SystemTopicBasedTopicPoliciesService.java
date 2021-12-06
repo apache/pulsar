@@ -73,7 +73,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     @VisibleForTesting
     final Map<NamespaceName, Boolean> policyCacheInitMap = new ConcurrentHashMap<>();
 
-    private final Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> listeners = new ConcurrentHashMap<>();
+    @VisibleForTesting
+    final Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> listeners = new ConcurrentHashMap<>();
 
     public SystemTopicBasedTopicPoliciesService(PulsarService pulsarService) {
         this.pulsarService = pulsarService;
@@ -195,6 +196,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         }
         return isGlobal ? globalPoliciesCache.get(TopicName.get(topicName.getPartitionedTopicName()))
                 : policiesCache.get(TopicName.get(topicName.getPartitionedTopicName()));
+    }
+
+    @Override
+    public TopicPolicies getTopicPoliciesIfExists(TopicName topicName) {
+        return policiesCache.get(TopicName.get(topicName.getPartitionedTopicName()));
     }
 
     @Override
@@ -505,28 +511,32 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     @VisibleForTesting
-    Boolean getPoliciesCacheInit(NamespaceName namespaceName) {
+    public Boolean getPoliciesCacheInit(NamespaceName namespaceName) {
         return policyCacheInitMap.get(namespaceName);
     }
 
     @Override
     public void registerListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
-        listeners.computeIfAbsent(topicName, k -> Lists.newCopyOnWriteArrayList()).add(listener);
+        listeners.compute(topicName, (k, topicListeners) -> {
+            if (topicListeners == null) {
+                topicListeners = Lists.newCopyOnWriteArrayList();
+            }
+            topicListeners.add(listener);
+            return topicListeners;
+        });
     }
 
     @Override
     public void unregisterListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
-        listeners.computeIfAbsent(topicName, k -> Lists.newCopyOnWriteArrayList()).remove(listener);
-    }
-
-    @Override
-    public void clean(TopicName topicName) {
-        TopicName realTopicName = topicName;
-        if (topicName.isPartitioned()) {
-            //change persistent://tenant/namespace/xxx-partition-0  to persistent://tenant/namespace/xxx
-            realTopicName = TopicName.get(topicName.getPartitionedTopicName());
-        }
-        listeners.remove(realTopicName);
+        listeners.compute(topicName, (k, topicListeners) -> {
+            if (topicListeners != null){
+                topicListeners.remove(listener);
+                if (topicListeners.isEmpty()) {
+                    topicListeners = null;
+                }
+            }
+            return topicListeners;
+        });
     }
 
     @VisibleForTesting

@@ -943,6 +943,30 @@ admin.topics().getLastMessage(topic);
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
+### Get backlog size
+
+You can get the backlog size of a single partition topic or a non-partitioned topic with a given message ID (in bytes).
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
+```shell
+$ pulsar-admin topics get-backlog-size \
+  -m 1:1 \
+  persistent://test-tenant/ns1/tp1-partition-0 \
+```
+
+<!--REST API-->
+{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/backlogSize|operation/getBacklogSizeByMessageId?version=[[pulsar:version_number]]}
+
+<!--Java-->
+```java
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+MessageId messageId = MessageId.earliest;
+admin.topics().getBacklogSizeByMessageId(topic, messageId);
+```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
 ## Manage non-partitioned topics
 You can use Pulsar [admin API](admin-api-overview.md) to create, delete and check status of non-partitioned topics.
 
@@ -1210,11 +1234,11 @@ admin.topics().delete(topic);
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ### List
-You can get the list of topics under a given namespace in the following ways.  
+You can get the list of partitioned topics under a given namespace in the following ways.  
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
 ```shell
-$ pulsar-admin topics list tenant/namespace
+$ pulsar-admin topics list-partitioned-topics tenant/namespace
 persistent://tenant/namespace/topic1
 persistent://tenant/namespace/topic2
 ```
@@ -1224,7 +1248,7 @@ persistent://tenant/namespace/topic2
 
 <!--Java-->
 ```java
-admin.topics().getList(namespace);
+admin.topics().getPartitionedTopicList(namespace);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -1368,29 +1392,6 @@ admin.topics().getInternalStats(topic);
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-### Get backlog size
-
-You can get backlog size of a single topic partition or a nonpartitioned topic given a message ID (in bytes).
-
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
-```shell
-$ pulsar-admin topics get-backlog-size \
-  -m 1:1 \
-  persistent://test-tenant/ns1/tp1-partition-0 \
-```
-
-<!--REST API-->
-{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/backlogSize|operation/getBacklogSizeByMessageId?version=[[pulsar:version_number]]}
-
-<!--Java-->
-```java
-String topic = "persistent://my-tenant/my-namespace/my-topic";
-MessageId messageId = MessageId.earliest;
-admin.topics().getBacklogSizeByMessageId(topic, messageId);
-```
-
-<!--END_DOCUSAURUS_CODE_TABS-->
 
 ## Publish to partitioned topics
 

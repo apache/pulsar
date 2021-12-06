@@ -165,7 +165,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
                 ByteBuf byteBuf = entry.getDataBuffer();
                 MessageMetadata messageMetadata = Commands.parseMessageMetadata(byteBuf);
                 assertEquals(byteBuf.toString(UTF_8), "message" + index);
-            };
+            }
             return mockPromise;
         }).when(consumerMock).sendMessages(any(List.class), any(EntryBatchSizes.class), any(),
                 anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));

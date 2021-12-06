@@ -99,6 +99,7 @@ public class RuntimeUtilsTest {
                 .setName("go-func")
                 .setLogTopic("go-func-log")
                 .setProcessingGuarantees(Function.ProcessingGuarantees.ATLEAST_ONCE)
+                .setRuntime(Function.FunctionDetails.Runtime.GO)
                 .setSecretsMap(secretsMap.toJSONString())
                 .setParallelism(1)
                 .setSource(sources)
@@ -137,7 +138,7 @@ public class RuntimeUtilsTest {
         Assert.assertEquals(goInstanceConfig.get("autoAck"), true);
         Assert.assertEquals(goInstanceConfig.get("regexPatternSubscription"), false);
         Assert.assertEquals(goInstanceConfig.get("pulsarServiceURL"), "pulsar://localhost:6650");
-        Assert.assertEquals(goInstanceConfig.get("runtime"), 0);
+        Assert.assertEquals(goInstanceConfig.get("runtime"), 3);
         Assert.assertEquals(goInstanceConfig.get("cpu"), 2.0);
         Assert.assertEquals(goInstanceConfig.get("funcID"), "func-7734");
         Assert.assertEquals(goInstanceConfig.get("funcVersion"), "1.0.0");

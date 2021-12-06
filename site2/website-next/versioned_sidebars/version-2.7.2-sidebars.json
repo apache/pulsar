@@ -88,6 +88,48 @@
     },
     {
       "type": "category",
+      "label": "Pulsar Functions",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.2/functions-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/functions-worker"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/functions-runtime"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/functions-develop"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/functions-package"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/functions-debug"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/functions-deploy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/functions-cli"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/window-functions-context"
+        }
+      ]
+    },
+    {
+      "type": "category",
       "label": "Pulsar IO",
       "items": [
         {
@@ -174,6 +216,24 @@
     },
     {
       "type": "category",
+      "label": "Transactions",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.2/transactions"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/transactions-guarantee"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/transactions-api"
+        }
+      ]
+    },
+    {
+      "type": "category",
       "label": "Kubernetes (Helm)",
       "items": [
         {
@@ -199,62 +259,6 @@
         {
           "type": "doc",
           "id": "version-2.7.2/helm-tools"
-        }
-      ]
-    },
-    {
-      "type": "category",
-      "label": "Transactions",
-      "items": [
-        {
-          "type": "doc",
-          "id": "version-2.7.2/transactions"
-        },
-        {
-          "type": "doc",
-          "id": "version-2.7.2/transactions-guarantee"
-        },
-        {
-          "type": "doc",
-          "id": "version-2.7.2/transactions-api"
-        }
-      ]
-    },
-    {
-      "type": "category",
-      "label": "Administration",
-      "items": [
-        {
-          "type": "doc",
-          "id": "version-2.7.2/administration-zk-bk"
-        },
-        {
-          "type": "doc",
-          "id": "version-2.7.2/administration-geo"
-        },
-        {
-          "type": "doc",
-          "id": "version-2.7.2/administration-pulsar-manager"
-        },
-        {
-          "type": "doc",
-          "id": "version-2.7.2/administration-stats"
-        },
-        {
-          "type": "doc",
-          "id": "version-2.7.2/administration-load-balance"
-        },
-        {
-          "type": "doc",
-          "id": "version-2.7.2/administration-proxy"
-        },
-        {
-          "type": "doc",
-          "id": "version-2.7.2/administration-upgrade"
-        },
-        {
-          "type": "doc",
-          "id": "version-2.7.2/administration-isolation"
         }
       ]
     },
@@ -294,49 +298,39 @@
     },
     {
       "type": "category",
-      "label": "Client Libraries",
+      "label": "Administration",
       "items": [
         {
           "type": "doc",
-          "id": "version-2.7.2/client-libraries"
+          "id": "version-2.7.2/administration-zk-bk"
         },
         {
           "type": "doc",
-          "id": "version-2.7.2/client-libraries-java"
+          "id": "version-2.7.2/administration-geo"
         },
         {
           "type": "doc",
-          "id": "version-2.7.2/client-libraries-go"
+          "id": "version-2.7.2/administration-pulsar-manager"
         },
         {
           "type": "doc",
-          "id": "version-2.7.2/client-libraries-python"
+          "id": "version-2.7.2/administration-stats"
         },
         {
           "type": "doc",
-          "id": "version-2.7.2/client-libraries-cpp"
+          "id": "version-2.7.2/administration-load-balance"
         },
         {
           "type": "doc",
-          "id": "version-2.7.2/client-libraries-node"
+          "id": "version-2.7.2/administration-proxy"
         },
         {
           "type": "doc",
-          "id": "version-2.7.2/client-libraries-websocket"
+          "id": "version-2.7.2/administration-upgrade"
         },
         {
           "type": "doc",
-          "id": "version-2.7.2/client-libraries-dotnet"
-        }
-      ]
-    },
-    {
-      "type": "category",
-      "label": "Performance",
-      "items": [
-        {
-          "type": "doc",
-          "id": "version-2.7.2/performance-pulsar-perf"
+          "id": "version-2.7.2/administration-isolation"
         }
       ]
     },
@@ -396,49 +390,105 @@
     },
     {
       "type": "category",
-      "label": "Reference",
+      "label": "Performance",
       "items": [
         {
           "type": "doc",
-          "id": "version-2.7.2/reference-terminology"
-        },
-        {
-          "type": "doc",
-          "id": "version-2.7.2/reference-cli-tools"
-        },
-        {
-          "type": "doc",
-          "id": "version-2.7.2/reference-configuration"
-        },
-        {
-          "type": "doc",
-          "id": "version-2.7.2/reference-metrics"
+          "id": "version-2.7.2/performance-pulsar-perf"
         }
       ]
     },
     {
       "type": "category",
-      "label": "Development",
+      "label": "Client Libraries",
       "items": [
         {
           "type": "doc",
-          "id": "version-2.7.2/develop-tools"
+          "id": "version-2.7.2/client-libraries"
         },
         {
           "type": "doc",
-          "id": "version-2.7.2/develop-binary-protocol"
+          "id": "version-2.7.2/client-libraries-java"
         },
         {
           "type": "doc",
-          "id": "version-2.7.2/develop-schema"
+          "id": "version-2.7.2/client-libraries-go"
         },
         {
           "type": "doc",
-          "id": "version-2.7.2/develop-load-manager"
+          "id": "version-2.7.2/client-libraries-python"
         },
         {
           "type": "doc",
-          "id": "version-2.7.2/develop-cpp"
+          "id": "version-2.7.2/client-libraries-cpp"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/client-libraries-node"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/client-libraries-websocket"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/client-libraries-dotnet"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Admin API",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.2/admin-api-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/admin-api-clusters"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/admin-api-tenants"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/admin-api-brokers"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/admin-api-namespaces"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/admin-api-permissions"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/admin-api-topics"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/admin-api-functions"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Adaptors",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.2/adaptors-kafka"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/adaptors-spark"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/adaptors-storm"
         }
       ]
     },
@@ -478,57 +528,49 @@
     },
     {
       "type": "category",
-      "label": "Adaptors",
+      "label": "Development",
       "items": [
         {
           "type": "doc",
-          "id": "version-2.7.2/adaptors-kafka"
+          "id": "version-2.7.2/develop-tools"
         },
         {
           "type": "doc",
-          "id": "version-2.7.2/adaptors-spark"
+          "id": "version-2.7.2/develop-binary-protocol"
         },
         {
           "type": "doc",
-          "id": "version-2.7.2/adaptors-storm"
+          "id": "version-2.7.2/develop-schema"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/develop-load-manager"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/develop-cpp"
         }
       ]
     },
     {
       "type": "category",
-      "label": "Admin API",
+      "label": "Reference",
       "items": [
         {
           "type": "doc",
-          "id": "version-2.7.2/admin-api-overview"
+          "id": "version-2.7.2/reference-terminology"
         },
         {
           "type": "doc",
-          "id": "version-2.7.2/admin-api-clusters"
+          "id": "version-2.7.2/reference-cli-tools"
         },
         {
           "type": "doc",
-          "id": "version-2.7.2/admin-api-tenants"
+          "id": "version-2.7.2/reference-configuration"
         },
         {
           "type": "doc",
-          "id": "version-2.7.2/admin-api-brokers"
-        },
-        {
-          "type": "doc",
-          "id": "version-2.7.2/admin-api-namespaces"
-        },
-        {
-          "type": "doc",
-          "id": "version-2.7.2/admin-api-permissions"
-        },
-        {
-          "type": "doc",
-          "id": "version-2.7.2/admin-api-topics"
-        },
-        {
-          "type": "doc",
-          "id": "version-2.7.2/admin-api-functions"
+          "id": "version-2.7.2/reference-metrics"
         }
       ]
     }

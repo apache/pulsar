@@ -21,8 +21,12 @@ package org.apache.pulsar.proxy.extensions;
 import com.google.common.collect.ImmutableMap;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
+
+import java.net.SocketAddress;
 import java.util.HashMap;
 import java.util.HashSet;
+
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.proxy.server.ProxyConfiguration;
 import org.apache.pulsar.proxy.server.ProxyService;
@@ -31,6 +35,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * A collection of loaded extensions.
@@ -38,6 +43,8 @@ import java.util.Set;
 @Slf4j
 public class ProxyExtensions implements AutoCloseable {
 
+    @Getter
+    private final Map<SocketAddress, String> endpoints = new ConcurrentHashMap<>();
     /**
      * Load the extensions for the given <tt>extensions</tt> list.
      *
@@ -123,6 +130,7 @@ public class ProxyExtensions implements AutoCloseable {
                         + "` attempts to use " + address + " for its listening port. But it is"
                         + " already occupied by other messaging extensions");
                 }
+                endpoints.put(address, extension.getKey());
                 channelInitializers.put(extension.getKey(), initializers);
             });
         }

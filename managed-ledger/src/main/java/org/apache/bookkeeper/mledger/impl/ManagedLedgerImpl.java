@@ -1438,22 +1438,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                 @Override
                 public void operationFailed(MetaStoreException e) {
-                    if (e instanceof BadVersionException) {
-                        synchronized (ManagedLedgerImpl.this) {
-                            log.error(
-                                    "[{}] Failed to update ledger list. z-node version mismatch. Closing managed ledger",
-                                    name);
-                            STATE_UPDATER.set(ManagedLedgerImpl.this, State.Fenced);
-                            // Return ManagedLedgerFencedException to addFailed callback
-                            // to indicate that the ledger is now fenced and topic needs to be closed
-                            clearPendingAddEntries(new ManagedLedgerFencedException(e));
-                            // Do not need to unlock ledgersListMutex here because we are going to close to topic anyways
-                            return;
-                        }
-                    }
-
                     log.warn("[{}] Error updating meta data with the new list of ledgers: {}", name, e.getMessage());
-
                     // Remove the ledger, since we failed to update the list
                     ledgers.remove(lh.getId());
                     mbean.startDataLedgerDeleteOp();
@@ -1464,6 +1449,21 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                     BKException.getMessage(rc1));
                         }
                     }, null);
+
+                    if (e instanceof BadVersionException) {
+                        synchronized (ManagedLedgerImpl.this) {
+                            log.error(
+                                "[{}] Failed to update ledger list. z-node version mismatch. Closing managed ledger",
+                                name);
+                            lastLedgerCreationFailureTimestamp = clock.millis();
+                            STATE_UPDATER.set(ManagedLedgerImpl.this, State.Fenced);
+                            // Return ManagedLedgerFencedException to addFailed callback
+                            // to indicate that the ledger is now fenced and topic needs to be closed
+                            clearPendingAddEntries(new ManagedLedgerFencedException(e));
+                            // Do not need to unlock ledgersListMutex here because we are going to close to topic anyways
+                            return;
+                        }
+                    }
 
                     metadataMutex.unlock();
 
@@ -1678,7 +1678,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     void clearPendingAddEntries(ManagedLedgerException e) {
         while (!pendingAddEntries.isEmpty()) {
             OpAddEntry op = pendingAddEntries.poll();
-            op.close();
             op.failed(e);
         }
     }

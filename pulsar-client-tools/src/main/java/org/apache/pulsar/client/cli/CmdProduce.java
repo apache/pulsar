@@ -25,7 +25,6 @@ import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.gson.JsonParseException;
 
@@ -91,11 +90,11 @@ public class CmdProduce {
     @Parameter(names = { "-m", "--messages" },
                description = "Messages to send, either -m or -f must be specified. The default separator is comma",
                splitter = NoSplitter.class)
-    private List<String> messages = Lists.newArrayList();
+    private List<String> messages = new ArrayList<>();
 
     @Parameter(names = { "-f", "--files" },
                description = "Comma separated file paths to send, either -m or -f must be specified.")
-    private List<String> messageFileNames = Lists.newArrayList();
+    private List<String> messageFileNames = new ArrayList<>();
 
     @Parameter(names = { "-n", "--num-produce" },
                description = "Number of times to send message(s), the count of messages/files * num-produce " +
@@ -120,7 +119,7 @@ public class CmdProduce {
 
     @Parameter(names = { "-p", "--properties"}, description = "Properties to add, Comma separated "
             + "key=value string, like k1=v1,k2=v2.")
-    private List<String> properties = Lists.newArrayList();
+    private List<String> properties = new ArrayList<>();
 
     @Parameter(names = { "-k", "--key"}, description = "message key to add ")
     private String key;

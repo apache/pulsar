@@ -3427,6 +3427,23 @@ public interface Topics {
     CompletableFuture<Set<SubscriptionType>> getSubscriptionTypesEnabledAsync(String topic);
 
     /**
+     * Remove subscription types enabled for a topic.
+     *
+     * @param topic Topic name
+     * @throws PulsarAdminException Unexpected error
+     */
+    @Deprecated
+    void removeSubscriptionTypesEnabled(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove subscription types enabled for a topic asynchronously.
+     *
+     * @param topic Topic name
+     */
+    @Deprecated
+    CompletableFuture<Void> removeSubscriptionTypesEnabledAsync(String topic);
+
+    /**
      * Set topic-subscribe-rate (topic will limit by subscribeRate).
      *
      * @param topic
@@ -3638,4 +3655,28 @@ public interface Topics {
      * @throws PulsarAdminException
      */
     CompletableFuture<Void> removeReplicationClustersAsync(String topic);
+
+    /**
+     * Get replicated subscription status on a topic.
+     *
+     * @param topic topic name
+     * @param subName subscription name
+     * @return a map of replicated subscription status on a topic
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    Map<String, Boolean> getReplicatedSubscriptionStatus(String topic, String subName) throws PulsarAdminException;
+
+    /**
+     * Get replicated subscription status on a topic asynchronously.
+     *
+     * @param topic topic name
+     * @return a map of replicated subscription status on a topic
+     */
+    CompletableFuture<Map<String, Boolean>> getReplicatedSubscriptionStatusAsync(String topic, String subName);
 }

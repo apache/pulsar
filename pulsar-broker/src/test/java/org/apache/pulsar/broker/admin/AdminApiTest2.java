@@ -1041,7 +1041,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         log.info(" 1 get lookup url {}", brokerUrl);
 
         //  2. update isolation policy, without broker matched, lookup will fail.
-        nsPolicyData1.getPrimary().clear();;
+        nsPolicyData1.getPrimary().clear();
         nsPolicyData1.getPrimary().add(brokerName + "not_match");
         admin.clusters().updateNamespaceIsolationPolicyAsync(cluster, policyName1, nsPolicyData1).get();
 
@@ -1309,7 +1309,11 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertFalse(admin.tenants().getTenants().contains(tenant));
 
         final String managedLedgersPath = "/managed-ledgers/" + tenant;
+        final String partitionedTopicPath = "/admin/partitioned-topics/" + tenant;
+        final String localPoliciesPath = "/admin/local-policies/" + tenant;
         assertFalse(pulsar.getLocalMetadataStore().exists(managedLedgersPath).join());
+        assertFalse(pulsar.getLocalMetadataStore().exists(partitionedTopicPath).join());
+        assertFalse(pulsar.getLocalMetadataStore().exists(localPoliciesPath).join());
     }
 
     @Test

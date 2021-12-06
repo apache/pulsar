@@ -19,6 +19,7 @@
 package org.apache.zookeeper;
 
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimaps;
@@ -31,6 +32,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -43,6 +45,7 @@ import java.util.function.BiPredicate;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.zookeeper.AsyncCallback.Children2Callback;
 import org.apache.zookeeper.AsyncCallback.ChildrenCallback;
@@ -463,27 +466,23 @@ public class MockZooKeeper extends ZooKeeper {
                 throw new KeeperException.NoNodeException();
             }
 
-            List<String> children = Lists.newArrayList();
-            for (String item : tree.tailMap(path).keySet()) {
-                if (!item.startsWith(path)) {
-                    break;
-                } else {
-                    if (path.length() >= item.length()) {
-                        continue;
-                    }
+            String firstKey = path.equals("/") ? path : path + "/";
+            String lastKey = path.equals("/") ? "0" : path + "0"; // '0' is lexicographically just after '/'
 
-                    String child = item.substring(path.length() + 1);
-                    if (!child.contains("/")) {
-                        children.add(child);
-                    }
-                }
-            }
+            Set<String> children = new TreeSet<>();
+            tree.subMap(firstKey, false, lastKey, false).forEach((key, value) -> {
+                String relativePath = key.replace(firstKey, "");
+
+                // Only return first-level children
+                String child = relativePath.split("/", 2)[0];
+                children.add(child);
+            });
 
             if (watcher != null) {
                 watchers.put(path, watcher);
             }
 
-            return children;
+            return new ArrayList<>(children);
         } finally {
             mutex.unlock();
         }
@@ -501,25 +500,19 @@ public class MockZooKeeper extends ZooKeeper {
                 throw new KeeperException.NoNodeException();
             }
 
-            List<String> children = Lists.newArrayList();
-            for (String item : tree.tailMap(path).keySet()) {
-                if (!item.startsWith(path)) {
-                    break;
-                } else {
-                    if (path.length() >= item.length()) {
-                        continue;
-                    }
-                    String child = item.substring(path.length());
-                    if (child.indexOf("/") == 0) {
-                        child = child.substring(1);
-                        log.debug("child: '{}'", child);
-                        if (!child.contains("/")) {
-                            children.add(child);
-                        }
-                    }
-                }
-            }
-            return children;
+            String firstKey = path.equals("/") ? path : path + "/";
+            String lastKey = path.equals("/") ? "0" : path + "0"; // '0' is lexicographically just after '/'
+
+            Set<String> children = new TreeSet<>();
+            tree.subMap(firstKey, false, lastKey, false).forEach((key, value) -> {
+                String relativePath = key.replace(firstKey, "");
+
+                // Only return first-level children
+                String child = relativePath.split("/", 2)[0];
+                children.add(child);
+            });
+
+            return new ArrayList<>(children);
         } finally {
             mutex.unlock();
         }
@@ -545,29 +538,20 @@ public class MockZooKeeper extends ZooKeeper {
                 return;
             }
 
-            log.debug("getChildren path={}", path);
-            List<String> children = Lists.newArrayList();
-            for (String item : tree.tailMap(path).keySet()) {
-                log.debug("Checking path {}", item);
-                if (!item.startsWith(path)) {
-                    break;
-                } else if (item.equals(path)) {
-                    continue;
-                } else {
-                    String child = item.substring(path.length());
-                    if (child.indexOf("/") == 0) {
-                        child = child.substring(1);
-                        log.debug("child: '{}'", child);
-                        if (!child.contains("/")) {
-                            children.add(child);
-                        }
-                    }
-                }
-            }
+            String firstKey = path.equals("/") ? path : path + "/";
+            String lastKey = path.equals("/") ? "0" : path + "0"; // '0' is lexicographically just after '/'
 
-            log.debug("getChildren done path={} result={}", path, children);
+            Set<String> children = new TreeSet<>();
+            tree.subMap(firstKey, false, lastKey, false).forEach((key, value) -> {
+                String relativePath = key.replace(firstKey, "");
+
+                // Only return first-level children
+                String child = relativePath.split("/", 2)[0];
+                children.add(child);
+            });
+
             mutex.unlock();
-            cb.processResult(0, path, ctx, children, new Stat());
+            cb.processResult(0, path, ctx, new ArrayList<>(children), new Stat());
         });
 
     }
@@ -924,21 +908,53 @@ public class MockZooKeeper extends ZooKeeper {
     @Override
     public List<OpResult> multi(Iterable<org.apache.zookeeper.Op> ops) throws InterruptedException, KeeperException {
         List<OpResult> res = new ArrayList<>();
-        for (org.apache.zookeeper.Op op : ops) {
-            switch (op.getType()) {
-                case ZooDefs.OpCode.create:
-                    this.create(op.getPath(), ((org.apache.zookeeper.Op.Create)op).data, null, null);
-                    res.add(new OpResult.CreateResult(op.getPath()));
-                    break;
-                case ZooDefs.OpCode.delete:
-                    this.delete(op.getPath(), -1);
-                    res.add(new OpResult.DeleteResult());
-                    break;
-                case ZooDefs.OpCode.setData:
-                    this.create(op.getPath(), ((org.apache.zookeeper.Op.Create)op).data, null, null);
-                    res.add(new OpResult.SetDataResult(null));
-                    break;
-                default:
+        try {
+            for (org.apache.zookeeper.Op op : ops) {
+                switch (op.getType()) {
+                    case ZooDefs.OpCode.create: {
+                        org.apache.zookeeper.Op.Create opc = ((org.apache.zookeeper.Op.Create) op);
+                        CreateMode cm = CreateMode.fromFlag(opc.flags);
+                        String path = this.create(op.getPath(), opc.data, null, cm);
+                        res.add(new OpResult.CreateResult(path));
+                        break;
+                    }
+                    case ZooDefs.OpCode.delete:
+                        this.delete(op.getPath(), Whitebox.getInternalState(op, "version"));
+                        res.add(new OpResult.DeleteResult());
+                        break;
+                    case ZooDefs.OpCode.setData: {
+                        Stat stat = this.setData(op.getPath(), Whitebox.getInternalState(op, "data"),
+                                Whitebox.getInternalState(op, "version"));
+                        res.add(new OpResult.SetDataResult(stat));
+                        break;
+                    }
+                    case ZooDefs.OpCode.getChildren: {
+                        try {
+                            List<String> children = this.getChildren(op.getPath(), null);
+                            res.add(new OpResult.GetChildrenResult(children));
+                        } catch (KeeperException e) {
+                            res.add(new OpResult.ErrorResult(e.code().intValue()));
+                        }
+                        break;
+                    }
+                    case ZooDefs.OpCode.getData: {
+                        Stat stat = new Stat();
+                        try {
+                            byte[] payload = this.getData(op.getPath(), null, stat);
+                            res.add(new OpResult.GetDataResult(payload, stat));
+                        } catch (KeeperException e) {
+                            res.add(new OpResult.ErrorResult(e.code().intValue()));
+                        }
+                        break;
+                    }
+                    default:
+                }
+            }
+        } catch (KeeperException e) {
+            res.add(new OpResult.ErrorResult(e.code().intValue()));
+            int total = Iterables.size(ops);
+            for (int i = res.size(); i < total; i++) {
+                res.add(new OpResult.ErrorResult(KeeperException.Code.RUNTIMEINCONSISTENCY.intValue()));
             }
         }
         return res;

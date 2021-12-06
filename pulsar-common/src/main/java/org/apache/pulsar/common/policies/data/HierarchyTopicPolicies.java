@@ -19,18 +19,30 @@
 
 package org.apache.pulsar.common.policies.data;
 
+import com.google.common.collect.ImmutableMap;
+import java.util.Map;
 import lombok.Getter;
+import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 
 /**
  * Topic policy hierarchy value container
  */
 @Getter
 public class HierarchyTopicPolicies {
+    final PolicyHierarchyValue<Boolean> deduplicationEnabled;
     final PolicyHierarchyValue<InactiveTopicPolicies> inactiveTopicPolicies;
     final PolicyHierarchyValue<Integer> maxSubscriptionsPerTopic;
+    final Map<BacklogQuotaType, PolicyHierarchyValue<BacklogQuota>> backLogQuotaMap;
+    final PolicyHierarchyValue<Integer> topicMaxMessageSize;
 
     public HierarchyTopicPolicies() {
+        deduplicationEnabled = new PolicyHierarchyValue<>();
         inactiveTopicPolicies = new PolicyHierarchyValue<>();
         maxSubscriptionsPerTopic = new PolicyHierarchyValue<>();
+        backLogQuotaMap = new ImmutableMap.Builder<BacklogQuotaType, PolicyHierarchyValue<BacklogQuota>>()
+                .put(BacklogQuotaType.destination_storage, new PolicyHierarchyValue<>())
+                .put(BacklogQuotaType.message_age, new PolicyHierarchyValue<>())
+                .build();
+        topicMaxMessageSize = new PolicyHierarchyValue<>();
     }
 }

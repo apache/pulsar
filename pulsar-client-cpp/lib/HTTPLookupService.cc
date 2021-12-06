@@ -151,7 +151,7 @@ void HTTPLookupService::handleNamespaceTopicsHTTPRequest(NamespaceTopicsPromise 
 Result HTTPLookupService::sendHTTPRequest(const std::string completeUrl, std::string &responseData) {
     CURL *handle;
     CURLcode res;
-    std::string version = std::string("Pulsar-CPP-v") + _PULSAR_VERSION_;
+    std::string version = std::string("Pulsar-CPP-v") + _PULSAR_VERSION_INTERNAL_;
     handle = curl_easy_init();
 
     if (!handle) {

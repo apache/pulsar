@@ -5,6 +5,16 @@ sidebar_label: Topics
 original_id: admin-api-topics
 ---
 
+> **Important**
+>
+> This page only shows **some frequently used operations**.
+>
+> - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more information, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/).
+> 
+> - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
+> 
+> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/).
+
 Pulsar has persistent and non-persistent topics. Persistent topic is a logical endpoint for publishing and consuming messages. The topic name structure for persistent topics is:
 
 ```shell
@@ -973,11 +983,11 @@ admin.topics().delete(topic);
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ### List
-You can get the list of topics under a given namespace in the following ways.  
+You can get the list of partitioned topics under a given namespace in the following ways.  
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
 ```shell
-$ pulsar-admin topics list tenant/namespace
+$ pulsar-admin topics list-partitioned-topics tenant/namespace
 persistent://tenant/namespace/topic1
 persistent://tenant/namespace/topic2
 ```
@@ -987,7 +997,7 @@ persistent://tenant/namespace/topic2
 
 <!--Java-->
 ```java
-admin.topics().getList(namespace);
+admin.topics().getPartitionedTopicList(namespace);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
