@@ -366,6 +366,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
         setup();
 
+        final String tenantRole = "tenant-role";
         final String subscriptionRole = "sub-role";
         final String subscriptionName = "sub1";
         final String namespace = "my-property/my-ns-sub-auth";
@@ -378,6 +379,11 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         PulsarAdmin superAdmin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
                 .authentication(adminAuthentication).build());
 
+        Authentication tenantAdminAuthentication = new ClientAuthentication(tenantRole);
+        @Cleanup
+        PulsarAdmin tenantAdmin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
+                .authentication(tenantAdminAuthentication).build());
+
         Authentication subAdminAuthentication = new ClientAuthentication(subscriptionRole);
         @Cleanup
         PulsarAdmin sub1Admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
@@ -386,9 +392,11 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         superAdmin.clusters().createCluster("test",
                 ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         superAdmin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet("test")));
+                new TenantInfoImpl(Sets.newHashSet(tenantRole), Sets.newHashSet("test")));
         superAdmin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         superAdmin.topics().createPartitionedTopic(topicName, 1);
+        assertEquals(tenantAdmin.topics().getPartitionedTopicList(namespace),
+                Lists.newArrayList(topicName));
 
         // grant topic consume&produce authorization to the subscriptionRole
         superAdmin.topics().grantPermission(topicName, subscriptionRole,
