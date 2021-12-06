@@ -19,21 +19,25 @@
 package org.apache.pulsar.broker;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.netty.util.internal.PlatformDependent;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
-import lombok.Builder;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 import org.apache.bookkeeper.client.api.DigestType;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
@@ -102,10 +106,24 @@ public class ServiceConfiguration implements PulsarConfiguration {
     /***** --- pulsar configuration --- ****/
     @FieldContext(
         category = CATEGORY_SERVER,
-        required = true,
-        doc = "The Zookeeper quorum connection string (as a comma-separated list)"
+        required = false,
+        deprecated = true,
+        doc = "The Zookeeper quorum connection string (as a comma-separated list). Deprecated in favour of metadataStoreUrl"
     )
+    @Getter(AccessLevel.NONE)
     private String zookeeperServers;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            required = false,
+            doc = "The metadata store URL. \n" +
+                    " Examples: \n" +
+                    "  * zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181\n" +
+                    "  * my-zk-1:2181,my-zk-2:2181,my-zk-3:2181 (will default to ZooKeeper when the schema is not specified)\n" +
+                    "  * zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181/my-chroot-path (to add a ZK chroot path)\n"
+    )
+    private String metadataStoreUrl;
+
     @Deprecated
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -114,13 +132,26 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Global Zookeeper quorum connection string (as a comma-separated list)."
             + " Deprecated in favor of using `configurationStoreServers`"
     )
+    @Getter(AccessLevel.NONE)
     private String globalZookeeperServers;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         required = false,
+        deprecated = true,
         doc = "Configuration store connection string (as a comma-separated list)"
     )
+    @Getter(AccessLevel.NONE)
+    @Deprecated
     private String configurationStoreServers;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            required = false,
+            doc = "The metadata store URL for the configuration data. If empty, we fall back to use metadataStoreUrl"
+    )
+    private String configurationMetadataStoreUrl;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving binary protobuf requests."
@@ -1309,6 +1340,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Metadata service uri that bookkeeper is used for loading corresponding metadata driver"
             + " and resolving its metadata service location"
     )
+    @Getter(AccessLevel.NONE)
     private String bookkeeperMetadataServiceUri;
 
     @FieldContext(
@@ -1954,7 +1986,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_LOAD_BALANCER,
         doc = "Option to override the auto-detected network interfaces max speed"
     )
-    private Double loadBalancerOverrideBrokerNicSpeedGbps;
+    private Optional<Double> loadBalancerOverrideBrokerNicSpeedGbps = Optional.empty();
+
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
         doc = "Time to wait for the unloading of a namespace bundle"
@@ -2033,7 +2066,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "A comma-separated list of namespaces to bootstrap"
     )
     private List<String> bootstrapNamespaces = new ArrayList<String>();
+
+    @ToString.Exclude
+    @JsonIgnore
     private Properties properties = new Properties();
+
     @FieldContext(
         dynamic = true,
         category = CATEGORY_SERVER,
@@ -2437,37 +2474,44 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private Set<String> additionalServlets = new TreeSet<>();
 
-    /**
-     * @deprecated See {@link #getConfigurationStoreServers}
-     */
-    @Deprecated
-    public String getGlobalZookeeperServers() {
-        if (this.globalZookeeperServers == null || this.globalZookeeperServers.isEmpty()) {
-            // If the configuration is not set, assuming that the globalZK is not enabled and all data is in the same
-            // ZooKeeper cluster
-            return this.getZookeeperServers();
+    public String getMetadataStoreUrl() {
+        if (StringUtils.isNotBlank(metadataStoreUrl)) {
+            return metadataStoreUrl;
+        } else {
+            // Fallback to old setting
+            return zookeeperServers;
         }
-        return globalZookeeperServers;
     }
 
-    /**
-     * @deprecated See {@link #setConfigurationStoreServers(String)}
-     */
-    @Deprecated
-    public void setGlobalZookeeperServers(String globalZookeeperServers) {
-        this.globalZookeeperServers = globalZookeeperServers;
-    }
-
-    public String getConfigurationStoreServers() {
-        if (this.configurationStoreServers == null || this.configurationStoreServers.isEmpty()) {
-            // If the configuration is not set, assuming that all data is in the same as globalZK cluster
-            return this.getGlobalZookeeperServers();
+    public String getConfigurationMetadataStoreUrl() {
+        if (StringUtils.isNotBlank(configurationMetadataStoreUrl)) {
+            return configurationMetadataStoreUrl;
+        } else if (StringUtils.isNotBlank(configurationStoreServers)) {
+            return configurationStoreServers;
+        } else if (StringUtils.isNotBlank(globalZookeeperServers)) {
+            return globalZookeeperServers;
+        } else {
+            // Fallback to local zookeeper
+            return getMetadataStoreUrl();
         }
-        return configurationStoreServers;
     }
 
-    public void setConfigurationStoreServers(String configurationStoreServers) {
-        this.configurationStoreServers = configurationStoreServers;
+    public boolean isConfigurationStoreSeparated() {
+        return !Objects.equals(getConfigurationMetadataStoreUrl(), getMetadataStoreUrl());
+    }
+
+    public boolean isBookkeeperMetadataStoreSeparated() {
+        return StringUtils.isNotBlank(bookkeeperMetadataServiceUri);
+    }
+
+    public String getBookkeeperMetadataStoreUrl() {
+        if (isBookkeeperMetadataStoreSeparated()) {
+            return bookkeeperMetadataServiceUri;
+        } else {
+            // Fallback to same metadata service used by broker, adding the "metadata-store" to specify the BK
+            // metadata adapter
+            return "metadata-store:" + getMetadataStoreUrl();
+        }
     }
 
     public Object getProperty(String key) {
@@ -2482,30 +2526,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @Override
     public void setProperties(Properties properties) {
         this.properties = properties;
-    }
-
-    public Optional<Double> getLoadBalancerOverrideBrokerNicSpeedGbps() {
-        return Optional.ofNullable(loadBalancerOverrideBrokerNicSpeedGbps);
-    }
-
-    public int getBookkeeperHealthCheckIntervalSec() {
-        return (int) bookkeeperClientHealthCheckIntervalSeconds;
-    }
-
-    public Optional<Integer> getBrokerServicePort() {
-        return brokerServicePort;
-    }
-
-    public Optional<Integer> getBrokerServicePortTls() {
-        return brokerServicePortTls;
-    }
-
-    public Optional<Integer> getWebServicePort() {
-        return webServicePort;
-    }
-
-    public Optional<Integer> getWebServicePortTls() {
-        return webServicePortTls;
     }
 
     public boolean isDefaultTopicTypePartitioned() {
