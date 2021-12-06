@@ -106,8 +106,14 @@ public class PulsarLedgerManager implements LedgerManager {
             return FutureUtil.failedFuture(new BKException.BKMetadataSerializationException(ioe));
         }
 
-        return store.put(getLedgerPath(ledgerId), data, Optional.of(-1L))
+        CompletableFuture<Versioned<LedgerMetadata>> future = store.put(getLedgerPath(ledgerId), data, Optional.of(-1L))
                 .thenApply(stat -> new Versioned(metadata, new LongVersion(stat.getVersion())));
+        future.exceptionally(ex -> {
+            log.error("Failed to create ledger {}: {}", ledgerId, ex.getMessage());
+            return null;
+        });
+
+        return future;
     }
 
     @Override

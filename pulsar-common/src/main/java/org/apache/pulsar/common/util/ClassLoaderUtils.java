@@ -18,16 +18,20 @@
  */
 package org.apache.pulsar.common.util;
 
+import java.io.Closeable;
 import java.io.File;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Helper methods wrt Classloading.
  */
+@Slf4j
 public class ClassLoaderUtils {
     /**
      * Load a jar.
@@ -74,6 +78,16 @@ public class ClassLoaderUtils {
         if (!klass.isAssignableFrom(objectClass)) {
             throw new IllegalArgumentException(
                     String.format("%s does not implement %s", className, klass.getName()));
+        }
+    }
+
+    public static void closeClassLoader(ClassLoader classLoader) {
+        if (classLoader instanceof Closeable) {
+            try {
+                ((Closeable) classLoader).close();
+            } catch (IOException e) {
+                log.error("Error closing classloader {}", classLoader, e);
+            }
         }
     }
 }

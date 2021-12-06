@@ -106,8 +106,8 @@ public class PulsarBrokerStarterTest {
 
         assertTrue(returnValue instanceof ServiceConfiguration);
         ServiceConfiguration serviceConfig = (ServiceConfiguration) returnValue;
-        assertEquals(serviceConfig.getZookeeperServers(), "z1.example.com,z2.example.com,z3.example.com");
-        assertEquals(serviceConfig.getConfigurationStoreServers(), "gz1.example.com,gz2.example.com,gz3.example.com/foo");
+        assertEquals(serviceConfig.getMetadataStoreUrl(), "z1.example.com,z2.example.com,z3.example.com");
+        assertEquals(serviceConfig.getConfigurationMetadataStoreUrl(), "gz1.example.com,gz2.example.com,gz3.example.com/foo");
         assertFalse(serviceConfig.isBrokerDeleteInactiveTopicsEnabled());
         assertEquals(serviceConfig.getStatusFilePath(), "/tmp/status.html");
         assertEquals(serviceConfig.getBacklogQuotaDefaultLimitGB(), 18);
@@ -259,8 +259,8 @@ public class PulsarBrokerStarterTest {
 
         assertTrue(returnValue instanceof ServiceConfiguration);
         ServiceConfiguration serviceConfig = (ServiceConfiguration) returnValue;
-        assertEquals(serviceConfig.getZookeeperServers(), "z1.example.com,z2.example.com,z3.example.com");
-        assertEquals(serviceConfig.getConfigurationStoreServers(), "z1.example.com,z2.example.com,z3.example.com");
+        assertEquals(serviceConfig.getMetadataStoreUrl(), "z1.example.com,z2.example.com,z3.example.com");
+        assertEquals(serviceConfig.getConfigurationMetadataStoreUrl(), "z1.example.com,z2.example.com,z3.example.com");
         assertFalse(serviceConfig.isBrokerDeleteInactiveTopicsEnabled());
         assertEquals(serviceConfig.getStatusFilePath(), "/tmp/status.html");
         assertEquals(serviceConfig.getBacklogQuotaDefaultLimitGB(), 18);

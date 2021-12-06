@@ -532,6 +532,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
     private void testMaxProducers() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        topic.initialize();
         String role = "appid1";
         // 1. add producer1
         Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name1", role,
@@ -577,8 +578,11 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .thenReturn(Optional.of(policies));
 
         when(pulsar.getPulsarResources().getNamespaceResources()
-                        .getPolicies(TopicName.get(successTopicName).getNamespaceObject()))
-                        .thenReturn(Optional.of(policies));
+                .getPolicies(TopicName.get(successTopicName).getNamespaceObject()))
+                .thenReturn(Optional.of(policies));
+        when(pulsar.getPulsarResources().getNamespaceResources()
+                .getPoliciesAsync(TopicName.get(successTopicName).getNamespaceObject()))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(policies)));
         testMaxProducers();
     }
 
