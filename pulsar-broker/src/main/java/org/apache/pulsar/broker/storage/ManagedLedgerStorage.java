@@ -28,7 +28,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.classification.InterfaceAudience.Private;
 import org.apache.pulsar.common.classification.InterfaceStability.Unstable;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.zookeeper.ZooKeeper;
 
 /**
  * Storage to access {@link org.apache.bookkeeper.mledger.ManagedLedger}s.
@@ -81,13 +80,11 @@ public interface ManagedLedgerStorage extends AutoCloseable {
      * Initialize the {@link ManagedLedgerStorage} from the provided resources.
      *
      * @param conf service config
-     * @param zkClient zookeeper client
      * @param bkProvider bookkeeper client provider
      * @return the initialized managed ledger storage.
      */
     static ManagedLedgerStorage create(ServiceConfiguration conf,
                                        MetadataStoreExtended metadataStore,
-                                       ZooKeeper zkClient,
                                        BookKeeperClientFactory bkProvider,
                                        EventLoopGroup eventLoopGroup) throws Exception {
         final Class<?> storageClass = Class.forName(conf.getManagedLedgerStorageClassName());

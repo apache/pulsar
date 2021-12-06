@@ -41,12 +41,9 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
-import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,9 +94,9 @@ public class CompactorTool {
         }
 
 
-        if (isBlank(brokerConfig.getZookeeperServers())) {
+        if (isBlank(brokerConfig.getMetadataStoreUrl())) {
             throw new IllegalArgumentException(
-                    String.format("Need to specify `zookeeperServers` in configuration file \n"
+                    String.format("Need to specify `metadataStoreUrl` or `zookeeperServers` in configuration file \n"
                                     + "or specify configuration file path from command line.\n"
                                     + "now configuration file path is=[%s]\n",
                             arguments.brokerConfigFile)
@@ -133,15 +130,11 @@ public class CompactorTool {
         @Cleanup(value = "shutdownNow")
         OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().build();
 
-        ZooKeeperClientFactory zkClientFactory = new ZookeeperBkClientFactoryImpl(executor);
-
         @Cleanup
-        ZooKeeper zk = zkClientFactory.create(brokerConfig.getZookeeperServers(),
-                ZooKeeperClientFactory.SessionType.ReadWrite,
-                (int) brokerConfig.getZooKeeperSessionTimeoutMillis()).get();
-
-        @Cleanup
-        MetadataStoreExtended store = new ZKMetadataStore(zk);
+        MetadataStoreExtended store = MetadataStoreExtended.create(brokerConfig.getMetadataStoreUrl(),
+                MetadataStoreConfig.builder()
+                        .sessionTimeoutMillis((int) brokerConfig.getZooKeeperSessionTimeoutMillis())
+                        .build());
 
         @Cleanup
         BookKeeperClientFactory bkClientFactory = new BookKeeperClientFactoryImpl();
