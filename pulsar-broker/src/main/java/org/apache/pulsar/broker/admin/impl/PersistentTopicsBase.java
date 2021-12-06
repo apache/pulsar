@@ -1434,7 +1434,7 @@ public class PersistentTopicsBase extends AdminResource {
             internalDeleteSubscriptionForNonPartitionedTopic(asyncResponse, subName, authoritative);
         } else {
             getPartitionedTopicMetadataAsync(topicName,
-                    authoritative, false).thenAccept(partitionMetadata -> {
+                    authoritative, false).thenAcceptAsync(partitionMetadata -> {
                 if (partitionMetadata.partitions > 0) {
                     final List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
@@ -1476,7 +1476,7 @@ public class PersistentTopicsBase extends AdminResource {
                 } else {
                     internalDeleteSubscriptionForNonPartitionedTopic(asyncResponse, subName, authoritative);
                 }
-            }).exceptionally(ex -> {
+            }, pulsar().getExecutor()).exceptionally(ex -> {
                 log.error("[{}] Failed to delete subscription {} from topic {}",
                         clientAppId(), subName, topicName, ex);
                 resumeAsyncResponseExceptionally(asyncResponse, ex);
