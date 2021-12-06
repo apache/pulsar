@@ -1372,13 +1372,13 @@
                     "type": "integer",
                     "format": "int32"
                 },
+                "numericCodeAsString": {
+                    "type": "string"
+                },
                 "displayName": {
                     "type": "string"
                 },
                 "symbol": {
-                    "type": "string"
-                },
-                "numericCodeAsString": {
                     "type": "string"
                 }
             }
@@ -1393,11 +1393,11 @@
                 "numberFormat": {
                     "$ref": "#/definitions/NumberFormat"
                 },
-                "timeZone": {
-                    "$ref": "#/definitions/TimeZone"
-                },
                 "lenient": {
                     "type": "boolean"
+                },
+                "timeZone": {
+                    "$ref": "#/definitions/TimeZone"
                 }
             }
         },
@@ -1470,11 +1470,11 @@
                 "timeZone": {
                     "$ref": "#/definitions/TimeZone"
                 },
-                "locale": {
-                    "$ref": "#/definitions/Locale"
-                },
                 "factory": {
                     "$ref": "#/definitions/DeserializerFactory"
+                },
+                "locale": {
+                    "$ref": "#/definitions/Locale"
                 },
                 "config": {
                     "$ref": "#/definitions/DeserializationConfig"
@@ -2111,6 +2111,9 @@
                 "javaLangObject": {
                     "type": "boolean"
                 },
+                "enumType": {
+                    "type": "boolean"
+                },
                 "containerType": {
                     "type": "boolean"
                 },
@@ -2139,9 +2142,6 @@
                     "type": "boolean"
                 },
                 "mapLikeType": {
-                    "type": "boolean"
-                },
-                "enumType": {
                     "type": "boolean"
                 },
                 "typeName": {
@@ -2223,10 +2223,6 @@
         "JsonLocation": {
             "type": "object",
             "properties": {
-                "byteOffset": {
-                    "type": "integer",
-                    "format": "int64"
-                },
                 "sourceRef": {
                     "type": "object"
                 },
@@ -2239,6 +2235,10 @@
                     "format": "int32"
                 },
                 "charOffset": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "byteOffset": {
                     "type": "integer",
                     "format": "int64"
                 }
@@ -2254,14 +2254,14 @@
                     "type": "integer",
                     "format": "int32"
                 },
-                "text": {
-                    "type": "string"
-                },
                 "textCharacters": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
+                },
+                "text": {
+                    "type": "string"
                 },
                 "booleanValue": {
                     "type": "boolean"
@@ -2325,6 +2325,10 @@
                 },
                 "tokenLocation": {
                     "$ref": "#/definitions/JsonLocation"
+                },
+                "currentTokenId": {
+                    "type": "integer",
+                    "format": "int32"
                 },
                 "parsingContext": {
                     "$ref": "#/definitions/JsonStreamContext"
@@ -2424,10 +2428,6 @@
                 "formatFeatures": {
                     "type": "integer",
                     "format": "int32"
-                },
-                "currentTokenId": {
-                    "type": "integer",
-                    "format": "int32"
                 }
             }
         },
@@ -2456,6 +2456,13 @@
                 "parent": {
                     "$ref": "#/definitions/JsonStreamContext"
                 },
+                "typeDesc": {
+                    "type": "string"
+                },
+                "currentIndex": {
+                    "type": "integer",
+                    "format": "int32"
+                },
                 "currentName": {
                     "type": "string"
                 },
@@ -2463,13 +2470,6 @@
                     "type": "object"
                 },
                 "entryCount": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "typeDesc": {
-                    "type": "string"
-                },
-                "currentIndex": {
                     "type": "integer",
                     "format": "int32"
                 }
@@ -2569,6 +2569,9 @@
                         "format": "byte"
                     }
                 },
+                "topicName": {
+                    "type": "string"
+                },
                 "messageId": {
                     "$ref": "#/definitions/MessageId"
                 },
@@ -2627,9 +2630,6 @@
                 },
                 "replicated": {
                     "type": "boolean"
-                },
-                "topicName": {
-                    "type": "string"
                 }
             }
         },
@@ -2717,9 +2717,6 @@
                     "type": "integer",
                     "format": "int32"
                 },
-                "currency": {
-                    "$ref": "#/definitions/Currency"
-                },
                 "roundingMode": {
                     "type": "string",
                     "enum": [
@@ -2732,6 +2729,9 @@
                         "HALF_EVEN",
                         "UNNECESSARY"
                     ]
+                },
+                "currency": {
+                    "$ref": "#/definitions/Currency"
                 }
             }
         },
@@ -2893,6 +2893,9 @@
         "PublicKey": {
             "type": "object",
             "properties": {
+                "format": {
+                    "type": "string"
+                },
                 "algorithm": {
                     "type": "string"
                 },
@@ -2902,9 +2905,6 @@
                         "type": "string",
                         "format": "byte"
                     }
-                },
-                "format": {
-                    "type": "string"
                 }
             }
         },
@@ -2928,11 +2928,11 @@
         "Schema": {
             "type": "object",
             "properties": {
-                "nativeSchema": {
-                    "type": "object"
-                },
                 "schemaInfo": {
                     "$ref": "#/definitions/SchemaInfo"
+                },
+                "nativeSchema": {
+                    "type": "object"
                 }
             }
         },
@@ -2978,26 +2978,26 @@
                         "AUTO_PUBLISH"
                     ]
                 },
+                "schemaDefinition": {
+                    "type": "string"
+                },
                 "schema": {
                     "type": "array",
                     "items": {
                         "type": "string",
                         "format": "byte"
                     }
-                },
-                "schemaDefinition": {
-                    "type": "string"
                 }
             }
         },
         "SchemaObject": {
             "type": "object",
             "properties": {
-                "nativeSchema": {
-                    "type": "object"
-                },
                 "schemaInfo": {
                     "$ref": "#/definitions/SchemaInfo"
+                },
+                "nativeSchema": {
+                    "type": "object"
                 }
             }
         },
@@ -3125,6 +3125,9 @@
                 "id": {
                     "type": "string"
                 },
+                "displayName": {
+                    "type": "string"
+                },
                 "dstsavings": {
                     "type": "integer",
                     "format": "int32"
@@ -3132,9 +3135,6 @@
                 "rawOffset": {
                     "type": "integer",
                     "format": "int32"
-                },
-                "displayName": {
-                    "type": "string"
                 }
             }
         },
@@ -3272,12 +3272,6 @@
                     "type": "integer",
                     "format": "int32"
                 },
-                "issuerDN": {
-                    "$ref": "#/definitions/Principal"
-                },
-                "subjectDN": {
-                    "$ref": "#/definitions/Principal"
-                },
                 "serialNumber": {
                     "type": "integer"
                 },
@@ -3287,6 +3281,12 @@
                         "type": "string",
                         "format": "byte"
                     }
+                },
+                "issuerDN": {
+                    "$ref": "#/definitions/Principal"
+                },
+                "subjectDN": {
+                    "$ref": "#/definitions/Principal"
                 },
                 "extendedKeyUsage": {
                     "type": "array",

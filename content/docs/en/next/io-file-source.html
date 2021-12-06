@@ -97,11 +97,15 @@
 <li><p>Download the File source connector.</p>
 <pre><code class="hljs css language-bash">$ curl -O https://mirrors.tuna.tsinghua.edu.cn/apache/pulsar/pulsar-{version}/connectors/pulsar-io-file-{version}.nar
 </code></pre></li>
+<li><p>Copy it to the <code>connectors</code> folder, then restart the container.</p>
+<pre><code class="hljs css language-bash">$ docker cp pulsar-io-file-{version}.nar pulsar-standalone:/pulsar/connectors/  
+$ docker restart pulsar-standalone
+</code></pre></li>
 <li><p>Start the File source connector.</p>
 <pre><code class="hljs css language-bash">$ docker <span class="hljs-built_in">exec</span> -it pulsar-standalone /bin/bash
 
 $ ./bin/pulsar-admin sources localrun \
---archive /pulsar/pulsar-io-file-{version}.nar \
+--archive /pulsar/connectors/pulsar-io-file-{version}.nar \
 --name file-test \
 --destination-topic-name  pulsar-file-test \
 --<span class="hljs-built_in">source</span>-config-file /pulsar/file-connector.yaml
