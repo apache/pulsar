@@ -136,7 +136,7 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     }
 
     @Override
-    protected final CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
+    protected CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
                                                EnumSet<CreateOption> options) {
         OpPut op = new OpPut(path, data, optExpectedVersion, options);
         enqueue(writeOps, op);
