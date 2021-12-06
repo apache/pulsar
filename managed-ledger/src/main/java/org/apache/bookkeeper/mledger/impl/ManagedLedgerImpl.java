@@ -1163,7 +1163,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
                 try {
-                    long entryTimestamp = Commands.getEntryPublishTimestamp(entry.getDataBuffer());
+                    long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
                     future.complete(entryTimestamp);
                 } catch (IOException e) {
                     log.error("Error deserializing message for message position {}", nextPos, e);

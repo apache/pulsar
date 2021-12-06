@@ -1076,7 +1076,7 @@ public class PersistentSubscription implements Subscription {
             } catch (InterruptedException | ExecutionException e) {
                 result = -1;
             }
-            subStats.timeBacklogInMills = result;
+            subStats.earliestMsgPublishTimeInBacklog = result;
         }
         subStats.msgBacklogNoDelayed = subStats.msgBacklog - subStats.msgDelayed;
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();

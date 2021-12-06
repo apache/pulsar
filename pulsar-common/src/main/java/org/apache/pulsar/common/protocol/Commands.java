@@ -440,7 +440,7 @@ public class Commands {
         buffer.skipBytes(metadataSize);
     }
 
-    public static long getEntryPublishTimestamp(ByteBuf headersAndPayloadWithBrokerEntryMetadata) throws IOException {
+    public static long getEntryTimestamp(ByteBuf headersAndPayloadWithBrokerEntryMetadata) throws IOException {
         // get broker timestamp first if BrokerEntryMetadata is enabled with AppendBrokerTimestampMetadataInterceptor
         BrokerEntryMetadata brokerEntryMetadata =
                 Commands.parseBrokerEntryMetadataIfExist(headersAndPayloadWithBrokerEntryMetadata);

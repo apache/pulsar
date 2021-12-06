@@ -450,7 +450,7 @@ public class MessageImplTest {
 
             CompositeByteBuf compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
             compositeByteBuf.addComponents(true, brokerMeta, byteBuf);
-            long entryTimestamp = Commands.getEntryPublishTimestamp(compositeByteBuf);
+            long entryTimestamp = Commands.getEntryTimestamp(compositeByteBuf);
             assertTrue(MessageImpl.isEntryExpired(100, entryTimestamp));
             assertEquals(entryTimestamp, 1);
 
@@ -475,7 +475,7 @@ public class MessageImplTest {
 
             compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
             compositeByteBuf.addComponents(true, brokerMeta, byteBuf);
-            entryTimestamp = Commands.getEntryPublishTimestamp(compositeByteBuf);
+            entryTimestamp = Commands.getEntryTimestamp(compositeByteBuf);
             assertFalse(MessageImpl.isEntryExpired(24 * 3600, entryTimestamp));
             assertEquals(entryTimestamp, brokerEntryTimestamp);
         } catch (IOException e) {

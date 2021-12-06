@@ -1961,7 +1961,7 @@ public class PersistentTopic extends AbstractTopic
                     log.error("[{}] Failed to get earliest message publish time in backlog", topic, e);
                     statsFuture.completeExceptionally(e);
                 } else {
-                    stats.timeBacklogInMills = earliestTime;
+                    stats.earliestMsgPublishTimeInBacklogs = earliestTime;
                     statsFuture.complete(stats);
                 }
             });
@@ -2563,7 +2563,7 @@ public class PersistentTopic extends AbstractTopic
                         @Override
                         public void readEntryComplete(Entry entry, Object ctx) {
                             try {
-                                long entryTimestamp = Commands.getEntryPublishTimestamp(entry.getDataBuffer());
+                                long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
                                 boolean expired = MessageImpl.isEntryExpired(backlogQuotaLimitInSecond, entryTimestamp);
                                 if (expired && log.isDebugEnabled()) {
                                     log.debug("Time based backlog quota exceeded, oldest entry in cursor {}'s backlog"
@@ -2652,7 +2652,7 @@ public class PersistentTopic extends AbstractTopic
         try {
             entry = cursor.getNthEntry(1, IndividualDeletedEntries.Include);
             if (entry != null) {
-                long entryTimestamp = Commands.getEntryPublishTimestamp(entry.getDataBuffer());
+                long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
                 isOldestMessageExpired = MessageImpl.isEntryExpired(
                         (int) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD), entryTimestamp);
             }

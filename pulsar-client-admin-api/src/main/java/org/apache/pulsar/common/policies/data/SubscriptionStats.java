@@ -49,8 +49,8 @@ public interface SubscriptionStats {
     /** Size of backlog in byte. **/
     long getBacklogSize();
 
-    /** Get the time from the oldest message in the backlog to current time. */
-    long getTimeBacklogInMills();
+    /** Get the publish time of the earliest message in the backlog. */
+    long getEarliestMsgPublishTimeInBacklog();
 
     /** Number of messages in the subscription backlog that do not contain the delay messages. */
     long getMsgBacklogNoDelayed();

@@ -443,7 +443,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
             @Override
             public boolean apply(Entry entry) {
                 try {
-                    long entryTimestamp = Commands.getEntryPublishTimestamp(entry.getDataBuffer());
+                    long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
                     return entryTimestamp <= timestamp;
                 } catch (Exception e) {
                     log.error(e, "Failed To deserialize message when finding position with error: %s", e);

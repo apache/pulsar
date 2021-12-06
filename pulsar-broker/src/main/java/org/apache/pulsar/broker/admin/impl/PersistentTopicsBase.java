@@ -2402,7 +2402,7 @@ public class PersistentTopicsBase extends AdminResource {
             ManagedLedger ledger = ((PersistentTopic) topic).getManagedLedger();
             return ledger.asyncFindPosition(entry -> {
                 try {
-                    long entryTimestamp = Commands.getEntryPublishTimestamp(entry.getDataBuffer());
+                    long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
                     return MessageImpl.isEntryPublishedEarlierThan(entryTimestamp, timestamp);
                 } catch (Exception e) {
                     log.error("[{}] Error deserializing message for message position find", topicName, e);
