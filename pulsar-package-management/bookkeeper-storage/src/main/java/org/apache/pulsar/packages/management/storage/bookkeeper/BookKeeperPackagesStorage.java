@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.DistributedLogConstants;
 import org.apache.distributedlog.api.DistributedLogManager;
@@ -85,13 +86,13 @@ public class BookKeeperPackagesStorage implements PackagesStorage {
         String bookkeeperMetadataServiceUri = configuration.getProperty("bookkeeperMetadataServiceUri");
         String ledgersRootPath;
         String ledgersStoreServers;
-        if (bookkeeperMetadataServiceUri == null) {
-            ledgersRootPath = configuration.getPackagesManagementLedgerRootPath();
-            ledgersStoreServers = configuration.getZookeeperServers();
-        } else {
+        if (StringUtils.isNotBlank(bookkeeperMetadataServiceUri)) {
             URI metadataServiceUri = URI.create(bookkeeperMetadataServiceUri);
             ledgersStoreServers = metadataServiceUri.getAuthority().replace(";", ",");
             ledgersRootPath = metadataServiceUri.getPath();
+        } else {
+            ledgersRootPath = configuration.getPackagesManagementLedgerRootPath();
+            ledgersStoreServers = configuration.getZookeeperServers();
         }
         BKDLConfig bkdlConfig = new BKDLConfig(ledgersStoreServers, ledgersRootPath);
         DLMetadata dlMetadata = DLMetadata.create(bkdlConfig);
