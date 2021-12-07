@@ -59,6 +59,10 @@ import org.slf4j.LoggerFactory;
  */
 public class WebService implements AutoCloseable {
 
+//    static {
+//        CollectorRegistry.defaultRegistry.clear();
+//    }
+
     private static final String MATCH_ALL = "/*";
 
     public static final String ATTRIBUTE_PULSAR_NAME = "pulsar";
@@ -75,13 +79,16 @@ public class WebService implements AutoCloseable {
     private JettyStatisticsCollector jettyStatisticsCollector;
 
     // Set up Servlet Filter to measure and collect durations taken by servlet requests
+
+
     private static final String METRIC_NAME = "jetty_request_time_seconds";
     private static final String METRIC_HELP = null;
     private static final Integer METRIC_PATH_COMPONENTS = null;           // depth of path measuring, null defaults to 1
     private static final double[] METRIC_BUCKETS =                        // histogram buckets (seconds)
             {0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10};
-    private final FilterHolder metricsFilter = new FilterHolder(
-            new MetricsFilter(METRIC_NAME, METRIC_HELP, METRIC_PATH_COMPONENTS, METRIC_BUCKETS));
+    private static final MetricsFilter metricsFilterInstance =
+        new MetricsFilter(METRIC_NAME, METRIC_HELP, METRIC_PATH_COMPONENTS, METRIC_BUCKETS);
+    private static final FilterHolder metricsFilter = new FilterHolder(metricsFilterInstance);
 
     public WebService(PulsarService pulsar) throws PulsarServerException {
         this.handlers = Lists.newArrayList();
@@ -223,6 +230,8 @@ public class WebService implements AutoCloseable {
 
     public void start() throws PulsarServerException {
         try {
+//            CollectorRegistry.defaultRegistry.clear();
+
             RequestLogHandler requestLogHandler = new RequestLogHandler();
             requestLogHandler.setRequestLog(JettyRequestLogFactory.createRequestLogger());
             handlers.add(0, new ContextHandlerCollection());
@@ -282,6 +291,8 @@ public class WebService implements AutoCloseable {
                     // the register supports a single JettyStatisticsCollector
                 }
                 jettyStatisticsCollector = null;
+
+                CollectorRegistry.defaultRegistry.clear();
             }
             webServiceExecutor.join();
             log.info("Web service closed");
