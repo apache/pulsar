@@ -137,6 +137,10 @@ public class TopicLookupBase extends PulsarWebResource {
                 completeLookupResponseExceptionally(asyncResponse, exception);
                 return null;
             });
+        }).exceptionally(e -> {
+            log.warn("Failed to check exist for topic {}: {} when lookup", topicName, e.getMessage(), e);
+            completeLookupResponseExceptionally(asyncResponse, e);
+            return null;
         });
     }
 
