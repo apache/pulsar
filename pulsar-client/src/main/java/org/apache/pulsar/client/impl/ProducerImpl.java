@@ -630,7 +630,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return true;
     }
 
-    private void tryRegisterSchema(ClientCnx cnx, MessageImpl msg, SendCallback callback) {
+    private void tryRegisterSchema(ClientCnx cnx, MessageImpl msg, SendCallback callback, long expectedCnxEpoch) {
         if (!changeToRegisteringSchemaState()) {
             return;
         }
@@ -655,7 +655,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
             cnx.ctx().channel().eventLoop().execute(() -> {
                 synchronized (ProducerImpl.this) {
-                    recoverProcessOpSendMsgFrom(cnx, msg);
+                    recoverProcessOpSendMsgFrom(cnx, msg, expectedCnxEpoch);
                 }
             });
             return null;
@@ -1087,7 +1087,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
         }
         // as msg is not corrupted : let producer resend pending-messages again including checksum failed message
-        resendMessages(cnx);
+        resendMessages(cnx, this.connectionHandler.getEpoch());
     }
 
     protected synchronized void recoverNotAllowedError(long sequenceId) {
@@ -1362,9 +1362,17 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     public void connectionOpened(final ClientCnx cnx) {
         previousExceptions.clear();
 
-        // we set the cnx reference before registering the producer on the cnx, so if the cnx breaks before creating the
-        // producer, it will try to grab a new cnx
-        connectionHandler.setClientCnx(cnx);
+        final long epoch;
+        synchronized (this) {
+            // Because the state could have been updated while retrieving the connection, we set it back to connecting,
+            // as long as the change from current state to connecting is a valid state change.
+            if (!changeToConnecting()) {
+                return;
+            }
+            // We set the cnx reference before registering the producer on the cnx, so if the cnx breaks before creating
+            // the producer, it will try to grab a new cnx. We also increment and get the epoch value for the producer.
+            epoch = connectionHandler.switchClientCnx(cnx);
+        }
         cnx.registerProducer(producerId, this);
 
         log.info("[{}] [{}] Creating producer on cnx {}", topic, producerName, cnx.ctx().channel());
@@ -1401,7 +1409,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         cnx.sendRequestWithId(
                 Commands.newProducer(topic, producerId, requestId, producerName, conf.isEncryptionEnabled(), metadata,
-                       schemaInfo, connectionHandler.getEpoch(), userProvidedProducerName,
+                       schemaInfo, epoch, userProvidedProducerName,
                        conf.getAccessMode(), topicEpoch, client.conf.isEnableTransaction()),
                 requestId).thenAccept(response -> {
                     String producerName = response.getProducerName();
@@ -1465,7 +1473,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                                         }
                                     }), 0, conf.getBatchingMaxPublishDelayMicros(), TimeUnit.MICROSECONDS);
                         }
-                        resendMessages(cnx);
+                        resendMessages(cnx, epoch);
                     }
                 }).exceptionally((e) -> {
                     Throwable cause = e.getCause();
@@ -1569,7 +1577,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
     }
 
-    private void resendMessages(ClientCnx cnx) {
+    private void resendMessages(ClientCnx cnx, long expectedEpoch) {
         cnx.ctx().channel().eventLoop().execute(() -> {
             synchronized (this) {
                 if (getState() == State.Closing || getState() == State.Closed) {
@@ -1596,7 +1604,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }
 
                 log.info("[{}] [{}] Re-Sending {} messages to server", topic, producerName, messagesToResend);
-                recoverProcessOpSendMsgFrom(cnx, null);
+                recoverProcessOpSendMsgFrom(cnx, null, expectedEpoch);
             }
         });
     }
@@ -1825,7 +1833,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             if (shouldWriteOpSendMsg()) {
                 ClientCnx cnx = cnx();
                 if (op.msg != null && op.msg.getSchemaState() == None) {
-                    tryRegisterSchema(cnx, op.msg, op.callback);
+                    tryRegisterSchema(cnx, op.msg, op.callback, this.connectionHandler.getEpoch());
                     return;
                 }
                 // If we do have a connection, the message is sent immediately, otherwise we'll try again once a new
@@ -1856,7 +1864,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return isConnected();
     }
 
-    private void recoverProcessOpSendMsgFrom(ClientCnx cnx, MessageImpl from) {
+    // Must acquire a lock on ProducerImpl.this before calling method.
+    private void recoverProcessOpSendMsgFrom(ClientCnx cnx, MessageImpl from, long expectedEpoch) {
+        if (expectedEpoch != this.connectionHandler.getEpoch() || cnx() == null) {
+            // In this case, the cnx passed to this method is no longer the active connection. This method will get
+            // called again once the new connection registers the producer with the broker.
+            log.info("[{}][{}] Producer epoch mismatch or the current connection is null. Skip re-sending the "
+                    + " {} pending messages since they will deliver using another connection.", topic, producerName,
+                    pendingMessages.size());
+            return;
+        }
         final boolean stripChecksum = cnx.getRemoteEndpointProtocolVersion() < brokerChecksumSupportedVersion();
         Iterator<OpSendMsg> msgIterator = pendingMessages.iterator();
         OpSendMsg pendingRegisteringOp = null;
@@ -1905,7 +1922,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return;
         }
         if (pendingRegisteringOp != null) {
-            tryRegisterSchema(cnx, pendingRegisteringOp.msg, pendingRegisteringOp.callback);
+            tryRegisterSchema(cnx, pendingRegisteringOp.msg, pendingRegisteringOp.callback, expectedEpoch);
         }
     }
 
