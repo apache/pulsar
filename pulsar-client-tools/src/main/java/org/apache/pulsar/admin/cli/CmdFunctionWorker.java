@@ -99,6 +99,7 @@ public class CmdFunctionWorker extends CmdBase {
         @Override
         void runCmd() throws Exception {
             getAdmin().worker().rebalance();
+            print("Rebalance command sent successfully");
         }
     }
 

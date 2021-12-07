@@ -182,8 +182,7 @@ public class WorkerImpl extends BaseResource implements Worker {
                             future.completeExceptionally(new ClientErrorException(response));
                         } else {
                             future.complete(response.readEntity(
-                                    new GenericType<Map<String, Collection<String>>>() {
-                                    }));
+                                    new GenericType<Map<String, Collection<String>>>() {}));
                         }
                     }
 
