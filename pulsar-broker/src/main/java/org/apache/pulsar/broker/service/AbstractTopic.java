@@ -148,6 +148,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     protected void updateTopicPolicy(TopicPolicies data) {
         topicPolicies.getMaxSubscriptionsPerTopic().updateTopicValue(data.getMaxSubscriptionsPerTopic());
+        topicPolicies.getMaxProducersPerTopic().updateTopicValue(data.getMaxProducerPerTopic());
         topicPolicies.getInactiveTopicPolicies().updateTopicValue(data.getInactiveTopicPolicies());
         topicPolicies.getDeduplicationEnabled().updateTopicValue(data.getDeduplicationEnabled());
         Arrays.stream(BacklogQuota.BacklogQuotaType.values()).forEach(type ->
@@ -164,6 +165,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             return;
         }
         topicPolicies.getMaxSubscriptionsPerTopic().updateNamespaceValue(namespacePolicies.max_subscriptions_per_topic);
+        topicPolicies.getMaxProducersPerTopic().updateNamespaceValue(namespacePolicies.max_producers_per_topic);
         topicPolicies.getInactiveTopicPolicies().updateNamespaceValue(namespacePolicies.inactive_topic_policies);
         topicPolicies.getDeduplicationEnabled().updateNamespaceValue(namespacePolicies.deduplicationEnabled);
         Arrays.stream(BacklogQuota.BacklogQuotaType.values()).forEach(
@@ -179,6 +181,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                 config.isBrokerDeleteInactiveTopicsEnabled()));
 
         topicPolicies.getMaxSubscriptionsPerTopic().updateBrokerValue(config.getMaxSubscriptionsPerTopic());
+        topicPolicies.getMaxProducersPerTopic().updateBrokerValue(config.getMaxProducersPerTopic());
         topicPolicies.getDeduplicationEnabled().updateBrokerValue(config.isBrokerDeduplicationEnabled());
         //init backlogQuota
         topicPolicies.getBackLogQuotaMap()
@@ -192,16 +195,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     protected boolean isProducersExceeded() {
-        Integer maxProducers = getTopicPolicies().map(TopicPolicies::getMaxProducerPerTopic).orElse(null);
-
-        if (maxProducers == null) {
-            Policies policies = brokerService.pulsar().getPulsarResources().getNamespaceResources()
-                    .getPoliciesIfCached(TopicName.get(topic).getNamespaceObject())
-                    .orElseGet(() -> new Policies());
-            maxProducers = policies.max_producers_per_topic;
-        }
-        maxProducers = maxProducers != null ? maxProducers : brokerService.pulsar()
-                .getConfiguration().getMaxProducersPerTopic();
+        Integer maxProducers = topicPolicies.getMaxProducersPerTopic().get();
         if (maxProducers > 0 && maxProducers <= producers.size()) {
             return true;
         }
