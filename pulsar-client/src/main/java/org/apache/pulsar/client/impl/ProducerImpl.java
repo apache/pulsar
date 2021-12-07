@@ -930,7 +930,22 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     @Override
     public boolean isConnected() {
-        return connectionHandler.cnx() != null && (getState() == State.Ready);
+        return getCnxIfReady() != null;
+    }
+
+    /**
+     * Hook method for testing. By returning null, it's possible to prevent messages
+     * being delivered to the broker.
+     *
+     * @return cnx if OpSend messages should be written to open connection. Caller must
+     * verify that the returned cnx is not null before using reference.
+     */
+    protected ClientCnx getCnxIfReady() {
+        if (getState() == State.Ready) {
+            return connectionHandler.cnx();
+        } else {
+            return null;
+        }
     }
 
     @Override
@@ -1830,8 +1845,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 LAST_SEQ_ID_PUSHED_UPDATER.getAndUpdate(this,
                         last -> Math.max(last, getHighestSequenceId(op)));
             }
-            if (shouldWriteOpSendMsg()) {
-                ClientCnx cnx = cnx();
+
+            final ClientCnx cnx = getCnxIfReady();
+            if (cnx != null) {
                 if (op.msg != null && op.msg.getSchemaState() == None) {
                     tryRegisterSchema(cnx, op.msg, op.callback, this.connectionHandler.getEpoch());
                     return;
@@ -1852,16 +1868,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             log.warn("[{}] [{}] error while closing out batch -- {}", topic, producerName, t);
             op.sendComplete(new PulsarClientException(t, op.sequenceId));
         }
-    }
-
-    /**
-     * Hook method for testing. By returning false, it's possible to prevent messages
-     * being delivered to the broker.
-     *
-     * @return true if OpSend messages should be written to open connection
-     */
-    protected boolean shouldWriteOpSendMsg() {
-        return isConnected();
     }
 
     // Must acquire a lock on ProducerImpl.this before calling method.
