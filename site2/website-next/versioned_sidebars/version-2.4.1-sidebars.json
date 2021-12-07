@@ -1,0 +1,94 @@
+{
+  "version-2.4.1/docsSidebar": [
+    {
+      "type": "category",
+      "label": "Get Started",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.4.1/pulsar-2.0"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.1/standalone"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.1/standalone-docker"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.1/client-libraries"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Concepts and Architecture",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.4.1/concepts-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.1/concepts-messaging"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.1/concepts-architecture-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.1/concepts-clients"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.1/concepts-replication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.1/concepts-multi-tenancy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.1/concepts-authentication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.1/concepts-topic-compaction"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.1/concepts-tiered-storage"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.1/concepts-schema-registry"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar Schema",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.4.1/schema-get-started"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.1/schema-understand"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.1/schema-evolution-compatibility"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.1/schema-manage"
+        }
+      ]
+    }
+  ]
+}
