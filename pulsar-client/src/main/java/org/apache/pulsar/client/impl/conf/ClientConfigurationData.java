@@ -314,12 +314,6 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     )
     private String socks5ProxyPassword;
 
-    @ApiModelProperty(
-            name = "extraClientHeaders",
-            value = "Extra headers for admin client"
-    )
-    private String extraClientHeaders;
-
     public Authentication getAuthentication() {
         if (authentication == null) {
             this.authentication = AuthenticationDisabled.INSTANCE;
