@@ -28,7 +28,6 @@ import org.apache.pulsar.client.impl.TransactionMetaStoreHandler;
 import org.apache.pulsar.client.impl.transaction.TransactionCoordinatorClientImpl;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
-import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -41,7 +40,6 @@ import java.util.concurrent.TimeUnit;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-import static org.testng.FileAssert.fail;
 
 public class TransactionClientConnectTest extends TransactionTestBase {
 
@@ -61,7 +59,6 @@ public class TransactionClientConnectTest extends TransactionTestBase {
     @Test
     public void testTransactionNewReconnect() throws Exception {
         start();
-
         //We will not throw a CoordinatorNotFoundException to client. Since it will be reconnect automatically.
         pulsarClient.newTransaction()
                 .withTransactionTimeout(200, TimeUnit.MILLISECONDS).build().get();
@@ -69,17 +66,8 @@ public class TransactionClientConnectTest extends TransactionTestBase {
         fence(getPulsarServiceList().get(0).getTransactionMetadataStoreService());
 
         // tc fence will remove this tc and reopen
-        try {
-            pulsarClient.newTransaction()
-                    .withTransactionTimeout(200, TimeUnit.MILLISECONDS).build().get();
-            fail();
-        } catch (ExecutionException e) {
-            assertEquals(e.getCause().getMessage(),
-                    "org.apache.bookkeeper.mledger.ManagedLedgerException$ManagedLedgerFencedException: " +
-                            "java.lang.Exception: Attempted to use a fenced managed ledger");
-        }
-
-        reconnect();
+        pulsarClient.newTransaction()
+                .withTransactionTimeout(200, TimeUnit.MILLISECONDS).build().get();
     }
 
     @Test
@@ -90,38 +78,16 @@ public class TransactionClientConnectTest extends TransactionTestBase {
         transactionCoordinatorClient.addSubscriptionToTxnAsync(new TxnID(0, 0), "test", "test").get();
 
         fence(getPulsarServiceList().get(0).getTransactionMetadataStoreService());
-        try {
-            transactionCoordinatorClient.addSubscriptionToTxnAsync(new TxnID(0, 0), "test", "test").get();
-            fail();
-        } catch (ExecutionException e) {
-            if (e.getCause() instanceof TransactionCoordinatorClientException.TransactionNotFoundException) {
-                assertEquals(e.getCause().getMessage(), "The transaction with this txdID `(0,0)`not found ");
-            } else {
-                assertEquals(e.getCause().getMessage(), "java.lang.Exception: Attempted to use a fenced managed ledger");
-            }
-        }
-        reconnect();
+        transactionCoordinatorClient.addSubscriptionToTxnAsync(new TxnID(0, 0), "test", "test").get();
     }
 
     @Test
     public void testTransactionAbortToTxnAsyncReconnect() throws Exception {
         TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
         start();
-
         transactionCoordinatorClient.abortAsync(new TxnID(0, 0)).get();
-
         fence(getPulsarServiceList().get(0).getTransactionMetadataStoreService());
-        try {
-            transactionCoordinatorClient.abortAsync(new TxnID(0, 0)).get();
-            fail();
-        } catch (ExecutionException e) {
-            if (e.getCause() instanceof TransactionCoordinatorClientException.TransactionNotFoundException) {
-                assertEquals(e.getCause().getMessage(), "The transaction with this txdID `(0,0)`not found ");
-            } else {
-                assertEquals(e.getCause().getMessage(), "java.lang.Exception: Attempted to use a fenced managed ledger");
-            }
-        }
-        reconnect();
+        transactionCoordinatorClient.abortAsync(new TxnID(0, 1)).get();
     }
 
     @Test
@@ -132,17 +98,7 @@ public class TransactionClientConnectTest extends TransactionTestBase {
         transactionCoordinatorClient.commitAsync(new TxnID(0, 0)).get();
 
         fence(getPulsarServiceList().get(0).getTransactionMetadataStoreService());
-        try {
-            transactionCoordinatorClient.commitAsync(new TxnID(0, 0)).get();
-            fail();
-        } catch (ExecutionException e) {
-            if (e.getCause() instanceof TransactionCoordinatorClientException.TransactionNotFoundException) {
-                assertEquals(e.getCause().getMessage(), "The transaction with this txdID `(0,0)`not found ");
-            } else {
-                assertEquals(e.getCause().getMessage(), "java.lang.Exception: Attempted to use a fenced managed ledger");
-            }
-        }
-        reconnect();
+        transactionCoordinatorClient.commitAsync(new TxnID(0, 1)).get();
     }
 
     @Test
@@ -154,18 +110,8 @@ public class TransactionClientConnectTest extends TransactionTestBase {
                     Collections.singletonList("test")).get();
 
         fence(getPulsarServiceList().get(0).getTransactionMetadataStoreService());
-        try {
-            transactionCoordinatorClient.addPublishPartitionToTxnAsync(new TxnID(0, 0),
+        transactionCoordinatorClient.addPublishPartitionToTxnAsync(new TxnID(0, 0),
                     Collections.singletonList("test")).get();
-            fail();
-        } catch (ExecutionException e) {
-            if (e.getCause() instanceof TransactionCoordinatorClientException.TransactionNotFoundException) {
-                assertEquals(e.getCause().getMessage(), "The transaction with this txdID `(0,0)`not found ");
-            } else {
-                assertEquals(e.getCause().getMessage(), "java.lang.Exception: Attempted to use a fenced managed ledger");
-            }
-        }
-        reconnect();
     }
 
     @Test
@@ -195,15 +141,8 @@ public class TransactionClientConnectTest extends TransactionTestBase {
 
     public void start() throws Exception {
         // wait transaction coordinator init success
-        Awaitility.await().until(() -> {
-            try {
-                pulsarClient.newTransaction()
-                        .withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
-            } catch (Exception e) {
-                return false;
-            }
-            return true;
-        });
+        pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
         pulsarClient.newTransaction()
                 .withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
 
@@ -219,18 +158,5 @@ public class TransactionClientConnectTest extends TransactionTestBase {
         field.setAccessible(true);
         field.set(((MLTransactionMetadataStore) transactionMetadataStoreService.getStores()
                 .get(TransactionCoordinatorID.get(0))).getManagedLedger(), ManagedLedgerImpl.State.Fenced);
-    }
-
-    public void reconnect() {
-        //reconnect
-        Awaitility.await().until(() -> {
-            try {
-                pulsarClient.newTransaction()
-                        .withTransactionTimeout(200, TimeUnit.MILLISECONDS).build().get();
-            } catch (Exception e) {
-                return false;
-            }
-            return true;
-        });
     }
 }

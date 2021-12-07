@@ -2025,9 +2025,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     if (log.isDebugEnabled()) {
                         log.debug("Send response error for new txn request {}", requestId, ex);
                     }
-
-                    ctx.writeAndFlush(Commands.newTxnResponse(requestId, tcId.getId(),
-                            BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
+                    if (ex.getCause() instanceof ManagedLedgerException.ManagedLedgerFencedException) {
+                        ctx.writeAndFlush(Commands.newTxnResponse(requestId, tcId.getId(),
+                                BrokerServiceException.getClientErrorCode(new CoordinatorException
+                                        .CoordinatorNotFoundException(ex.getMessage())), ex.getMessage()));
+                    } else {
+                        ctx.writeAndFlush(Commands.newTxnResponse(requestId, tcId.getId(),
+                                BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
+                    }
                     transactionMetadataStoreService.handleOpFail(ex, tcId);
                 }
             }));
@@ -2065,9 +2070,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     ex);
                         }
 
-                        if (ex instanceof CoordinatorException.CoordinatorNotFoundException) {
+                        if (ex instanceof CoordinatorException.CoordinatorNotFoundException
+                                || ex.getCause() instanceof ManagedLedgerException.ManagedLedgerFencedException) {
                             ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(requestId, txnID.getMostSigBits(),
-                                    BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
+                                    BrokerServiceException.getClientErrorCode(new CoordinatorException
+                                            .CoordinatorNotFoundException(ex.getMessage())), ex.getMessage()));
                         } else {
                             ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(requestId, txnID.getMostSigBits(),
                                     BrokerServiceException.getClientErrorCode(ex.getCause()),
@@ -2101,9 +2108,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     } else {
                         log.error("Send response error for end txn request.", ex);
 
-                        if (ex instanceof CoordinatorException.CoordinatorNotFoundException) {
+                        if (ex instanceof CoordinatorException.CoordinatorNotFoundException
+                                || ex.getCause() instanceof ManagedLedgerException.ManagedLedgerFencedException) {
                             ctx.writeAndFlush(Commands.newEndTxnResponse(requestId, txnID.getMostSigBits(),
-                                    BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
+                                    BrokerServiceException.getClientErrorCode(new CoordinatorException
+                                            .CoordinatorNotFoundException(ex.getMessage())), ex.getMessage()));
                         } else {
                             ctx.writeAndFlush(Commands.newEndTxnResponse(requestId, txnID.getMostSigBits(),
                                     BrokerServiceException.getClientErrorCode(ex.getCause()),
@@ -2324,9 +2333,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     requestId, ex);
                         }
 
-                        if (ex instanceof CoordinatorException.CoordinatorNotFoundException) {
+                        if (ex instanceof CoordinatorException.CoordinatorNotFoundException
+                                || ex.getCause() instanceof ManagedLedgerException.ManagedLedgerFencedException) {
                             ctx.writeAndFlush(Commands.newAddSubscriptionToTxnResponse(requestId,
-                                    txnID.getMostSigBits(), BrokerServiceException.getClientErrorCode(ex),
+                                    txnID.getMostSigBits(), BrokerServiceException
+                                            .getClientErrorCode(new CoordinatorException
+                                                    .CoordinatorNotFoundException(ex.getMessage())),
                                     ex.getMessage()));
                         } else {
                             ctx.writeAndFlush(Commands.newAddSubscriptionToTxnResponse(requestId,
