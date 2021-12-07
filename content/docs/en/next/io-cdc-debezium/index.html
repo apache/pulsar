@@ -165,14 +165,16 @@ mysql&gt; <span class="hljs-keyword">UPDATE</span> products <span class="hljs-ke
 <ul>
 <li><p>JSON</p>
 <pre><code class="hljs css language-json">{
-    <span class="hljs-attr">"database.hostname"</span>: <span class="hljs-string">"localhost"</span>,
-    <span class="hljs-attr">"database.port"</span>: <span class="hljs-string">"5432"</span>,
-    <span class="hljs-attr">"database.user"</span>: <span class="hljs-string">"postgres"</span>,
-    <span class="hljs-attr">"database.password"</span>: <span class="hljs-string">"postgres"</span>,
-    <span class="hljs-attr">"database.dbname"</span>: <span class="hljs-string">"postgres"</span>,
-    <span class="hljs-attr">"database.server.name"</span>: <span class="hljs-string">"dbserver1"</span>,
-    <span class="hljs-attr">"schema.whitelist"</span>: <span class="hljs-string">"inventory"</span>,
-    <span class="hljs-attr">"pulsar.service.url"</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
+   <span class="hljs-attr">"configs"</span>: {
+      <span class="hljs-attr">"database.hostname"</span>: <span class="hljs-string">"localhost"</span>,
+      <span class="hljs-attr">"database.port"</span>: <span class="hljs-string">"5432"</span>,
+      <span class="hljs-attr">"database.user"</span>: <span class="hljs-string">"postgres"</span>,
+      <span class="hljs-attr">"database.password"</span>: <span class="hljs-string">"postgres"</span>,
+      <span class="hljs-attr">"database.dbname"</span>: <span class="hljs-string">"postgres"</span>,
+      <span class="hljs-attr">"database.server.name"</span>: <span class="hljs-string">"dbserver1"</span>,
+      <span class="hljs-attr">"schema.whitelist"</span>: <span class="hljs-string">"inventory"</span>,
+      <span class="hljs-attr">"pulsar.service.url"</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
+   }
 }
 </code></pre></li>
 <li><p>YAML</p>
@@ -266,13 +268,15 @@ UPDATE 1
 <ul>
 <li><p>JSON</p>
 <pre><code class="hljs css language-json">{
-    <span class="hljs-attr">"mongodb.hosts"</span>: <span class="hljs-string">"rs0/mongodb:27017"</span>,
-    <span class="hljs-attr">"mongodb.name"</span>: <span class="hljs-string">"dbserver1"</span>,
-    <span class="hljs-attr">"mongodb.user"</span>: <span class="hljs-string">"debezium"</span>,
-    <span class="hljs-attr">"mongodb.password"</span>: <span class="hljs-string">"dbz"</span>,
-    <span class="hljs-attr">"mongodb.task.id"</span>: <span class="hljs-string">"1"</span>,
-    <span class="hljs-attr">"database.whitelist"</span>: <span class="hljs-string">"inventory"</span>,
-    <span class="hljs-attr">"pulsar.service.url"</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
+   <span class="hljs-attr">"configs"</span>: {
+      <span class="hljs-attr">"mongodb.hosts"</span>: <span class="hljs-string">"rs0/mongodb:27017"</span>,
+      <span class="hljs-attr">"mongodb.name"</span>: <span class="hljs-string">"dbserver1"</span>,
+      <span class="hljs-attr">"mongodb.user"</span>: <span class="hljs-string">"debezium"</span>,
+      <span class="hljs-attr">"mongodb.password"</span>: <span class="hljs-string">"dbz"</span>,
+      <span class="hljs-attr">"mongodb.task.id"</span>: <span class="hljs-string">"1"</span>,
+      <span class="hljs-attr">"database.whitelist"</span>: <span class="hljs-string">"inventory"</span>,
+      <span class="hljs-attr">"pulsar.service.url"</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
+   }
 }
 </code></pre></li>
 <li><p>YAML</p>
@@ -287,12 +291,12 @@ UPDATE 1
 <span class="hljs-attr">configs:</span>
 
     <span class="hljs-comment">## config for pg, docker image: debezium/example-postgress:0.10</span>
-    <span class="hljs-attr">mongodb.hosts:</span> <span class="hljs-string">"rs0/mongodb:27017"</span><span class="hljs-string">,</span>
-    <span class="hljs-attr">mongodb.name:</span> <span class="hljs-string">"dbserver1"</span><span class="hljs-string">,</span>
-    <span class="hljs-attr">mongodb.user:</span> <span class="hljs-string">"debezium"</span><span class="hljs-string">,</span>
-    <span class="hljs-attr">mongodb.password:</span> <span class="hljs-string">"dbz"</span><span class="hljs-string">,</span>
-    <span class="hljs-attr">mongodb.task.id:</span> <span class="hljs-string">"1"</span><span class="hljs-string">,</span>
-    <span class="hljs-attr">database.whitelist:</span> <span class="hljs-string">"inventory"</span><span class="hljs-string">,</span>
+    <span class="hljs-attr">mongodb.hosts:</span> <span class="hljs-string">"rs0/mongodb:27017"</span>
+    <span class="hljs-attr">mongodb.name:</span> <span class="hljs-string">"dbserver1"</span>
+    <span class="hljs-attr">mongodb.user:</span> <span class="hljs-string">"debezium"</span>
+    <span class="hljs-attr">mongodb.password:</span> <span class="hljs-string">"dbz"</span>
+    <span class="hljs-attr">mongodb.task.id:</span> <span class="hljs-string">"1"</span>
+    <span class="hljs-attr">database.whitelist:</span> <span class="hljs-string">"inventory"</span>
 
     <span class="hljs-comment">## PULSAR_SERVICE_URL_CONFIG</span>
     <span class="hljs-attr">pulsar.service.url:</span> <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
