@@ -17,7 +17,6 @@
  * under the License.
  */
 #include <config.h>
-#include "moduleinfo.h"
 #include <epan/expert.h>
 #include <epan/packet.h>
 #include <epan/prefs.h>
@@ -26,10 +25,16 @@
 #include <epan/dissectors/packet-tcp.h>
 #include <epan/value_string.h>
 #include <wsutil/nstime.h>
-#include <glib.h>
-#include <gmodule.h>
+#include <ws_version.h>
 
 #include "PulsarApi.pb.h"
+
+#ifdef VERSION
+#undef VERSION
+#endif
+
+/* Version number of package */
+#define VERSION "0.0.1"
 
 const static int PULSAR_PORT = 6650;
 
@@ -546,6 +551,7 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
         }
         case BaseCommand::MESSAGE: {
             const CommandMessage& message = command.message();
+            state->consumers[message.consumer_id()].messages[message.message_id()];
             RequestData& data =
                     state->consumers[message.consumer_id()].messages[message.message_id()];
             data.requestFrame = pinfo->fd->num;
@@ -579,7 +585,7 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
         }
         case BaseCommand::ACK: {
             const CommandAck& ack = command.ack();
-            RequestData& data = state->consumers[ack.consumer_id()].messages[ack.message_id()];
+            RequestData& data = state->consumers[ack.consumer_id()].messages[ack.message_id().Get(0)];
             data.ackFrame = pinfo->fd->num;
             data.ackTimestamp.secs = pinfo->fd->abs_ts.secs;
             data.ackTimestamp.nsecs = pinfo->fd->abs_ts.nsecs;
@@ -587,8 +593,8 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
             const ConsumerData& consumerData = state->consumers[ack.consumer_id()];
 
             col_append_fstr(pinfo->cinfo, COL_INFO, " / %s / %llu:%llu",
-                            consumerData.consumerName.c_str(), ack.message_id().ledgerid(),
-                            ack.message_id().entryid());
+                            consumerData.consumerName.c_str(), ack.message_id().Get(0).ledgerid(),
+                            ack.message_id().Get(0).entryid());
 
             if (tree) {
                 proto_tree_add_uint64(cmd_tree, hf_pulsar_consumer_id, tvb, cmdOffset, cmdSize,
@@ -805,6 +811,76 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
             break;
         case BaseCommand::PONG:
             break;
+        case BaseCommand_Type_REDELIVER_UNACKNOWLEDGED_MESSAGES:
+            break;
+        case BaseCommand_Type_PARTITIONED_METADATA:
+            break;
+        case BaseCommand_Type_PARTITIONED_METADATA_RESPONSE:
+            break;
+        case BaseCommand_Type_LOOKUP:
+            break;
+        case BaseCommand_Type_LOOKUP_RESPONSE:
+            break;
+        case BaseCommand_Type_CONSUMER_STATS:
+            break;
+        case BaseCommand_Type_CONSUMER_STATS_RESPONSE:
+            break;
+        case BaseCommand_Type_REACHED_END_OF_TOPIC:
+            break;
+        case BaseCommand_Type_SEEK:
+            break;
+        case BaseCommand_Type_GET_LAST_MESSAGE_ID:
+            break;
+        case BaseCommand_Type_GET_LAST_MESSAGE_ID_RESPONSE:
+            break;
+        case BaseCommand_Type_ACTIVE_CONSUMER_CHANGE:
+            break;
+        case BaseCommand_Type_GET_TOPICS_OF_NAMESPACE:
+            break;
+        case BaseCommand_Type_GET_TOPICS_OF_NAMESPACE_RESPONSE:
+            break;
+        case BaseCommand_Type_GET_SCHEMA:
+            break;
+        case BaseCommand_Type_GET_SCHEMA_RESPONSE:
+            break;
+        case BaseCommand_Type_AUTH_CHALLENGE:
+            break;
+        case BaseCommand_Type_AUTH_RESPONSE:
+            break;
+        case BaseCommand_Type_ACK_RESPONSE:
+            break;
+        case BaseCommand_Type_GET_OR_CREATE_SCHEMA:
+            break;
+        case BaseCommand_Type_GET_OR_CREATE_SCHEMA_RESPONSE:
+            break;
+        case BaseCommand_Type_NEW_TXN:
+            break;
+        case BaseCommand_Type_NEW_TXN_RESPONSE:
+            break;
+        case BaseCommand_Type_ADD_PARTITION_TO_TXN:
+            break;
+        case BaseCommand_Type_ADD_PARTITION_TO_TXN_RESPONSE:
+            break;
+        case BaseCommand_Type_ADD_SUBSCRIPTION_TO_TXN:
+            break;
+        case BaseCommand_Type_ADD_SUBSCRIPTION_TO_TXN_RESPONSE:
+            break;
+        case BaseCommand_Type_END_TXN:
+            break;
+        case BaseCommand_Type_END_TXN_RESPONSE:
+            break;
+        case BaseCommand_Type_END_TXN_ON_PARTITION:
+            break;
+        case BaseCommand_Type_END_TXN_ON_PARTITION_RESPONSE:
+            break;
+        case BaseCommand_Type_END_TXN_ON_SUBSCRIPTION:
+            break;
+        case BaseCommand_Type_END_TXN_ON_SUBSCRIPTION_RESPONSE:
+            break;
+        case BaseCommand_Type_TC_CLIENT_CONNECT_REQUEST:
+            break;
+        case BaseCommand_Type_TC_CLIENT_CONNECT_RESPONSE:
+            break;
     }
 
     return maxOffset;
@@ -922,6 +998,7 @@ static hf_register_info hf[] = {  //
 ///
 void proto_register_pulsar() {
     // register the new protocol, protocol fields, and subtrees
+    static dissector_handle_t pulsar_handle;
 
     proto_pulsar = proto_register_protocol("Pulsar Wire Protocol", /* name       */
                                         "Yahoo Pulsar", /* short name */
@@ -933,28 +1010,34 @@ void proto_register_pulsar() {
 
     proto_register_field_array(proto_pulsar, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
-}
-
-void proto_reg_handoff_pulsar() {
-    static dissector_handle_t pulsar_handle;
 
     pulsar_handle = create_dissector_handle(&dissect_pulsar, proto_pulsar);
     dissector_add_uint("tcp.port", PULSAR_PORT, pulsar_handle);
+    register_postdissector(pulsar_handle);
 }
 
 extern "C" {
 
-G_MODULE_EXPORT const char* version = VERSION;
+extern __attribute__((unused)) WS_DLL_PUBLIC_DEF const gchar plugin_version[] = VERSION;
+extern __attribute__((unused)) WS_DLL_PUBLIC_DEF const int plugin_want_major = WIRESHARK_VERSION_MAJOR;
+extern __attribute__((unused)) WS_DLL_PUBLIC_DEF const int plugin_want_minor = WIRESHARK_VERSION_MINOR;
 
-/* Start the functions we need for the plugin stuff */
-G_MODULE_EXPORT void plugin_register(void) {
-    if (proto_pulsar == -1) {
-        proto_register_pulsar();
-    }
+WS_DLL_PUBLIC void plugin_register(void);
+
+__attribute__((unused)) static void
+proto_reg_handoff_pulsar(void)
+{
+    /* empty */
 }
 
-G_MODULE_EXPORT void plugin_reg_handoff(void) {
-    proto_reg_handoff_pulsar();
+/* Start the functions we need for the plugin stuff */
+void
+plugin_register(void)
+{
+    static proto_plugin plug;
+    plug.register_protoinfo = proto_register_pulsar;
+    plug.register_handoff = proto_reg_handoff_pulsar; /* or NULL */
+    proto_register_plugin(&plug);
 }
 
 }

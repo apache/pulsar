@@ -58,6 +58,9 @@ MESSAGE(STATUS "BUILD_TESTS:  " ${BUILD_TESTS})
 option(BUILD_PYTHON_WRAPPER "Build Pulsar Python wrapper" ON)
 MESSAGE(STATUS "BUILD_PYTHON_WRAPPER:  " ${BUILD_PYTHON_WRAPPER})
 
+option(BUILD_WIRESHARK "Build Pulsar Wireshark dissector" ON)
+MESSAGE(STATUS "BUILD_WIRESHARK:  " ${BUILD_WIRESHARK})
+
 option(BUILD_PERF_TOOLS "Build Pulsar CLI perf producer/consumer" OFF)
 MESSAGE(STATUS "BUILD_PERF_TOOLS:  " ${BUILD_PERF_TOOLS})
 
@@ -97,7 +100,7 @@ else() # GCC or Clang are mostly compatible:
         add_compile_options(-msse4.2 -mpclmul)
     endif()
     # Options unique to Clang or GCC:
-    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
         add_compile_options(-Qunused-arguments) 
     elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9))
         add_compile_options(-Wno-stringop-truncation)
@@ -428,6 +431,10 @@ endif()
 if (BUILD_PYTHON_WRAPPER)
     add_subdirectory(python)
 endif ()
+
+if (BUILD_WIRESHARK)
+    add_subdirectory(wireshark)
+endif()
 
 # `make format` option
 if (NOT APPLE AND NOT WIN32)
