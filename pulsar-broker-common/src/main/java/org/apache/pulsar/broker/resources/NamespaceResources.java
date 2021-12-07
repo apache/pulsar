@@ -303,7 +303,24 @@ public class NamespaceResources extends BaseResources<Policies> {
         final String namespaceBundlePath = joinPath(BUNDLE_DATA_BASE_PATH, ns.toString());
         CompletableFuture<Void> future = new CompletableFuture<Void>();
         deleteRecursiveAsync(this, namespaceBundlePath).whenComplete((ignore, ex) -> {
-            if (ex != null && ex.getCause().getCause() instanceof KeeperException.NoNodeException) {
+            if (ex != null && ex.getCause() instanceof KeeperException.NoNodeException) {
+                future.complete(null);
+            } else if (ex != null) {
+                future.completeExceptionally(ex);
+            } else {
+                future.complete(null);
+            }
+        });
+
+        return future;
+    }
+
+    // clear resource of `/loadbalance/bundle-data/{tenant}/` for zk-node
+    public CompletableFuture<Void> deleteBundleDataTenantAsync(String tenant) {
+        final String namespaceBundlePath = joinPath(BUNDLE_DATA_BASE_PATH, tenant);
+        CompletableFuture<Void> future = new CompletableFuture<Void>();
+        deleteRecursiveAsync(this, namespaceBundlePath).whenComplete((ignore, ex) -> {
+            if (ex != null && ex.getCause() instanceof KeeperException.NoNodeException) {
                 future.complete(null);
             } else if (ex != null) {
                 future.completeExceptionally(ex);
