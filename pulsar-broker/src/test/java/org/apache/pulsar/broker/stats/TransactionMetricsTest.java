@@ -40,6 +40,7 @@ import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -269,6 +270,73 @@ public class TransactionMetricsTest extends BrokerTestBase {
         assertEquals(metric.size(), 3);
         metric = metrics.get("pulsar_storage_backlog_size");
         assertEquals(metric.size(), 2);
+    }
+
+    @Test
+    public void testManagedLedgerMetricsWhenPendingAckNotInit() throws Exception{
+        String ns1 = "prop/ns-abc1";
+        admin.namespaces().createNamespace(ns1);
+        String topic = "persistent://" + ns1 + "/testManagedLedgerMetricsWhenPendingAckNotInit";
+        String subName = "test_managed_ledger_metrics";
+        String subName2 = "test_pending_ack_no_init";
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.lookups().lookupTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+        TransactionCoordinatorID transactionCoordinatorIDOne = TransactionCoordinatorID.get(0);
+        pulsar.getTransactionMetadataStoreService().handleTcClientConnect(transactionCoordinatorIDOne).get();
+        admin.topics().createSubscription(topic, subName, MessageId.earliest);
+        admin.topics().createSubscription(topic, subName2, MessageId.earliest);
+
+        Awaitility.await().atMost(2000,  TimeUnit.MILLISECONDS).until(() ->
+                pulsar.getTransactionMetadataStoreService().getStores().size() == 1);
+
+        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true).build();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .receiverQueueSize(10)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .create();
+
+        Transaction transaction =
+                pulsarClient.newTransaction().withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
+        producer.send("hello pulsar".getBytes());
+        consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction).get();
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+
+        Multimap<String, PrometheusMetricsTest.Metric> metrics = parseMetrics(metricsStr);
+
+        Collection<PrometheusMetricsTest.Metric> metric = metrics.get("pulsar_storage_size");
+        checkManagedLedgerMetrics(subName, 32, metric);
+        //No statistics of the pendingAck are generated when the pendingAck is not initialized.
+        for (PrometheusMetricsTest.Metric metric1 : metric) {
+            if (metric1.tags.containsValue(subName2)) {
+                Assert.fail();
+            }
+        }
+
+        consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .receiverQueueSize(10)
+                .subscriptionName(subName2)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+        transaction =
+                pulsarClient.newTransaction().withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
+        consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction).get();
+
+        statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        metricsStr = statsOut.toString();
+        metrics = parseMetrics(metricsStr);
+        metric = metrics.get("pulsar_storage_size");
+        checkManagedLedgerMetrics(subName2, 32, metric);
     }
 
     private void checkManagedLedgerMetrics(String tag, double value, Collection<PrometheusMetricsTest.Metric> metrics) {

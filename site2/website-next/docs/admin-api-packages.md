@@ -90,7 +90,7 @@ You can upload a package to the package management service in the following ways
 
 ```shell
 
-bin/pulsar-admin packages upload functions://public/default/example@v0.1 --path package-file --description package-description
+bin/pulsar-admin packages upload function://public/default/example@v0.1 --path package-file --description package-description
 
 ```
 
@@ -132,7 +132,7 @@ You can download a package to the package management service in the following wa
 
 ```shell
 
-bin/pulsar-admin packages download functions://public/default/example@v0.1 --path package-file
+bin/pulsar-admin packages download function://public/default/example@v0.1 --path package-file
 
 ```
 
@@ -341,7 +341,7 @@ The following command example deletes a package of version 0.1.
 
 ```shell
 
-bin/pulsar-admin packages delete functions://public/default/example@v0.1
+bin/pulsar-admin packages delete function://public/default/example@v0.1
 
 ```
 
