@@ -80,6 +80,10 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         Awaitility.await().untilAsserted(() -> assertEquals(
                 admin3.topics().getPartitionedTopicList(namespace).get(0), persistentTopicName));
 
+        pulsar1.getClient().newProducer().topic(persistentTopicName).create().close();
+        pulsar2.getClient().newProducer().topic(persistentTopicName).create().close();
+        pulsar3.getClient().newProducer().topic(persistentTopicName).create().close();
+
         //init topic policies server
         Awaitility.await().ignoreExceptions().untilAsserted(() -> {
             assertNull(pulsar1.getTopicPoliciesService().getTopicPolicies(TopicName.get(persistentTopicName)));
