@@ -33,6 +33,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import lombok.Cleanup;
 import org.apache.pulsar.client.impl.ConsumerBase;
+import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.ProducerBase;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.api.proto.ServerError;
@@ -462,8 +463,100 @@ public class ClientErrorsTest {
         mockBrokerService.resetHandleSubscribe();
     }
 
-    // if a producer fails to connect while creating partitioned producer, it should close all successful connections of
-    // other producers and fail
+    // failed to connect to partition at initialization step if a producer which connects to broker as lazy-loading mode
+    @Test
+    public void testPartitionedProducerFailOnInitialization() throws Throwable {
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(mockBrokerService.getHttpAddress()).build();
+        final AtomicInteger producerCounter = new AtomicInteger(0);
+
+        mockBrokerService.setHandleProducer((ctx, producer) -> {
+            if (producerCounter.incrementAndGet() == 1) {
+                ctx.writeAndFlush(Commands.newError(producer.getRequestId(), ServerError.AuthorizationError, "msg"));
+                return;
+            }
+            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer", SchemaVersion.Empty));
+        });
+
+        try {
+            client.newProducer()
+                    .enableLazyStartPartitionedProducers(true)
+                    .accessMode(ProducerAccessMode.Shared)
+                    .topic("persistent://prop/use/ns/multi-part-t1").create();
+            fail("Should have failed with an authorization error");
+        } catch (Exception e) {
+            assertTrue(e instanceof PulsarClientException.AuthorizationException);
+        }
+        assertEquals(producerCounter.get(), 1);
+
+        mockBrokerService.resetHandleProducer();
+        mockBrokerService.resetHandleCloseProducer();
+        client.close();
+    }
+
+    // failed to connect to partition at sending step if a producer which connects to broker as lazy-loading mode
+    @Test
+    public void testPartitionedProducerFailOnSending() throws Throwable {
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(mockBrokerService.getHttpAddress()).build();
+        final AtomicInteger producerCounter = new AtomicInteger(0);
+        final AtomicInteger closeCounter = new AtomicInteger(0);
+        final String topicName = "persistent://prop/use/ns/multi-part-t1";
+
+        mockBrokerService.setHandleProducer((ctx, producer) -> {
+            if (producerCounter.incrementAndGet() == 2) {
+                ctx.writeAndFlush(Commands.newError(producer.getRequestId(), ServerError.AuthorizationError, "msg"));
+                return;
+            }
+            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer", SchemaVersion.Empty));
+        });
+
+        mockBrokerService.setHandleSend((ctx, send, headersAndPayload) ->
+            ctx.writeAndFlush(Commands.newSendReceipt(send.getProducerId(), send.getSequenceId(), send.getHighestSequenceId(), 0L, 0L))
+        );
+
+        mockBrokerService.setHandleCloseProducer((ctx, closeProducer) -> {
+            ctx.writeAndFlush(Commands.newSuccess(closeProducer.getRequestId()));
+            closeCounter.incrementAndGet();
+        });
+
+        final PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>) client.newProducer()
+                .enableLazyStartPartitionedProducers(true)
+                .accessMode(ProducerAccessMode.Shared)
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+                .create();
+
+        try {
+            producer.send("msg".getBytes());
+            fail("Should have failed with an not connected exception");
+        } catch (Exception e) {
+            assertTrue(e instanceof PulsarClientException.NotConnectedException);
+            assertEquals(producer.getProducers().size(), 1);
+        }
+
+        try {
+            // recreate failed producer
+            for (int i = 0; i < client.getPartitionsForTopic(topicName).get().size(); i++) {
+                producer.send("msg".getBytes());
+            }
+            assertEquals(producer.getProducers().size(), client.getPartitionsForTopic(topicName).get().size());
+            assertEquals(producerCounter.get(), 5);
+        } catch (Exception e) {
+            fail();
+        }
+
+        // should not call close
+        assertEquals(closeCounter.get(), 0);
+
+        mockBrokerService.resetHandleProducer();
+        mockBrokerService.resetHandleCloseProducer();
+        client.close();
+    }
+
+    // if a producer which doesn't connect as lazy-loading mode fails to connect while creating partitioned producer,
+    // it should close all successful connections of other producers and fail
     @Test
     public void testOneProducerFailShouldCloseAllProducersInPartitionedProducer() throws Exception {
         @Cleanup

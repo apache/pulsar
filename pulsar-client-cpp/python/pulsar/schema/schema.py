@@ -58,6 +58,9 @@ class BytesSchema(Schema):
     def decode(self, data):
         return data
 
+    def __str__(self):
+        return 'BytesSchema'
+
 
 class StringSchema(Schema):
     def __init__(self):
@@ -69,6 +72,10 @@ class StringSchema(Schema):
 
     def decode(self, data):
         return data.decode('utf-8')
+
+    def __str__(self):
+        return 'StringSchema'
+
 
 
 class JsonSchema(Schema):

@@ -46,6 +46,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.versioning.Versioned;
+import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.apache.pulsar.broker.ManagedLedgerClientFactory;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -63,12 +64,10 @@ import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
-import org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
@@ -261,7 +260,7 @@ public class BrokerBookieIsolationTest {
         Method getConf = BookKeeper.class.getDeclaredMethod("getConf");
         getConf.setAccessible(true);
         ClientConfiguration clientConf = (ClientConfiguration) getConf.invoke(bk);
-        assertEquals(clientConf.getProperty(REPP_DNS_RESOLVER_CLASS), ZkBookieRackAffinityMapping.class.getName());
+        assertEquals(clientConf.getProperty(REPP_DNS_RESOLVER_CLASS), BookieRackAffinityMapping.class.getName());
     }
 
     /**
@@ -547,12 +546,12 @@ public class BrokerBookieIsolationTest {
             Set<BookieId> bookieAddresses) throws Exception {
         BookiesRackConfiguration bookies = null;
         try {
-            byte[] data = zkClient.getData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null);
+            byte[] data = zkClient.getData(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null);
             System.out.println(new String(data));
             bookies = jsonMapper.readValue(data, BookiesRackConfiguration.class);
         } catch (KeeperException.NoNodeException e) {
             // Ok.. create new bookie znode
-            zkClient.create(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, "".getBytes(), Acl,
+            zkClient.create(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, "".getBytes(), Acl,
                     CreateMode.PERSISTENT);
         }
         if (bookies == null) {
@@ -566,7 +565,7 @@ public class BrokerBookieIsolationTest {
         }
         bookies.put(brokerBookkeeperClientIsolationGroups, bookieInfoMap);
 
-        zkClient.setData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookies), -1);
+        zkClient.setData(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookies), -1);
     }
     private static final Logger log = LoggerFactory.getLogger(BrokerBookieIsolationTest.class);
 

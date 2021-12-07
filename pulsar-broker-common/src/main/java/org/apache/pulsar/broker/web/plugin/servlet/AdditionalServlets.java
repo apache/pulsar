@@ -21,13 +21,12 @@ package org.apache.pulsar.broker.web.plugin.servlet;
 import com.google.common.collect.ImmutableMap;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
+import org.apache.pulsar.common.nar.NarClassLoader;
 
 /**
  * A collection of loaded additional servlets.
@@ -71,18 +70,23 @@ public class AdditionalServlets implements AutoCloseable {
         if (additionalServlets == null) {
             additionalServlets = conf.getProperties().getProperty(PROXY_ADDITIONAL_SERVLETS);
         }
+
+        String narExtractionDirectory = conf.getProperties().getProperty(NAR_EXTRACTION_DIRECTORY);
+        if(narExtractionDirectory == null) {
+            narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
+        }
+
         if (additionalServletDirectory == null || additionalServlets == null) {
             return null;
         }
 
         AdditionalServletDefinitions definitions =
                 AdditionalServletUtils.searchForServlets(additionalServletDirectory
-                        , null);
+                        , narExtractionDirectory);
         ImmutableMap.Builder<String, AdditionalServletWithClassLoader> builder = ImmutableMap.builder();
 
-        List<String> additionalServletsList = Arrays.asList(additionalServlets.split(","));
-        additionalServletsList.forEach(servletName -> {
-
+        String[] additionalServletsList = additionalServlets.split(",");
+        for (String servletName : additionalServletsList) {
             AdditionalServletMetadata definition = definitions.servlets().get(servletName);
             if (null == definition) {
                 throw new RuntimeException("No additional servlet is found for name `" + servletName
@@ -91,8 +95,7 @@ public class AdditionalServlets implements AutoCloseable {
 
             AdditionalServletWithClassLoader servletWithClassLoader;
             try {
-                servletWithClassLoader = AdditionalServletUtils.load(definition,
-                        conf.getProperties().getProperty(NAR_EXTRACTION_DIRECTORY));
+                servletWithClassLoader = AdditionalServletUtils.load(definition, narExtractionDirectory);
                 if (servletWithClassLoader != null) {
                     builder.put(servletName, servletWithClassLoader);
                 }
@@ -101,7 +104,7 @@ public class AdditionalServlets implements AutoCloseable {
                 log.error("Failed to load the additional servlet for name `" + servletName + "`", e);
                 throw new RuntimeException("Failed to load the additional servlet for name `" + servletName + "`");
             }
-        });
+        }
 
         Map<String, AdditionalServletWithClassLoader> servlets = builder.build();
         if (servlets != null && !servlets.isEmpty()) {

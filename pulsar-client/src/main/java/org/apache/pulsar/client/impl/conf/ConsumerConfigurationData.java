@@ -21,13 +21,14 @@ package org.apache.pulsar.client.impl.conf;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import java.io.Serializable;
+import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
@@ -43,6 +44,7 @@ import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.MessagePayloadProcessor;
+import org.apache.pulsar.client.api.NegativeAckRedeliveryBackoff;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
@@ -54,13 +56,15 @@ import org.apache.pulsar.client.api.SubscriptionType;
 public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
 
-    private Set<String> topicNames = Sets.newTreeSet();
+    private Set<String> topicNames = new TreeSet<>();
 
     private Pattern topicsPattern;
 
     private String subscriptionName;
 
     private SubscriptionType subscriptionType = SubscriptionType.Exclusive;
+
+    private Map<String, String> subscriptionProperties;
 
     private SubscriptionMode subscriptionMode = SubscriptionMode.Durable;
 
@@ -69,6 +73,9 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     @JsonIgnore
     private ConsumerEventListener consumerEventListener;
+
+    @JsonIgnore
+    private NegativeAckRedeliveryBackoff negativeAckRedeliveryBackoff;
 
     private int receiverQueueSize = 1000;
 
@@ -169,7 +176,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
             @SuppressWarnings("unchecked")
             ConsumerConfigurationData<T> c = (ConsumerConfigurationData<T>) super.clone();
             c.topicNames = Sets.newTreeSet(this.topicNames);
-            c.properties = Maps.newTreeMap(this.properties);
+            c.properties = new TreeMap<>(this.properties);
             return c;
         } catch (CloneNotSupportedException e) {
             throw new RuntimeException("Failed to clone ConsumerConfigurationData");

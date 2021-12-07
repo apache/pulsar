@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
 import java.util.Date;
-import java.util.Map;
 
 import org.apache.pulsar.io.aws.AwsCredentialProviderPlugin;
 import org.apache.pulsar.io.core.annotations.FieldDoc;

@@ -185,3 +185,13 @@ int pulsar_consumer_get_subscription_initial_position(
     pulsar_consumer_configuration_t *consumer_configuration) {
     return consumer_configuration->consumerConfiguration.getSubscriptionInitialPosition();
 }
+
+void pulsar_consumer_configuration_set_priority_level(pulsar_consumer_configuration_t *consumer_configuration,
+                                                      int priority_level) {
+    consumer_configuration->consumerConfiguration.setPriorityLevel(priority_level);
+}
+
+int pulsar_consumer_configuration_get_priority_level(
+    pulsar_consumer_configuration_t *consumer_configuration) {
+    return consumer_configuration->consumerConfiguration.getPriorityLevel();
+}

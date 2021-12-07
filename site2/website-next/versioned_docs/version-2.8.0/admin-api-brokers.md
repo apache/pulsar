@@ -1,7 +1,7 @@
 ---
 id: admin-api-brokers
 title: Managing Brokers
-sidebar_label: Brokers
+sidebar_label: "Brokers"
 original_id: admin-api-brokers
 ---
 
@@ -32,20 +32,7 @@ Fetch all available active brokers that are serving traffic.
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "JAVA",
-    "value": "JAVA"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -55,6 +42,7 @@ $ pulsar-admin brokers list use
 ```
 
 ```
+
 broker1.use.org.com:8080
 
 ```
@@ -83,20 +71,7 @@ Fetch the information of the leader broker, for example, the service url.
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "JAVA",
-    "value": "JAVA"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -106,6 +81,7 @@ $ pulsar-admin brokers leader-broker
 ```
 
 ```
+
 BrokerInfo(serviceUrl=broker1.use.org.com:8080)
 
 ```
@@ -123,6 +99,7 @@ BrokerInfo(serviceUrl=broker1.use.org.com:8080)
 admin.brokers().getLeaderBroker()
 
 ```
+
 For the detail of the code above, see [here](https://github.com/apache/pulsar/blob/master/pulsar-client-admin/src/main/java/org/apache/pulsar/client/admin/internal/BrokersImpl.java#L80)
 
 </TabItem>
@@ -135,20 +112,7 @@ It finds all namespaces which are owned and served by a given broker.
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "JAVA",
-    "value": "JAVA"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -169,6 +133,7 @@ $ pulsar-admin brokers namespaces use \
 }
 
 ```
+
 </TabItem>
 <TabItem value="REST API">
 
@@ -182,6 +147,7 @@ $ pulsar-admin brokers namespaces use \
 admin.brokers().getOwnedNamespaces(cluster,brokerUrl);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -199,20 +165,7 @@ But since all broker configuration in Pulsar is stored in ZooKeeper, configurati
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "JAVA",
-    "value": "JAVA"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
 <TabItem value="pulsar-admin">
 
 The [`update-dynamic-config`](reference-pulsar-admin.md#brokers-update-dynamic-config) subcommand will update existing configuration. It takes two arguments: the name of the parameter and the new value using the `config` and `value` flag respectively. Here's an example for the [`brokerShutdownTimeoutMs`](reference-configuration.md#broker-brokerShutdownTimeoutMs) parameter:
@@ -236,6 +189,7 @@ $ pulsar-admin brokers update-dynamic-config --config brokerShutdownTimeoutMs --
 admin.brokers().updateDynamicConfiguration(configName, configValue);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -245,20 +199,7 @@ admin.brokers().updateDynamicConfiguration(configName, configValue);
 Fetch a list of all potentially updatable configuration parameters.
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "JAVA",
-    "value": "JAVA"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -281,6 +222,7 @@ brokerShutdownTimeoutMs
 admin.brokers().getDynamicConfigurationNames();
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -291,20 +233,7 @@ Fetch a list of all parameters that have been dynamically updated.
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "JAVA",
-    "value": "JAVA"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -327,6 +256,7 @@ brokerShutdownTimeoutMs:100
 admin.brokers().getAllDynamicConfigurations();
 
 ```
+
 </TabItem>
 
 </Tabs>

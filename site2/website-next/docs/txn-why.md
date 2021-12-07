@@ -1,12 +1,8 @@
 ---
 id: txn-why
 title: Why transactions?
-sidebar_label: Why transactions?
+sidebar_label: "Why transactions?"
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 Pulsar transactions (txn) enable event streaming applications to consume, process, and produce messages in one atomic operation. The reason for developing this feature can be summarized as below.
 
@@ -39,9 +35,9 @@ In Pulsar, the highest level of message delivery guarantee is using an [idempote
 
 - Similarly, for Pulsar Function, it only guarantees exactly once semantics for an idempotent function on a single event rather than processing multiple events or producing multiple results that can happen exactly. 
 
-    For example, if a function accepts multiple events and produces one result (for example, window function), the function may fail between producing the result and acknowledging the incoming messages, or even between acknowledging individual events, which causes all (or some) incoming messages to be re-delivered and reprocessed, and a new result is generated.
+  For example, if a function accepts multiple events and produces one result (for example, window function), the function may fail between producing the result and acknowledging the incoming messages, or even between acknowledging individual events, which causes all (or some) incoming messages to be re-delivered and reprocessed, and a new result is generated.
 
-    However, many scenarios need atomic guarantees across multiple partitions and sessions.
+  However, many scenarios need atomic guarantees across multiple partitions and sessions.
 
 - Consumers need to rely on more mechanisms to acknowledge (ack) messages once. 
   

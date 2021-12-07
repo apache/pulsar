@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
+import com.google.common.collect.Sets;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
@@ -303,6 +304,34 @@ public abstract class PulsarWebResource {
 
                 log.debug("Successfully authorized {} on tenant {}", clientAppId, tenant);
             }
+        }
+    }
+
+    /**
+     * It validates that peer-clusters can't coexist in replication-clusters.
+     *
+     * @clusterName: given cluster whose peer-clusters can't be present into replication-cluster list
+     * @replicationClusters: replication-cluster list
+     */
+    protected void validatePeerClusterConflict(String clusterName, Set<String> replicationClusters) {
+        try {
+            ClusterData clusterData = clusterResources().getCluster(clusterName).orElseThrow(
+                    () -> new RestException(Status.PRECONDITION_FAILED, "Invalid replication cluster " + clusterName));
+            Set<String> peerClusters = clusterData.getPeerClusterNames();
+            if (peerClusters != null && !peerClusters.isEmpty()) {
+                Sets.SetView<String> conflictPeerClusters = Sets.intersection(peerClusters, replicationClusters);
+                if (!conflictPeerClusters.isEmpty()) {
+                    log.warn("[{}] {}'s peer cluster can't be part of replication clusters {}", clientAppId(),
+                            clusterName, conflictPeerClusters);
+                    throw new RestException(Status.CONFLICT,
+                            String.format("%s's peer-clusters %s can't be part of replication-clusters %s", clusterName,
+                                    conflictPeerClusters, replicationClusters));
+                }
+            }
+        } catch (RestException re) {
+            throw re;
+        } catch (Exception e) {
+            log.warn("[{}] Failed to get cluster-data for {}", clientAppId(), clusterName, e);
         }
     }
 

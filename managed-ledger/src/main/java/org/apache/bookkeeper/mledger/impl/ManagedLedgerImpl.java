@@ -699,10 +699,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             log.debug("[{}] asyncAddEntry size={} state={}", name, buffer.readableBytes(), state);
         }
 
-        OpAddEntry addOperation = OpAddEntry.create(this, buffer, callback, ctx);
+        // retain buffer in this thread
+        buffer.retain();
 
         // Jump to specific thread to avoid contention from writers writing from different threads
-        executor.executeOrdered(name, safeRun(() -> internalAsyncAddEntry(addOperation)));
+        executor.executeOrdered(name, safeRun(() -> {
+            OpAddEntry addOperation = OpAddEntry.createNoRetainBuffer(this, buffer, callback, ctx);
+            internalAsyncAddEntry(addOperation);
+        }));
     }
 
     @Override
@@ -711,17 +715,20 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             log.debug("[{}] asyncAddEntry size={} state={}", name, buffer.readableBytes(), state);
         }
 
-        OpAddEntry addOperation = OpAddEntry.create(this, buffer, numberOfMessages, callback, ctx);
+        // retain buffer in this thread
+        buffer.retain();
 
         // Jump to specific thread to avoid contention from writers writing from different threads
-        executor.executeOrdered(name, safeRun(() -> internalAsyncAddEntry(addOperation)));
+        executor.executeOrdered(name, safeRun(() -> {
+            OpAddEntry addOperation = OpAddEntry.createNoRetainBuffer(this, buffer, numberOfMessages, callback, ctx);
+            internalAsyncAddEntry(addOperation);
+        }));
     }
 
     private synchronized void internalAsyncAddEntry(OpAddEntry addOperation) {
         if (!beforeAddEntry(addOperation)) {
             return;
         }
-        pendingAddEntries.add(addOperation);
         final State state = STATE_UPDATER.get(this);
         if (state == State.Fenced) {
             addOperation.failed(new ManagedLedgerFencedException());
@@ -733,10 +740,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             addOperation.failed(new ManagedLedgerAlreadyClosedException("Managed ledger was already closed"));
             return;
         } else if (state == State.WriteFailed) {
-            pendingAddEntries.remove(addOperation);
             addOperation.failed(new ManagedLedgerAlreadyClosedException("Waiting to recover from failure"));
             return;
         }
+        pendingAddEntries.add(addOperation);
 
         if (state == State.ClosingLedger || state == State.CreatingLedger) {
             // We don't have a ready ledger to write into
@@ -1324,14 +1331,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         factory.close(this);
         STATE_UPDATER.set(this, State.Closed);
-
-        if (this.timeoutTask != null) {
-            this.timeoutTask.cancel(false);
-        }
-
-        if (this.checkLedgerRollTask != null) {
-            this.checkLedgerRollTask.cancel(false);
-        }
+        cancelScheduledTasks();
 
         LedgerHandle lh = currentLedger;
 
@@ -1438,22 +1438,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                 @Override
                 public void operationFailed(MetaStoreException e) {
-                    if (e instanceof BadVersionException) {
-                        synchronized (ManagedLedgerImpl.this) {
-                            log.error(
-                                    "[{}] Failed to update ledger list. z-node version mismatch. Closing managed ledger",
-                                    name);
-                            STATE_UPDATER.set(ManagedLedgerImpl.this, State.Fenced);
-                            // Return ManagedLedgerFencedException to addFailed callback
-                            // to indicate that the ledger is now fenced and topic needs to be closed
-                            clearPendingAddEntries(new ManagedLedgerFencedException(e));
-                            // Do not need to unlock ledgersListMutex here because we are going to close to topic anyways
-                            return;
-                        }
-                    }
-
                     log.warn("[{}] Error updating meta data with the new list of ledgers: {}", name, e.getMessage());
-
                     // Remove the ledger, since we failed to update the list
                     ledgers.remove(lh.getId());
                     mbean.startDataLedgerDeleteOp();
@@ -1464,6 +1449,21 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                     BKException.getMessage(rc1));
                         }
                     }, null);
+
+                    if (e instanceof BadVersionException) {
+                        synchronized (ManagedLedgerImpl.this) {
+                            log.error(
+                                "[{}] Failed to update ledger list. z-node version mismatch. Closing managed ledger",
+                                name);
+                            lastLedgerCreationFailureTimestamp = clock.millis();
+                            STATE_UPDATER.set(ManagedLedgerImpl.this, State.Fenced);
+                            // Return ManagedLedgerFencedException to addFailed callback
+                            // to indicate that the ledger is now fenced and topic needs to be closed
+                            clearPendingAddEntries(new ManagedLedgerFencedException(e));
+                            // Do not need to unlock ledgersListMutex here because we are going to close to topic anyways
+                            return;
+                        }
+                    }
 
                     metadataMutex.unlock();
 
@@ -1509,9 +1509,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 // If op is used by another ledger handle, we need to close it and create a new one
                 if (existsOp.ledger != null) {
                     existsOp.close();
-                    existsOp = OpAddEntry.create(existsOp.ml, existsOp.data, existsOp.getNumberOfMessages(), existsOp.callback, existsOp.ctx);
-                    // release the extra retain
-                    ReferenceCountUtil.release(existsOp.data);
+                    existsOp = OpAddEntry.createNoRetainBuffer(existsOp.ml, existsOp.data, existsOp.getNumberOfMessages(), existsOp.callback, existsOp.ctx);
                 }
                 existsOp.setLedger(currentLedger);
                 pendingAddEntries.add(existsOp);
@@ -2550,8 +2548,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // move the mark delete position to the highestPositionToDelete only if it is smaller than the add confirmed
             // to prevent the edge case where the cursor is caught up to the latest and highestPositionToDelete may be larger than the last add confirmed
             if (highestPositionToDelete.compareTo((PositionImpl) cursor.getMarkDeletedPosition()) > 0
-                    && highestPositionToDelete.compareTo((PositionImpl) cursor.getManagedLedger().getLastConfirmedEntry()) <= 0 ) {
-                cursor.asyncMarkDelete(highestPositionToDelete, new MarkDeleteCallback() {
+                    && highestPositionToDelete.compareTo((PositionImpl) cursor.getManagedLedger().getLastConfirmedEntry()) <= 0
+                    && !(!cursor.isDurable() && cursor instanceof NonDurableCursorImpl && ((NonDurableCursorImpl) cursor).isReadCompacted())) {
+                cursor.asyncMarkDelete(highestPositionToDelete, cursor.getProperties(), new MarkDeleteCallback() {
                     @Override
                     public void markDeleteComplete(Object ctx) {
                     }
@@ -2605,6 +2604,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         // Delete the managed ledger without closing, since we are not interested in gracefully closing cursors and
         // ledgers
         STATE_UPDATER.set(this, State.Fenced);
+        cancelScheduledTasks();
 
         List<ManagedCursor> cursors = Lists.newArrayList(this.cursors);
         if (cursors.isEmpty()) {
@@ -3999,6 +3999,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
             this.checkLedgerRollTask = this.scheduledExecutor.schedule(
                     safeRun(this::rollCurrentLedgerIfFull), this.maximumRolloverTimeMs, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    private void cancelScheduledTasks() {
+        if (this.timeoutTask != null) {
+            this.timeoutTask.cancel(false);
+        }
+
+        if (this.checkLedgerRollTask != null) {
+            this.checkLedgerRollTask.cancel(false);
         }
     }
 

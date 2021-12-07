@@ -72,15 +72,15 @@ Check the box below and label this PR (if you have committer privilege).
 
 Need to update docs? 
 
-- [ ] doc-required 
+- [ ] `doc-required` 
   
   (If you need help on updating docs, create a doc issue)
   
-- [ ] no-need-doc 
+- [ ] `no-need-doc` 
   
   (Please explain why)
   
-- [ ] doc 
+- [ ] `doc` 
   
   (If this PR contains doc changes)
 

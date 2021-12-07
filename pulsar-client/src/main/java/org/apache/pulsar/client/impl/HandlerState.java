@@ -64,6 +64,13 @@ abstract class HandlerState {
         return STATE_UPDATER.get(this);
     }
 
+    protected boolean changeToConnecting() {
+        return (STATE_UPDATER.compareAndSet(this, State.Uninitialized, State.Connecting)
+                || STATE_UPDATER.compareAndSet(this, State.Ready, State.Connecting)
+                || STATE_UPDATER.compareAndSet(this, State.RegisteringSchema, State.Connecting)
+                || STATE_UPDATER.compareAndSet(this, State.Connecting, State.Connecting));
+    }
+
     protected void setState(State s) {
         STATE_UPDATER.set(this, s);
     }

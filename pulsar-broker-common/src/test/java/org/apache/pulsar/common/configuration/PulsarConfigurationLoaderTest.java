@@ -67,12 +67,12 @@ public class PulsarConfigurationLoaderTest {
         ServiceConfiguration serviceConfiguration = PulsarConfigurationLoader.convertFrom(mockConfiguration);
 
         // check whether converting correctly
-        assertEquals(serviceConfiguration.getZookeeperServers(), "localhost:2181");
-        assertEquals(serviceConfiguration.getConfigurationStoreServers(), "localhost:2184");
-        assertEquals(serviceConfiguration.getBrokerServicePort().get(), new Integer(7650));
-        assertEquals(serviceConfiguration.getBrokerServicePortTls().get(), new Integer(7651));
-        assertEquals(serviceConfiguration.getWebServicePort().get(), new Integer(9080));
-        assertEquals(serviceConfiguration.getWebServicePortTls().get(), new Integer(9443));
+        assertEquals(serviceConfiguration.getMetadataStoreUrl(), "localhost:2181");
+        assertEquals(serviceConfiguration.getConfigurationMetadataStoreUrl(), "localhost:2184");
+        assertEquals(serviceConfiguration.getBrokerServicePort().get(), Integer.valueOf(7650));
+        assertEquals(serviceConfiguration.getBrokerServicePortTls().get(), Integer.valueOf((7651)));
+        assertEquals(serviceConfiguration.getWebServicePort().get(), Integer.valueOf((9080)));
+        assertEquals(serviceConfiguration.getWebServicePortTls().get(), Integer.valueOf((9443)));
 
         // check whether exception causes
         try {
@@ -114,13 +114,13 @@ public class PulsarConfigurationLoaderTest {
         InputStream stream = new FileInputStream(testConfigFile);
         final ServiceConfiguration serviceConfig = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
         assertNotNull(serviceConfig);
-        assertEquals(serviceConfig.getZookeeperServers(), zkServer);
+        assertEquals(serviceConfig.getMetadataStoreUrl(), zkServer);
         assertEquals(serviceConfig.isBrokerDeleteInactiveTopicsEnabled(), true);
         assertEquals(serviceConfig.getBacklogQuotaDefaultLimitGB(), 18);
         assertEquals(serviceConfig.getClusterName(), "usc");
         assertEquals(serviceConfig.getBrokerClientAuthenticationParameters(), "role:my-role");
-        assertEquals(serviceConfig.getBrokerServicePort().get(), new Integer(7777));
-        assertEquals(serviceConfig.getBrokerServicePortTls().get(), new Integer(8777));
+        assertEquals(serviceConfig.getBrokerServicePort().get(), Integer.valueOf((7777)));
+        assertEquals(serviceConfig.getBrokerServicePortTls().get(), Integer.valueOf((8777)));
         assertFalse(serviceConfig.getWebServicePort().isPresent());
         assertFalse(serviceConfig.getWebServicePortTls().isPresent());
         assertEquals(serviceConfig.getManagedLedgerDigestType(), DigestType.CRC32C);
@@ -135,7 +135,7 @@ public class PulsarConfigurationLoaderTest {
         prop.setProperty("zookeeperServers", zk);
         final ServiceConfiguration serviceConfig = PulsarConfigurationLoader.create(prop, ServiceConfiguration.class);
         assertNotNull(serviceConfig);
-        assertEquals(serviceConfig.getZookeeperServers(), zk);
+        assertEquals(serviceConfig.getMetadataStoreUrl(), zk);
     }
 
     @Test

@@ -21,7 +21,6 @@ package org.apache.pulsar.io.dynamodb;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
-import java.net.URI;
 import java.util.Date;
 import java.util.Map;
 

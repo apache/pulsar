@@ -1,12 +1,8 @@
 ---
 id: performance-pulsar-perf
 title: Pulsar Perf
-sidebar_label: Pulsar Perf
+sidebar_label: "Pulsar Perf"
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 The Pulsar Perf is a built-in performance test tool for Apache Pulsar. You can use the Pulsar Perf to test message writing or reading performance. For detailed information about performance tuning, see [here](https://streamnative.io/en/blog/tech/2021-01-14-pulsar-architecture-performance-tuning).
 
@@ -15,6 +11,7 @@ The Pulsar Perf is a built-in performance test tool for Apache Pulsar. You can u
 This example shows how the Pulsar Perf produces messages with default options. For all configuration options available for the `pulsar-perf produce` command, see [configuration options](#configuration-options-for-pulsar-perf-produce).
 
 ```
+
 bin/pulsar-perf produce my-topic
 
 ```
@@ -24,6 +21,7 @@ After the command is executed, the test data is continuously output on the Conso
 **Output**
 
 ```
+
 19:53:31.459 [pulsar-perf-producer-exec-1-1] INFO  org.apache.pulsar.testclient.PerformanceProducer - Created 1 producers
 19:53:31.482 [pulsar-timer-5-1] WARN  com.scurrilous.circe.checksum.Crc32cIntChecksum - Failed to load Circe JNI library. Falling back to Java based CRC32c provider
 19:53:40.861 [main] INFO  org.apache.pulsar.testclient.PerformanceProducer - Throughput produced:     93.7  msg/s ---      0.7 Mbit/s --- failure      0.0 msg/s --- Latency: mean:   3.575 ms - med:   3.460 - 95pct:   4.790 - 99pct:   5.308 - 99.9pct:   5.834 - 99.99pct:   6.609 - Max:   6.609
@@ -38,7 +36,7 @@ After the command is executed, the test data is continuously output on the Conso
 
 ```
 
-From the above test data, you can get the throughput statistics and the write latency statistics. The aggregated statistics is printed when the Pulsar Perf is stopped. You can press **Ctrl**+**C** to stop the Pulsar Perf. After the Pulsar Perf is stopped, the [HdrHistogram](http://hdrhistogram.github.io/HdrHistogram/) formatted test result appears under your directory. The document looks like `perf-producer-1589370810837.hgrm`. You can also check the test result through [HdrHistogram Plotter](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html). For details about how to check the test result through [HdrHistogram Plotter](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html), see [HdrHistogram Plotter](#hdrhistogram-plotter).
+From the above test data, you can get the throughput statistics and the write latency statistics. The aggregated statistics is printed when the Pulsar Perf is stopped. You can press **Ctrl**+**C** to stop the Pulsar Perf. If you specify a filename with the `--histogram-file` parameter, a file with the [HdrHistogram](http://hdrhistogram.github.io/HdrHistogram/) formatted test result appears under your directory after Pulsar Perf is stopped. You can also check the test result through [HdrHistogram Plotter](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html). For details about how to check the test result through [HdrHistogram Plotter](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html), see [HdrHistogram Plotter](#hdrhistogram-plotter).
 
 ### Configuration options for `pulsar-perf produce`
 
@@ -51,7 +49,7 @@ The following table lists configuration options available for the `pulsar-perf p
 | access-mode | Set the producer access mode. Valid values are `Shared`, `Exclusive` and `WaitForExclusive`. | Shared |
 | admin-url | Set the Pulsar admin URL. | N/A |
 | auth-params | Set the authentication parameters, whose format is determined by the implementation of the `configure` method in the authentication plugin class, such as "key1:val1,key2:val2" or "{"key1":"val1","key2":"val2"}". | N/A |
-| auth_plugin | Set the authentication plugin class name. | N/A |
+| auth-plugin | Set the authentication plugin class name. | N/A |
 | listener-name | Set the listener name for the broker. | N/A |
 | batch-max-bytes | Set the maximum number of bytes for each batch. | 4194304 |
 | batch-max-messages | Set the maximum number of messages for each batch. | 1000 |
@@ -67,6 +65,7 @@ The following table lists configuration options available for the `pulsar-perf p
 | format-class | Set the custom formatter class name. | org.apache.pulsar.testclient.DefaultMessageFormatter |
 | format-payload | Configure whether to format %i as a message index in the stream from producer and/or %t as the timestamp nanoseconds. | false |
 | help | Configure the help message. | false |
+| histogram-file | HdrHistogram output file | N/A |
 | max-connections | Set the maximum number of TCP connections to a single broker. | 100 |
 | max-outstanding | Set the maximum number of outstanding messages. | 1000 |
 | max-outstanding-across-partitions | Set the maximum number of outstanding messages across partitions. | 50000 |
@@ -96,6 +95,7 @@ The following table lists configuration options available for the `pulsar-perf p
 This example shows how the Pulsar Perf consumes messages with default options.
 
 ```
+
 bin/pulsar-perf consume my-topic
 
 ```
@@ -105,6 +105,7 @@ After the command is executed, the test data is continuously output on the Conso
 **Output**
 
 ```
+
 20:35:37.071 [main] INFO  org.apache.pulsar.testclient.PerformanceConsumer - Start receiving from 1 consumers on 1 topics
 20:35:41.150 [pulsar-client-io-1-9] WARN  com.scurrilous.circe.checksum.Crc32cIntChecksum - Failed to load Circe JNI library. Falling back to Java based CRC32c provider
 20:35:47.092 [main] INFO  org.apache.pulsar.testclient.PerformanceConsumer - Throughput received: 59.572  msg/s -- 0.465 Mbit/s --- Latency: mean: 11.298 ms - med: 10 - 95pct: 15 - 99pct: 98 - 99.9pct: 137 - 99.99pct: 152 - Max: 152
@@ -130,7 +131,7 @@ The following table lists configuration options available for the `pulsar-perf c
 |----|----|----|
 | acks-delay-millis | Set the acknowledgment grouping delay in milliseconds. | 100 ms |
 | auth-params | Set the authentication parameters, whose format is determined by the implementation of the `configure` method in the authentication plugin class, such as "key1:val1,key2:val2" or "{"key1":"val1","key2":"val2"}". | N/A |
-| auth_plugin | Set the authentication plugin class name. | N/A |
+| auth-plugin | Set the authentication plugin class name. | N/A |
 | auto_ack_chunk_q_full | Configure whether to automatically ack for the oldest message in receiver queue if the queue is full. | false |
 | listener-name | Set the listener name for the broker. | N/A |
 | batch-index-ack | Enable or disable the batch index acknowledgment. | false |
@@ -139,6 +140,7 @@ The following table lists configuration options available for the `pulsar-perf c
 | encryption-key-name | Set the name of the public key used to encrypt the payload. | N/A |
 | encryption-key-value-file | Set the file which contains the public key used to encrypt the payload. | N/A |
 | help | Configure the help message. | false |
+| histogram-file | HdrHistogram output file | N/A |
 | expire_time_incomplete_chunked_messages | Set the expiration time for incomplete chunk messages (in milliseconds). | 0 |
 | max-connections | Set the maximum number of TCP connections to a single broker. | 100 |
 | max_chunked_msg | Set the max pending chunk messages. | 0 |
@@ -167,6 +169,7 @@ By default, the Pulsar Perf uses `conf/client.conf` as the default configuration
 You can use the following commands to change the configuration file and the Log4j configuration file.
 
 ```
+
 export PULSAR_CLIENT_CONF=<your-config-file>
 export PULSAR_LOG_CONF=<your-log-config-file>
 
@@ -175,6 +178,7 @@ export PULSAR_LOG_CONF=<your-log-config-file>
 In addition, you can use the following command to configure the JVM configuration through environment variables:
 
 ```
+
 export PULSAR_EXTRA_OPTS='-Xms4g -Xmx4g -XX:MaxDirectMemorySize=4g'
 
 ```
@@ -187,32 +191,38 @@ To check test results through the HdrHistogram Plotter, follow these steps:
 
 1. Clone the HdrHistogram repository from GitHub to the local.
 
-    ```
-    git clone https://github.com/HdrHistogram/HdrHistogram.git
-
-    ```
+   ```
+   
+   git clone https://github.com/HdrHistogram/HdrHistogram.git
+   
+   ```
 
 2. Switch to the HdrHistogram folder.
 
-    ```
-    cd HdrHistogram
+   ```
+   
+   cd HdrHistogram
+   
+   ```
 
-    ```
 3. Install the HdrHistogram Plotter.
 
-    ```
-    mvn clean install -DskipTests
+   ```
+   
+   mvn clean install -DskipTests
+   
+   ```
 
-    ```
 4. Transform the file generated by the Pulsar Perf.
 
-    ```
-    ./HistogramLogProcessor -i <hgrm file path that pulsar-perf generated> -o <output file>
-
-    ```
+   ```
+   
+   ./HistogramLogProcessor -i <hgrm file path that pulsar-perf generated> -o <output file>
+   
+   ```
 
 5. You will get two output files. Upload the output file with the filename extension of .hgrm to the [HdrHistogram Plotter](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html).
 
 6. Check the test result through the Graphical User Interface of the HdrHistogram Plotter, as shown blow.
 
-    ![](/assets/perf-produce.png)
+   ![](/assets/perf-produce.png)

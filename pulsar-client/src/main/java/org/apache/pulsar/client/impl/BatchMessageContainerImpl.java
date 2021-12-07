@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.collect.Lists;
-
 import io.netty.buffer.ByteBuf;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -52,7 +51,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     private long lowestSequenceId = -1L;
     private long highestSequenceId = -1L;
     private ByteBuf batchedMessageMetadataAndPayload;
-    private List<MessageImpl<?>> messages = Lists.newArrayList();
+    private List<MessageImpl<?>> messages = new ArrayList<>();
     protected SendCallback previousCallback = null;
     // keep track of callbacks for individual messages being published in a batch
     protected SendCallback firstCallback;
@@ -66,18 +65,28 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         }
 
         if (++numMessagesInBatch == 1) {
-            // some properties are common amongst the different messages in the batch, hence we just pick it up from
-            // the first message
-            messageMetadata.setSequenceId(msg.getSequenceId());
-            lowestSequenceId = Commands.initBatchMessageMetadata(messageMetadata, msg.getMessageBuilder());
-            this.firstCallback = callback;
-            batchedMessageMetadataAndPayload = PulsarByteBufAllocator.DEFAULT
-                    .buffer(Math.min(maxBatchSize, ClientCnx.getMaxMessageSize()));
-            if (msg.getMessageBuilder().hasTxnidMostBits() && currentTxnidMostBits == -1) {
-                currentTxnidMostBits = msg.getMessageBuilder().getTxnidMostBits();
-            }
-            if (msg.getMessageBuilder().hasTxnidLeastBits() && currentTxnidLeastBits == -1) {
-                currentTxnidLeastBits = msg.getMessageBuilder().getTxnidLeastBits();
+            try {
+                // some properties are common amongst the different messages in the batch, hence we just pick it up from
+                // the first message
+                messageMetadata.setSequenceId(msg.getSequenceId());
+                lowestSequenceId = Commands.initBatchMessageMetadata(messageMetadata, msg.getMessageBuilder());
+                this.firstCallback = callback;
+                batchedMessageMetadataAndPayload = PulsarByteBufAllocator.DEFAULT
+                        .buffer(Math.min(maxBatchSize, ClientCnx.getMaxMessageSize()));
+                if (msg.getMessageBuilder().hasTxnidMostBits() && currentTxnidMostBits == -1) {
+                    currentTxnidMostBits = msg.getMessageBuilder().getTxnidMostBits();
+                }
+                if (msg.getMessageBuilder().hasTxnidLeastBits() && currentTxnidLeastBits == -1) {
+                    currentTxnidLeastBits = msg.getMessageBuilder().getTxnidLeastBits();
+                }
+            } catch (Throwable e) {
+                log.error("construct first message failed, exception is ", e);
+                if (batchedMessageMetadataAndPayload != null) {
+                    // if payload has been allocated release it
+                    batchedMessageMetadataAndPayload.release();
+                }
+                discard(new PulsarClientException(e));
+                return false;
             }
         }
 
@@ -137,7 +146,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
 
     @Override
     public void clear() {
-        messages = Lists.newArrayList();
+        messages = new ArrayList<>();
         firstCallback = null;
         previousCallback = null;
         messageMetadata.clear();

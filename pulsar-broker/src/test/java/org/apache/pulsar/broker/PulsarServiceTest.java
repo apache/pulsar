@@ -21,7 +21,6 @@ package org.apache.pulsar.broker;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
 import static org.testng.AssertJUnit.assertSame;
 import java.util.Optional;
 import lombok.Cleanup;
@@ -29,15 +28,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
-import org.testng.AssertJUnit;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
-
 
 @Slf4j
 public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
 
-    private boolean useListenerName = false;
+    private boolean useStaticPorts = false;
 
     @Override
     protected void setup() throws Exception {
@@ -48,15 +45,14 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        useListenerName = false;
+        useStaticPorts = false;
         resetConfig();
     }
 
     @Override
     protected void doInitConf() throws Exception {
         super.doInitConf();
-        if (useListenerName) {
-            conf.setAdvertisedAddress(null);
+        if (useStaticPorts) {
             conf.setBrokerServicePortTls(Optional.of(6651));
             conf.setBrokerServicePort(Optional.of(6660));
             conf.setWebServicePort(Optional.of(8081));
@@ -104,24 +100,44 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testAppliedAdvertised() throws Exception {
-        useListenerName = true;
-        conf.setAdvertisedListeners("internal:pulsar://127.0.0.1:6650, internal:pulsar+ssl://127.0.0.1:6651");
+    public void testAdvertisedAddress() throws Exception {
+        useStaticPorts = true;
+        setup();
+        assertEquals(pulsar.getAdvertisedAddress(), "localhost");
+        assertEquals(pulsar.getBrokerServiceUrlTls(), "pulsar+ssl://localhost:6651");
+        assertEquals(pulsar.getBrokerServiceUrl(), "pulsar://localhost:6660");
+        assertEquals(pulsar.getWebServiceAddress(), "http://localhost:8081");
+        assertEquals(pulsar.getWebServiceAddressTls(), "https://localhost:8082");
+        assertEquals(conf, pulsar.getConfiguration());
+    }
+
+    @Test
+    public void testAdvertisedListeners() throws Exception {
+        // don't use dynamic ports when using advertised listeners (#12079)
+        useStaticPorts = true;
+        conf.setAdvertisedListeners("internal:pulsar://gateway:6650, internal:pulsar+ssl://gateway:6651");
         conf.setInternalListenerName("internal");
         setup();
-        assertEquals(pulsar.getAdvertisedAddress(), "127.0.0.1");
-        assertNull(pulsar.getConfiguration().getAdvertisedAddress());
+        assertEquals(pulsar.getAdvertisedAddress(), "localhost");
+        assertEquals(pulsar.getBrokerServiceUrlTls(), "pulsar+ssl://gateway:6651");
+        assertEquals(pulsar.getBrokerServiceUrl(), "pulsar://gateway:6650");
+        assertEquals(pulsar.getWebServiceAddress(), "http://localhost:8081");
+        assertEquals(pulsar.getWebServiceAddressTls(), "https://localhost:8082");
         assertEquals(conf, pulsar.getConfiguration());
+    }
 
-        cleanup();
-        resetConfig();
+    @Test
+    public void testDynamicBrokerPort() throws Exception {
+        useStaticPorts = false;
         setup();
         assertEquals(pulsar.getAdvertisedAddress(), "localhost");
         assertEquals(conf, pulsar.getConfiguration());
-        assertEquals(pulsar.brokerUrlTls(conf), "pulsar+ssl://localhost:" + pulsar.getBrokerListenPortTls().get());
-        assertEquals(pulsar.brokerUrl(conf), "pulsar://localhost:" + pulsar.getBrokerListenPort().get());
-        assertEquals(pulsar.webAddress(conf), "http://localhost:" + pulsar.getWebService().getListenPortHTTP().get());
-        assertEquals(pulsar.webAddressTls(conf), "https://localhost:" + pulsar.getWebService().getListenPortHTTPS().get());
+        assertEquals(conf.getBrokerServicePortTls(), pulsar.getBrokerListenPortTls());
+        assertEquals(conf.getBrokerServicePort(), pulsar.getBrokerListenPort());
+        assertEquals(pulsar.getBrokerServiceUrlTls(), "pulsar+ssl://localhost:" + pulsar.getBrokerListenPortTls().get());
+        assertEquals(pulsar.getBrokerServiceUrl(), "pulsar://localhost:" + pulsar.getBrokerListenPort().get());
+        assertEquals(pulsar.getWebServiceAddress(), "http://localhost:" + pulsar.getWebService().getListenPortHTTP().get());
+        assertEquals(pulsar.getWebServiceAddressTls(), "https://localhost:" + pulsar.getWebService().getListenPortHTTPS().get());
     }
 
 }

@@ -18,8 +18,9 @@
  */
 package org.apache.pulsar.broker.authorization;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
@@ -36,7 +37,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
-import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -70,8 +70,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
 
     @Override
     public void initialize(ServiceConfiguration conf, PulsarResources pulsarResources) throws IOException {
-        checkNotNull(conf, "ServiceConfiguration can't be null");
-        checkNotNull(pulsarResources, "PulsarResources can't be null");
+        requireNonNull(conf, "ServiceConfiguration can't be null");
+        requireNonNull(pulsarResources, "PulsarResources can't be null");
         this.conf = conf;
         this.pulsarResources = pulsarResources;
         
@@ -322,65 +322,63 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         return updateSubscriptionPermissionAsync(namespace, subscriptionName, Collections.singleton(role), true);
     }
 
-    private CompletableFuture<Void> updateSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName, Set<String> roles,
-            boolean remove) {
-        CompletableFuture<Void> result = new CompletableFuture<>();
-
+    private CompletableFuture<Void> updateSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
+                                                                      Set<String> roles,
+                                                                      boolean remove) {
         try {
             validatePoliciesReadOnlyAccess();
         } catch (Exception e) {
-            result.completeExceptionally(e);
+            return FutureUtil.failedFuture(e);
         }
 
-        try {
-            Policies policies = pulsarResources.getNamespaceResources().getPolicies(namespace)
-                    .orElseThrow(() -> new NotFoundException(namespace + " not found"));
-            if (remove) {
-                if (policies.auth_policies.getSubscriptionAuthentication().get(subscriptionName) != null) {
-                    policies.auth_policies.getSubscriptionAuthentication().get(subscriptionName).removeAll(roles);
-                }else {
-                    log.info("[{}] Couldn't find role {} while revoking for sub = {}", namespace, subscriptionName, roles);
-                    result.completeExceptionally(new IllegalArgumentException("couldn't find subscription"));
-                    return result;
-                }
-            } else {
-                policies.auth_policies.getSubscriptionAuthentication().put(subscriptionName, roles);
-            }
-            pulsarResources.getNamespaceResources().setPolicies(namespace, (data)->policies);
+        CompletableFuture<Void> future =
+                pulsarResources.getNamespaceResources().setPoliciesAsync(namespace, policies -> {
+                    if (remove) {
+                        Set<String> subscriptionAuth =
+                                policies.auth_policies.getSubscriptionAuthentication().get(subscriptionName);
+                        if (subscriptionAuth != null) {
+                            subscriptionAuth.removeAll(roles);
+                        } else {
+                            log.info("[{}] Couldn't find role {} while revoking for sub = {}", namespace,
+                                    roles, subscriptionName);
+                            throw new IllegalArgumentException("couldn't find subscription");
+                        }
+                    } else {
+                        policies.auth_policies.getSubscriptionAuthentication().put(subscriptionName, roles);
+                    }
+                    return policies;
+                }).thenRun(() -> {
+                    log.info("[{}] Successfully granted access for role {} for sub = {}", namespace, subscriptionName,
+                            roles);
+                });
 
-            log.info("[{}] Successfully granted access for role {} for sub = {}", namespace, subscriptionName, roles);
-            result.complete(null);
-        } catch (NotFoundException e) {
-            log.warn("[{}] Failed to set permissions for namespace {}: does not exist", subscriptionName, namespace);
-            result.completeExceptionally(new IllegalArgumentException("Namespace does not exist" + namespace));
-        } catch (BadVersionException e) {
-            log.warn("[{}] Failed to set permissions for {} on namespace {}: concurrent modification", subscriptionName, roles, namespace);
-            result.completeExceptionally(new IllegalStateException(
-                    "Concurrent modification on metadata path: " + namespace + ", " + e.getMessage()));
-        } catch (Exception e) {
-            log.error("[{}] Failed to get permissions for role {} on namespace {}", subscriptionName, roles, namespace, e);
-            result.completeExceptionally(
-                    new IllegalStateException("Failed to get permissions for namespace " + namespace));
-        }
+        future.exceptionally(ex -> {
+            log.error("[{}] Failed to get permissions for role {} on namespace {}", subscriptionName, roles, namespace,
+                    ex);
+            return null;
+        });
 
-        return result;
+        return future;
     }
 
     private CompletableFuture<Boolean> checkAuthorization(TopicName topicName, String role, AuthAction action) {
-        return checkPermission(topicName, role, action)
-                .thenApply(isPermission -> isPermission && checkCluster(topicName));
+        return checkPermission(topicName, role, action).
+                thenApply(isPermission -> isPermission).
+                thenCompose(permission -> permission ? checkCluster(topicName) :
+                    CompletableFuture.completedFuture(false));
     }
 
-    private boolean checkCluster(TopicName topicName) {
+    private CompletableFuture<Boolean> checkCluster(TopicName topicName) {
         if (topicName.isGlobal() || conf.getClusterName().equals(topicName.getCluster())) {
-            return true;
-        } else {
-            if (log.isDebugEnabled()) {
-                log.debug("Topic [{}] does not belong to local cluster [{}]", topicName.toString(),
-                        conf.getClusterName());
-            }
-            return false;
+            return CompletableFuture.completedFuture(true);
         }
+        if (log.isDebugEnabled()) {
+            log.debug("Topic [{}] does not belong to local cluster [{}]", topicName.toString(), conf.getClusterName());
+        }
+        return pulsarResources.getClusterResources().listAsync()
+                .thenApply(clusters -> {
+                    return clusters.contains(topicName.getCluster());
+                });
     }
 
     public CompletableFuture<Boolean> checkPermission(TopicName topicName, String role, AuthAction action) {
@@ -528,6 +526,11 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             case PACKAGES:
                 isAuthorizedFuture = allowTheSpecifiedActionOpsAsync(namespaceName, role, authData, AuthAction.packages);
                 break;
+            case GET_TOPICS:
+            case UNSUBSCRIBE:
+            case CLEAR_BACKLOG:
+                isAuthorizedFuture = allowTheSpecifiedActionOpsAsync(namespaceName, role, authData, AuthAction.consume);
+                break;
             default:
                 isAuthorizedFuture = CompletableFuture.completedFuture(false);
         }
@@ -562,6 +565,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         switch (operation) {
             case LOOKUP:
             case GET_STATS:
+            case GET_METADATA:
                 isAuthorizedFuture = canLookupAsync(topicName, role, authData);
                 break;
             case PRODUCE:
@@ -575,7 +579,9 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             case EXPIRE_MESSAGES:
             case PEEK_MESSAGES:
             case RESET_CURSOR:
+            case GET_BACKLOG_SIZE:
             case SET_REPLICATED_SUBSCRIPTION_STATUS:
+            case GET_REPLICATED_SUBSCRIPTION_STATUS:
                 isAuthorizedFuture = canConsumeAsync(topicName, role, authData, authData.getSubscription());
                 break;
             case TERMINATE:

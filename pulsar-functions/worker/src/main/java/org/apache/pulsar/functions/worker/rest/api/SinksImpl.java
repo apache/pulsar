@@ -30,7 +30,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -50,6 +49,7 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.SinkStatus;
+import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.auth.FunctionAuthData;
 import org.apache.pulsar.functions.instance.InstanceUtils;
@@ -63,7 +63,6 @@ import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.service.api.Sinks;
-import org.apache.pulsar.packages.management.core.common.PackageType;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
 @Slf4j
@@ -734,19 +733,28 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             }
         }
 
-        // if sink is not builtin, attempt to extract classloader from package file if it exists
-        if (classLoader == null && sinkPackageFile != null) {
-            classLoader = getClassLoaderFromPackage(sinkConfig.getClassName(),
-                    sinkPackageFile, worker().getWorkerConfig().getNarExtractionDirectory());
-        }
+        boolean shouldCloseClassLoader = false;
+        try {
 
-        if (classLoader == null) {
-            throw new IllegalArgumentException("Sink package is not provided");
-        }
+            // if sink is not builtin, attempt to extract classloader from package file if it exists
+            if (classLoader == null && sinkPackageFile != null) {
+                classLoader = getClassLoaderFromPackage(sinkConfig.getClassName(),
+                        sinkPackageFile, worker().getWorkerConfig().getNarExtractionDirectory());
+                shouldCloseClassLoader = true;
+            }
 
-        SinkConfigUtils.ExtractedSinkDetails sinkDetails = SinkConfigUtils.validateAndExtractDetails(
-                sinkConfig, classLoader, worker().getWorkerConfig().getValidateConnectorConfig());
-        return SinkConfigUtils.convert(sinkConfig, sinkDetails);
+            if (classLoader == null) {
+                throw new IllegalArgumentException("Sink package is not provided");
+            }
+
+            SinkConfigUtils.ExtractedSinkDetails sinkDetails = SinkConfigUtils.validateAndExtractDetails(
+                    sinkConfig, classLoader, worker().getWorkerConfig().getValidateConnectorConfig());
+            return SinkConfigUtils.convert(sinkConfig, sinkDetails);
+        } finally {
+            if (shouldCloseClassLoader) {
+                ClassLoaderUtils.closeClassLoader(classLoader);
+            }
+        }
     }
 
     private File downloadPackageFile(String packageName) throws IOException, PulsarAdminException {

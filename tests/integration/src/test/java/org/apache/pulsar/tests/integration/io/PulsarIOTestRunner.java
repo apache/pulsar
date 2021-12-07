@@ -38,7 +38,8 @@ import net.jodah.failsafe.RetryPolicy;
 
 @Slf4j
 public abstract class PulsarIOTestRunner {
-
+    static final long MB = 1048576L;
+    public static final long RUNTIME_INSTANCE_RAM_BYTES = 128 * MB;
     final Duration ONE_MINUTE = Duration.ofMinutes(1);
     final Duration TEN_SECONDS = Duration.ofSeconds(10);
 
@@ -47,15 +48,15 @@ public abstract class PulsarIOTestRunner {
             .withMaxDuration(ONE_MINUTE)
             .withDelay(TEN_SECONDS)
             .onRetry(e -> log.error("Retry ... "));
-    
+
     protected PulsarCluster pulsarCluster;
     protected String functionRuntimeType;
-    
+
     protected PulsarIOTestRunner(PulsarCluster cluster, String functionRuntimeType) {
       this.pulsarCluster = cluster;
       this.functionRuntimeType = functionRuntimeType;
     }
-    
+
     @SuppressWarnings("rawtypes")
 	protected Schema getSchema(boolean jsonWithEnvelope) {
         if (jsonWithEnvelope) {
@@ -64,7 +65,7 @@ public abstract class PulsarIOTestRunner {
             return KeyValueSchemaImpl.of(Schema.AUTO_CONSUME(), Schema.AUTO_CONSUME(), KeyValueEncodingType.SEPARATED);
         }
     }
-    
+
     protected <T> void ensureSubscriptionCreated(String inputTopicName,
                                                       String subscriptionName,
                                                       Schema<T> inputTopicSchema)
@@ -81,7 +82,7 @@ public abstract class PulsarIOTestRunner {
             }
         }
     }
-    
+
     protected Map<String, String> produceMessagesToInputTopic(String inputTopicName,
                                                               int numMessages, SinkTester<?> tester) throws Exception {
 
@@ -92,5 +93,5 @@ public abstract class PulsarIOTestRunner {
         LinkedHashMap<String, String> kvs = new LinkedHashMap<>();
         tester.produceMessage(numMessages, client, inputTopicName, kvs);
         return kvs;
-    }  
+    }
 }

@@ -1,19 +1,15 @@
 ---
 id: security-tls-transport
 title: Transport Encryption using TLS
-sidebar_label: Transport Encryption using TLS
+sidebar_label: "Transport Encryption using TLS"
 original_id: security-tls-transport
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 ## TLS overview
 
 By default, Apache Pulsar clients communicate with the Apache Pulsar service in plain text. This means that all data is sent in the clear. You can use TLS to encrypt this traffic to protect the traffic from the snooping of a man-in-the-middle attacker.
 
-You can also configure TLS for both encryption and authentication. Use this guide to configure just TLS transport encryption and refer to [here](security-tls-authentication.md) for TLS authentication configuration. Alternatively, you can use [another authentication mechanism](security-athenz.md) on top of TLS transport encryption.
+You can also configure TLS for both encryption and authentication. Use this guide to configure just TLS transport encryption and refer to [here](security-tls-authentication.md) for TLS authentication configuration. Alternatively, you can use [another authentication mechanism](security-athenz) on top of TLS transport encryption.
 
 > Note that enabling TLS may impact the performance due to encryption overhead.
 
@@ -23,7 +19,7 @@ TLS is a form of [public key cryptography](https://en.wikipedia.org/wiki/Public-
 
 To use TLS transport encryption, you need two kinds of key pairs, **server key pairs** and a **certificate authority**.
 
-You can use a third kind of key pair, **client key pairs**, for [client authentication](security-tls-authentication.md).
+You can use a third kind of key pair, **client key pairs**, for [client authentication](security-tls-authentication).
 
 You should store the **certificate authority** private key in a very secure location (a fully encrypted, disconnected, air gapped computer). As for the certificate authority public key, the **trust cert**, you can freely shared it.
 
@@ -31,9 +27,9 @@ For both client and server key pairs, the administrator first generates a privat
 
 For TLS transport encryption, the clients can use the **trust cert** to verify that the server has a key pair that the certificate authority signed when the clients are talking to the server. A man-in-the-middle attacker does not have access to the certificate authority, so they couldn't create a server with such a key pair.
 
-For TLS authentication, the server uses the **trust cert** to verify that the client has a key pair that the certificate authority signed. The common name of the **client cert** is then used as the client's role token (see [Overview](security-overview.md)).
+For TLS authentication, the server uses the **trust cert** to verify that the client has a key pair that the certificate authority signed. The common name of the **client cert** is then used as the client's role token (see [Overview](security-overview)).
 
-`Bouncy Castle Provider` provides cipher suites and algorithms in Pulsar. If you need [FIPS](https://www.bouncycastle.org/fips_faq.html) version of `Bouncy Castle Provider`, please reference [Bouncy Castle page](security-bouncy-castle.md).
+`Bouncy Castle Provider` provides cipher suites and algorithms in Pulsar. If you need [FIPS](https://www.bouncycastle.org/fips_faq.html) version of `Bouncy Castle Provider`, please reference [Bouncy Castle page](security-bouncy-castle).
 
 ## Create TLS certificates
 
@@ -84,13 +80,15 @@ Once you have created a CA certificate, you can create certificate requests and 
 
 The following commands ask you a few questions and then create the certificates. When you are asked for the common name, you should match the hostname of the broker. You can also use a wildcard to match a group of broker hostnames, for example, `*.broker.usw.example.com`. This ensures that multiple machines can reuse the same certificate.
 
-> #### Tips
-> 
-> Sometimes matching the hostname is not possible or makes no sense,
-> such as when you create the brokers with random hostnames, or you
-> plan to connect to the hosts via their IP. In these cases, you 
-> should configure the client to disable TLS hostname verification. For more
-> details, you can see [the host verification section in client configuration](#hostname-verification).
+:::tip
+
+Sometimes matching the hostname is not possible or makes no sense,
+such as when you create the brokers with random hostnames, or you
+plan to connect to the hosts via their IP. In these cases, you 
+should configure the client to disable TLS hostname verification. For more
+details, you can see [the host verification section in client configuration](#hostname-verification).
+
+:::
 
 1. Enter the command below to generate the key.
 
@@ -132,7 +130,7 @@ At this point, you have a cert, `broker.cert.pem`, and a key, `broker.key-pk8.pe
 
 ## Configure broker
 
-To configure a Pulsar [broker](reference-terminology.md#broker) to use TLS transport encryption, you need to make some changes to `broker.conf`, which locates in the `conf` directory of your [Pulsar installation](getting-started-standalone.md).
+To configure a Pulsar [broker](reference-terminology.md#broker) to use TLS transport encryption, you need to make some changes to `broker.conf`, which locates in the `conf` directory of your [Pulsar installation](getting-started-standalone).
 
 Add these values to the configuration file (substituting the appropriate certificate paths where necessary):
 
@@ -204,7 +202,7 @@ The examples below show hostname verification being disabled for the Java client
 
 ### CLI tools
 
-[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-cli-tools.md#pulsar-admin), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
+[Command-line tools](reference-cli-tools) like [`pulsar-admin`](reference-cli-tools.md#pulsar-admin), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
 You need to add the following parameters to that file to use TLS transport with the CLI tools of Pulsar:
 
@@ -251,6 +249,7 @@ client = Client("pulsar+ssl://broker.example.com:6651/",
 #### C++ client
 
 ```c++
+
 #include <pulsar/Client.h>
 
 ClientConfiguration config = ClientConfiguration();
@@ -280,6 +279,7 @@ const Pulsar = require('pulsar-client');
 #### C# client
 
 ```c#
+
 var certificate = new X509Certificate2("ca.cert.pem");
 var client = PulsarClient.Builder()
                          .TrustedCertificateAuthority(certificate) //If the CA is not trusted on the host, you can add it explicitly.
@@ -288,3 +288,4 @@ var client = PulsarClient.Builder()
                          .Build();
 
 ```
+

@@ -168,6 +168,16 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> subscriptionName(String subscriptionName);
 
     /**
+     * Specify the subscription properties for this subscription.
+     * Properties are immutable, and consumers under the same subscription will fail to create a subscription
+     * if they use different properties.
+     * @param subscriptionProperties
+     * @return
+     */
+    ConsumerBuilder<T> subscriptionProperties(Map<String, String> subscriptionProperties);
+
+
+    /**
      * Set the timeout for unacked messages, truncated to the nearest millisecond. The timeout needs to be greater than
      * 1 second.
      *
@@ -749,4 +759,18 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * Default: null
      */
     ConsumerBuilder<T> messagePayloadProcessor(MessagePayloadProcessor payloadProcessor);
+
+    /**
+     * Notice: the negativeAckRedeliveryBackoff will not work with `consumer.negativeAcknowledge(MessageId messageId)`
+     * because we are not able to get the redelivery count from the message ID.
+     *
+     * <p>Example:
+     * <pre>
+     * client.newConsumer().negativeAckRedeliveryBackoff(NegativeAckRedeliveryExponentialBackoff.builder()
+     *              .minNackTimeMs(1000)
+     *              .maxNackTimeMs(60 * 1000)
+     *              .build()).subscribe();
+     * </pre>
+     */
+    ConsumerBuilder<T> negativeAckRedeliveryBackoff(NegativeAckRedeliveryBackoff negativeAckRedeliveryBackoff);
 }

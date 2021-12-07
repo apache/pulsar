@@ -19,8 +19,9 @@
 package org.apache.pulsar.common.util.collections;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import com.google.common.collect.Lists;
+import static java.util.Objects.requireNonNull;
+
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -100,19 +101,19 @@ public class ConcurrentOpenHashSet<V> {
     }
 
     public boolean contains(V value) {
-        checkNotNull(value);
+        requireNonNull(value);
         long h = hash(value);
         return getSection(h).contains(value, (int) h);
     }
 
     public boolean add(V value) {
-        checkNotNull(value);
+        requireNonNull(value);
         long h = hash(value);
         return getSection(h).add(value, (int) h);
     }
 
     public boolean remove(V value) {
-        checkNotNull(value);
+        requireNonNull(value);
         long h = hash(value);
         return getSection(h).remove(value, (int) h);
     }
@@ -136,7 +137,7 @@ public class ConcurrentOpenHashSet<V> {
     }
 
     public int removeIf(Predicate<V> filter) {
-        checkNotNull(filter);
+        requireNonNull(filter);
 
         int removedCount = 0;
         for (int i = 0; i < sections.length; i++) {
@@ -150,7 +151,7 @@ public class ConcurrentOpenHashSet<V> {
      * @return a new list of all values (makes a copy)
      */
     public List<V> values() {
-        List<V> values = Lists.newArrayList();
+        List<V> values = new ArrayList<>();
         forEach(value -> values.add(value));
         return values;
     }

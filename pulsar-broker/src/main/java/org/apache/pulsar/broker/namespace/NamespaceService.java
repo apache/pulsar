@@ -319,19 +319,15 @@ public class NamespaceService implements AutoCloseable {
      * @throws Exception
      */
     public boolean registerNamespace(NamespaceName nsname, boolean ensureOwned) throws PulsarServerException {
-
-        String myUrl = pulsar.getSafeBrokerServiceUrl();
-
         try {
-            String otherUrl = null;
             NamespaceBundle nsFullBundle = null;
 
             // all pre-registered namespace is assumed to have bundles disabled
             nsFullBundle = bundleFactory.getFullBundle(nsname);
             // v2 namespace will always use full bundle object
-            otherUrl = ownershipCache.tryAcquiringOwnership(nsFullBundle).get().getNativeUrl();
-
-            if (myUrl.equals(otherUrl)) {
+            NamespaceEphemeralData otherData = ownershipCache.tryAcquiringOwnership(nsFullBundle).get();
+            if (StringUtils.equals(pulsar.getBrokerServiceUrl(), otherData.getNativeUrl())
+                || StringUtils.equals(pulsar.getBrokerServiceUrlTls(), otherData.getNativeUrlTls())) {
                 if (nsFullBundle != null) {
                     // preload heartbeat namespace
                     pulsar.loadNamespaceTopics(nsFullBundle);
@@ -340,7 +336,9 @@ public class NamespaceService implements AutoCloseable {
             }
 
             String msg = String.format("namespace already owned by other broker : ns=%s expected=%s actual=%s",
-                    nsname, myUrl, otherUrl);
+                    nsname,
+                    StringUtils.defaultString(pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls()),
+                    StringUtils.defaultString(otherData.getNativeUrl(), otherData.getNativeUrlTls()));
 
             // ignore if not be owned for now
             if (!ensureOwned) {
@@ -415,9 +413,10 @@ public class NamespaceService implements AutoCloseable {
                                     new PulsarServerException("the broker do not have "
                                             + options.getAdvertisedListenerName() + " listener"));
                         } else {
+                            URI url = listener.getBrokerServiceUrl();
                             URI urlTls = listener.getBrokerServiceUrlTls();
                             future.complete(Optional.of(new LookupResult(nsData.get(),
-                                    listener.getBrokerServiceUrl().toString(),
+                                    url == null ? null : url.toString(),
                                     urlTls == null ? null : urlTls.toString())));
                         }
                         return;
@@ -455,6 +454,9 @@ public class NamespaceService implements AutoCloseable {
             // The leader election service was not initialized yet. This can happen because the broker service is
             // initialized first and it might start receiving lookup requests before the leader election service is
             // fully initialized.
+            LOG.warn("Leader election service isn't initialized yet. "
+                            + "Returning empty result to lookup. NamespaceBundle[{}]",
+                    bundle);
             lookupFuture.complete(Optional.empty());
             return;
         }
@@ -481,23 +483,45 @@ public class NamespaceService implements AutoCloseable {
                 if (options.isAuthoritative()) {
                     // leader broker already assigned the current broker as owner
                     candidateBroker = pulsar.getSafeWebServiceAddress();
-                } else if (!this.loadManager.get().isCentralized()
-                        || pulsar.getLeaderElectionService().isLeader()
-                        || !currentLeader.isPresent()
-
-                        // If leader is not active, fallback to pick the least loaded from current broker loadmanager
-                        || !isBrokerActive(currentLeader.get().getServiceUrl())
-                ) {
-                    Optional<String> availableBroker = getLeastLoadedFromLoadManager(bundle);
-                    if (!availableBroker.isPresent()) {
-                        lookupFuture.complete(Optional.empty());
-                        return;
-                    }
-                    candidateBroker = availableBroker.get();
-                    authoritativeRedirect = true;
                 } else {
-                    // forward to leader broker to make assignment
-                    candidateBroker = currentLeader.get().getServiceUrl();
+                    LoadManager loadManager = this.loadManager.get();
+                    boolean makeLoadManagerDecisionOnThisBroker = !loadManager.isCentralized() || les.isLeader();
+                    if (!makeLoadManagerDecisionOnThisBroker) {
+                        // If leader is not active, fallback to pick the least loaded from current broker loadmanager
+                        boolean leaderBrokerActive = currentLeader.isPresent()
+                                && isBrokerActive(currentLeader.get().getServiceUrl());
+                        if (!leaderBrokerActive) {
+                            makeLoadManagerDecisionOnThisBroker = true;
+                            if (!currentLeader.isPresent()) {
+                                LOG.warn(
+                                        "The information about the current leader broker wasn't available. "
+                                                + "Handling load manager decisions in a decentralized way. "
+                                                + "NamespaceBundle[{}]",
+                                        bundle);
+                            } else {
+                                LOG.warn(
+                                        "The current leader broker {} isn't active. "
+                                                + "Handling load manager decisions in a decentralized way. "
+                                                + "NamespaceBundle[{}]",
+                                        currentLeader.get(), bundle);
+                            }
+                        }
+                    }
+                    if (makeLoadManagerDecisionOnThisBroker) {
+                        Optional<String> availableBroker = getLeastLoadedFromLoadManager(bundle);
+                        if (!availableBroker.isPresent()) {
+                            LOG.warn("Load manager didn't return any available broker. "
+                                            + "Returning empty result to lookup. NamespaceBundle[{}]",
+                                    bundle);
+                            lookupFuture.complete(Optional.empty());
+                            return;
+                        }
+                        candidateBroker = availableBroker.get();
+                        authoritativeRedirect = true;
+                    } else {
+                        // forward to leader broker to make assignment
+                        candidateBroker = currentLeader.get().getServiceUrl();
+                    }
                 }
             }
         } catch (Exception e) {
@@ -535,9 +559,11 @@ public class NamespaceService implements AutoCloseable {
                                                 + options.getAdvertisedListenerName() + " listener"));
                                 return;
                             } else {
+                                URI url = listener.getBrokerServiceUrl();
                                 URI urlTls = listener.getBrokerServiceUrlTls();
                                 lookupFuture.complete(Optional.of(
-                                        new LookupResult(ownerInfo, listener.getBrokerServiceUrl().toString(),
+                                        new LookupResult(ownerInfo,
+                                                url == null ? null : url.toString(),
                                                 urlTls == null ? null : urlTls.toString())));
                                 return;
                             }
@@ -576,19 +602,16 @@ public class NamespaceService implements AutoCloseable {
     }
 
     protected CompletableFuture<LookupResult> createLookupResult(String candidateBroker, boolean authoritativeRedirect,
-                                                                 final String advertisedListenerName)
-            throws Exception {
+                                                                 final String advertisedListenerName) {
 
         CompletableFuture<LookupResult> lookupFuture = new CompletableFuture<>();
         try {
-            checkArgument(StringUtils.isNotBlank(candidateBroker), "Lookup broker can't be null " + candidateBroker);
-            URI uri = new URI(candidateBroker);
-            String path = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri.getHost(),
-                    uri.getPort());
+            checkArgument(StringUtils.isNotBlank(candidateBroker), "Lookup broker can't be null %s", candidateBroker);
+            String path = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + parseHostAndPort(candidateBroker);
 
             localBrokerDataCache.get(path).thenAccept(reportData -> {
                 if (reportData.isPresent()) {
-                    LocalBrokerData lookupData = (LocalBrokerData) reportData.get();
+                    LocalBrokerData lookupData = reportData.get();
                     if (StringUtils.isNotBlank(advertisedListenerName)) {
                         AdvertisedListener listener = lookupData.getAdvertisedListeners().get(advertisedListenerName);
                         if (listener == null) {
@@ -596,9 +619,10 @@ public class NamespaceService implements AutoCloseable {
                                     new PulsarServerException(
                                             "the broker do not have " + advertisedListenerName + " listener"));
                         } else {
+                            URI url = listener.getBrokerServiceUrl();
                             URI urlTls = listener.getBrokerServiceUrlTls();
                             lookupFuture.complete(new LookupResult(lookupData.getWebServiceUrl(),
-                                    lookupData.getWebServiceUrlTls(), listener.getBrokerServiceUrl().toString(),
+                                    lookupData.getWebServiceUrlTls(), url == null ? null : url.toString(),
                                     urlTls == null ? null : urlTls.toString(), authoritativeRedirect));
                         }
                     } else {
@@ -620,22 +644,36 @@ public class NamespaceService implements AutoCloseable {
     }
 
     private boolean isBrokerActive(String candidateBroker) {
-        List<String> brokers = pulsar.getLocalMetadataStore().getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT).join();
-
-        for (String brokerHostPort : brokers) {
-            if (candidateBroker.equals("http://" + brokerHostPort)) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Broker {} found for SLA Monitoring Namespace", brokerHostPort);
-                }
-                return true;
+        String candidateBrokerHostAndPort = parseHostAndPort(candidateBroker);
+        Set<String> availableBrokers = getAvailableBrokers();
+        if (availableBrokers.contains(candidateBrokerHostAndPort)) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Broker {} ({}) is available for.", candidateBroker, candidateBrokerHostAndPort);
             }
+            return true;
+        } else {
+            LOG.warn("Broker {} ({}) couldn't be found in available brokers {}",
+                    candidateBroker, candidateBrokerHostAndPort,
+                    availableBrokers.stream().collect(Collectors.joining(",")));
+            return false;
         }
+    }
 
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Broker not found for SLA Monitoring Namespace {}",
-                    candidateBroker + ":" + config.getWebServicePort());
+    private static String parseHostAndPort(String candidateBroker) {
+        int uriSeparatorPos = candidateBroker.indexOf("://");
+        if (uriSeparatorPos == -1) {
+            throw new IllegalArgumentException("'" + candidateBroker + "' isn't an URI.");
         }
-        return false;
+        String candidateBrokerHostAndPort = candidateBroker.substring(uriSeparatorPos + 3);
+        return candidateBrokerHostAndPort;
+    }
+
+    private Set<String> getAvailableBrokers() {
+        try {
+            return loadManager.get().getAvailableBrokers();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
@@ -662,7 +700,7 @@ public class NamespaceService implements AutoCloseable {
 
     public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle) {
         // unload namespace bundle
-        return unloadNamespaceBundle(bundle, 5, TimeUnit.MINUTES);
+        return unloadNamespaceBundle(bundle, config.getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS);
     }
 
     public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle, long timeout, TimeUnit timeoutUnit) {
@@ -1285,7 +1323,7 @@ public class NamespaceService implements AutoCloseable {
     public static String checkHeartbeatNamespace(ServiceUnitId ns) {
         Matcher m = HEARTBEAT_NAMESPACE_PATTERN.matcher(ns.getNamespaceObject().toString());
         if (m.matches()) {
-            LOG.debug("SLAMonitoring namespace matched the lookup namespace {}", ns.getNamespaceObject().toString());
+            LOG.debug("Heartbeat namespace matched the lookup namespace {}", ns.getNamespaceObject().toString());
             return String.format("http://%s", m.group(1));
         } else {
             return null;
@@ -1295,7 +1333,7 @@ public class NamespaceService implements AutoCloseable {
     public static String checkHeartbeatNamespaceV2(ServiceUnitId ns) {
         Matcher m = HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(ns.getNamespaceObject().toString());
         if (m.matches()) {
-            LOG.debug("SLAMonitoring namespace matched the lookup namespace {}", ns.getNamespaceObject().toString());
+            LOG.debug("Heartbeat namespace v2 matched the lookup namespace {}", ns.getNamespaceObject().toString());
             return String.format("http://%s", m.group(1));
         } else {
             return null;

@@ -48,7 +48,6 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -369,6 +368,107 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
             messages.remove(reader.readNext(5, TimeUnit.SECONDS).getValue());
         }
         assertEquals(messages.size(), 0);
+        assertEquals(client.consumersCount(), 1);
+        // clean up
+        for (Producer<String> producer : producerList) {
+            producer.close();
+        }
+        reader.close();
+        Awaitility.await().untilAsserted(() -> assertEquals(client.consumersCount(), 0));
+    }
+
+    @Test(timeOut = 20000)
+    public void testMultiNonPartitionedTopicWithStartMessageId() throws Exception {
+        final String topic1 = "persistent://my-property/my-ns/topic1" + UUID.randomUUID();
+        final String topic2 = "persistent://my-property/my-ns/topic2" + UUID.randomUUID();
+        List<String> topics = Arrays.asList(topic1, topic2);
+        PulsarClientImpl client = (PulsarClientImpl) pulsarClient;
+
+        // create producer and send msg
+        List<Producer<String>> producerList = new ArrayList<>();
+        for (String topicName : topics) {
+            producerList.add(pulsarClient.newProducer(Schema.STRING).topic(topicName).create());
+        }
+        int msgNum = 10;
+        Set<String> messages = new HashSet<>();
+        for (int i = 0; i < producerList.size(); i++) {
+            Producer<String> producer = producerList.get(i);
+            for (int j = 0; j < msgNum; j++) {
+                String msg = i + "msg" + j;
+                producer.send(msg);
+                messages.add(msg);
+            }
+        }
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .startMessageId(MessageId.earliest)
+                .topics(topics).readerName("my-reader").create();
+        // receive messages
+        while (reader.hasMessageAvailable()) {
+            messages.remove(reader.readNext(5, TimeUnit.SECONDS).getValue());
+        }
+        assertEquals(messages.size(), 0);
+        assertEquals(client.consumersCount(), 1);
+        // clean up
+        for (Producer<String> producer : producerList) {
+            producer.close();
+        }
+        reader.close();
+        Awaitility.await().untilAsserted(() -> assertEquals(client.consumersCount(), 0));
+    }
+
+    @Test(timeOut = 20000)
+    public void testMultiNonPartitionedTopicWithRollbackDuration() throws Exception {
+        final String topic1 = "persistent://my-property/my-ns/topic1" + UUID.randomUUID();
+        final String topic2 = "persistent://my-property/my-ns/topic2" + UUID.randomUUID();
+        List<String> topics = Arrays.asList(topic1, topic2);
+        PulsarClientImpl client = (PulsarClientImpl) pulsarClient;
+
+        // create producer and send msg
+        List<Producer<String>> producerList = new ArrayList<>();
+        for (String topicName : topics) {
+            producerList.add(pulsarClient.newProducer(Schema.STRING).topic(topicName).create());
+        }
+        int totalMsg = 10;
+        Set<String> messages = new HashSet<>();
+        long oldMsgPublishTime = System.currentTimeMillis() - TimeUnit.HOURS.toMillis(5); // 5 hours old
+        long newMsgPublishTime = System.currentTimeMillis() - TimeUnit.HOURS.toMillis(1); // 5 hours old
+        for (int i = 0; i < producerList.size(); i++) {
+            Producer<String> producer = producerList.get(i);
+            // (1) Publish 10 messages with publish-time 5 HOUR back
+            for (int j = 0; j < totalMsg; j++) {
+                TypedMessageBuilderImpl<String> msg = (TypedMessageBuilderImpl<String>) producer.newMessage()
+                        .value(i + "-old-msg-" + j);
+                msg.getMetadataBuilder()
+                        .setPublishTime(oldMsgPublishTime)
+                        .setProducerName(producer.getProducerName())
+                        .setReplicatedFrom("us-west1");
+                msg.send();
+                messages.add(msg.getMessage().getValue());
+            }
+            // (2) Publish 10 messages with publish-time 1 HOUR back
+            for (int j = 0; j < totalMsg; j++) {
+                TypedMessageBuilderImpl<String> msg = (TypedMessageBuilderImpl<String>) producer.newMessage()
+                        .value(i + "-new-msg-" + j);
+                msg.getMetadataBuilder()
+                        .setPublishTime(newMsgPublishTime)
+                        .setProducerName(producer.getProducerName())
+                        .setReplicatedFrom("us-west1");
+                msg.send();
+                messages.add(msg.getMessage().getValue());
+            }
+        }
+
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .startMessageFromRollbackDuration(2, TimeUnit.HOURS)
+                .topics(topics).readerName("my-reader").create();
+        // receive messages
+        while (reader.hasMessageAvailable()) {
+            messages.remove(reader.readNext(5, TimeUnit.SECONDS).getValue());
+        }
+        assertEquals(messages.size(), 2 * totalMsg);
+        for (String message : messages) {
+            assertTrue(message.contains("old-msg"));
+        }
         assertEquals(client.consumersCount(), 1);
         // clean up
         for (Producer<String> producer : producerList) {

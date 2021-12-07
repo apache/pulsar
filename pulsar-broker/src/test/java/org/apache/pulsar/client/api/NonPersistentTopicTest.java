@@ -1003,17 +1003,17 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             // Provision the global namespace
             admin1.clusters().createCluster("r1", ClusterData.builder()
                     .serviceUrl(url1.toString())
-                    .brokerServiceUrl(pulsar1.getSafeBrokerServiceUrl())
+                    .brokerServiceUrl(pulsar1.getBrokerServiceUrl())
                     .brokerServiceUrlTls(pulsar1.getBrokerServiceUrlTls())
                     .build());
             admin1.clusters().createCluster("r2", ClusterData.builder()
                     .serviceUrl(url2.toString())
-                    .brokerServiceUrl(pulsar2.getSafeBrokerServiceUrl())
+                    .brokerServiceUrl(pulsar2.getBrokerServiceUrl())
                     .brokerServiceUrlTls(pulsar1.getBrokerServiceUrlTls())
                     .build());
             admin1.clusters().createCluster("r3", ClusterData.builder()
                     .serviceUrl(url3.toString())
-                    .brokerServiceUrl(pulsar3.getSafeBrokerServiceUrl())
+                    .brokerServiceUrl(pulsar3.getBrokerServiceUrl())
                     .brokerServiceUrlTls(pulsar1.getBrokerServiceUrlTls())
                     .build());
 
@@ -1027,9 +1027,9 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             assertEquals(admin2.clusters().getCluster("r1").getServiceUrl(), url1.toString());
             assertEquals(admin2.clusters().getCluster("r2").getServiceUrl(), url2.toString());
             assertEquals(admin2.clusters().getCluster("r3").getServiceUrl(), url3.toString());
-            assertEquals(admin2.clusters().getCluster("r1").getBrokerServiceUrl(), pulsar1.getSafeBrokerServiceUrl());
-            assertEquals(admin2.clusters().getCluster("r2").getBrokerServiceUrl(), pulsar2.getSafeBrokerServiceUrl());
-            assertEquals(admin2.clusters().getCluster("r3").getBrokerServiceUrl(), pulsar3.getSafeBrokerServiceUrl());
+            assertEquals(admin2.clusters().getCluster("r1").getBrokerServiceUrl(), pulsar1.getBrokerServiceUrl());
+            assertEquals(admin2.clusters().getCluster("r2").getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl());
+            assertEquals(admin2.clusters().getCluster("r3").getBrokerServiceUrl(), pulsar3.getBrokerServiceUrl());
             Thread.sleep(100);
             log.info("--- ReplicatorTestBase::setup completed ---");
 

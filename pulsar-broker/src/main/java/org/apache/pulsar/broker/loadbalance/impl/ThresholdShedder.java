@@ -92,7 +92,7 @@ public class ThresholdShedder implements LoadSheddingStrategy {
 
             if (minimumThroughputToOffload < minThroughputThreshold) {
                 if (log.isDebugEnabled()) {
-                    log.info("[{}] broker is planning to shed throughput {} MByte/s less than "
+                    log.debug("[{}] broker is planning to shed throughput {} MByte/s less than "
                                     + "minimumThroughputThreshold {} MByte/s, skipping bundle unload.",
                             broker, minimumThroughputToOffload / MB, minThroughputThreshold / MB);
                 }
@@ -102,7 +102,7 @@ public class ThresholdShedder implements LoadSheddingStrategy {
             log.info(
                     "Attempting to shed load on {}, which has max resource usage above avgUsage  and threshold {}%"
                             + " > {}% + {}% -- Offloading at least {} MByte/s of traffic, left throughput {} MByte/s",
-                    broker, currentUsage, avgUsage, threshold, minimumThroughputToOffload / MB,
+                    broker, 100 * currentUsage, 100 * avgUsage, 100 * threshold, minimumThroughputToOffload / MB,
                     (brokerCurrentThroughput - minimumThroughputToOffload) / MB);
 
             MutableDouble trafficMarkedToOffload = new MutableDouble(0);

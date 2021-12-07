@@ -1,12 +1,8 @@
 ---
 id: client-libraries-python
 title: Pulsar Python client
-sidebar_label: Python
+sidebar_label: "Python"
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 Pulsar Python client library is a wrapper over the existing [C++ client library](client-libraries-cpp) and exposes all of the [same features](/api/cpp). You can find the code in the [Python directory](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) of the C++ client code.
 
@@ -164,6 +160,7 @@ while True:
     # No acknowledgment
 
 ```
+
 ### Multi-topic subscriptions
 
 In addition to subscribing a consumer to a single Pulsar topic, you can also subscribe to multiple topics simultaneously. To use multi-topic subscriptions, you can supply a regular expression (regex) or a `List` of topics. If you select topics via regex, all topics must be within the same Pulsar namespace.
@@ -355,6 +352,7 @@ class NamespaceDemo(Record):
 The schema definition is like this.
 
 ```
+
 {
   'name': 'NamespaceDemo', 'namespace': 'xxx.xxx.xxx', 'type': 'record', 'fields': [
     {'name': 'x', 'type': ['null', 'string']}, 
@@ -373,6 +371,7 @@ The schema definition is like this.
 To use the end-to-end encryption feature in the Python client, you need to configure `publicKeyPath` and `privateKeyPath` for both producer and consumer.
 
 ```
+
 publicKeyPath: "./public.pem"
 privateKeyPath: "./private.pem"
 
@@ -390,89 +389,92 @@ This section provides step-by-step instructions on how to use the end-to-end enc
 
 1. Create both public and private key pairs.
 
-    **Input**
+   **Input**
 
-    ```shell
-
-    openssl genrsa -out private.pem 2048
-    openssl rsa -in private.pem -pubout -out public.pem
-
-    ```
+   ```shell
+   
+   openssl genrsa -out private.pem 2048
+   openssl rsa -in private.pem -pubout -out public.pem
+   
+   ```
 
 2. Create a producer to send encrypted messages.
 
-    **Input**
+   **Input**
 
-    ```python
+   ```python
+   
+   import pulsar
 
-    import pulsar
-
-    publicKeyPath = "./public.pem"
-    privateKeyPath = "./private.pem"
-    crypto_key_reader = pulsar.CryptoKeyReader(publicKeyPath, privateKeyPath)
-    client = pulsar.Client('pulsar://localhost:6650')
-    producer = client.create_producer(topic='encryption', encryption_key='encryption', crypto_key_reader=crypto_key_reader)
-    producer.send('encryption message'.encode('utf8'))
-    print('sent message')
-    producer.close()
-    client.close()
-
-    ```
+   publicKeyPath = "./public.pem"
+   privateKeyPath = "./private.pem"
+   crypto_key_reader = pulsar.CryptoKeyReader(publicKeyPath, privateKeyPath)
+   client = pulsar.Client('pulsar://localhost:6650')
+   producer = client.create_producer(topic='encryption', encryption_key='encryption', crypto_key_reader=crypto_key_reader)
+   producer.send('encryption message'.encode('utf8'))
+   print('sent message')
+   producer.close()
+   client.close()
+   
+   ```
 
 3. Create a consumer to receive encrypted messages.
 
-    **Input**
+   **Input**
 
-    ```python
+   ```python
+   
+   import pulsar
 
-    import pulsar
-
-    publicKeyPath = "./public.pem"
-    privateKeyPath = "./private.pem"
-    crypto_key_reader = pulsar.CryptoKeyReader(publicKeyPath, privateKeyPath)
-    client = pulsar.Client('pulsar://localhost:6650')
-    consumer = client.subscribe(topic='encryption', subscription_name='encryption-sub', crypto_key_reader=crypto_key_reader)
-    msg = consumer.receive()
-    print("Received msg '{}' id = '{}'".format(msg.data(), msg.message_id()))
-    consumer.close()
-    client.close()
-
-    ```
+   publicKeyPath = "./public.pem"
+   privateKeyPath = "./private.pem"
+   crypto_key_reader = pulsar.CryptoKeyReader(publicKeyPath, privateKeyPath)
+   client = pulsar.Client('pulsar://localhost:6650')
+   consumer = client.subscribe(topic='encryption', subscription_name='encryption-sub', crypto_key_reader=crypto_key_reader)
+   msg = consumer.receive()
+   print("Received msg '{}' id = '{}'".format(msg.data(), msg.message_id()))
+   consumer.close()
+   client.close()
+   
+   ```
 
 4. Run the consumer to receive encrypted messages.
 
-    **Input**
+   **Input**
 
-    ```shell
-
-    python consumer.py
-
-    ```
+   ```shell
+   
+   python consumer.py
+   
+   ```
 
 5. In a new terminal tab, run the producer to produce encrypted messages.
 
-    **Input**
+   **Input**
 
-    ```shell
+   ```shell
+   
+   python producer.py
+   
+   ```
 
-    python producer.py
+   Now you can see the producer sends messages and the consumer receives messages successfully.
 
-    ```
+   **Output**
 
-    Now you can see the producer sends messages and the consumer receives messages successfully.
+   This is from the producer side.
 
-    **Output**
+   ```
+   
+   sent message
+   
+   ```
 
-    This is from the producer side.
+   This is from the consumer side.
 
-    ```
-    sent message
+   ```
+   
+   Received msg 'encryption message' id = '(0,0,-1,-1)'
+   
+   ```
 
-    ```
-
-    This is from the consumer side.
-
-    ```
-    Received msg 'encryption message' id = '(0,0,-1,-1)'
-
-    ```

@@ -1,13 +1,9 @@
 ---
 id: cookbooks-compaction
 title: Topic compaction
-sidebar_label: Topic compaction
+sidebar_label: "Topic compaction"
 original_id: cookbooks-compaction
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 Pulsar's [topic compaction](concepts-topic-compaction.md#compaction) feature enables you to create **compacted** topics in which older, "obscured" entries are pruned from the topic, allowing for faster reads through the topic's history (which messages are deemed obscured/outdated/irrelevant will depend on your use case).
 
@@ -143,3 +139,4 @@ Message<byte[]> msg = MessageBuilder.create()
 compactedTopicProducer.send(msg);
 
 ```
+

@@ -42,6 +42,10 @@ public class ClusterResources extends BaseResources<ClusterData> {
         this.failureDomainResources = new FailureDomainResources(store, FailureDomainImpl.class, operationTimeoutSec);
     }
 
+    public CompletableFuture<Set<String>> listAsync() {
+        return getChildrenAsync(BASE_CLUSTERS_PATH).thenApply(list -> new HashSet<>(list));
+    }
+
     public Set<String> list() throws MetadataStoreException {
         return new HashSet<>(super.getChildren(BASE_CLUSTERS_PATH));
     }

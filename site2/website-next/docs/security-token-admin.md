@@ -1,12 +1,8 @@
 ---
 id: security-token-admin
 title: Token authentication admin
-sidebar_label: Token authentication admin
+sidebar_label: "Token authentication admin"
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 ## Token Authentication Overview
 
@@ -20,9 +16,10 @@ A user will typically be given a token string by an administrator (or some autom
 The compact representation of a signed JWT is a string that looks like:
 
 ```
+
  eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY
 
- ```
+```
 
 Application will specify the token when creating the client instance. An alternative is to pass
 a "token supplier", that is to say a function that returns the token when the client library
@@ -31,7 +28,7 @@ will need one.
 > #### Always use TLS transport encryption
 > Sending a token is equivalent to sending a password over the wire. It is strongly recommended to
 > always use TLS encryption when talking to the Pulsar service. See
-> [Transport Encryption using TLS](security-tls-transport.md)
+> [Transport Encryption using TLS](security-tls-transport)
 
 ## Secret vs Public/Private keys
 
@@ -58,6 +55,7 @@ the brokers to allow them to validate the clients.
 $ bin/pulsar tokens create-secret-key --output my-secret.key
 
 ```
+
 To generate base64 encoded private key
 
 ```shell
@@ -164,7 +162,7 @@ tokenSecretKey=file:///path/to/secret.key
 To configure proxies to authenticate clients, put the following in `proxy.conf`:
 
 The proxy will have its own token used when talking to brokers. The role token for this
-key pair should be configured in the ``proxyRoles`` of the brokers. See the [authorization guide](security-authorization.md) for more details.
+key pair should be configured in the ``proxyRoles`` of the brokers. See the [authorization guide](security-authorization) for more details.
 
 ```properties
 
@@ -181,3 +179,4 @@ brokerClientAuthenticationParameters={"token":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0
 # brokerClientAuthenticationParameters=file:///path/to/proxy-token.txt
 
 ```
+

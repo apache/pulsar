@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker;
 
+import static org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl.getMLTransactionLogName;
 import static org.apache.pulsar.transaction.coordinator.proto.TxnStatus.ABORTING;
 import static org.apache.pulsar.transaction.coordinator.proto.TxnStatus.COMMITTING;
 import com.google.common.annotations.VisibleForTesting;
@@ -36,7 +37,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
-import org.apache.pulsar.broker.transaction.buffer.exceptions.UnsupportedTxnActionException;
+import org.apache.pulsar.broker.transaction.exception.coordinator.TransactionCoordinatorException;
 import org.apache.pulsar.broker.transaction.recover.TransactionRecoverTrackerImpl;
 import org.apache.pulsar.broker.transaction.timeout.TransactionTimeoutTrackerFactoryImpl;
 import org.apache.pulsar.client.api.PulsarClientException.BrokerPersistenceException;
@@ -63,7 +64,6 @@ import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.CoordinatorNotFoundException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionMetadataStoreStateException;
-import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -230,8 +230,7 @@ public class TransactionMetadataStoreService {
 
     public CompletableFuture<TransactionMetadataStore> openTransactionMetadataStore(TransactionCoordinatorID tcId) {
         return pulsarService.getBrokerService()
-                .getManagedLedgerConfig(TopicName.get(MLTransactionLogImpl
-                        .TRANSACTION_LOG_PREFIX + tcId)).thenCompose(v -> {
+                .getManagedLedgerConfig(getMLTransactionLogName(tcId)).thenCompose(v -> {
                             TransactionTimeoutTracker timeoutTracker = timeoutTrackerFactory.newTracker(tcId);
                             TransactionRecoverTracker recoverTracker =
                                     new TransactionRecoverTrackerImpl(TransactionMetadataStoreService.this,
@@ -331,8 +330,8 @@ public class TransactionMetadataStoreService {
                 newStatus = ABORTING;
                 break;
             default:
-                UnsupportedTxnActionException exception =
-                        new UnsupportedTxnActionException(txnID, txnAction);
+                TransactionCoordinatorException.UnsupportedTxnActionException exception =
+                        new TransactionCoordinatorException.UnsupportedTxnActionException(txnID, txnAction);
                 LOG.error(exception.getMessage());
                 completableFuture.completeExceptionally(exception);
                 return completableFuture;

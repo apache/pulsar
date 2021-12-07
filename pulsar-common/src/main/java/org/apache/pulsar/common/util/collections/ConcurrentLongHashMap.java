@@ -19,7 +19,8 @@
 package org.apache.pulsar.common.util.collections;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.collect.Lists;
 import java.util.Arrays;
 import java.util.List;
@@ -118,19 +119,19 @@ public class ConcurrentLongHashMap<V> {
     }
 
     public V put(long key, V value) {
-        checkNotNull(value);
+        requireNonNull(value);
         long h = hash(key);
         return getSection(h).put(key, value, (int) h, false, null);
     }
 
     public V putIfAbsent(long key, V value) {
-        checkNotNull(value);
+        requireNonNull(value);
         long h = hash(key);
         return getSection(h).put(key, value, (int) h, true, null);
     }
 
     public V computeIfAbsent(long key, LongFunction<V> provider) {
-        checkNotNull(provider);
+        requireNonNull(provider);
         long h = hash(key);
         return getSection(h).put(key, null, (int) h, true, provider);
     }
@@ -141,7 +142,7 @@ public class ConcurrentLongHashMap<V> {
     }
 
     public boolean remove(long key, Object value) {
-        checkNotNull(value);
+        requireNonNull(value);
         long h = hash(key);
         return getSection(h).remove(key, value, (int) h) != null;
     }

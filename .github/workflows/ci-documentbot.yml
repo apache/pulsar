@@ -1,0 +1,29 @@
+name: Auto Labeling
+
+on:
+  pull_request_target :
+    types:
+      - opened
+      - edited
+      - labeled
+
+  
+
+# A GitHub token created for a PR coming from a fork doesn't have
+# 'admin' or 'write' permission (which is required to add labels)
+# To avoid this issue, you can use the `scheduled` event and run
+# this action on a certain interval.And check the label about the
+# document.
+
+jobs:
+  labeling:
+    permissions:
+      pull-requests: write 
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: apache/pulsar-test-infra/doc-label-check@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          label-pattern: '- \[(.*?)\] ?`(.+?)`' # matches '- [x] `label`'

@@ -7,7 +7,7 @@ sidebar_label: Transactions API
 All messages in a transaction are available only to consumers after the transaction has been committed. If a transaction has been aborted, all the writes and acknowledgments in this transaction roll back. 
 
 ## Prerequisites
-1. To enable transactions in Pulsar, you need to configure the parameter in the `broker.conf` file.
+1. To enable transactions in Pulsar, you need to configure the parameter in `broker.conf` file or `standalone.conf` file.
 
 ```
 transactionCoordinatorEnabled=true

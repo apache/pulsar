@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.authentication;
 
-import com.google.common.collect.Maps;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -44,7 +43,7 @@ public class AuthenticationService implements Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(AuthenticationService.class);
     private final String anonymousUserRole;
 
-    private final Map<String, AuthenticationProvider> providers = Maps.newHashMap();
+    private final Map<String, AuthenticationProvider> providers = new HashMap<>();
 
     public AuthenticationService(ServiceConfiguration conf) throws PulsarServerException {
         anonymousUserRole = conf.getAnonymousUserRole();
@@ -83,19 +82,6 @@ public class AuthenticationService implements Closeable {
             }
         } else {
             LOG.info("Authentication is disabled");
-        }
-    }
-
-    public String authenticate(AuthenticationDataSource authData, String authMethodName)
-            throws AuthenticationException {
-        AuthenticationProvider provider = providers.get(authMethodName);
-        if (provider != null) {
-            return provider.authenticate(authData);
-        } else {
-            if (StringUtils.isNotBlank(anonymousUserRole)) {
-                return anonymousUserRole;
-            }
-            throw new AuthenticationException("Unsupported authentication mode: " + authMethodName);
         }
     }
 

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import java.util.Objects;
 import org.apache.pulsar.client.api.MessageId;
 
 public class TopicMessageIdImpl implements MessageId {

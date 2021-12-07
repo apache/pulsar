@@ -56,14 +56,14 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
                                   Entry entry,
                                   long[] ackSet,
                                   MessageMetadata msgMetadata) {
-        log.info("Send message to topic {}, subscription {}",
+        log.debug("Send message to topic {}, subscription {}",
             subscription.getTopic(), subscription.getName());
         beforeSendCount++;
     }
 
     @Override
     public void onPulsarCommand(BaseCommand command, ServerCnx cnx) {
-        log.info("[{}] On [{}] Pulsar command", count, command.getType().name());
+        log.debug("[{}] On [{}] Pulsar command", count, command.getType().name());
         count ++;
     }
 
@@ -75,13 +75,13 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     @Override
     public void onWebserviceRequest(ServletRequest request) {
         count ++;
-        log.info("[{}] On [{}] Webservice request", count, ((HttpServletRequest)request).getRequestURL().toString());
+        log.debug("[{}] On [{}] Webservice request", count, ((HttpServletRequest)request).getRequestURL().toString());
     }
 
     @Override
     public void onWebserviceResponse(ServletRequest request, ServletResponse response) {
         count ++;
-        log.info("[{}] On [{}] Webservice response {}", count, ((HttpServletRequest)request).getRequestURL().toString(), response);
+        log.debug("[{}] On [{}] Webservice response {}", count, ((HttpServletRequest)request).getRequestURL().toString(), response);
         if (response instanceof Response) {
             Response res = (Response) response;
             responseList.add(new ResponseEvent(res.getHttpChannel().getRequest().getRequestURI(), res.getStatus()));

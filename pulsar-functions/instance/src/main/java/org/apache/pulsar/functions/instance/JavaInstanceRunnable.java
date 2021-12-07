@@ -28,8 +28,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
@@ -46,7 +44,6 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -57,7 +54,6 @@ import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.StateStore;
 import org.apache.pulsar.functions.api.StateStoreContext;
-import org.apache.pulsar.functions.instance.JavaInstance.AsyncFuncRequest;
 import org.apache.pulsar.functions.instance.state.BKStateStoreProviderImpl;
 import org.apache.pulsar.functions.instance.state.InstanceStateManager;
 import org.apache.pulsar.functions.instance.state.StateManager;
@@ -103,6 +99,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private LogAppender logAppender;
 
     // provide tables for storing states
+    private final String stateStorageImplClass;
     private final String stateStorageServiceUrl;
     private StateStoreProvider stateStoreProvider;
     private StateManager stateManager;
@@ -144,6 +141,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                                 ClientBuilder clientBuilder,
                                 PulsarClient pulsarClient,
                                 PulsarAdmin pulsarAdmin,
+                                String stateStorageImplClass,
                                 String stateStorageServiceUrl,
                                 SecretsProvider secretsProvider,
                                 FunctionCollectorRegistry collectorRegistry,
@@ -152,6 +150,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.clientBuilder = clientBuilder;
         this.client = (PulsarClientImpl) pulsarClient;
         this.pulsarAdmin = pulsarAdmin;
+        this.stateStorageImplClass = stateStorageImplClass;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.secretsProvider = secretsProvider;
         this.functionClassLoader = functionClassLoader;
@@ -322,8 +321,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         if (null == stateStorageServiceUrl) {
             stateStoreProvider = StateStoreProvider.NULL;
         } else {
-            stateStoreProvider = new BKStateStoreProviderImpl();
-            Map<String, Object> stateStoreProviderConfig = new HashMap();
+            stateStoreProvider = getStateStoreProvider();
+            Map<String, Object> stateStoreProviderConfig = new HashMap<>();
             stateStoreProviderConfig.put(BKStateStoreProviderImpl.STATE_STORAGE_SERVICE_URL, stateStorageServiceUrl);
             stateStoreProvider.init(stateStoreProviderConfig, instanceConfig.getFunctionDetails());
 
@@ -336,6 +335,14 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             store.init(context);
 
             stateManager.registerStore(store);
+        }
+    }
+
+    private StateStoreProvider getStateStoreProvider() throws Exception {
+        if (stateStorageImplClass == null) {
+            return new BKStateStoreProviderImpl();
+        } else {
+            return (StateStoreProvider) Class.forName(stateStorageImplClass).getConstructor().newInstance();
         }
     }
 

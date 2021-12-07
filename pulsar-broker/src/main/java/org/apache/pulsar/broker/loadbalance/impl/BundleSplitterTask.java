@@ -72,8 +72,8 @@ public class BundleSplitterTask implements BundleSplitStrategy {
             for (final Map.Entry<String, NamespaceBundleStats> entry : localData.getLastStats().entrySet()) {
                 final String bundle = entry.getKey();
                 final NamespaceBundleStats stats = entry.getValue();
-                if (stats.topics == 1) {
-                    log.info("namespace bundle {} only have 1 topic", bundle);
+                if (stats.topics < 2) {
+                    log.info("The count of topics on the bundle {} is less than 2，skip split!", bundle);
                     continue;
                 }
                 double totalMessageRate = 0;

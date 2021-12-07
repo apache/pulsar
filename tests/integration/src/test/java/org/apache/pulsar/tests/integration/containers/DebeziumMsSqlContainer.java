@@ -20,6 +20,7 @@ package org.apache.pulsar.tests.integration.containers;
 
 
 import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
+import org.testcontainers.containers.wait.strategy.Wait;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
@@ -37,7 +38,7 @@ public class DebeziumMsSqlContainer extends ChaosContainer<DebeziumMsSqlContaine
     // "You may install and use copies of the software on any device,
     // including third party shared devices, to design, develop, test and demonstrate your programs.
     // You may not use the software on a device or server in a production environment."
-    private static final String IMAGE_NAME = "mcr.microsoft.com/mssql/server:2019-latest";
+    private static final String IMAGE_NAME = "mcr.microsoft.com/mssql/server:2019-CU12-ubuntu-20.04";
 
     public DebeziumMsSqlContainer(String clusterName) {
         super(clusterName, IMAGE_NAME);
@@ -56,13 +57,17 @@ public class DebeziumMsSqlContainer extends ChaosContainer<DebeziumMsSqlContaine
             .withExposedPorts(PORTS)
             .withEnv("ACCEPT_EULA", "Y")
             .withEnv("SA_PASSWORD", SA_PASSWORD)
+            .withEnv("MSSQL_SA_PASSWORD", SA_PASSWORD)
             .withEnv("MSSQL_AGENT_ENABLED", "true")
             .withStartupTimeout(Duration.of(300, ChronoUnit.SECONDS))
             .withCreateContainerCmdModifier(createContainerCmd -> {
                 createContainerCmd.withHostName(NAME);
                 createContainerCmd.withName(getContainerName());
             })
-            .waitingFor(new HostPortWaitStrategy());
+            // wait strategy to address problem with MS SQL responding to the connection
+            // before service starts up completely
+            // https://github.com/microsoft/mssql-docker/issues/625#issuecomment-882025521
+            .waitingFor(Wait.forLogMessage(".*The tempdb database has .*", 2));
     }
 
 }

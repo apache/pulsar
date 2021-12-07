@@ -1,12 +1,8 @@
 ---
 id: io-cli
 title: Connector Admin CLI
-sidebar_label: CLI
+sidebar_label: "CLI"
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 The `pulsar-admin` tool helps you manage Pulsar connectors.
   
@@ -15,7 +11,9 @@ The `pulsar-admin` tool helps you manage Pulsar connectors.
 An interface for managing Pulsar IO sources (ingress data into Pulsar).
 
 ```bash
+
 $ pulsar-admin sources subcommands
+
 ```
 
 Subcommands are:
@@ -52,7 +50,9 @@ Submit a Pulsar IO source connector to run in a Pulsar cluster.
 #### Usage
 
 ```bash
+
 $ pulsar-admin sources create options
+
 ```
 
 #### Options
@@ -84,7 +84,9 @@ Update a already submitted Pulsar IO source connector.
 #### Usage
 
 ```bash
+
 $ pulsar-admin sources update options
+
 ```
 
 #### Options
@@ -117,7 +119,9 @@ Delete a Pulsar IO source connector.
 #### Usage
 
 ```bash
+
 $ pulsar-admin sources delete options
+
 ```
 
 #### Option
@@ -135,7 +139,9 @@ Get the information about a Pulsar IO source connector.
 #### Usage
 
 ```bash
+
 $ pulsar-admin sources get options
+
 ```
 
 #### Options
@@ -153,7 +159,9 @@ Check the current status of a Pulsar Source.
 #### Usage
 
 ```bash
+
 $ pulsar-admin sources status options
+
 ```
 
 #### Options
@@ -172,7 +180,9 @@ List all running Pulsar IO source connectors.
 #### Usage
 
 ```bash
+
 $ pulsar-admin sources list options
+
 ```
 
 #### Options
@@ -190,7 +200,9 @@ Stop a source instance.
 #### Usage
 
 ```bash
+
 $ pulsar-admin sources stop options
+
 ```
 
 #### Options
@@ -209,7 +221,9 @@ Start a source instance.
 #### Usage
 
 ```bash
+
 $ pulsar-admin sources start options
+
 ```
 
 #### Options
@@ -229,7 +243,9 @@ Restart a source instance.
 #### Usage
 
 ```bash
+
 $ pulsar-admin sources restart options
+
 ```
 
 #### Options
@@ -248,7 +264,9 @@ Run a Pulsar IO source connector locally rather than deploying it to the Pulsar 
 #### Usage
 
 ```bash
+
 $ pulsar-admin sources localrun options
+
 ```
 
 #### Options
@@ -287,7 +305,9 @@ Get the list of Pulsar IO connector sources supported by Pulsar cluster.
 #### Usage
 
 ```bash
+
 $ pulsar-admin sources available-sources
+
 ```
 
 ### `reload`
@@ -297,7 +317,9 @@ Reload the available built-in connectors.
 #### Usage
 
 ```bash
+
 $ pulsar-admin sources reload
+
 ```
 
 ## `sinks`
@@ -305,7 +327,9 @@ $ pulsar-admin sources reload
 An interface for managing Pulsar IO sinks (egress data from Pulsar).
 
 ```bash
+
 $ pulsar-admin sinks subcommands
+
 ```
 
 Subcommands are:
@@ -342,7 +366,9 @@ Submit a Pulsar IO sink connector to run in a Pulsar cluster.
 #### Usage
 
 ```bash
+
 $ pulsar-admin sinks create options
+
 ```
 
 #### Options
@@ -378,7 +404,9 @@ Update a Pulsar IO sink connector.
 #### Usage
 
 ```bash
+
 $ pulsar-admin sinks update options
+
 ```
 
 #### Options
@@ -415,7 +443,9 @@ Delete a Pulsar IO sink connector.
 #### Usage
 
 ```bash
+
 $ pulsar-admin sinks delete options
+
 ```
 
 #### Option
@@ -433,7 +463,9 @@ Get the information about a Pulsar IO sink connector.
 #### Usage
 
 ```bash
+
 $ pulsar-admin sinks get options
+
 ```
 
 #### Options
@@ -451,7 +483,9 @@ Check the current status of a Pulsar sink.
 #### Usage
 
 ```bash
+
 $ pulsar-admin sinks status options
+
 ```
 
 #### Options
@@ -471,7 +505,9 @@ List all running Pulsar IO sink connectors.
 #### Usage
 
 ```bash
+
 $ pulsar-admin sinks list options
+
 ```
 
 #### Options
@@ -489,7 +525,9 @@ Stop a sink instance.
 #### Usage
 
 ```bash
+
 $ pulsar-admin sinks stop options
+
 ```
 
 #### Options
@@ -508,7 +546,9 @@ Start a sink instance.
 #### Usage
 
 ```bash
+
 $ pulsar-admin sinks start options
+
 ```
 
 #### Options
@@ -528,7 +568,9 @@ Restart a sink instance.
 #### Usage
 
 ```bash
+
 $ pulsar-admin sinks restart options
+
 ```
 
 #### Options
@@ -548,7 +590,9 @@ Run a Pulsar IO sink connector locally rather than deploying it to the Pulsar cl
 #### Usage
 
 ```bash
+
 $ pulsar-admin sinks localrun options
+
 ```
 
 #### Options
@@ -594,7 +638,9 @@ Get the list of Pulsar IO connector sinks supported by Pulsar cluster.
 #### Usage
 
 ```bash
+
 $ pulsar-admin sinks available-sinks
+
 ```
 
 ### `reload`
@@ -604,6 +650,8 @@ Reload the available built-in connectors.
 #### Usage
 
 ```bash
+
 $ pulsar-admin sinks reload
+
 ```
 

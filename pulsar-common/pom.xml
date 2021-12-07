@@ -26,7 +26,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.9.0-SNAPSHOT</version>
+    <version>2.10.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -196,6 +196,24 @@
 
   <build>
   <plugins>
+    <plugin>
+      <groupId>org.gaul</groupId>
+      <artifactId>modernizer-maven-plugin</artifactId>
+      <configuration>
+        <failOnViolations>true</failOnViolations>
+        <javaVersion>8</javaVersion>
+      </configuration>
+      <executions>
+        <execution>
+          <id>modernizer</id>
+          <phase>verify</phase>
+          <goals>
+            <goal>modernizer</goal>
+          </goals>
+        </execution>
+      </executions>
+    </plugin>
+
 	<plugin>
 		<groupId>com.github.splunk.lightproto</groupId>
 		<artifactId>lightproto-maven-plugin</artifactId>

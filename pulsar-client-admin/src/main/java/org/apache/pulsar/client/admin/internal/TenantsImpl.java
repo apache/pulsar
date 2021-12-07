@@ -20,9 +20,6 @@ package org.apache.pulsar.client.admin.internal;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
@@ -45,16 +42,7 @@ public class TenantsImpl extends BaseResource implements Tenants, Properties {
 
     @Override
     public List<String> getTenants() throws PulsarAdminException {
-        try {
-            return getTenantsAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getTenantsAsync());
     }
 
     @Override
@@ -77,16 +65,7 @@ public class TenantsImpl extends BaseResource implements Tenants, Properties {
 
     @Override
     public TenantInfo getTenantInfo(String tenant) throws PulsarAdminException {
-        try {
-            return getTenantInfoAsync(tenant).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getTenantInfoAsync(tenant));
     }
 
     @Override
@@ -110,17 +89,7 @@ public class TenantsImpl extends BaseResource implements Tenants, Properties {
 
     @Override
     public void createTenant(String tenant, TenantInfo config) throws PulsarAdminException {
-        try {
-            createTenantAsync(tenant, config)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> createTenantAsync(tenant, config));
     }
 
     @Override
@@ -131,16 +100,7 @@ public class TenantsImpl extends BaseResource implements Tenants, Properties {
 
     @Override
     public void updateTenant(String tenant, TenantInfo config) throws PulsarAdminException {
-        try {
-            updateTenantAsync(tenant, config).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> updateTenantAsync(tenant, config));
     }
 
     @Override
@@ -151,30 +111,12 @@ public class TenantsImpl extends BaseResource implements Tenants, Properties {
 
     @Override
     public void deleteTenant(String tenant) throws PulsarAdminException {
-        try {
-            deleteTenantAsync(tenant).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> deleteTenantAsync(tenant));
     }
 
     @Override
     public void deleteTenant(String tenant, boolean force) throws PulsarAdminException {
-        try {
-            deleteTenantAsync(tenant, force).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> deleteTenantAsync(tenant, force));
     }
 
     @Override

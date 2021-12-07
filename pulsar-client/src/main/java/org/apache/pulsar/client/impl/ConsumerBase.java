@@ -211,13 +211,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected CompletableFuture<Message<T>> nextPendingReceive() {
         CompletableFuture<Message<T>> receivedFuture;
-        while (true) {
+        do {
             receivedFuture = pendingReceives.poll();
             // skip done futures (cancelling a future could mark it done)
-            if (receivedFuture == null || !receivedFuture.isDone()) {
-                break;
-            }
-        }
+        } while (receivedFuture != null && receivedFuture.isDone());
         return receivedFuture;
     }
 
@@ -717,13 +714,13 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected void onAckTimeoutSend(Set<MessageId> messageIds) {
         if (interceptors != null) {
-            interceptors. onAckTimeoutSend(this, messageIds);
+            interceptors.onAckTimeoutSend(this, messageIds);
         }
     }
 
     protected void onPartitionsChange(String topicName, int partitions) {
         if (interceptors != null) {
-            interceptors. onPartitionsChange(topicName, partitions);
+            interceptors.onPartitionsChange(topicName, partitions);
         }
     }
 

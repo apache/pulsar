@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.ReferenceCountUtil;
@@ -540,6 +541,12 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     @Override
     public void close() throws IOException {
         this.requestTimeout.cancel();
+        this.setState(State.Closed);
+    }
+
+    @VisibleForTesting
+    public State getConnectHandleState() {
+        return getState();
     }
 
     @Override

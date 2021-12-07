@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.AdaptiveRecvByteBufAllocator;
@@ -38,9 +37,12 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
@@ -81,10 +83,12 @@ public class ProxyService implements Closeable {
     private MetadataStoreExtended localMetadataStore;
     private MetadataStoreExtended configMetadataStore;
     private PulsarResources pulsarResources;
+    @Getter
     private ProxyExtensions proxyExtensions = null;
 
     private final EventLoopGroup acceptorGroup;
     private final EventLoopGroup workerGroup;
+    private final List<EventLoopGroup> extensionsWorkerGroups = new ArrayList<>();
 
     private Channel listenChannel;
     private Channel listenChannelTls;
@@ -131,11 +135,11 @@ public class ProxyService implements Closeable {
 
     public ProxyService(ProxyConfiguration proxyConfig,
                         AuthenticationService authenticationService) throws Exception {
-        checkNotNull(proxyConfig);
+        requireNonNull(proxyConfig);
         this.proxyConfig = proxyConfig;
         this.timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-timer", Thread.currentThread().isDaemon()), 1, TimeUnit.MILLISECONDS);
         this.clientCnxs = Sets.newConcurrentHashSet();
-        this.topicStats = Maps.newConcurrentMap();
+        this.topicStats = new ConcurrentHashMap<>();
 
         this.lookupRequestSemaphore = new AtomicReference<Semaphore>(
                 new Semaphore(proxyConfig.getMaxConcurrentLookupRequests(), false));
@@ -262,7 +266,25 @@ public class ProxyService implements Closeable {
                                      SocketAddress address,
                                      ChannelInitializer<SocketChannel> initializer,
                                      ServerBootstrap serverBootstrap) throws IOException {
-        ServerBootstrap bootstrap = serverBootstrap.clone();
+        ServerBootstrap bootstrap;
+        boolean useSeparateThreadPool = proxyConfig.isUseSeparateThreadPoolForProxyExtensions();
+        if (useSeparateThreadPool) {
+            bootstrap = new ServerBootstrap();
+            bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
+            bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
+            bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
+                    new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
+
+            EventLoopUtil.enableTriggeredMode(bootstrap);
+            DefaultThreadFactory defaultThreadFactory = new DefaultThreadFactory("pulsar-ext-" + extensionName);
+            EventLoopGroup dedicatedWorkerGroup =
+                    EventLoopUtil.newEventLoopGroup(numThreads, false, defaultThreadFactory);
+            extensionsWorkerGroups.add(dedicatedWorkerGroup);
+            bootstrap.channel(EventLoopUtil.getServerSocketChannelClass(dedicatedWorkerGroup));
+            bootstrap.group(this.acceptorGroup, dedicatedWorkerGroup);
+        } else {
+            bootstrap = serverBootstrap.clone();
+        }
         bootstrap.childHandler(initializer);
         try {
             bootstrap.bind(address).sync();
@@ -314,6 +336,9 @@ public class ProxyService implements Closeable {
         }
         acceptorGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
+        for (EventLoopGroup group : extensionsWorkerGroups) {
+            group.shutdownGracefully();
+        }
         if (timer != null) {
             timer.stop();
         }

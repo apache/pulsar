@@ -116,7 +116,7 @@ public class HttpTopicLookupv2Test {
 
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         destLookup.lookupTopicAsync(TopicDomain.persistent.value(), "myprop", "usc", "ns2", "topic1", false,
-                asyncResponse, null);
+                asyncResponse, null, null);
 
         ArgumentCaptor<Throwable> arg = ArgumentCaptor.forClass(Throwable.class);
         verify(asyncResponse).resume(arg.capture());
@@ -146,7 +146,7 @@ public class HttpTopicLookupv2Test {
 
         AsyncResponse asyncResponse1 = mock(AsyncResponse.class);
         destLookup.lookupTopicAsync(TopicDomain.persistent.value(), "myprop", "usc", "ns2", "topic1", false,
-                asyncResponse1, null);
+                asyncResponse1, null, null);
 
         ArgumentCaptor<Throwable> arg = ArgumentCaptor.forClass(Throwable.class);
         verify(asyncResponse1).resume(arg.capture());
@@ -182,7 +182,7 @@ public class HttpTopicLookupv2Test {
 
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         destLookup.lookupTopicAsync(TopicDomain.persistent.value(), property, cluster, ns1, "empty-cluster",
-                false, asyncResponse, null);
+                false, asyncResponse, null, null);
 
         ArgumentCaptor<Throwable> arg = ArgumentCaptor.forClass(Throwable.class);
         verify(asyncResponse).resume(arg.capture());
@@ -190,7 +190,7 @@ public class HttpTopicLookupv2Test {
 
         AsyncResponse asyncResponse2 = mock(AsyncResponse.class);
         destLookup.lookupTopicAsync(TopicDomain.persistent.value(), property, cluster, ns2,
-                "invalid-localCluster", false, asyncResponse2, null);
+                "invalid-localCluster", false, asyncResponse2, null, null);
         ArgumentCaptor<Throwable> arg2 = ArgumentCaptor.forClass(Throwable.class);
         verify(asyncResponse2).resume(arg2.capture());
 

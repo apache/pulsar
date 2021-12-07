@@ -305,6 +305,54 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testSendAvroAndJsonPrimitiveSchema() throws Exception {
+        final String tenant = PUBLIC_TENANT;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topicOne = "test-multi-version-schema-one";
+        final String fqtnOne = TopicName.get(
+                TopicDomain.persistent.value(),
+                tenant,
+                namespace,
+                topicOne
+        ).toString();
+
+
+        admin.namespaces().createNamespace(
+                tenant + "/" + namespace,
+                Sets.newHashSet(CLUSTER_NAME)
+        );
+
+        admin.namespaces().setSchemaCompatibilityStrategy(tenant + "/" + namespace,
+                SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES())
+                .topic(fqtnOne)
+                .create();
+
+        final Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME()).topic(fqtnOne)
+                .subscriptionName("sub")
+                .subscribe();
+
+        int producerAvroIntegerValue = 1;
+        byte[] producerAvroBytesValue = "testProducerAvroBytes".getBytes();
+        producer.newMessage(Schema.AVRO(Integer.class)).value(1).send();
+        producer.newMessage(Schema.AVRO(byte[].class)).value(producerAvroBytesValue).send();
+
+        int producerJsonIntegerValue = 2;
+        byte[] producerJsonBytesValue = "testProducerJsonBytes".getBytes();
+        producer.newMessage(Schema.JSON(Integer.class)).value(producerJsonIntegerValue).send();
+        producer.newMessage(Schema.JSON(byte[].class)).value(producerJsonBytesValue).send();
+
+        // AVRO schema with primitive class can consume
+        assertEquals(consumer.receive().getValue().getNativeObject(), producerAvroIntegerValue);
+        assertArrayEquals((byte[]) consumer.receive().getValue().getNativeObject(), producerAvroBytesValue);
+
+        // JSON schema with primitive class can consume
+        assertEquals(consumer.receive().getValue().getNativeObject(), producerJsonIntegerValue);
+        assertArrayEquals((byte[])  consumer.receive().getValue().getNativeObject(), producerJsonBytesValue);
+}
+
+    @Test
     public void testJSONSchemaDeserialize() throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);
@@ -658,9 +706,12 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         final Map<String, String> map = new HashMap<>();
         map.put("key", null);
         map.put(null, "value"); // null key is not allowed for JSON, it's only for test here
-        ((SchemaInfoImpl)Schema.INT32.getSchemaInfo()).setProperties(map);
 
-        final Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32).topic(topic)
+        // leave INT32 instance unchanged
+        final Schema<Integer> integerSchema = Schema.INT32.clone();
+        ((SchemaInfoImpl) integerSchema.getSchemaInfo()).setProperties(map);
+
+        final Consumer<Integer> consumer = pulsarClient.newConsumer(integerSchema).topic(topic)
                 .subscriptionName("sub")
                 .subscribe();
         consumer.close();
@@ -722,6 +773,96 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
             } catch (BKException.BKNoSuchLedgerExistsException ignore) {
             }
         }
+    }
+
+    @Test
+    public void testDeleteTopicAndSchemaForV1() throws Exception {
+        final String tenant = PUBLIC_TENANT;
+        final String cluster = CLUSTER_NAME;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topicOne = "not-partitioned-topic";
+        final String topic2 = "persistent://" + tenant + "/" + cluster + "/" + namespace + "/partitioned-topic";
+
+        // persistent, not-partitioned v1/topic
+        final String topic1 = TopicName.get(
+                TopicDomain.persistent.value(),
+                tenant,
+                cluster,
+                namespace,
+                topicOne).toString();
+
+        // persistent, partitioned v1/topic
+        admin.topics().createPartitionedTopic(topic2, 1);
+
+        @Cleanup
+        Producer<Schemas.PersonOne> p1_1 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonOne.class))
+                .topic(topic1)
+                .create();
+
+        @Cleanup
+        Producer<Schemas.PersonThree> p1_2 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonThree.class))
+                .topic(topic1)
+                .create();
+        @Cleanup
+        Producer<Schemas.PersonThree> p2_1 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonThree.class))
+                .topic(topic2)
+                .create();
+
+        List<CompletableFuture<SchemaRegistry.SchemaAndMetadata>> schemaFutures1 =
+                this.getPulsar().getSchemaRegistryService().getAllSchemas(TopicName.get(topic1).getSchemaName()).get();
+        FutureUtil.waitForAll(schemaFutures1).get();
+        List<SchemaRegistry.SchemaAndMetadata> schemas1 = schemaFutures1.stream().map(future -> {
+            try {
+                return future.get();
+            } catch (Exception e) {
+                return null;
+            }
+        }).collect(Collectors.toList());
+        assertEquals(schemas1.size(), 2);
+        for (SchemaRegistry.SchemaAndMetadata schema : schemas1) {
+            assertNotNull(schema);
+        }
+
+        List<CompletableFuture<SchemaRegistry.SchemaAndMetadata>> schemaFutures2 =
+                this.getPulsar().getSchemaRegistryService().getAllSchemas(TopicName.get(topic2).getSchemaName()).get();
+        FutureUtil.waitForAll(schemaFutures2).get();
+        List<SchemaRegistry.SchemaAndMetadata> schemas2 = schemaFutures2.stream().map(future -> {
+            try {
+                return future.get();
+            } catch (Exception e) {
+                return null;
+            }
+        }).collect(Collectors.toList());
+        assertEquals(schemas2.size(), 1);
+        for (SchemaRegistry.SchemaAndMetadata schema : schemas2) {
+            assertNotNull(schema);
+        }
+
+        // not-force and not-delete-schema when delete topic
+        try {
+            admin.topics().delete(topic1, false, false);
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getMessage().startsWith("Topic has active producers/subscriptions"));
+        }
+        assertEquals(this.getPulsar().getSchemaRegistryService()
+                .trimDeletedSchemaAndGetList(TopicName.get(topic1).getSchemaName()).get().size(), 2);
+        try {
+            admin.topics().deletePartitionedTopic(topic2, false, false);
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getMessage().startsWith("Topic has active producers/subscriptions"));
+        }
+        assertEquals(this.getPulsar().getSchemaRegistryService()
+                .trimDeletedSchemaAndGetList(TopicName.get(topic2).getSchemaName()).get().size(), 1);
+
+        // force and delete-schema when delete topic
+        admin.topics().delete(topic1, true, true);
+        assertEquals(this.getPulsar().getSchemaRegistryService()
+                .trimDeletedSchemaAndGetList(TopicName.get(topic1).getSchemaName()).get().size(), 0);
+        admin.topics().deletePartitionedTopic(topic2, true, true);
+        assertEquals(this.getPulsar().getSchemaRegistryService()
+                .trimDeletedSchemaAndGetList(TopicName.get(topic2).getSchemaName()).get().size(), 0);
     }
 
     @Test
@@ -800,6 +941,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         assertEquals("foo", message.getValue());
     }
 
+    @Test
     public void testConsumeMultipleSchemaMessages() throws Exception {
         final String namespace = "test-namespace-" + randomName(16);
         String ns = PUBLIC_TENANT + "/" + namespace;

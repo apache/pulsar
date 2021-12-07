@@ -56,13 +56,13 @@ public class BrokerUsage {
         BrokerUsage brokerUsage = null;
         if (metrics.containsKey("brk_conn_cnt")) {
             brokerUsage = new BrokerUsage();
-            brokerUsage.connectionCount = ((Long) metrics.get("brk_conn_cnt")).longValue();
+            brokerUsage.connectionCount = (Long) metrics.get("brk_conn_cnt");
         }
         if (metrics.containsKey("brk_repl_conn_cnt")) {
             if (brokerUsage == null) {
                 brokerUsage = new BrokerUsage();
             }
-            brokerUsage.replicationConnectionCount = ((Long) metrics.get("brk_repl_conn_cnt")).longValue();
+            brokerUsage.replicationConnectionCount = (Long) metrics.get("brk_repl_conn_cnt");
         }
         return brokerUsage;
     }

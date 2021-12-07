@@ -56,8 +56,6 @@ import org.apache.pulsar.functions.utils.FunctionCommon;
 @Slf4j
 public class BKStateStoreProviderImpl implements StateStoreProvider {
 
-    public static final String STATE_STORAGE_SERVICE_URL = "stateStorageServiceUrl";
-
     private String stateStorageServiceUrl;
     private Map<String, StorageClient> clients;
 

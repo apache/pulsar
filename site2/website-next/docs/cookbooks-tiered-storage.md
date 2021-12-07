@@ -1,12 +1,8 @@
 ---
 id: cookbooks-tiered-storage
 title: Tiered Storage
-sidebar_label: Tiered Storage
+sidebar_label: "Tiered Storage"
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 Pulsar's **Tiered Storage** feature allows older backlog data to be offloaded to long term storage, thereby freeing up space in BookKeeper and reducing storage costs. This cookbook walks you through using tiered storage in your Pulsar cluster.
 
@@ -121,7 +117,9 @@ PULSAR_EXTRA_OPTS="${PULSAR_EXTRA_OPTS} ${PULSAR_MEM} ${PULSAR_GC} -Daws.accessK
 
 4. Set the access credentials in ```~/.aws/credentials```.
 
-```conf [default]
+```conf
+
+[default]
 aws_access_key_id=ABC123456789
 aws_secret_access_key=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
 
@@ -225,6 +223,7 @@ You can configure the connection address in the `broker.conf` file.
 fileSystemURI="hdfs://127.0.0.1:9000"
 
 ```
+
 #### Configure Hadoop profile path
 
 The configuration file is stored in the Hadoop profile path. It contains various settings, such as base path, authentication, and so on.
@@ -270,7 +269,6 @@ The model for storing topic data uses `org.apache.hadoop.io.MapFile`. You can us
         <name>io.map.index.interval</name>
         <value>128</value>
     </property>
-    
 
 ```
 
@@ -298,7 +296,7 @@ messages exists in both bookkeeper and long term storage, if they are preferred 
 $ bin/pulsar-admin namespaces set-offload-policies my-tenant/my-namespace -orp bookkeeper-first
 $ bin/pulsar-admin topics set-offload-policies my-tenant/my-namespace/topic1 -orp bookkeeper-first
 
-```     
+```
 
 ## Triggering offload manually
 
@@ -341,5 +339,5 @@ null
 
 Reason: Error offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: java.util.concurrent.CompletionException: com.amazonaws.services.s3.model.AmazonS3Exception: Anonymous users cannot initiate multipart uploads.  Please authenticate. (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; Request ID: 798758DE3F1776DF; S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=), S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=
 
-````
+```
 

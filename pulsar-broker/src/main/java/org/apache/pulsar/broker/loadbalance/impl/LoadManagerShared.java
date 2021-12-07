@@ -334,29 +334,29 @@ public class LoadManagerShared {
             // now, "candidates" has list of brokers which are part of domain that can accept this namespace. now,
             // with in these domains, remove brokers which don't have least number of namespaces. so, brokers with least
             // number of namespace can be selected
-            int leastNamaespaceCount = Integer.MAX_VALUE;
+            int leastNamespaceCount = Integer.MAX_VALUE;
             for (final String broker : candidates) {
                 if (brokerToAntiAffinityNamespaceCount.containsKey(broker)) {
                     Integer namespaceCount = brokerToAntiAffinityNamespaceCount.get(broker);
                     if (namespaceCount == null) {
                         // Assume that when the namespace is absent, there are no namespace assigned to
                         // that broker.
-                        leastNamaespaceCount = 0;
+                        leastNamespaceCount = 0;
                         break;
                     }
-                    leastNamaespaceCount = Math.min(leastNamaespaceCount, namespaceCount);
+                    leastNamespaceCount = Math.min(leastNamespaceCount, namespaceCount);
                 } else {
                     // Assume non-present brokers have 0 bundles.
-                    leastNamaespaceCount = 0;
+                    leastNamespaceCount = 0;
                     break;
                 }
             }
             // filter out broker based on namespace distribution
-            if (leastNamaespaceCount == 0) {
+            if (leastNamespaceCount == 0) {
                 candidates.removeIf(broker -> brokerToAntiAffinityNamespaceCount.containsKey(broker)
                         && brokerToAntiAffinityNamespaceCount.get(broker) > 0);
             } else {
-                final int finalLeastNamespaceCount = leastNamaespaceCount;
+                final int finalLeastNamespaceCount = leastNamespaceCount;
                 candidates
                         .removeIf(broker -> brokerToAntiAffinityNamespaceCount.get(broker) != finalLeastNamespaceCount);
             }

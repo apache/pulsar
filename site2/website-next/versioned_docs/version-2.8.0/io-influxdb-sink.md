@@ -1,13 +1,9 @@
 ---
 id: io-influxdb-sink
 title: InfluxDB sink connector
-sidebar_label: InfluxDB sink connector
+sidebar_label: "InfluxDB sink connector"
 original_id: io-influxdb-sink
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 The InfluxDB sink connector pulls messages from Pulsar topics 
 and persists the messages to InfluxDB.
@@ -50,63 +46,74 @@ The configuration of the InfluxDB sink connector has the following properties.
 Before using the InfluxDB sink connector, you need to create a configuration file through one of the following methods.
 #### InfluxDBv2
 * JSON
-    ```json
-    {
-        "influxdbUrl": "http://localhost:9999",
-        "organization": "example-org",
-        "bucket": "example-bucket",
-        "token": "xxxx",
-        "precision": "ns",
-        "logLevel": "NONE",
-        "gzipEnable": false,
-        "batchTimeMs": 1000,
-        "batchSize": 100
-    }
-    ```
+
+  ```json
+  
+  {
+      "influxdbUrl": "http://localhost:9999",
+      "organization": "example-org",
+      "bucket": "example-bucket",
+      "token": "xxxx",
+      "precision": "ns",
+      "logLevel": "NONE",
+      "gzipEnable": false,
+      "batchTimeMs": 1000,
+      "batchSize": 100
+  }
+  
+  ```
+
   
 * YAML
-    ```yaml
-    {
-        influxdbUrl: "http://localhost:9999"
-        organization: "example-org"
-        bucket: "example-bucket"
-        token: "xxxx"
-        precision: "ns"
-        logLevel: "NONE"
-        gzipEnable: false
-        batchTimeMs: 1000
-        batchSize: 100
-    }
-    ```
+
+  ```yaml
+  
+  configs:
+      influxdbUrl: "http://localhost:9999"
+      organization: "example-org"
+      bucket: "example-bucket"
+      token: "xxxx"
+      precision: "ns"
+      logLevel: "NONE"
+      gzipEnable: false
+      batchTimeMs: 1000
+      batchSize: 100
+  
+  ```
+
   
 #### InfluxDBv1
 
 * JSON 
 
-    ```json
-    {
-        "influxdbUrl": "http://localhost:8086",
-        "database": "test_db",
-        "consistencyLevel": "ONE",
-        "logLevel": "NONE",
-        "retentionPolicy": "autogen",
-        "gzipEnable": false,
-        "batchTimeMs": 1000,
-        "batchSize": 100
-    }
-    ```
+  ```json
+  
+  {
+      "influxdbUrl": "http://localhost:8086",
+      "database": "test_db",
+      "consistencyLevel": "ONE",
+      "logLevel": "NONE",
+      "retentionPolicy": "autogen",
+      "gzipEnable": false,
+      "batchTimeMs": 1000,
+      "batchSize": 100
+  }
+  
+  ```
 
 * YAML
 
-    ```yaml
-    {
-        influxdbUrl: "http://localhost:8086"
-        database: "test_db"
-        consistencyLevel: "ONE"
-        logLevel: "NONE"
-        retentionPolicy: "autogen"
-        gzipEnable: false
-        batchTimeMs: 1000
-        batchSize: 100
-    }
-    ```
+  ```yaml
+  
+  configs:
+      influxdbUrl: "http://localhost:8086"
+      database: "test_db"
+      consistencyLevel: "ONE"
+      logLevel: "NONE"
+      retentionPolicy: "autogen"
+      gzipEnable: false
+      batchTimeMs: 1000
+      batchSize: 100
+  
+  ```
+

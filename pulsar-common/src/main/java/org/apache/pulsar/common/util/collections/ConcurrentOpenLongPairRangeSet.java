@@ -18,7 +18,8 @@
  */
 package org.apache.pulsar.common.util.collections;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import java.util.ArrayList;
@@ -152,14 +153,12 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
         if (rangeBitSetMap.isEmpty()) {
             return true;
         }
-        AtomicBoolean isEmpty = new AtomicBoolean(false);
-        rangeBitSetMap.forEach((key, val) -> {
-            if (!isEmpty.get()) {
-                return;
+        for (BitSet rangeBitSet : rangeBitSetMap.values()) {
+            if (!rangeBitSet.isEmpty()) {
+                return false;
             }
-            isEmpty.set(val.isEmpty());
-        });
-        return isEmpty.get();
+        }
+        return true;
     }
 
     @Override
@@ -309,7 +308,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     }
 
     public boolean contains(LongPair position) {
-        checkNotNull(position, "argument can't be null");
+        requireNonNull(position, "argument can't be null");
         return contains(position.getKey(), position.getValue());
     }
 

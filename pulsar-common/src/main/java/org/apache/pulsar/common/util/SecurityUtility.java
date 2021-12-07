@@ -62,7 +62,6 @@ import javax.net.ssl.TrustManagerFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.classification.InterfaceAudience;
-import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.common.tls.TlsHostnameVerifier;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 
@@ -116,6 +115,16 @@ public class SecurityUtility {
     }
 
     private static Provider loadConscryptProvider() {
+        Class<?> conscryptClazz;
+
+        try {
+            conscryptClazz = Class.forName("org.conscrypt.Conscrypt");
+            conscryptClazz.getMethod("checkAvailability").invoke(null);
+        } catch (Throwable e) {
+            log.warn("Conscrypt isn't available. Using JDK default security provider.", e);
+            return null;
+        }
+
         Provider provider;
         try {
             provider = (Provider) Class.forName(CONSCRYPT_PROVIDER_CLASS).getDeclaredConstructor().newInstance();
@@ -143,7 +152,6 @@ public class SecurityUtility {
         // contains the workaround.
         try {
             HostnameVerifier hostnameVerifier = new TlsHostnameVerifier();
-            Class<?> conscryptClazz = Class.forName("org.conscrypt.Conscrypt");
             Object wrappedHostnameVerifier = conscryptClazz
                     .getMethod("wrapHostnameVerifier",
                             new Class[]{HostnameVerifier.class}).invoke(null, hostnameVerifier);
@@ -422,11 +430,11 @@ public class SecurityUtility {
     }
 
     public static PrivateKey loadPrivateKeyFromPemFile(String keyFilePath) throws KeyManagementException {
-        PrivateKey privateKey = null;
-
         if (keyFilePath == null || keyFilePath.isEmpty()) {
-            return privateKey;
+            return null;
         }
+
+        PrivateKey privateKey;
 
         try (FileInputStream input = new FileInputStream(keyFilePath)) {
             privateKey = loadPrivateKeyFromPemStream(input);
@@ -438,11 +446,11 @@ public class SecurityUtility {
     }
 
     public static PrivateKey loadPrivateKeyFromPemStream(InputStream inStream) throws KeyManagementException {
-        PrivateKey privateKey = null;
-
         if (inStream == null) {
-            return privateKey;
+            return null;
         }
+
+        PrivateKey privateKey;
 
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(inStream, StandardCharsets.UTF_8))) {
             if (inStream.markSupported()) {

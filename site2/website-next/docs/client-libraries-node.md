@@ -1,12 +1,8 @@
 ---
 id: client-libraries-node
 title: The Pulsar Node.js client
-sidebar_label: Node.js
+sidebar_label: "Node.js"
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 The Pulsar Node.js client can be used to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Node.js.
 
@@ -45,7 +41,6 @@ $ npm install pulsar-client
 ```
 
 :::note
-
 
 Also, this library works only in Node.js 10.x or later because it uses the [`node-addon-api`](https://github.com/nodejs/node-addon-api) module to wrap the C++ library.
 
@@ -125,7 +120,7 @@ Here is an example:
 ```JavaScript
 
 const producer = await client.createProducer({
-  topic: 'my-topic',
+  topic: 'my-topic', // or 'my-tenant/my-namespace/my-topic' to specify topic's tenant and namespace 
 });
 
 await producer.send({
@@ -147,7 +142,7 @@ Pulsar Node.js producers have the following methods available:
 | Method | Description | Return type |
 | :----- | :---------- | :---------- |
 | `send(Object)` | Publishes a [message](#messages) to the producer's topic. When the message is successfully acknowledged by the Pulsar broker, or an error is thrown, the Promise object whose result is the message ID runs executor function. | `Promise<Object>` |
-| `flush()` | Sends message from send queue to Pulser broker. When the message is successfully acknowledged by the Pulsar broker, or an error is thrown, the Promise object runs executor function. | `Promise<null>` |
+| `flush()` | Sends message from send queue to Pulsar broker. When the message is successfully acknowledged by the Pulsar broker, or an error is thrown, the Promise object runs executor function. | `Promise<null>` |
 | `close()` | Closes the producer and releases all resources allocated to it. Once `close()` is called, no more messages are accepted from the publisher. This method returns a Promise object. It runs the executor function when all pending publish requests are persisted by Pulsar. If an error is thrown, no pending writes are retried. | `Promise<null>` |
 | `getProducerName()` | Getter method of the producer name. | `string` |
 | `getTopic()` | Getter method of the name of the topic. | `string` |
@@ -156,7 +151,7 @@ Pulsar Node.js producers have the following methods available:
 
 | Parameter | Description | Default |
 | :-------- | :---------- | :------ |
-| `topic` | The Pulsar [topic](reference-terminology.md#topic) to which the producer publishes messages. | |
+| `topic` | The Pulsar [topic](reference-terminology.md#topic) to which the producer publishes messages. The topic format is `<topic-name>` or `<tenant-name>/<namespace-name>/<topic-name>`. For example, `sample/ns1/my-topic`. | |
 | `producerName` | A name for the producer. If you do not explicitly assign a name, Pulsar automatically generates a globally unique name.  If you choose to explicitly assign a name, it needs to be unique across *all* Pulsar clusters, otherwise the creation operation throws an error. | |
 | `sendTimeoutMs` | When publishing a message to a topic, the producer waits for an acknowledgment from the responsible Pulsar [broker](reference-terminology.md#broker). If a message is not acknowledged within the threshold set by this parameter, an error is thrown. If you set `sendTimeoutMs` to -1, the timeout is set to infinity (and thus removed). Removing the send timeout is recommended when using Pulsar's [message de-duplication](cookbooks-deduplication) feature. | 30000 |
 | `initialSequenceId` | The initial sequence ID of the message. When producer send message, add sequence ID to message. The ID is increased each time to send. | |
@@ -479,6 +474,7 @@ The following static methods are available for the message id object:
 If you want to use the end-to-end encryption feature in the Node.js client, you need to configure `publicKeyPath` and `privateKeyPath` for both producer and consumer.
 
 ```
+
 publicKeyPath: "./public.pem"
 privateKeyPath: "./private.pem"
 
@@ -496,148 +492,151 @@ This section provides step-by-step instructions on how to use the end-to-end enc
 
 1. Create both public and private key pairs.
 
-    **Input**
+   **Input**
 
-    ```shell
-
-    openssl genrsa -out private.pem 2048
-    openssl rsa -in private.pem -pubout -out public.pem
-
-    ```
+   ```shell
+   
+   openssl genrsa -out private.pem 2048
+   openssl rsa -in private.pem -pubout -out public.pem
+   
+   ```
 
 2. Create a producer to send encrypted messages.
 
-    **Input**
+   **Input**
 
-    ```nodejs
+   ```nodejs
+   
+   const Pulsar = require('pulsar-client');
 
-    const Pulsar = require('pulsar-client');
+   (async () => {
+     // Create a client
+     const client = new Pulsar.Client({
+       serviceUrl: 'pulsar://localhost:6650',
+       operationTimeoutSeconds: 30,
+     });
 
-    (async () => {
-      // Create a client
-      const client = new Pulsar.Client({
-        serviceUrl: 'pulsar://localhost:6650',
-        operationTimeoutSeconds: 30,
-      });
+     // Create a producer
+     const producer = await client.createProducer({
+       topic: 'persistent://public/default/my-topic',
+       sendTimeoutMs: 30000,
+       batchingEnabled: true,
+       publicKeyPath: "./public.pem",
+       privateKeyPath: "./private.pem",
+       encryptionKey: "encryption-key"
+     });
 
-      // Create a producer
-      const producer = await client.createProducer({
-        topic: 'persistent://public/default/my-topic',
-        sendTimeoutMs: 30000,
-        batchingEnabled: true,
-        publicKeyPath: "./public.pem",
-        privateKeyPath: "./private.pem",
-        encryptionKey: "encryption-key"
-      });
+     console.log(producer.ProducerConfig)
+     // Send messages
+     for (let i = 0; i < 10; i += 1) {
+       const msg = `my-message-${i}`;
+       producer.send({
+         data: Buffer.from(msg),
+       });
+       console.log(`Sent message: ${msg}`);
+     }
+     await producer.flush();
 
-      console.log(producer.ProducerConfig)
-      // Send messages
-      for (let i = 0; i < 10; i += 1) {
-        const msg = `my-message-${i}`;
-        producer.send({
-          data: Buffer.from(msg),
-        });
-        console.log(`Sent message: ${msg}`);
-      }
-      await producer.flush();
-
-      await producer.close();
-      await client.close();
-    })();
-
-    ```
+     await producer.close();
+     await client.close();
+   })();
+   
+   ```
 
 3. Create a consumer to receive encrypted messages.
 
-    **Input**
+   **Input**
 
-    ```nodejs
+   ```nodejs
+   
+   const Pulsar = require('pulsar-client');
 
-    const Pulsar = require('pulsar-client');
+   (async () => {
+     // Create a client
+     const client = new Pulsar.Client({
+       serviceUrl: 'pulsar://172.25.0.3:6650',
+       operationTimeoutSeconds: 30
+     });
 
-    (async () => {
-      // Create a client
-      const client = new Pulsar.Client({
-        serviceUrl: 'pulsar://172.25.0.3:6650',
-        operationTimeoutSeconds: 30
-      });
+     // Create a consumer
+     const consumer = await client.subscribe({
+       topic: 'persistent://public/default/my-topic',
+       subscription: 'sub1',
+       subscriptionType: 'Shared',
+       ackTimeoutMs: 10000,
+       publicKeyPath: "./public.pem",
+       privateKeyPath: "./private.pem"
+     });
 
-      // Create a consumer
-      const consumer = await client.subscribe({
-        topic: 'persistent://public/default/my-topic',
-        subscription: 'sub1',
-        subscriptionType: 'Shared',
-        ackTimeoutMs: 10000,
-        publicKeyPath: "./public.pem",
-        privateKeyPath: "./private.pem"
-      });
+     console.log(consumer)
+     // Receive messages
+     for (let i = 0; i < 10; i += 1) {
+       const msg = await consumer.receive();
+       console.log(msg.getData().toString());
+       consumer.acknowledge(msg);
+     }
 
-      console.log(consumer)
-      // Receive messages
-      for (let i = 0; i < 10; i += 1) {
-        const msg = await consumer.receive();
-        console.log(msg.getData().toString());
-        consumer.acknowledge(msg);
-      }
-
-      await consumer.close();
-      await client.close();
-    })();
-
-    ```
+     await consumer.close();
+     await client.close();
+   })();
+   
+   ```
 
 4. Run the consumer to receive encrypted messages.
 
-    **Input**
+   **Input**
 
-    ```shell
-
-    node consumer.js
-
-    ```
+   ```shell
+   
+   node consumer.js
+   
+   ```
 
 5. In a new terminal tab, run the producer to produce encrypted messages.
 
-    **Input**
+   **Input**
 
-    ```shell
+   ```shell
+   
+   node producer.js
+   
+   ```
 
-    node producer.js
+   Now you can see the producer sends messages and the consumer receives messages successfully.
 
-    ```
+   **Output**
 
-    Now you can see the producer sends messages and the consumer receives messages successfully.
+   This is from the producer side.
 
-    **Output**
+   ```
+   
+   Sent message: my-message-0
+   Sent message: my-message-1
+   Sent message: my-message-2
+   Sent message: my-message-3
+   Sent message: my-message-4
+   Sent message: my-message-5
+   Sent message: my-message-6
+   Sent message: my-message-7
+   Sent message: my-message-8
+   Sent message: my-message-9
+   
+   ```
 
-    This is from the producer side.
+   This is from the consumer side.
 
-    ```
-    Sent message: my-message-0
-    Sent message: my-message-1
-    Sent message: my-message-2
-    Sent message: my-message-3
-    Sent message: my-message-4
-    Sent message: my-message-5
-    Sent message: my-message-6
-    Sent message: my-message-7
-    Sent message: my-message-8
-    Sent message: my-message-9
+   ```
+   
+   my-message-0
+   my-message-1
+   my-message-2
+   my-message-3
+   my-message-4
+   my-message-5
+   my-message-6
+   my-message-7
+   my-message-8
+   my-message-9
+   
+   ```
 
-    ```
-
-    This is from the consumer side.
-
-    ```
-    my-message-0
-    my-message-1
-    my-message-2
-    my-message-3
-    my-message-4
-    my-message-5
-    my-message-6
-    my-message-7
-    my-message-8
-    my-message-9
-
-    ```

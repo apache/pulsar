@@ -102,4 +102,9 @@ public class TransactionBufferDisable implements TransactionBuffer {
     public TransactionBufferStats getStats() {
         return null;
     }
+
+    @Override
+    public CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxn) {
+        return CompletableFuture.completedFuture(null);
+    }
 }

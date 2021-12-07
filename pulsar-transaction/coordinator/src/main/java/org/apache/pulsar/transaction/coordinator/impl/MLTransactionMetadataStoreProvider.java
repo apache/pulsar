@@ -21,14 +21,11 @@ package org.apache.pulsar.transaction.coordinator.impl;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
-import org.apache.pulsar.transaction.coordinator.TransactionLog;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
 import org.apache.pulsar.transaction.coordinator.TransactionRecoverTracker;
 import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
-import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTrackerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

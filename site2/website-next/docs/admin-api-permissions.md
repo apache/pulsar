@@ -1,7 +1,7 @@
 ---
 id: admin-api-permissions
 title: Managing permissions
-sidebar_label: Permissions
+sidebar_label: "Permissions"
 ---
 
 import Tabs from '@theme/Tabs';
@@ -27,20 +27,7 @@ You can grant permissions to specific roles for lists of operations such as `pro
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 Use the [`grant-permission`](reference-pulsar-admin.md#grant-permission) subcommand and specify a namespace, actions using the `--actions` flag, and a role using the `--role` flag:
@@ -105,6 +92,7 @@ Roles `my.1.role`, `my.2.role`, `my.foo.role`, `my.bar.role`, etc. **cannot** pr
 admin.namespaces().grantPermissionOnNamespace(namespace, role, getAuthActions(actions));
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -115,20 +103,7 @@ You can see which permissions have been granted to which roles in a namespace.
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 Use the [`permissions`](reference-pulsar-admin#permissions) subcommand and specify a namespace:
@@ -141,7 +116,7 @@ $ pulsar-admin namespaces permissions test-tenant/ns1
     "produce",
     "consume"
   ]
-}   
+}
 
 ```
 
@@ -158,6 +133,7 @@ $ pulsar-admin namespaces permissions test-tenant/ns1
 admin.namespaces().getPermissions(namespace);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -168,20 +144,7 @@ You can revoke permissions from specific roles, which means that those roles wil
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 Use the [`revoke-permission`](reference-pulsar-admin.md#revoke-permission) subcommand and specify a namespace and a role using the `--role` flag:
@@ -206,6 +169,7 @@ $ pulsar-admin namespaces revoke-permission test-tenant/ns1 \
 admin.namespaces().revokePermissionsOnNamespace(namespace, role);
 
 ```
+
 </TabItem>
 
 </Tabs>

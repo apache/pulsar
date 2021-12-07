@@ -1,0 +1,21 @@
+{
+    "doc": "this is doc",
+    "namespace": "example.avro",
+    "type": "record",
+    "name": "Company",
+    "fields": [
+        {"name": "name", "type": ["null", "string"]},
+        {"name": "address", "type": ["null", "string"]},
+        {"name": "employees", "type": ["null", {"type": "array", "items": {
+            "type": "record",
+            "name": "Employee",
+            "fields": [
+                {"name": "name", "type": ["null", "string"]},
+                {"name": "age", "type": ["null", "int"]}
+            ]
+        }}]},
+        {"name": "labels", "type": ["null", {"type": "map", "values": "string"}]},
+        {"name": "companyType", "type": ["null", {"type": "enum", "name": "CompanyType", "symbols":
+                    ["companyType1", "companyType2", "companyType3"]}]}
+    ]
+}

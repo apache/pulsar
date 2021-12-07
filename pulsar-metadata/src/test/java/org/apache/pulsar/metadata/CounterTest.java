@@ -58,9 +58,8 @@ public class CounterTest extends BaseMetadataStoreTest {
             // Test doesn't make sense for local memory since we're testing across different instances
             return;
         }
-
-        MetadataStoreExtended store1 = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+        String metadataUrl = urlSupplier.get();
+        MetadataStoreExtended store1 = MetadataStoreExtended.create(metadataUrl, MetadataStoreConfig.builder().build());
 
         CoordinationService cs1 = new CoordinationServiceImpl(store1);
 
@@ -72,13 +71,12 @@ public class CounterTest extends BaseMetadataStoreTest {
         assertNotEquals(l2, l3);
 
         cs1.close();
-        store1.close();;
+        store1.close();
 
         // Delete all the empty container nodes
         zks.checkContainers();
 
-        MetadataStoreExtended store2 = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store2 = MetadataStoreExtended.create(metadataUrl, MetadataStoreConfig.builder().build());
         @Cleanup
         CoordinationService cs2 = new CoordinationServiceImpl(store2);
 

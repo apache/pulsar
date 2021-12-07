@@ -3427,6 +3427,23 @@ public interface Topics {
     CompletableFuture<Set<SubscriptionType>> getSubscriptionTypesEnabledAsync(String topic);
 
     /**
+     * Remove subscription types enabled for a topic.
+     *
+     * @param topic Topic name
+     * @throws PulsarAdminException Unexpected error
+     */
+    @Deprecated
+    void removeSubscriptionTypesEnabled(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove subscription types enabled for a topic asynchronously.
+     *
+     * @param topic Topic name
+     */
+    @Deprecated
+    CompletableFuture<Void> removeSubscriptionTypesEnabledAsync(String topic);
+
+    /**
      * Set topic-subscribe-rate (topic will limit by subscribeRate).
      *
      * @param topic
@@ -3580,4 +3597,86 @@ public interface Topics {
      * @return
      */
     CompletableFuture<Void> setReplicatedSubscriptionStatusAsync(String topic, String subName, boolean enabled);
+
+    /**
+     * Get the replication clusters for a topic.
+     *
+     * @param topic
+     * @param applied
+     * @return
+     * @throws PulsarAdminException
+     */
+    Set<String> getReplicationClusters(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get the replication clusters for a topic asynchronously.
+     *
+     * @param topic
+     * @param applied
+     * @return
+     * @throws PulsarAdminException
+     */
+    CompletableFuture<Set<String>> getReplicationClustersAsync(String topic, boolean applied);
+
+    /**
+     * Set the replication clusters for the topic.
+     *
+     * @param topic
+     * @param clusterIds
+     * @return
+     * @throws PulsarAdminException
+     */
+    void setReplicationClusters(String topic, List<String> clusterIds) throws PulsarAdminException;
+
+    /**
+     * Set the replication clusters for the topic asynchronously.
+     *
+     * @param topic
+     * @param clusterIds
+     * @return
+     * @throws PulsarAdminException
+     */
+    CompletableFuture<Void> setReplicationClustersAsync(String topic, List<String> clusterIds);
+
+    /**
+     * Remove the replication clusters for the topic.
+     *
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    void removeReplicationClusters(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove the replication clusters for the topic asynchronously.
+     *
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    CompletableFuture<Void> removeReplicationClustersAsync(String topic);
+
+    /**
+     * Get replicated subscription status on a topic.
+     *
+     * @param topic topic name
+     * @param subName subscription name
+     * @return a map of replicated subscription status on a topic
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    Map<String, Boolean> getReplicatedSubscriptionStatus(String topic, String subName) throws PulsarAdminException;
+
+    /**
+     * Get replicated subscription status on a topic asynchronously.
+     *
+     * @param topic topic name
+     * @return a map of replicated subscription status on a topic
+     */
+    CompletableFuture<Map<String, Boolean>> getReplicatedSubscriptionStatusAsync(String topic, String subName);
 }

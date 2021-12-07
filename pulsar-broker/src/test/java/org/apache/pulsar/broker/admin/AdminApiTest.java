@@ -670,6 +670,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(admin.tenants().getTenantInfo("prop-xyz"), newTenantAdmin);
 
+        try {
+            admin.tenants().deleteTenant("prop-xyz");
+            fail("should have failed");
+        } catch (PulsarAdminException e) {
+            assertTrue(e instanceof ConflictException);
+            assertEquals(e.getStatusCode(), 409);
+            assertEquals(e.getMessage(), "The tenant still has active namespaces");
+        }
         admin.namespaces().deleteNamespace("prop-xyz/ns1");
         admin.tenants().deleteTenant("prop-xyz");
         assertEquals(admin.tenants().getTenants(), Lists.newArrayList());
@@ -782,9 +790,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
 
         // Force topic creation and namespace being loaded
-        producer = pulsarClient.newProducer(Schema.BYTES).topic("persistent://prop-xyz/use/ns2/my-topic").create();
+        producer = pulsarClient.newProducer(Schema.BYTES).topic("persistent://prop-xyz/ns2/my-topic").create();
         producer.close();
-        admin.topics().delete("persistent://prop-xyz/use/ns2/my-topic");
+        admin.topics().delete("persistent://prop-xyz/ns2/my-topic");
 
         // both unload and delete should succeed for ns2 on other broker with a redirect
         // otheradmin.namespaces().unload("prop-xyz/use/ns2");

@@ -261,7 +261,7 @@ public class TestCmdSources {
         );
     }
 
-    public void testCmdSourceCliMissingArgs(
+    private void testCmdSourceCliMissingArgs(
             String tenant,
             String namespace,
             String name,
@@ -500,7 +500,7 @@ public class TestCmdSources {
         );
     }
 
-    public void testMixCliAndConfigFile(
+    private void testMixCliAndConfigFile(
             String tenant,
             String namespace,
             String name,

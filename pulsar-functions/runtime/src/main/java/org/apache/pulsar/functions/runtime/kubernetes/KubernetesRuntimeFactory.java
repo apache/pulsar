@@ -103,6 +103,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private String narExtractionDirectory;
     private String functionInstanceClassPath;
     private String downloadDirectory;
+    private int gracePeriodSeconds;
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -200,6 +201,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         this.percentMemoryPadding = factoryConfig.getPercentMemoryPadding();
         this.cpuOverCommitRatio = factoryConfig.getCpuOverCommitRatio();
         this.memoryOverCommitRatio = factoryConfig.getMemoryOverCommitRatio();
+        this.gracePeriodSeconds = factoryConfig.getGracePeriodSeconds();
         this.pulsarServiceUrl = StringUtils.isEmpty(factoryConfig.getPulsarServiceUrl())
                 ? workerConfig.getPulsarServiceUrl() : factoryConfig.getPulsarServiceUrl();
         this.pulsarAdminUrl = StringUtils.isEmpty(factoryConfig.getPulsarAdminUrl())
@@ -318,6 +320,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             percentMemoryPadding,
             cpuOverCommitRatio,
             memoryOverCommitRatio,
+            gracePeriodSeconds,
             authProvider,
             authenticationEnabled,
             grpcPort,

@@ -34,18 +34,31 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.impl.ReadOnlyCursorImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.stats.NullStatsProvider;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.raw.RawMessage;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.LongSchemaVersion;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
+import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.Test;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -56,6 +69,8 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -65,6 +80,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 public class TestPulsarRecordCursor extends TestPulsarConnector {
 
@@ -101,7 +117,7 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
                             assertEquals(pulsarRecordCursor.getSlice(i).getBytes(), ((String) fooFunctions.get("field2").apply(count)).getBytes());
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("field3")) {
-                            assertEquals(pulsarRecordCursor.getLong(i), Float.floatToIntBits(((Float) fooFunctions.get("field3").apply(count)).floatValue()));
+                            assertEquals(pulsarRecordCursor.getLong(i), Float.floatToIntBits((Float) fooFunctions.get("field3").apply(count)));
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("field4")) {
                             assertEquals(pulsarRecordCursor.getDouble(i), ((Double) fooFunctions.get("field4").apply(count)).doubleValue());
@@ -323,8 +339,13 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
 
                                     MessageMetadata messageMetadata =
                                             new MessageMetadata()
-                                                    .setProducerName("test-producer").setSequenceId(positions.get(topic))
+                                                    .setProducerName("test-producer")
+                                                    .setSequenceId(positions.get(topic))
                                                     .setPublishTime(System.currentTimeMillis());
+
+                                    if (i % 2 == 0) {
+                                        messageMetadata.setSchemaVersion(new LongSchemaVersion(1L).bytes());
+                                    }
 
                                     if (KeyValueEncodingType.SEPARATED.equals(schema.getKeyValueEncodingType())) {
                                         messageMetadata
@@ -380,7 +401,7 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
         PulsarSplit split = new PulsarSplit(0, pulsarConnectorId.toString(),
                 topicName.getNamespace(), topicName.getLocalName(), topicName.getLocalName(),
                 entriesNum,
-                new String(schema.getSchemaInfo().getSchema()),
+                new String(schema.getSchemaInfo().getSchema(),  "ISO8859-1"),
                 schema.getSchemaInfo().getType(),
                 0, entriesNum,
                 0, 0, TupleDomain.all(),
@@ -414,6 +435,88 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
         private String field1;
         private Boolean field2;
         private Double field3;
+    }
+
+    @Test
+    public void testGetSchemaInfo() throws Exception {
+        String topic = "get-schema-test";
+        PulsarSplit pulsarSplit = Mockito.mock(PulsarSplit.class);
+        Mockito.when(pulsarSplit.getTableName()).thenReturn(TopicName.get(topic).getLocalName());
+        Mockito.when(pulsarSplit.getSchemaName()).thenReturn("public/default");
+        PulsarAdmin pulsarAdmin = Mockito.mock(PulsarAdmin.class);
+        Schemas schemas = Mockito.mock(Schemas.class);
+        Mockito.when(pulsarAdmin.schemas()).thenReturn(schemas);
+        PulsarConnectorConfig connectorConfig = spy(new PulsarConnectorConfig());
+        Mockito.when(connectorConfig.getPulsarAdmin()).thenReturn(pulsarAdmin);
+        PulsarRecordCursor pulsarRecordCursor = spy(new PulsarRecordCursor(
+                new ArrayList<>(), pulsarSplit, connectorConfig, Mockito.mock(ManagedLedgerFactory.class),
+                new ManagedLedgerConfig(), null, null));
+
+        Class<PulsarRecordCursor> clazz =  PulsarRecordCursor.class;
+        Method getSchemaInfo = clazz.getDeclaredMethod("getSchemaInfo", PulsarSplit.class);
+        getSchemaInfo.setAccessible(true);
+        Field currentMessage = clazz.getDeclaredField("currentMessage");
+        currentMessage.setAccessible(true);
+        RawMessage rawMessage = Mockito.mock(RawMessage.class);
+        currentMessage.set(pulsarRecordCursor, rawMessage);
+
+        // If the schemaType of pulsarSplit is NONE or BYTES, using bytes schema
+        Mockito.when(pulsarSplit.getSchemaType()).thenReturn(SchemaType.NONE);
+        SchemaInfo schemaInfo = (SchemaInfo) getSchemaInfo.invoke(pulsarRecordCursor, pulsarSplit);
+        assertEquals(SchemaType.BYTES, schemaInfo.getType());
+
+        Mockito.when(pulsarSplit.getSchemaType()).thenReturn(SchemaType.BYTES);
+        schemaInfo = (SchemaInfo) getSchemaInfo.invoke(pulsarRecordCursor, pulsarSplit);
+        assertEquals(SchemaType.BYTES, schemaInfo.getType());
+
+        Mockito.when(pulsarSplit.getSchemaName()).thenReturn(Schema.BYTEBUFFER.getSchemaInfo().getName());
+        schemaInfo = (SchemaInfo) getSchemaInfo.invoke(pulsarRecordCursor, pulsarSplit);
+        assertEquals(SchemaType.BYTES, schemaInfo.getType());
+
+        // If the schemaVersion of the message is not null, try to get the schema.
+        Mockito.when(pulsarSplit.getSchemaType()).thenReturn(SchemaType.AVRO);
+        Mockito.when(rawMessage.getSchemaVersion()).thenReturn(new LongSchemaVersion(0).bytes());
+        Mockito.when(schemas.getSchemaInfo(anyString(), eq(0L)))
+                .thenReturn(Schema.AVRO(Foo.class).getSchemaInfo());
+        schemaInfo = (SchemaInfo) getSchemaInfo.invoke(pulsarRecordCursor, pulsarSplit);
+        assertEquals(SchemaType.AVRO, schemaInfo.getType());
+
+        String schemaTopic = "persistent://public/default/" + topic;
+
+        // If the schemaVersion of the message is null and the schema of pulsarSplit is null, throw runtime exception.
+        Mockito.when(pulsarSplit.getSchemaInfo()).thenReturn(null);
+        Mockito.when(rawMessage.getSchemaVersion()).thenReturn(null);
+        try {
+            schemaInfo = (SchemaInfo) getSchemaInfo.invoke(pulsarRecordCursor, pulsarSplit);
+            fail("The message schema version is null and the latest schema is null, should fail.");
+        } catch (InvocationTargetException e) {
+            assertTrue(e.getCause() instanceof RuntimeException);
+            assertTrue(e.getCause().getMessage().contains("schema of the table " + topic + " is null"));
+        }
+
+        // If the schemaVersion of the message is null, try to get the latest schema.
+        Mockito.when(rawMessage.getSchemaVersion()).thenReturn(null);
+        Mockito.when(pulsarSplit.getSchemaInfo()).thenReturn(Schema.AVRO(Foo.class).getSchemaInfo());
+        schemaInfo = (SchemaInfo) getSchemaInfo.invoke(pulsarRecordCursor, pulsarSplit);
+        assertEquals(Schema.AVRO(Foo.class).getSchemaInfo(), schemaInfo);
+
+        // If the specific version schema is null, throw runtime exception.
+        Mockito.when(rawMessage.getSchemaVersion()).thenReturn(new LongSchemaVersion(1L).bytes());
+        Mockito.when(schemas.getSchemaInfo(schemaTopic, 1)).thenReturn(null);
+        try {
+            schemaInfo = (SchemaInfo) getSchemaInfo.invoke(pulsarRecordCursor, pulsarSplit);
+            fail("The specific version " + 1 + " schema is null, should fail.");
+        } catch (InvocationTargetException e) {
+            String schemaVersion = BytesSchemaVersion.of(new LongSchemaVersion(1L).bytes()).toString();
+            assertTrue(e.getCause() instanceof RuntimeException);
+            assertTrue(e.getCause().getMessage().contains("schema of the topic " + schemaTopic + " is null"));
+        }
+
+        // Get the specific version schema.
+        Mockito.when(rawMessage.getSchemaVersion()).thenReturn(new LongSchemaVersion(2L).bytes());
+        Mockito.when(schemas.getSchemaInfo(schemaTopic, 2)).thenReturn(Schema.AVRO(Foo.class).getSchemaInfo());
+        schemaInfo = (SchemaInfo) getSchemaInfo.invoke(pulsarRecordCursor, pulsarSplit);
+        assertEquals(Schema.AVRO(Foo.class).getSchemaInfo(), schemaInfo);
     }
 
 }

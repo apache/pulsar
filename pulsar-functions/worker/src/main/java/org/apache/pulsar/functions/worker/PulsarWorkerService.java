@@ -45,7 +45,6 @@ import org.apache.distributedlog.api.namespace.NamespaceBuilder;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -55,12 +54,10 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.policies.path.PolicyPath;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImplV2;
@@ -188,7 +185,6 @@ public class PulsarWorkerService implements WorkerService {
         );
     }
 
-    @VisibleForTesting
     public void init(WorkerConfig workerConfig,
                      URI dlogUri,
                      boolean runAsStandalone) {
@@ -305,7 +301,6 @@ public class PulsarWorkerService implements WorkerService {
         String tenant = a[0];
         String cluster = workerConfig.getPulsarFunctionsCluster();
 
-        int[] ar = null;
         /*
         multiple brokers may be trying to create the property, cluster, and namespace
         for function worker service this in parallel. The function worker service uses the namespace
@@ -500,7 +495,7 @@ public class PulsarWorkerService implements WorkerService {
             leaderService.start();
 
             // initialize function metadata manager
-            log.info("/** Initializing Metdata Manager **/");
+            log.info("/** Initializing Metadata Manager **/");
             functionMetaDataManager.initialize();
 
             // initialize function runtime manager
@@ -524,7 +519,7 @@ public class PulsarWorkerService implements WorkerService {
             functionAssignmentTailer.startFromMessage(lastAssignmentMessageId);
 
             // start function metadata manager
-            log.info("/** Starting Metdata Manager **/");
+            log.info("/** Starting Metadata Manager **/");
             functionMetaDataManager.start();
 
             // Starting cluster services

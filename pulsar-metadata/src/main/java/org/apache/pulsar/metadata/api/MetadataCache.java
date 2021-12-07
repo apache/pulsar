@@ -148,4 +148,11 @@ public interface MetadataCache<T> {
      * @param path the path of the object in the metadata store
      */
     void invalidate(String path);
+
+    /**
+     * Invalidate and reload an object in the metadata cache.
+     *
+     * @param path the path of the object in the metadata store
+     */
+    void refresh(String path);
 }

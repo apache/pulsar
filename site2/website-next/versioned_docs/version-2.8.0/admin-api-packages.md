@@ -1,7 +1,7 @@
 ---
 id: admin-api-packages
 title: Manage packages
-sidebar_label: Packages
+sidebar_label: "Packages"
 original_id: admin-api-packages
 ---
 
@@ -76,25 +76,12 @@ You can upload a package to the package management service in the following ways
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "JAVA",
-    "value": "JAVA"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
 
-bin/pulsar-admin packages upload functions://public/default/example@v0.1 --path package-file --description package-description
+bin/pulsar-admin packages upload function://public/default/example@v0.1 --path package-file --description package-description
 
 ```
 
@@ -105,6 +92,7 @@ bin/pulsar-admin packages upload functions://public/default/example@v0.1 --path 
 
 </TabItem>
 <TabItem value="JAVA">
+
 Upload a package to the package management service synchronously.
 
 ```java
@@ -112,6 +100,7 @@ Upload a package to the package management service synchronously.
    void upload(PackageMetadata metadata, String packageName, String path) throws PulsarAdminException;
 
 ```
+
 Upload a package to the package management service asynchronously.
 
 ```java
@@ -119,6 +108,7 @@ Upload a package to the package management service asynchronously.
    CompletableFuture<Void> uploadAsync(PackageMetadata metadata, String packageName, String path);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -128,25 +118,12 @@ You can download a package to the package management service in the following wa
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "JAVA",
-    "value": "JAVA"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
 
-bin/pulsar-admin packages download functions://public/default/example@v0.1 --path package-file
+bin/pulsar-admin packages download function://public/default/example@v0.1 --path package-file
 
 ```
 
@@ -157,6 +134,7 @@ bin/pulsar-admin packages download functions://public/default/example@v0.1 --pat
 
 </TabItem>
 <TabItem value="JAVA">
+
 Download a package to the package management service synchronously.
 
 ```java
@@ -172,6 +150,7 @@ Download a package to the package management service asynchronously.
    CompletableFuture<Void> downloadAsync(String packageName, String path);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -180,20 +159,7 @@ Download a package to the package management service asynchronously.
 You can get a list of all versions of a package in the following ways.
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "JAVA",
-    "value": "JAVA"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -209,6 +175,7 @@ bin/pulsar-admin packages list --type function public/default
 
 </TabItem>
 <TabItem value="JAVA">
+
 List all versions of a package synchronously.
 
 ```java
@@ -216,6 +183,7 @@ List all versions of a package synchronously.
    List<String> listPackageVersions(String packageName) throws PulsarAdminException;
 
 ```
+
 List all versions of a package asynchronously.
 
 ```java
@@ -223,6 +191,7 @@ List all versions of a package asynchronously.
    CompletableFuture<List<String>> listPackageVersionsAsync(String packageName);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -231,20 +200,7 @@ List all versions of a package asynchronously.
 You can get a list of all the packages with the given type in a namespace in the following ways.
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "JAVA",
-    "value": "JAVA"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -260,6 +216,7 @@ bin/pulsar-admin packages list --type function public/default
 
 </TabItem>
 <TabItem value="JAVA">
+
 List all the packages with the given type in a namespace synchronously.
 
 ```java
@@ -267,6 +224,7 @@ List all the packages with the given type in a namespace synchronously.
    List<String> listPackages(String type, String namespace) throws PulsarAdminException;
 
 ```
+
 List all the packages with the given type in a namespace asynchronously.
 
 ```java
@@ -274,6 +232,7 @@ List all the packages with the given type in a namespace asynchronously.
    CompletableFuture<List<String>> listPackagesAsync(String type, String namespace);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -283,20 +242,7 @@ You can get the metadata of a package in the following ways.
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "JAVA",
-    "value": "JAVA"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -312,6 +258,7 @@ bin/pulsar-admin packages get-metadata function://public/default/test@v1
 
 </TabItem>
 <TabItem value="JAVA">
+
 Get the metadata of a package synchronously.
 
 ```java
@@ -319,6 +266,7 @@ Get the metadata of a package synchronously.
    PackageMetadata getMetadata(String packageName) throws PulsarAdminException;
 
 ```
+
 Get the metadata of a package asynchronously.
 
 ```java
@@ -326,6 +274,7 @@ Get the metadata of a package asynchronously.
    CompletableFuture<PackageMetadata> getMetadataAsync(String packageName);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -334,20 +283,7 @@ Get the metadata of a package asynchronously.
 You can update the metadata of a package in the following ways.
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "JAVA",
-    "value": "JAVA"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -363,6 +299,7 @@ bin/pulsar-admin packages update-metadata function://public/default/example@v0.1
 
 </TabItem>
 <TabItem value="JAVA">
+
 Update a package metadata information synchronously.
 
 ```java
@@ -370,6 +307,7 @@ Update a package metadata information synchronously.
    void updateMetadata(String packageName, PackageMetadata metadata) throws PulsarAdminException;
 
 ```
+
 Update a package metadata information asynchronously.
 
 ```java
@@ -377,6 +315,7 @@ Update a package metadata information asynchronously.
    CompletableFuture<Void> updateMetadataAsync(String packageName, PackageMetadata metadata);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -386,26 +325,14 @@ You can delete a specified package with its package name in the following ways.
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "JAVA",
-    "value": "JAVA"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
 <TabItem value="pulsar-admin">
+
 The following command example deletes a package of version 0.1.
 
 ```shell
 
-bin/pulsar-admin packages delete functions://public/default/example@v0.1
+bin/pulsar-admin packages delete function://public/default/example@v0.1
 
 ```
 
@@ -416,6 +343,7 @@ bin/pulsar-admin packages delete functions://public/default/example@v0.1
 
 </TabItem>
 <TabItem value="JAVA">
+
 Delete a specified package synchronously.
 
 ```java
@@ -423,6 +351,7 @@ Delete a specified package synchronously.
    void delete(String packageName) throws PulsarAdminException;
 
 ```
+
 Delete a specified package asynchronously.
 
 ```java
@@ -430,6 +359,7 @@ Delete a specified package asynchronously.
    CompletableFuture<Void> deleteAsync(String packageName);
 
 ```
+
 </TabItem>
 
 </Tabs>
