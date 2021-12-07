@@ -900,7 +900,7 @@
 <tr><td>brokerServiceUrl</td><td>集群的Pulsar 协议地址。</td><td><a href="pulsar://localhost:6650/">pulsar://localhost:6650/</a></td></tr>
 <tr><td>authPlugin</td><td>身份认证插件。</td><td></td></tr>
 <tr><td>authParams</td><td>群集的身份认证参数, 逗号分隔的字符串。</td><td></td></tr>
-<tr><td>useTls</td><td>Whether to enforce the TLS authentication in the cluster.</td><td>false</td></tr>
+<tr><td>useTls</td><td>是否在集群中执行 TLS 身份验证。</td><td>false</td></tr>
 <tr><td>tlsAllowInsecureConnection</td><td>Allow TLS connections to servers whose certificate cannot be verified to have been signed by a trusted certificate authority.</td><td>false</td></tr>
 <tr><td>tlsEnableHostnameVerification</td><td>Whether the server hostname must match the common name of the certificate that is used by the server.</td><td>false</td></tr>
 <tr><td>tlsTrustCertsFilePath</td><td></td><td></td></tr>
@@ -935,7 +935,7 @@
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="log4j"></a><a href="#log4j" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Log4j</h2>
-<p>You can set the log level and configuration in the  <a href="https://github.com/apache/pulsar/blob/d557e0aa286866363bc6261dec87790c055db1b0/conf/log4j2.yaml#L155">log4j2.yaml</a> file. The following logging configuration parameters are available.</p>
+<p>您可以在 <a href="https://github.com/apache/pulsar/blob/d557e0aa286866363bc6261dec87790c055db1b0/conf/log4j2.yaml#L155">log4j2.yaml</a> 文件中设置日志级别和配置。 以下日志配置参数是可用的：</p>
 <table>
 <thead>
 <tr><th>配置项</th><th>默认值</th></tr>
