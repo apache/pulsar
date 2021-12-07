@@ -20,13 +20,13 @@ package org.apache.pulsar.client.impl;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import io.netty.util.HashedWheelTimer;
 import io.netty.util.Recycler;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
+import io.netty.util.Timer;
 import io.netty.util.TimerTask;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.HashMap;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -63,10 +63,8 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     private final ConcurrentLongHashMap<OpBase<?>> pendingRequests =
         new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLinkedQueue<RequestTime> timeoutQueue;
-    protected final Backoff backOff = new Backoff(100, TimeUnit.MILLISECONDS, 3, TimeUnit.SECONDS, 10,
-            TimeUnit.SECONDS);
 
-    protected final ScheduledExecutorService executors = Executors.newScheduledThreadPool(5);
+     protected final Timer timer = new HashedWheelTimer();
 
     private static class RequestTime {
         final long creationTimeMs;
@@ -188,7 +186,10 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         }
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newTxn(transactionCoordinatorId, requestId, unit.toMillis(timeout));
-        OpForTxnIdCallBack op = OpForTxnIdCallBack.create(cmd, callback);
+        HashMap<String, Object> requestArgs = new HashMap<>();
+        requestArgs.put("timeout", timeout);
+        requestArgs.put("unit", unit);
+        OpForTxnIdCallBack op = OpForTxnIdCallBack.create(cmd, callback, requestArgs);
         pendingRequests.put(requestId, op);
         timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
         cmd.retain();
@@ -197,8 +198,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     }
 
     void handleNewTxnResponse(CommandNewTxnResponse response) {
-        long requestId = response.getRequestId();
-        OpForTxnIdCallBack op = (OpForTxnIdCallBack) pendingRequests.remove(requestId);
+        OpForTxnIdCallBack op = (OpForTxnIdCallBack) pendingRequests.remove(response.getRequestId());
         if (op == null) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Got new txn response for timeout {} - {}", response.getTxnidMostBits(),
@@ -208,10 +208,9 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         }
 
         if (!response.hasError()) {
-            backOff.reset();
             TxnID txnID = new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits());
             if (LOG.isDebugEnabled()) {
-                LOG.debug("Got new txn response {} for request {}", txnID, requestId);
+                LOG.debug("Got new txn response {} for request {}", txnID, response.getRequestId());
             }
             op.callback.complete(txnID);
         } else {
@@ -219,13 +218,15 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             if (response.getError() == ServerError.TransactionCoordinatorNotFound) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Get a response for request {} error TransactionCoordinatorNotFound and try it again",
-                            requestId);
+                            response.getRequestId());
                 }
-                long waitTimes = backOff.next();
-                executors.schedule(() -> {
-                    tryExecuteCommandAgain(requestId, op);
-                }, waitTimes, TimeUnit.MILLISECONDS);
-                semaphore.release();
+                timer.newTimeout(timeout -> {
+                    long requestId = client.newRequestId();
+                    TimeUnit unit = (TimeUnit) op.requestArgs.get("unit");
+                    ByteBuf cmd = Commands.newTxn(transactionCoordinatorId, requestId,
+                            unit.toMillis((Long) op.requestArgs.get("timeout")));
+                    tryExecuteCommandAgain(op, requestId, cmd);
+                }, op.backoff.next(), TimeUnit.MILLISECONDS);
                 return;
             } else {
                 LOG.error("Got new txn for request {} error {}", response.getRequestId(), response.getError());
@@ -247,7 +248,10 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newAddPartitionToTxn(
                 requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), partitions);
-        OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback);
+        HashMap<String, Object> requestArgs = new HashMap<>();
+        requestArgs.put("txnID", txnID);
+        requestArgs.put("partitions", partitions);
+        OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback, requestArgs);
         pendingRequests.put(requestId, op);
         timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
         cmd.retain();
@@ -256,8 +260,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     }
 
     void handleAddPublishPartitionToTxnResponse(CommandAddPartitionToTxnResponse response) {
-        long requestId = response.getRequestId();
-        OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(requestId);
+        OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(response.getRequestId());
         if (op == null) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Got add publish partition to txn response for timeout {} - {}", response.getTxnidMostBits(),
@@ -267,9 +270,8 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         }
 
         if (!response.hasError()) {
-            backOff.reset();
             if (LOG.isDebugEnabled()) {
-                LOG.debug("Add publish partition for request {} success.", requestId);
+                LOG.debug("Add publish partition for request {} success.", response.getRequestId());
             }
             op.callback.complete(null);
         } else {
@@ -277,16 +279,19 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             if (response.getError() == ServerError.TransactionCoordinatorNotFound) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Get a response for request {} error TransactionCoordinatorNotFound and try it again",
-                            requestId);
+                            response.getRequestId());
                 }
-                long waitTimes = backOff.next();
-                executors.schedule(() -> {
-                    tryExecuteCommandAgain(requestId, op);
-                }, waitTimes, TimeUnit.MILLISECONDS);
-                semaphore.release();
+                timer.newTimeout(timeout -> {
+                    long requestId = client.newRequestId();
+                    TxnID txnID = (TxnID) op.requestArgs.get("txnID");
+                    List<String> partitions = (List<String>) op.requestArgs.get("partitions");
+                    ByteBuf cmd = Commands.newAddPartitionToTxn(
+                            requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), partitions);
+                    tryExecuteCommandAgain(op, requestId, cmd);
+                }, op.backoff.next(), TimeUnit.MILLISECONDS);
                 return;
             } else {
-                LOG.error("Add publish partition for request {} error {}.", requestId, response.getError());
+                LOG.error("Add publish partition for request {} error {}.", response.getRequestId(), response.getError());
             }
         }
 
@@ -306,7 +311,10 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newAddSubscriptionToTxn(
                 requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), subscriptionList);
-        OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback);
+        HashMap<String, Object> requestArgs = new HashMap<>();
+        requestArgs.put("txnID", txnID);
+        requestArgs.put("subscriptionList", subscriptionList);
+        OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback, requestArgs);
         pendingRequests.put(requestId, op);
         timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
         cmd.retain();
@@ -315,19 +323,17 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     }
 
     public void handleAddSubscriptionToTxnResponse(CommandAddSubscriptionToTxnResponse response) {
-        long requestId = response.getRequestId();
-        OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(requestId);
+        OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(response.getRequestId());
         if (op == null) {
             if (LOG.isDebugEnabled()) {
-                LOG.debug("Add subscription to txn timeout for request {}.", requestId);
+                LOG.debug("Add subscription to txn timeout for request {}.", response.getRequestId());
             }
             return;
         }
 
         if (!response.hasError()) {
-            backOff.reset();
             if (LOG.isDebugEnabled()) {
-                LOG.debug("Add subscription to txn success for request {}.", requestId);
+                LOG.debug("Add subscription to txn success for request {}.", response.getRequestId());
             }
             op.callback.complete(null);
         } else {
@@ -337,13 +343,16 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             if (response.getError() == ServerError.TransactionCoordinatorNotFound) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Get a response for request {} error TransactionCoordinatorNotFound and try it again",
-                            requestId);
+                            response.getRequestId());
                 }
-                long waitTimes = backOff.next();
-                executors.schedule(() -> {
-                    tryExecuteCommandAgain(requestId, op);
-                }, waitTimes, TimeUnit.MILLISECONDS);
-                semaphore.release();
+                timer.newTimeout(timeout -> {
+                    long requestId = client.newRequestId();
+                    TxnID txnID = (TxnID) op.requestArgs.get("txnID");
+                    List<Subscription> subscriptionList = (List<Subscription>) op.requestArgs.get("subscriptionList");
+                    ByteBuf cmd = Commands.newAddSubscriptionToTxn(
+                            requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), subscriptionList);
+                    tryExecuteCommandAgain(op, requestId, cmd);
+                }, op.backoff.next(), TimeUnit.MILLISECONDS);
                 return;
             } else {
                 LOG.error("Add subscription to txn failed for request {} error {}.",
@@ -365,7 +374,10 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         long requestId = client.newRequestId();
         BaseCommand cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), action);
         ByteBuf buf = Commands.serializeWithSize(cmd);
-        OpForVoidCallBack op = OpForVoidCallBack.create(buf, callback);
+        HashMap<String, Object> requestArgs = new HashMap<>();
+        requestArgs.put("txnID", txnID);
+        requestArgs.put("action", action);
+        OpForVoidCallBack op = OpForVoidCallBack.create(buf, callback, requestArgs);
         pendingRequests.put(requestId, op);
         timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
         buf.retain();
@@ -374,8 +386,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     }
 
     void handleEndTxnResponse(CommandEndTxnResponse response) {
-        long requestId = response.getRequestId();
-        OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(requestId);
+        OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(response.getRequestId());
         if (op == null) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Got end txn response for timeout {} - {}", response.getTxnidMostBits(),
@@ -385,9 +396,8 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         }
 
         if (!response.hasError()) {
-            backOff.reset();
             if (LOG.isDebugEnabled()) {
-                LOG.debug("Got end txn response success for request {}", requestId);
+                LOG.debug("Got end txn response success for request {}", response.getRequestId());
             }
             op.callback.complete(null);
         } else {
@@ -395,40 +405,35 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             if (response.getError() == ServerError.TransactionCoordinatorNotFound) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Get a response for request {} error TransactionCoordinatorNotFound and try it again",
-                            requestId);
+                            response.getRequestId());
                 }
-                long waitTimes = backOff.next();
-                executors.schedule(() -> {
-                    tryExecuteCommandAgain(requestId, op);
-                }, waitTimes, TimeUnit.MILLISECONDS);
-                semaphore.release();
+                timer.newTimeout(timeout -> {
+                    long requestId = client.newRequestId();
+                    TxnID txnID = (TxnID) op.requestArgs.get("txnID");
+                    TxnAction action = (TxnAction) op.requestArgs.get("action");
+                    BaseCommand cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(),
+                            txnID.getMostSigBits(), action);
+                    tryExecuteCommandAgain(op, requestId, Commands.serializeWithSize(cmd));
+                }, op.backoff.next(), TimeUnit.MILLISECONDS);
                 return;
             } else {
                 LOG.error("Got end txn response for request {} error {}", response.getRequestId(), response.getError());
             }
         }
-
         onResponse(op);
     }
 
-    private <T> void tryExecuteCommandAgain(long requestId, OpBase<T> op) {
+    private <T> void tryExecuteCommandAgain(OpBase<T> op, long requestId, ByteBuf buf) {
         if (cnx() == null) {
-            long waitTimes = backOff.next();
-            executors.schedule(() -> {
-                tryExecuteCommandAgain(requestId, op);
-            }, waitTimes, TimeUnit.MILLISECONDS);
+            timer.newTimeout(timeout ->
+                    tryExecuteCommandAgain(op, requestId, buf), op.backoff.next(), TimeUnit.MILLISECONDS);
             return;
         }
-        timeoutQueue.forEach(requestTime -> {
-            if (requestTime.requestId == requestId) {
-             timeoutQueue.remove(requestTime);
-            }
-        });
+        op.cmd.release();
+        op.cmd = buf;
         pendingRequests.put(requestId, op);
         timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-        ByteBuf buf = op.cmd;
-        buf.retain();
-        cnx().ctx().writeAndFlush(buf, cnx().ctx().voidPromise());
+        cnx().ctx().writeAndFlush(op.cmd, cnx().ctx().voidPromise());
     }
 
     private void handleTransactionFailOp(ServerError error, String message, OpBase<?> op) {
@@ -445,16 +450,20 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     private static abstract class OpBase<T> {
         protected ByteBuf cmd;
         protected CompletableFuture<T> callback;
+        protected Backoff backoff = new Backoff(100, TimeUnit.MILLISECONDS, 3, TimeUnit.SECONDS, 10,
+                TimeUnit.SECONDS);
+        protected HashMap<String, Object> requestArgs;
 
         abstract void recycle();
     }
 
     private static class OpForTxnIdCallBack extends OpBase<TxnID> {
 
-        static OpForTxnIdCallBack create(ByteBuf cmd, CompletableFuture<TxnID> callback) {
+        static OpForTxnIdCallBack create(ByteBuf cmd, CompletableFuture<TxnID> callback, HashMap<String, Object> requestArgs) {
             OpForTxnIdCallBack op = RECYCLER.get();
             op.callback = callback;
             op.cmd = cmd;
+            op.requestArgs = requestArgs;
             return op;
         }
 
@@ -478,10 +487,11 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
 
     private static class OpForVoidCallBack extends OpBase<Void> {
 
-        static OpForVoidCallBack create(ByteBuf cmd, CompletableFuture<Void> callback) {
+        static OpForVoidCallBack create(ByteBuf cmd, CompletableFuture<Void> callback, HashMap<String, Object> requestArgs) {
             OpForVoidCallBack op = RECYCLER.get();
             op.callback = callback;
             op.cmd = cmd;
+            op.requestArgs = requestArgs;
             return op;
         }
         private OpForVoidCallBack(Recycler.Handle<OpForVoidCallBack> recyclerHandle) {
