@@ -285,7 +285,7 @@ class Download extends React.Component {
                           <a href={`${info.srcArchiveUrl}.${sha}`}>{`${sha}`}</a>)
                           </td>
                           <td>
-                          <a href={`${siteConfig.baseUrl}${this.props.language}/release-notes#${info.version}`}><translate>Release Notes</translate></a>
+                          <a href={`${siteConfig.baseUrl}${this.props.language}/release-notes#${info.version.replace(/\./g,'')}`}><translate>Release Notes</translate></a>
                           </td>
                           </tr>
                       )
