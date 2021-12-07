@@ -53,6 +53,7 @@ import org.eclipse.jetty.client.ProtocolHandlers;
 import org.eclipse.jetty.client.RedirectProtocolHandler;
 import org.eclipse.jetty.client.api.ContentProvider;
 import org.eclipse.jetty.client.api.Request;
+import org.eclipse.jetty.client.http.HttpClientTransportOverHTTP;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.proxy.ProxyServlet;
 import org.eclipse.jetty.util.HttpCookieStore;
@@ -209,12 +210,14 @@ class AdminProxyHandler extends ProxyServlet {
     }
 
     private static class JettyHttpClient extends HttpClient {
+        private static final int NUMBER_OF_SELECTOR_THREADS = 1;
+
         public JettyHttpClient() {
-            super();
+            super(new HttpClientTransportOverHTTP(NUMBER_OF_SELECTOR_THREADS), null);
         }
 
         public JettyHttpClient(SslContextFactory sslContextFactory) {
-            super(sslContextFactory);
+            super(new HttpClientTransportOverHTTP(NUMBER_OF_SELECTOR_THREADS), sslContextFactory);
         }
 
         /**
