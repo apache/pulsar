@@ -199,6 +199,7 @@ public class ClientErrorsTest {
         // and triggers sending CloseProducer.
         Awaitility.await().until(() -> closeProducerCounter.get() == 1);
         mockBrokerService.resetHandleProducer();
+        mockBrokerService.resetHandleCloseProducer();
     }
 
     @Test
@@ -215,28 +216,37 @@ public class ClientErrorsTest {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(mockBrokerService.getBrokerAddress())
                 .operationTimeout(1, TimeUnit.SECONDS).build();
-        final AtomicInteger counter = new AtomicInteger(0);
+        final AtomicInteger producerCounter = new AtomicInteger(0);
         final AtomicInteger closeProducerCounter = new AtomicInteger(0);
 
         mockBrokerService.setHandleProducer((ctx, producer) -> {
-            if (counter.incrementAndGet() == 1) {
+            int producerCount = producerCounter.incrementAndGet();
+            if (producerCount == 1) {
                 ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "producer1",
                         SchemaVersion.Empty));
                 // Trigger reconnect
                 ctx.writeAndFlush(Commands.newCloseProducer(producer.getProducerId(), -1));
+            } else if (producerCount != 2) {
+                // Respond to subsequent requests to prevent timeouts
+                ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "producer1",
+                        SchemaVersion.Empty));
             }
-            // Don't respond to other producer commands to ensure timeout
+            // Don't respond to the second Producer command to ensure timeout
         });
 
         mockBrokerService.setHandleCloseProducer((ctx, closeProducer) -> {
             closeProducerCounter.incrementAndGet();
+            ctx.writeAndFlush(Commands.newSuccess(closeProducer.getRequestId()));
         });
 
-        // Create producer should succeed then upon closure, it should reattempt creation. That will always timeout.
+        // Create producer should succeed then upon closure, it should reattempt creation. The first request will
+        // timeout, which triggers CloseProducer. The client might send send the third Producer command before the
+        // below assertion, so we pass with 2 or 3.
         client.newProducer().topic(topic).create();
         Awaitility.await().until(() -> closeProducerCounter.get() == 1);
-        Awaitility.await().until(() -> counter.get() == 2);
+        Awaitility.await().until(() -> producerCounter.get() == 2 || producerCounter.get() == 3);
         mockBrokerService.resetHandleProducer();
+        mockBrokerService.resetHandleCloseProducer();
     }
 
     @Test
