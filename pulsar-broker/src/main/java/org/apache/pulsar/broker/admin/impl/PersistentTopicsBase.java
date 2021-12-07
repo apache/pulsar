@@ -1434,7 +1434,7 @@ public class PersistentTopicsBase extends AdminResource {
             internalDeleteSubscriptionForNonPartitionedTopic(asyncResponse, subName, authoritative);
         } else {
             getPartitionedTopicMetadataAsync(topicName,
-                    authoritative, false).thenAccept(partitionMetadata -> {
+                    authoritative, false).thenAcceptAsync(partitionMetadata -> {
                 if (partitionMetadata.partitions > 0) {
                     final List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
@@ -1476,7 +1476,7 @@ public class PersistentTopicsBase extends AdminResource {
                 } else {
                     internalDeleteSubscriptionForNonPartitionedTopic(asyncResponse, subName, authoritative);
                 }
-            }).exceptionally(ex -> {
+            }, pulsar().getExecutor()).exceptionally(ex -> {
                 log.error("[{}] Failed to delete subscription {} from topic {}",
                         clientAppId(), subName, topicName, ex);
                 resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -3621,15 +3621,14 @@ public class PersistentTopicsBase extends AdminResource {
                     validateAdminAccessForTenant(pulsar,
                             clientAppId, originalPrincipal, topicName.getTenant(), authenticationData);
                 } catch (RestException authException) {
-                    log.warn("Failed to authorize {} on cluster {}", clientAppId, topicName.toString());
+                    log.warn("Failed to authorize {} on topic {}", clientAppId, topicName);
                     throw new PulsarClientException(String.format("Authorization failed %s on topic %s with error %s",
-                            clientAppId, topicName.toString(), authException.getMessage()));
+                            clientAppId, topicName, authException.getMessage()));
                 }
             } catch (Exception ex) {
                 // throw without wrapping to PulsarClientException that considers: unknown error marked as internal
                 // server error
-                log.warn("Failed to authorize {} on cluster {} with unexpected exception {}", clientAppId,
-                        topicName.toString(), ex.getMessage(), ex);
+                log.warn("Failed to authorize {} on topic {}", clientAppId, topicName, ex);
                 throw ex;
             }
 

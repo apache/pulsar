@@ -1,8 +1,9 @@
 
 ## Apache Pulsar Release Notes
 
-### 2.8.1 &mdash; 2021-09-10 <a id=“2.8.1”></a>
+### 2.8.1
 
+#### 2021-09-10
 ### Broker
 - Fix the issue of all web threads get stuck when deleting a namespace [#11596](https://github.com/apache/pulsar/pull/11596)
 - Improve error logs in BacklogQuotaManager [#11469](https://github.com/apache/pulsar/pull/11469)
@@ -240,8 +241,9 @@
 - Refine the key in redis sink when key is null [#11192](https://github.com/apache/pulsar/pull/11192)
 - Change the nar package name for pulsar-io-kafka-connect-adaptor [#10976](https://github.com/apache/pulsar/pull/10976)
 
-### 2.8.0 &mdash; 2021-06-12 <a id=“2.8.0”></a>
+### 2.8.0
 
+#### 2021-06-12
 ### Update notice
 
 Due to a [breaking change in the Schema API](https://github.com/apache/pulsar/pull/10878), it may happen that some Pulsar Functions or Pulsar IO connectors fail to work, 
@@ -670,7 +672,9 @@ For more context about this issue, see [[Pulsar Functions and IO] Cannot upgrade
 - Upgrade BookKeeper to 4.14.1 [#10686](https://github.com/apache/pulsar/pull/10686)
 - [CVE-2021-28169] Upgrade Jetty to 9.4.42.v20210604 [#10907](https://github.com/apache/pulsar/pull/10907)
 
-### 2.6.4 &mdash; 2021-06-02 <a id=“2.6.4”></a>
+### 2.6.4
+
+#### 2021-06-02
 
 #### Broker
 - Disallow parsing of token with none signature in authenticateToken [#9172](https://github.com/apache/pulsar/pull/9172)
@@ -695,7 +699,9 @@ For more context about this issue, see [[Pulsar Functions and IO] Cannot upgrade
 - [C++] Remove namespace check for MultiTopicsConsumerImpl [#9520](https://github.com/apache/pulsar/pull/9520)
 
 
-### 2.7.3 &mdash; 2021-07-27 <a id=“2.7.3”></a>
+### 2.7.3
+
+#### 2021-07-27
 
 #### Broker
 - Fix Delayed Messages. [#11374](https://github.com/apache/pulsar/pull/11374)
@@ -781,7 +787,9 @@ For more context about this issue, see [[Pulsar Functions and IO] Cannot upgrade
 - Process async results in the same Java runnable thread [#10618](https://github.com/apache/pulsar/pull/10618)
 
 
-### 2.7.2 &mdash; 2021-05-11 <a id=“2.7.2”></a>
+### 2.7.2
+
+#### 2021-05-11
 
 #### Broker
 - Fix the useless retry when the maximum number of subscriptions is reached [#9991](https://github.com/apache/pulsar/pull/9991)
@@ -868,7 +876,9 @@ For more context about this issue, see [[Pulsar Functions and IO] Cannot upgrade
 - Prevent Class Loader Leak; Restore Offloader Directory Override [#9878](https://github.com/apache/pulsar/pull/9878)
 - Add logs for cleanup offloaded data operation [#9852](https://github.com/apache/pulsar/pull/9852)
 
-### 2.7.1 &mdash; 2021-03-18 <a id=“2.7.1”></a>
+### 2.7.1
+
+#### 2021-03-18
 
 #### Broker
 
@@ -1043,7 +1053,9 @@ For more context about this issue, see [[Pulsar Functions and IO] Cannot upgrade
 - Offload manager initialization once [#8739](https://github.com/apache/pulsar/pull/8739)
 - Configurable data source for offloaded messages [#8717](https://github.com/apache/pulsar/pull/8717)
 
-### 2.6.3 &mdash; 2021-01-26 <a id=“2.6.3”></a>
+### 2.6.3
+
+#### 2021-01-26
 
 #### Broker
 
@@ -1121,7 +1133,9 @@ For more context about this issue, see [[Pulsar Functions and IO] Cannot upgrade
 - Propagate user-defined parameter into instances of Golang Pulsar Functions [#8132](https://github.com/apache/pulsar/pull/8132)
 - Go functions supports Kubernetes runtime [#8352](https://github.com/apache/pulsar/pull/8352)
 
-### 2.7.0 &mdash; 2020-11-25 <a id=“2.7.0”></a>
+### 2.7.0
+
+#### 2020-11-25
 
 The following lists fixes and enhancements in the 2.7.0 release.
 
@@ -1296,7 +1310,9 @@ The following lists fixes and enhancements in the 2.7.0 release.
 - [Java Client] Fix handling errors for client requests [#8518](https://github.com/apache/pulsar/pull/8518)
 - [C++ Client] Fix potential crash caused by AckGroupTracker's timer [#8519](https://github.com/apache/pulsar/pull/8519)
 
-### 2.6.2 &mdash; 2020-11-09 <a id=“2.6.2”></a>
+### 2.6.2
+
+#### 2020-11-09
 
 The following lists fixes and enhancements in the 2.6.2 release.
 
@@ -1446,7 +1462,9 @@ The following lists fixes and enhancements in the 2.6.2 release.
 - [Tiered Storage] Remove duplicate updates [8198](https://github.com/apache/pulsar/pull/8198)
 - [Tiered Storage] Make the field name in `OffloadPolicies` match with config file [8310](https://github.com/apache/pulsar/pull/8310)
 
-### 2.6.1 &mdash; 2020-08-21 <a id=“2.6.1”></a>
+### 2.6.1
+
+#### 2020-08-21
 
 The following lists fixes and enhancements in 2.6.1 release.
 
@@ -1551,7 +1569,9 @@ The following lists fixes and enhancements in 2.6.1 release.
 
 - [Pulsar Perf] Supports `tlsAllowInsecureConnection` in pulsar-perf produce/consume/read [#7300](https://github.com/apache/pulsar/pull/7300)
 
-### 2.6.0 &mdash; 2020-06-17 <a id=“2.6.0”></a>
+### 2.6.0
+
+#### 2020-06-17
 
 #### Features
 
@@ -1672,7 +1692,9 @@ The following lists fixes and enhancements in 2.6.1 release.
 * [Pulsar SQL] Fix problem with multiple zookeeper address [#6947](https://github.com/apache/pulsar/pull/6947)
 * [Docker] Do not apply env values to pulsar_env.sh and bkenv.sh implicitly [6579](https://github.com/apache/pulsar/pull/6579)
 
-### 2.5.2 &mdash; 2020-05-19 <a id=“2.5.2”></a>
+### 2.5.2
+
+#### 2020-05-19
 
 #### Fixes and Enhancements
 
@@ -1736,7 +1758,9 @@ The following lists fixes and enhancements in 2.6.1 release.
 * [IO] JDBC sink does not handle null in schema [#6848](https://github.com/apache/pulsar/pull/6848)
 
 
-### 2.5.1 &mdash; 2020-04-20 <a id="2.5.1"></a>
+### 2.5.1
+
+#### 2020-04-20
 
 #### Features
 
@@ -1928,7 +1952,9 @@ The following lists fixes and enhancements in 2.6.1 release.
 * [Flink-Connector] Get PulsarClient from cache should always return an open instance [#6436](https://github.com/apache/pulsar/pull/6436)
 
 
-### 2.5.0 &mdash; 2019-12-06 <a id="2.5.0"></a>
+### 2.5.0
+
+#### 2019-12-06
 
 #### PIPs
 
@@ -2064,7 +2090,9 @@ https://github.com/apache/pulsar/milestone/22?closed=1
 
 https://github.com/apache/pulsar/releases/tag/v2.5.0 
 
-### 2.4.2 &mdash; 2019-12-04 <a id="2.4.2"></a>
+### 2.4.2
+
+#### 2019-12-04
 
 #### Fixes
 
@@ -2163,7 +2191,9 @@ https://github.com/apache/pulsar/releases/tag/v2.5.0
 * Remove failed stale producer from the connection [#4741](https://github.com/apache/pulsar/pull/4741)
 * Update logic for picking active consumer for failover subscription on non-partitioned topic [#4604](https://github.com/apache/pulsar/pull/4604)
 
-### 2.4.1 &mdash; 2019-08-30 <a id="2.4.1"></a>
+### 2.4.1
+
+#### 2019-08-30
 
 #### Fixes
 
@@ -2256,7 +2286,9 @@ https://github.com/apache/pulsar/releases/tag/v2.5.0
 
 
 
-### 2.4.0 &mdash; 2019-06-30 <a id="2.4.0"></a>
+### 2.4.0
+
+#### 2019-06-30
 
 #### PIPs
 
@@ -2389,7 +2421,9 @@ https://github.com/apache/pulsar/milestone/20?closed=1
 
 https://github.com/apache/pulsar/releases/tag/v2.4.0
 
-### 2.3.2 &mdash; 2019-05-30 <a id="2.3.2"></a>
+### 2.3.2
+
+#### 2019-05-30
 
 #### Fixes
 
@@ -2435,7 +2469,9 @@ https://github.com/apache/pulsar/releases/tag/v2.4.0
 * [pulsar-broker] add producer/consumer id in error-logging [#3961](https://github.com/apache/pulsar/pull/3961)
 
 
-### 2.3.1 &mdash; 2019-04-12 <a id="2.3.1"></a>
+### 2.3.1
+
+#### 2019-04-12
 
 #### Fixes
 
@@ -2465,7 +2501,9 @@ https://github.com/apache/pulsar/releases/tag/v2.4.0
  https://github.com/apache/pulsar/releases/tag/v2.3.1
 
 
-### 2.3.0 &mdash; 2019-02-20 <a id="2.3.0"></a>
+### 2.3.0
+
+#### 2019-02-20
 
 #### General
 
@@ -2589,7 +2627,9 @@ https://github.com/apache/pulsar/releases/tag/v2.3.0
 
 
 
-### 2.2.1 &mdash; 2018-12-31 <a id="2.2.1"></a>
+### 2.2.1
+
+#### 2018-12-31
 
 This release includes fixes for 2.2.0 release. In particular:
 
@@ -2608,7 +2648,9 @@ https://github.com/apache/pulsar/milestone/19?closed=1
 https://github.com/apache/incubator-pulsar/releases/tag/v2.2.1
 
 
-### 2.2.0 &mdash; 2018-10-24 <a id="2.2.0"></a>
+### 2.2.0
+
+#### 2018-10-24
 
 This is the first release of Pulsar as an Apache Top Level Project
 
@@ -2645,7 +2687,9 @@ https://github.com/apache/incubator-pulsar/releases/tag/v2.2.0
 
 ## Apache incubator
 
-### 2.1.1-incubating &mdash; 2018-09-17 <a id="2.1.1-incubating"></a>
+### 2.1.1-incubating
+
+#### 2018-09-17
 
 This release fixes issues reported for 2.1.0-incubating.
 
@@ -2662,7 +2706,9 @@ https://github.com/apache/incubator-pulsar/milestone/17?closed=1
 
 https://github.com/apache/incubator-pulsar/releases/tag/v2.1.1-incubating
 
-### 2.1.0-incubating &mdash; 2018-08-02 <a id="2.1.0-incubating"></a>
+### 2.1.0-incubating
+
+#### 2018-08-02
 
 This is the seventh release of Apache Pulsar since entering the ASF incubator.
 
@@ -2687,7 +2733,9 @@ The complete list of changes can be found at: https://github.com/apache/incubato
 
 https://github.com/apache/incubator-pulsar/releases/tag/v2.1.0-incubating
 
-### 2.0.1-incubating &mdash; 2018-06-18 <a id="2.0.1-incubating"></a>
+### 2.0.1-incubating
+
+#### 2018-06-18
 
 This release fixes issues reported for 2.0.0-rc1-incubating.
 
@@ -2701,7 +2749,9 @@ https://github.com/apache/incubator-pulsar/milestone/14?closed=1
 
 https://github.com/apache/incubator-pulsar/releases/tag/v2.0.1-incubating
 
-### 1.22.1-incubating &mdash; 2018-06-18 <a id="1.22.1-incubating"></a>
+### 1.22.1-incubating
+
+#### 2018-06-18
 
 This is the sixth release of Apache Pulsar since entering the ASF incubator.
 
@@ -2723,7 +2773,9 @@ https://github.com/apache/incubator-pulsar/milestone/15?closed=1
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.22.1-incubating
 
-### 2.0.0-rc1-incubating &mdash; 2018-05-29 <a id="2.0.0-rc1-incubating"></a>
+### 2.0.0-rc1-incubating
+
+#### 2018-05-29
 
 This is the fifth release of Apache Pulsar since entering the ASF incubator and the
 first time we increase major release number.
@@ -2750,7 +2802,9 @@ https://github.com/apache/incubator-pulsar/milestone/12?closed=1
 https://github.com/apache/incubator-pulsar/releases/tag/v2.0.0-rc1-incubating
 
 
-### 1.22.0-incubating &mdash; 2018-03-06 <a id="1.22.0-incubating"></a>
+### 1.22.0-incubating
+
+#### 2018-03-06
 
 This is the fourth of Apache Pulsar since entering the ASF incubator.
 
@@ -2795,7 +2849,9 @@ https://github.com/apache/incubator-pulsar/milestone/11?closed=1
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.22.0-incubating
 
-### 1.21.0-incubating &mdash; 2017-12-17 <a id="1.21.0-incubating"></a>
+### 1.21.0-incubating
+
+#### 2017-12-17
 
 This is the third of Apache Pulsar since entering the ASF incubator.
 
@@ -2817,7 +2873,9 @@ https://github.com/apache/incubator-pulsar/milestone/10?closed=1
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.21.0-incubating
 
-### 1.20.0-incubating &mdash; 2017-08-08 <a id="1.20.0-incubating"></a>
+### 1.20.0-incubating
+
+#### 2017-08-08
 
 This is the second of Apache Pulsar since entering the ASF incubator.
 
@@ -2835,7 +2893,9 @@ https://github.com/apache/incubator-pulsar/milestone/9?closed=1
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.20.0-incubating
 
-### 1.19.0-incubating &mdash; 2017-08-08 <a id="1.19.0-incubating"></a>
+### 1.19.0-incubating
+
+#### 2017-08-08
 
 This is the first of Apache Pulsar since entering the ASF incubator.
 
@@ -2855,7 +2915,9 @@ https://github.com/apache/incubator-pulsar/releases/tag/v1.19.0-incubating
 
 ## Pre-Apache
 
-### 1.18 &mdash; 2017-06-17 <a id="1.18"></a>
+### 1.18
+
+#### 2017-06-17
 
 Main changes:
  * [#325](https://github.com/apache/incubator-pulsar/pull/325) Add Modular load manager documentation
@@ -2896,7 +2958,9 @@ Full list of changes: https://github.com/yahoo/pulsar/milestone/7?closed=1
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.18
 
-### 1.17.5 &mdash; 2017-05-02 <a id="1.17.5"></a>
+### 1.17.5
+
+#### 2017-05-02
 
  * [#343](https://github.com/apache/incubator-pulsar/pull/343) Fix ModularLoadManager to select broker from current available-broker list
  * [#384](https://github.com/apache/incubator-pulsar/pull/384) Fix Send replay entries read callback from background thread, to avoid recursive stack calls
@@ -2905,7 +2969,9 @@ https://github.com/apache/incubator-pulsar/releases/tag/v1.18
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.17.5
 
-### 1.17.4 &mdash; 2017-04-25 <a id="1.17.4"></a>
+### 1.17.4
+
+#### 2017-04-25
 
  * [#362](https://github.com/apache/incubator-pulsar/pull/362) Fix add timeout on blocking ZookeeperCache get call
  * [#375](https://github.com/apache/incubator-pulsar/pull/375) Fix possible deal lock on topic loading if broker fails to get MLConfiguration from zk
@@ -2913,13 +2979,17 @@ https://github.com/apache/incubator-pulsar/releases/tag/v1.17.5
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.17.4
 
-### 1.17.3 &mdash; 2017-04-20 <a id="1.17.3"></a>
+### 1.17.3
+
+#### 2017-04-20
 
  * [#367](https://github.com/apache/incubator-pulsar/pull/367) Fix dispatcher correctly finds available consumer from list of shared-subscription consumers
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.17.3
 
-### 1.17.2 &mdash; 2017-04-06 <a id="1.17.2"></a>
+### 1.17.2
+
+#### 2017-04-06
 
  * [#327](https://github.com/apache/incubator-pulsar/pull/327) Create znode for dynamic configuration if not present
  * [#336](https://github.com/apache/incubator-pulsar/pull/336) Fix prevent creation of topic when bundle is disable
@@ -2927,13 +2997,17 @@ https://github.com/apache/incubator-pulsar/releases/tag/v1.17.3
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.17.2
 
-### 1.17.1 &mdash; 2017-03-30 <a id="1.17.1"></a>
+### 1.17.1
+
+#### 2017-03-30
 
  * [#326](https://github.com/apache/incubator-pulsar/pull/326) Fix memory leak while duplicating entry data from existing entry
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.17.1
 
-### 1.17 &mdash; 2017-03-30 <a id="1.17"></a>
+### 1.17
+
+#### 2017-03-30
 
 Main changes:
 
@@ -2963,13 +3037,17 @@ Full list of changes: https://github.com/apache/incubator-pulsar/milestone/3?clo
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.17
 
-### 1.16.5 &mdash; 2017-03-10 <a id="1.16.5"></a>
+### 1.16.5
+
+#### 2017-03-10
 
  * [#311](https://github.com/apache/incubator-pulsar/pull/311) Exclude netty individual jars from binary distribution. This issue was causing binary distribution to have conflicting netty dependencies.
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.16.5
 
-### 1.16.4 &mdash; 2017-03-10 <a id="1.16.4"></a>
+### 1.16.4
+
+#### 2017-03-10
 
  * [#265](https://github.com/apache/incubator-pulsar/pull/265) Fix client closes http-connection on internal-server error
  * [#283](https://github.com/apache/incubator-pulsar/pull/283) Fix recycle keep alive command-object properly
@@ -2977,19 +3055,25 @@ https://github.com/apache/incubator-pulsar/releases/tag/v1.16.5
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.16.4
 
-### 1.16.3 &mdash; 2017-03-01 <a id="1.16.3"></a>
+### 1.16.3
+
+#### 2017-03-01
 
  * [#275](https://github.com/apache/incubator-pulsar/pull/275) Fix for Infinite loop in PersistentReplicator.startProducer()
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.16.3
 
-### 1.16.2 &mdash; 2017-02-24 <a id="1.16.2"></a>
+### 1.16.2
+
+#### 2017-02-24
 
  * [#250](https://github.com/apache/incubator-pulsar/pull/250) : Disconnect consumers without closing dispatcher on cursor-reset
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.16.2
 
-### 1.16.1 &mdash; 2017-02-24 <a id="1.16.1"></a>
+### 1.16.1
+
+#### 2017-02-24
 
  * [#221](https://github.com/apache/incubator-pulsar/pull/221) Fixed race condition while creating client connection
  * [#223](https://github.com/apache/incubator-pulsar/pull/223) Fixed broker's direct memory usage count
@@ -2998,7 +3082,9 @@ https://github.com/apache/incubator-pulsar/releases/tag/v1.16.2
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.16.1
 
-### 1.16 &mdash; 2017-02-02 <a id="1.16"></a>
+### 1.16
+
+#### 2017-02-02
 
 Main changes:
  * [#76](https://github.com/apache/incubator-pulsar/pull/76) Async Zookeeper cache implementation
@@ -3020,51 +3106,67 @@ Full list of changes: https://github.com/yahoo/pulsar/milestone/2?closed=1
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.16
 
-### 1.15.7 &mdash; 2017-01-25 <a id="1.15.7"></a>
+### 1.15.7
+
+#### 2017-01-25
 
  * [#174](https://github.com/apache/incubator-pulsar/pull/174) Handling bundle unloading failure
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.15.7
 
-### 1.15.6 &mdash; 2017-01-20 <a id="1.15.6"></a>
+### 1.15.6
+
+#### 2017-01-20
 
  * [#171](https://github.com/apache/incubator-pulsar/pull/171) Fix: Consumer redelivery should not wipeout availablePermits
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.15.6
 
-### 1.15.5 &mdash; 2017-01-03 <a id="1.15.5"></a>
+### 1.15.5
+
+#### 2017-01-03
 
  * [#159](https://github.com/apache/incubator-pulsar/pull/159) Fix: Replicator-cleanup while closing replicator at broker.
  * [#160](https://github.com/apache/incubator-pulsar/pull/160) Fix: Http lookup for topic with special character
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.15.5
 
-### 1.15.4 &mdash; 2016-12-14 <a id="1.15.4"></a>
+### 1.15.4
+
+#### 2016-12-14
 
  * [#146](https://github.com/apache/incubator-pulsar/pull/146) Fix: Partitioned consumer can consume messages with receiverQueueSize 1.
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.15.4
 
-### 1.15.3 &mdash; 2016-12-13 <a id="1.15.3"></a>
+### 1.15.3
+
+#### 2016-12-13
 
  * [#145](https://github.com/apache/incubator-pulsar/pull/145) Fixed issue Partitioned-consumer aggregate messages without blocking internal listener thread
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.15.3
 
-### 1.15.2 &mdash; 2016-11-03 <a id="1.15.2"></a>
+### 1.15.2
+
+#### 2016-11-03
 
  * [#102](https://github.com/apache/incubator-pulsar/pull/102) Fixed issue with message dispatching while message-replay at broker
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.15.2
 
-### 1.15.1 &mdash; 2016-10-27 <a id="1.15.1"></a>
+### 1.15.1
+
+#### 2016-10-27
 
  * [#89](https://github.com/apache/incubator-pulsar/pull/89) Fixed issue with replication in a mixed
    environment with 1.14 and 1.15 brokers
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.15.1
 
-### 1.15 &mdash; 2016-10-18 <a id="1.15"></a>
+### 1.15
+
+#### 2016-10-18
 
 - [#39](https://github.com/apache/incubator-pulsar/pull/39) Updated BookKeeper version to 4.3.1.41-yahoo to include bookie storage improvements
 - [#17](https://github.com/apache/incubator-pulsar/pull/17) Fixed memory leak in stats generation buffer rollover
@@ -3080,7 +3182,9 @@ Full list of changes: https://github.com/apache/incubator-pulsar/milestone/1?clo
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.15
 
-### 1.14 &mdash; 2016-08-31 <a id="1.14"></a>
+### 1.14
+
+#### 2016-08-31
 
 First public release of Pulsar
 
