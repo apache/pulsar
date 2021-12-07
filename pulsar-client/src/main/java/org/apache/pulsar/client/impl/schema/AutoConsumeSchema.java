@@ -179,7 +179,7 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
             case AVRO:
                 return extractFromAvroSchema(schemaInfo, useProvidedSchemaAsReaderSchema);
             case PROTOBUF:
-                return GenericProtobufSchema.of(schemaInfo,useProvidedSchemaAsReaderSchema);
+                return GenericProtobufSchema.of(schemaInfo, useProvidedSchemaAsReaderSchema);
             case PROTOBUF_NATIVE:
                 return GenericProtobufNativeSchema.of(schemaInfo, useProvidedSchemaAsReaderSchema);
             default:

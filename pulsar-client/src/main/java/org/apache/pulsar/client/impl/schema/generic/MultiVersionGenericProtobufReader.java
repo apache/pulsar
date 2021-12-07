@@ -47,7 +47,11 @@ public class MultiVersionGenericProtobufReader extends AbstractMultiVersionReade
         super(new GenericProtobufReader(parseAvroBaseSchemaToProtobuf(schemaInfo)));
         this.useProvidedSchemaAsReaderSchema = useProvidedSchemaAsReaderSchema;
         this.schemaInfo = schemaInfo;
-        this.descriptor = parseAvroBaseSchemaToProtobuf(schemaInfo);
+        this.descriptor = (Descriptors.Descriptor) providerSchemaReader.getNativeSchema()
+                .orElseThrow(() -> {
+                    log.error(" No protobuf reader found!");
+                    return new IllegalArgumentException("No protobuf reader found!");
+                });
     }
 
     @Override
