@@ -904,11 +904,11 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     public long getMsgOutCounter() {
-        return getStats(false, false).msgOutCounter;
+        return getStats(false, false, false).msgOutCounter;
     }
 
     public long getBytesOutCounter() {
-        return getStats(false, false).bytesOutCounter;
+        return getStats(false, false, false).bytesOutCounter;
     }
 
     public boolean isDeleteWhileInactive() {
