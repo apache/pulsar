@@ -910,6 +910,19 @@ public class PulsarClientException extends IOException {
         }
     }
 
+    /**
+     * Exception is thrown when a isRetryable Exception was thrown.
+     */
+    public static class TcOperationRetryException extends PulsarClientException {
+        /**
+         * Constructs an {@code TcOperationRetryException} with the specified detail message.
+         * @param msg The detail message (which was provided by the retryable exception).
+         */
+        public TcOperationRetryException(String msg) {
+            super(msg);
+        }
+    }
+
     // wrap an exception to enriching more info messages.
     public static Throwable wrap(Throwable t, String msg) {
         msg += "\n" + t.getMessage();
