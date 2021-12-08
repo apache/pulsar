@@ -195,6 +195,112 @@
           "id": "version-2.4.0/deploy-monitoring"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Administration",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.4.0/administration-zk-bk"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/administration-geo"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/administration-dashboard"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/administration-stats"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/administration-load-balance"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/administration-proxy"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Security",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.4.0/security-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/security-tls-transport"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/security-tls-authentication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/security-token-client"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/security-token-admin"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/security-athenz"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/security-kerberos"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/security-jwt"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/security-authorization"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/security-encryption"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/security-extending"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Client Libraries",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.4.0/client-libraries-java"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/client-libraries-go"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/client-libraries-python"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/client-libraries-cpp"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/client-libraries-websocket"
+        }
+      ]
     }
   ]
 }
