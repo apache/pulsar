@@ -80,6 +80,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         this.pulsarService = pulsarService;
     }
 
+    /**
+     * Used to identify whether a topic policy is global and needs to be replicated to remote cluster.
+     */
     public static final String IS_GLOBAL = "IS_GLOBAL";
 
     @Override
