@@ -245,6 +245,11 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     }
 
     @Override
+    public CompletableFuture<Void> deleteRecursive(String path) {
+        return store.deleteRecursive(path);
+    }
+
+    @Override
     public CompletableFuture<Boolean> exists(String path) {
         return store.exists(path);
     }

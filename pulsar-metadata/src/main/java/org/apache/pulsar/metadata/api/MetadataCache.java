@@ -143,6 +143,15 @@ public interface MetadataCache<T> {
     CompletableFuture<Void> delete(String path);
 
     /**
+     * Delete an object from the metadata store and all the children nodes.
+     * Note: No exception if this path does not exist.
+     *
+     * @param path the path of the object in the metadata store
+     * @return a future to track the completion of the operation
+     */
+    CompletableFuture<Void> deleteRecursive(String path);
+
+    /**
      * Force the invalidation of an object in the metadata cache.
      *
      * @param path the path of the object in the metadata store

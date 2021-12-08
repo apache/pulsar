@@ -99,6 +99,37 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         }
     }
 
+    @Test(dataProvider = "impl")
+    public void deleteRecursiveTest(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+
+        MetadataCache<MyClass> objCache = store.getMetadataCache(MyClass.class);
+
+        //it's ok to delete non-exists path.
+        assertEquals(objCache.getIfCached("/non-existing-key"), Optional.empty());
+        objCache.deleteRecursive("/non-existing-key").join();
+
+        assertEquals(objCache.getIfCached("/deleteRecursiveTest"), Optional.empty());
+        MyClass obj = new MyClass("deleteRecursiveTest", 1);
+        objCache.create("/deleteRecursiveTest", obj).join();
+        objCache.create("/deleteRecursiveTest/a", obj).join();
+        objCache.create("/deleteRecursiveTest/b", obj).join();
+        objCache.create("/deleteRecursiveTest/b/a", obj).join();
+
+        assertEquals(objCache.get("/deleteRecursiveTest").join(), Optional.of(obj));
+        assertEquals(objCache.get("/deleteRecursiveTest/a").join(), Optional.of(obj));
+        assertEquals(objCache.get("/deleteRecursiveTest/b").join(), Optional.of(obj));
+        assertEquals(objCache.get("/deleteRecursiveTest/b/a").join(), Optional.of(obj));
+
+        objCache.deleteRecursive("/deleteRecursiveTest").get();
+
+        assertEquals(objCache.get("/deleteRecursiveTest").join(), Optional.empty());
+        assertEquals(objCache.get("/deleteRecursiveTest/a").join(), Optional.empty());
+        assertEquals(objCache.get("/deleteRecursiveTest/b").join(), Optional.empty());
+        assertEquals(objCache.get("/deleteRecursiveTest/b/a").join(), Optional.empty());
+    }
+
     @DataProvider(name = "zk")
     public Object[][] zkimplementations() {
         return new Object[][] {
