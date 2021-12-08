@@ -36,15 +36,6 @@ public interface Replicator {
 
     CompletableFuture<Void> disconnect(boolean b);
 
-    /**
-     * In Function, we can customize which message can be replicate to the remote cluster.
-     * The incoming parameter is the original message, the output is whether the message should be filtered.
-     * @param filterFunction
-     */
-    default void setFilterFunction(Function<MessageImpl, Boolean> filterFunction) {
-        //No-op
-    }
-
     void updateRates();
 
     String getRemoteCluster();

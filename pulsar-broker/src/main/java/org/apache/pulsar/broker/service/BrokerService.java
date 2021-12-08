@@ -116,7 +116,6 @@ import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.SystemTopic;
-import org.apache.pulsar.broker.service.persistent.TopicPoliciesSystemTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilterProvider;
 import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
@@ -1363,7 +1362,9 @@ public class BrokerService implements Closeable {
                         @Override
                         public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
                             try {
-                                PersistentTopic persistentTopic = getPersistentTopic(ledger);
+                                PersistentTopic persistentTopic = isSystemTopic(topic)
+                                        ? new SystemTopic(topic, ledger, BrokerService.this)
+                                        : new PersistentTopic(topic, ledger, BrokerService.this);
                                 CompletableFuture<Void> preCreateSubForCompaction =
                                         persistentTopic.preCreateSubscriptionForCompactionIfNeeded();
                                 CompletableFuture<Void> replicationFuture = persistentTopic
@@ -1408,22 +1409,6 @@ public class BrokerService implements Closeable {
                                 pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                                 topicFuture.completeExceptionally(e);
                             }
-                        }
-
-                        private PersistentTopic getPersistentTopic(ManagedLedger ledger)
-                                throws PulsarServerException {
-                            PersistentTopic persistentTopic;
-                            if (isSystemTopic(topic)) {
-                                if (EventsTopicNames.isTopicPoliciesSystemTopic(topic)) {
-                                    persistentTopic =
-                                            new TopicPoliciesSystemTopic(topic, ledger, BrokerService.this);
-                                } else {
-                                    persistentTopic = new SystemTopic(topic, ledger, BrokerService.this);
-                                }
-                            } else {
-                                persistentTopic = new PersistentTopic(topic, ledger, BrokerService.this);
-                            }
-                            return persistentTopic;
                         }
 
                         @Override

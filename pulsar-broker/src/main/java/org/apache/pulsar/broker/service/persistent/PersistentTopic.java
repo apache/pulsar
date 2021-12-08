@@ -1430,7 +1430,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public CompletableFuture<List<String>> getReplicationClusters(TopicName topicName) {
         CompletableFuture<Optional<TopicPolicies>> future = new CompletableFuture<>();
         if (isSystemTopic()) {
-            //Topic Policies System Topic have to skip the topic policy. Which come first, chicken or egg?
+            //Topic Policies System Topic have to skip the topic policy.
             future.complete(Optional.empty());
         } else {
             future = brokerService.pulsar().getTopicPoliciesService()

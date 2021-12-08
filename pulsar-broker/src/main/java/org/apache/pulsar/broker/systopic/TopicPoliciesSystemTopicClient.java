@@ -83,37 +83,26 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
 
         @Override
         public MessageId write(PulsarEvent event) throws PulsarClientException {
-            return producer.newMessage()
-                    .key(getEventKey(event))
-                    .properties(event.getProperties() == null ? Collections.emptyMap() : event.getProperties())
+            return producer.newMessage().key(getEventKey(event))
+                    .replicationClusters(event.getReplicateTo() == null ? null : event.getReplicateTo())
                     .value(event).send();
         }
 
         @Override
         public CompletableFuture<MessageId> writeAsync(PulsarEvent event) {
-            return producer.newMessage()
-                    .key(getEventKey(event))
-                    .value(event)
-                    .properties(event.getProperties() == null ? Collections.emptyMap() : event.getProperties())
-                    .sendAsync();
+            return producer.newMessage().key(getEventKey(event)).value(event).sendAsync();
         }
 
         @Override
         public MessageId delete(PulsarEvent event) throws PulsarClientException {
             validateActionType(event);
-            return producer.newMessage()
-                    .key(getEventKey(event))
-                    .properties(event.getProperties() == null ? Collections.emptyMap() : event.getProperties())
-                    .value(null).send();
+            return producer.newMessage().key(getEventKey(event)).value(null).send();
         }
 
         @Override
         public CompletableFuture<MessageId> deleteAsync(PulsarEvent event) {
             validateActionType(event);
-            return producer.newMessage()
-                    .key(getEventKey(event))
-                    .properties(event.getProperties() == null ? Collections.emptyMap() : event.getProperties())
-                    .value(null).sendAsync();
+            return producer.newMessage().key(getEventKey(event)).value(null).sendAsync();
         }
 
         private String getEventKey(PulsarEvent event) {
