@@ -30,6 +30,7 @@ import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -2482,9 +2483,27 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     @Test(timeOut = 30000)
     public void testSubscriptionTypesEnabled() throws Exception {
         final String topic = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
-        admin.topics().createNonPartitionedTopic(topic);
         // use broker.conf
-        pulsarClient.newConsumer().topic(topic).subscriptionName("test").subscribe().close();
+        pulsar.getConfiguration().setSubscriptionTypesEnabled(Sets.newHashSet("Exclusive"));
+        admin.topics().createNonPartitionedTopic(topic);
+        try {
+            pulsarClient.newConsumer().topic(topic).subscriptionType(SubscriptionType.Shared)
+                    .subscriptionName("test").subscribe();
+            fail();
+        } catch (PulsarClientException pulsarClientException) {
+            assertTrue(pulsarClientException instanceof PulsarClientException.NotAllowedException);
+        }
+        pulsarClient.newConsumer().topic(topic).subscriptionType(SubscriptionType.Exclusive).subscriptionName("test")
+                .subscribe().close();
+
+        //update broker level dynamic update config
+        admin.brokers().updateDynamicConfiguration("subscriptionTypesEnabled", "Shared");
+        Awaitility.await().untilAsserted(()->{
+            assertTrue(pulsar.getConfiguration().getSubscriptionTypesEnabled().contains("Shared"));
+        });
+        pulsarClient.newConsumer().topic(topic).subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("test").subscribe().close();
+
         assertNull(admin.topicPolicies().getSubscriptionTypesEnabled(topic));
         // set enable failover sub type
         Set<SubscriptionType> subscriptionTypeSet = new HashSet<>();
@@ -2493,6 +2512,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         Awaitility.await().until(()
                 -> pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)) != null);
+        waitTopicPoliciesApplied(topic, 0, hierarchyTopicPolicies -> {
+            assertTrue(hierarchyTopicPolicies.getSubscriptionTypesEnabled().get()
+                    .contains(CommandSubscribe.SubType.Failover));
+        });
         subscriptionTypeSet = admin.topicPolicies().getSubscriptionTypesEnabled(topic);
         assertTrue(subscriptionTypeSet.contains(SubscriptionType.Failover));
         assertFalse(subscriptionTypeSet.contains(SubscriptionType.Shared));
@@ -2508,6 +2531,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         // add shared type
         subscriptionTypeSet.add(SubscriptionType.Shared);
         admin.topicPolicies().setSubscriptionTypesEnabled(topic, subscriptionTypeSet);
+        waitTopicPoliciesApplied(topic, 0, hierarchyTopicPolicies -> {
+            assertTrue(hierarchyTopicPolicies.getSubscriptionTypesEnabled().get()
+                    .contains(CommandSubscribe.SubType.Shared));
+        });
         pulsarClient.newConsumer().topic(topic)
                 .subscriptionType(SubscriptionType.Shared).subscriptionName("test").subscribe().close();
 
@@ -2518,6 +2545,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         subscriptionTypeSet.clear();
         subscriptionTypeSet.add(SubscriptionType.Failover);
         admin.topicPolicies().setSubscriptionTypesEnabled(topic, subscriptionTypeSet);
+        waitTopicPoliciesApplied(topic, 0, hierarchyTopicPolicies -> {
+            assertTrue(hierarchyTopicPolicies.getSubscriptionTypesEnabled().getTopicValue()
+                    .contains(CommandSubscribe.SubType.Failover));
+        });
 
         try {
             pulsarClient.newConsumer().topic(topic)
@@ -2526,6 +2557,14 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         } catch (PulsarClientException pulsarClientException) {
             assertTrue(pulsarClientException instanceof PulsarClientException.NotAllowedException);
         }
+
+        //clear topic level setting, use ns setting only, which only contains shared.
+        admin.topicPolicies().setSubscriptionTypesEnabled(topic, Collections.emptySet());
+        waitTopicPoliciesApplied(topic, 0, hierarchyTopicPolicies -> {
+            assertNull(hierarchyTopicPolicies.getSubscriptionTypesEnabled().getTopicValue());
+        });
+        pulsarClient.newConsumer().topic(topic)
+                .subscriptionType(SubscriptionType.Shared).subscriptionName("test").subscribe().close();
     }
 
     @Test(timeOut = 20000)

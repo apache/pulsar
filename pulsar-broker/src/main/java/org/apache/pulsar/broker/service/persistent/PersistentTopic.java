@@ -32,6 +32,7 @@ import io.netty.util.concurrent.FastThreadLocal;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -72,7 +73,6 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.net.BookieId;
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -3232,42 +3232,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return false;
     }
 
-    public boolean checkSubscriptionTypesEnable(SubType subType) throws Exception {
-        TopicName topicName = TopicName.get(topic);
-        if (brokerService.pulsar().getConfiguration().isTopicLevelPoliciesEnabled()) {
-            try {
-                TopicPolicies topicPolicies =
-                        brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(TopicName.get(topic));
-                if (topicPolicies == null) {
-                    return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
-                } else {
-                    if (CollectionUtils.isEmpty(topicPolicies.getSubscriptionTypesEnabled())) {
-                        return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
-                    }
-                    return topicPolicies.getSubscriptionTypesEnabled().contains(subType);
-                }
-            } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-                return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
-            }
-        } else {
-            return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
-        }
-    }
-
-    private boolean checkNsAndBrokerSubscriptionTypesEnable(TopicName topicName, SubType subType) throws Exception {
-        Optional<Policies> policies = brokerService.pulsar().getPulsarResources().getNamespaceResources()
-                .getPolicies(topicName.getNamespaceObject());
-        if (policies.isPresent()) {
-            if (policies.get().subscription_types_enabled.isEmpty()) {
-                return getBrokerService().getPulsar().getConfiguration()
-                        .getSubscriptionTypesEnabled().contains(subType.name());
-            } else {
-                return policies.get().subscription_types_enabled.contains(subType.name());
-            }
-        } else {
-            return getBrokerService().getPulsar().getConfiguration()
-                    .getSubscriptionTypesEnabled().contains(subType.name());
-        }
+    public boolean checkSubscriptionTypesEnable(SubType subType) {
+        EnumSet<SubType> subTypesEnabled = topicPolicies.getSubscriptionTypesEnabled().get();
+        return subTypesEnabled != null && subTypesEnabled.contains(subType);
     }
 
     public TransactionBufferStats getTransactionBufferStats() {
