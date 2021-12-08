@@ -191,12 +191,60 @@ public interface Namespaces {
      */
     CompletableFuture<BundlesData> getBundlesAsync(String namespace);
 
+    /**
+     * Get stats of a bundle.
+     *
+     * @param namespace
+     *            Namespace name
+     * @param bundle
+     *            range of the bundle
+     *
+     * @throws NotAuthorizedException
+     *             You don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
     BundleStats getBundleStats(String namespace, String bundle) throws PulsarAdminException;
 
+    /**
+     * Get stats of a bundle asynchronously.
+     *
+     * @param namespace
+     *            Namespace name
+     * @param bundle
+     *            range of the bundle
+     */
     CompletableFuture<BundleStats> getBundleStatsAsync(String namespace, String bundle);
 
+    /**
+     * Get the list of bundles with stats.
+     * <p/>
+     * Get the list of all the bundles under a certain namespace with stats.
+     * <p/>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             You don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
     List<BundleStats> getAllBundleStats(String namespace) throws PulsarAdminException;
 
+    /**
+     * Get the list of bundles asynchronously.
+     * <p/>
+     * Get the list of all the bundles under a certain namespace with stats.
+     * <p/>
+     *
+     * @param namespace
+     *            Namespace name
+     */
     CompletableFuture<List<BundleStats>> getAllBundleStatsAsync(String namespace);
 
     /**

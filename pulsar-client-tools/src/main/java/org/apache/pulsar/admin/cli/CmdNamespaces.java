@@ -847,12 +847,13 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "get bundle stats from namespace")
+    @Parameters(commandDescription = "Get bundle stats for namespace")
     private class BundleStats extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--bundle", "-b" }, description = "{start-boundary}_{end-boundary}")
+        @Parameter(names = { "--bundle", "-b" }, description = "{start-boundary}_{end-boundary}," +
+                " Omit this field to get all bundles' stats for namespace")
         private String bundle;
 
         @Override
