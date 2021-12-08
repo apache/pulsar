@@ -69,7 +69,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{property}/{cluster}/{namespace}")
     @ApiOperation(hidden = true, value = "Get the list of topics under a namespace.",
             response = String.class, responseContainer = "List")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin or consume permission on namespace"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist")})
     public void getList(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
@@ -87,7 +87,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{property}/{cluster}/{namespace}/partitioned")
     @ApiOperation(hidden = true, value = "Get the list of partitioned topics under a namespace.",
             response = String.class, responseContainer = "List")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin or consume permission on namespace"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist")})
     public List<String> getPartitionedTopicList(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
