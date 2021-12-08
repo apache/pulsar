@@ -90,7 +90,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
             assertNull(pulsar2.getTopicPoliciesService().getTopicPolicies(TopicName.get(persistentTopicName)));
             assertNull(pulsar3.getTopicPoliciesService().getTopicPolicies(TopicName.get(persistentTopicName)));
         });
-
+        // set retention
         RetentionPolicies retentionPolicies = new RetentionPolicies(1, 1);
         admin1.topicPolicies(true).setRetention(persistentTopicName, retentionPolicies);
 
@@ -103,6 +103,13 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
             assertEquals(admin1.topicPolicies(true).getRetention(persistentTopicName), retentionPolicies);
             assertNull(admin1.topicPolicies().getRetention(persistentTopicName));
         });
+
+        //remove retention
+        admin1.topicPolicies(true).removeRetention(persistentTopicName);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin2.topicPolicies(true).getRetention(persistentTopicName)));
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin3.topicPolicies(true).getRetention(persistentTopicName)));
     }
 
 }

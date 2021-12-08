@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.systopic;
 
+import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
@@ -84,6 +85,7 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
         @Override
         public MessageId write(PulsarEvent event) throws PulsarClientException {
             return producer.newMessage().key(getEventKey(event))
+                    .properties(event.getProperties() == null ? ImmutableMap.of() : event.getProperties())
                     .replicationClusters(event.getReplicateTo() == null ? null : event.getReplicateTo())
                     .value(event).send();
         }

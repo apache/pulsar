@@ -138,6 +138,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     private PulsarEvent getPulsarEvent(TopicName topicName, ActionType actionType, TopicPolicies policies) {
         PulsarEvent.PulsarEventBuilder builder = PulsarEvent.builder();
         if (policies != null && policies.isGlobalPolicies()) {
+            builder.properties(ImmutableMap.of(IS_GLOBAL, ""));
+        } else {
             builder.replicateTo(Collections.emptyList());
         }
         return builder

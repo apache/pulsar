@@ -41,4 +41,5 @@ public class PulsarEvent {
      * Which remote clusters to replicate to
      */
     private List<String> replicateTo;
+    private Map<String, String> properties;
 }
