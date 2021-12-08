@@ -447,6 +447,17 @@ public class Commands {
         buffer.skipBytes(metadataSize);
     }
 
+    public static long getEntryTimestamp(ByteBuf headersAndPayloadWithBrokerEntryMetadata) throws IOException {
+        // get broker timestamp first if BrokerEntryMetadata is enabled with AppendBrokerTimestampMetadataInterceptor
+        BrokerEntryMetadata brokerEntryMetadata =
+                Commands.parseBrokerEntryMetadataIfExist(headersAndPayloadWithBrokerEntryMetadata);
+        if (brokerEntryMetadata != null && brokerEntryMetadata.hasBrokerTimestamp()) {
+            return brokerEntryMetadata.getBrokerTimestamp();
+        }
+        // otherwise get the publish_time
+        return parseMessageMetadata(headersAndPayloadWithBrokerEntryMetadata).getPublishTime();
+    }
+
     public static BaseCommand newMessageCommand(long consumerId, long ledgerId, long entryId, int partition,
             int redeliveryCount, long[] ackSet) {
         BaseCommand cmd = localCmd(Type.MESSAGE);
