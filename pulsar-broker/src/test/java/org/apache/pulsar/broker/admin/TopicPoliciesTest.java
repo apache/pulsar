@@ -99,6 +99,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     private final String myNamespace = testTenant + "/" + testNamespace;
 
+    private final String myNamespaceV1 = testTenant + "/test/" + testNamespace;
+
     private final String testTopic = "persistent://" + myNamespace + "/test-set-backlog-quota";
 
     private final String persistenceTopic = "persistent://" + myNamespace + "/test-set-persistence";
@@ -119,6 +121,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant(this.testTenant, tenantInfo);
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Sets.newHashSet("test"));
+        admin.namespaces().createNamespace(myNamespaceV1);
         admin.topics().createPartitionedTopic(testTopic, testTopicPartitions);
         Producer producer = pulsarClient.newProducer().topic(testTopic).create();
         producer.close();
@@ -1498,6 +1501,13 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertNull(admin.topicPolicies().getMaxConsumersPerSubscription(testTopic)));
+
+        admin.namespaces().setMaxConsumersPerSubscription(myNamespaceV1, 20);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.namespaces().getMaxConsumersPerSubscription(myNamespaceV1).intValue(), 20));
+        admin.namespaces().removeMaxConsumersPerSubscription(myNamespaceV1);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin.namespaces().getMaxConsumersPerSubscription(myNamespaceV1)));
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
