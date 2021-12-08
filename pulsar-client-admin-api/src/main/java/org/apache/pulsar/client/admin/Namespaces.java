@@ -33,6 +33,7 @@ import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
+import org.apache.pulsar.common.policies.data.BundleStats;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
@@ -189,6 +190,14 @@ public interface Namespaces {
      *            Namespace name
      */
     CompletableFuture<BundlesData> getBundlesAsync(String namespace);
+
+    BundleStats getBundleStats(String namespace, String bundle) throws PulsarAdminException;
+
+    CompletableFuture<BundleStats> getBundleStatsAsync(String namespace, String bundle);
+
+    List<BundleStats> getAllBundleStats(String namespace) throws PulsarAdminException;
+
+    CompletableFuture<List<BundleStats>> getAllBundleStatsAsync(String namespace);
 
     /**
      * Get policies for a namespace.

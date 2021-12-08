@@ -847,6 +847,26 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "get bundle stats from namespace")
+    private class BundleStats extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--bundle", "-b" }, description = "{start-boundary}_{end-boundary}")
+        private String bundle;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            if (bundle != null) {
+                print(getAdmin().namespaces().getBundleStats(namespace, bundle));
+            } else {
+                print(getAdmin().namespaces().getAllBundleStats(namespace));
+            }
+
+        }
+    }
+
     @Parameters(commandDescription = "Split a namespace-bundle from the current serving broker")
     private class SplitBundle extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
@@ -2551,6 +2571,8 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("delete-bookie-affinity-group", new DeleteBookieAffinityGroup());
 
         jcommander.addCommand("unload", new Unload());
+
+        jcommander.addCommand("get-bundle-stats", new BundleStats());
 
         jcommander.addCommand("split-bundle", new SplitBundle());
 

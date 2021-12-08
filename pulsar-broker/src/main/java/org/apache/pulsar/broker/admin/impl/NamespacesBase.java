@@ -75,6 +75,7 @@ import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
+import org.apache.pulsar.common.policies.data.BundleStats;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
@@ -98,9 +99,11 @@ import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
+import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1296,6 +1299,41 @@ public abstract class NamespacesBase extends AdminResource {
 
         Policies policies = getNamespacePolicies(namespaceName);
         return policies.subscriptionDispatchRate.get(pulsar().getConfiguration().getClusterName());
+    }
+
+    public List<BundleStats> internalGetAllBundleStats() {
+        List<BundleStats> bundleStatsList = Lists.newArrayList();
+        ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>> bundleMap =
+                pulsar().getBrokerService().getMultiLayerTopicMap().get(namespaceName.toString());
+        if (bundleMap != null) {
+            for (String bundle : bundleMap.keys()) {
+                bundleStatsList.add(internalGetBundleStats(bundle));
+            }
+        }
+        return bundleStatsList;
+    }
+
+    protected BundleStats internalGetBundleStats(String bundle) {
+        List<Topic> topicList = pulsar().getBrokerService().
+                getAllTopicsFromNamespaceBundle(namespaceName.toString(), bundle);
+        List<String> topics = topicList.stream().map(Topic::getName).collect(Collectors.toList());
+
+        NamespaceBundleStats bundleStats = pulsar().getBrokerService().getBundleStats().get(bundle);
+
+        BundleStats stats = new BundleStats();
+        stats.topics = topics;
+        stats.bundleName = bundle;
+        if (bundleStats != null) {
+            stats.msgThroughputIn = bundleStats.msgThroughputIn;
+            stats.msgThroughputOut = bundleStats.msgThroughputOut;
+            stats.cacheSize = bundleStats.cacheSize;
+            stats.msgRateIn = bundleStats.msgRateIn;
+            stats.msgRateOut = bundleStats.msgRateOut;
+            stats.producerCount = bundleStats.producerCount;
+            stats.consumerCount = bundleStats.consumerCount;
+            stats.topicCount = bundleStats.topics;
+        }
+        return stats;
     }
 
     protected void internalSetSubscribeRate(SubscribeRate subscribeRate) {
