@@ -26,7 +26,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.Getter;
-import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -304,7 +303,7 @@ public class NamespaceResources extends BaseResources<Policies> {
         final String namespaceBundlePath = joinPath(BUNDLE_DATA_BASE_PATH, ns.toString());
         CompletableFuture<Void> future = new CompletableFuture<Void>();
         deleteRecursiveAsync(this, namespaceBundlePath).whenComplete((ignore, ex) -> {
-            if (ex != null && ExceptionUtils.getRootCause(ex) instanceof KeeperException.NoNodeException) {
+            if (ex instanceof MetadataStoreException.NotFoundException) {
                 future.complete(null);
             } else if (ex != null) {
                 future.completeExceptionally(ex);
@@ -321,7 +320,7 @@ public class NamespaceResources extends BaseResources<Policies> {
         final String tenantBundlePath = joinPath(BUNDLE_DATA_BASE_PATH, tenant);
         CompletableFuture<Void> future = new CompletableFuture<Void>();
         deleteRecursiveAsync(this, tenantBundlePath).whenComplete((ignore, ex) -> {
-            if (ex != null && ExceptionUtils.getRootCause(ex) instanceof KeeperException.NoNodeException) {
+            if (ex instanceof MetadataStoreException.NotFoundException) {
                 future.complete(null);
             } else if (ex != null) {
                 future.completeExceptionally(ex);
