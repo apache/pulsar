@@ -120,22 +120,6 @@
         },
         {
           "type": "doc",
-          "id": "version-2.4.2/functions-configure"
-        },
-        {
-          "type": "doc",
-          "id": "version-2.4.2/functions-monitor"
-        },
-        {
-          "type": "doc",
-          "id": "version-2.4.2/functions-secure"
-        },
-        {
-          "type": "doc",
-          "id": "version-2.4.2/functions-troubleshoot"
-        },
-        {
-          "type": "doc",
           "id": "version-2.4.2/functions-cli"
         },
         {

@@ -1072,7 +1072,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     void removeSubscription(String subscriptionName) {
         PersistentSubscription sub = subscriptions.remove(subscriptionName);
         // preserve accumulative stats form removed subscription
-        SubscriptionStatsImpl stats = sub.getStats(false, false);
+        SubscriptionStatsImpl stats = sub.getStats(false, false, false);
         bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
         msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
     }
@@ -1914,8 +1914,21 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
+    public TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
+                                   boolean getEarliestTimeInBacklog) {
+        try {
+            return asyncGetStats(getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog).get();
+        } catch (InterruptedException | ExecutionException e) {
+            log.error("[{}] Fail to get stats", topic, e);
+            return null;
+        }
+    }
 
+    @Override
+    public CompletableFuture<TopicStatsImpl> asyncGetStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
+                                                           boolean getEarliestTimeInBacklog) {
+
+        CompletableFuture<TopicStatsImpl> statsFuture = new CompletableFuture<>();
         TopicStatsImpl stats = new TopicStatsImpl();
 
         ObjectObjectHashMap<String, PublisherStatsImpl> remotePublishersStats = new ObjectObjectHashMap<>();
@@ -1941,7 +1954,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.msgOutCounter = msgOutFromRemovedSubscriptions.longValue();
 
         subscriptions.forEach((name, subscription) -> {
-            SubscriptionStatsImpl subStats = subscription.getStats(getPreciseBacklog, subscriptionBacklogSize);
+            SubscriptionStatsImpl subStats =
+                    subscription.getStats(getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog);
 
             stats.msgRateOut += subStats.msgRateOut;
             stats.msgThroughputOut += subStats.msgThroughputOut;
@@ -1990,7 +2004,22 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     compactionRecord.getLastCompactionDurationTimeInMills();
             return compactionRecord;
         });
-        return stats;
+
+        if (getEarliestTimeInBacklog && stats.backlogSize != 0) {
+            ledger.getEarliestMessagePublishTimeInBacklog().whenComplete((earliestTime, e) -> {
+                if (e != null) {
+                    log.error("[{}] Failed to get earliest message publish time in backlog", topic, e);
+                    statsFuture.completeExceptionally(e);
+                } else {
+                    stats.earliestMsgPublishTimeInBacklogs = earliestTime;
+                    statsFuture.complete(stats);
+                }
+            });
+        } else {
+            statsFuture.complete(stats);
+        }
+
+        return statsFuture;
     }
 
     private Optional<CompactorMXBean> getCompactorMXBean() {
@@ -2574,7 +2603,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         @Override
                         public void readEntryComplete(Entry entry, Object ctx) {
                             try {
-                                long entryTimestamp = MessageImpl.getEntryTimestamp(entry.getDataBuffer());
+                                long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
                                 boolean expired = MessageImpl.isEntryExpired(backlogQuotaLimitInSecond, entryTimestamp);
                                 if (expired && log.isDebugEnabled()) {
                                     log.debug("Time based backlog quota exceeded, oldest entry in cursor {}'s backlog"
@@ -2663,7 +2692,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         try {
             entry = cursor.getNthEntry(1, IndividualDeletedEntries.Include);
             if (entry != null) {
-                long entryTimestamp = MessageImpl.getEntryTimestamp(entry.getDataBuffer());
+                long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
                 isOldestMessageExpired = MessageImpl.isEntryExpired(
                         (int) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD), entryTimestamp);
             }

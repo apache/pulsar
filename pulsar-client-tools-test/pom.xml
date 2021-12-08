@@ -75,6 +75,7 @@
         <executions>
           <execution>
             <id>modernizer</id>
+            <phase>verify</phase>
             <goals>
               <goal>modernizer</goal>
             </goals>

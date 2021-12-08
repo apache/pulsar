@@ -327,7 +327,8 @@ public class ClientErrorsTest {
 
     private void subscribeFailWithoutRetry(String topic) throws Exception {
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(mockBrokerService.getBrokerAddress()).build();
+        PulsarClient client = PulsarClient.builder().serviceUrl(mockBrokerService.getBrokerAddress())
+                .operationTimeout(1, TimeUnit.SECONDS).build();
         final AtomicInteger counter = new AtomicInteger(0);
 
         mockBrokerService.setHandleSubscribe((ctx, subscribe) -> {
