@@ -1311,9 +1311,11 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final String managedLedgersPath = "/managed-ledgers/" + tenant;
         final String partitionedTopicPath = "/admin/partitioned-topics/" + tenant;
         final String localPoliciesPath = "/admin/local-policies/" + tenant;
+        final String bundleDataPath = "/loadbalance/bundle-data/" + tenant;
         assertFalse(pulsar.getLocalMetadataStore().exists(managedLedgersPath).join());
         assertFalse(pulsar.getLocalMetadataStore().exists(partitionedTopicPath).join());
         assertFalse(pulsar.getLocalMetadataStore().exists(localPoliciesPath).join());
+        assertFalse(pulsar.getLocalMetadataStore().exists(bundleDataPath).join());
     }
 
     @Test
@@ -1357,6 +1359,10 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         final String managedLedgersPath = "/managed-ledgers/" + namespace;
         assertFalse(pulsar.getLocalMetadataStore().exists(managedLedgersPath).join());
+
+
+        final String bundleDataPath = "/loadbalance/bundle-data/" + namespace;
+        assertFalse(pulsar.getLocalMetadataStore().exists(bundleDataPath).join());
     }
 
 

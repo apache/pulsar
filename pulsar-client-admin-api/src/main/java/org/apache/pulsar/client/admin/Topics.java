@@ -843,10 +843,8 @@ public interface Topics {
      *
      * @param topic
      *            topic name
-     * @param getPreciseBacklog
-     *            Set to true to get precise backlog, Otherwise get imprecise backlog.
-     * @param subscriptionBacklogSize
-     *            Whether to get backlog size for each subscription.
+     * @param getStatsOptions
+     *            get stats options
      * @return the topic statistics
      *
      * @throws NotAuthorizedException
@@ -856,15 +854,29 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    TopicStats getStats(String topic, boolean getPreciseBacklog,
-                        boolean subscriptionBacklogSize) throws PulsarAdminException;
+    TopicStats getStats(String topic, GetStatsOptions getStatsOptions) throws PulsarAdminException;
+
+
+    default TopicStats getStats(String topic, boolean getPreciseBacklog, boolean subscriptionBacklogSize,
+                        boolean getEarliestTimeInBacklog) throws PulsarAdminException {
+        GetStatsOptions getStatsOptions =
+                new GetStatsOptions(getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog);
+        return getStats(topic, getStatsOptions);
+    }
+
+    default TopicStats getStats(String topic, boolean getPreciseBacklog,
+                        boolean subscriptionBacklogSize) throws PulsarAdminException {
+        GetStatsOptions getStatsOptions = new GetStatsOptions(getPreciseBacklog, subscriptionBacklogSize, false);
+        return getStats(topic, getStatsOptions);
+    }
 
     default TopicStats getStats(String topic, boolean getPreciseBacklog) throws PulsarAdminException {
-        return getStats(topic, getPreciseBacklog, false);
+        GetStatsOptions getStatsOptions = new GetStatsOptions(getPreciseBacklog, false, false);
+        return getStats(topic, getStatsOptions);
     }
 
     default TopicStats getStats(String topic) throws PulsarAdminException {
-        return getStats(topic, false, false);
+        return getStats(topic, new GetStatsOptions(false, false, false));
     }
 
     /**
@@ -877,14 +889,16 @@ public interface Topics {
      *            Set to true to get precise backlog, Otherwise get imprecise backlog.
      * @param subscriptionBacklogSize
      *            Whether to get backlog size for each subscription.
+     * @param getEarliestTimeInBacklog
+     *            Whether to get the earliest time in backlog.
      * @return a future that can be used to track when the topic statistics are returned
      *
      */
     CompletableFuture<TopicStats> getStatsAsync(String topic, boolean getPreciseBacklog,
-                                                boolean subscriptionBacklogSize);
+                                                boolean subscriptionBacklogSize, boolean getEarliestTimeInBacklog);
 
     default CompletableFuture<TopicStats> getStatsAsync(String topic) {
-        return getStatsAsync(topic, false, false);
+        return getStatsAsync(topic, false, false, false);
     }
 
     /**

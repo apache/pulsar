@@ -779,7 +779,7 @@ The table below lists the environment variables that you can use to configure th
 |BOOKIE_STOP_TIMEOUT|Wait time before forcefully killing the Bookie server instance if attempts to stop it are not successful||
 
 
-### `auto-recovery`
+### `autorecovery`
 Runs an auto-recovery service daemon
 
 Usage
