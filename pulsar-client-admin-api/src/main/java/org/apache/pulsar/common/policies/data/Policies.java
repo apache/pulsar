@@ -74,6 +74,8 @@ public class Policies {
     @SuppressWarnings("checkstyle:MemberName")
     public InactiveTopicPolicies inactive_topic_policies = null;
     @SuppressWarnings("checkstyle:MemberName")
+    public TopicLifecyclePolicies topicLifecycle = null;
+    @SuppressWarnings("checkstyle:MemberName")
     public SubscriptionAuthMode subscription_auth_mode = SubscriptionAuthMode.None;
 
     @SuppressWarnings("checkstyle:MemberName")

@@ -79,6 +79,7 @@ import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
@@ -95,6 +96,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TenantOperation;
+import org.apache.pulsar.common.policies.data.TopicLifecyclePolicies;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -1502,6 +1504,23 @@ public abstract class NamespacesBase extends AdminResource {
 
         Policies policies = getNamespacePolicies(namespaceName);
         return policies.persistence;
+    }
+
+    protected void internalSetTopicLifecycle(AsyncResponse asyncResponse, TopicLifecyclePolicies lifecyclePolicies) {
+        InactiveTopicPolicies inactiveTopicPolicies = new InactiveTopicPolicies(
+                InactiveTopicDeleteMode.delete_when_no_subscriptions, 0,
+                lifecyclePolicies.isAutoDeleteTopics());
+        try {
+            internalSetInactiveTopic(inactiveTopicPolicies);
+        } catch (Throwable t) {
+            asyncResponse.resume(t);
+            return;
+        }
+
+        AutoTopicCreationOverride autoTopicCreationOverride = AutoTopicCreationOverride.builder()
+                .allowAutoTopicCreation(lifecyclePolicies.isAutoCreateTopics())
+                .build();
+        internalSetAutoTopicCreation(asyncResponse, autoTopicCreationOverride);
     }
 
     protected void internalClearNamespaceBacklog(AsyncResponse asyncResponse, boolean authoritative) {

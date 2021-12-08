@@ -130,6 +130,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -329,6 +330,16 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
 
                     schemaValidationEnforced = policies.schema_validation_enforced;
+
+                    if (policies.inactive_topic_policies != null) {
+                        inactiveTopicPolicies = policies.inactive_topic_policies;
+                    }
+
+                    if (policies.topicLifecycle != null) {
+                        inactiveTopicPolicies = new InactiveTopicPolicies(
+                                InactiveTopicDeleteMode.delete_when_no_subscriptions,
+                                0, policies.topicLifecycle.isAutoDeleteTopics());
+                    }
 
                     updateUnackedMessagesAppliedOnSubscription(policies);
                     updateUnackedMessagesExceededOnConsumer(policies);
@@ -2484,6 +2495,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
         //If the topic-level policy already exists, the namespace-level policy cannot override the topic-level policy.
         Optional<TopicPolicies> topicPolicies = getTopicPolicies();
+
+        if (data.topicLifecycle != null) {
+            this.inactiveTopicPolicies = new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions,
+                    0, data.topicLifecycle.isAutoDeleteTopics());
+        }
 
         initializeRateLimiterIfNeeded(Optional.ofNullable(data));
 
