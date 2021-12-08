@@ -186,6 +186,11 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newTxn(transactionCoordinatorId, requestId, unit.toMillis(timeout));
         OpForNewTxnCallBack op = OpForNewTxnCallBack.create(cmd, callback, timeout, unit, client);
+        if (getState().equals(State.Connecting)) {
+            timer.newTimeout(ignore -> tryExecuteCommandAgain(op, requestId),
+                    op.backoff.next(), TimeUnit.MILLISECONDS);
+            return callback;
+        }
         pendingRequests.put(requestId, op);
         timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
         cmd.retain();
@@ -211,7 +216,8 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             op.callback.complete(txnID);
         } else {
             handleTransactionFailOp(response.getError(), response.getMessage(), op);
-            if (response.getError() == ServerError.TransactionCoordinatorNotFound) {
+            if (response.getError() == ServerError.TransactionCoordinatorNotFound
+                    || response.getError() == ServerError.TransactionMetadataStoreStateException) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Get a response for request {} error TransactionCoordinatorNotFound and try it again",
                             response.getRequestId());
@@ -250,6 +256,11 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
 
         OpForAddPublishPartitionToTxnCallBack op = OpForAddPublishPartitionToTxnCallBack
                 .create(cmd, callback, txnID, partitions, client);
+        if (getState().equals(State.Connecting)) {
+            timer.newTimeout(ignore -> tryExecuteCommandAgain(op, requestId),
+                    op.backoff.next(), TimeUnit.MILLISECONDS);
+            return callback;
+        }
         pendingRequests.put(requestId, op);
         timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
         cmd.retain();
@@ -275,7 +286,8 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             op.callback.complete(null);
         } else {
             handleTransactionFailOp(response.getError(), response.getMessage(), op);
-            if (response.getError() == ServerError.TransactionCoordinatorNotFound) {
+            if (response.getError() == ServerError.TransactionCoordinatorNotFound
+                    || response.getError() == ServerError.TransactionMetadataStoreStateException) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Get a response for request {} error TransactionCoordinatorNotFound and try it again",
                             response.getRequestId());
@@ -315,6 +327,11 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                 requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), subscriptionList);
         OpForAddSubscriptionToTxnCallBack op = OpForAddSubscriptionToTxnCallBack
                 .create(cmd, callback, txnID, subscriptionList, client);
+        if (getState().equals(State.Connecting)) {
+            timer.newTimeout(ignore -> tryExecuteCommandAgain(op, requestId),
+                    op.backoff.next(), TimeUnit.MILLISECONDS);
+            return callback;
+        }
         pendingRequests.put(requestId, op);
         timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
         cmd.retain();
@@ -341,7 +358,8 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             LOG.error("Add subscription to txn failed for request {} error {}.",
                     response.getRequestId(), response.getError());
             handleTransactionFailOp(response.getError(), response.getMessage(), op);
-            if (response.getError() == ServerError.TransactionCoordinatorNotFound) {
+            if (response.getError() == ServerError.TransactionCoordinatorNotFound
+                    || response.getError() == ServerError.TransactionMetadataStoreStateException) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Get a response for request {} error TransactionCoordinatorNotFound and try it again",
                             response.getRequestId());
@@ -404,7 +422,8 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             op.callback.complete(null);
         } else {
             handleTransactionFailOp(response.getError(), response.getMessage(), op);
-            if (response.getError() == ServerError.TransactionCoordinatorNotFound) {
+            if (response.getError() == ServerError.TransactionCoordinatorNotFound
+                    || response.getError() == ServerError.TransactionMetadataStoreStateException) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Get a response for request {} error TransactionCoordinatorNotFound and try it again",
                             response.getRequestId());
@@ -431,7 +450,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
 
     private <T> void tryExecuteCommandAgain(OpBase<T> op, long requestId) {
         ClientCnx cnx = cnx();
-        if (cnx == null) {
+        if (cnx == null || getState().equals(State.Connecting)) {
             timer.newTimeout(timeout ->
                     tryExecuteCommandAgain(op, requestId), op.backoff.next(), TimeUnit.MILLISECONDS);
             return;
@@ -448,6 +467,8 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                 connectionHandler.reconnectLater(new TransactionCoordinatorClientException
                         .CoordinatorNotFoundException(message));
             }
+            return;
+        } else if (error == ServerError.TransactionMetadataStoreStateException) {
             return;
         }
 
@@ -678,14 +699,8 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     private boolean isValidHandlerState(CompletableFuture<?> callback) {
         switch (getState()) {
             case Ready:
-                return true;
             case Connecting:
-                callback.completeExceptionally(
-                        new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
-                                "Transaction meta store handler for tcId "
-                                + transactionCoordinatorId
-                                + " is connecting now, please try later."));
-                return false;
+                return true;
             case Closing:
             case Closed:
                 callback.completeExceptionally(

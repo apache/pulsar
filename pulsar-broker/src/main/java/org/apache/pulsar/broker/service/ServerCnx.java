@@ -2077,8 +2077,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                             .CoordinatorNotFoundException(ex.getMessage())), ex.getMessage()));
                         } else {
                             ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(requestId, txnID.getMostSigBits(),
-                                    BrokerServiceException.getClientErrorCode(ex.getCause()),
-                                    ex.getCause().getMessage()));
+                                    BrokerServiceException.getClientErrorCode(ex),
+                                    ex.getMessage()));
                         }
                         transactionMetadataStoreService.handleOpFail(ex, tcId);
                     }
@@ -2106,17 +2106,21 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         ctx.writeAndFlush(Commands.newEndTxnResponse(requestId,
                                 txnID.getLeastSigBits(), txnID.getMostSigBits()));
                     } else {
-                        log.error("Send response error for end txn request.", ex);
+                        if (ex instanceof ManagedLedgerException.ManagedLedgerFencedException) {
+                            ex = new CoordinatorException
+                                    .CoordinatorNotFoundException(ex.getMessage());
+                        }
+                        if (!TransactionMetadataStoreService.isRetryableException(ex)) {
+                            log.error("Send response error for end txn request.", ex);
+                        }
 
-                        if (ex instanceof CoordinatorException.CoordinatorNotFoundException
-                                || ex.getCause() instanceof ManagedLedgerException.ManagedLedgerFencedException) {
+                        if (ex instanceof CoordinatorException.CoordinatorNotFoundException) {
                             ctx.writeAndFlush(Commands.newEndTxnResponse(requestId, txnID.getMostSigBits(),
-                                    BrokerServiceException.getClientErrorCode(new CoordinatorException
-                                            .CoordinatorNotFoundException(ex.getMessage())), ex.getMessage()));
+                                    BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
                         } else {
                             ctx.writeAndFlush(Commands.newEndTxnResponse(requestId, txnID.getMostSigBits(),
-                                    BrokerServiceException.getClientErrorCode(ex.getCause()),
-                                    ex.getCause().getMessage()));
+                                    BrokerServiceException.getClientErrorCode(ex),
+                                    ex.getMessage()));
                         }
                         transactionMetadataStoreService.handleOpFail(ex, tcId);
                     }
@@ -2342,8 +2346,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     ex.getMessage()));
                         } else {
                             ctx.writeAndFlush(Commands.newAddSubscriptionToTxnResponse(requestId,
-                                    txnID.getMostSigBits(), BrokerServiceException.getClientErrorCode(ex.getCause()),
-                                    ex.getCause().getMessage()));
+                                    txnID.getMostSigBits(), BrokerServiceException.getClientErrorCode(ex),
+                                    ex.getMessage()));
                         }
                         transactionMetadataStoreService.handleOpFail(ex, tcId);
                     }
