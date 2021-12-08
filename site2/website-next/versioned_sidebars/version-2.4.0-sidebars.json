@@ -1,0 +1,122 @@
+{
+  "version-2.4.0/docsSidebar": [
+    {
+      "type": "category",
+      "label": "Get Started",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.4.0/pulsar-2.0"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/standalone"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/standalone-docker"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/client-libraries"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Concepts and Architecture",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.4.0/concepts-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/concepts-messaging"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/concepts-architecture-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/concepts-clients"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/concepts-replication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/concepts-multi-tenancy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/concepts-authentication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/concepts-topic-compaction"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/concepts-tiered-storage"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/concepts-schema-registry"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar Functions",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.4.0/functions-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/functions-quickstart"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/functions-api"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/functions-deploying"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/functions-guarantees"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/functions-state"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/functions-metrics"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/functions-worker"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/functions-runtime"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/functions-debugging"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.4.0/window-functions-context"
+        }
+      ]
+    }
+  ]
+}
