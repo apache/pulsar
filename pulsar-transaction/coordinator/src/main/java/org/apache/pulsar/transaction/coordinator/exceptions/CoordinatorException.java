@@ -119,4 +119,14 @@ public abstract class CoordinatorException extends Exception {
 
         }
     }
+
+    /**
+     * Exception is thrown when a isRetryable Exception was thrown.
+     */
+    public static class TcOperationRetryException extends CoordinatorException {
+
+        public TcOperationRetryException(String message) {
+            super(message);
+        }
+    }
 }

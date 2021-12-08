@@ -217,7 +217,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         } else {
             handleTransactionFailOp(response.getError(), response.getMessage(), op);
             if (response.getError() == ServerError.TransactionCoordinatorNotFound
-                    || response.getError() == ServerError.TransactionMetadataStoreStateException) {
+                    || response.getError() == ServerError.RetryTcOpAgain) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Get a response for request {} error TransactionCoordinatorNotFound and try it again",
                             response.getRequestId());
@@ -287,7 +287,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         } else {
             handleTransactionFailOp(response.getError(), response.getMessage(), op);
             if (response.getError() == ServerError.TransactionCoordinatorNotFound
-                    || response.getError() == ServerError.TransactionMetadataStoreStateException) {
+                    || response.getError() == ServerError.RetryTcOpAgain) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Get a response for request {} error TransactionCoordinatorNotFound and try it again",
                             response.getRequestId());
@@ -359,7 +359,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                     response.getRequestId(), response.getError());
             handleTransactionFailOp(response.getError(), response.getMessage(), op);
             if (response.getError() == ServerError.TransactionCoordinatorNotFound
-                    || response.getError() == ServerError.TransactionMetadataStoreStateException) {
+                    || response.getError() == ServerError.RetryTcOpAgain) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Get a response for request {} error TransactionCoordinatorNotFound and try it again",
                             response.getRequestId());
@@ -423,7 +423,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         } else {
             handleTransactionFailOp(response.getError(), response.getMessage(), op);
             if (response.getError() == ServerError.TransactionCoordinatorNotFound
-                    || response.getError() == ServerError.TransactionMetadataStoreStateException) {
+                    || response.getError() == ServerError.RetryTcOpAgain) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Get a response for request {} error TransactionCoordinatorNotFound and try it again",
                             response.getRequestId());
@@ -468,7 +468,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                         .CoordinatorNotFoundException(message));
             }
             return;
-        } else if (error == ServerError.TransactionMetadataStoreStateException) {
+        } else if (error == ServerError.RetryTcOpAgain) {
             return;
         }
 

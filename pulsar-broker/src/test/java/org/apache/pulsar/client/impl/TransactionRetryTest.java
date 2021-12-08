@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.junit.Assert.fail;
 import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.commons.lang3.RandomUtils;
@@ -30,10 +32,12 @@ import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.impl.transaction.TransactionCoordinatorClientImpl;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
+import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -180,8 +184,15 @@ public class TransactionRetryTest extends TransactionTestBase {
         for (HandlerState handlerState : handlers) {
             changeHandlerState(HandlerState.State.Ready, handlerState);
         }
-        future.get(pulsarClient.conf.getOperationTimeoutMs() * 5 / 6,
-                TimeUnit.MILLISECONDS);
+        try {
+            future.get(pulsarClient.conf.getOperationTimeoutMs() * 5 / 6,
+                    TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            if (!(e.getCause() instanceof CoordinatorException.InvalidTxnStatusException)
+                    && !(e.getCause() instanceof CoordinatorException.TransactionNotFoundException)) {
+                fail();
+            }
+        }
 
         TransactionMetadataStoreService transactionMetadataStoreService =
                 transactionEndToEndTest.getPulsarServiceList().get(0).getTransactionMetadataStoreService();
@@ -207,8 +218,15 @@ public class TransactionRetryTest extends TransactionTestBase {
             changeMLTransactionMetadataStoreState(TransactionMetadataStoreState.State.Ready,
                     (MLTransactionMetadataStore) transactionMetadataStore);
         }
-        future1.get(pulsarClient.conf.getOperationTimeoutMs() * 5 / 6,
-                TimeUnit.MILLISECONDS);
+        try {
+            future1.get(pulsarClient.conf.getOperationTimeoutMs() * 5 / 6,
+                    TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            if (!(e.getCause() instanceof TransactionCoordinatorClientException.InvalidTxnStatusException)
+                    && !(e.getCause() instanceof TransactionCoordinatorClientException.TransactionNotFoundException)) {
+                fail();
+            }
+        }
 
     }
 
