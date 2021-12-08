@@ -320,6 +320,8 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(ignore -> namespaceResources().deletePoliciesAsync(namespaceName))
                 // clear z-node of local policies
                 .thenCompose(ignore -> getLocalPolicies().deleteLocalPoliciesAsync(namespaceName))
+                // clear /loadbalance/bundle-data
+                .thenCompose(ignore -> namespaceResources().deleteBundleDataAsync(namespaceName))
                 .whenComplete((ignore, ex) -> {
                     if (ex != null) {
                         log.warn("[{}] Failed to remove namespace or managed-ledger for {}",
