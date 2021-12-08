@@ -596,10 +596,14 @@ public class CmdTopics extends CmdBase {
         + ", locking required.")
         private boolean subscriptionBacklogSize = false;
 
+        @Parameter(names = { "-etb",
+                "--get-earliest-time-in-backlog" }, description = "Set true to get earliest time in backlog")
+        private boolean getEarliestTimeInBacklog = false;
+
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            print(getTopics().getStats(topic, getPreciseBacklog, subscriptionBacklogSize));
+            print(getTopics().getStats(topic, getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog));
         }
     }
 
