@@ -354,8 +354,9 @@ implements <a href="../../../../../../org/apache/pulsar/broker/service/Subscript
 </tr>
 <tr id="i28" class="altColor">
 <td class="colFirst"><code>org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/persistent/PersistentSubscription.html#getStats-java.lang.Boolean-boolean-">getStats</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Boolean.html?is-external=true" title="class or interface in java.lang">Boolean</a>&nbsp;getPreciseBacklog,
-        boolean&nbsp;subscriptionBacklogSize)</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/persistent/PersistentSubscription.html#getStats-java.lang.Boolean-boolean-boolean-">getStats</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Boolean.html?is-external=true" title="class or interface in java.lang">Boolean</a>&nbsp;getPreciseBacklog,
+        boolean&nbsp;subscriptionBacklogSize,
+        boolean&nbsp;getEarliestTimeInBacklog)</code>&nbsp;</td>
 </tr>
 <tr id="i29" class="rowColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;</code></td>
@@ -1064,14 +1065,15 @@ implements <a href="../../../../../../org/apache/pulsar/broker/service/Subscript
 <pre>public&nbsp;long&nbsp;estimateBacklogSize()</pre>
 </li>
 </ul>
-<a name="getStats-java.lang.Boolean-boolean-">
+<a name="getStats-java.lang.Boolean-boolean-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>getStats</h4>
 <pre>public&nbsp;org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl&nbsp;getStats(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Boolean.html?is-external=true" title="class or interface in java.lang">Boolean</a>&nbsp;getPreciseBacklog,
-                                                                                   boolean&nbsp;subscriptionBacklogSize)</pre>
+                                                                                   boolean&nbsp;subscriptionBacklogSize,
+                                                                                   boolean&nbsp;getEarliestTimeInBacklog)</pre>
 </li>
 </ul>
 <a name="redeliverUnacknowledgedMessages-org.apache.pulsar.broker.service.Consumer-">

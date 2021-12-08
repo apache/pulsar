@@ -199,20 +199,22 @@
 
     ```json
     {
-        "database.hostname": "localhost",
-        "database.port": "5432",
-        "database.user": "postgres",
-        "database.password": "postgres",
-        "database.dbname": "postgres",
-        "database.server.name": "dbserver1",
-        "schema.whitelist": "inventory",
-        "pulsar.service.url": "pulsar://127.0.0.1:6650"
+       "configs": {
+          "database.hostname": "localhost",
+          "database.port": "5432",
+          "database.user": "postgres",
+          "database.password": "postgres",
+          "database.dbname": "postgres",
+          "database.server.name": "dbserver1",
+          "schema.whitelist": "inventory",
+          "pulsar.service.url": "pulsar://127.0.0.1:6650"
+       }
     }
     ```
 
 * YAML 
 
-    你可以创建一个`debezium-postgres-source-config.yaml`文件，并复制[contents](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/postgres/src/main/resources/debezium-postgres-source-config.yaml)的内容到`debezium-postgres-source-config.yaml` 文件中。
+    You can create a `debezium-postgres-source-config.yaml` file and copy the [contents](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/postgres/src/main/resources/debezium-postgres-source-config.yaml) below to the `debezium-postgres-source-config.yaml` file.
 
     ```yaml
     tenant: "public"
@@ -332,19 +334,21 @@
 
     ```json
     {
-        "mongodb.hosts": "rs0/mongodb:27017",
-        "mongodb.name": "dbserver1",
-        "mongodb.user": "debezium",
-        "mongodb.password": "dbz",
-        "mongodb.task.id": "1",
-        "database.whitelist": "inventory",
-        "pulsar.service.url": "pulsar://127.0.0.1:6650"
+       "configs": {
+          "mongodb.hosts": "rs0/mongodb:27017",
+          "mongodb.name": "dbserver1",
+          "mongodb.user": "debezium",
+          "mongodb.password": "dbz",
+          "mongodb.task.id": "1",
+          "database.whitelist": "inventory",
+          "pulsar.service.url": "pulsar://127.0.0.1:6650"
+       }
     }
     ```
 
 * YAML 
 
-    你可以创建一个 `debezium-mongodb-source-config.yaml` 文件，并复制[contents](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mongodb/src/main/resources/debezium-mongodb-source-config.yaml)的内容到 `debezium-mongodb-source-config.yaml` 文件中。
+    You can create a `debezium-mongodb-source-config.yaml` file and copy the [contents](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mongodb/src/main/resources/debezium-mongodb-source-config.yaml) below to the `debezium-mongodb-source-config.yaml` file.
 
     ```yaml
     tenant: "public"
@@ -357,20 +361,20 @@
     configs:
 
         ## config for pg, docker image: debezium/example-postgress:0.10
-        mongodb.hosts: "rs0/mongodb:27017",
-        mongodb.name: "dbserver1",
-        mongodb.user: "debezium",
-        mongodb.password: "dbz",
-        mongodb.task.id: "1",
-        database.whitelist: "inventory",
+        mongodb.hosts: "rs0/mongodb:27017"
+        mongodb.name: "dbserver1"
+        mongodb.user: "debezium"
+        mongodb.password: "dbz"
+        mongodb.task.id: "1"
+        database.whitelist: "inventory"
 
         ## PULSAR_SERVICE_URL_CONFIG
         pulsar.service.url: "pulsar://127.0.0.1:6650"
     ```
 
-### 用法
+### Usage
 
-此示例展示如何使用 Pulsar Debezium 连接器更改 MongoDB 表的数据。
+This example shows how to change the data of a MongoDB table using the Pulsar Debezium connector.
 
 
 1. 启动一个 MongoDB 服务器，Debezium 可以从该数据库捕获更改。

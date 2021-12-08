@@ -394,11 +394,12 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 </tr>
 <tr id="i41" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalGetPartitionedStats-javax.ws.rs.container.AsyncResponse-boolean-boolean-boolean-boolean-">internalGetPartitionedStats</a></span>(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalGetPartitionedStats-javax.ws.rs.container.AsyncResponse-boolean-boolean-boolean-boolean-boolean-">internalGetPartitionedStats</a></span>(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                            boolean&nbsp;authoritative,
                            boolean&nbsp;perPartition,
                            boolean&nbsp;getPreciseBacklog,
-                           boolean&nbsp;subscriptionBacklogSize)</code>&nbsp;</td>
+                           boolean&nbsp;subscriptionBacklogSize,
+                           boolean&nbsp;getEarliestTimeInBacklog)</code>&nbsp;</td>
 </tr>
 <tr id="i42" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
@@ -437,9 +438,10 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 </tr>
 <tr id="i50" class="altColor">
 <td class="colFirst"><code>protected org.apache.pulsar.common.policies.data.TopicStats</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalGetStats-boolean-boolean-boolean-">internalGetStats</a></span>(boolean&nbsp;authoritative,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalGetStats-boolean-boolean-boolean-boolean-">internalGetStats</a></span>(boolean&nbsp;authoritative,
                 boolean&nbsp;getPreciseBacklog,
-                boolean&nbsp;subscriptionBacklogSize)</code>&nbsp;</td>
+                boolean&nbsp;subscriptionBacklogSize,
+                boolean&nbsp;getEarliestTimeInBacklog)</code>&nbsp;</td>
 </tr>
 <tr id="i51" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;org.apache.pulsar.common.policies.data.SubscribeRate&gt;</code></td>
@@ -1073,7 +1075,7 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
                                         boolean&nbsp;authoritative)</pre>
 </li>
 </ul>
-<a name="internalGetStats-boolean-boolean-boolean-">
+<a name="internalGetStats-boolean-boolean-boolean-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
@@ -1081,7 +1083,8 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 <h4>internalGetStats</h4>
 <pre>protected&nbsp;org.apache.pulsar.common.policies.data.TopicStats&nbsp;internalGetStats(boolean&nbsp;authoritative,
                                                                              boolean&nbsp;getPreciseBacklog,
-                                                                             boolean&nbsp;subscriptionBacklogSize)</pre>
+                                                                             boolean&nbsp;subscriptionBacklogSize,
+                                                                             boolean&nbsp;getEarliestTimeInBacklog)</pre>
 </li>
 </ul>
 <a name="internalGetInternalStats-boolean-boolean-">
@@ -1113,7 +1116,7 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 <pre>protected&nbsp;void&nbsp;internalGetManagedLedgerInfoForNonPartitionedTopic(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse)</pre>
 </li>
 </ul>
-<a name="internalGetPartitionedStats-javax.ws.rs.container.AsyncResponse-boolean-boolean-boolean-boolean-">
+<a name="internalGetPartitionedStats-javax.ws.rs.container.AsyncResponse-boolean-boolean-boolean-boolean-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
@@ -1123,7 +1126,8 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
                                            boolean&nbsp;authoritative,
                                            boolean&nbsp;perPartition,
                                            boolean&nbsp;getPreciseBacklog,
-                                           boolean&nbsp;subscriptionBacklogSize)</pre>
+                                           boolean&nbsp;subscriptionBacklogSize,
+                                           boolean&nbsp;getEarliestTimeInBacklog)</pre>
 </li>
 </ul>
 <a name="internalGetPartitionedStatsInternal-javax.ws.rs.container.AsyncResponse-boolean-">

@@ -815,15 +815,15 @@ implements org.apache.pulsar.client.admin.Topics</pre>
 </tr>
 <tr id="i137" class="rowColor">
 <td class="colFirst"><code>org.apache.pulsar.common.policies.data.TopicStats</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/admin/internal/TopicsImpl.html#getStats-java.lang.String-boolean-boolean-">getStats</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;topic,
-        boolean&nbsp;getPreciseBacklog,
-        boolean&nbsp;subscriptionBacklogSize)</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/admin/internal/TopicsImpl.html#getStats-java.lang.String-org.apache.pulsar.client.admin.GetStatsOptions-">getStats</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;topic,
+        org.apache.pulsar.client.admin.GetStatsOptions&nbsp;getStatsOptions)</code>&nbsp;</td>
 </tr>
 <tr id="i138" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;org.apache.pulsar.common.policies.data.TopicStats&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/admin/internal/TopicsImpl.html#getStatsAsync-java.lang.String-boolean-boolean-">getStatsAsync</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;topic,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/admin/internal/TopicsImpl.html#getStatsAsync-java.lang.String-boolean-boolean-boolean-">getStatsAsync</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;topic,
              boolean&nbsp;getPreciseBacklog,
-             boolean&nbsp;subscriptionBacklogSize)</code>&nbsp;</td>
+             boolean&nbsp;subscriptionBacklogSize,
+             boolean&nbsp;getEarliestTimeInBacklog)</code>&nbsp;</td>
 </tr>
 <tr id="i139" class="rowColor">
 <td class="colFirst"><code>org.apache.pulsar.common.policies.data.SubscribeRate</code></td>
@@ -1505,7 +1505,7 @@ implements org.apache.pulsar.client.admin.Topics</pre>
 <!--   -->
 </a>
 <h3>Methods inherited from interface&nbsp;org.apache.pulsar.client.admin.Topics</h3>
-<code>delete, deleteAsync, deletePartitionedTopic, deletePartitionedTopicAsync, getPartitionedStats, getPartitionedStatsAsync, getStats, getStats, getStatsAsync, removeBacklogQuota, setBacklogQuota</code></li>
+<code>delete, deleteAsync, deletePartitionedTopic, deletePartitionedTopicAsync, getPartitionedStats, getPartitionedStatsAsync, getStats, getStats, getStats, getStats, getStatsAsync, removeBacklogQuota, setBacklogQuota</code></li>
 </ul>
 </li>
 </ul>
@@ -2192,15 +2192,14 @@ implements org.apache.pulsar.client.admin.Topics</pre>
 </dl>
 </li>
 </ul>
-<a name="getStats-java.lang.String-boolean-boolean-">
+<a name="getStats-java.lang.String-org.apache.pulsar.client.admin.GetStatsOptions-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>getStats</h4>
 <pre>public&nbsp;org.apache.pulsar.common.policies.data.TopicStats&nbsp;getStats(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;topic,
-                                                                  boolean&nbsp;getPreciseBacklog,
-                                                                  boolean&nbsp;subscriptionBacklogSize)
+                                                                  org.apache.pulsar.client.admin.GetStatsOptions&nbsp;getStatsOptions)
                                                            throws org.apache.pulsar.client.admin.PulsarAdminException</pre>
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
@@ -2210,7 +2209,7 @@ implements org.apache.pulsar.client.admin.Topics</pre>
 </dl>
 </li>
 </ul>
-<a name="getStatsAsync-java.lang.String-boolean-boolean-">
+<a name="getStatsAsync-java.lang.String-boolean-boolean-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
@@ -2218,7 +2217,8 @@ implements org.apache.pulsar.client.admin.Topics</pre>
 <h4>getStatsAsync</h4>
 <pre>public&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;org.apache.pulsar.common.policies.data.TopicStats&gt;&nbsp;getStatsAsync(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;topic,
                                                                                           boolean&nbsp;getPreciseBacklog,
-                                                                                          boolean&nbsp;subscriptionBacklogSize)</pre>
+                                                                                          boolean&nbsp;subscriptionBacklogSize,
+                                                                                          boolean&nbsp;getEarliestTimeInBacklog)</pre>
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
 <dd><code>getStatsAsync</code>&nbsp;in interface&nbsp;<code>org.apache.pulsar.client.admin.Topics</code></dd>
