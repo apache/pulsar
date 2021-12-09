@@ -162,8 +162,11 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                 } else {
                     //What need to be lock is the operation changing state instead of reconnecting
                     lock.lock();
-                    connectionHandler.reconnectLater(e.getCause());
-                    lock.unlock();
+                    try {
+                        connectionHandler.reconnectLater(e.getCause());
+                    } finally {
+                        lock.unlock();
+                    }
                 }
                 return null;
             });
@@ -205,9 +208,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newTxn(transactionCoordinatorId, requestId, unit.toMillis(timeout));
         OpForNewTxnCallBack op = OpForNewTxnCallBack.create(cmd, callback, timeout, unit, client);
-        if (checkIfConnecting()) {
-            waitingExecutedRequests.put(requestId, op);
-            lock.unlock();
+        if (checkIfConnecting(requestId, op)) {
             return callback;
         }
         pendingRequests.put(requestId, op);
@@ -275,9 +276,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
 
         OpForAddPublishPartitionToTxnCallBack op = OpForAddPublishPartitionToTxnCallBack
                 .create(cmd, callback, txnID, partitions, client);
-        if (checkIfConnecting()) {
-            waitingExecutedRequests.put(requestId, op);
-            lock.unlock();
+        if (checkIfConnecting(requestId, op)) {
             return callback;
         }
         pendingRequests.put(requestId, op);
@@ -346,9 +345,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                 requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), subscriptionList);
         OpForAddSubscriptionToTxnCallBack op = OpForAddSubscriptionToTxnCallBack
                 .create(cmd, callback, txnID, subscriptionList, client);
-        if (checkIfConnecting()) {
-            waitingExecutedRequests.put(requestId, op);
-            lock.unlock();
+        if (checkIfConnecting(requestId, op)) {
             return callback;
         }
         pendingRequests.put(requestId, op);
@@ -417,9 +414,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         BaseCommand cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), action);
         ByteBuf buf = Commands.serializeWithSize(cmd);
         OpForEndTxnCallBack op = OpForEndTxnCallBack.create(buf, callback, txnID, action, client);
-        if (checkIfConnecting()) {
-            waitingExecutedRequests.put(requestId, op);
-            lock.unlock();
+        if (checkIfConnecting(requestId, op)) {
             return callback;
         }
         pendingRequests.put(requestId, op);
@@ -490,9 +485,12 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             if (getState() != State.Connecting) {
                 //What need to be lock is the operation changing state instead of reconnecting
                 lock.lock();
-                connectionHandler.reconnectLater(new TransactionCoordinatorClientException
-                        .CoordinatorNotFoundException(message));
-                lock.unlock();
+                try {
+                    connectionHandler.reconnectLater(new TransactionCoordinatorClientException
+                            .CoordinatorNotFoundException(message));
+                } finally {
+                    lock.unlock();
+                }
             }
             return;
         } else if (error == ServerError.RetryTcOpAgain) {
@@ -802,14 +800,18 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         this.connectionHandler.connectionClosed(cnx);
     }
 
-    private boolean checkIfConnecting() {
+    private boolean checkIfConnecting(long requestId, OpBase<?> op) {
         if (getState().equals(State.Connecting)) {
             lock.lock();
-            if (getState().equals(State.Connecting)) {
-                return true;
-            } else {
+            try {
+                if (getState().equals(State.Connecting)) {
+                    waitingExecutedRequests.put(requestId, op);
+                    return true;
+                }
+            } finally {
                 lock.unlock();
             }
+
         }
         return false;
     }
