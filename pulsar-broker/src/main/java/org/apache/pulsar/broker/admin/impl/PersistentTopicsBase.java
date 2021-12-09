@@ -2062,7 +2062,7 @@ public class PersistentTopicsBase extends AdminResource {
             internalCreateSubscriptionForNonPartitionedTopic(asyncResponse,
                     subscriptionName, targetMessageId, authoritative, replicated);
         } else {
-            boolean allowAutoTopicCreation = pulsar().getConfiguration().isAllowAutoTopicCreation();
+            boolean allowAutoTopicCreation = pulsar().getBrokerService().isAllowAutoTopicCreation(topicName);
             getPartitionedTopicMetadataAsync(topicName,
                     authoritative, allowAutoTopicCreation).thenAccept(partitionMetadata -> {
                 final int numPartitions = partitionMetadata.partitions;
@@ -2147,7 +2147,7 @@ public class PersistentTopicsBase extends AdminResource {
             AsyncResponse asyncResponse, String subscriptionName,
             MessageIdImpl targetMessageId, boolean authoritative, boolean replicated) {
 
-        boolean isAllowAutoTopicCreation = pulsar().getConfiguration().isAllowAutoTopicCreation();
+        boolean isAllowAutoTopicCreation = pulsar().getBrokerService().isAllowAutoTopicCreation(topicName);
 
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> {
