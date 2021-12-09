@@ -10,47 +10,15 @@ Package managers or package-management systems automatically manage packages in 
 
 A package is a set of elements that the user would like to reuse in later operations. In Pulsar, a package can be a group of functions, sources, and sinks. You can define a package according to your needs. 
 
-The package management system in Pulsar stores the data and metadata of each package (as shown in table below) and tracks the package versions. 
+The package management system in Pulsar stores the data and metadata of each package (as shown in the table below) and tracks the package versions. 
 
-<table>
-  <tr>
-   <td><strong>Metadata</strong>
-   </td>
-   <td><strong>Description</strong>
-   </td>
-  </tr>
-  <tr>
-   <td>description
-   </td>
-   <td>The description of the package.
-   </td>
-  </tr>
-  <tr>
-   <td>contact
-   </td>
-   <td>The contact information of a package. For example, an email address of the developer team.
-   </td>
-  </tr>
-  <tr>
-   <td>create_time
-   </td>
-   <td>The time when the package is created.
-   </td>
-  </tr>
-  <tr>
-   <td>modification_time
-   </td>
-   <td>The time when the package is lastly modified.
-   </td>
-  </tr>
-  <tr>
-   <td>properties
-   </td>
-   <td>A user-defined key/value map to store other information.
-   </td>
-  </tr>
-</table>
-
+|**Metadata**|**Description**|
+|--|--|
+|description|The description of the package.|
+|contact|The contact information of a package. For example, an email address of the developer team.|
+|create_time|The time when the package is created.|
+|modification_time|The time when the package is lastly modified.|
+|properties|A user-defined key/value map to store other information.|
 
 ## How to use a package
 
@@ -96,7 +64,7 @@ bin/pulsar-admin packages upload functions://public/default/example@v0.1 --path 
 
 <!--REST API-->
 
-{@inject: endpoint|POST|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:versio}
+{@inject: endpoint|POST|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version}
 
 <!--JAVA-->
 Upload a package to the package management service synchronously.
@@ -286,6 +254,6 @@ List all packages of a specific type under a namespace asynchronously.
 
 > **Note**  
 > This page only includes some of the most frequently used operations.
-> * For more information about the commands, flags, descriptions, and more in Pulsar administrator, see [Pulsar admin](https://pulsar.apache.org/tools/pulsar-admin/) page.
-> * For more information about the parameters, responses, samples, and more in REST API, see [REST API](https://pulsar.incubator.apache.org/admin-rest-api#/) page.
-> * For more information about the classes, methods, descriptions, and more Java administrator API, see [Java admin API](https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/) page.
+> * For more information about the commands, flags, descriptions, and more in Pulsar administrator, see [Pulsar admin](https://pulsar.apache.org/tools/pulsar-admin/).
+> * For more information about the parameters, responses, samples, and more in REST API, see {@inject: rest:REST:/} API.
+> * For more information about the classes, methods, descriptions, and more Java administrator API, see [Java admin API](https://pulsar.apache.org/api/admin/).
