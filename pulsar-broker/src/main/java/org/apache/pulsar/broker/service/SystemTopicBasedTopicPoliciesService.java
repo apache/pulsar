@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
-import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -138,7 +138,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         PulsarEvent.PulsarEventBuilder builder = PulsarEvent.builder();
         if (policies == null || !policies.isGlobalPolicies()) {
             // we don't need to replicate local policies to remote cluster, so set `replicateTo` to empty.
-            builder.replicateTo(Collections.emptySet());
+            builder.replicateTo(new HashSet<>());
         }
         return builder
                 .actionType(actionType)
@@ -443,7 +443,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         }
     }
 
-    private static boolean hasReplicateTo(Message message) {
+    private static boolean hasReplicateTo(Message<?> message) {
         if (message instanceof MessageImpl) {
             return ((MessageImpl<?>) message).hasReplicateTo();
         }
