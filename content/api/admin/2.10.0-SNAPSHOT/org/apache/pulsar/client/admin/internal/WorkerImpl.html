@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10};
+var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -213,6 +213,14 @@ implements org.apache.pulsar.client.admin.Worker</pre>
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Collection.html?is-external=true" title="class or interface in java.util">Collection</a>&lt;org.apache.pulsar.common.stats.Metrics&gt;&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/admin/internal/WorkerImpl.html#getMetricsAsync--">getMetricsAsync</a></span>()</code>&nbsp;</td>
 </tr>
+<tr id="i10" class="altColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/admin/internal/WorkerImpl.html#rebalance--">rebalance</a></span>()</code>&nbsp;</td>
+</tr>
+<tr id="i11" class="rowColor">
+<td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/admin/internal/WorkerImpl.html#rebalanceAsync--">rebalanceAsync</a></span>()</code>&nbsp;</td>
+</tr>
 </table>
 <ul class="blockList">
 <li class="blockList"><a name="methods.inherited.from.class.org.apache.pulsar.client.admin.internal.BaseResource">
@@ -396,13 +404,42 @@ implements org.apache.pulsar.client.admin.Worker</pre>
 <a name="getAssignmentsAsync--">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>getAssignmentsAsync</h4>
 <pre>public&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Collection.html?is-external=true" title="class or interface in java.util">Collection</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&gt;&gt;&nbsp;getAssignmentsAsync()</pre>
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
 <dd><code>getAssignmentsAsync</code>&nbsp;in interface&nbsp;<code>org.apache.pulsar.client.admin.Worker</code></dd>
+</dl>
+</li>
+</ul>
+<a name="rebalance--">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>rebalance</h4>
+<pre>public&nbsp;void&nbsp;rebalance()
+               throws org.apache.pulsar.client.admin.PulsarAdminException</pre>
+<dl>
+<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
+<dd><code>rebalance</code>&nbsp;in interface&nbsp;<code>org.apache.pulsar.client.admin.Worker</code></dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code>org.apache.pulsar.client.admin.PulsarAdminException</code></dd>
+</dl>
+</li>
+</ul>
+<a name="rebalanceAsync--">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>rebalanceAsync</h4>
+<pre>public&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;rebalanceAsync()</pre>
+<dl>
+<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
+<dd><code>rebalanceAsync</code>&nbsp;in interface&nbsp;<code>org.apache.pulsar.client.admin.Worker</code></dd>
 </dl>
 </li>
 </ul>
