@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -21,21 +21,24 @@ package org.apache.pulsar.client.impl.schema.generic;
 import com.google.protobuf.Descriptors;
 import org.apache.avro.Schema;
 import org.apache.avro.protobuf.ProtobufData;
+import org.apache.pulsar.client.impl.schema.ProtobufSchemaUtils;
 import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
 import java.nio.charset.StandardCharsets;
+
 import static org.apache.pulsar.client.schema.proto.Test.TestMessage;
 
 public class MultiVersionGenericProtobufReaderTest {
 
     @Test
-    public void testParseAvroBaseSchemaToProtobuf(){
+    public void testParseAvroBaseSchemaToProtobuf() {
         TestMessage testPojo =
                 TestMessage.newBuilder()
-                .setDoubleField(1).build();
+                        .setDoubleField(1).build();
         Schema schema = ProtobufData.get().getSchema(testPojo.getClass());
         SchemaInfo schemaInfo = SchemaInfoImpl.builder()
                 .schema(schema.toString().getBytes(StandardCharsets.UTF_8))
@@ -43,7 +46,7 @@ public class MultiVersionGenericProtobufReaderTest {
                 .name("")
                 .build();
         Descriptors.Descriptor descriptor =
-                MultiVersionGenericProtobufReader.parseAvroBaseSchemaToProtobuf(schemaInfo);
-        Assert.assertEquals(descriptor,testPojo.getDescriptorForType());
+                ProtobufSchemaUtils.parseAvroBaseSchemaInfoToProtobufDescriptor(schemaInfo.getSchema());
+        Assert.assertEquals(descriptor, testPojo.getDescriptorForType());
     }
 }

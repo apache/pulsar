@@ -18,38 +18,36 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
-import static org.apache.pulsar.client.impl.schema.generic.MultiVersionGenericProtobufNativeReader.parseProtobufSchema;
-
-import com.google.protobuf.Descriptors;
-import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.schema.Field;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.client.api.schema.SchemaReader;
+import org.apache.pulsar.client.api.schema.SchemaWriter;
+import org.apache.pulsar.client.impl.schema.ProtobufNativeSchemaUtils;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
-/**
- * Generic ProtobufNative schema.
- */
 @Slf4j
-public class GenericProtobufNativeSchema extends AbstractGenericSchema {
-
-    Descriptors.Descriptor descriptor;
+public class GenericProtobufNativeSchema extends AbstractGenericProtobufSchema {
 
     public GenericProtobufNativeSchema(SchemaInfo schemaInfo) {
-        this(schemaInfo, true);
+        super(schemaInfo, ProtobufNativeSchemaUtils.deserialize(schemaInfo.getSchema()));
     }
 
     public GenericProtobufNativeSchema(SchemaInfo schemaInfo,
                                        boolean useProvidedSchemaAsReaderSchema) {
-        super(schemaInfo, useProvidedSchemaAsReaderSchema);
-        this.descriptor = parseProtobufSchema(schemaInfo);
-        this.fields = descriptor.getFields()
-                .stream()
-                .map(f -> new Field(f.getName(), f.getIndex()))
-                .collect(Collectors.toList());
-        setReader(new MultiVersionGenericProtobufNativeReader(useProvidedSchemaAsReaderSchema, schemaInfo));
-        setWriter(new GenericProtobufNativeWriter());
+        super(schemaInfo, useProvidedSchemaAsReaderSchema,
+                ProtobufNativeSchemaUtils.deserialize(schemaInfo.getSchema()));
+    }
+
+    @Override
+    protected SchemaReader<GenericRecord> instanceReader() {
+        return new MultiVersionGenericProtobufNativeReader(useProvidedSchemaAsReaderSchema, schemaInfo);
+    }
+
+    @Override
+    protected SchemaWriter<GenericRecord> instanceWriter() {
+        return new GenericProtobufBaseWriter();
     }
 
     @Override
@@ -57,21 +55,11 @@ public class GenericProtobufNativeSchema extends AbstractGenericSchema {
         return new ProtobufNativeRecordBuilderImpl(this);
     }
 
-    public static GenericSchema of(SchemaInfo schemaInfo) {
+    public static GenericSchema<GenericRecord> of(SchemaInfo schemaInfo) {
         return new GenericProtobufNativeSchema(schemaInfo);
     }
 
-    public static GenericSchema of(SchemaInfo schemaInfo, boolean useProvidedSchemaAsReaderSchema) {
+    public static GenericSchema<GenericRecord> of(SchemaInfo schemaInfo, boolean useProvidedSchemaAsReaderSchema) {
         return new GenericProtobufNativeSchema(schemaInfo, useProvidedSchemaAsReaderSchema);
     }
-
-    public Descriptors.Descriptor getProtobufNativeSchema() {
-        return descriptor;
-    }
-
-    @Override
-    public boolean supportSchemaVersioning() {
-        return true;
-    }
-
 }

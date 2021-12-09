@@ -22,31 +22,30 @@ import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.common.schema.SchemaType;
-
 import java.util.List;
 
-public class GenericProtobufNativeRecord extends VersionedGenericRecord {
+/**
+ * Generic protobuf native record base on #{GenericProtobufRecordBase}
+ *
+ * @see AbstractGenericProtobufRecord
+ */
+public class GenericProtobufNativeRecord extends AbstractGenericProtobufRecord {
 
-    private final DynamicMessage record;
-    private final Descriptors.Descriptor msgDesc;
 
-    protected GenericProtobufNativeRecord(byte[] schemaVersion, Descriptors.Descriptor msgDesc, List<Field> fields, DynamicMessage record) {
-        super(schemaVersion, fields);
-        this.msgDesc = msgDesc;
-        this.record = record;
-    }
-
-    @Override
-    public Object getField(String fieldName) {
-        return record.getField(msgDesc.findFieldByName(fieldName));
+    /**
+     * Create a new Generic native protobuf record.
+     *
+     * @param schemaVersion schema version
+     * @param msgDesc       protobuf descriptor
+     * @param fields        generic protobuf fields
+     * @param record        protobuf dynamic message
+     */
+    protected GenericProtobufNativeRecord(byte[] schemaVersion, Descriptors.Descriptor msgDesc,
+                                          List<Field> fields, DynamicMessage record) {
+        super(schemaVersion, msgDesc, fields, record);
     }
 
     public DynamicMessage getProtobufRecord() {
-        return record;
-    }
-
-    @Override
-    public Object getNativeObject() {
         return record;
     }
 

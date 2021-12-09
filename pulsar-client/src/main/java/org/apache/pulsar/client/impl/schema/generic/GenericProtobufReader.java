@@ -20,107 +20,23 @@ package org.apache.pulsar.client.impl.schema.generic;
 
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
-import com.google.protobuf.InvalidProtocolBufferException;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.Field;
-import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.client.api.schema.SchemaReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
-/**
- * Generic protobuf reader.
- *
- * @see GenericProtobufNativeReader
- */
 @Slf4j
-public class GenericProtobufReader implements SchemaReader<GenericRecord> {
-    private final Descriptors.Descriptor descriptor;
-    private final byte[] schemaVersion;
-    private final List<Field> fields;
+public class GenericProtobufReader extends AbstractGenericProtobufReader {
 
-    /**
-     * Create a new Generic protobuf reader by protobuf descriptor.
-     *
-     * @param descriptor protobuf descriptor
-     * @see Descriptors##descriptor
-     */
     public GenericProtobufReader(Descriptors.Descriptor descriptor) {
-        this(descriptor, null);
+        super(descriptor);
     }
 
-    /**
-     * Create a new Generic protobuf reader by protobuf descriptor and schema version.
-     *
-     * @param descriptor protobuf descriptor
-     * @see Descriptors##descriptor
-     */
     public GenericProtobufReader(Descriptors.Descriptor descriptor, byte[] schemaVersion) {
-        try {
-            this.schemaVersion = schemaVersion;
-            this.descriptor = descriptor;
-            this.fields = descriptor.getFields()
-                    .stream()
-                    .map(f -> new Field(f.getName(), f.getIndex()))
-                    .collect(Collectors.toList());
-        } catch (Exception e) {
-            log.error("GenericProtobufReader init error", e);
-            throw new RuntimeException(e);
-        }
+        super(descriptor, schemaVersion);
     }
 
-    /**
-     * Decode data by data bytes, offset and length
-     *
-     * @param bytes  the data
-     * @param offset the byte[] initial position
-     * @param length the byte[] read length
-     * @return GenericProtobufRecord
-     * @see GenericProtobufRecord
-     */
     @Override
-    public GenericProtobufRecord read(byte[] bytes, int offset, int length) {
-        try {
-            if (!(bytes.length == length && offset == 0)) {
-                bytes = Arrays.copyOfRange(bytes, offset, offset + length);
-            }
-            return new GenericProtobufRecord(schemaVersion, descriptor,
-                    fields, DynamicMessage.parseFrom(descriptor, bytes));
-        } catch (InvalidProtocolBufferException e) {
-            throw new SchemaSerializationException(e);
-        }
+    protected AbstractGenericProtobufRecord instanceRecord(byte[] schemaVersion, Descriptors.Descriptor msgDesc, List<Field> fields, DynamicMessage record) {
+        return new GenericProtobufRecord(schemaVersion, msgDesc, fields, record);
     }
-
-    /**
-     * Decode data by data bytes, offset and length
-     *
-     * @param inputStream the stream of message
-     * @return GenericProtobufRecord
-     * @see GenericProtobufRecord
-     */
-    @Override
-    public GenericProtobufRecord read(InputStream inputStream) {
-        try {
-            return new GenericProtobufRecord(schemaVersion, descriptor,
-                    fields, DynamicMessage.parseFrom(descriptor, inputStream));
-        } catch (IOException e) {
-            throw new SchemaSerializationException(e);
-        }
-    }
-
-    /**
-     * Get native protobuf schema.
-     *
-     * @return native schema
-     */
-    @Override
-    public Optional<Object> getNativeSchema() {
-        return Optional.of(descriptor);
-    }
-
 }

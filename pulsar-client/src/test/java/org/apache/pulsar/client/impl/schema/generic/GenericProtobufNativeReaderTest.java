@@ -50,7 +50,7 @@ public class GenericProtobufNativeReaderTest {
     @Test
     public void testGenericReaderByClazzBasedWriterSchema() {
         message = TestMessage.newBuilder().setStringField(STRING_FIELD_VLUE).setDoubleField(DOUBLE_FIELD_VLUE).build();
-        GenericProtobufNativeReader genericProtobufNativeReader = new GenericProtobufNativeReader(genericProtobufNativeSchema.getProtobufNativeSchema());
+        GenericProtobufNativeReader genericProtobufNativeReader = new GenericProtobufNativeReader(genericProtobufNativeSchema.getProtobufBaseSchema());
         GenericRecord genericRecordByWriterSchema = genericProtobufNativeReader.read(message.toByteArray());
         assertEquals(genericRecordByWriterSchema.getField("stringField"), STRING_FIELD_VLUE);
         assertEquals(genericRecordByWriterSchema.getField("doubleField"), DOUBLE_FIELD_VLUE);
@@ -59,7 +59,7 @@ public class GenericProtobufNativeReaderTest {
     @Test
     public void testClazzBasedReaderByGenericWriterSchema() {
         genericmessage = genericProtobufNativeSchema.newRecordBuilder().set("stringField", STRING_FIELD_VLUE).set("doubleField", DOUBLE_FIELD_VLUE).build();
-        byte[] messageBytes = new GenericProtobufNativeWriter().write(genericmessage);
+        byte[] messageBytes = new GenericProtobufBaseWriter().write(genericmessage);
         GenericProtobufNativeReader genericProtobufNativeReader = new GenericProtobufNativeReader(clazzBasedProtobufNativeSchema.getProtobufNativeSchema());
         GenericRecord genericRecordByWriterSchema = genericProtobufNativeReader.read(messageBytes);
         assertEquals(genericRecordByWriterSchema.getField("stringField"), STRING_FIELD_VLUE);
@@ -69,7 +69,7 @@ public class GenericProtobufNativeReaderTest {
     @Test
     public void testGetNativeRecord() {
         message = TestMessage.newBuilder().setStringField(STRING_FIELD_VLUE).setDoubleField(DOUBLE_FIELD_VLUE).build();
-        GenericProtobufNativeReader genericProtobufNativeReader = new GenericProtobufNativeReader(genericProtobufNativeSchema.getProtobufNativeSchema());
+        GenericProtobufNativeReader genericProtobufNativeReader = new GenericProtobufNativeReader(genericProtobufNativeSchema.getProtobufBaseSchema());
         GenericRecord record = genericProtobufNativeReader.read(message.toByteArray());
         assertEquals(record.getField("stringField"), STRING_FIELD_VLUE);
         assertEquals(record.getField("doubleField"), DOUBLE_FIELD_VLUE);

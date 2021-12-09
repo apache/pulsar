@@ -18,12 +18,13 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
+import com.google.protobuf.DynamicMessage;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaWriter;
 
-public class GenericProtobufNativeWriter implements SchemaWriter<GenericRecord> {
+public class GenericProtobufBaseWriter implements SchemaWriter<GenericRecord> {
     @Override
     public byte[] write(GenericRecord message) {
-        return ((GenericProtobufNativeRecord) message).getProtobufRecord().toByteArray();
+        return ((DynamicMessage) message.getNativeObject()).toByteArray();
     }
 }

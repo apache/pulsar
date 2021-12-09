@@ -22,51 +22,18 @@ import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 
-public class ProtobufNativeRecordBuilderImpl implements GenericRecordBuilder {
+import java.util.List;
 
-    private GenericProtobufNativeSchema genericSchema;
-    private DynamicMessage.Builder builder;
-    private Descriptors.Descriptor msgDesc;
+public class ProtobufNativeRecordBuilderImpl extends AbstractProtobufBaseRecordBuilder {
 
-    public ProtobufNativeRecordBuilderImpl(GenericProtobufNativeSchema genericSchema) {
-        this.genericSchema = genericSchema;
-        this.msgDesc = genericSchema.getProtobufNativeSchema();
-        builder = DynamicMessage.newBuilder(msgDesc);
+    public ProtobufNativeRecordBuilderImpl(GenericProtobufNativeSchema schema) {
+        super(schema);
     }
 
     @Override
-    public GenericRecordBuilder set(String fieldName, Object value) {
-        builder.setField(msgDesc.findFieldByName(fieldName), value);
-        return this;
-    }
-
-    @Override
-    public GenericRecordBuilder set(Field field, Object value) {
-        builder.setField(msgDesc.findFieldByName(field.getName()), value);
-        return this;
-    }
-
-    @Override
-    public GenericRecordBuilder clear(String fieldName) {
-        builder.clearField(msgDesc.findFieldByName(fieldName));
-        return this;
-    }
-
-    @Override
-    public GenericRecordBuilder clear(Field field) {
-        builder.clearField(msgDesc.findFieldByName(field.getName()));
-        return this;
-    }
-
-    @Override
-    public GenericRecord build() {
-        return new GenericProtobufNativeRecord(
-                null,
-                genericSchema.getProtobufNativeSchema(),
-                genericSchema.getFields(),
-                builder.build()
-        );
+    protected GenericRecord instanceRecord(byte[] schemaVersion, Descriptors.Descriptor msgDesc,
+                                           List<Field> fields, DynamicMessage record) {
+        return new GenericProtobufNativeRecord(schemaVersion, msgDesc, fields, record);
     }
 }

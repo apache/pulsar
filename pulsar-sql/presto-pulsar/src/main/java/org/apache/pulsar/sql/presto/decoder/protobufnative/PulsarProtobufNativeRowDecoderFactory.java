@@ -83,7 +83,7 @@ public class PulsarProtobufNativeRowDecoderFactory implements PulsarRowDecoderFa
         Descriptors.Descriptor schema;
         try {
             schema =
-                    ((GenericProtobufNativeSchema) GenericProtobufNativeSchema.of(schemaInfo)).getProtobufNativeSchema();
+                    ((GenericProtobufNativeSchema) GenericProtobufNativeSchema.of(schemaInfo)).getProtobufBaseSchema();
         } catch (Exception ex) {
             log.error(ex);
             throw new PrestoException(NOT_SUPPORTED, "Topic "

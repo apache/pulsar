@@ -18,10 +18,32 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
-/**
- * Generic protobuf writer base on #{GenericProtobufNativeWriter}
- *
- * @see GenericProtobufNativeWriter
- */
-public class GenericProtobufWriter extends GenericProtobufNativeWriter {
+import com.google.protobuf.Descriptors;
+import com.google.protobuf.DynamicMessage;
+import org.apache.pulsar.client.api.schema.Field;
+import java.util.List;
+
+public abstract class AbstractGenericProtobufRecord extends VersionedGenericRecord {
+    protected final DynamicMessage record;
+    private final Descriptors.Descriptor msgDesc;
+
+    protected AbstractGenericProtobufRecord(byte[] schemaVersion, Descriptors.Descriptor msgDesc,
+                                            List<Field> fields, DynamicMessage record) {
+        super(schemaVersion, fields);
+        this.msgDesc = msgDesc;
+        this.record = record;
+    }
+
+    @Override
+    public Object getField(String fieldName) {
+        return record.getField(msgDesc.findFieldByName(fieldName));
+    }
+
+
+    @Override
+    public Object getNativeObject() {
+        return record;
+    }
+
+
 }

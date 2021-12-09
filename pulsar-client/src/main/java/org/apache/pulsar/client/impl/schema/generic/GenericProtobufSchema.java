@@ -18,48 +18,32 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
-import com.google.protobuf.Descriptors;
-import org.apache.pulsar.client.api.schema.Field;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.client.api.schema.SchemaReader;
+import org.apache.pulsar.client.api.schema.SchemaWriter;
+import org.apache.pulsar.client.impl.schema.ProtobufSchemaUtils;
 import org.apache.pulsar.common.schema.SchemaInfo;
-import java.util.stream.Collectors;
-import static org.apache.pulsar.client.impl.schema.generic
-        .MultiVersionGenericProtobufReader.parseAvroBaseSchemaToProtobuf;
 
-/**
- * Generic protobuf schema.
- */
-public class GenericProtobufSchema extends AbstractGenericSchema {
-    Descriptors.Descriptor descriptor;
+public class GenericProtobufSchema extends AbstractGenericProtobufSchema {
 
-    /**
-     * Create a new generic protobuf schema by schema info.
-     *
-     * @param schemaInfo schema information
-     * @see SchemaInfo
-     */
     public GenericProtobufSchema(SchemaInfo schemaInfo) {
-        this(schemaInfo, true);
+        super(schemaInfo, ProtobufSchemaUtils.parseAvroBaseSchemaInfoToProtobufDescriptor(schemaInfo.getSchema()));
     }
 
-    /**
-     * Create a new generic protobuf schema by schema info and whether useProvidedSchemaAsReaderSchema.
-     *
-     * @param schemaInfo                      schema information
-     * @param useProvidedSchemaAsReaderSchema whether we use provided schema as reader schema
-     * @see SchemaInfo
-     */
-    public GenericProtobufSchema(SchemaInfo schemaInfo,
-                                 boolean useProvidedSchemaAsReaderSchema) {
-        super(schemaInfo, useProvidedSchemaAsReaderSchema);
-        this.descriptor = parseAvroBaseSchemaToProtobuf(schemaInfo);
-        this.fields = descriptor.getFields()
-                .stream()
-                .map(f -> new Field(f.getName(), f.getIndex()))
-                .collect(Collectors.toList());
-        setReader(new MultiVersionGenericProtobufReader(useProvidedSchemaAsReaderSchema, schemaInfo));
-        setWriter(new GenericProtobufWriter());
+    public GenericProtobufSchema(SchemaInfo schemaInfo, boolean useProvidedSchemaAsReaderSchema) {
+        super(schemaInfo, ProtobufSchemaUtils.parseAvroBaseSchemaInfoToProtobufDescriptor(schemaInfo.getSchema()));
+    }
+
+    @Override
+    protected SchemaReader<GenericRecord> instanceReader() {
+        return new MultiVersionGenericProtobufReader(useProvidedSchemaAsReaderSchema, schemaInfo);
+    }
+
+    @Override
+    protected SchemaWriter<GenericRecord> instanceWriter() {
+        return new GenericProtobufBaseWriter();
     }
 
     @Override
@@ -67,20 +51,11 @@ public class GenericProtobufSchema extends AbstractGenericSchema {
         return new ProtobufRecordBuilderImpl(this);
     }
 
-    public static GenericSchema<?> of(SchemaInfo schemaInfo) {
+    public static GenericSchema<GenericRecord> of(SchemaInfo schemaInfo) {
         return new GenericProtobufSchema(schemaInfo);
     }
 
-    public static GenericSchema<?> of(SchemaInfo schemaInfo, boolean useProvidedSchemaAsReaderSchema) {
+    public static GenericSchema<GenericRecord> of(SchemaInfo schemaInfo, boolean useProvidedSchemaAsReaderSchema) {
         return new GenericProtobufSchema(schemaInfo, useProvidedSchemaAsReaderSchema);
-    }
-
-    public Descriptors.Descriptor getProtobufSchema() {
-        return descriptor;
-    }
-
-    @Override
-    public boolean supportSchemaVersioning() {
-        return true;
     }
 }
