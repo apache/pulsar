@@ -33,6 +33,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.TimeAverageMessageData;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
+import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -126,8 +127,10 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
                 // Sort bundles by throughput, then pick the bundle which can help to reduce load uniformly with
                 // under-loaded broker
                 loadBundleData.entrySet().stream()
-                        .filter(e -> !HEARTBEAT_NAMESPACE_PATTERN.matcher(e.getKey()).matches()
-                                && !HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(e.getKey()).matches()
+                        .filter(e -> !HEARTBEAT_NAMESPACE_PATTERN.matcher(
+                                    NamespaceBundle.getBundleNamespace(e.getKey())).matches()
+                                && !HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(
+                                        NamespaceBundle.getBundleNamespace(e.getKey())).matches()
                                 && overloadedBrokerData.getBundles().contains(e.getKey()))
                         .map((e) -> {
                             String bundle = e.getKey();
