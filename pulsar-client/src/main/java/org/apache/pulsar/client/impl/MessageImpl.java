@@ -711,7 +711,6 @@ public class MessageImpl<T> implements Message<T> {
         }
     };
 
-    @Override
     public boolean hasReplicateTo() {
         return msgMetadata.getReplicateTosCount() > 0;
     }

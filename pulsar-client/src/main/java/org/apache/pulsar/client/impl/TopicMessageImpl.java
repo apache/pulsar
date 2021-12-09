@@ -220,8 +220,4 @@ public class TopicMessageImpl<T> implements Message<T> {
         return msg.getIndex();
     }
 
-    @Override
-    public boolean hasReplicateTo() {
-        return msg.hasReplicateTo();
-    }
 }

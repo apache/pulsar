@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import java.util.Collections;
 import java.util.List;
@@ -39,6 +38,8 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.Backoff;
+import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.client.util.RetryUtil;
 import org.apache.pulsar.common.events.ActionType;
 import org.apache.pulsar.common.events.EventType;
@@ -391,7 +392,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         // delete policies
         if (msg.getValue() == null) {
             TopicName topicName = TopicName.get(TopicName.get(msg.getKey()).getPartitionedTopicName());
-            if (msg.hasReplicateTo()) {
+            if (hasReplicateTo(msg)) {
                 globalPoliciesCache.remove(topicName);
             } else {
                 policiesCache.remove(topicName);
@@ -440,6 +441,16 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     break;
             }
         }
+    }
+
+    private static boolean hasReplicateTo(Message message) {
+        if (message instanceof MessageImpl) {
+            return ((MessageImpl<?>) message).hasReplicateTo();
+        }
+        if (message instanceof TopicMessageImpl) {
+            return hasReplicateTo(((TopicMessageImpl<?>) message).getMessage());
+        }
+        return false;
     }
 
     private void createSystemTopicFactoryIfNeeded() {

@@ -231,14 +231,6 @@ public interface Message<T> {
     boolean isReplicated();
 
     /**
-     * Check whether messages can be replicate to a remote cluster.
-     * @return
-     */
-    default boolean hasReplicateTo() {
-        throw new UnsupportedOperationException("Please implement this method first");
-    };
-
-    /**
      * Get name of cluster, from which the message is replicated.
      *
      * @since 2.4.0
