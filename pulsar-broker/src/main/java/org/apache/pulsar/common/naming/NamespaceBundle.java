@@ -152,6 +152,10 @@ public class NamespaceBundle implements ServiceUnitId, Comparable<NamespaceBundl
         return namespaceBundle.substring(namespaceBundle.lastIndexOf('/') + 1);
     }
 
+    public static String getBundleNamespace(String namespaceBundle) {
+        return namespaceBundle.substring(0, namespaceBundle.lastIndexOf('/'));
+    }
+
     public NamespaceBundleFactory getNamespaceBundleFactory() {
         return factory;
     }

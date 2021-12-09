@@ -33,6 +33,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.TimeAverageMessageData;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
+import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -110,8 +111,10 @@ public class ThresholdShedder implements LoadSheddingStrategy {
 
             if (localData.getBundles().size() > 1) {
                 loadData.getBundleData().entrySet().stream()
-                    .filter(e -> !HEARTBEAT_NAMESPACE_PATTERN.matcher(e.getKey()).matches()
-                        && !HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(e.getKey()).matches())
+                    .filter(e -> !HEARTBEAT_NAMESPACE_PATTERN.matcher(
+                            NamespaceBundle.getBundleNamespace(e.getKey())).matches()
+                        && !HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(
+                                NamespaceBundle.getBundleNamespace(e.getKey())).matches())
                     .map((e) -> {
                         String bundle = e.getKey();
                         BundleData bundleData = e.getValue();
