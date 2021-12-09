@@ -27,6 +27,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.events.ActionType;
 import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.TopicName;
@@ -83,36 +84,32 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
 
         @Override
         public MessageId write(PulsarEvent event) throws PulsarClientException {
-            return producer.newMessage().key(getEventKey(event))
-                    .replicationClusters(event.getReplicateTo() == null ? null
-                            : new ArrayList<>(event.getReplicateTo()))
-                    .value(event).send();
+            TypedMessageBuilder<PulsarEvent> builder = producer.newMessage().key(getEventKey(event)).value(event);
+            setReplicateCluster(event, builder);
+            return builder.send();
         }
 
         @Override
         public CompletableFuture<MessageId> writeAsync(PulsarEvent event) {
-            return producer.newMessage().key(getEventKey(event))
-                    .replicationClusters(event.getReplicateTo() == null ? null
-                            : new ArrayList<>(event.getReplicateTo()))
-                    .value(event).sendAsync();
+            TypedMessageBuilder<PulsarEvent> builder = producer.newMessage().key(getEventKey(event)).value(event);
+            setReplicateCluster(event, builder);
+            return builder.sendAsync();
         }
 
         @Override
         public MessageId delete(PulsarEvent event) throws PulsarClientException {
             validateActionType(event);
-            return producer.newMessage().key(getEventKey(event))
-                    .replicationClusters(event.getReplicateTo() == null ? null
-                            : new ArrayList<>(event.getReplicateTo()))
-                    .value(null).send();
+            TypedMessageBuilder<PulsarEvent> builder = producer.newMessage().key(getEventKey(event)).value(null);
+            setReplicateCluster(event, builder);
+            return builder.send();
         }
 
         @Override
         public CompletableFuture<MessageId> deleteAsync(PulsarEvent event) {
             validateActionType(event);
-            return producer.newMessage().key(getEventKey(event))
-                    .replicationClusters(event.getReplicateTo() == null ? null
-                            : new ArrayList<>(event.getReplicateTo()))
-                    .value(null).sendAsync();
+            TypedMessageBuilder<PulsarEvent> builder = producer.newMessage().key(getEventKey(event)).value(null);
+            setReplicateCluster(event, builder);
+            return builder.sendAsync();
         }
 
         private String getEventKey(PulsarEvent event) {
@@ -139,6 +136,12 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
         @Override
         public SystemTopicClient<PulsarEvent> getSystemTopicClient() {
             return systemTopicClient;
+        }
+    }
+
+    private static void setReplicateCluster(PulsarEvent event, TypedMessageBuilder<PulsarEvent> builder) {
+        if (event.getReplicateTo() != null) {
+            builder.replicationClusters(new ArrayList<>(event.getReplicateTo()));
         }
     }
 
