@@ -331,13 +331,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                     schemaValidationEnforced = policies.schema_validation_enforced;
 
-                    if (policies.topicLifecycle != null) {
-                        // reset new inactiveTopicPolicies with topicLifecycle info if one exists
-                        this.topicPolicies.getInactiveTopicPolicies().updateNamespaceValue(
-                                new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions,
-                                        0, policies.topicLifecycle.isAutoDeleteTopics()));
-                    }
-
                     updateUnackedMessagesAppliedOnSubscription(policies);
                     updateUnackedMessagesExceededOnConsumer(policies);
                 }).exceptionally(ex -> {
@@ -2492,13 +2485,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
         //If the topic-level policy already exists, the namespace-level policy cannot override the topic-level policy.
         Optional<TopicPolicies> topicPolicies = getTopicPolicies();
-
-        if (data.topicLifecycle != null) {
-            // reset new inactiveTopicPolicies with topicLifecycle info if one exists
-            this.topicPolicies.getInactiveTopicPolicies().updateNamespaceValue(
-                    new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions,
-                            0, data.topicLifecycle.isAutoDeleteTopics()));
-        }
 
         initializeRateLimiterIfNeeded(Optional.ofNullable(data));
 
