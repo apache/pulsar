@@ -58,6 +58,7 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
@@ -255,6 +256,8 @@ public class BrokerService implements Closeable {
     private final ConcurrentOpenHashSet<PersistentDispatcherMultipleConsumers> blockedDispatchers;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
+    public final LongAdder totalPendingBytes = new LongAdder();
+
     private final DelayedDeliveryTrackerFactory delayedDeliveryTrackerFactory;
     private final ServerBootstrap defaultServerBootstrap;
     private final List<EventLoopGroup> protocolHandlersWorkerGroups = new ArrayList<>();
@@ -275,6 +278,12 @@ public class BrokerService implements Closeable {
 
     private Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors;
     private Set<ManagedLedgerPayloadProcessor> brokerEntryPayloadProcessors;
+
+    private final CopyOnWriteArrayList<Consumer<PublishBufferEvent>>
+            publishBufferLimitListeners = new CopyOnWriteArrayList<>();
+    private final long maxPendingBytes;
+    private final long resumeThresholdPendingBytes;
+    private static final int CHECK_PUBLISH_BUFFER_LIMIT_PERIOD = 100;
 
     public BrokerService(PulsarService pulsar, EventLoopGroup eventLoopGroup) throws Exception {
         this.pulsar = pulsar;
@@ -376,6 +385,12 @@ public class BrokerService implements Closeable {
                         .getBrokerEntryPayloadProcessors(), BrokerService.class.getClassLoader());
 
         this.bundlesQuotas = new BundlesQuotas(pulsar.getLocalMetadataStore());
+
+        this.maxPendingBytes = pulsar.getConfiguration().getMaxMessagePublishBufferSizeInMB() * 1024L * 1024L;
+        this.resumeThresholdPendingBytes = this.maxPendingBytes / 2;
+
+        pulsar.getExecutor().scheduleAtFixedRate(safeRun(this::checkPulishBufferLimit),
+                CHECK_PUBLISH_BUFFER_LIMIT_PERIOD, CHECK_PUBLISH_BUFFER_LIMIT_PERIOD, TimeUnit.MILLISECONDS);
     }
 
     // This call is used for starting additional protocol handlers
@@ -2274,6 +2289,26 @@ public class BrokerService implements Closeable {
         configRegisteredListeners.put(configKey, listener);
     }
 
+    public <T> void registerPublishBufferLimitListener(Consumer<PublishBufferEvent> listener) {
+        publishBufferLimitListeners.add(listener);
+    }
+
+    private void checkPulishBufferLimit() {
+        if (maxPendingBytes > 0) {
+            long totalSize = totalPendingBytes.sum();
+            if (totalSize >= maxPendingBytes) {
+                publishBufferLimitListeners.forEach(listener -> {
+                    listener.accept(PublishBufferEvent.UPPER_LIMIT);
+                });
+            }
+            if (totalSize < resumeThresholdPendingBytes) {
+                publishBufferLimitListeners.forEach(listener -> {
+                    listener.accept(PublishBufferEvent.HALF_LIMIT);
+                });
+            }
+        }
+    }
+
     private void addDynamicConfigValidator(String key, Predicate<String> validator) {
         validateConfigKey(key);
         if (dynamicConfigurationMap.containsKey(key)) {
@@ -2525,6 +2560,14 @@ public class BrokerService implements Closeable {
                 }
             }
         }
+    }
+
+    public void addPendingProducedBytes(long msgSize) {
+        totalPendingBytes.add(msgSize);
+    }
+
+    public void decreasePendingProducedBytes(long msgSize) {
+        totalPendingBytes.add(-msgSize);
     }
 
     /**
@@ -2812,5 +2855,10 @@ public class BrokerService implements Closeable {
     @VisibleForTesting
     public void setPulsarChannelInitializerFactory(PulsarChannelInitializer.Factory factory) {
         this.pulsarChannelInitFactory = factory;
+    }
+
+    public enum PublishBufferEvent {
+        UPPER_LIMIT,
+        HALF_LIMIT,
     }
 }

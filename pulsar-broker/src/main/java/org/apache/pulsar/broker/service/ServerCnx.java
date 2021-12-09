@@ -61,7 +61,6 @@ import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.mutable.MutableInt;
-import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
@@ -201,16 +200,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     // Flag to manage throttling-publish-buffer by atomically enable/disable read-channel.
     private boolean autoReadDisabledPublishBufferLimiting = false;
-    private final long maxPendingBytesPerThread;
-    private final long resumeThresholdPendingBytesPerThread;
-
-    // Number of bytes pending to be published from a single specific IO thread.
-    private static final FastThreadLocal<MutableLong> pendingBytesPerThread = new FastThreadLocal<MutableLong>() {
-        @Override
-        protected MutableLong initialValue() throws Exception {
-            return new MutableLong();
-        }
-    };
 
     // A set of connections tied to the current thread
     private static final FastThreadLocal<Set<ServerCnx>> cnxsPerThread = new FastThreadLocal<Set<ServerCnx>>() {
@@ -219,6 +208,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return Collections.newSetFromMap(new IdentityHashMap<>());
         }
     };
+    io.netty.util.internal.InternalThreadLocalMap threadLocalMap = io.netty.util.internal.InternalThreadLocalMap.get();
 
 
     enum State {
@@ -251,10 +241,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         this.preciseDispatcherFlowControl = conf.isPreciseDispatcherFlowControl();
         this.preciseTopicPublishRateLimitingEnable = conf.isPreciseTopicPublishRateLimiterEnable();
         this.encryptionRequireOnProducer = conf.isEncryptionRequireOnProducer();
-        // Assign a portion of max-pending bytes to each IO thread
-        this.maxPendingBytesPerThread = conf.getMaxMessagePublishBufferSizeInMB() * 1024L * 1024L
-                / conf.getNumIOThreads();
-        this.resumeThresholdPendingBytesPerThread = this.maxPendingBytesPerThread / 2;
         this.connectionController = new ConnectionController.DefaultConnectionController(conf);
     }
 
@@ -1164,6 +1150,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             }
             CompletableFuture<Producer> producerFuture = new CompletableFuture<>();
             CompletableFuture<Producer> existingProducerFuture = producers.putIfAbsent(producerId, producerFuture);
+            service.registerPublishBufferLimitListener(this::handlePulishBufferLimit);
 
             if (existingProducerFuture != null) {
                 if (existingProducerFuture.isDone() && !existingProducerFuture.isCompletedExceptionally()) {
@@ -2492,12 +2479,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             throttledConnections.inc();
         }
 
-        if (pendingBytesPerThread.get().addAndGet(msgSize) >= maxPendingBytesPerThread
-                && !autoReadDisabledPublishBufferLimiting
-                && maxPendingBytesPerThread > 0) {
+        service.addPendingProducedBytes(msgSize);
+    }
+
+    public void handlePulishBufferLimit(BrokerService.PublishBufferEvent event) {
+        if (event == BrokerService.PublishBufferEvent.UPPER_LIMIT && !autoReadDisabledPublishBufferLimiting) {
             // Disable reading from all the connections associated with this thread
             MutableInt pausedConnections = new MutableInt();
-            cnxsPerThread.get().forEach(cnx -> {
+            cnxsPerThread.get(threadLocalMap).forEach(cnx -> {
                 if (cnx.hasProducers() && !cnx.autoReadDisabledPublishBufferLimiting) {
                     cnx.disableCnxAutoRead();
                     cnx.autoReadDisabledPublishBufferLimiting = true;
@@ -2507,15 +2496,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
             getBrokerService().pausedConnections(pausedConnections.intValue());
         }
-    }
-
-    @Override
-    public void completedSendOperation(boolean isNonPersistentTopic, int msgSize) {
-        if (pendingBytesPerThread.get().addAndGet(-msgSize) < resumeThresholdPendingBytesPerThread
-                && autoReadDisabledPublishBufferLimiting) {
+        if (event == BrokerService.PublishBufferEvent.HALF_LIMIT && autoReadDisabledPublishBufferLimiting) {
             // Re-enable reading on all the blocked connections
             MutableInt resumedConnections = new MutableInt();
-            cnxsPerThread.get().forEach(cnx -> {
+            cnxsPerThread.get(threadLocalMap).forEach(cnx -> {
                 if (cnx.autoReadDisabledPublishBufferLimiting) {
                     cnx.autoReadDisabledPublishBufferLimiting = false;
                     cnx.enableCnxAutoRead();
@@ -2525,6 +2509,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
             getBrokerService().resumedConnections(resumedConnections.intValue());
         }
+    }
+
+    @Override
+    public void completedSendOperation(boolean isNonPersistentTopic, int msgSize) {
+        service.decreasePendingProducedBytes(msgSize);
 
         if (--pendingSendRequest == resumeReadsThreshold) {
             enableCnxAutoRead();
