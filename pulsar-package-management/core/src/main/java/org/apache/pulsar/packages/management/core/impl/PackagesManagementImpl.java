@@ -248,7 +248,7 @@ public class PackagesManagementImpl implements PackagesManagement {
     }
 
     private String packagePath(PackageName packageName) {
-        return packageName.toRestPath();
+        return packageName.toRestPath() + "/pack";
     }
 
     private String packageWithoutVersionPath(PackageName packageName) {
