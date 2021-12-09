@@ -37,7 +37,8 @@ public class ConnectionHandler {
     protected final Backoff backoff;
     private static final AtomicLongFieldUpdater<ConnectionHandler> EPOCH_UPDATER = AtomicLongFieldUpdater
             .newUpdater(ConnectionHandler.class, "epoch");
-    private volatile long epoch = 0L;
+    // Start with -1L because it gets incremented before sending on the first connection
+    private volatile long epoch = -1L;
     protected volatile long lastConnectionClosedTimestamp = 0L;
 
     interface Connection {
@@ -106,13 +107,8 @@ public class ConnectionHandler {
         state.setState(State.Connecting);
         state.client.timer().newTimeout(timeout -> {
             log.info("[{}] [{}] Reconnecting after connection was closed", state.topic, state.getHandlerName());
-            incrementEpoch();
             grabCnx();
         }, delayMs, TimeUnit.MILLISECONDS);
-    }
-
-    protected long incrementEpoch() {
-        return EPOCH_UPDATER.incrementAndGet(this);
     }
 
     public void connectionClosed(ClientCnx cnx) {
@@ -129,7 +125,6 @@ public class ConnectionHandler {
                     delayMs / 1000.0);
             state.client.timer().newTimeout(timeout -> {
                 log.info("[{}] [{}] Reconnecting after timeout", state.topic, state.getHandlerName());
-                incrementEpoch();
                 grabCnx();
             }, delayMs, TimeUnit.MILLISECONDS);
         }
@@ -145,6 +140,17 @@ public class ConnectionHandler {
 
     protected void setClientCnx(ClientCnx clientCnx) {
         CLIENT_CNX_UPDATER.set(this, clientCnx);
+    }
+
+    /**
+     * Update the {@link ClientCnx} for the class, then increment and get the epoch value. Note that the epoch value is
+     * currently only used by the {@link ProducerImpl}.
+     * @param clientCnx - the new {@link ClientCnx}
+     * @return the epoch value to use for this pair of {@link ClientCnx} and {@link ProducerImpl}
+     */
+    protected long switchClientCnx(ClientCnx clientCnx) {
+        setClientCnx(clientCnx);
+        return EPOCH_UPDATER.incrementAndGet(this);
     }
 
     private boolean isValidStateForReconnection() {
