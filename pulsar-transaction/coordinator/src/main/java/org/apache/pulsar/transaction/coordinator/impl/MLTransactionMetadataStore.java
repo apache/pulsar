@@ -60,9 +60,8 @@ public class MLTransactionMetadataStore
     private static final Logger log = LoggerFactory.getLogger(MLTransactionMetadataStore.class);
 
     private final TransactionCoordinatorID tcID;
-    private final AtomicLong sequenceId = new AtomicLong(TC_ID_NOT_USED);
+    private final AtomicLong sequenceId;
     private final MLTransactionLogImpl transactionLog;
-    private static final long TC_ID_NOT_USED = -1L;
     private final ConcurrentSkipListMap<Long, Pair<TxnMeta, List<Position>>> txnMetaMap = new ConcurrentSkipListMap<>();
     private final TransactionTimeoutTracker timeoutTracker;
     private final TransactionMetadataStoreStats transactionMetadataStoreStats;
@@ -75,8 +74,10 @@ public class MLTransactionMetadataStore
     public MLTransactionMetadataStore(TransactionCoordinatorID tcID,
                                       MLTransactionLogImpl mlTransactionLog,
                                       TransactionTimeoutTracker timeoutTracker,
-                                      TransactionRecoverTracker recoverTracker) {
+                                      TransactionRecoverTracker recoverTracker,
+                                      AtomicLong sequenceId) {
         super(State.None);
+        this.sequenceId = sequenceId;
         this.tcID = tcID;
         this.transactionLog = mlTransactionLog;
         this.timeoutTracker = timeoutTracker;
@@ -96,16 +97,13 @@ public class MLTransactionMetadataStore
 
             @Override
             public void replayComplete() {
-                mlTransactionLog.getMaxLocalTxnId().thenAccept(id -> {
-                    recoverTracker.appendOpenTransactionToTimeoutTracker();
-                    sequenceId.set(id);
-                    if (!changeToReadyState()) {
-                        log.error("Managed ledger transaction metadata store change state error when replay complete");
-                    } else {
-                        recoverTracker.handleCommittingAndAbortingTransaction();
-                        timeoutTracker.start();
-                    }
-                });
+                recoverTracker.appendOpenTransactionToTimeoutTracker();
+                if (!changeToReadyState()) {
+                    log.error("Managed ledger transaction metadata store change state error when replay complete");
+                } else {
+                    recoverTracker.handleCommittingAndAbortingTransaction();
+                    timeoutTracker.start();
+                }
             }
 
             @Override
