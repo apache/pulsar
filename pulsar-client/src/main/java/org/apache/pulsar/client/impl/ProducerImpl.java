@@ -1469,6 +1469,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         cnx.channel().close();
                         return null;
                     }
+
+                    if (cause instanceof TimeoutException) {
+                        // Creating the producer has timed out. We need to ensure the broker closes the producer
+                        // in case it was indeed created, otherwise it might prevent new create producer operation,
+                        // since we are not necessarily closing the connection.
+                        long closeRequestId = client.newRequestId();
+                        ByteBuf cmd = Commands.newCloseProducer(producerId, closeRequestId);
+                        cnx.sendRequestWithId(cmd, closeRequestId);
+                    }
+
                     if (cause instanceof PulsarClientException.ProducerFencedException) {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] [{}] Failed to create producer: {}",
@@ -1477,7 +1487,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     } else {
                         log.error("[{}] [{}] Failed to create producer: {}", topic, producerName, cause.getMessage());
                     }
-                    // Close the producer since topic does not exists.
+                    // Close the producer since topic does not exist.
                     if (cause instanceof PulsarClientException.TopicDoesNotExistException) {
                         closeAsync().whenComplete((v, ex) -> {
                             if (ex != null) {
