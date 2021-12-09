@@ -32,6 +32,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.api.RichFunction;
 
 /**
  * This is the Java Instance. This is started by the runtimeSpawner using the JavaInstanceClient
@@ -155,10 +156,34 @@ public class JavaInstance implements AutoCloseable {
 
     }
 
+    public void setup() throws Exception {
+        if (function instanceof RichFunction) {
+            ((RichFunction) function).setup(context);
+        }
+        if (javaUtilFunction instanceof RichFunction) {
+            ((RichFunction) javaUtilFunction).setup(context);
+        }
+    }
+
     @Override
     public void close() {
         context.close();
         executor.shutdown();
+
+        if (function instanceof RichFunction) {
+            try {
+                ((RichFunction) function).tearDown();
+            } catch (Exception e) {
+                log.error("function closeResource occurred exception", e);
+            }
+        }
+        if (javaUtilFunction instanceof RichFunction) {
+            try {
+                ((RichFunction) javaUtilFunction).tearDown();
+            } catch (Exception e) {
+                log.error("function closeResource occurred exception", e);
+            }
+        }
     }
 
     public Map<String, Double> getAndResetMetrics() {
