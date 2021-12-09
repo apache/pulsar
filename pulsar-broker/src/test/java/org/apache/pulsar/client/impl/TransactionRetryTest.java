@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.junit.Assert.fail;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -177,15 +178,16 @@ public class TransactionRetryTest extends TransactionTestBase {
         }
         CompletableFuture<T> future = callable1.call();
         try {
-            future.get(pulsarClient.conf.getOperationTimeoutMs() / 6,
+            future.get(pulsarClient.conf.getOperationTimeoutMs() / 10,
                     TimeUnit.MILLISECONDS);
+            fail();
         } catch (TimeoutException ignored) {
         }
-        for (HandlerState handlerState : handlers) {
-            changeHandlerState(HandlerState.State.Ready, handlerState);
+        for (TransactionMetaStoreHandler handler : handlers) {
+            reconnectLater(handler);
         }
         try {
-            future.get(pulsarClient.conf.getOperationTimeoutMs() * 5 / 6,
+            future.get(pulsarClient.conf.getOperationTimeoutMs(),
                     TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             if (!(e.getCause() instanceof CoordinatorException.InvalidTxnStatusException)
@@ -210,8 +212,9 @@ public class TransactionRetryTest extends TransactionTestBase {
         }
         CompletableFuture<T> future1 = callable2.call();
         try {
-            future1.get(pulsarClient.conf.getOperationTimeoutMs() / 6,
+            future1.get(pulsarClient.conf.getOperationTimeoutMs() / 10,
                     TimeUnit.MILLISECONDS);
+            fail();
         } catch (TimeoutException ignored) {
         }
         for (TransactionMetadataStore transactionMetadataStore : stores.values()) {
@@ -219,7 +222,7 @@ public class TransactionRetryTest extends TransactionTestBase {
                     (MLTransactionMetadataStore) transactionMetadataStore);
         }
         try {
-            future1.get(pulsarClient.conf.getOperationTimeoutMs() * 5 / 6,
+            future1.get(pulsarClient.conf.getOperationTimeoutMs(),
                     TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             if (!(e.getCause() instanceof TransactionCoordinatorClientException.InvalidTxnStatusException)
@@ -239,11 +242,21 @@ public class TransactionRetryTest extends TransactionTestBase {
         field.set(metadataStore, state);
     }
 
+    public static void reconnectLater(TransactionMetaStoreHandler transactionMetaStoreHandler) throws Exception{
+        Class<TransactionMetaStoreHandler> transactionMetaStoreHandlerClass = TransactionMetaStoreHandler.class;
+        Field field = transactionMetaStoreHandlerClass.getDeclaredField("connectionHandler");
+        field.setAccessible(true);
+        ConnectionHandler connectionHandler = (ConnectionHandler) field.get(transactionMetaStoreHandler);
+        Class<ConnectionHandler> handlerClass = ConnectionHandler.class;
+        Method method = handlerClass.getDeclaredMethod("reconnectLater", Throwable.class);
+        method.setAccessible(true);
+        method.invoke(connectionHandler, new Throwable("test"));
+    }
+
     public static void changeHandlerState(HandlerState.State state, HandlerState handlerState) throws Exception{
         Class<HandlerState> handlerStateClass = HandlerState.class;
         Field field = handlerStateClass.getDeclaredField("state");
         field.setAccessible(true);
         field.set(handlerState, state);
     }
-
 }

@@ -25,6 +25,8 @@ import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -61,7 +63,9 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     private final ConcurrentLongHashMap<OpBase<?>> pendingRequests =
         new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLinkedQueue<RequestTime> timeoutQueue;
-
+    private final ConcurrentLongHashMap<OpBase<?>> waitingExecutedRequests =
+            new ConcurrentLongHashMap<>(16, 1);
+    private final Lock lock = new ReentrantLock();
     protected final Timer timer;
 
     private static class RequestTime {
@@ -132,16 +136,22 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             ByteBuf request = Commands.newTcClientConnectRequest(transactionCoordinatorId, requestId);
 
             cnx.sendRequestWithId(request, requestId).thenRun(() -> {
-                LOG.info("Transaction coordinator client connect success! tcId : {}", transactionCoordinatorId);
-                if (!changeToReadyState()) {
-                    setState(State.Closed);
-                    cnx.channel().close();
-                }
+                lock.lock();
+                try {
+                    LOG.info("Transaction coordinator client connect success! tcId : {}", transactionCoordinatorId);
+                    if (!changeToReadyState()) {
+                        setState(State.Closed);
+                        cnx.channel().close();
+                    }
 
-                if (!this.connectFuture.isDone()) {
-                    this.connectFuture.complete(null);
+                    if (!this.connectFuture.isDone()) {
+                        this.connectFuture.complete(null);
+                    }
+                    this.connectionHandler.resetBackoff();
+                    executedWaitingRequests();
+                } finally {
+                    lock.unlock();
                 }
-                this.connectionHandler.resetBackoff();
             }).exceptionally((e) -> {
                 LOG.error("Transaction coordinator client connect fail! tcId : {}",
                         transactionCoordinatorId, e.getCause());
@@ -150,7 +160,10 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                     setState(State.Closed);
                     cnx.channel().close();
                 } else {
+                    //What need to be lock is the operation changing state instead of reconnecting
+                    lock.lock();
                     connectionHandler.reconnectLater(e.getCause());
+                    lock.unlock();
                 }
                 return null;
             });
@@ -160,6 +173,12 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             }
             this.connectFuture.complete(null);
         }
+    }
+
+    private void executedWaitingRequests() {
+        waitingExecutedRequests.forEach((requestId, op) -> {
+            tryExecuteCommandAgain(op, requestId);
+        });
     }
 
     private void failPendingRequest() {
@@ -186,9 +205,9 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newTxn(transactionCoordinatorId, requestId, unit.toMillis(timeout));
         OpForNewTxnCallBack op = OpForNewTxnCallBack.create(cmd, callback, timeout, unit, client);
-        if (getState().equals(State.Connecting)) {
-            timer.newTimeout(ignore -> tryExecuteCommandAgain(op, requestId),
-                    op.backoff.next(), TimeUnit.MILLISECONDS);
+        if (checkIfConnecting()) {
+            waitingExecutedRequests.put(requestId, op);
+            lock.unlock();
             return callback;
         }
         pendingRequests.put(requestId, op);
@@ -256,9 +275,9 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
 
         OpForAddPublishPartitionToTxnCallBack op = OpForAddPublishPartitionToTxnCallBack
                 .create(cmd, callback, txnID, partitions, client);
-        if (getState().equals(State.Connecting)) {
-            timer.newTimeout(ignore -> tryExecuteCommandAgain(op, requestId),
-                    op.backoff.next(), TimeUnit.MILLISECONDS);
+        if (checkIfConnecting()) {
+            waitingExecutedRequests.put(requestId, op);
+            lock.unlock();
             return callback;
         }
         pendingRequests.put(requestId, op);
@@ -327,9 +346,9 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                 requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), subscriptionList);
         OpForAddSubscriptionToTxnCallBack op = OpForAddSubscriptionToTxnCallBack
                 .create(cmd, callback, txnID, subscriptionList, client);
-        if (getState().equals(State.Connecting)) {
-            timer.newTimeout(ignore -> tryExecuteCommandAgain(op, requestId),
-                    op.backoff.next(), TimeUnit.MILLISECONDS);
+        if (checkIfConnecting()) {
+            waitingExecutedRequests.put(requestId, op);
+            lock.unlock();
             return callback;
         }
         pendingRequests.put(requestId, op);
@@ -398,6 +417,11 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         BaseCommand cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), action);
         ByteBuf buf = Commands.serializeWithSize(cmd);
         OpForEndTxnCallBack op = OpForEndTxnCallBack.create(buf, callback, txnID, action, client);
+        if (checkIfConnecting()) {
+            waitingExecutedRequests.put(requestId, op);
+            lock.unlock();
+            return callback;
+        }
         pendingRequests.put(requestId, op);
         timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
         buf.retain();
@@ -450,7 +474,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
 
     private <T> void tryExecuteCommandAgain(OpBase<T> op, long requestId) {
         ClientCnx cnx = cnx();
-        if (cnx == null || getState().equals(State.Connecting)) {
+        if (cnx == null) {
             timer.newTimeout(timeout ->
                     tryExecuteCommandAgain(op, requestId), op.backoff.next(), TimeUnit.MILLISECONDS);
             return;
@@ -464,8 +488,11 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     private void handleTransactionFailOp(ServerError error, String message, OpBase<?> op) {
         if (error == ServerError.TransactionCoordinatorNotFound) {
             if (getState() != State.Connecting) {
+                //What need to be lock is the operation changing state instead of reconnecting
+                lock.lock();
                 connectionHandler.reconnectLater(new TransactionCoordinatorClientException
                         .CoordinatorNotFoundException(message));
+                lock.unlock();
             }
             return;
         } else if (error == ServerError.RetryTcOpAgain) {
@@ -773,6 +800,18 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
 
     void connectionClosed(ClientCnx cnx) {
         this.connectionHandler.connectionClosed(cnx);
+    }
+
+    private boolean checkIfConnecting() {
+        if (getState().equals(State.Connecting)) {
+            lock.lock();
+            if (getState().equals(State.Connecting)) {
+                return true;
+            } else {
+                lock.unlock();
+            }
+        }
+        return false;
     }
 
     @Override
