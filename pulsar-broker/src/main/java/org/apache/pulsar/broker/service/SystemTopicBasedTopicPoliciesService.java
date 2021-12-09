@@ -80,11 +80,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         this.pulsarService = pulsarService;
     }
 
-    /**
-     * Used to identify whether a topic policy is global and needs to be replicated to remote cluster.
-     */
-    public static final String IS_GLOBAL = "IS_GLOBAL";
-
     @Override
     public CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName) {
         return sendTopicPolicyEvent(topicName, ActionType.DELETE, null);
@@ -140,10 +135,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     private PulsarEvent getPulsarEvent(TopicName topicName, ActionType actionType, TopicPolicies policies) {
         PulsarEvent.PulsarEventBuilder builder = PulsarEvent.builder();
-        if (policies != null && policies.isGlobalPolicies()) {
-            builder.properties(ImmutableMap.of(IS_GLOBAL, ""));
-        } else {
-            builder.replicateTo(Collections.emptyList());
+        if (policies == null || !policies.isGlobalPolicies()) {
+            // we don't need to replicate local policies to remote cluster, so set `replicateTo` to empty.
+            builder.replicateTo(Collections.emptySet());
         }
         return builder
                 .actionType(actionType)
@@ -397,7 +391,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         // delete policies
         if (msg.getValue() == null) {
             TopicName topicName = TopicName.get(TopicName.get(msg.getKey()).getPartitionedTopicName());
-            if (msg.getProperties().containsKey(IS_GLOBAL)) {
+            if (msg.hasReplicateTo()) {
                 globalPoliciesCache.remove(topicName);
             } else {
                 policiesCache.remove(topicName);

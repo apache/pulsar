@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.systopic;
 
-import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -84,26 +84,35 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
         @Override
         public MessageId write(PulsarEvent event) throws PulsarClientException {
             return producer.newMessage().key(getEventKey(event))
-                    .properties(event.getProperties() == null ? ImmutableMap.of() : event.getProperties())
-                    .replicationClusters(event.getReplicateTo() == null ? null : event.getReplicateTo())
+                    .replicationClusters(event.getReplicateTo() == null ? null
+                            : new ArrayList<>(event.getReplicateTo()))
                     .value(event).send();
         }
 
         @Override
         public CompletableFuture<MessageId> writeAsync(PulsarEvent event) {
-            return producer.newMessage().key(getEventKey(event)).value(event).sendAsync();
+            return producer.newMessage().key(getEventKey(event))
+                    .replicationClusters(event.getReplicateTo() == null ? null
+                            : new ArrayList<>(event.getReplicateTo()))
+                    .value(event).sendAsync();
         }
 
         @Override
         public MessageId delete(PulsarEvent event) throws PulsarClientException {
             validateActionType(event);
-            return producer.newMessage().key(getEventKey(event)).value(null).send();
+            return producer.newMessage().key(getEventKey(event))
+                    .replicationClusters(event.getReplicateTo() == null ? null
+                            : new ArrayList<>(event.getReplicateTo()))
+                    .value(null).send();
         }
 
         @Override
         public CompletableFuture<MessageId> deleteAsync(PulsarEvent event) {
             validateActionType(event);
-            return producer.newMessage().key(getEventKey(event)).value(null).sendAsync();
+            return producer.newMessage().key(getEventKey(event))
+                    .replicationClusters(event.getReplicateTo() == null ? null
+                            : new ArrayList<>(event.getReplicateTo()))
+                    .value(null).sendAsync();
         }
 
         private String getEventKey(PulsarEvent event) {

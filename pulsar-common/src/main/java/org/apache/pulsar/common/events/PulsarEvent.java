@@ -18,8 +18,7 @@
  */
 package org.apache.pulsar.common.events;
 
-import java.util.List;
-import java.util.Map;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -40,6 +39,5 @@ public class PulsarEvent {
     /**
      * Which remote clusters to replicate to
      */
-    private List<String> replicateTo;
-    private Map<String, String> properties;
+    private Set<String> replicateTo;
 }
