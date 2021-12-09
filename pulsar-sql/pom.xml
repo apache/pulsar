@@ -37,6 +37,13 @@
         <module>presto-distribution</module>
     </modules>
 
+    <properties>
+        <!-- keep using okhttp3 3.x for Presto -->
+        <okhttp3.version>3.14.9</okhttp3.version>
+        <!-- use okio version that matches the okhttp3 version -->
+        <okio.version>1.17.2</okio.version>
+    </properties>
+
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -103,6 +110,28 @@
                 <groupId>com.fasterxml.jackson.datatype</groupId>
                 <artifactId>jackson-datatype-jsr310</artifactId>
                 <version>${jackson.version}</version>
+            </dependency>
+
+            <!-- keep using okhttp3 3.x for Presto -->
+            <dependency>
+                <groupId>com.squareup.okhttp3</groupId>
+                <artifactId>okhttp</artifactId>
+                <version>${okhttp3.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.squareup.okhttp3</groupId>
+                <artifactId>okhttp-urlconnection</artifactId>
+                <version>${okhttp3.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.squareup.okhttp3</groupId>
+                <artifactId>logging-interceptor</artifactId>
+                <version>${okhttp3.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.squareup.okio</groupId>
+                <artifactId>okio</artifactId>
+                <version>${okio.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
