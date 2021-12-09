@@ -504,7 +504,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
-    public ConsumerBuilder<T> paused(boolean paused) {
+    public ConsumerBuilder<T> startPaused(boolean paused) {
         conf.setStartPaused(paused);
         return this;
     }

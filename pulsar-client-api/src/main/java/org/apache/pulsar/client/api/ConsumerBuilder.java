@@ -780,6 +780,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * called.
      * <p/>
      * See also {@link Consumer#pause()}.
+     * @default false
      */
-    ConsumerBuilder<T> paused(boolean paused);
+    ConsumerBuilder<T> startPaused(boolean paused);
 }
