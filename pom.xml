@@ -993,6 +993,18 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-alts</artifactId>
+        <version>${grpc.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-netty-shaded</artifactId>
+        <version>${grpc.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>io.perfmark</groupId>
         <artifactId>perfmark-api</artifactId>
         <version>${perfmark.version}</version>
