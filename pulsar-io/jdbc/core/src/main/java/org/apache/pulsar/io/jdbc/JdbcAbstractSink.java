@@ -32,7 +32,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Getter;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
@@ -46,11 +45,11 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
     // ----- Runtime fields
     protected JdbcSinkConfig jdbcSinkConfig;
     @Getter
-    protected Connection connection;
-    protected String jdbcUrl;
-    protected String tableName;
+    private Connection connection;
+    private String jdbcUrl;
+    private String tableName;
 
-    protected JdbcUtils.TableId tableId;
+    private JdbcUtils.TableId tableId;
     private PreparedStatement insertStatement;
     private PreparedStatement updateStatement;
     private PreparedStatement deleteStatement;
@@ -64,11 +63,11 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
     protected JdbcUtils.TableDefinition tableDefinition;
 
     // for flush
-    protected List<Record<T>> incomingList;
-    protected List<Record<T>> swapList;
-    protected AtomicBoolean isFlushing;
-    protected int batchSize;
-    protected ScheduledExecutorService flushExecutor;
+    private List<Record<T>> incomingList;
+    private List<Record<T>> swapList;
+    private AtomicBoolean isFlushing;
+    private int batchSize;
+    private ScheduledExecutorService flushExecutor;
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
@@ -89,12 +88,15 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
             properties.setProperty("password", password);
         }
 
-
         Class.forName(JdbcUtils.getDriverClassName(jdbcSinkConfig.getJdbcUrl()));
         connection = DriverManager.getConnection(jdbcSinkConfig.getJdbcUrl(), properties);
         connection.setAutoCommit(false);
         log.info("Opened jdbc connection: {}, autoCommit: {}", jdbcUrl, connection.getAutoCommit());
 
+        initStatementAndExecutor();
+    }
+
+    protected void initStatementAndExecutor() throws Exception {
         tableName = jdbcSinkConfig.getTableName();
         tableId = JdbcUtils.getTableId(connection, tableName);
         // Init PreparedStatement include insert, delete, update
@@ -110,7 +112,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
         flushExecutor.scheduleAtFixedRate(this::flush, timeoutMs, timeoutMs, TimeUnit.MILLISECONDS);
     }
 
-    protected void initStatement()  throws Exception {
+    private void initStatement()  throws Exception {
         List<String> keyList = Lists.newArrayList();
         String key = jdbcSinkConfig.getKey();
         if (key !=null && !key.isEmpty()) {
@@ -161,7 +163,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
         PreparedStatement statement,
         Record<T> message, String action) throws Exception;
 
-    protected void flush() {
+    private void flush() {
         // if not in flushing state, do flush, else return;
         if (incomingList.size() > 0 && isFlushing.compareAndSet(false, true)) {
             if (log.isDebugEnabled()) {
@@ -231,6 +233,18 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
                 log.debug("Already in flushing state, will not flush, queue size: {}", incomingList.size());
             }
         }
+    }
+
+    protected void setConnection(Connection connection) {
+        this.connection = connection;
+    }
+
+    protected String getJdbcUrl() {
+        return jdbcUrl;
+    }
+
+    protected void setJdbcUrl(String jdbcUrl) {
+        this.jdbcUrl = jdbcUrl;
     }
 
 }
