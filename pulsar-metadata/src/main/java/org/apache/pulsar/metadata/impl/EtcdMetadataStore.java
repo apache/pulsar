@@ -100,11 +100,15 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
                     WatchOption.newBuilder()
                             .withPrefix(ByteSequence.from("/", StandardCharsets.UTF_8))
                             .build(), this::handleWatchResponse);
-            this.sessionWatcher =
-                    new EtcdSessionWatcher(client, conf.getSessionTimeoutMillis(), this::receivedSessionEvent);
+            if (enableSessionWatcher) {
+                this.sessionWatcher =
+                        new EtcdSessionWatcher(client, conf.getSessionTimeoutMillis(), this::receivedSessionEvent);
 
-            // Ensure the lease is created when we start
-            this.createLease(false).join();
+                // Ensure the lease is created when we start
+                this.createLease(false).join();
+            } else {
+                sessionWatcher = null;
+            }
         } catch (Exception e) {
             throw new MetadataStoreException(e);
         }
@@ -118,8 +122,13 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
             sessionWatcher.close();
         }
 
-        leaseClient.close();
-        client.getLeaseClient().revoke(leaseId);
+        if (leaseClient != null) {
+            leaseClient.close();
+        }
+
+        if (leaseId != 0) {
+            client.getLeaseClient().revoke(leaseId);
+        }
 
         kv.close();
         client.close();
