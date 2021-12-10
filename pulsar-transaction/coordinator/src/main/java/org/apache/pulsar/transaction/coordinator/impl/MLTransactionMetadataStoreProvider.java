@@ -42,10 +42,14 @@ public class MLTransactionMetadataStoreProvider implements TransactionMetadataSt
                                                                  ManagedLedgerConfig managedLedgerConfig,
                                                                  TransactionTimeoutTracker timeoutTracker,
                                                                  TransactionRecoverTracker recoverTracker) {
+        MLTransactionLogInterceptor mlTransactionLogInterceptor = new MLTransactionLogInterceptor();
+        managedLedgerConfig.setManagedLedgerInterceptor(new MLTransactionLogInterceptor());
         MLTransactionLogImpl txnLog = new MLTransactionLogImpl(transactionCoordinatorId,
                 managedLedgerFactory, managedLedgerConfig);
 
+        // MLTransactionLogInterceptor will init sequenceId and update the sequenceId to managedLedger properties.
         return txnLog.initialize().thenApply(__ ->
-                new MLTransactionMetadataStore(transactionCoordinatorId, txnLog, timeoutTracker, recoverTracker));
+                new MLTransactionMetadataStore(transactionCoordinatorId, txnLog, timeoutTracker,
+                        recoverTracker, mlTransactionLogInterceptor.getSequenceId()));
     }
 }
