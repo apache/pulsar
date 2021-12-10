@@ -29,7 +29,11 @@ include_directories(${GLIB_INCLUDE_DIRS})
 include(FindPkgConfig)
 pkg_check_modules(GLIB glib-2.0)
 include_directories(${WIRESHARK_INCLUDE_PATH}/wireshark ${GLIB_INCLUDE_DIRS} ../lib )
-MESSAGE("WIRESHARK_INCLUDE_PATH" " : " ${WIRESHARK_INCLUDE_PATH})
+
+MESSAGE(STATUS "Use WIRESHARK_LIB: ${WIRESHARK_LIB}")
+MESSAGE(STATUS "Use WIRESHARK_UTIL_LIB: ${WIRESHARK_UTIL_LIB}")
+MESSAGE(STATUS "Use WIRESHARK_INCLUDE_PATH: ${WIRESHARK_INCLUDE_PATH}")
+MESSAGE(STATUS "Use GLIB_INCLUDE_DIRS: ${GLIB_INCLUDE_DIRS}")
 
 # Protobuf libs
 find_library(Protobuf_LIBRARIES NAMES libprotobuf.a)
@@ -43,7 +47,6 @@ find_path(Protobuf_INCLUDE_DIRS google/protobuf/stubs/common.h)
 
 include_directories(${Protobuf_INCLUDE_DIRS})
 
-set(PROTO_SRC_PULSAR_API PulsarApi.pb.cc)
 set(AUTOGEN_DIR ${CMAKE_BINARY_DIR}/generated)
 file(MAKE_DIRECTORY ${AUTOGEN_DIR})
 set(LIB_AUTOGEN_DIR ${AUTOGEN_DIR}/lib)
@@ -53,15 +56,9 @@ include_directories(${LIB_AUTOGEN_DIR})
 # Protobuf generation is only supported natively starting from CMake 3.8
 # Using custom command for now
 set(PROTO_SOURCES ${LIB_AUTOGEN_DIR}/PulsarApi.pb.cc ${LIB_AUTOGEN_DIR}/PulsarApi.pb.h)
-ADD_CUSTOM_COMMAND(
-        OUTPUT ${PROTO_SOURCES}
-        COMMAND ${PROTOC_PATH} -I ../../pulsar-common/src/main/proto ../../pulsar-common/src/main/proto/PulsarApi.proto --cpp_out=${LIB_AUTOGEN_DIR}
-        DEPENDS
-        ../../pulsar-common/src/main/proto/PulsarApi.proto
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-
-message(PROTO_SOURCES : ${PROTO_SOURCES})
 link_libraries(${Protobuf_LIBRARIES})
+
+# Build wireshark shared lib
 add_library(pulsar SHARED pulsarDissector.cc ${PROTO_SOURCES})
 SET(CMAKE_SHARED_LIBRARY_PREFIX )
 SET(CMAKE_SHARED_LIBRARY_SUFFIX .so)
@@ -71,6 +68,7 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang" OR "${CMAKE_CXX_COMPILER_ID}
     set(CMAKE_SHARED_LIBRARY_CREATE_CXX_FLAGS "${CMAKE_SHARED_LIBRARY_CREATE_CXX_FLAGS} -undefined dynamic_lookup")
 endif()
 
+MESSAGE("CMAKE_CXX_COMPILER_ID ${CMAKE_CXX_COMPILER_ID}")
 if (APPLE)
     target_link_libraries(pulsar -Wl,-all_load ${PROTO_LIBRARIES})
 else ()
