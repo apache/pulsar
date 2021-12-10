@@ -56,6 +56,13 @@ include_directories(${LIB_AUTOGEN_DIR})
 # Protobuf generation is only supported natively starting from CMake 3.8
 # Using custom command for now
 set(PROTO_SOURCES ${LIB_AUTOGEN_DIR}/PulsarApi.pb.cc ${LIB_AUTOGEN_DIR}/PulsarApi.pb.h)
+ADD_CUSTOM_COMMAND(
+        OUTPUT ${PROTO_SOURCES}
+        COMMAND ${PROTOC_PATH} -I ../../pulsar-common/src/main/proto ../../pulsar-common/src/main/proto/PulsarApi.proto --cpp_out=${LIB_AUTOGEN_DIR}
+        DEPENDS
+        ../../pulsar-common/src/main/proto/PulsarApi.proto
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+
 link_libraries(${Protobuf_LIBRARIES})
 
 # Build wireshark shared lib
