@@ -151,6 +151,9 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
         } else {
             // First get the version from parent
             String parent = parent(path);
+            if (parent == null) {
+                parent = "/";
+            }
             return super.storePut(parent, new byte[0], Optional.empty(), EnumSet.noneOf(CreateOption.class))
                     // Then create the unique key with the version added in the path
                     .thenCompose(stat -> super.storePut(path + stat.getVersion(), data, optExpectedVersion, options));
