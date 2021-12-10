@@ -396,22 +396,17 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
     private void handleWatchResponse(WatchResponse watchResponse) {
         watchResponse.getEvents().forEach(we -> {
             String path = we.getKeyValue().getKey().toString(StandardCharsets.UTF_8);
-            String parent = parent(path);
             if (we.getEventType() == WatchEvent.EventType.PUT) {
                 if (we.getKeyValue().getVersion() == 1) {
                     receivedNotification(new Notification(NotificationType.Created, path));
 
-                    if (parent != null) {
-                        receivedNotification(new Notification(NotificationType.ChildrenChanged, parent));
-                    }
+                    notifyParentChildrenChanged(path);
                 } else {
                     receivedNotification(new Notification(NotificationType.Modified, path));
                 }
             } else if (we.getEventType() == WatchEvent.EventType.DELETE) {
                 receivedNotification(new Notification(NotificationType.Deleted, path));
-                if (parent != null) {
-                    receivedNotification(new Notification(NotificationType.ChildrenChanged, parent));
-                }
+                notifyParentChildrenChanged(path);
             }
         });
     }
