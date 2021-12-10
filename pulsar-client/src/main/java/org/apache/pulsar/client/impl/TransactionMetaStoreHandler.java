@@ -417,7 +417,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     }
 
     private <T> void tryExecuteCommandAgain(String operation, OpBase<?> oldOp) {
-        OpBase opNew = null;
+        OpBase<?> opNew;
         long requestId = client.newRequestId();
         if (operation.equals(BaseCommand.Type.NEW_TXN.name())) {
             OpForNewTxnCallBack op = (OpForNewTxnCallBack) oldOp;
@@ -448,6 +448,9 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                     txnID.getMostSigBits(), action);
             opNew = OpForEndTxnCallBack
                     .create(Commands.serializeWithSize(cmd), op.callback, txnID, action, op.backoff);
+        } else {
+            LOG.error("The operation {} is Invalid", operation);
+            throw new RuntimeException();
         }
         ReferenceCountUtil.safeRelease(oldOp.cmd);
         oldOp.recycle();
