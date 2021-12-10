@@ -63,6 +63,7 @@ public class TransactionRetryTest extends TransactionTestBase {
     }
 
 
+    @Test
     public void testTryNewTxnAgainWhenTCNotReadyOrConnecting () throws Exception {
         Callable<CompletableFuture<Transaction>> callable = ()
                 -> {
@@ -79,6 +80,7 @@ public class TransactionRetryTest extends TransactionTestBase {
         tryCommandAgainWhenTCNotReadyOrConnecting(callable, callable, this);
     }
 
+    @Test
     public void testAddPublishPartitionWhenTCNotReadyOrConnecting() throws Exception {
         TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
         Transaction transaction1 = pulsarClient
@@ -100,6 +102,7 @@ public class TransactionRetryTest extends TransactionTestBase {
         tryCommandAgainWhenTCNotReadyOrConnecting(callable1, callable2, this);
     }
 
+    @Test
     public void testAbortWhenTCNotReadyOrConnecting() throws Exception {
         TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
         Transaction transaction1 = pulsarClient
@@ -119,6 +122,7 @@ public class TransactionRetryTest extends TransactionTestBase {
         tryCommandAgainWhenTCNotReadyOrConnecting(callable1, callable2, this);
     }
 
+    @Test
     public void testCommitWhenTCNotReadyOrConnecting() throws Exception {
         TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
         Transaction transaction1 = pulsarClient
@@ -138,6 +142,7 @@ public class TransactionRetryTest extends TransactionTestBase {
         tryCommandAgainWhenTCNotReadyOrConnecting(callable1, callable2, this);
     }
 
+    @Test
     public void testAddSubscriptionWhenTCNotReadyOrConnecting() throws Exception {
         TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
         Transaction transaction1 = pulsarClient

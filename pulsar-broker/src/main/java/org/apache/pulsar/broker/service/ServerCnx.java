@@ -1998,10 +1998,19 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
     }
     private Throwable handleException(Throwable ex, String op, long requestId) {
+        if (ex instanceof CoordinatorException.CoordinatorNotFoundException || ex != null
+                && ex.getCause() instanceof CoordinatorException.CoordinatorNotFoundException) {
+            if (log.isDebugEnabled()) {
+                log.debug("The Coordinator was not found for the request {}", op);
+            }
+            return ex;
+        }
         if (ex instanceof ManagedLedgerException.ManagedLedgerFencedException || ex != null
                 && ex.getCause() instanceof ManagedLedgerException.ManagedLedgerFencedException) {
-            log.info("Throw a CoordinatorNotFoundException to client "
-                    + "with the message got from a ManagedLedgerFencedException");
+            if (log.isDebugEnabled()) {
+                log.debug("Throw a CoordinatorNotFoundException to client "
+                        + "with the message got from a ManagedLedgerFencedException for the request {}", op);
+            }
             return new CoordinatorException.CoordinatorNotFoundException(ex.getMessage());
 
         }
