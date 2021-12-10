@@ -5,10 +5,6 @@ sidebar_label: "InfluxDB sink connector"
 original_id: io-influxdb-sink
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The InfluxDB sink connector pulls messages from Pulsar topics 
 and persists the messages to InfluxDB.
 

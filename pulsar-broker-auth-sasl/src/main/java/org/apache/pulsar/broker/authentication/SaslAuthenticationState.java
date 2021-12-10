@@ -39,16 +39,17 @@ public class SaslAuthenticationState implements AuthenticationState {
     private final long stateId;
     private static final AtomicLong stateIdGenerator = new AtomicLong(0L);
     private final SaslAuthenticationDataSource authenticationDataSource;
+    private PulsarSaslServer pulsarSaslServer;
 
-    public SaslAuthenticationState(AuthenticationDataSource authenticationDataSource) {
+    public SaslAuthenticationState(PulsarSaslServer server) {
         stateId = stateIdGenerator.incrementAndGet();
-        checkArgument(authenticationDataSource instanceof SaslAuthenticationDataSource);
-        this.authenticationDataSource = (SaslAuthenticationDataSource)authenticationDataSource;
+        this.authenticationDataSource = new SaslAuthenticationDataSource(server);
+        this.pulsarSaslServer = server;
     }
 
     @Override
     public String getAuthRole() {
-        return authenticationDataSource.getAuthorizationID();
+        return pulsarSaslServer.getAuthorizationID();
     }
 
     @Override
@@ -58,7 +59,7 @@ public class SaslAuthenticationState implements AuthenticationState {
 
     @Override
     public boolean isComplete() {
-        return authenticationDataSource.isComplete();
+        return pulsarSaslServer.isComplete();
     }
 
     /**
@@ -67,7 +68,7 @@ public class SaslAuthenticationState implements AuthenticationState {
      */
     @Override
     public AuthData authenticate(AuthData authData) throws AuthenticationException {
-        return authenticationDataSource.authenticate(authData);
+        return pulsarSaslServer.response(authData);
     }
 
     @Override

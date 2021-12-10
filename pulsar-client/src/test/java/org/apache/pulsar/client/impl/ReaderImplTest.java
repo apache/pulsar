@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertTrue;

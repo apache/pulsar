@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service;
 import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -33,23 +32,17 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
-import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
 public class BacklogQuotaManager {
     private final BacklogQuotaImpl defaultQuota;
-    private final PulsarService pulsar;
-    private final boolean isTopicLevelPoliciesEnable;
     private final NamespaceResources namespaceResources;
 
-
     public BacklogQuotaManager(PulsarService pulsar) {
-        this.isTopicLevelPoliciesEnable = pulsar.getConfiguration().isTopicLevelPoliciesEnabled();
         double backlogQuotaGB = pulsar.getConfiguration().getBacklogQuotaDefaultLimitGB();
         this.defaultQuota = BacklogQuotaImpl.builder()
                 .limitSize(backlogQuotaGB > 0 ? (long) (backlogQuotaGB * BacklogQuotaImpl.BYTES_IN_GIGABYTE)
@@ -58,7 +51,6 @@ public class BacklogQuotaManager {
                 .retentionPolicy(pulsar.getConfiguration().getBacklogQuotaDefaultRetentionPolicy())
                 .build();
         this.namespaceResources = pulsar.getPulsarResources().getNamespaceResources();
-        this.pulsar = pulsar;
     }
 
     public BacklogQuotaImpl getDefaultQuota() {
@@ -77,34 +69,6 @@ public class BacklogQuotaManager {
         }
     }
 
-    public BacklogQuotaImpl getBacklogQuota(TopicName topicName, BacklogQuotaType backlogQuotaType) {
-        if (!isTopicLevelPoliciesEnable) {
-            return getBacklogQuota(topicName.getNamespaceObject(), backlogQuotaType);
-        }
-
-        try {
-            return Optional.ofNullable(pulsar.getTopicPoliciesService().getTopicPolicies(topicName))
-                    .map(TopicPolicies::getBackLogQuotaMap)
-                    .map(map -> map.get(backlogQuotaType.name()))
-                    .orElseGet(() -> getBacklogQuota(topicName.getNamespaceObject(), backlogQuotaType));
-        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.debug("Topic policies cache have not init, will apply the namespace backlog quota: topicName={}",
-                    topicName);
-        } catch (Exception e) {
-            log.error("Failed to read topic policies data, "
-                            + "will apply the namespace backlog quota: topicName={}", topicName, e);
-        }
-        return getBacklogQuota(topicName.getNamespaceObject(), backlogQuotaType);
-    }
-
-    public long getBacklogQuotaLimitInSize(TopicName topicName) {
-        return getBacklogQuota(topicName, BacklogQuotaType.destination_storage).getLimitSize();
-    }
-
-    public int getBacklogQuotaLimitInTime(TopicName topicName) {
-        return getBacklogQuota(topicName, BacklogQuotaType.message_age).getLimitTime();
-    }
-
     /**
      * Handle exceeded size backlog by using policies set in the zookeeper for given topic.
      *
@@ -112,8 +76,7 @@ public class BacklogQuotaManager {
      */
     public void handleExceededBacklogQuota(PersistentTopic persistentTopic, BacklogQuotaType backlogQuotaType,
                                            boolean preciseTimeBasedBacklogQuotaCheck) {
-        TopicName topicName = TopicName.get(persistentTopic.getName());
-        BacklogQuota quota = getBacklogQuota(topicName, backlogQuotaType);
+        BacklogQuota quota = persistentTopic.getBacklogQuota(backlogQuotaType);
         log.info("Backlog quota type {} exceeded for topic [{}]. Applying [{}] policy", backlogQuotaType,
                 persistentTopic.getName(), quota.getPolicy());
         switch (quota.getPolicy()) {

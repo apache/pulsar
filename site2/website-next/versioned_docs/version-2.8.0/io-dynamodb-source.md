@@ -5,10 +5,6 @@ sidebar_label: "AWS DynamoDB source connector"
 original_id: io-dynamodb-source
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The DynamoDB source connector pulls data from DynamoDB table streams and persists data into Pulsar.
 
 This connector uses the [DynamoDB Streams Kinesis Adapter](https://github.com/awslabs/dynamodb-streams-kinesis-adapter),

@@ -108,6 +108,7 @@ public class ProxyServiceStarter {
                 FixedDateFormat.FixedFormat.ISO8601_OFFSET_DATE_TIME_HHMM.getPattern());
             Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
                 System.out.println(String.format("%s [%s] error Uncaught exception in thread %s: %s", dateFormat.format(new Date()), thread.getContextClassLoader(), thread.getName(), exception.getMessage()));
+                exception.printStackTrace(System.out);
             });
 
             JCommander jcommander = new JCommander();

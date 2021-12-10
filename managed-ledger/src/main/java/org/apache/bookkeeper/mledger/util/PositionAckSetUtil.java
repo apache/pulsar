@@ -59,7 +59,7 @@ public class PositionAckSetUtil {
     //compare the ack set next bit index is bigger than another one.
     public static int compareToWithAckSet(PositionImpl currentPosition,PositionImpl otherPosition) {
         if (currentPosition == null || otherPosition ==null) {
-            throw new NullPointerException("Two positions can't be null! " +
+            throw new IllegalArgumentException("Two positions can't be null! " +
                     "current position : [" + currentPosition + "] other position : [" + otherPosition + "]");
         }
         int result = ComparisonChain.start().compare(currentPosition.getLedgerId(),

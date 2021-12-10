@@ -806,3 +806,53 @@ To use your custom schema storage implementation, perform the following steps.
 3. Change the `schemaRegistryStorageClassName` configuration in `broker.conf` to your custom factory class.
       
 4. Start Pulsar.
+
+## Set schema compatibility check strategy 
+
+You can set [schema compatibility check strategy](schema-evolution-compatibility.md#schema-compatibility-check-strategy) at namespace or broker level. 
+
+- If you set schema compatibility check strategy at both namespace or broker level, it uses the strategy set for the namespace level.
+
+- If you do not set schema compatibility check strategy at both namespace or broker level, it uses the `FULL` strategy.
+
+- If you set schema compatibility check strategy at broker level rather than namespace level, it uses the strategy set for the broker level.
+
+- If you set schema compatibility check strategy at namespace level rather than broker level, it uses the strategy set for the namespace level.
+
+### Namespace 
+
+You can set schema compatibility check strategy at namespace level using one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+
+<!--pulsar-admin-->
+
+Use the [`pulsar-admin namespaces set-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
+
+```shell
+pulsar-admin namespaces set-schema-compatibility-strategy options
+```
+<!--REST API-->
+
+Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace|operation/schemaCompatibilityStrategy?version=[[pulsar:version_number]]}
+
+<!--Java-->
+
+Use the [`setSchemaCompatibilityStrategy`](https://pulsar.apache.org/api/admin/)method.
+
+```java
+admin.namespaces().setSchemaCompatibilityStrategy("test", SchemaCompatibilityStrategy.FULL);
+```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+### Broker 
+
+You can set schema compatibility check strategy at broker level by setting `schemaCompatibilityStrategy` in [`broker.conf`](https://github.com/apache/pulsar/blob/f24b4890c278f72a67fe30e7bf22dc36d71aac6a/conf/broker.conf#L1240) or [`standalone.conf`](https://github.com/apache/pulsar/blob/master/conf/standalone.conf) file.
+
+**Example**
+
+```
+schemaCompatibilityStrategy=ALWAYS_INCOMPATIBLE
+```
+

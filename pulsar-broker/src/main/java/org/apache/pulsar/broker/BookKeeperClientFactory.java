@@ -25,17 +25,17 @@ import java.util.Optional;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.stats.StatsLogger;
-import org.apache.zookeeper.ZooKeeper;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 /**
  * Provider of a new BookKeeper client instance.
  */
 public interface BookKeeperClientFactory {
-    BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient, EventLoopGroup eventLoopGroup,
-            Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
-            Map<String, Object> ensemblePlacementPolicyProperties) throws IOException;
+    BookKeeper create(ServiceConfiguration conf, MetadataStoreExtended store, EventLoopGroup eventLoopGroup,
+                      Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+                      Map<String, Object> ensemblePlacementPolicyProperties) throws IOException;
 
-    BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient, EventLoopGroup eventLoopGroup,
+    BookKeeper create(ServiceConfiguration conf, MetadataStoreExtended store, EventLoopGroup eventLoopGroup,
                       Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
                       Map<String, Object> ensemblePlacementPolicyProperties,
                       StatsLogger statsLogger) throws IOException;

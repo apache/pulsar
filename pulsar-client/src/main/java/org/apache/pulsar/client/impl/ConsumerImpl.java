@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Iterables;
 import com.scurrilous.circe.checksum.Crc32cIntChecksum;
@@ -84,6 +85,7 @@ import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandAck.ValidationError;
@@ -594,9 +596,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES, String.valueOf(reconsumetimes));
                 propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_DELAY_TIME, String.valueOf(unit.toMillis(delayTime)));
 
+                MessageId finalMessageId = messageId;
                 if (reconsumetimes > this.deadLetterPolicy.getMaxRedeliverCount() && StringUtils.isNotBlank(deadLetterPolicy.getDeadLetterTopic())) {
                     initDeadLetterProducerIfNeeded();
-                    MessageId finalMessageId = messageId;
                     deadLetterProducer.thenAccept(dlqProducer -> {
                         TypedMessageBuilder<byte[]> typedMessageBuilderNew =
                                 dlqProducer.newMessage(Schema.AUTO_PRODUCE_BYTES(retryMessage.getReaderSchema().get()))
@@ -628,8 +630,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     if (message.hasKey()) {
                         typedMessageBuilderNew.key(message.getKey());
                     }
-                    typedMessageBuilderNew.send();
-                    return doAcknowledge(messageId, ackType, properties, null);
+                    typedMessageBuilderNew.sendAsync()
+                            .thenAccept(__ -> doAcknowledge(finalMessageId, ackType, properties, null).thenAccept(v -> result.complete(null)))
+                            .exceptionally(ex -> {
+                                result.completeExceptionally(ex);
+                                return null;
+                            });
                 }
             } catch (Exception e) {
                 log.error("Send to retry letter topic exception with topic: {}, messageId: {}", retryLetterProducer.getTopic(), messageId, e);
@@ -694,6 +700,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
+    public void negativeAcknowledge(Message<?> message) {
+        negativeAcksTracker.add(message);
+
+        // Ensure the message is not redelivered for ack-timeout, since we did receive an "ack"
+        unAckedMessageTracker.remove(message.getMessageId());
+    }
+
+    @Override
     public void connectionOpened(final ClientCnx cnx) {
         internalPinnedExecutor.execute(() -> {
             previousExceptions.clear();
@@ -718,8 +732,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
 
             SUBSCRIBE_DEADLINE_UPDATER
-                    .compareAndSet(this, 0L, System.currentTimeMillis()
-                            + client.getConfiguration().getOperationTimeoutMs());
+                    .compareAndSet(this, 0L, System.currentTimeMillis() + client.getConfiguration().getOperationTimeoutMs());
 
             int currentSize;
             synchronized (this) {
@@ -733,8 +746,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             boolean isDurable = subscriptionMode == SubscriptionMode.Durable;
             MessageIdData startMessageIdData = null;
             if (isDurable) {
-                // For regular durable subscriptions, the message id from where
-                // to restart will be determined by the broker.
+                // For regular durable subscriptions, the message id from where to restart will be determined by the broker.
                 startMessageIdData = null;
             } else if (startMessageId != null) {
                 // For non-durable we are going to restart from the next entry
@@ -757,7 +769,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     priorityLevel, consumerName, isDurable, startMessageIdData, metadata, readCompacted,
                     conf.isReplicateSubscriptionState(),
                     InitialPosition.valueOf(subscriptionInitialPosition.getValue()),
-                    startMessageRollbackDuration, si, createTopicIfDoesNotExist, conf.getKeySharedPolicy());
+                    startMessageRollbackDuration, si, createTopicIfDoesNotExist, conf.getKeySharedPolicy(),
+                    conf.getSubscriptionProperties());
 
             cnx.sendRequestWithId(request, requestId).thenRun(() -> {
                 synchronized (ConsumerImpl.this) {
@@ -790,8 +803,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     cnx.channel().close();
                     return null;
                 }
-                log.warn("[{}][{}] Failed to subscribe to topic on {}",
-                        topic, subscription, cnx.channel().remoteAddress());
+                log.warn("[{}][{}] Failed to subscribe to topic on {}", topic,
+                        subscription, cnx.channel().remoteAddress());
 
                 if (e.getCause() instanceof PulsarClientException
                         && PulsarClientException.isRetriableError(e.getCause())
@@ -802,8 +815,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     setState(State.Failed);
                     closeConsumerTasks();
                     subscribeFuture.completeExceptionally(
-                            PulsarClientException.wrap(e, String.format("Failed to subscribe the topic %s with "
-                                    + "subscription name %s when connecting to the broker",
+                            PulsarClientException.wrap(e, String.format("Failed to subscribe the topic %s "
+                                            + "with subscription name %s when connecting to the broker",
                                     topicName.toString(), subscription)));
                     client.cleanupConsumer(this);
                 } else if (e.getCause() instanceof TopicDoesNotExistException) {
@@ -1287,10 +1300,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         // Lazy task scheduling to expire incomplete chunk message
         if (!expireChunkMessageTaskScheduled && expireTimeOfIncompleteChunkedMessageMillis > 0) {
-            internalPinnedExecutor.scheduleAtFixedRate(() -> {
-                        removeExpireIncompleteChunkedMessages();
-                    }, expireTimeOfIncompleteChunkedMessageMillis, expireTimeOfIncompleteChunkedMessageMillis,
-                    TimeUnit.MILLISECONDS);
+            internalPinnedExecutor
+                    .scheduleAtFixedRate(catchingAndLoggingThrowables(this::removeExpireIncompleteChunkedMessages),
+                            expireTimeOfIncompleteChunkedMessageMillis, expireTimeOfIncompleteChunkedMessageMillis,
+                            TimeUnit.MILLISECONDS);
             expireChunkMessageTaskScheduled = true;
         }
 
@@ -1843,6 +1856,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         incomingMessages.forEach(Message::release);
         clearIncomingMessages();
         unAckedMessageTracker.clear();
+        BaseCommand.Type type = BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN;
+        switch (type) {
+            case ADD_SUBSCRIPTION_TO_TXN:
+        }
         return messagesNumber;
     }
 
@@ -2129,7 +2146,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (lastDequeuedMessageId == MessageId.earliest) {
             // if we are starting from latest, we should seek to the actual last message first.
             // allow the last one to be read when read head inclusively.
-            if (startMessageId.equals(MessageId.latest)) {
+            if (MessageId.latest.equals(startMessageId)) {
 
                 CompletableFuture<GetLastMessageIdResponse> future = internalGetLastMessageIdAsync();
                 // if the consumer is configured to read inclusive then we need to seek to the last message

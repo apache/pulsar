@@ -92,7 +92,7 @@ public class ThresholdShedder implements LoadSheddingStrategy {
 
             if (minimumThroughputToOffload < minThroughputThreshold) {
                 if (log.isDebugEnabled()) {
-                    log.info("[{}] broker is planning to shed throughput {} MByte/s less than "
+                    log.debug("[{}] broker is planning to shed throughput {} MByte/s less than "
                                     + "minimumThroughputThreshold {} MByte/s, skipping bundle unload.",
                             broker, minimumThroughputToOffload / MB, minThroughputThreshold / MB);
                 }

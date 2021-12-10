@@ -126,9 +126,10 @@ public class Producer {
         stats.metadata = this.metadata;
         stats.accessMode = Commands.convertProducerAccessMode(accessMode);
 
-        this.isRemote = producerName
-                .startsWith(cnx.getBrokerService().pulsar().getConfiguration().getReplicatorPrefix());
-        this.remoteCluster = isRemote ? producerName.split("\\.")[2].split(REPL_PRODUCER_NAME_DELIMITER)[0] : null;
+
+        String replicatorPrefix = cnx.getBrokerService().pulsar().getConfiguration().getReplicatorPrefix() + ".";
+        this.isRemote = producerName.startsWith(replicatorPrefix);
+        this.remoteCluster = parseRemoteClusterName(producerName, isRemote, replicatorPrefix);
 
         this.isEncrypted = isEncrypted;
         this.schemaVersion = schemaVersion;
@@ -138,22 +139,31 @@ public class Producer {
         this.clientAddress = cnx.clientSourceAddress();
     }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(producerName);
+    /**
+     * Producer name for replicator is in format.
+     * "replicatorPrefix.localCluster" (old)
+     * "replicatorPrefix.localCluster-->remoteCluster" (new)
+     */
+    private String parseRemoteClusterName(String producerName, boolean isRemote, String replicatorPrefix) {
+        if (isRemote) {
+            String clusterName = producerName.substring(replicatorPrefix.length());
+            return clusterName.contains(REPL_PRODUCER_NAME_DELIMITER)
+                    ? clusterName.split(REPL_PRODUCER_NAME_DELIMITER)[0] : clusterName;
+        }
+        return null;
     }
 
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof Producer) {
-            Producer other = (Producer) obj;
-            return Objects.equals(producerName, other.producerName)
-                    && Objects.equals(topic, other.topic)
-                    && producerId == other.producerId
-                    && Objects.equals(cnx, other.cnx);
-        }
-
-        return false;
+    /**
+     * Method to determine if this producer can replace another producer.
+     * @param other - producer to compare to this one
+     * @return true if this producer is a subsequent instantiation of the same logical producer. Otherwise, false.
+     */
+    public boolean isSuccessorTo(Producer other) {
+        return Objects.equals(producerName, other.producerName)
+                && Objects.equals(topic, other.topic)
+                && producerId == other.producerId
+                && Objects.equals(cnx, other.cnx)
+                && other.getEpoch() < epoch;
     }
 
     public void publishMessage(long producerId, long sequenceId, ByteBuf headersAndPayload, long batchSize,

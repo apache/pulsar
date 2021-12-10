@@ -192,20 +192,7 @@ Create a source connector.
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java Admin API",
-    "value": "Java Admin API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -294,20 +281,7 @@ Create a sink connector.
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java Admin API",
-    "value": "Java Admin API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -400,16 +374,7 @@ Start a source connector.
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -444,16 +409,7 @@ Start a sink connector.
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -492,12 +448,7 @@ Run a source connector locally.
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -521,12 +472,7 @@ Run a sink connector locally.
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -564,20 +510,7 @@ Get the information of a source connector.
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java Admin API",
-    "value": "Java Admin API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -688,20 +621,7 @@ Get the information of a sink connector.
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java Admin API",
-    "value": "Java Admin API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -809,20 +729,7 @@ Get the list of all running source connectors.
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java Admin API",
-    "value": "Java Admin API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -879,20 +786,7 @@ Get the list of all running sink connectors.
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java Admin API",
-    "value": "Java Admin API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -953,20 +847,7 @@ Get the current status of a source connector.
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java Admin API",
-    "value": "Java Admin API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -990,7 +871,7 @@ For more information, see [here](io-cli.md#status).
 * Gets the current status of a **specified** source connector.
 
   Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/status|operation/getSourceStatus?version=@pulsar:version_number@}
-  
+
 </TabItem>
 <TabItem value="Java Admin API">
 
@@ -1060,20 +941,7 @@ Get the current status of a Pulsar sink connector.
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java Admin API",
-    "value": "Java Admin API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -1173,20 +1041,7 @@ Update a running Pulsar source connector.
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java Admin API",
-    "value": "Java Admin API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -1204,7 +1059,7 @@ For more information, see [here](io-cli.md#update).
 <TabItem value="REST API">
 
 Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v3/sources/:tenant/:namespace/:sourceName|operation/updateSource?version=@pulsar:version_number@}
-  
+
 </TabItem>
 <TabItem value="Java Admin API">
 
@@ -1279,20 +1134,7 @@ Update a running Pulsar sink connector.
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java Admin API",
-    "value": "Java Admin API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -1310,7 +1152,7 @@ For more information, see [here](io-cli.md#update-1).
 <TabItem value="REST API">
 
 Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v3/sinks/:tenant/:namespace/:sinkName|operation/updateSink?version=@pulsar:version_number@}
-  
+
 </TabItem>
 <TabItem value="Java Admin API">
 
@@ -1391,20 +1233,7 @@ Stop a source connector.
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java Admin API",
-    "value": "Java Admin API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -1498,20 +1327,7 @@ Stop a sink connector.
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java Admin API",
-    "value": "Java Admin API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -1611,20 +1427,7 @@ Restart a source connector.
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java Admin API",
-    "value": "Java Admin API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -1718,20 +1521,7 @@ Restart a sink connector.
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java Admin API",
-    "value": "Java Admin API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -1831,20 +1621,7 @@ Delete a source connector.
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java Admin API",
-    "value": "Java Admin API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -1908,20 +1685,7 @@ Delete a sink connector.
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java Admin API",
-    "value": "Java Admin API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 

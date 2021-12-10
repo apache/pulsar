@@ -25,9 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
@@ -55,16 +52,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
 
     @Override
     public List<String> getClusters() throws PulsarAdminException {
-        try {
-            return getClustersAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getClustersAsync());
     }
 
     @Override
@@ -87,16 +75,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
 
     @Override
     public ClusterData getCluster(String cluster) throws PulsarAdminException {
-        try {
-            return getClusterAsync(cluster).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getClusterAsync(cluster));
     }
 
     @Override
@@ -120,16 +99,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
 
     @Override
     public void createCluster(String cluster, ClusterData clusterData) throws PulsarAdminException {
-        try {
-            createClusterAsync(cluster, clusterData).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> createClusterAsync(cluster, clusterData));
     }
 
     @Override
@@ -140,16 +110,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
 
     @Override
     public void updateCluster(String cluster, ClusterData clusterData) throws PulsarAdminException {
-        try {
-            updateClusterAsync(cluster, clusterData).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> updateClusterAsync(cluster, clusterData));
     }
 
     @Override
@@ -161,16 +122,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
     @Override
     public void updatePeerClusterNames(
             String cluster, LinkedHashSet<String> peerClusterNames) throws PulsarAdminException {
-        try {
-            updatePeerClusterNamesAsync(cluster, peerClusterNames).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> updatePeerClusterNamesAsync(cluster, peerClusterNames));
     }
 
     @Override
@@ -182,16 +134,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
     @Override
     @SuppressWarnings("unchecked")
     public Set<String> getPeerClusterNames(String cluster) throws PulsarAdminException {
-        try {
-            return getPeerClusterNamesAsync(cluster).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getPeerClusterNamesAsync(cluster));
     }
 
     @Override
@@ -215,16 +158,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
 
     @Override
     public void deleteCluster(String cluster) throws PulsarAdminException {
-        try {
-            deleteClusterAsync(cluster).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> deleteClusterAsync(cluster));
     }
 
     @Override
@@ -236,16 +170,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
     @Override
     public Map<String, NamespaceIsolationData> getNamespaceIsolationPolicies(String cluster)
             throws PulsarAdminException {
-        try {
-            return getNamespaceIsolationPoliciesAsync(cluster).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getNamespaceIsolationPoliciesAsync(cluster));
     }
 
     @Override
@@ -273,16 +198,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
     @Override
     public List<BrokerNamespaceIsolationData> getBrokersWithNamespaceIsolationPolicy(String cluster)
             throws PulsarAdminException {
-        try {
-            return getBrokersWithNamespaceIsolationPolicyAsync(cluster).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getBrokersWithNamespaceIsolationPolicyAsync(cluster));
     }
 
     @Override
@@ -310,17 +226,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
     @Override
     public BrokerNamespaceIsolationData getBrokerWithNamespaceIsolationPolicy(String cluster, String broker)
             throws PulsarAdminException {
-        try {
-            return getBrokerWithNamespaceIsolationPolicyAsync(cluster, broker)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getBrokerWithNamespaceIsolationPolicyAsync(cluster, broker));
     }
 
     @Override
@@ -369,16 +275,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
 
     @Override
     public void deleteNamespaceIsolationPolicy(String cluster, String policyName) throws PulsarAdminException {
-        try {
-            deleteNamespaceIsolationPolicyAsync(cluster, policyName).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> deleteNamespaceIsolationPolicyAsync(cluster, policyName));
     }
 
     @Override
@@ -389,17 +286,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
 
     private void setNamespaceIsolationPolicy(String cluster, String policyName,
              NamespaceIsolationData namespaceIsolationData) throws PulsarAdminException {
-        try {
-            setNamespaceIsolationPolicyAsync(cluster, policyName, namespaceIsolationData)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setNamespaceIsolationPolicyAsync(cluster, policyName, namespaceIsolationData));
     }
 
     private CompletableFuture<Void> setNamespaceIsolationPolicyAsync(String cluster, String policyName,
@@ -411,17 +298,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
     @Override
     public NamespaceIsolationData getNamespaceIsolationPolicy(String cluster, String policyName)
             throws PulsarAdminException {
-        try {
-            return getNamespaceIsolationPolicyAsync(cluster, policyName)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getNamespaceIsolationPolicyAsync(cluster, policyName));
     }
 
     @Override
@@ -470,16 +347,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
 
     @Override
     public void deleteFailureDomain(String cluster, String domainName) throws PulsarAdminException {
-        try {
-            deleteFailureDomainAsync(cluster, domainName).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> deleteFailureDomainAsync(cluster, domainName));
     }
 
     @Override
@@ -490,16 +358,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
 
     @Override
     public Map<String, FailureDomain> getFailureDomains(String cluster) throws PulsarAdminException {
-        try {
-            return getFailureDomainsAsync(cluster).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getFailureDomainsAsync(cluster));
     }
 
     @Override
@@ -524,16 +383,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
 
     @Override
     public FailureDomain getFailureDomain(String cluster, String domainName) throws PulsarAdminException {
-        try {
-            return getFailureDomainAsync(cluster, domainName).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getFailureDomainAsync(cluster, domainName));
     }
 
     @Override
@@ -557,16 +407,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
 
     private void setDomain(String cluster, String domainName,
                            FailureDomain domain) throws PulsarAdminException {
-        try {
-            setDomainAsync(cluster, domainName, domain).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setDomainAsync(cluster, domainName, domain));
     }
 
     private CompletableFuture<Void> setDomainAsync(String cluster, String domainName,

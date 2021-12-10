@@ -517,11 +517,18 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
         Assert.assertEquals(recvdNumMsgs, TotalExpectedMessagesToReceive);
         Assert.assertEquals(numConsumerExceptions, 0);
 
+        boolean tenantRGEqualsNsRG = tenantRGEqualsNamespaceRG(topicStrings);
+        // If the tenant and NS are on different RGs, the bytes/messages get counted once on the
+        // tenant RG, and again on the namespace RG. This double-counting is avoided if tenant-RG == NS-RG.
+        // This is a known (and discussed) artifact in the implementation.
+        // 'ScaleFactor' is a way to incorporate that effect in the verification.
+        final int scaleFactor = tenantRGEqualsNsRG ? 1 : 2;
+
         // Verify producer and consumer side stats.
-        this.verifyRGProdConsStats(topicStrings, sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, true, true);
+        this.verifyRGProdConsStats(topicStrings, sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, scaleFactor, true, true);
 
         // Verify the metrics corresponding to the operations in this test.
-        this.verifyRGMetrics(topicStrings, sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, true, true);
+        this.verifyRGMetrics(sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, scaleFactor, true, true);
 
         unRegisterTenantsAndNamespaces(topicStrings);
         // destroyTopics can be called after createTopics() is added back
@@ -535,9 +542,9 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
     private void verifyRGProdConsStats(String[] topicStrings,
                                        int sentNumBytes, int sentNumMsgs,
                                        int recvdNumBytes, int recvdNumMsgs,
-                                       boolean checkProduce, boolean checkConsume) throws Exception {
+                                       int scaleFactor, boolean checkProduce,
+                                       boolean checkConsume) throws Exception {
 
-        boolean tenantRGEqualsNsRG = tenantRGEqualsNamespaceRG(topicStrings);
         BrokerService bs = pulsar.getBrokerService();
         Map<String, TopicStatsImpl> topicStatsMap = bs.getTopicStats();
 
@@ -556,12 +563,6 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
         BytesAndMessagesCount totalNsRGProdCounts = new BytesAndMessagesCount();
         BytesAndMessagesCount totalNsRGConsCounts = new BytesAndMessagesCount();
         BytesAndMessagesCount prodCounts, consCounts;
-
-        // If the tenant and NS are on different RGs, the bytes/messages get counted once on the
-        // tenant RG, and again on the namespace RG. This double-counting is avoided if tenant-RG == NS-RG.
-        // This is a known (and discussed) artifact in the implementation.
-        // 'ScaleFactor' is a way to incorporate that effect in the verification.
-        final int scaleFactor = tenantRGEqualsNsRG ? 1 : 2;
 
         // Since the following walk is on topics, keep track of the RGs for which we have already gathered stats,
         // so that we do not double-accumulate stats if multiple topics refer to the same RG.
@@ -643,24 +644,22 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
 
         if (checkProduce) {
             prodCounts = ResourceGroup.accumulateBMCount(totalTenantRGProdCounts, totalNsRGProdCounts);
-            Assert.assertEquals(prodCounts.messages, sentNumMsgs);
+            Assert.assertEquals(prodCounts.messages, sentNumMsgs * scaleFactor);
             Assert.assertTrue(prodCounts.bytes >= ExpectedNumBytesSent);
         }
 
         if (checkConsume) {
             consCounts = ResourceGroup.accumulateBMCount(totalTenantRGConsCounts, totalNsRGConsCounts);
-            Assert.assertEquals(consCounts.messages, recvdNumMsgs);
+            Assert.assertEquals(consCounts.messages, recvdNumMsgs * scaleFactor);
             Assert.assertTrue(consCounts.bytes >= ExpectedNumBytesReceived);
         }
     }
 
     // Check the metrics for the RGs involved
-    private void verifyRGMetrics(String[] topicStrings,
-                                 int sentNumBytes, int sentNumMsgs,
+    private void verifyRGMetrics(int sentNumBytes, int sentNumMsgs,
                                  int recvdNumBytes, int recvdNumMsgs,
-                                 boolean checkProduce, boolean checkConsume) throws Exception {
-
-        tenantRGEqualsNamespaceRG(topicStrings);
+                                 int scaleFactor, boolean checkProduce,
+                                 boolean checkConsume) throws Exception {
         final int ExpectedNumBytesSent = sentNumBytes + PER_MESSAGE_METADATA_OHEAD * sentNumMsgs;
         final int ExpectedNumBytesReceived = recvdNumBytes + PER_MESSAGE_METADATA_OHEAD * recvdNumMsgs;
         long totalTenantRegisters = 0;
@@ -729,12 +728,12 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
             // So, we take the residuals into account when comparing against the expected.
             if (checkProduce && mc == ResourceGroupMonitoringClass.Publish) {
                 Assert.assertEquals(totalUsedMessages[mcIdx] - residualSentNumMessages,
-                        sentNumMsgs);
+                        sentNumMsgs * scaleFactor);
                 Assert.assertTrue(totalUsedBytes[mcIdx] - residualSentNumBytes
                         >= ExpectedNumBytesSent);
             } else if (checkConsume && mc == ResourceGroupMonitoringClass.Dispatch) {
                 Assert.assertEquals(totalUsedMessages[mcIdx] - residualRecvdNumMessages,
-                        recvdNumMsgs);
+                        recvdNumMsgs * scaleFactor);
                 Assert.assertTrue(totalUsedBytes[mcIdx] - residualRecvdNumBytes
                         >= ExpectedNumBytesReceived);
             }
@@ -745,9 +744,9 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
 
         // Update the residuals for next round of tests.
         residualSentNumBytes += sentNumBytes;
-        residualSentNumMessages += sentNumMsgs;
+        residualSentNumMessages += sentNumMsgs * scaleFactor;
         residualRecvdNumBytes += recvdNumBytes;
-        residualRecvdNumMessages += recvdNumMsgs;
+        residualRecvdNumMessages += recvdNumMsgs * scaleFactor;
 
         Assert.assertEquals(totalUpdates, 0);  // currently, we don't update the RGs in this UT
 

@@ -41,7 +41,7 @@ public class CmdBookies extends CmdBase {
     @Parameters(commandDescription = "Gets the rack placement information for a specific bookie in the cluster")
     private class GetBookie extends CliCommand {
 
-        @Parameter(names = { "-b", "--bookie" }, description = "bookie address", required = true)
+        @Parameter(names = { "-b", "--bookie" }, description = "Bookie address (format: `address:port`)", required = true)
         private String bookieAddress;
 
         @Override
@@ -62,7 +62,7 @@ public class CmdBookies extends CmdBase {
     @Parameters(commandDescription = "Remove rack placement information for a specific bookie in the cluster")
     private class RemoveBookie extends CliCommand {
 
-        @Parameter(names = { "-b", "--bookie" }, description = "bookie address", required = true)
+        @Parameter(names = { "-b", "--bookie" }, description = "Bookie address (format: `address:port`)", required = true)
         private String bookieAddress;
 
         @Override

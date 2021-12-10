@@ -22,7 +22,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.client.impl.ConsumerImpl.DEFAULT_CONSUMER_EPOCH;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Maps;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -37,6 +36,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -195,7 +195,7 @@ public class MessageImpl<T> implements Message<T> {
         
         if (singleMessageMetadata != null) {
             if (singleMessageMetadata.getPropertiesCount() > 0) {
-                Map<String, String> properties = Maps.newTreeMap();
+                Map<String, String> properties = new TreeMap<>();
                 for (KeyValue entry : singleMessageMetadata.getPropertiesList()) {
                     properties.put(entry.getKey(), entry.getValue());
                 }
@@ -275,17 +275,6 @@ public class MessageImpl<T> implements Message<T> {
         msg.properties = Collections.emptyMap();
         msg.brokerEntryMetadata = null;
         return msg;
-    }
-
-    public static long getEntryTimestamp( ByteBuf headersAndPayloadWithBrokerEntryMetadata) throws IOException {
-        // get broker timestamp first if BrokerEntryMetadata is enabled with AppendBrokerTimestampMetadataInterceptor
-        BrokerEntryMetadata brokerEntryMetadata =
-                Commands.parseBrokerEntryMetadataIfExist(headersAndPayloadWithBrokerEntryMetadata);
-        if (brokerEntryMetadata != null && brokerEntryMetadata.hasBrokerTimestamp()) {
-            return brokerEntryMetadata.getBrokerTimestamp();
-        }
-        // otherwise get the publish_time
-        return Commands.parseMessageMetadata(headersAndPayloadWithBrokerEntryMetadata).getPublishTime();
     }
 
     public static boolean isEntryExpired(int messageTTLInSeconds, long entryTimestamp) {

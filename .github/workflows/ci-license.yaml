@@ -69,7 +69,7 @@ jobs:
         uses: actions/setup-java@v2
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         with:
-          distribution: 'adopt'
+          distribution: 'temurin'
           java-version: 11
 
 
@@ -86,4 +86,4 @@ jobs:
 
       - name: license check
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
-        run: src/check-binary-license ./distribution/server/target/apache-pulsar-*-bin.tar.gz
+        run: src/check-binary-license.sh ./distribution/server/target/apache-pulsar-*-bin.tar.gz

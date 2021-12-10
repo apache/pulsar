@@ -40,10 +40,8 @@ public class DLInputStream extends InputStream {
   // Cache the input stream for a log record.
   private static class LogRecordWithInputStream {
     private final InputStream payloadStream;
-    private final LogRecordWithDLSN logRecord;
 
     LogRecordWithInputStream(LogRecordWithDLSN logRecord) {
-      this.logRecord = logRecord;
       this.payloadStream = logRecord.getPayLoadInputStream();
     }
 
@@ -51,15 +49,6 @@ public class DLInputStream extends InputStream {
       return payloadStream;
     }
 
-    LogRecordWithDLSN getLogRecord() {
-      return logRecord;
-    }
-
-    // The last txid of the log record is the position of the next byte in the stream.
-    // Subtract length to get starting offset.
-    long getOffset() {
-      return logRecord.getTransactionId() - logRecord.getPayload().length;
-    }
   }
 
   /**

@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service.persistent;
 
 import org.apache.pulsar.broker.service.streamingdispatch.StreamingDispatcher;
 import org.apache.pulsar.client.api.SimpleProducerConsumerTest;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**

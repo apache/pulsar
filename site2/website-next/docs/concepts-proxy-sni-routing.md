@@ -82,20 +82,7 @@ ATS SNI-routing works only with TLS. You need to enable TLS for the ATS proxy an
 
 <Tabs 
   defaultValue="Java"
-  values={[
-  {
-    "label": "Java",
-    "value": "Java"
-  },
-  {
-    "label": "C++",
-    "value": "C++"
-  },
-  {
-    "label": "Python",
-    "value": "Python"
-  }
-]}>
+  values={[{"label":"Java","value":"Java"},{"label":"C++","value":"C++"},{"label":"Python","value":"Python"}]}>
 
 <TabItem value="Java">
 

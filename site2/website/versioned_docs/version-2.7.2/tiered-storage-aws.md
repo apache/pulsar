@@ -257,7 +257,6 @@ For individual topics, you can trigger AWS S3 offloader manually using one of th
     Offload was a success
     ```
 
-
     If there is an error in offloading, the error is propagated to the `pulsar-admin topics offload-status` command.
 
     ```bash

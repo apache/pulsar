@@ -267,10 +267,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         if (workerService == null) {
             return false;
         }
-        if (!workerService.isInitialized()) {
-            return false;
-        }
-        return true;
+        return workerService.isInitialized();
     }
 
     PackageLocationMetaData.Builder getFunctionPackageLocation(final FunctionMetaData functionMetaData,
@@ -344,10 +341,9 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         StorageAdminClient adminClient = worker().getStateStoreAdminClient();
         if (adminClient != null) {
             adminClient.deleteStream(namespace, table).whenComplete((res, throwable) -> {
-                if ((throwable == null && res.booleanValue())
-                        || (throwable != null &&
-                        (throwable instanceof NamespaceNotFoundException
-                                || throwable instanceof StreamNotFoundException) )) {
+                if ((throwable == null && res)
+                        || ((throwable instanceof NamespaceNotFoundException
+                        || throwable instanceof StreamNotFoundException))) {
                     log.info("{}/{} table deleted successfully", namespace, table);
                 } else {
                     if (throwable != null) {
@@ -1228,7 +1224,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         // Upload to bookkeeper
         try {
             log.info("Uploading function package to {}", path);
-            WorkerUtils.uploadToBookeeper(worker().getDlogNamespace(), uploadedInputStream, path);
+            WorkerUtils.uploadToBookKeeper(worker().getDlogNamespace(), uploadedInputStream, path);
         } catch (IOException e) {
             log.error("Error uploading file {}", path, e);
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());

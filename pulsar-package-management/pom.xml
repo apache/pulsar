@@ -36,6 +36,7 @@
     <modules>
         <module>core</module>
         <module>bookkeeper-storage</module>
+        <module>filesystem-storage</module>
     </modules>
 
     <build>

@@ -206,9 +206,7 @@ public class TlsHostnameVerifier implements HostnameVerifier {
             if (strict) {
                 final String remainder = host.substring(
                         prefix.length(), host.length() - suffix.length());
-                if (remainder.contains(".")) {
-                    return false;
-                }
+                return !remainder.contains(".");
             }
             return true;
         }
@@ -289,7 +287,7 @@ public class TlsHostnameVerifier implements HostnameVerifier {
                 if (type != null) {
                     final Object o = entry.get(1);
                     if (o instanceof String) {
-                        result.add(new SubjectName((String) o, type.intValue()));
+                        result.add(new SubjectName((String) o, type));
                     } else if (o instanceof byte[]) {
                         // TODO ASN.1 DER encoded form
                     }

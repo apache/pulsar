@@ -35,7 +35,6 @@ public interface ZooKeeperClientFactory {
          */
         AllowReadOnly,
     }
-
     /**
      * Return a future yielding a connected ZooKeeper client
      *

@@ -106,7 +106,7 @@ public class NonPersistentTopics extends PersistentTopics {
         validateTopicOwnership(topicName, authoritative);
         validateTopicOperation(topicName, TopicOperation.GET_STATS);
         Topic topic = getTopicReference(topicName);
-        return ((NonPersistentTopic) topic).getStats(getPreciseBacklog, false);
+        return ((NonPersistentTopic) topic).getStats(getPreciseBacklog, false, false);
     }
 
     @GET

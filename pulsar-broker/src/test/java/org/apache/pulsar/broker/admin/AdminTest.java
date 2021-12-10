@@ -36,9 +36,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.net.URI;
-import java.time.Clock;
-import java.time.Instant;
-import java.time.ZoneId;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -56,6 +53,7 @@ import javax.ws.rs.core.StreamingOutput;
 import javax.ws.rs.core.UriInfo;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.v1.BrokerStats;
 import org.apache.pulsar.broker.admin.v1.Brokers;
 import org.apache.pulsar.broker.admin.v1.Clusters;
@@ -110,10 +108,6 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     private BrokerStats brokerStats;
     private SchemasResource schemasResource;
     private Field uriField;
-    private final Clock mockClock = Clock.fixed(
-        Instant.ofEpochSecond(365248800),
-        ZoneId.of("-05:00")
-    );
 
     public AdminTest() {
         super();
@@ -175,7 +169,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doReturn("test").when(persistentTopics).clientAppId();
         doReturn(mock(AuthenticationDataHttps.class)).when(persistentTopics).clientAuthData();
 
-        schemasResource = spy(new SchemasResource(mockClock));
+        schemasResource = spy(new SchemasResource());
         schemasResource.setServletContext(new MockServletContext());
         schemasResource.setPulsar(pulsar);
     }
@@ -189,12 +183,13 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void internalConfiguration() throws Exception {
+        ServiceConfiguration conf = pulsar.getConfiguration();
         InternalConfigurationData expectedData = new InternalConfigurationData(
-            pulsar.getConfiguration().getZookeeperServers(),
-            pulsar.getConfiguration().getConfigurationStoreServers(),
-            new ClientConfiguration().getZkLedgersRootPath(),
-            pulsar.getMetadataServiceUri(),
-            pulsar.getWorkerConfig().map(wc -> wc.getStateStorageServiceUrl()).orElse(null));
+                conf.getMetadataStoreUrl(),
+                conf.getConfigurationMetadataStoreUrl(),
+                new ClientConfiguration().getZkLedgersRootPath(),
+                conf.isBookkeeperMetadataStoreSeparated() ? conf.getBookkeeperMetadataStoreUrl() : null,
+                pulsar.getWorkerConfig().map(wc -> wc.getStateStorageServiceUrl()).orElse(null));
 
         assertEquals(brokers.getInternalConfigurationData(), expectedData);
     }

@@ -31,6 +31,7 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.hash.HashFunction;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -43,9 +44,13 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.BundleData;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.resources.LocalPoliciesResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -64,6 +69,7 @@ public class NamespaceBundleFactory {
 
     private final PulsarService pulsar;
     private final MetadataCache<Policies> policiesCache;
+    private final Duration maxRetryDuration = Duration.ofSeconds(10);
 
     public NamespaceBundleFactory(PulsarService pulsar, HashFunction hashFunc) {
         this.hashFunc = hashFunc;
@@ -90,22 +96,27 @@ public class NamespaceBundleFactory {
         }
 
         CompletableFuture<NamespaceBundles> future = new CompletableFuture<>();
+        doLoadBundles(namespace, future, createBackoff(), System.nanoTime() + maxRetryDuration.toNanos());
+        return future;
+    }
+
+    private void doLoadBundles(NamespaceName namespace, CompletableFuture<NamespaceBundles> future,
+                               Backoff backoff, long retryDeadline) {
         // Read the static bundle data from the policies
         pulsar.getPulsarResources().getLocalPolicies().getLocalPoliciesWithVersion(namespace).thenAccept(result -> {
-
             if (result.isPresent()) {
                 try {
                     future.complete(readBundles(namespace,
                             result.get().getValue(), result.get().getStat().getVersion()));
                 } catch (IOException e) {
-                    future.completeExceptionally(e);
+                    handleLoadBundlesRetry(namespace, future, backoff, retryDeadline, e);
                 }
             } else {
                 // If no local policies defined for namespace, copy from global config
                 copyToLocalPolicies(namespace)
                         .thenAccept(b -> future.complete(b))
                         .exceptionally(ex -> {
-                            future.completeExceptionally(ex);
+                            handleLoadBundlesRetry(namespace, future, backoff, retryDeadline, ex);
                             return null;
                         });
             }
@@ -113,7 +124,23 @@ public class NamespaceBundleFactory {
             future.completeExceptionally(ex);
             return null;
         });
-        return future;
+    }
+
+    private void handleLoadBundlesRetry(NamespaceName namespace,
+                                        CompletableFuture<NamespaceBundles> future,
+                                        Backoff backoff, long retryDeadline, Throwable e) {
+        if (e instanceof Error || System.nanoTime() > retryDeadline) {
+            future.completeExceptionally(e);
+        } else {
+            LOG.warn("Error loading bundle for {}. Retrying exception", namespace, e);
+            long retryDelay = backoff.next();
+            pulsar.getExecutor().schedule(() ->
+                    doLoadBundles(namespace, future, backoff, retryDeadline), retryDelay, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    private static Backoff createBackoff() {
+        return new Backoff(100, TimeUnit.MILLISECONDS, 5, TimeUnit.SECONDS, 0, TimeUnit.MILLISECONDS);
     }
 
     private NamespaceBundles readBundles(NamespaceName namespace, LocalPolicies localPolicies, long version)
@@ -173,9 +200,9 @@ public class NamespaceBundleFactory {
         return bundlesCache.get(nsname);
     }
 
-    public NamespaceBundle getBundlesWithHighestTopics(NamespaceName nsname) {
+    public NamespaceBundle getBundleWithHighestTopics(NamespaceName nsname) {
         try {
-            return getBundlesWithHighestTopicsAsync(nsname).get(PulsarResources.DEFAULT_OPERATION_TIMEOUT_SEC,
+            return getBundleWithHighestTopicsAsync(nsname).get(PulsarResources.DEFAULT_OPERATION_TIMEOUT_SEC,
                     TimeUnit.SECONDS);
         } catch (Exception e) {
             LOG.info("failed to derive bundle for {}", nsname, e);
@@ -183,7 +210,7 @@ public class NamespaceBundleFactory {
         }
     }
 
-    public CompletableFuture<NamespaceBundle> getBundlesWithHighestTopicsAsync(NamespaceName nsname) {
+    public CompletableFuture<NamespaceBundle> getBundleWithHighestTopicsAsync(NamespaceName nsname) {
         return pulsar.getPulsarResources().getTopicResources().listPersistentTopicsAsync(nsname).thenCompose(topics -> {
             return bundlesCache.get(nsname).handle((bundles, e) -> {
                 Map<String, Integer> countMap = new HashMap<>();
@@ -202,6 +229,25 @@ public class NamespaceBundleFactory {
                 return resultBundle;
             });
         });
+    }
+
+    public NamespaceBundle getBundleWithHighestThroughput(NamespaceName nsName) {
+        LoadManager loadManager = pulsar.getLoadManager().get();
+        if (loadManager instanceof ModularLoadManagerWrapper) {
+            NamespaceBundles bundles = getBundles(nsName);
+            double maxMsgThroughput = -1;
+            NamespaceBundle bundleWithHighestThroughpit = null;
+            for (NamespaceBundle bundle : bundles.getBundles()) {
+                BundleData budnleData = ((ModularLoadManagerWrapper) loadManager).getLoadManager()
+                        .getBundleDataOrDefault(bundle.getBundleRange());
+                if (budnleData.getLongTermData().totalMsgThroughput() > maxMsgThroughput) {
+                    maxMsgThroughput = budnleData.getLongTermData().totalMsgThroughput();
+                    bundleWithHighestThroughpit = bundle;
+                }
+            }
+            return bundleWithHighestThroughpit;
+        }
+        return getBundleWithHighestTopics(nsName);
     }
 
     public NamespaceBundles getBundles(NamespaceName nsname) {

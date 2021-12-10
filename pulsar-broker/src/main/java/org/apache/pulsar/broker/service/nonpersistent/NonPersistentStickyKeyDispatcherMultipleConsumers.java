@@ -165,4 +165,8 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
     public KeySharedMode getKeySharedMode() {
         return keySharedMode;
     }
+
+    public boolean hasSameKeySharedPolicy(KeySharedMeta ksm) {
+        return (ksm.getKeySharedMode() == this.keySharedMode);
+    }
 }

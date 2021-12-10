@@ -50,6 +50,7 @@ import lombok.Data;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
+import org.apache.pulsar.functions.instance.state.BKStateStoreProviderImpl;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactoryConfig;
 import org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactoryConfig;
@@ -234,6 +235,13 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "The service URL of state storage"
     )
     private String stateStorageServiceUrl;
+
+    @FieldContext(
+            category = CATEGORY_STATE,
+            doc = "The implementation class for the state store"
+    )
+    private String stateStorageProviderImplementation = BKStateStoreProviderImpl.class.getName();
+
     @FieldContext(
         category = CATEGORY_FUNC_RUNTIME_MNG,
         doc = "The Pulsar topic used for storing function assignment informations"

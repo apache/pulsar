@@ -125,13 +125,16 @@ public class NonPersistentTopics extends PersistentTopics {
             @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog,
             @ApiParam(value = "If return backlog size for each subscription, require locking on ledger so be careful "
                     + "not to use when there's heavy traffic.")
-            @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize) {
+            @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize,
+            @ApiParam(value = "If return time of the earliest message in backlog")
+            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateTopicOwnership(topicName, authoritative);
         validateTopicOperation(topicName, TopicOperation.GET_STATS);
 
         Topic topic = getTopicReference(topicName);
-        return ((NonPersistentTopic) topic).getStats(getPreciseBacklog, subscriptionBacklogSize);
+        return ((NonPersistentTopic) topic).getStats(getPreciseBacklog, subscriptionBacklogSize,
+                getEarliestTimeInBacklog);
     }
 
     @GET
@@ -237,7 +240,9 @@ public class NonPersistentTopics extends PersistentTopics {
             @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog,
             @ApiParam(value = "If return backlog size for each subscription, require locking on ledger so be careful "
                     + "not to use when there's heavy traffic.")
-            @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize) {
+            @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize,
+            @ApiParam(value = "If return the earliest time in backlog")
+            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog) {
         try {
             validatePartitionedTopicName(tenant, namespace, encodedTopic);
             if (topicName.isGlobal()) {
@@ -263,7 +268,7 @@ public class NonPersistentTopics extends PersistentTopics {
                         topicStatsFutureList
                                 .add(pulsar().getAdminClient().topics().getStatsAsync(
                                         (topicName.getPartition(i).toString()), getPreciseBacklog,
-                                        subscriptionBacklogSize));
+                                        subscriptionBacklogSize, getEarliestTimeInBacklog));
                     } catch (PulsarServerException e) {
                         asyncResponse.resume(new RestException(e));
                         return;

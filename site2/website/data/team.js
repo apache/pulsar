@@ -71,6 +71,12 @@ module.exports = {
       roles: 'Committer'
     },
     {
+      name: 'Guo Jiwei',
+      apacheId: 'technoboy',
+      org: 'StreamNative',
+      roles: 'Committer'
+    },
+    {
       name: 'Hang Chen',
       apacheId: 'chenhang',
       org: 'BIGO Technology',
@@ -158,6 +164,12 @@ module.exports = {
       apacheId: 'mmerli',
       org: 'Streamlio',
       roles: 'Committer, PMC'
+    },
+    {
+      name: 'Michael Marshall',
+      apacheId: 'mmarshall',
+      org: 'DataStax',
+      roles: 'Committer'
     },
     {
       name: 'Nozomi Kurihara',

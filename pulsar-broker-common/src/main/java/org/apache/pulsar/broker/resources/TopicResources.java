@@ -27,7 +27,6 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.metadata.api.MetadataStore;
-import org.apache.pulsar.metadata.api.MetadataStoreException;
 
 public class TopicResources {
     private static final String MANAGED_LEDGER_PATH = "/managed-ledgers";
@@ -61,18 +60,18 @@ public class TopicResources {
     }
 
     public CompletableFuture<Void> deletePersistentTopicAsync(TopicName topic) {
-        String path = MANAGED_LEDGER_PATH + "/" + topic.getPersistenceNamingEncoding();;
-        return store.delete(path, Optional.of(-1l));
+        String path = MANAGED_LEDGER_PATH + "/" + topic.getPersistenceNamingEncoding();
+        return store.delete(path, Optional.of(-1L));
     }
 
     public CompletableFuture<Void> createPersistentTopicAsync(TopicName topic) {
-        String path = MANAGED_LEDGER_PATH + "/" + topic.getPersistenceNamingEncoding();;
-        return store.put(path, new byte[0], Optional.of(-1l))
+        String path = MANAGED_LEDGER_PATH + "/" + topic.getPersistenceNamingEncoding();
+        return store.put(path, new byte[0], Optional.of(-1L))
                 .thenApply(__ -> null);
     }
 
     public CompletableFuture<Boolean> persistentTopicExists(TopicName topic) {
-        String path = MANAGED_LEDGER_PATH + "/" + topic.getPersistenceNamingEncoding();;
+        String path = MANAGED_LEDGER_PATH + "/" + topic.getPersistenceNamingEncoding();
         return store.exists(path);
     }
 

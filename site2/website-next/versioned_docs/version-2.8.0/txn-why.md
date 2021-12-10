@@ -5,10 +5,6 @@ sidebar_label: "Why transactions?"
 original_id: txn-why
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 Pulsar transactions (txn) enable event streaming applications to consume, process, and produce messages in one atomic operation. The reason for developing this feature can be summarized as below.
 
 ## Demand of stream processing

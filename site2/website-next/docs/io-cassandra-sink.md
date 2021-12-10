@@ -4,10 +4,6 @@ title: Cassandra sink connector
 sidebar_label: "Cassandra sink connector"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The Cassandra sink connector pulls messages from Pulsar topics to Cassandra clusters.
 
 ## Configuration
@@ -33,11 +29,13 @@ Before using the Cassandra sink connector, you need to create a configuration fi
   ```json
   
   {
-      "roots": "localhost:9042",
-      "keyspace": "pulsar_test_keyspace",
-      "columnFamily": "pulsar_test_table",
-      "keyname": "key",
-      "columnName": "col"
+     "configs": {
+        "roots": "localhost:9042",
+        "keyspace": "pulsar_test_keyspace",
+        "columnFamily": "pulsar_test_table",
+        "keyname": "key",
+        "columnName": "col"
+     }
   }
   
   ```

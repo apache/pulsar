@@ -2251,7 +2251,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         c1.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, entry -> {
 
             try {
-                long publishTime = Long.valueOf(new String(entry.getData()));
+                long publishTime = Long.parseLong(new String(entry.getData()));
                 return publishTime <= timestamp;
             } catch (Exception e) {
                 log.error("Error de-serializing message for message position find", e);

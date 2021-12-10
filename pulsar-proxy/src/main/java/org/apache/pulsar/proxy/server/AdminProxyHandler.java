@@ -53,6 +53,7 @@ import org.eclipse.jetty.client.ProtocolHandlers;
 import org.eclipse.jetty.client.RedirectProtocolHandler;
 import org.eclipse.jetty.client.api.ContentProvider;
 import org.eclipse.jetty.client.api.Request;
+import org.eclipse.jetty.client.http.HttpClientTransportOverHTTP;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.proxy.ProxyServlet;
 import org.eclipse.jetty.util.HttpCookieStore;
@@ -209,12 +210,14 @@ class AdminProxyHandler extends ProxyServlet {
     }
 
     private static class JettyHttpClient extends HttpClient {
+        private static final int NUMBER_OF_SELECTOR_THREADS = 1;
+
         public JettyHttpClient() {
-            super();
+            super(new HttpClientTransportOverHTTP(NUMBER_OF_SELECTOR_THREADS), null);
         }
 
         public JettyHttpClient(SslContextFactory sslContextFactory) {
-            super(sslContextFactory);
+            super(new HttpClientTransportOverHTTP(NUMBER_OF_SELECTOR_THREADS), sslContextFactory);
         }
 
         /**
@@ -256,7 +259,7 @@ class AdminProxyHandler extends ProxyServlet {
 
             if (config.isTlsEnabledWithBroker()) {
                 try {
-                    X509Certificate trustCertificates[] = SecurityUtility
+                    X509Certificate[] trustCertificates = SecurityUtility
                         .loadCertificatesFromPemFile(config.getBrokerClientTrustCertsFilePath());
 
                     SSLContext sslCtx;
@@ -281,6 +284,7 @@ class AdminProxyHandler extends ProxyServlet {
 
                     return new JettyHttpClient(contextFactory);
                 } catch (Exception e) {
+                    LOG.error("new jetty http client exception ", e);
                     try {
                         auth.close();
                     } catch (IOException ioe) {
@@ -303,7 +307,7 @@ class AdminProxyHandler extends ProxyServlet {
 
         boolean isFunctionsRestRequest = false;
         String requestUri = request.getRequestURI();
-        for (String routePrefix: functionRoutes) {
+        for (String routePrefix : functionRoutes) {
             if (requestUri.startsWith(routePrefix)) {
                 isFunctionsRestRequest = true;
                 break;
@@ -324,7 +328,7 @@ class AdminProxyHandler extends ProxyServlet {
 
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("[{}:{}] Selected active broker is {}", request.getRemoteAddr(), request.getRemotePort(),
-                            url.toString());
+                            url);
                 }
             } catch (Exception e) {
                 LOG.warn("[{}:{}] Failed to get next active broker {}", request.getRemoteAddr(),

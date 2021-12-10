@@ -5,10 +5,6 @@ sidebar_label: "Overview"
 original_id: functions-overview
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 **Pulsar Functions** are lightweight compute processes that
 
 * consume messages from one or more Pulsar topics,

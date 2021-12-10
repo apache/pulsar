@@ -354,7 +354,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
                     Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                             .receiverQueueSize(recvQueueSize).subscribe();
-                    for (int i = 0; i < recvQueueSize / numConsumersThreads; i++) {
+                    for (int j = 0; j < recvQueueSize / numConsumersThreads; j++) {
                         Message<byte[]> msg = consumer.receive();
                         consumer.acknowledge(msg);
                     }

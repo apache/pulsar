@@ -5,10 +5,6 @@ sidebar_label: "Schema evolution and compatibility"
 original_id: schema-evolution-compatibility
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 Normally, schemas do not stay the same over a long period of time. Instead, they undergo evolutions to satisfy new needs. 
 
 This chapter examines how Pulsar schema evolves and what Pulsar schema compatibility check strategies are.
