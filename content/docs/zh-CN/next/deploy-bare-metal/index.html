@@ -125,46 +125,30 @@
 <li>高性能的CPU和10Gbps <a href="https://en.wikipedia.org/wiki/Network_interface_controller"> NIC </a>（适用于Pulsar brokers）</li>
 <li>小型快速<a href="https://en.wikipedia.org/wiki/Solid-state_drive">固态硬盘</a>（SSD）或<a href="https://en.wikipedia.org/wiki/Hard_disk_drive">硬盘驱动器</a>（HDD），带有<a href="https://en.wikipedia.org/wiki/RAID">RAID</a>控制器和电池供电的写缓存（适用于BookKeeper bookies）</li>
 </ul>
+<h4><a class="anchor" aria-hidden="true" id="hardware-recommendations"></a><a href="#hardware-recommendations" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Hardware recommendations</h4>
 <p>要启动 Pulsar 实例，以下是最低和推荐的硬件设置。</p>
-<ol>
-<li>最小硬件设置 (250 Pulsar 主题)</li>
-</ol>
+<p>A cluster consists of 3 broker nodes, 3 bookie nodes, and 3 ZooKeeper nodes. The following recommendation is suitable for one node.</p>
 <ul>
-<li>Broker
-<ul>
-<li>CPU：0.2</li>
-<li>内存： 256MB</li>
-</ul></li>
-<li>Bookie
-<ul>
-<li>CPU：0.2</li>
-<li>内存： 256MB</li>
-<li>存储:
-<ul>
-<li>Journal：8GB, PD-SSD</li>
-<li>Ledger：16GB, PD-STANDARD</li>
-</ul></li>
-</ul></li>
-</ul>
-<ol start="2">
-<li>推荐硬件设置 (1000 Pulsar 主题)</li>
-</ol>
-<ul>
-<li>Broker
-<ul>
-<li>CPU：8</li>
-<li>内存： 8GB</li>
-</ul></li>
-<li>Bookie
-<ul>
-<li>CPU：4</li>
-<li>内存： 8GB</li>
-<li>存储:
-<ul>
-<li>Journal：256GB, PD-SSD</li>
-<li>Ledger：2TB, PD-STANDARD</li>
-</ul></li>
-</ul></li>
+<li><p>The minimum hardware settings (<strong>250 Pulsar topics</strong>)</p>
+<p>Component | CPU|Memory|Storage|Throughput |Rate |---|---|---|---|---|--- Broker|0.2|256 MB|/|Write throughput: 3 MB/s</p>
+<p>Read throughput: 6 MB/s</p>
+<p>|Write rate: 350 entries/s</p>
+<p>Read rate: 650 entries/s Bookie|0.2|256 MB|Journal: 8 GB</p>
+<p>PD-SSDLedger: 16 GB, PD-STANDARD|Write throughput: 2 MB/s</p>
+<p>Read throughput: 2 MB/s</p>
+<p>|Write rate: 200 entries/s</p>
+<p>Read rate: 200 entries/s ZooKeeper|0.05|256 MB|Log: 8 GB, PD-SSD</p>
+<p>Data: 2 GB, PD-STANDARD|/|/</p></li>
+<li><p>The recommended hardware settings (<strong>1000 Pulsar topics</strong>)</p>
+<p>Component | CPU|Memory|Storage|Throughput |Rate |---|---|---|---|---|--- Broker|8|8 GB|/|Write throughput: 100 MB/s</p>
+<p>Read throughput: 200 MB/s</p>
+<p>|Write rate: 10,000 entries/s</p>
+<p>Read rate: 20,000 entries/s Bookie|4|8GB|Journal: 256 GB</p>
+<p>PD-SSDLedger: 2 TB, PD-STANDARD|Write throughput: 75 MB/s</p>
+<p>Read throughput: 75 MB/s</p>
+<p>|Write rate: 7,500 entries/s</p>
+<p>Read rate: 7,500 entries/s ZooKeeper|1|2 GB|Log: 64 GB, PD-SSD</p>
+<p>Data: 256 GB, PD-STANDARD|/|/</p></li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="pulsar-二进制包安装"></a><a href="#pulsar-二进制包安装" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar 二进制包安装</h2>
 <blockquote>
@@ -177,7 +161,7 @@
 <li><a href="https://archive.apache.org/dist/pulsar/pulsar-2.8.1/apache-pulsar-2.8.1-bin.tar.gz" download>Pulsar 2.8.1 binary release</a></li>
 </ul></li>
 <li>从Pulsar的 <a href="/download">下载页面</a>下载</li>
-<li>来自 GitHub 上的 Pulsar <a href="https://github.com/apache/pulsar/releases/latest">发布页面</a></li>
+<li>From the Pulsar <a href="https://github.com/apache/pulsar/releases/latest">releases page</a> on GitHub</li>
 <li>使用 <a href="https://www.gnu.org/software/wget">wget</a> 命令下载:</li>
 </ul>
 <pre><code class="hljs css language-bash">$ wget https://archive.apache.org/dist/pulsar/pulsar-2.8.1/apache-pulsar-2.8.1-bin.tar.gz
@@ -203,11 +187,11 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.8.1
 <blockquote>
 <p>从 Pulsar <code>2.1.0-incubating</code>发行版开始，Pulsar 提供了独立的二进制包，包含了所有<code>内置</code>的connector。 要启用<code>内置</code>连接器(可选)，你可以按照以下说明进行操作。</p>
 </blockquote>
-<p>要使用 <code>内置</code> 连接器，你需要通过以下方式之一在每个 broker 节点上下载 tarball 版本的连接器：</p>
+<p>To use <code>builtin</code> connectors, you need to download the connectors tarball release on every broker node in one of the following ways :</p>
 <ul>
 <li><p>通过单击下面的链接并从 Apache 镜像下载该版本:</p>
 <ul>
-<li><a href="https://archive.apache.org/dist/pulsar/pulsar-2.8.1/connectors" download>Pulsar IO Connectors 2.8.1 发布</a></li>
+<li><a href="https://archive.apache.org/dist/pulsar/pulsar-2.8.1/connectors" download>Pulsar IO Connectors 2.8.1 release</a></li>
 </ul></li>
 <li><p>Pulsar <a href="/download">下载页面</a></p></li>
 <li><p>Pulsar <a href="https://github.com/apache/pulsar/releases/latest">发布页面</a></p></li>
@@ -227,7 +211,7 @@ pulsar-io-aerospike-2.8.1.nar
 <blockquote>
 <p>从Pulsar <code>2.2.0</code>发行版开始，Pulsar 提供了一个独立的包含分层存储的二进制包。 如果你想启用分层存储，你可以参考如下的说明；否则你可以 暂时跳过该部分。</p>
 </blockquote>
-<p>要使用分层存储卸载器，你需要通过以下方式之一在每个 broker 节点上下载 tarball 版本的卸载器：</p>
+<p>To use tiered storage offloaders, you need to download the offloaders tarball release on every broker node in one of the following ways:</p>
 <ul>
 <li><p>通过单击下面的链接并从 Apache 镜像下载该版本:</p>
 <ul>
@@ -239,7 +223,7 @@ pulsar-io-aerospike-2.8.1.nar
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.8.1/apache-pulsar-offloaders-2.8.1-bin.tar.gz</span>
 </code></pre></li>
 </ul>
-<p>压缩包下载完后，解压压缩包，将程序复制为 <code>offloaders</code> 存放在 pulsar 安装目录下。</p>
+<p>Once you download the tarball, in the Pulsar directory, untar the offloaders package and copy the offloaders as <code>offloaders</code> in the Pulsar directory:</p>
 <pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-offloaders-2.8.1-bin.tar.gz
 
 // 你可以在 pulsar 目录下找到一个名为 `apache-pulsar-offloaders-2.8.1` 的目录
@@ -255,7 +239,7 @@ tiered-storage-jcloud-2.8.1.nar
 <blockquote>
 <p>如果你已经有 zookeeper 集群并想复用它，你可以跳过本节。</p>
 </blockquote>
-<p><a href="https://zookeeper.apache.org">ZooKeeper</a> 为 Pulsar 管理各种基本的协调和配置相关的任务。 要部署 Pulsar 集群，你要先部署 ZooKeeper。 建议部署3个节点的 Zookeeper 集群。 Pulsar 不会大量使用 ZooKeeper，因此轻量级机器或 VM 足以运行 ZooKeeper。</p>
+<p><a href="https://zookeeper.apache.org">ZooKeeper</a> manages a variety of essential coordination-related and configuration-related tasks for Pulsar. To deploy a Pulsar cluster, you need to deploy ZooKeeper first. 建议部署3个节点的 Zookeeper 集群。 Pulsar does not make heavy use of ZooKeeper, so the lightweight machines or VMs should suffice for running ZooKeeper.</p>
 <p>首先，将所有的 Zookeeper 服务器信息添加到<a href="/docs/zh-CN/next/reference-configuration#zookeeper"><code>conf/zookeeper.conf</code></a>配置文件(文件在 Pulsar 的安装目录<a href="#install-the-pulsar-binary-package">里面</a>)。 如下所示：</p>
 <pre><code class="hljs css language-properties"><span class="hljs-meta">server.1</span>=<span class="hljs-string">zk1.us-west.example.com:2888:3888</span>
 <span class="hljs-meta">server.2</span>=<span class="hljs-string">zk2.us-west.example.com:2888:3888</span>
@@ -265,7 +249,7 @@ tiered-storage-jcloud-2.8.1.nar
 <p>如果你只有一台机器部署 Pulsar，你仅仅只需把加这台服务器添加到配置文件里面。</p>
 <p>如果你的机器在 NAT 之后，请使用 0.0.0.0 作为本地服务器地址条目。 如果节点在配置中为自己使用外部 IP，在 NAT 后，zookeper 服务将不会启动，因为它尝试将侦听器放在 linux box 不拥有的外部 ip 上。 使用 0.0.0.0 在所有 ip 上启动一个侦听器，以便 NAT 网络流量可以达到它。</p>
 </blockquote>
-<p><em>server.3</em> 上的配置示例</p>
+<p>Example of configuration on <em>server.3</em></p>
 <pre><code class="hljs css language-properties"><span class="hljs-meta">server.1</span>=<span class="hljs-string">zk1.us-west.example.com:2888:3888</span>
 <span class="hljs-meta">server.2</span>=<span class="hljs-string">zk2.us-west.example.com:2888:3888</span>
 <span class="hljs-meta">server.3</span>=<span class="hljs-string">0.0.0.0:2888:3888</span>
@@ -286,8 +270,8 @@ $ <span class="hljs-built_in">echo</span> 1 &gt; data/zookeeper/myid
 <p>如果你打算在同一个节点上部署 Zookeeper 和 Bookie，你需要在 zookeeper.conf 中配置 <code>metricsProvider.httpPort</code> 不同的状态端口来启动 zookeeper。</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="初始化集群元数据"></a><a href="#初始化集群元数据" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>初始化集群元数据</h2>
-<p>为集群部署 ZooKeeper 后，你需要为实例中的每个集群将一些元数据写入 ZooKeeper。 这些元数据你只需要写<strong>一次</strong>。</p>
-<p>您可以使用 <a href="/docs/zh-CN/next/reference-cli-tools#pulsar-initialize-cluster-metadata"><code>initialize-cluster-metadata</code></a>命令<a href="/docs/zh-CN/next/reference-cli-tools#pulsar"><code>pulsar</code></a> CLI 工具初始化此元数据。 此命令可以在您的 ZooKeeper 集群中的任何机器上运行。 如下所示：</p>
+<p>Once you deploy ZooKeeper for your cluster, you need to write some metadata to ZooKeeper for each cluster in your instance. You only need to write this data <strong>once</strong>.</p>
+<p>You can initialize this metadata using the <a href="/docs/zh-CN/next/reference-cli-tools#pulsar-initialize-cluster-metadata"><code>initialize-cluster-metadata</code></a> command of the <a href="/docs/zh-CN/next/reference-cli-tools#pulsar"><code>pulsar</code></a> CLI tool. This command can be run on any machine in your ZooKeeper cluster. 如下所示：</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar initialize-cluster-metadata \</span>
   --cluster pulsar-cluster-1 \
   --zookeeper zk1.us-west.example.com:2181 \
@@ -329,7 +313,7 @@ $ <span class="hljs-built_in">echo</span> 1 &gt; data/zookeeper/myid
 <p>您可以使用 <code>bin/bookkeeper shell whatisinstanceid</code> 命令获取现有BookKeeper 集群的元数据服务 的URI。 由于多个元数据服务 URI 用分号隔开，您必须用双引号显示该值。</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="部署-bookeeper-集群"></a><a href="#部署-bookeeper-集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署 Bookeeper 集群</h2>
-<p><a href="https://bookkeeper.apache.org">BookKeeper</a> 处理 Pulsar 中所有持久性数据存储。 你必须先部署一个 BookKeeper 集群，才能够使用 Pulsar。 你可以选择运行 <strong>3 个 bookie 的 BookKeeper 集群</strong>。</p>
+<p><a href="https://bookkeeper.apache.org">BookKeeper</a> handles all persistent data storage in Pulsar. 你必须先部署一个 BookKeeper 集群，才能够使用 Pulsar。 You can choose to run a <strong>3-bookie BookKeeper cluster</strong>.</p>
 <p>你能够通过配置文件<a href="/docs/zh-CN/next/reference-configuration#bookkeeper"><code>conf/bookkeeper.conf</code></a>去配置 BookKeeper bookies。 配置 bookies 最重要的一步，是要确保<a href="/docs/zh-CN/next/reference-configuration#bookkeeper-zkServers"><code>zkServers</code></a>设置为 Zookeeper 集群的连接信息。 如下所示：</p>
 <pre><code class="hljs css language-properties"><span class="hljs-attr">zkServers</span>=<span class="hljs-string">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
 </code></pre>
@@ -350,7 +334,7 @@ $ <span class="hljs-built_in">echo</span> 1 &gt; data/zookeeper/myid
 </code></pre>
 <p>这个命令会在集群上创建和bookie<code>同等数量</code>的ledger，并往里面写一些条目，然后读取它，最后删除这个ledger。</p>
 <h2><a class="anchor" aria-hidden="true" id="部署-pulsar-broker"></a><a href="#部署-pulsar-broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署 Pulsar broker</h2>
-<p>Pulsar brokers are the last thing you need to deploy in your Pulsar cluster. Broker 用来处理 Pulsar 消息，并且提供管理Pulsar的接口。 好的选择是运行 <strong>3 个 broker</strong>，每个运行了 broker 的机器且已经运行了 Bookkeeper bookie。</p>
+<p>Pulsar brokers are the last thing you need to deploy in your Pulsar cluster. Broker 用来处理 Pulsar 消息，并且提供管理Pulsar的接口。 A good choice is to run <strong>3 brokers</strong>, one for each machine that already runs a BookKeeper bookie.</p>
 <h3><a class="anchor" aria-hidden="true" id="配置-broker"></a><a href="#配置-broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置 Broker</h3>
 <p>Broker 配置中有一些非常重要的参数，这些参数可以确保每个Broker 连接到已部署的 ZooKeeper 集群。 需要确认 <a href="/docs/zh-CN/next/reference-configuration#broker-zookeeperServers"> <code>zookeeperServers</code></a> 和 <a href="/docs/zh-CN/next/reference-configuration#broker-configurationStoreServers"><code>configurationStoreServers</code></a> 配置项的值是正确的。 在当前情况下，由于只有一个集群，没有单独用来存储配置的 Zookeeper 集群，那么配置项<code>configurationStoreServers</code>和<code>zookeeperServers</code> 是一样的值。</p>
 <pre><code class="hljs css language-properties"><span class="hljs-attr">zookeeperServers</span>=<span class="hljs-string">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
@@ -420,7 +404,7 @@ $ <span class="hljs-built_in">echo</span> 1 &gt; data/zookeeper/myid
 <blockquote>
 <p>如果你指定了 <code>pulsar-cluster 1</code> 以外的集群名称，你需要在主题中使用不同的集群名称。</p>
 </blockquote>
-<p>此命令向 Pulsar 主题发布一条消息。 此外，你可以在发布消息之前在不同的终端订阅 Pulsar 主题，如下所示：</p>
+<p>This command publishes a single message to the Pulsar topic. In addition, you can subscribe to the Pulsar topic in a different terminal before publishing messages as below:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-client consume \
   persistent://public/default/<span class="hljs-built_in">test</span> \
   -n 100 \
