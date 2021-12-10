@@ -521,7 +521,8 @@ public class TransactionTest extends TransactionTestBase {
                     null);
             return null;
         }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), any());
-
+        MLTransactionLogInterceptor mlTransactionLogInterceptor = new MLTransactionLogInterceptor();
+        persistentTopic.getManagedLedger().getConfig().setManagedLedgerInterceptor(mlTransactionLogInterceptor);
         MLTransactionLogImpl mlTransactionLog =
                 new MLTransactionLogImpl(new TransactionCoordinatorID(1), null,
                         persistentTopic.getManagedLedger().getConfig());
@@ -540,7 +541,8 @@ public class TransactionTest extends TransactionTestBase {
         doNothing().when(timeoutTracker).start();
         MLTransactionMetadataStore metadataStore1 =
                 new MLTransactionMetadataStore(new TransactionCoordinatorID(1),
-                        mlTransactionLog, timeoutTracker, transactionRecoverTracker);
+                        mlTransactionLog, timeoutTracker, transactionRecoverTracker,
+                        mlTransactionLogInterceptor.getSequenceId());
 
         Awaitility.await().untilAsserted(() ->
                 assertEquals(metadataStore1.getCoordinatorStats().state, "Ready"));
@@ -553,7 +555,8 @@ public class TransactionTest extends TransactionTestBase {
 
         MLTransactionMetadataStore metadataStore2 =
                 new MLTransactionMetadataStore(new TransactionCoordinatorID(1),
-                        mlTransactionLog, timeoutTracker, transactionRecoverTracker);
+                        mlTransactionLog, timeoutTracker, transactionRecoverTracker,
+                        mlTransactionLogInterceptor.getSequenceId());
         Awaitility.await().untilAsserted(() ->
                 assertEquals(metadataStore2.getCoordinatorStats().state, "Ready"));
     }
