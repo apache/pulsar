@@ -3,7 +3,6 @@
 
 ### 2.9.0
 #### 2021-11-25
-### Broker
 
 ### News and noteworthy
 - PIP-45 Pluggable metadata interface introduced many changes about ZooKeeper metadata management: consistency, resilience, stability, tech debt reduction (less code duplication)
@@ -40,7 +39,7 @@
 - Support protobuf schema for pulsar function. [11709](https://github.com/apache/pulsar/pull/11709)
 - Support KEY_BASED batch builder for Java based functions and sources. [11706](https://github.com/apache/pulsar/pull/11706)
 - Upgrade Go client version to 0.6.0. [11477](https://github.com/apache/pulsar/pull/11477)
-- Stop calling the deprecated method Thread.stop() when stopping the function thread in ThreadRuntim. [11401](https://github.com/apache/pulsar/pull/11401)
+- Stop calling the deprecated method Thread.stop() when stopping the function thread in ThreadRuntime. [11401](https://github.com/apache/pulsar/pull/11401)
 
 ### Java Client
 - Add partition-change API for producer or consumer interceptors. [12287](https://github.com/apache/pulsar/pull/12287)
@@ -99,7 +98,7 @@
 - Broker auto refresh bk-client certs to avoid cnx failure after cert refresh. [12107](https://github.com/apache/pulsar/pull/12107)
 - Add multi roles support for authorization. [11341](https://github.com/apache/pulsar/pull/11341)
 
-# Docker
+### Docker
 
 ### 2.8.1
 #### 2021-09-10
