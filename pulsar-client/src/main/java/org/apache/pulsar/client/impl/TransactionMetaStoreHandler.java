@@ -206,13 +206,8 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newTxn(transactionCoordinatorId, requestId, unit.toMillis(timeout));
         OpForNewTxnCallBack op = OpForNewTxnCallBack.create(cmd, callback, timeout, unit, client);
-        if (!canSendRequestNow(callback, requestId, op)) {
-            return callback;
-        }
-        pendingRequests.put(requestId, op);
-        timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-        cmd.retain();
-        cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
+
+        canSendRequestNow(callback, requestId, op);
         return callback;
     }
 
@@ -239,7 +234,12 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                             response.getRequestId());
                 }
                 timer.newTimeout(timeout -> {
-                    tryExecuteCommandAgain(BaseCommand.Type.NEW_TXN.name(), op);
+                    long requestId = client.newRequestId();
+                    ByteBuf cmd = Commands.newTxn(transactionCoordinatorId, requestId,
+                            op.unit.toMillis(op.timeout));
+                    OpForNewTxnCallBack opNew = OpForNewTxnCallBack.create(cmd, op.callback, op.timeout,
+                            op.unit, op.backoff);
+                    onNewRequest(op, opNew, requestId);
                 }, op.backoff.next(), TimeUnit.MILLISECONDS);
                 return;
             }
@@ -262,13 +262,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
 
         OpForAddPublishPartitionToTxnCallBack op = OpForAddPublishPartitionToTxnCallBack
                 .create(cmd, callback, txnID, partitions, client);
-        if (!canSendRequestNow(callback, requestId, op)) {
-            return callback;
-        }
-        pendingRequests.put(requestId, op);
-        timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-        cmd.retain();
-        cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
+        canSendRequestNow(callback, requestId, op);
         return callback;
     }
 
@@ -295,7 +289,13 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                             response.getRequestId());
                 }
                 timer.newTimeout(timeout -> {
-                    tryExecuteCommandAgain(BaseCommand.Type.ADD_PARTITION_TO_TXN.name(), op);
+                    long requestId = client.newRequestId();
+                    TxnID txnID = op.txnID;
+                    ByteBuf cmd = Commands.newAddPartitionToTxn(requestId, txnID.getLeastSigBits(),
+                            txnID.getMostSigBits(), op.partitions);
+                    OpForAddPublishPartitionToTxnCallBack opNew = OpForAddPublishPartitionToTxnCallBack
+                            .create(cmd, op.callback, txnID, op.partitions, op.backoff);
+                    onNewRequest(op, opNew, requestId);
                 }, op.backoff.next(), TimeUnit.MILLISECONDS);
                 return;
             }
@@ -318,14 +318,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                 requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), subscriptionList);
         OpForAddSubscriptionToTxnCallBack op = OpForAddSubscriptionToTxnCallBack
                 .create(cmd, callback, txnID, subscriptionList, client);
-        if (!canSendRequestNow(callback, requestId, op)) {
-            return callback;
-        }
-
-        pendingRequests.put(requestId, op);
-        timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-        cmd.retain();
-        cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
+        canSendRequestNow(callback, requestId, op);
         return callback;
     }
 
@@ -353,7 +346,15 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                             response.getRequestId());
                 }
                 timer.newTimeout(timeout -> {
-                    tryExecuteCommandAgain(BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(), op);
+                    long requestId = client.newRequestId();
+                    TxnID txnID = op.txnID;
+                    List<Subscription> subscriptionList = op.subscriptionList;
+                    ByteBuf cmd = Commands.newAddSubscriptionToTxn(
+                            requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), subscriptionList);
+                    OpForAddSubscriptionToTxnCallBack opNew = OpForAddSubscriptionToTxnCallBack
+                            .create(cmd, op.callback, txnID, subscriptionList,
+                                    op.backoff);
+                    onNewRequest(op, opNew, requestId);
                 }, op.backoff.next(), TimeUnit.MILLISECONDS);
                 return;
             }
@@ -374,13 +375,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         BaseCommand cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), action);
         ByteBuf buf = Commands.serializeWithSize(cmd);
         OpForEndTxnCallBack op = OpForEndTxnCallBack.create(buf, callback, txnID, action, client);
-        if (!canSendRequestNow(callback, requestId, op)) {
-            return callback;
-        }
-        pendingRequests.put(requestId, op);
-        timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-        buf.retain();
-        cnx().ctx().writeAndFlush(buf, cnx().ctx().voidPromise());
+        canSendRequestNow(callback, requestId, op);
         return callback;
     }
 
@@ -406,7 +401,14 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                             response.getRequestId());
                 }
                 timer.newTimeout(timeout -> {
-                    tryExecuteCommandAgain(BaseCommand.Type.END_TXN.name(), op);
+                    long requestId = client.newRequestId();
+                    TxnID txnID = op.txnID;
+                    TxnAction action = op.action;
+                    ByteBuf cmd = Commands.serializeWithSize(Commands.newEndTxn(requestId, txnID.getLeastSigBits(),
+                            txnID.getMostSigBits(), action));
+                    OpForEndTxnCallBack opNew = OpForEndTxnCallBack.create(cmd, op.callback, txnID, action,
+                                    op.backoff);
+                    onNewRequest(op, opNew, requestId);
                 }, op.backoff.next(), TimeUnit.MILLISECONDS);
                 return;
             }
@@ -416,42 +418,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         onResponse(op);
     }
 
-    private <T> void tryExecuteCommandAgain(String operation, OpBase<?> oldOp) {
-        OpBase<?> opNew;
-        long requestId = client.newRequestId();
-        if (operation.equals(BaseCommand.Type.NEW_TXN.name())) {
-            OpForNewTxnCallBack op = (OpForNewTxnCallBack) oldOp;
-            ByteBuf cmd = Commands.newTxn(transactionCoordinatorId, requestId,
-                    op.unit.toMillis(op.timeout));
-            opNew = OpForNewTxnCallBack.create(cmd, op.callback, op.timeout,
-                    op.unit, op.backoff);
-        } else if (operation.equals(BaseCommand.Type.ADD_PARTITION_TO_TXN.name())) {
-            OpForAddPublishPartitionToTxnCallBack op = (OpForAddPublishPartitionToTxnCallBack) oldOp;
-            TxnID txnID = op.txnID;
-            ByteBuf cmd = Commands.newAddPartitionToTxn(
-                    requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), op.partitions);
-            opNew = OpForAddPublishPartitionToTxnCallBack
-                    .create(cmd, op.callback, txnID, op.partitions, op.backoff);
-        } else if (operation.equals(BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name())) {
-            OpForAddSubscriptionToTxnCallBack op = (OpForAddSubscriptionToTxnCallBack) oldOp;
-            TxnID txnID = op.txnID;
-            List<Subscription> subscriptionList = op.subscriptionList;
-            ByteBuf cmd = Commands.newAddSubscriptionToTxn(
-                    requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), subscriptionList);
-            opNew = OpForAddSubscriptionToTxnCallBack
-                    .create(cmd, op.callback, txnID, subscriptionList, op.backoff);
-        } else if (operation.equals(BaseCommand.Type.END_TXN.name())) {
-            OpForEndTxnCallBack op = (OpForEndTxnCallBack) oldOp;
-            TxnID txnID = op.txnID;
-            TxnAction action = op.action;
-            BaseCommand cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(),
-                    txnID.getMostSigBits(), action);
-            opNew = OpForEndTxnCallBack
-                    .create(Commands.serializeWithSize(cmd), op.callback, txnID, action, op.backoff);
-        } else {
-            LOG.error("The operation {} is Invalid", operation);
-            throw new RuntimeException();
-        }
+    private void onNewRequest(OpBase<?> oldOp, OpBase<?> opNew, long requestId) {
         ReferenceCountUtil.safeRelease(oldOp.cmd);
         oldOp.recycle();
         tryInternalExecuteCommandAgain(opNew, requestId);
@@ -464,10 +431,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                     tryInternalExecuteCommandAgain(op, requestId), op.backoff.next(), TimeUnit.MILLISECONDS);
             return;
         }
-        pendingRequests.put(requestId, op);
-        timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-        op.cmd.retain();
-        cnx.ctx().writeAndFlush(op.cmd, cnx().ctx().voidPromise());
+        canSendRequestNow(op.callback, requestId, op);
     }
 
     private boolean handleTransactionFailOp(ServerError error, String message, OpBase<?> op) {
@@ -526,7 +490,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             op.backoff = new BackoffBuilder()
                     .setInitialTime(client.getConfiguration().getInitialBackoffIntervalNanos(),
                             TimeUnit.NANOSECONDS)
-                    .setMax(client.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
+                    .setMax(client.getConfiguration().getMaxBackoffIntervalNanos() / 10, TimeUnit.NANOSECONDS)
                     .setMandatoryStop(0, TimeUnit.MILLISECONDS)
                     .create();
 
@@ -741,12 +705,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         semaphore.release();
     }
 
-    private boolean canSendRequestNow(CompletableFuture<?> callback, long requestId, OpBase<?> op) {
-        if (!isValidHandlerState(callback)) {
-            ReferenceCountUtil.safeRelease(op.cmd);
-            op.recycle();
-            return false;
-        }
+    private void canSendRequestNow(CompletableFuture<?> callback, long requestId, OpBase<?> op) {
         try {
             if (blockIfReachMaxPendingOps) {
                 semaphore.acquire();
@@ -755,7 +714,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                     callback.completeExceptionally(new TransactionCoordinatorClientException("Reach max pending ops."));
                     ReferenceCountUtil.safeRelease(op.cmd);
                     op.recycle();
-                    return false;
+                    return;
                 }
             }
         } catch (InterruptedException e) {
@@ -763,15 +722,25 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             callback.completeExceptionally(TransactionCoordinatorClientException.unwrap(e));
             ReferenceCountUtil.safeRelease(op.cmd);
             op.recycle();
-            return false;
+            return;
         }
-        return !checkIfConnecting(requestId, op);
+        if (!checkStateAndSendRequest(callback, requestId, op)) {
+            ReferenceCountUtil.safeRelease(op.cmd);
+            op.recycle();
+        }
+
     }
 
-    private boolean isValidHandlerState(CompletableFuture<?> callback) {
+    private boolean checkStateAndSendRequest(CompletableFuture<?> callback, long requestId, OpBase<?> op) {
         switch (getState()) {
             case Ready:
+                pendingRequests.put(requestId, op);
+                timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
+                op.cmd.retain();
+                cnx().ctx().writeAndFlush(op.cmd, cnx().ctx().voidPromise());
+                return true;
             case Connecting:
+                checkIfConnecting(requestId, op);
                 return true;
             case Closing:
             case Closed:
@@ -848,19 +817,18 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     }
 
     private boolean checkIfConnecting(long requestId, OpBase<?> op) {
-        if (getState().equals(State.Connecting)) {
-            lock.lock();
-            try {
-                if (getState().equals(State.Connecting)) {
-                    waitingExecutedRequests.put(requestId, op);
-                    return true;
-                }
-            } finally {
-                lock.unlock();
+        lock.lock();
+        try {
+            if (getState().equals(State.Connecting)) {
+                waitingExecutedRequests.put(requestId, op);
+                return true;
+            } else {
+                canSendRequestNow(op.callback, requestId, op);
+                return false;
             }
-
+        } finally {
+            lock.unlock();
         }
-        return false;
     }
 
     @Override
