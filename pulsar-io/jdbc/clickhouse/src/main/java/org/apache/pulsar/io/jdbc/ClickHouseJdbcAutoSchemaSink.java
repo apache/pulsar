@@ -26,12 +26,8 @@ import org.apache.pulsar.io.core.annotations.IOType;
 import ru.yandex.clickhouse.BalancedClickhouseDataSource;
 import ru.yandex.clickhouse.ClickHouseConnection;
 import ru.yandex.clickhouse.settings.ClickHouseProperties;
-
-import java.sql.DriverManager;
 import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 @Slf4j
@@ -46,6 +42,10 @@ public class ClickHouseJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
 	@Override
 	public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
 		ClickHouseProperties properties = new ClickHouseProperties();
+		jdbcUrl = jdbcSinkConfig.getJdbcUrl();
+		if (jdbcUrl == null) {
+			throw new IllegalArgumentException("Required jdbc Url not set.");
+		}
 		String username = jdbcSinkConfig.getUserName();
 		String password = jdbcSinkConfig.getPassword();
 
@@ -56,10 +56,6 @@ public class ClickHouseJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
 			properties.setPassword(jdbcSinkConfig.getPassword());
 		}
 
-		jdbcUrl = jdbcSinkConfig.getJdbcUrl();
-		if (jdbcUrl == null) {
-			throw new IllegalArgumentException("Required jdbc Url not set.");
-		}
 		// keep connection stable
 		properties.setConnectionTimeout(300000);
 		properties.setSocketTimeout(300000);
