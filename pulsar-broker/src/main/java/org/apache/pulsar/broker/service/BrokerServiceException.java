@@ -239,7 +239,7 @@ public class BrokerServiceException extends Exception {
         } else if (t instanceof CoordinatorException.TransactionNotFoundException) {
             return ServerError.TransactionNotFound;
         } else if (t instanceof CoordinatorException.TcOperationRetryException) {
-            return ServerError.RetryTcOpAgain;
+            return ServerError.TcOperationRetry;
         } else {
             if (checkCauseIfUnknown) {
                 return getClientErrorCode(t.getCause(), false);

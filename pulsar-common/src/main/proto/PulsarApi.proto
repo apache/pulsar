@@ -225,7 +225,7 @@ enum ServerError {
                          // fenced. Applications are now supposed to close it and create a
                          // new producer
 
-    RetryTcOpAgain = 26; // Transaction coordinator is not Ready,
+    TcOperationRetry = 26; // Transaction coordinator is not Ready,
                          // the tc operation need to try again
 }
 

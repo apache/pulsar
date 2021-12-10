@@ -88,7 +88,7 @@ enum Result
     ResultProducerFenced,                            /// Producer was fenced by broker
 
     ResultMemoryBufferIsFull,  /// Client-wide memory limit has been reached
-    ResultRetryTcOpAgain       /// Get a exception which need client to retry the TC`s operation again
+    ResultTcOperationRetry       /// Get a exception which need client to retry the TC`s operation again
 };
 
 // Return string representation of result code

@@ -202,13 +202,17 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         }
         CompletableFuture<TxnID> callback = new CompletableFuture<>();
 
-        if (!canSendRequest(callback)) {
-            return callback;
-        }
+
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newTxn(transactionCoordinatorId, requestId, unit.toMillis(timeout));
-        OpForNewTxnCallBack op = OpForNewTxnCallBack.create(cmd, callback, timeout, unit, client);
-        if (checkIfConnecting(requestId, op)) {
+        Backoff backoff = new BackoffBuilder()
+                .setInitialTime(client.getConfiguration().getInitialBackoffIntervalNanos(),
+                        TimeUnit.NANOSECONDS)
+                .setMax(client.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
+                .setMandatoryStop(0, TimeUnit.MILLISECONDS)
+                .create();
+        OpForNewTxnCallBack op = OpForNewTxnCallBack.create(cmd, callback, timeout, unit, backoff);
+        if (!canSendRequestNow(callback, requestId, op)) {
             return callback;
         }
         pendingRequests.put(requestId, op);
@@ -235,9 +239,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             }
             op.callback.complete(txnID);
         } else {
-            handleTransactionFailOp(response.getError(), response.getMessage(), op);
-            if (response.getError() == ServerError.TransactionCoordinatorNotFound
-                    || response.getError() == ServerError.RetryTcOpAgain) {
+            if (handleTransactionFailOp(response.getError(), response.getMessage(), op)) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Get a response for request {} error TransactionCoordinatorNotFound and try it again",
                             response.getRequestId());
@@ -247,7 +249,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                     ByteBuf cmd = Commands.newTxn(transactionCoordinatorId, requestId,
                             op.unit.toMillis(op.timeout));
                     OpForNewTxnCallBack opNew = OpForNewTxnCallBack.create(cmd, op.callback, op.timeout,
-                            op.unit, client);
+                            op.unit, op.backoff);
                     ReferenceCountUtil.safeRelease(op.cmd);
                     op.recycle();
                     tryExecuteCommandAgain(opNew, requestId);
@@ -267,16 +269,19 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         }
         CompletableFuture<Void> callback = new CompletableFuture<>();
 
-        if (!canSendRequest(callback)) {
-            return callback;
-        }
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newAddPartitionToTxn(
                 requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), partitions);
 
+        Backoff backoff = new BackoffBuilder()
+                .setInitialTime(client.getConfiguration().getInitialBackoffIntervalNanos(),
+                        TimeUnit.NANOSECONDS)
+                .setMax(client.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
+                .setMandatoryStop(0, TimeUnit.MILLISECONDS)
+                .create();
         OpForAddPublishPartitionToTxnCallBack op = OpForAddPublishPartitionToTxnCallBack
-                .create(cmd, callback, txnID, partitions, client);
-        if (checkIfConnecting(requestId, op)) {
+                .create(cmd, callback, txnID, partitions, backoff);
+        if (!canSendRequestNow(callback, requestId, op)) {
             return callback;
         }
         pendingRequests.put(requestId, op);
@@ -303,9 +308,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             }
             op.callback.complete(null);
         } else {
-            handleTransactionFailOp(response.getError(), response.getMessage(), op);
-            if (response.getError() == ServerError.TransactionCoordinatorNotFound
-                    || response.getError() == ServerError.RetryTcOpAgain) {
+            if (handleTransactionFailOp(response.getError(), response.getMessage(), op)) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Get a response for request {} error TransactionCoordinatorNotFound and try it again",
                             response.getRequestId());
@@ -316,7 +319,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                     ByteBuf cmd = Commands.newAddPartitionToTxn(
                             requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), op.partitions);
                     OpForAddPublishPartitionToTxnCallBack opNew = OpForAddPublishPartitionToTxnCallBack
-                            .create(cmd, op.callback, txnID, op.partitions, client);
+                            .create(cmd, op.callback, txnID, op.partitions, op.backoff);
                     ReferenceCountUtil.safeRelease(op.cmd);
                     op.recycle();
                     tryExecuteCommandAgain(opNew, requestId);
@@ -337,17 +340,21 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
 
         CompletableFuture<Void> callback = new CompletableFuture<>();
 
-        if (!canSendRequest(callback)) {
-            return callback;
-        }
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newAddSubscriptionToTxn(
                 requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), subscriptionList);
+        Backoff backoff = new BackoffBuilder()
+                .setInitialTime(client.getConfiguration().getInitialBackoffIntervalNanos(),
+                        TimeUnit.NANOSECONDS)
+                .setMax(client.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
+                .setMandatoryStop(0, TimeUnit.MILLISECONDS)
+                .create();
         OpForAddSubscriptionToTxnCallBack op = OpForAddSubscriptionToTxnCallBack
-                .create(cmd, callback, txnID, subscriptionList, client);
-        if (checkIfConnecting(requestId, op)) {
+                .create(cmd, callback, txnID, subscriptionList, backoff);
+        if (!canSendRequestNow(callback, requestId, op)) {
             return callback;
         }
+
         pendingRequests.put(requestId, op);
         timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
         cmd.retain();
@@ -373,9 +380,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         } else {
             LOG.error("Add subscription to txn failed for request {} error {}.",
                     response.getRequestId(), response.getError());
-            handleTransactionFailOp(response.getError(), response.getMessage(), op);
-            if (response.getError() == ServerError.TransactionCoordinatorNotFound
-                    || response.getError() == ServerError.RetryTcOpAgain) {
+            if (handleTransactionFailOp(response.getError(), response.getMessage(), op)) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Get a response for request {} error TransactionCoordinatorNotFound and try it again",
                             response.getRequestId());
@@ -387,7 +392,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                     ByteBuf cmd = Commands.newAddSubscriptionToTxn(
                             requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), subscriptionList);
                     OpForAddSubscriptionToTxnCallBack opNew = OpForAddSubscriptionToTxnCallBack
-                            .create(cmd, op.callback, txnID, subscriptionList, client);
+                            .create(cmd, op.callback, txnID, subscriptionList, op.backoff);
                     ReferenceCountUtil.safeRelease(op.cmd);
                     op.recycle();
                     tryExecuteCommandAgain(opNew, requestId);
@@ -407,14 +412,17 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         }
         CompletableFuture<Void> callback = new CompletableFuture<>();
 
-        if (!canSendRequest(callback)) {
-            return callback;
-        }
         long requestId = client.newRequestId();
         BaseCommand cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), action);
         ByteBuf buf = Commands.serializeWithSize(cmd);
-        OpForEndTxnCallBack op = OpForEndTxnCallBack.create(buf, callback, txnID, action, client);
-        if (checkIfConnecting(requestId, op)) {
+        Backoff backoff =  new BackoffBuilder()
+                .setInitialTime(client.getConfiguration().getInitialBackoffIntervalNanos(),
+                        TimeUnit.NANOSECONDS)
+                .setMax(client.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
+                .setMandatoryStop(0, TimeUnit.MILLISECONDS)
+                .create();
+        OpForEndTxnCallBack op = OpForEndTxnCallBack.create(buf, callback, txnID, action, backoff);
+        if (!canSendRequestNow(callback, requestId, op)) {
             return callback;
         }
         pendingRequests.put(requestId, op);
@@ -440,9 +448,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             }
             op.callback.complete(null);
         } else {
-            handleTransactionFailOp(response.getError(), response.getMessage(), op);
-            if (response.getError() == ServerError.TransactionCoordinatorNotFound
-                    || response.getError() == ServerError.RetryTcOpAgain) {
+            if (handleTransactionFailOp(response.getError(), response.getMessage(), op)) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Get a response for request {} error TransactionCoordinatorNotFound and try it again",
                             response.getRequestId());
@@ -454,7 +460,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                     BaseCommand cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(),
                             txnID.getMostSigBits(), action);
                     OpForEndTxnCallBack opNew = OpForEndTxnCallBack
-                            .create(Commands.serializeWithSize(cmd), op.callback, txnID, action, client);
+                            .create(Commands.serializeWithSize(cmd), op.callback, txnID, action, op.backoff);
                     ReferenceCountUtil.safeRelease(op.cmd);
                     op.recycle();
                     tryExecuteCommandAgain(opNew, requestId);
@@ -480,7 +486,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         cnx.ctx().writeAndFlush(op.cmd, cnx().ctx().voidPromise());
     }
 
-    private void handleTransactionFailOp(ServerError error, String message, OpBase<?> op) {
+    private boolean handleTransactionFailOp(ServerError error, String message, OpBase<?> op) {
         if (error == ServerError.TransactionCoordinatorNotFound) {
             if (getState() != State.Connecting) {
                 //What need to be lock is the operation changing state instead of reconnecting
@@ -492,14 +498,15 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                     lock.unlock();
                 }
             }
-            return;
-        } else if (error == ServerError.RetryTcOpAgain) {
-            return;
+            return true;
+        } else if (error == ServerError.TcOperationRetry) {
+            return true;
         }
 
         if (op != null) {
             op.callback.completeExceptionally(getExceptionByServerError(error, message));
         }
+        return false;
     }
 
     private static abstract class OpBase<T> {
@@ -515,18 +522,13 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         protected long timeout;
         protected TimeUnit unit;
         static OpForNewTxnCallBack create(ByteBuf cmd, CompletableFuture<TxnID> callback, long timeout, TimeUnit unit,
-                                          PulsarClientImpl pulsarClient) {
+                                           Backoff backoff) {
             OpForNewTxnCallBack op = RECYCLER.get();
             op.callback = callback;
             op.cmd = cmd;
             op.timeout = timeout;
             op.unit = unit;
-            op.backoff = new BackoffBuilder()
-                    .setInitialTime(pulsarClient.getConfiguration().getInitialBackoffIntervalNanos(),
-                            TimeUnit.NANOSECONDS)
-                    .setMax(pulsarClient.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
-                    .setMandatoryStop(0, TimeUnit.MILLISECONDS)
-                    .create();
+            op.backoff = backoff;
             return op;
         }
 
@@ -558,18 +560,13 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         protected List<String> partitions;
         static OpForAddPublishPartitionToTxnCallBack create(ByteBuf cmd, CompletableFuture<Void> callback,
                                                             TxnID txnID, List<String> partitions,
-                                                            PulsarClientImpl pulsarClient) {
+                                                            Backoff backoff) {
             OpForAddPublishPartitionToTxnCallBack op = RECYCLER.get();
             op.callback = callback;
             op.cmd = cmd;
             op.txnID = txnID;
             op.partitions = partitions;
-            op.backoff = new BackoffBuilder()
-                    .setInitialTime(pulsarClient.getConfiguration().getInitialBackoffIntervalNanos(),
-                            TimeUnit.NANOSECONDS)
-                    .setMax(pulsarClient.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
-                    .setMandatoryStop(0, TimeUnit.MILLISECONDS)
-                    .create();
+            op.backoff = backoff;
             return op;
         }
 
@@ -603,18 +600,13 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         protected List<Subscription> subscriptionList;
         static OpForAddSubscriptionToTxnCallBack create(ByteBuf cmd, CompletableFuture<Void> callback, TxnID txnID,
                                                         List<Subscription> subscriptionList,
-                                                        PulsarClientImpl pulsarClient) {
+                                                        Backoff backoff) {
             OpForAddSubscriptionToTxnCallBack op = RECYCLER.get();
             op.callback = callback;
             op.cmd = cmd;
             op.txnID = txnID;
             op.subscriptionList = subscriptionList;
-            op.backoff = new BackoffBuilder()
-                    .setInitialTime(pulsarClient.getConfiguration().getInitialBackoffIntervalNanos(),
-                            TimeUnit.NANOSECONDS)
-                    .setMax(pulsarClient.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
-                    .setMandatoryStop(0, TimeUnit.MILLISECONDS)
-                    .create();
+            op.backoff = backoff;
             return op;
         }
         private OpForAddSubscriptionToTxnCallBack(Recycler.Handle<OpForAddSubscriptionToTxnCallBack> recyclerHandle) {
@@ -643,18 +635,13 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         protected TxnID txnID;
         protected TxnAction action;
         static OpForEndTxnCallBack create(ByteBuf cmd, CompletableFuture<Void> callback, TxnID txnID,
-                                                        TxnAction action, PulsarClientImpl pulsarClient) {
+                                                        TxnAction action,Backoff backoff) {
             OpForEndTxnCallBack op = RECYCLER.get();
             op.callback = callback;
             op.cmd = cmd;
             op.txnID = txnID;
             op.action = action;
-            op.backoff = new BackoffBuilder()
-                    .setInitialTime(pulsarClient.getConfiguration().getInitialBackoffIntervalNanos(),
-                            TimeUnit.NANOSECONDS)
-                    .setMax(pulsarClient.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
-                    .setMandatoryStop(0, TimeUnit.MILLISECONDS)
-                    .create();
+            op.backoff = backoff;
 
             return op;
         }
@@ -700,8 +687,10 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         semaphore.release();
     }
 
-    private boolean canSendRequest(CompletableFuture<?> callback) {
+    private boolean canSendRequestNow(CompletableFuture<?> callback, long requestId, OpBase<?> op) {
         if (!isValidHandlerState(callback)) {
+            ReferenceCountUtil.safeRelease(op.cmd);
+            op.recycle();
             return false;
         }
         try {
@@ -710,15 +699,19 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             } else {
                 if (!semaphore.tryAcquire()) {
                     callback.completeExceptionally(new TransactionCoordinatorClientException("Reach max pending ops."));
+                    ReferenceCountUtil.safeRelease(op.cmd);
+                    op.recycle();
                     return false;
                 }
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             callback.completeExceptionally(TransactionCoordinatorClientException.unwrap(e));
+            ReferenceCountUtil.safeRelease(op.cmd);
+            op.recycle();
             return false;
         }
-        return true;
+        return !checkIfConnecting(requestId, op);
     }
 
     private boolean isValidHandlerState(CompletableFuture<?> callback) {
