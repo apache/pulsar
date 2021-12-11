@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":9,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":9,"i11":9,"i12":10,"i13":10,"i14":10,"i15":10,"i16":10,"i17":10,"i18":10,"i19":10,"i20":10,"i21":10,"i22":10,"i23":10,"i24":9,"i25":10,"i26":10,"i27":10,"i28":10,"i29":10,"i30":10,"i31":10,"i32":10,"i33":10,"i34":10,"i35":10,"i36":10,"i37":42,"i38":10,"i39":10,"i40":10,"i41":10,"i42":42,"i43":10,"i44":10,"i45":10,"i46":42};
+var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":9,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":9,"i11":9,"i12":10,"i13":10,"i14":10,"i15":10,"i16":10,"i17":10,"i18":10,"i19":10,"i20":10,"i21":10,"i22":10,"i23":10,"i24":10,"i25":9,"i26":10,"i27":10,"i28":10,"i29":10,"i30":10,"i31":10,"i32":10,"i33":10,"i34":10,"i35":10,"i36":10,"i37":10,"i38":42,"i39":10,"i40":10,"i41":10,"i42":10,"i43":42,"i44":10,"i45":10,"i46":10,"i47":42};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"],32:["t6","Deprecated Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -296,49 +296,53 @@ extends <a href="../../../../../org/apache/pulsar/broker/web/PulsarWebResource.h
 </tr>
 <tr id="i23" class="rowColor">
 <td class="colFirst"><code>protected boolean</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/admin/AdminResource.html#isNamespaceReplicated-org.apache.pulsar.common.naming.NamespaceName-">isNamespaceReplicated</a></span>(org.apache.pulsar.common.naming.NamespaceName&nbsp;namespaceName)</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/admin/AdminResource.html#isManagedLedgerNotFoundException-java.lang.Exception-">isManagedLedgerNotFoundException</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Exception.html?is-external=true" title="class or interface in java.lang">Exception</a>&nbsp;e)</code>&nbsp;</td>
 </tr>
 <tr id="i24" class="altColor">
+<td class="colFirst"><code>protected boolean</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/admin/AdminResource.html#isNamespaceReplicated-org.apache.pulsar.common.naming.NamespaceName-">isNamespaceReplicated</a></span>(org.apache.pulsar.common.naming.NamespaceName&nbsp;namespaceName)</code>&nbsp;</td>
+</tr>
+<tr id="i25" class="rowColor">
 <td class="colFirst"><code>static com.fasterxml.jackson.databind.ObjectMapper</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/admin/AdminResource.html#jsonMapper--">jsonMapper</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i25" class="rowColor">
+<tr id="i26" class="altColor">
 <td class="colFirst"><code>protected org.apache.pulsar.common.policies.data.BacklogQuota</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/admin/AdminResource.html#namespaceBacklogQuota-org.apache.pulsar.common.naming.NamespaceName-org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType-">namespaceBacklogQuota</a></span>(org.apache.pulsar.common.naming.NamespaceName&nbsp;namespace,
                      org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType&nbsp;backlogQuotaType)</code>&nbsp;</td>
 </tr>
-<tr id="i26" class="altColor">
+<tr id="i27" class="rowColor">
 <td class="colFirst"><code>protected org.apache.pulsar.common.policies.data.impl.DispatchRateImpl</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/admin/AdminResource.html#replicatorDispatchRate--">replicatorDispatchRate</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i27" class="rowColor">
+<tr id="i28" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/admin/AdminResource.html#resumeAsyncResponseExceptionally-javax.ws.rs.container.AsyncResponse-java.lang.Throwable-">resumeAsyncResponseExceptionally</a></span>(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                                 <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Throwable.html?is-external=true" title="class or interface in java.lang">Throwable</a>&nbsp;throwable)</code>&nbsp;</td>
 </tr>
-<tr id="i28" class="altColor">
+<tr id="i29" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/admin/AdminResource.html#setServletContext-javax.servlet.ServletContext-">setServletContext</a></span>(javax.servlet.ServletContext&nbsp;servletContext)</code>&nbsp;</td>
 </tr>
-<tr id="i29" class="rowColor">
+<tr id="i30" class="altColor">
 <td class="colFirst"><code>protected org.apache.pulsar.common.policies.data.SubscribeRate</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/admin/AdminResource.html#subscribeRate--">subscribeRate</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i30" class="altColor">
+<tr id="i31" class="rowColor">
 <td class="colFirst"><code>protected org.apache.pulsar.common.policies.data.impl.DispatchRateImpl</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/admin/AdminResource.html#subscriptionDispatchRate--">subscriptionDispatchRate</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i31" class="rowColor">
+<tr id="i32" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/admin/AdminResource.html#tryCreatePartitionsAsync-int-">tryCreatePartitionsAsync</a></span>(int&nbsp;numPartitions)</code>&nbsp;</td>
 </tr>
-<tr id="i32" class="altColor">
+<tr id="i33" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/admin/AdminResource.html#validateAdminAccessForTenant-java.lang.String-">validateAdminAccessForTenant</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;property)</code>
 <div class="block">Checks that the http client role has admin access to the specified tenant.</div>
 </td>
 </tr>
-<tr id="i33" class="rowColor">
+<tr id="i34" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/admin/AdminResource.html#validateBundleOwnership-java.lang.String-java.lang.String-java.lang.String-boolean-boolean-org.apache.pulsar.common.naming.NamespaceBundle-">validateBundleOwnership</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;property,
                        <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;cluster,
@@ -347,20 +351,20 @@ extends <a href="../../../../../org/apache/pulsar/broker/web/PulsarWebResource.h
                        boolean&nbsp;readOnly,
                        <a href="../../../../../org/apache/pulsar/common/naming/NamespaceBundle.html" title="class in org.apache.pulsar.common.naming">NamespaceBundle</a>&nbsp;bundle)</code>&nbsp;</td>
 </tr>
-<tr id="i34" class="altColor">
+<tr id="i35" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/admin/AdminResource.html#validateClusterExists-java.lang.String-">validateClusterExists</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;cluster)</code>&nbsp;</td>
 </tr>
-<tr id="i35" class="rowColor">
+<tr id="i36" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/admin/AdminResource.html#validateGlobalNamespaceOwnership--">validateGlobalNamespaceOwnership</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i36" class="altColor">
+<tr id="i37" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/admin/AdminResource.html#validateNamespaceName-java.lang.String-java.lang.String-">validateNamespaceName</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;property,
                      <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;namespace)</code>&nbsp;</td>
 </tr>
-<tr id="i37" class="rowColor">
+<tr id="i38" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/admin/AdminResource.html#validateNamespaceName-java.lang.String-java.lang.String-java.lang.String-">validateNamespaceName</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;property,
                      <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;cluster,
@@ -368,29 +372,29 @@ extends <a href="../../../../../org/apache/pulsar/broker/web/PulsarWebResource.h
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 </td>
 </tr>
-<tr id="i38" class="altColor">
+<tr id="i39" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/admin/AdminResource.html#validatePartitionedTopicMetadata-java.lang.String-java.lang.String-java.lang.String-">validatePartitionedTopicMetadata</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;tenant,
                                 <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;namespace,
                                 <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;encodedTopic)</code>&nbsp;</td>
 </tr>
-<tr id="i39" class="rowColor">
+<tr id="i40" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/admin/AdminResource.html#validatePartitionedTopicName-java.lang.String-java.lang.String-java.lang.String-">validatePartitionedTopicName</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;tenant,
                             <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;namespace,
                             <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;encodedTopic)</code>&nbsp;</td>
 </tr>
-<tr id="i40" class="altColor">
+<tr id="i41" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/admin/AdminResource.html#validatePersistencePolicies-org.apache.pulsar.common.policies.data.PersistencePolicies-">validatePersistencePolicies</a></span>(org.apache.pulsar.common.policies.data.PersistencePolicies&nbsp;persistence)</code>&nbsp;</td>
 </tr>
-<tr id="i41" class="rowColor">
+<tr id="i42" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/admin/AdminResource.html#validatePersistentTopicName-java.lang.String-java.lang.String-java.lang.String-">validatePersistentTopicName</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;property,
                            <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;namespace,
                            <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;encodedTopic)</code>&nbsp;</td>
 </tr>
-<tr id="i42" class="altColor">
+<tr id="i43" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/admin/AdminResource.html#validatePersistentTopicName-java.lang.String-java.lang.String-java.lang.String-java.lang.String-">validatePersistentTopicName</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;property,
                            <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;cluster,
@@ -399,26 +403,26 @@ extends <a href="../../../../../org/apache/pulsar/broker/web/PulsarWebResource.h
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 </td>
 </tr>
-<tr id="i43" class="rowColor">
+<tr id="i44" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/admin/AdminResource.html#validatePoliciesReadOnlyAccess--">validatePoliciesReadOnlyAccess</a></span>()</code>
 <div class="block">Checks whether the broker is allowed to do read-write operations based on the existence of a node in
  configuration metadata-store.</div>
 </td>
 </tr>
-<tr id="i44" class="altColor">
+<tr id="i45" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/admin/AdminResource.html#validateSuperUserAccess--">validateSuperUserAccess</a></span>()</code>
 <div class="block">Checks whether the user has Pulsar Super-User access to the system.</div>
 </td>
 </tr>
-<tr id="i45" class="rowColor">
+<tr id="i46" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/admin/AdminResource.html#validateTopicName-java.lang.String-java.lang.String-java.lang.String-">validateTopicName</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;property,
                  <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;namespace,
                  <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;encodedTopic)</code>&nbsp;</td>
 </tr>
-<tr id="i46" class="altColor">
+<tr id="i47" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/admin/AdminResource.html#validateTopicName-java.lang.String-java.lang.String-java.lang.String-java.lang.String-">validateTopicName</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;property,
                  <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;cluster,
@@ -990,6 +994,15 @@ public static&nbsp;&lt;T&gt;&nbsp;T&nbsp;checkNotNull(T&nbsp;reference)</pre>
 <h4>checkNotNull</h4>
 <pre>protected&nbsp;void&nbsp;checkNotNull(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;o,
                             <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;errorMessage)</pre>
+</li>
+</ul>
+<a name="isManagedLedgerNotFoundException-java.lang.Exception-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>isManagedLedgerNotFoundException</h4>
+<pre>protected&nbsp;boolean&nbsp;isManagedLedgerNotFoundException(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Exception.html?is-external=true" title="class or interface in java.lang">Exception</a>&nbsp;e)</pre>
 </li>
 </ul>
 <a name="checkArgument-boolean-java.lang.String-">
