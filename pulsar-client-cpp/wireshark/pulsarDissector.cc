@@ -25,7 +25,6 @@
 #include <epan/dissectors/packet-tcp.h>
 #include <epan/value_string.h>
 #include <wsutil/nstime.h>
-#include <ws_version.h>
 
 #include "PulsarApi.pb.h"
 
@@ -1019,8 +1018,8 @@ void proto_register_pulsar() {
 extern "C" {
 
 extern __attribute__((unused)) WS_DLL_PUBLIC_DEF const gchar plugin_version[] = VERSION;
-extern __attribute__((unused)) WS_DLL_PUBLIC_DEF const int plugin_want_major = WIRESHARK_VERSION_MAJOR;
-extern __attribute__((unused)) WS_DLL_PUBLIC_DEF const int plugin_want_minor = WIRESHARK_VERSION_MINOR;
+extern __attribute__((unused)) WS_DLL_PUBLIC_DEF const int plugin_want_major = VERSION_MAJOR;
+extern __attribute__((unused)) WS_DLL_PUBLIC_DEF const int plugin_want_minor = VERSION_MINOR;
 
 WS_DLL_PUBLIC void plugin_register(void);
 
