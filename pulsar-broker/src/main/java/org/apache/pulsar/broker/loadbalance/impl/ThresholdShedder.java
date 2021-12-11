@@ -106,11 +106,7 @@ public class ThresholdShedder implements LoadSheddingStrategy {
             MutableBoolean atLeastOneBundleSelected = new MutableBoolean(false);
 
             if (localData.getBundles().size() > 1) {
-                loadData.getBundleData().entrySet().stream()
-                    .filter(e -> !HEARTBEAT_NAMESPACE_PATTERN.matcher(
-                            NamespaceBundle.getBundleNamespace(e.getKey())).matches()
-                        && !HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(
-                                NamespaceBundle.getBundleNamespace(e.getKey())).matches())
+                loadData.getBundleDataForLoadShedding().entrySet().stream()
                     .map((e) -> {
                         String bundle = e.getKey();
                         BundleData bundleData = e.getValue();

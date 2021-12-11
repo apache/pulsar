@@ -600,11 +600,8 @@ public class NamespaceServiceTest extends BrokerTestBase {
     public void testHeartbeatNamespaceMatch() throws Exception {
         NamespaceName namespaceName = NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), conf);
         NamespaceBundle namespaceBundle = pulsar.getNamespaceService().getNamespaceBundleFactory().getFullBundle(namespaceName);
-        assertTrue(
-                HEARTBEAT_NAMESPACE_PATTERN.matcher(
-                        NamespaceBundle.getBundleNamespace(namespaceBundle.toString())).matches()
-                || HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(
-                        NamespaceBundle.getBundleNamespace(namespaceBundle.toString())).matches());
+        assertTrue(NamespaceService.isSystemServiceNamespace(
+                        NamespaceBundle.getBundleNamespace(namespaceBundle.toString())));
     }
 
     @SuppressWarnings("unchecked")
