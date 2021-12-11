@@ -20,7 +20,7 @@
 
 FROM quay.io/pypa/manylinux2014_x86_64
 
-RUN yum install -y gtest-devel
+RUN yum install -y gtest-devel wireshark-dev
 
 ARG PYTHON_VERSION
 ARG PYTHON_SPEC

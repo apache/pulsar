@@ -23,7 +23,7 @@ FROM centos:7.6.1810
 RUN yum install -y gcc gcc-c++ make \
   protobuf-devel.x86_64 \
   libcurl-devel openssl-devel \
-  boost boost-devel
+  boost boost-devel wireshark-dev
 
 RUN curl -O -L https://github.com/protocolbuffers/protobuf/releases/download/v3.17.3/protobuf-cpp-3.17.3.tar.gz && \
     tar xfz protobuf-cpp-3.17.3.tar.gz && \

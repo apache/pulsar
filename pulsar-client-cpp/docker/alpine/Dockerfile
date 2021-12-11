@@ -27,7 +27,7 @@ RUN apk update \
     python3-dev \
     libffi-dev \
     perl linux-headers bash \
-    alpine-sdk
+    alpine-sdk wireshark-dev
 
 ####################################
 # These dependencies can be found in Ubuntu but they're not compiled with -fPIC,
