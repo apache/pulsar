@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.base.Strings;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.Timer;
@@ -152,8 +153,12 @@ public class AutoClusterFailover implements ServiceUrlProvider {
     }
 
     private boolean probeAvailable(String url, int timeout) {
-        String hostAndPort = parseHostAndPort(url);
         try {
+            String hostAndPort = parseHostAndPort(url);
+            if (Strings.isNullOrEmpty(hostAndPort)) {
+                return false;
+            }
+
             Socket socket = new Socket();
             socket.connect(new InetSocketAddress(parseHost(hostAndPort), parsePort(hostAndPort)), timeout);
             socket.close();
@@ -163,12 +168,16 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         }
     }
 
-    private static String parseHostAndPort(String candidateBroker) {
-        int uriSeparatorPos = candidateBroker.indexOf("://");
-        if (uriSeparatorPos == -1) {
-            throw new IllegalArgumentException("'" + candidateBroker + "' isn't an URI.");
+    private static String parseHostAndPort(String url) {
+        if (Strings.isNullOrEmpty(url) || !url.startsWith("pulsar")) {
+            throw new IllegalArgumentException("'" + url + "' isn't an Pulsar service URL");
         }
-        return candidateBroker.substring(uriSeparatorPos + 3);
+
+        int uriSeparatorPos = url.indexOf("://");
+        if (uriSeparatorPos == -1) {
+            throw new IllegalArgumentException("'" + url + "' isn't an URI.");
+        }
+        return url.substring(uriSeparatorPos + 3);
     }
 
     private static String parseHost(String hostAndPort) {
