@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+#include <glib.h>
 #include <config.h>
 #include <epan/expert.h>
 #include <epan/packet.h>
