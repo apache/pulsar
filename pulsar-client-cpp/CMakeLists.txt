@@ -58,7 +58,7 @@ MESSAGE(STATUS "BUILD_TESTS:  " ${BUILD_TESTS})
 option(BUILD_PYTHON_WRAPPER "Build Pulsar Python wrapper" ON)
 MESSAGE(STATUS "BUILD_PYTHON_WRAPPER:  " ${BUILD_PYTHON_WRAPPER})
 
-option(BUILD_WIRESHARK "Build Pulsar Wireshark dissector" ON)
+option(BUILD_WIRESHARK "Build Pulsar Wireshark dissector" OFF)
 MESSAGE(STATUS "BUILD_WIRESHARK:  " ${BUILD_WIRESHARK})
 
 option(BUILD_PERF_TOOLS "Build Pulsar CLI perf producer/consumer" OFF)
