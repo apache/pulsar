@@ -51,4 +51,11 @@ public interface ServiceUrlProvider {
      */
     String getServiceUrl();
 
+    /**
+     * Close the resource that the provider allocated.
+     *
+     */
+    default void close() {
+        // do nothing
+    }
 }

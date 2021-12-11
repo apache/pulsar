@@ -751,6 +751,12 @@ public class PulsarClientImpl implements PulsarClient {
                     throwable = t;
                 }
             }
+
+            // close the service url provider allocated resource.
+            if (conf.getServiceUrlProvider() != null) {
+                conf.getServiceUrlProvider().close();
+            }
+
             try {
                 // Shutting down eventLoopGroup separately because in some cases, cnxPool might be using different
                 // eventLoopGroup.
