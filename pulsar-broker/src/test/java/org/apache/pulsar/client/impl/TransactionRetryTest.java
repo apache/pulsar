@@ -38,7 +38,6 @@ import org.apache.pulsar.client.impl.transaction.TransactionCoordinatorClientImp
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
-import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -195,8 +194,8 @@ public class TransactionRetryTest extends TransactionTestBase {
             future.get(pulsarClient.conf.getOperationTimeoutMs(),
                     TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
-            if (!(e.getCause() instanceof CoordinatorException.InvalidTxnStatusException)
-                    && !(e.getCause() instanceof CoordinatorException.TransactionNotFoundException)) {
+            if (!(e.getCause() instanceof TransactionCoordinatorClientException.InvalidTxnStatusException)
+                    && !(e.getCause() instanceof TransactionCoordinatorClientException.TransactionNotFoundException)) {
                 fail();
             }
         }

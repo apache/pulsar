@@ -179,9 +179,8 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     }
 
     private void executedWaitingRequests() {
-        waitingExecutedRequests.forEach((requestId, op) -> {
-            tryInternalExecuteCommandAgain(op, requestId);
-        });
+        waitingExecutedRequests.forEach((requestId, op) -> tryInternalExecuteCommandAgain(op, requestId));
+        waitingExecutedRequests.clear();
     }
 
     private void failPendingRequest() {
@@ -207,7 +206,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         ByteBuf cmd = Commands.newTxn(transactionCoordinatorId, requestId, unit.toMillis(timeout));
         OpForNewTxnCallBack op = OpForNewTxnCallBack.create(cmd, callback, timeout, unit, client);
 
-        canSendRequestNow(callback, requestId, op);
+        handleTransactionOpRequest(callback, requestId, op);
         return callback;
     }
 
@@ -228,10 +227,11 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             }
             op.callback.complete(txnID);
         } else {
-            if (handleTransactionFailOp(response.getError(), response.getMessage(), op)) {
+            if (checkIfNeedRetryByError(response.getError(), response.getMessage(), op)) {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("Get a response for request {} error TransactionCoordinatorNotFound and try it again",
-                            response.getRequestId());
+                    LOG.debug("Get a response for the {}  request {} error "
+                                    + "TransactionCoordinatorNotFound and try it again",
+                            BaseCommand.Type.NEW_TXN.name(), response.getRequestId());
                 }
                 timer.newTimeout(timeout -> {
                     long requestId = client.newRequestId();
@@ -243,7 +243,8 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                 }, op.backoff.next(), TimeUnit.MILLISECONDS);
                 return;
             }
-            LOG.error("Got new txn for request {} error {}", response.getRequestId(), response.getError());
+            LOG.error("Got {} for request {} error {}", BaseCommand.Type.NEW_TXN.name(),
+                    response.getRequestId(), response.getError());
 
         }
 
@@ -262,7 +263,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
 
         OpForAddPublishPartitionToTxnCallBack op = OpForAddPublishPartitionToTxnCallBack
                 .create(cmd, callback, txnID, partitions, client);
-        canSendRequestNow(callback, requestId, op);
+        handleTransactionOpRequest(callback, requestId, op);
         return callback;
     }
 
@@ -283,9 +284,11 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             }
             op.callback.complete(null);
         } else {
-            if (handleTransactionFailOp(response.getError(), response.getMessage(), op)) {
+            if (checkIfNeedRetryByError(response.getError(), response.getMessage(), op)) {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("Get a response for request {} error TransactionCoordinatorNotFound and try it again",
+                    LOG.debug("Get a response for the {} request {} "
+                                    + " error TransactionCoordinatorNotFound and try it again",
+                            BaseCommand.Type.ADD_PARTITION_TO_TXN.name(),
                             response.getRequestId());
                 }
                 timer.newTimeout(timeout -> {
@@ -299,7 +302,9 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                 }, op.backoff.next(), TimeUnit.MILLISECONDS);
                 return;
             }
-            LOG.error("Add publish partition for request {} error {}.", response.getRequestId(), response.getError());
+            LOG.error("{} for request {} error {} with txnID {}.", BaseCommand.Type.ADD_PARTITION_TO_TXN.name(),
+                    response.getRequestId(), response.getError(), new TxnID(response.getTxnidMostBits(),
+                            response.getTxnidLeastBits()));
 
         }
 
@@ -318,7 +323,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                 requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), subscriptionList);
         OpForAddSubscriptionToTxnCallBack op = OpForAddSubscriptionToTxnCallBack
                 .create(cmd, callback, txnID, subscriptionList, client);
-        canSendRequestNow(callback, requestId, op);
+        handleTransactionOpRequest(callback, requestId, op);
         return callback;
     }
 
@@ -340,10 +345,10 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         } else {
             LOG.error("Add subscription to txn failed for request {} error {}.",
                     response.getRequestId(), response.getError());
-            if (handleTransactionFailOp(response.getError(), response.getMessage(), op)) {
+            if (checkIfNeedRetryByError(response.getError(), response.getMessage(), op)) {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("Get a response for request {} error TransactionCoordinatorNotFound and try it again",
-                            response.getRequestId());
+                    LOG.debug("Get a response for {} request {} error TransactionCoordinatorNotFound and try it again",
+                            BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(), response.getRequestId());
                 }
                 timer.newTimeout(timeout -> {
                     long requestId = client.newRequestId();
@@ -358,7 +363,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                 }, op.backoff.next(), TimeUnit.MILLISECONDS);
                 return;
             }
-            LOG.error("Add subscription to txn failed for request {} error {}.",
+            LOG.error("{} failed for request {} error {}.", BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(),
                     response.getRequestId(), response.getError());
 
         }
@@ -375,7 +380,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         BaseCommand cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), action);
         ByteBuf buf = Commands.serializeWithSize(cmd);
         OpForEndTxnCallBack op = OpForEndTxnCallBack.create(buf, callback, txnID, action, client);
-        canSendRequestNow(callback, requestId, op);
+        handleTransactionOpRequest(callback, requestId, op);
         return callback;
     }
 
@@ -395,10 +400,11 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             }
             op.callback.complete(null);
         } else {
-            if (handleTransactionFailOp(response.getError(), response.getMessage(), op)) {
+            if (checkIfNeedRetryByError(response.getError(), response.getMessage(), op)) {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("Get a response for request {} error TransactionCoordinatorNotFound and try it again",
-                            response.getRequestId());
+                    LOG.debug("Get a response for the {} request {} error "
+                                    + "TransactionCoordinatorNotFound and try it again",
+                            BaseCommand.Type.END_TXN.name(), response.getRequestId());
                 }
                 timer.newTimeout(timeout -> {
                     long requestId = client.newRequestId();
@@ -412,7 +418,8 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                 }, op.backoff.next(), TimeUnit.MILLISECONDS);
                 return;
             }
-            LOG.error("Got end txn response for request {} error {}", response.getRequestId(), response.getError());
+            LOG.error("Got {} response for request {} error {}", BaseCommand.Type.END_TXN.name(),
+                    response.getRequestId(), response.getError());
 
         }
         onResponse(op);
@@ -427,14 +434,23 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     private <T> void tryInternalExecuteCommandAgain(OpBase<T> op, long requestId) {
         ClientCnx cnx = cnx();
         if (cnx == null) {
+            lock.lock();
+            try {
+                if (getState().equals(State.Connecting)) {
+                    waitingExecutedRequests.put(requestId, op);
+                    return;
+                }
+            } finally {
+                lock.unlock();
+            }
             timer.newTimeout(timeout ->
                     tryInternalExecuteCommandAgain(op, requestId), op.backoff.next(), TimeUnit.MILLISECONDS);
             return;
         }
-        canSendRequestNow(op.callback, requestId, op);
+        handleTransactionOpRequest(op.callback, requestId, op);
     }
 
-    private boolean handleTransactionFailOp(ServerError error, String message, OpBase<?> op) {
+    private boolean checkIfNeedRetryByError(ServerError error, String message, OpBase<?> op) {
         if (error == ServerError.TransactionCoordinatorNotFound) {
             if (getState() != State.Connecting) {
                 //What need to be lock is the operation changing state instead of reconnecting
@@ -705,7 +721,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         semaphore.release();
     }
 
-    private void canSendRequestNow(CompletableFuture<?> callback, long requestId, OpBase<?> op) {
+    private void handleTransactionOpRequest(CompletableFuture<?> callback, long requestId, OpBase<?> op) {
         try {
             if (blockIfReachMaxPendingOps) {
                 semaphore.acquire();
@@ -725,8 +741,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             return;
         }
         if (!checkStateAndSendRequest(callback, requestId, op)) {
-            ReferenceCountUtil.safeRelease(op.cmd);
-            op.recycle();
+            onResponse(op);
         }
 
     }
@@ -734,13 +749,18 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     private boolean checkStateAndSendRequest(CompletableFuture<?> callback, long requestId, OpBase<?> op) {
         switch (getState()) {
             case Ready:
-                pendingRequests.put(requestId, op);
-                timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-                op.cmd.retain();
-                cnx().ctx().writeAndFlush(op.cmd, cnx().ctx().voidPromise());
+                ClientCnx cnx = cnx();
+                if (cnx != null) {
+                    pendingRequests.put(requestId, op);
+                    timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
+                    op.cmd.retain();
+                    cnx.ctx().writeAndFlush(op.cmd, cnx().ctx().voidPromise());
+                } else {
+                    tryInternalExecuteCommandAgain(op, requestId);
+                }
                 return true;
             case Connecting:
-                checkIfConnecting(requestId, op);
+                waitIfConnecting(requestId, op);
                 return true;
             case Closing:
             case Closed:
@@ -816,15 +836,13 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         this.connectionHandler.connectionClosed(cnx);
     }
 
-    private boolean checkIfConnecting(long requestId, OpBase<?> op) {
+    private void waitIfConnecting(long requestId, OpBase<?> op) {
         lock.lock();
         try {
             if (getState().equals(State.Connecting)) {
                 waitingExecutedRequests.put(requestId, op);
-                return true;
             } else {
-                canSendRequestNow(op.callback, requestId, op);
-                return false;
+                handleTransactionOpRequest(op.callback, requestId, op);
             }
         } finally {
             lock.unlock();

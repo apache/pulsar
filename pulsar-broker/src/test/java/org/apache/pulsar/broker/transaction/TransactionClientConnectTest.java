@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.transaction;
 
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.client.api.MessageId;
@@ -38,6 +41,7 @@ import java.util.Collections;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.Assert.fail;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -58,60 +62,79 @@ public class TransactionClientConnectTest extends TransactionTestBase {
 
     @Test
     public void testTransactionNewReconnect() throws Exception {
-        start();
-        //We will not throw a CoordinatorNotFoundException to client. Since it will be reconnect automatically.
-        pulsarClient.newTransaction()
-                .withTransactionTimeout(200, TimeUnit.MILLISECONDS).build().get();
-
-        fence(getPulsarServiceList().get(0).getTransactionMetadataStoreService());
-
-        // tc fence will remove this tc and reopen
-        pulsarClient.newTransaction()
-                .withTransactionTimeout(200, TimeUnit.MILLISECONDS).build().get();
+        Callable<CompletableFuture<?>> callable = () -> pulsarClient.newTransaction()
+                .withTransactionTimeout(200, TimeUnit.MILLISECONDS).build();
+        tryCommandReconnect(callable, callable);
     }
 
     @Test
     public void testTransactionAddSubscriptionToTxnAsyncReconnect() throws Exception {
         TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
+        Callable<CompletableFuture<?>> callable = () -> transactionCoordinatorClient
+                .addSubscriptionToTxnAsync(new TxnID(0, 0), "test", "test");
+        tryCommandReconnect(callable, callable);
+    }
+
+    public void tryCommandReconnect(Callable<CompletableFuture<?>> callable1, Callable<CompletableFuture<?>> callable2)
+            throws Exception {
         start();
-
-        transactionCoordinatorClient.addSubscriptionToTxnAsync(new TxnID(0, 0), "test", "test").get();
-
+        try {
+            callable1.call().get();
+        } catch (ExecutionException e) {
+            if (!(e.getCause() instanceof TransactionCoordinatorClientException.InvalidTxnStatusException)
+                    && !(e.getCause() instanceof TransactionCoordinatorClientException.TransactionNotFoundException)) {
+                fail();
+            }
+        }
         fence(getPulsarServiceList().get(0).getTransactionMetadataStoreService());
-        transactionCoordinatorClient.addSubscriptionToTxnAsync(new TxnID(0, 0), "test", "test").get();
+        CompletableFuture<?> completableFuture = callable2.call();
+        try {
+            completableFuture.get(3, TimeUnit.SECONDS);
+        } catch (TimeoutException ignore) {
+        } catch (ExecutionException e) {
+            if (!(e.getCause() instanceof TransactionCoordinatorClientException.InvalidTxnStatusException)
+                    && !(e.getCause() instanceof TransactionCoordinatorClientException.TransactionNotFoundException)) {
+                fail();
+            }
+        }
+
+        unFence(getPulsarServiceList().get(0).getTransactionMetadataStoreService());
+        try {
+            completableFuture.get();
+        } catch (ExecutionException e) {
+            if (!(e.getCause() instanceof TransactionCoordinatorClientException.InvalidTxnStatusException)
+                    && !(e.getCause() instanceof TransactionCoordinatorClientException.TransactionNotFoundException)) {
+                fail();
+            }
+        }
     }
 
     @Test
     public void testTransactionAbortToTxnAsyncReconnect() throws Exception {
         TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
-        start();
-        transactionCoordinatorClient.abortAsync(new TxnID(0, 0)).get();
-        fence(getPulsarServiceList().get(0).getTransactionMetadataStoreService());
-        transactionCoordinatorClient.abortAsync(new TxnID(0, 1)).get();
+        Callable<CompletableFuture<?>> callable1 = () -> transactionCoordinatorClient.abortAsync(new TxnID(0,
+                0));
+        Callable<CompletableFuture<?>> callable2 = () -> transactionCoordinatorClient.abortAsync(new TxnID(0,
+                1));
+        tryCommandReconnect(callable1, callable2);
     }
 
     @Test
     public void testTransactionCommitToTxnAsyncReconnect() throws Exception {
         TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
-        start();
-
-        transactionCoordinatorClient.commitAsync(new TxnID(0, 0)).get();
-
-        fence(getPulsarServiceList().get(0).getTransactionMetadataStoreService());
-        transactionCoordinatorClient.commitAsync(new TxnID(0, 1)).get();
+        Callable<CompletableFuture<?>> callable1 = () -> transactionCoordinatorClient.commitAsync(new TxnID(0,
+                0));
+        Callable<CompletableFuture<?>> callable2 = () -> transactionCoordinatorClient.commitAsync(new TxnID(0,
+                1));
+        tryCommandReconnect(callable1, callable2);
     }
 
     @Test
     public void testTransactionAddPublishPartitionToTxnReconnect() throws Exception {
         TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
-        start();
-
-        transactionCoordinatorClient.addPublishPartitionToTxnAsync(new TxnID(0, 0),
-                    Collections.singletonList("test")).get();
-
-        fence(getPulsarServiceList().get(0).getTransactionMetadataStoreService());
-        transactionCoordinatorClient.addPublishPartitionToTxnAsync(new TxnID(0, 0),
-                    Collections.singletonList("test")).get();
+        Callable<CompletableFuture<?>> callable = () -> transactionCoordinatorClient.addPublishPartitionToTxnAsync(new TxnID(0, 0),
+                Collections.singletonList("test"));
+        tryCommandReconnect(callable, callable);
     }
 
     @Test
@@ -142,9 +165,9 @@ public class TransactionClientConnectTest extends TransactionTestBase {
     public void start() throws Exception {
         // wait transaction coordinator init success
         pulsarClient.newTransaction()
-                .withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
+                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
         pulsarClient.newTransaction()
-                .withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
+                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
 
         TransactionMetadataStoreService transactionMetadataStoreService =
                 getPulsarServiceList().get(0).getTransactionMetadataStoreService();
@@ -158,5 +181,11 @@ public class TransactionClientConnectTest extends TransactionTestBase {
         field.setAccessible(true);
         field.set(((MLTransactionMetadataStore) transactionMetadataStoreService.getStores()
                 .get(TransactionCoordinatorID.get(0))).getManagedLedger(), ManagedLedgerImpl.State.Fenced);
+    }
+    public void unFence(TransactionMetadataStoreService transactionMetadataStoreService) throws Exception {
+        Field field = ManagedLedgerImpl.class.getDeclaredField("state");
+        field.setAccessible(true);
+        field.set(((MLTransactionMetadataStore) transactionMetadataStoreService.getStores()
+                .get(TransactionCoordinatorID.get(0))).getManagedLedger(), ManagedLedgerImpl.State.LedgerOpened);
     }
 }
