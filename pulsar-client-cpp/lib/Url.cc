@@ -18,17 +18,8 @@
  */
 #include "Url.h"
 
-#include <map>
-
-#include <sstream>
-
-#ifdef PULSAR_USE_BOOST_REGEX
 #include <boost/regex.hpp>
-#define PULSAR_REGEX_NAMESPACE boost
-#else
-#include <regex>
-#define PULSAR_REGEX_NAMESPACE std
-#endif
+#include <sstream>
 
 namespace pulsar {
 
@@ -48,14 +39,14 @@ static const std::map<std::string, int>& defaultPortsMap() {
 
 bool Url::parse(const std::string& urlStr, Url& url) {
     std::vector<std::string> values;
-    static const PULSAR_REGEX_NAMESPACE::regex expression(
+    static const boost::regex expression(
         //       proto                 host               port
         "^(\?:([^:/\?#]+)://)\?(\\w+[^/\?#:]*)(\?::(\\d+))\?"
         //       path                  file       parameters
         "(/\?(\?:[^\?#/]*/)*)\?([^\?#]*)\?(\\\?(.*))\?");
 
-    PULSAR_REGEX_NAMESPACE::cmatch groups;
-    if (!PULSAR_REGEX_NAMESPACE::regex_match(urlStr.c_str(), groups, expression)) {
+    boost::cmatch groups;
+    if (!boost::regex_match(urlStr.c_str(), groups, expression)) {
         // Invalid url
         return false;
     }

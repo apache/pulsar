@@ -17,7 +17,7 @@
 # under the License.
 #
 
-cmake_minimum_required(VERSION 3.4)
+cmake_minimum_required(VERSION 3.4) 
 project (pulsar-cpp)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
 
@@ -42,9 +42,6 @@ MESSAGE(STATUS "BUILD_TESTS:  " ${BUILD_TESTS})
 
 option(BUILD_PYTHON_WRAPPER "Build Pulsar Python wrapper" ON)
 MESSAGE(STATUS "BUILD_PYTHON_WRAPPER:  " ${BUILD_PYTHON_WRAPPER})
-
-option(BUILD_PERF_TOOLS "Build Pulsar CLI perf producer/consumer" OFF)
-MESSAGE(STATUS "BUILD_PERF_TOOLS:  " ${BUILD_PERF_TOOLS})
 
 option(LINK_STATIC "Link against static libraries" OFF)
 MESSAGE(STATUS "LINK_STATIC:  " ${LINK_STATIC})
@@ -286,7 +283,7 @@ if (NOT MSVC)
     )
 else()
     set(COMMON_LIBS
-    ${COMMON_LIBS}
+    ${COMMON_LIBS} 
     wldap32.lib
     Normaliz.lib)
 endif()
@@ -331,9 +328,7 @@ set(CLIENT_LIBS
 )
 
 add_subdirectory(lib)
-if(BUILD_PERF_TOOLS)
-    add_subdirectory(perf)
-endif(BUILD_PERF_TOOLS)
+add_subdirectory(perf)
 add_subdirectory(examples)
 
 if (BUILD_TESTS)
