@@ -65,7 +65,7 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
     public Multimap<String, String> findBundlesForUnloading(final LoadData loadData, final ServiceConfiguration conf) {
         selectedBundlesCache.clear();
         Map<String, BrokerData> brokersData = loadData.getBrokerData();
-        Map<String, BundleData> loadBundleData = loadData.getBundleData();
+        Map<String, BundleData> loadBundleData = loadData.getBundleDataForLoadShedding();
         Map<String, Long> recentlyUnloadedBundles = loadData.getRecentlyUnloadedBundles();
 
         MutableObject<String> overloadedBroker = new MutableObject<>();
@@ -127,11 +127,7 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
                 // Sort bundles by throughput, then pick the bundle which can help to reduce load uniformly with
                 // under-loaded broker
                 loadBundleData.entrySet().stream()
-                        .filter(e -> !HEARTBEAT_NAMESPACE_PATTERN.matcher(
-                                    NamespaceBundle.getBundleNamespace(e.getKey())).matches()
-                                && !HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(
-                                        NamespaceBundle.getBundleNamespace(e.getKey())).matches()
-                                && overloadedBrokerData.getBundles().contains(e.getKey()))
+                        .filter(e -> overloadedBrokerData.getBundles().contains(e.getKey()))
                         .map((e) -> {
                             String bundle = e.getKey();
                             BundleData bundleData = e.getValue();
