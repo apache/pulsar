@@ -211,4 +211,4 @@ Consumer<String> consumer = client.newConsumer(Schema.STRING)
 ### Limitations
 
 * When you enable replicated subscription, you're creating a consistent distributed snapshot to establish an association between message ids from different clusters. The snapshots are taken periodically. The default value is `1 second`. It means that a consumer failing over to a different cluster can potentially receive 1 second of duplicates. You can also configure the frequency of the snapshot in the `broker.conf` file.
-* Only markDeletePosition will be synced in replicated subscriptions while the individuallyDeletedMessages won't be synced which means the acknowledges are being done out of order cannot be synced to other clusters through replicated subscriptions.
+* Only the base line cursor position will be synced in replicated subscriptions while the individual  acknowledgments won't be synced. This that the messages acknowledged out-of-order could end up getting delivered again, in the case of a cluster failover.
