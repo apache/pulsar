@@ -162,6 +162,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                 this.topicPolicies.getBackLogQuotaMap().get(type).updateTopicValue(
                         data.getBackLogQuotaMap() == null ? null : data.getBackLogQuotaMap().get(type.toString())));
         topicPolicies.getTopicMaxMessageSize().updateTopicValue(data.getMaxMessageSize());
+        topicPolicies.getMessageTTLInSeconds().updateTopicValue(data.getMessageTTLInSeconds());
     }
 
     protected void updateTopicPolicyByNamespacePolicy(Policies namespacePolicies) {
@@ -171,6 +172,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         if (namespacePolicies.deleted) {
             return;
         }
+        topicPolicies.getMessageTTLInSeconds().updateNamespaceValue(namespacePolicies.message_ttl_in_seconds);
         topicPolicies.getMaxSubscriptionsPerTopic().updateNamespaceValue(namespacePolicies.max_subscriptions_per_topic);
         topicPolicies.getMaxProducersPerTopic().updateNamespaceValue(namespacePolicies.max_producers_per_topic);
         topicPolicies.getInactiveTopicPolicies().updateNamespaceValue(namespacePolicies.inactive_topic_policies);
@@ -202,6 +204,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                 .updateBrokerValue(brokerService.getBacklogQuotaManager().getDefaultQuota());
 
         topicPolicies.getTopicMaxMessageSize().updateBrokerValue(config.getMaxMessageSize());
+        topicPolicies.getMessageTTLInSeconds().updateBrokerValue(config.getTtlDurationDefaultInSeconds());
     }
 
     private EnumSet<SubType> subTypeStringsToEnumSet(Set<String> getSubscriptionTypesEnabled) {
