@@ -39,7 +39,6 @@ if (NOT PROTOC_PATH)
     set(PROTOC_PATH protoc)
 endif()
 
-find_library(Protobuf_LIBRARIES NAMES libprotobuf.a)
 include_directories(${Protobuf_INCLUDE_DIRS})
 find_library(Protobuf_LIBRARIES protobuf libprotobuf)
 find_path(Protobuf_INCLUDE_DIRS google/protobuf/stubs/common.h)
