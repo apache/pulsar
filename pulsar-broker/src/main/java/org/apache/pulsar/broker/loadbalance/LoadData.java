@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.loadbalance;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-
 import org.apache.pulsar.broker.BrokerData;
 import org.apache.pulsar.broker.BundleData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
