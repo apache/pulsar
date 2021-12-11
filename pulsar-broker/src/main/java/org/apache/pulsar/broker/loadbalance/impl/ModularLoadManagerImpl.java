@@ -598,7 +598,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         recentlyUnloadedBundles.keySet().removeIf(e -> recentlyUnloadedBundles.get(e) < timeout);
 
         for (LoadSheddingStrategy strategy : loadSheddingPipeline) {
-            final Multimap<String, String> bundlesToUnload = strategy.findBundlesForUnloading(loadData, conf);
+            final Multimap<String, String> bundlesToUnload = strategy.findBundlesForUnloading(pulsar, loadData, conf);
 
             bundlesToUnload.asMap().forEach((broker, bundles) -> {
                 bundles.forEach(bundle -> {

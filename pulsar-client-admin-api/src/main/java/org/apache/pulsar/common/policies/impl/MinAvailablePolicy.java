@@ -32,8 +32,8 @@ import org.apache.pulsar.common.policies.data.BrokerStatus;
 @Data
 @AllArgsConstructor
 public class MinAvailablePolicy extends AutoFailoverPolicy {
-    private static final String MIN_LIMIT_KEY = "min_limit";
-    private static final String USAGE_THRESHOLD_KEY = "usage_threshold";
+    public static final String MIN_LIMIT_KEY = "min_limit";
+    public static final String USAGE_THRESHOLD_KEY = "usage_threshold";
     private static final int MAX_USAGE_THRESHOLD = 100;
 
     @SuppressWarnings("checkstyle:MemberName")
