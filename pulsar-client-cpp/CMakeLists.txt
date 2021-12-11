@@ -100,7 +100,7 @@ else() # GCC or Clang are mostly compatible:
         add_compile_options(-msse4.2 -mpclmul)
     endif()
     # Options unique to Clang or GCC:
-    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         add_compile_options(-Qunused-arguments) 
     elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9))
         add_compile_options(-Wno-stringop-truncation)
