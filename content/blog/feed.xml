@@ -4,7 +4,7 @@
         <title>Apache Pulsar Blog</title>
         <link>https://pulsar.apache.org/blog</link>
         <description>The best place to stay up-to-date with the latest Apache Pulsar news and events.</description>
-        <lastBuildDate>Thu, 23 Sep 2021 06:00:00 GMT</lastBuildDate>
+        <lastBuildDate>Sat, 11 Dec 2021 06:00:00 GMT</lastBuildDate>
         <docs>https://validator.w3.org/feed/docs/rss2.html</docs>
         <generator>https://github.com/jpmonette/feed</generator>
         <image>
@@ -13,6 +13,13 @@
             <link>https://pulsar.apache.org/blog</link>
         </image>
         <copyright>Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</copyright>
+        <item>
+            <title><![CDATA[Log4j2 Zero Day vulnerability (CVE-2021-44228)]]></title>
+            <link>https://pulsar.apache.org/blog/2021/12/11/Log4j-CVE.html</link>
+            <guid>https://pulsar.apache.org/blog/2021/12/11/Log4j-CVE.html</guid>
+            <pubDate>Sat, 11 Dec 2021 06:00:00 GMT</pubDate>
+            <description><![CDATA[<p>Yesterday, a new serious vulnerability was reported regarding Log4j that can allow remote execution for attackers.</p> <p>The vulnerability issue is described and tracked under <a href="https://nvd.nist.gov/vuln/detail/CVE-2021-44228">CVE-2021-44228</a>.</p> <p>Current releases of Apache Pulsar are bundling Log4j2 versions t...</p>]]></description>
+        </item>
         <item>
             <title><![CDATA[Apache Pulsar 2.8.1]]></title>
             <link>https://pulsar.apache.org/blog/2021/09/23/Apache-Pulsar-2-8-1.html</link>
