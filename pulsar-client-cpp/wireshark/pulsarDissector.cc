@@ -214,7 +214,7 @@ static void dissect_message_metadata(proto_tree* frame_tree, tvbuff_t *tvb, int 
     proto_item* md_tree = proto_tree_add_subtree_format(frame_tree, tvb, offset, metadataSize,
                                                         ett_pulsar,
                                                         NULL,
-                                                        "Message / %s / %llu",
+                                                        "Message / %s / %" G_GINT64_MODIFIER "u",
                                                         msgMetadata.producer_name().c_str(),
                                                         msgMetadata.sequence_id());
     proto_tree_add_string(md_tree, hf_pulsar_producer_name, tvb, offset, metadataSize,
@@ -452,7 +452,7 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
 
             ProducerData& producerData = state->producers[send.producer_id()];
 
-            col_append_fstr(pinfo->cinfo, COL_INFO, " / %s / %llu",
+            col_append_fstr(pinfo->cinfo, COL_INFO, " / %s / %" G_GINT64_MODIFIER "u",
                             producerData.producerName.c_str(), send.sequence_id());
 
             if (tree) {
@@ -486,7 +486,7 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
             data.ackTimestamp.nsecs = pinfo->fd->abs_ts.nsecs;
 
             ProducerData& producerData = state->producers[send_receipt.producer_id()];
-            col_append_fstr(pinfo->cinfo, COL_INFO, " / %s / %llu",
+            col_append_fstr(pinfo->cinfo, COL_INFO, " / %s / %" G_GINT64_MODIFIER "u",
                             producerData.producerName.c_str(), send_receipt.sequence_id());
 
             if (tree) {
@@ -497,7 +497,7 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
                 if (send_receipt.has_message_id()) {
                     const MessageIdData& messageId = send_receipt.message_id();
                     proto_tree_add_string_format(cmd_tree, hf_pulsar_message_id, tvb, cmdOffset,
-                                                 cmdSize, "", "Message Id: %llu:%llu",
+                                                 cmdSize, "", "Message Id: %" G_GINT64_MODIFIER "u:%" G_GINT64_MODIFIER "u",
                                                  messageId.ledgerid(), messageId.entryid());
                 }
 
@@ -522,7 +522,7 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
             reqData.ackTimestamp.nsecs = pinfo->fd->abs_ts.nsecs;
 
             ProducerData& producerData = state->producers[send_error.producer_id()];
-            col_append_fstr(pinfo->cinfo, COL_INFO, " / %s / %llu",
+            col_append_fstr(pinfo->cinfo, COL_INFO, " / %s / %" G_GINT64_MODIFIER "u",
                             producerData.producerName.c_str(), send_error.sequence_id());
 
             if (tree) {
@@ -560,7 +560,7 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
 
             const ConsumerData& consumerData = state->consumers[message.consumer_id()];
 
-            col_append_fstr(pinfo->cinfo, COL_INFO, " / %s / %llu:%llu",
+            col_append_fstr(pinfo->cinfo, COL_INFO, " / %s / %" G_GINT64_MODIFIER "u:%" G_GINT64_MODIFIER "u",
                             consumerData.consumerName.c_str(), message.message_id().ledgerid(),
                             message.message_id().entryid());
 
@@ -592,7 +592,7 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
 
             const ConsumerData& consumerData = state->consumers[ack.consumer_id()];
 
-            col_append_fstr(pinfo->cinfo, COL_INFO, " / %s / %llu:%llu",
+            col_append_fstr(pinfo->cinfo, COL_INFO, " / %s / %" G_GINT64_MODIFIER "u:%" G_GINT64_MODIFIER "u",
                             consumerData.consumerName.c_str(), ack.message_id().Get(0).ledgerid(),
                             ack.message_id().Get(0).entryid());
 
