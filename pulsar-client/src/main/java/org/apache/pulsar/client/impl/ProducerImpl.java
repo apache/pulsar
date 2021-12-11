@@ -39,6 +39,7 @@ import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import io.netty.util.concurrent.ScheduledFuture;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -1227,9 +1228,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     String errMsg = String.format(
                         "%s : createdAt %s ns ago, firstSentAt %s ns ago, lastSentAt %s ns ago, retryCount %s",
                         te.getMessage(),
-                        ns - this.createdAt,
-                        this.firstSentAt <= 0 ? ns - this.lastSentAt : ns - this.firstSentAt,
-                        ns - this.lastSentAt,
+                        nsToSeconds(ns - this.createdAt),
+                        nsToSeconds(this.firstSentAt <= 0 ? ns - this.lastSentAt : ns - this.firstSentAt),
+                        nsToSeconds(ns - this.lastSentAt),
                         retryCount
                     );
 
@@ -1290,6 +1291,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 return new OpSendMsg(handle);
             }
         };
+    }
+
+    private static double nsToSeconds(long ns) {
+        double seconds = (double) ns / 1_000_000_000;
+        BigDecimal bd = new BigDecimal(seconds);
+        return bd.setScale(3, BigDecimal.ROUND_HALF_UP).doubleValue();
     }
 
     /**
