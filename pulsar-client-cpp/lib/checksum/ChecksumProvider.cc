@@ -20,8 +20,11 @@
 
 #include <assert.h>
 #include "crc32c_sse42.h"
+#include "crc32c_neno.h"
 #include "crc32c_sw.h"
-
+#if defined(HAVE_ARM64_CRC)
+bool pmull_runtime_flag = false;
+#endif
 namespace pulsar {
 bool isCrc32cSupported = crc32cSupported();
 
@@ -39,6 +42,12 @@ bool crc32cSupported() { return crc32c_initialize(); }
 uint32_t computeChecksum(uint32_t previousChecksum, const void* data, int length) {
     if (isCrc32cSupported) {
         return crc32cHw(previousChecksum, data, length);
+    }
+#ifdef HAVE_ARM64_CRYPTO
+    else if (crc32c_runtime_check()) {
+        pmull_runtime_flag = crc32c_pmull_runtime_check();
+        return crc32cHwArm(previousChecksum, data, length);
+#endif
     } else {
         return crc32cSw(previousChecksum, data, length);
     }
@@ -50,6 +59,13 @@ uint32_t computeChecksum(uint32_t previousChecksum, const void* data, int length
 uint32_t crc32cHw(uint32_t previousChecksum, const void* data, int length) {
     assert(isCrc32cSupported);
     return crc32c(previousChecksum, data, length, 0);
+}
+
+/**
+ * Computes crc32c using hardware sse4.2 instruction
+ */
+uint32_t crc32cHwArm(uint32_t previousChecksum, const void* data, int length) {
+    return crc32c_arm64(previousChecksum, data, length);
 }
 
 /**

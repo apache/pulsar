@@ -57,9 +57,15 @@ TEST(ClientTest, testSwHwChecksum) {
     // (b) SW
     uint32_t swChecksum1 = crc32cSw(0, (char *)data.c_str(), data.length());
     uint32_t swChecksum2 = crc32cSw(0, (char *)doubleData.c_str() + 4, 4);
+    // (c) HW ARM
+    uint32_t hwArmChecksum1 = crc32cHwArm(0, (char *)data.c_str(), data.length());
+    uint32_t hwArmChecksum2 = crc32cHwArm(0, (char *)doubleData.c_str() + 4, 4);
+
     ASSERT_EQ(hwChecksum1, hwChecksum2);
     ASSERT_EQ(hwChecksum1, swChecksum1);
     ASSERT_EQ(hwChecksum2, swChecksum2);
+    ASSERT_EQ(hwArmChecksum1, swChecksum1);
+    ASSERT_EQ(hwArmChecksum2, swChecksum2);
 
     //(2) compute incremental checksum
     // (a.1) hw: checksum on full data
