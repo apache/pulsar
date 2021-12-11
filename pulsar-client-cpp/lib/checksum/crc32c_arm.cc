@@ -1,24 +1,17 @@
-/*******************************************************************************
- * Copyright 2014 Trevor Robinson
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- ******************************************************************************/
-#include "crc32c_neno.h"
+//  Copyright (c) 2018, Arm Limited and affiliates. All rights reserved.
+//  This source code is licensed under both the GPLv2 (found in the
+//  COPYING file in the root directory) and Apache 2.0 License
+//  (found in the LICENSE.Apache file in the root directory).
+
+#include "crc32c_arm.h"
 
 #if defined(HAVE_ARM64_CRC)
 
 #if defined(__linux__)
 #include <asm/hwcap.h>
+#endif
+#ifdef PULSAR_AUXV_GETAUXVAL_PRESENT
+#include <sys/auxv.h>
 #endif
 #ifndef HWCAP_CRC32
 #define HWCAP_CRC32 (1 << 7)
@@ -55,7 +48,9 @@ extern bool pmull_runtime_flag;
 uint32_t crc32c_runtime_check(void) {
 #if !defined(__APPLE__)
     uint64_t auxv = 0;
-#if defined(__FreeBSD__)
+#if defined(PULSAR_AUXV_GETAUXVAL_PRESENT)
+    auxv = getauxval(AT_HWCAP);
+#elif defined(__FreeBSD__)
     elf_aux_info(AT_HWCAP, &auxv, sizeof(auxv));
 #endif
     return (auxv & HWCAP_CRC32) != 0;
@@ -70,7 +65,9 @@ uint32_t crc32c_runtime_check(void) {
 bool crc32c_pmull_runtime_check(void) {
 #if !defined(__APPLE__)
     uint64_t auxv = 0;
-#if defined(__FreeBSD__)
+#if defined(PULSAR_AUXV_GETAUXVAL_PRESENT)
+    auxv = getauxval(AT_HWCAP);
+#elif defined(__FreeBSD__)
     elf_aux_info(AT_HWCAP, &auxv, sizeof(auxv));
 #endif
     return (auxv & HWCAP_PMULL) != 0;

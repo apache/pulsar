@@ -20,13 +20,27 @@
 
 #include <assert.h>
 #include "crc32c_sse42.h"
-#include "crc32c_neno.h"
+#include "crc32c_arm.h"
 #include "crc32c_sw.h"
-#if defined(HAVE_ARM64_CRC)
+
 bool pmull_runtime_flag = false;
-#endif
+
 namespace pulsar {
 bool isCrc32cSupported = crc32cSupported();
+
+
+#if defined(HAVE_ARM64_CRC)
+
+bool isCrc32ArmSupported = crc32cArmSupported();
+
+bool crc32cArmSupported() {
+    if (crc32c_runtime_check()) {
+        pmull_runtime_flag = crc32c_pmull_runtime_check();
+        return true;
+    }
+    return false;
+}
+#endif
 
 bool crc32cSupported() { return crc32c_initialize(); }
 
@@ -44,11 +58,11 @@ uint32_t computeChecksum(uint32_t previousChecksum, const void* data, int length
         return crc32cHw(previousChecksum, data, length);
     }
 #ifdef HAVE_ARM64_CRYPTO
-    else if (crc32c_runtime_check()) {
-        pmull_runtime_flag = crc32c_pmull_runtime_check();
+    else if (isCrc32ArmSupported) {
         return crc32cHwArm(previousChecksum, data, length);
+    }
 #endif
-    } else {
+    else {
         return crc32cSw(previousChecksum, data, length);
     }
 }
@@ -62,9 +76,10 @@ uint32_t crc32cHw(uint32_t previousChecksum, const void* data, int length) {
 }
 
 /**
- * Computes crc32c using hardware sse4.2 instruction
+ * Computes crc32c using hardware neon instruction
  */
 uint32_t crc32cHwArm(uint32_t previousChecksum, const void* data, int length) {
+    assert(isCrc32ArmSupported);
     return crc32c_arm64(previousChecksum, data, length);
 }
 
