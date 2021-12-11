@@ -19,7 +19,6 @@
 package org.apache.pulsar.transaction.coordinator.impl;
 
 import io.netty.buffer.ByteBuf;
-import lombok.Getter;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.mledger.impl.OpAddEntry;
@@ -34,12 +33,11 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * Store max sequenceID in ManagedLedger properties, in order to recover transaction log.
  */
-public class MLTransactionLogInterceptor implements ManagedLedgerInterceptor {
+public class MLTransactionSequenceIdGenerator implements ManagedLedgerInterceptor {
 
-    private static final Logger log = LoggerFactory.getLogger(MLTransactionLogInterceptor.class);
+    private static final Logger log = LoggerFactory.getLogger(MLTransactionSequenceIdGenerator.class);
     private static final long TC_ID_NOT_USED = -1L;
     public static final String MAX_LOCAL_TXN_ID = "max_local_txn_id";
-    @Getter
     private final AtomicLong sequenceId = new AtomicLong(TC_ID_NOT_USED);
 
     @Override
@@ -81,6 +79,7 @@ public class MLTransactionLogInterceptor implements ManagedLedgerInterceptor {
                             entries.close();
                             promise.complete(null);
                         } catch (Exception e) {
+                            entries.close();
                             log.error("[{}] Failed to recover the tc sequenceId from the last add confirmed entry.",
                                     name, e);
                             promise.completeExceptionally(e);
@@ -100,5 +99,13 @@ public class MLTransactionLogInterceptor implements ManagedLedgerInterceptor {
     @Override
     public void onUpdateManagedLedgerInfo(Map<String, String> propertiesMap) {
         propertiesMap.put(MAX_LOCAL_TXN_ID, sequenceId.get() + "");
+    }
+
+    long generateSequenceId() {
+        return sequenceId.incrementAndGet();
+    }
+
+    long getCurrentSequenceId() {
+        return sequenceId.get();
     }
 }

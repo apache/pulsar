@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
@@ -60,7 +59,6 @@ public class MLTransactionMetadataStore
     private static final Logger log = LoggerFactory.getLogger(MLTransactionMetadataStore.class);
 
     private final TransactionCoordinatorID tcID;
-    private final AtomicLong sequenceId;
     private final MLTransactionLogImpl transactionLog;
     private final ConcurrentSkipListMap<Long, Pair<TxnMeta, List<Position>>> txnMetaMap = new ConcurrentSkipListMap<>();
     private final TransactionTimeoutTracker timeoutTracker;
@@ -70,14 +68,15 @@ public class MLTransactionMetadataStore
     private final LongAdder abortedTransactionCount;
     private final LongAdder transactionTimeoutCount;
     private final LongAdder appendLogCount;
+    private final MLTransactionSequenceIdGenerator sequenceIdGenerator;
 
     public MLTransactionMetadataStore(TransactionCoordinatorID tcID,
                                       MLTransactionLogImpl mlTransactionLog,
                                       TransactionTimeoutTracker timeoutTracker,
                                       TransactionRecoverTracker recoverTracker,
-                                      AtomicLong sequenceId) {
+                                      MLTransactionSequenceIdGenerator sequenceIdGenerator) {
         super(State.None);
-        this.sequenceId = sequenceId;
+        this.sequenceIdGenerator = sequenceIdGenerator;
         this.tcID = tcID;
         this.transactionLog = mlTransactionLog;
         this.timeoutTracker = timeoutTracker;
@@ -204,7 +203,7 @@ public class MLTransactionMetadataStore
         }
 
         long mostSigBits = tcID.getId();
-        long leastSigBits = sequenceId.incrementAndGet();
+        long leastSigBits = sequenceIdGenerator.generateSequenceId();
         TxnID txnID = new TxnID(mostSigBits, leastSigBits);
         long currentTimeMillis = System.currentTimeMillis();
         TransactionMetadataEntry transactionMetadataEntry = new TransactionMetadataEntry()
@@ -214,7 +213,7 @@ public class MLTransactionMetadataStore
                 .setTimeoutMs(timeOut)
                 .setMetadataOp(TransactionMetadataEntry.TransactionMetadataOp.NEW)
                 .setLastModificationTime(currentTimeMillis)
-                .setMaxLocalTxnId(sequenceId.get());
+                .setMaxLocalTxnId(sequenceIdGenerator.getCurrentSequenceId());
         return transactionLog.append(transactionMetadataEntry)
                 .thenCompose(position -> {
                     appendLogCount.increment();
@@ -243,7 +242,7 @@ public class MLTransactionMetadataStore
                     .setMetadataOp(TransactionMetadataOp.ADD_PARTITION)
                     .addAllPartitions(partitions)
                     .setLastModificationTime(System.currentTimeMillis())
-                    .setMaxLocalTxnId(sequenceId.get());
+                    .setMaxLocalTxnId(sequenceIdGenerator.getCurrentSequenceId());
 
             return transactionLog.append(transactionMetadataEntry)
                     .thenCompose(position -> {
@@ -280,7 +279,7 @@ public class MLTransactionMetadataStore
                     .setMetadataOp(TransactionMetadataOp.ADD_SUBSCRIPTION)
                     .addAllSubscriptions(txnSubscriptionToSubscription(txnSubscriptions))
                     .setLastModificationTime(System.currentTimeMillis())
-                    .setMaxLocalTxnId(sequenceId.get());
+                    .setMaxLocalTxnId(sequenceIdGenerator.getCurrentSequenceId());
 
             return transactionLog.append(transactionMetadataEntry)
                     .thenCompose(position -> {
@@ -321,7 +320,7 @@ public class MLTransactionMetadataStore
                     .setMetadataOp(TransactionMetadataOp.UPDATE)
                     .setLastModificationTime(System.currentTimeMillis())
                     .setNewStatus(newStatus)
-                    .setMaxLocalTxnId(sequenceId.get());
+                    .setMaxLocalTxnId(sequenceIdGenerator.getCurrentSequenceId());
 
             return transactionLog.append(transactionMetadataEntry).thenCompose(position -> {
                 appendLogCount.increment();
@@ -378,7 +377,7 @@ public class MLTransactionMetadataStore
         TransactionCoordinatorStats transactionCoordinatorstats = new TransactionCoordinatorStats();
         transactionCoordinatorstats.setLowWaterMark(getLowWaterMark());
         transactionCoordinatorstats.setState(getState().name());
-        transactionCoordinatorstats.setLeastSigBits(sequenceId.get());
+        transactionCoordinatorstats.setLeastSigBits(sequenceIdGenerator.getCurrentSequenceId());
         return transactionCoordinatorstats;
     }
 

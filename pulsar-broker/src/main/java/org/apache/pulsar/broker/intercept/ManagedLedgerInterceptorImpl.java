@@ -35,10 +35,7 @@ import org.slf4j.LoggerFactory;
 public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerInterceptorImpl.class);
     private static final String INDEX = "index";
-
-
     private final Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors;
-
 
     public ManagedLedgerInterceptorImpl(Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors) {
         this.brokerEntryMetadataInterceptors = brokerEntryMetadataInterceptors;
@@ -108,6 +105,7 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
                             entries.close();
                             promise.complete(null);
                         } catch (Exception e) {
+                            entries.close();
                             log.error("[{}] Failed to recover the index generator from the last add confirmed entry.",
                                     name, e);
                             promise.completeExceptionally(e);
