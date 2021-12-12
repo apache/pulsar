@@ -927,7 +927,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).deleteSubscription("persistent://myprop/clust/ns1/ds1", "sub1", false);
 
         cmdTopics.run(split("stats persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getStats("persistent://myprop/clust/ns1/ds1", false, false);
+        verify(mockTopics).getStats("persistent://myprop/clust/ns1/ds1", false, false, false);
 
         cmdTopics.run(split("stats-internal persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getInternalStats("persistent://myprop/clust/ns1/ds1", false);
@@ -1065,6 +1065,9 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("get-subscription-types-enabled persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getSubscriptionTypesEnabled("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("remove-subscription-types-enabled persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeSubscriptionTypesEnabled("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("set-replicator-dispatch-rate persistent://myprop/clust/ns1/ds1 -md 10 -bd 11 -dt 12"));
         verify(mockTopics).setReplicatorDispatchRate("persistent://myprop/clust/ns1/ds1",
@@ -1434,7 +1437,7 @@ public class PulsarAdminToolTest {
         CmdTopics topics = new CmdTopics(() -> admin);
 
         topics.run(split("stats non-persistent://myprop/ns1/ds1"));
-        verify(mockTopics).getStats("non-persistent://myprop/ns1/ds1", false, false);
+        verify(mockTopics).getStats("non-persistent://myprop/ns1/ds1", false, false, false);
 
         topics.run(split("stats-internal non-persistent://myprop/ns1/ds1"));
         verify(mockTopics).getInternalStats("non-persistent://myprop/ns1/ds1", false);

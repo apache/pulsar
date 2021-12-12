@@ -91,6 +91,7 @@ import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -169,7 +170,6 @@ import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
-import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1481,11 +1481,11 @@ public class BrokerService implements Closeable {
                     if (localPolicies.isPresent() && localPolicies.get().bookieAffinityGroup != null) {
                         managedLedgerConfig
                                 .setBookKeeperEnsemblePlacementPolicyClassName(
-                                        ZkIsolatedBookieEnsemblePlacementPolicy.class);
+                                        IsolatedBookieEnsemblePlacementPolicy.class);
                         Map<String, Object> properties = Maps.newHashMap();
-                        properties.put(ZkIsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS,
+                        properties.put(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS,
                                 localPolicies.get().bookieAffinityGroup.getBookkeeperAffinityGroupPrimary());
-                        properties.put(ZkIsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
+                        properties.put(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
                                 localPolicies.get().bookieAffinityGroup.getBookkeeperAffinityGroupSecondary());
                         managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyProperties(properties);
                     }
@@ -2031,7 +2031,7 @@ public class BrokerService implements Closeable {
     public Map<String, TopicStatsImpl> getTopicStats() {
         HashMap<String, TopicStatsImpl> stats = new HashMap<>();
 
-        forEachTopic(topic -> stats.put(topic.getName(), topic.getStats(false, false)));
+        forEachTopic(topic -> stats.put(topic.getName(), topic.getStats(false, false, false)));
 
         return stats;
     }
@@ -2149,6 +2149,9 @@ public class BrokerService implements Closeable {
                     });
         }
 
+        // add listener to notify topic subscriptionTypesEnabled changed.
+        registerConfigurationListener("subscriptionTypesEnabled", this::updateBrokerSubscriptionTypesEnabled);
+
         // add more listeners here
     }
 
@@ -2186,6 +2189,17 @@ public class BrokerService implements Closeable {
             forEachTopic(topic -> {
                 if (topic.getDispatchRateLimiter().isPresent()) {
                     topic.getDispatchRateLimiter().get().updateDispatchRate();
+                }
+            });
+        });
+    }
+
+    private void updateBrokerSubscriptionTypesEnabled(Object subscriptionTypesEnabled) {
+        this.pulsar().getExecutor().execute(() -> {
+            // update subscriptionTypesEnabled
+            forEachTopic(topic -> {
+                if (topic instanceof AbstractTopic) {
+                    ((AbstractTopic) topic).updateBrokerSubscriptionTypesEnabled();
                 }
             });
         });

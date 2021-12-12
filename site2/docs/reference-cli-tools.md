@@ -15,8 +15,12 @@ All Pulsar command-line tools can be run from the `bin` directory of your [insta
 * [`bookkeeper`](#bookkeeper)
 * [`broker-tool`](#broker-tool)
 
-> ### Getting help
-> You can get help for any CLI tool, command, or subcommand using the `--help` flag, or `-h` for short. Here's an example:
+> **Important** 
+>
+> - This page only shows **some frequently used commands**. For the latest information about `pulsar`, `pulsar-client`, and `pulsar-perf`, including commands, flags, descriptions, and more information, see [Pulsar tools](https://pulsar.apache.org/tools/).
+>  
+> - You can get help for any CLI tool, command, or subcommand using the `--help` flag, or `-h` for short. Here's an example:
+> 
 > ```shell
 > $ bin/pulsar broker --help
 > ```
@@ -42,6 +46,7 @@ Commands:
 * `websocket`
 * `zookeeper`
 * `zookeeper-shell`
+* `autorecovery`
 
 Example:
 ```bash
@@ -266,6 +271,21 @@ Options
 |`-c`, `--conf`|Configuration file for ZooKeeper||
 |`-server`|Configuration zk address, eg: `127.0.0.1:2181`||
 
+### `autorecovery`
+
+Runs an auto-recovery service.
+
+Usage
+
+```bash
+$ pulsar autorecovery options
+```
+
+Options
+
+|Flag|Description|Default|
+|---|---|---|
+|`-c`, `--conf`|Configuration for the autorecovery|N/A|
 
 
 ## `pulsar-client`
@@ -684,7 +704,7 @@ $ bookkeeper command
 ```
 
 Commands
-* `auto-recovery`
+* `autorecovery`
 * `bookie`
 * `localbookie`
 * `upgrade`
@@ -707,19 +727,19 @@ The table below lists the environment variables that you can use to configure th
 |BOOKIE_GC_LOG|Gc options to be passed to the jvm||
 
 
-### `auto-recovery`
-Runs an auto-recovery service daemon
+### `autorecovery`
+Runs an auto-recovery service
 
 Usage
 ```bash
-$ bookkeeper auto-recovery options
+$ bookkeeper autorecovery options
 ```
 
 Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`-c`, `--conf`|Configuration for the auto-recovery daemon||
+|`-c`, `--conf`|Configuration for the auto-recovery||
 
 
 ### `bookie`
@@ -734,7 +754,7 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`-c`, `--conf`|Configuration for the auto-recovery daemon||
+|`-c`, `--conf`|Configuration for the auto-recovery||
 |-readOnly|Force start a read-only bookie server|false|
 |-withAutoRecovery|Start auto-recovery service bookie server|false|
 
@@ -759,7 +779,7 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`-c`, `--conf`|Configuration for the auto-recovery daemon||
+|`-c`, `--conf`|Configuration for the auto-recovery||
 |`-u`, `--upgrade`|Upgrade the bookie’s directories||
 
 

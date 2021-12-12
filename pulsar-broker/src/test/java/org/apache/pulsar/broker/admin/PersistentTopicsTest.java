@@ -55,6 +55,7 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TopicResources;
+import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -80,6 +81,7 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.zookeeper.KeeperException;
 import org.mockito.ArgumentCaptor;
 import org.powermock.reflect.Whitebox;
@@ -265,7 +267,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
-        TopicStats topicStats = persistentTopics.getStats(testTenant, testNamespace, testLocalTopicName, true, true, false);
+        TopicStats topicStats = persistentTopics.getStats(testTenant, testNamespace, testLocalTopicName, true, true, false, false);
         long msgBacklog = topicStats.getSubscriptions().get(SUB_EARLIEST).getMsgBacklog();
         System.out.println("Message back log for " + SUB_EARLIEST + " is :" + msgBacklog);
         Assert.assertEquals(msgBacklog, numberOfMessages);
@@ -278,7 +280,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
-        topicStats = persistentTopics.getStats(testTenant, testNamespace, testLocalTopicName, true, true, false);
+        topicStats = persistentTopics.getStats(testTenant, testNamespace, testLocalTopicName, true, true, false, false);
         msgBacklog = topicStats.getSubscriptions().get(SUB_LATEST).getMsgBacklog();
         System.out.println("Message back log for " + SUB_LATEST + " is :" + msgBacklog);
         Assert.assertEquals(msgBacklog, 0);
@@ -291,7 +293,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
-        topicStats = persistentTopics.getStats(testTenant, testNamespace, testLocalTopicName, true, true, false);
+        topicStats = persistentTopics.getStats(testTenant, testNamespace, testLocalTopicName, true, true, false, false);
         msgBacklog = topicStats.getSubscriptions().get(SUB_NONE_MESSAGE_ID).getMsgBacklog();
         System.out.println("Message back log for " + SUB_NONE_MESSAGE_ID + " is :" + msgBacklog);
         Assert.assertEquals(msgBacklog, 0);
@@ -1092,5 +1094,35 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(admin.topics().getMessageIdByTimestamp(topicName, publish2), id2);
         Assert.assertTrue(admin.topics().getMessageIdByTimestamp(topicName, publish2 + 1)
                 .compareTo(id2) > 0);
+    }
+
+    @Test
+    public void testDeleteTopic() throws Exception {
+        final String topicName = "topic-1";
+        BrokerService brokerService = spy(pulsar.getBrokerService());
+        doReturn(brokerService).when(pulsar).getBrokerService();
+        persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName, false);
+        CompletableFuture<Void> deleteTopicFuture = new CompletableFuture<>();
+        deleteTopicFuture.completeExceptionally(new MetadataStoreException.NotFoundException());
+        doReturn(deleteTopicFuture).when(brokerService).deleteTopic(anyString(), anyBoolean(), anyBoolean());
+        persistentTopics.deleteTopic(testTenant, testNamespace, topicName, true, true, true);
+        //
+        CompletableFuture<Void> deleteTopicFuture2 = new CompletableFuture<>();
+        deleteTopicFuture2.completeExceptionally(new MetadataStoreException("test exception"));
+        doReturn(deleteTopicFuture2).when(brokerService).deleteTopic(anyString(), anyBoolean(), anyBoolean());
+        try {
+            persistentTopics.deleteTopic(testTenant, testNamespace, topicName, true, true, true);
+        } catch (Exception e) {
+            Assert.assertTrue(e instanceof RestException);
+        }
+        //
+        CompletableFuture<Void> deleteTopicFuture3 = new CompletableFuture<>();
+        deleteTopicFuture3.completeExceptionally(new MetadataStoreException.NotFoundException());
+        doReturn(deleteTopicFuture3).when(brokerService).deleteTopic(anyString(), anyBoolean(), anyBoolean());
+        try {
+            persistentTopics.deleteTopic(testTenant, testNamespace, topicName, false, true, true);
+        } catch (RestException e) {
+            Assert.assertEquals(e.getResponse().getStatus(), 404);
+        }
     }
 }

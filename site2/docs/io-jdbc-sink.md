@@ -32,7 +32,7 @@ The configuration of all JDBC sink connectors has the following properties.
 
     ```json
     {
-       "configs" {
+       "configs": {
           "userName": "clickhouse",
           "password": "password",
           "jdbcUrl": "jdbc:clickhouse://localhost:8123/pulsar_clickhouse_jdbc_sink",

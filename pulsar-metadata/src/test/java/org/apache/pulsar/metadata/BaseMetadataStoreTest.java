@@ -43,7 +43,10 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
     @Override
     public final void cleanup() throws Exception {
         markCurrentSetupNumberCleaned();
-        zks.close();
+        if (zks != null) {
+            zks.close();
+            zks = null;
+        }
     }
 
     private static String createTempFolder() {

@@ -90,9 +90,9 @@ public class WebSocketService implements Closeable {
     public void start() throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException,
             DeploymentException {
 
-        if (isNotBlank(config.getConfigurationStoreServers())) {
+        if (isNotBlank(config.getConfigurationMetadataStoreUrl())) {
             try {
-                configMetadataStore = createMetadataStore(config.getConfigurationStoreServers(),
+                configMetadataStore = createMetadataStore(config.getConfigurationMetadataStoreUrl(),
                         (int) config.getZooKeeperSessionTimeoutMillis());
             } catch (MetadataStoreException e) {
                 throw new PulsarServerException(e);

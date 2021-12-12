@@ -159,4 +159,9 @@ public interface PendingAckHandle {
      */
     CompletableFuture<Void> close();
 
+    /**
+     * Check if the PendingAckStore is init.
+     * @return if the PendingAckStore is init.
+     */
+    boolean checkIfPendingAckStoreInit();
 }

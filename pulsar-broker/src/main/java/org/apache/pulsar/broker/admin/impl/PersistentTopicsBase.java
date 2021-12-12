@@ -56,7 +56,6 @@ import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.ManagedLedgerException.MetadataNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -303,7 +302,7 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             pulsar().getBrokerService().deleteTopic(topicName.toString(), true, deleteSchema).get();
         } catch (Exception e) {
-            if (e.getCause() instanceof MetadataNotFoundException) {
+            if (isManagedLedgerNotFoundException(e)) {
                 log.info("[{}] Topic was already not existing {}", clientAppId(), topicName, e);
             } else {
                 log.error("[{}] Failed to delete topic forcefully {}", clientAppId(), topicName, e);
@@ -1022,7 +1021,7 @@ public class PersistentTopicsBase extends AdminResource {
             log.error("[{}] Failed to delete topic {}", clientAppId(), topicName, t);
             if (t instanceof TopicBusyException) {
                 throw new RestException(Status.PRECONDITION_FAILED, "Topic has active producers/subscriptions");
-            } else if (t instanceof MetadataNotFoundException) {
+            } else if (isManagedLedgerNotFoundException(e)) {
                 throw new RestException(Status.NOT_FOUND, "Topic not found");
             } else {
                 throw new RestException(t);
@@ -1149,7 +1148,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected TopicStats internalGetStats(boolean authoritative, boolean getPreciseBacklog,
-                                          boolean subscriptionBacklogSize) {
+                                          boolean subscriptionBacklogSize, boolean getEarliestTimeInBacklog) {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
@@ -1157,7 +1156,13 @@ public class PersistentTopicsBase extends AdminResource {
         validateTopicOperation(topicName, TopicOperation.GET_STATS);
 
         Topic topic = getTopicReference(topicName);
-        return topic.getStats(getPreciseBacklog, subscriptionBacklogSize);
+        try {
+            return topic.asyncGetStats(getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog).get();
+        } catch (InterruptedException | ExecutionException e) {
+            log.error("[{}] Failed to get stats for {}", clientAppId(), topicName, e);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR,
+                    (e instanceof ExecutionException) ? e.getCause().getMessage() : e.getMessage());
+        }
     }
 
     protected PersistentTopicInternalStats internalGetInternalStats(boolean authoritative, boolean metadata) {
@@ -1280,8 +1285,9 @@ public class PersistentTopicsBase extends AdminResource {
         }, null);
     }
 
-    protected void internalGetPartitionedStats(AsyncResponse asyncResponse, boolean authoritative,
-            boolean perPartition, boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
+    protected void internalGetPartitionedStats(AsyncResponse asyncResponse, boolean authoritative, boolean perPartition,
+                                               boolean getPreciseBacklog, boolean subscriptionBacklogSize,
+                                               boolean getEarliestTimeInBacklog) {
         if (topicName.isGlobal()) {
             try {
                 validateGlobalNamespaceOwnership(namespaceName);
@@ -1303,8 +1309,8 @@ public class PersistentTopicsBase extends AdminResource {
                 try {
                     topicStatsFutureList
                             .add(pulsar().getAdminClient().topics().getStatsAsync(
-                                    (topicName.getPartition(i).toString()), getPreciseBacklog,
-                                    subscriptionBacklogSize));
+                                    (topicName.getPartition(i).toString()), getPreciseBacklog, subscriptionBacklogSize,
+                                    getEarliestTimeInBacklog));
                 } catch (PulsarServerException e) {
                     asyncResponse.resume(new RestException(e));
                     return;
@@ -1434,7 +1440,7 @@ public class PersistentTopicsBase extends AdminResource {
             internalDeleteSubscriptionForNonPartitionedTopic(asyncResponse, subName, authoritative);
         } else {
             getPartitionedTopicMetadataAsync(topicName,
-                    authoritative, false).thenAccept(partitionMetadata -> {
+                    authoritative, false).thenAcceptAsync(partitionMetadata -> {
                 if (partitionMetadata.partitions > 0) {
                     final List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
@@ -1476,7 +1482,7 @@ public class PersistentTopicsBase extends AdminResource {
                 } else {
                     internalDeleteSubscriptionForNonPartitionedTopic(asyncResponse, subName, authoritative);
                 }
-            }).exceptionally(ex -> {
+            }, pulsar().getExecutor()).exceptionally(ex -> {
                 log.error("[{}] Failed to delete subscription {} from topic {}",
                         clientAppId(), subName, topicName, ex);
                 resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -2055,7 +2061,7 @@ public class PersistentTopicsBase extends AdminResource {
             internalCreateSubscriptionForNonPartitionedTopic(asyncResponse,
                     subscriptionName, targetMessageId, authoritative, replicated);
         } else {
-            boolean allowAutoTopicCreation = pulsar().getConfiguration().isAllowAutoTopicCreation();
+            boolean allowAutoTopicCreation = pulsar().getBrokerService().isAllowAutoTopicCreation(topicName);
             getPartitionedTopicMetadataAsync(topicName,
                     authoritative, allowAutoTopicCreation).thenAccept(partitionMetadata -> {
                 final int numPartitions = partitionMetadata.partitions;
@@ -2140,7 +2146,7 @@ public class PersistentTopicsBase extends AdminResource {
             AsyncResponse asyncResponse, String subscriptionName,
             MessageIdImpl targetMessageId, boolean authoritative, boolean replicated) {
 
-        boolean isAllowAutoTopicCreation = pulsar().getConfiguration().isAllowAutoTopicCreation();
+        boolean isAllowAutoTopicCreation = pulsar().getBrokerService().isAllowAutoTopicCreation(topicName);
 
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> {
@@ -2410,7 +2416,7 @@ public class PersistentTopicsBase extends AdminResource {
             ManagedLedger ledger = ((PersistentTopic) topic).getManagedLedger();
             return ledger.asyncFindPosition(entry -> {
                 try {
-                    long entryTimestamp = MessageImpl.getEntryTimestamp(entry.getDataBuffer());
+                    long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
                     return MessageImpl.isEntryPublishedEarlierThan(entryTimestamp, timestamp);
                 } catch (Exception e) {
                     log.error("[{}] Error deserializing message for message position find", topicName, e);
@@ -3621,15 +3627,14 @@ public class PersistentTopicsBase extends AdminResource {
                     validateAdminAccessForTenant(pulsar,
                             clientAppId, originalPrincipal, topicName.getTenant(), authenticationData);
                 } catch (RestException authException) {
-                    log.warn("Failed to authorize {} on cluster {}", clientAppId, topicName.toString());
+                    log.warn("Failed to authorize {} on topic {}", clientAppId, topicName);
                     throw new PulsarClientException(String.format("Authorization failed %s on topic %s with error %s",
-                            clientAppId, topicName.toString(), authException.getMessage()));
+                            clientAppId, topicName, authException.getMessage()));
                 }
             } catch (Exception ex) {
                 // throw without wrapping to PulsarClientException that considers: unknown error marked as internal
                 // server error
-                log.warn("Failed to authorize {} on cluster {} with unexpected exception {}", clientAppId,
-                        topicName.toString(), ex.getMessage(), ex);
+                log.warn("Failed to authorize {} on topic {}", clientAppId, topicName, ex);
                 throw ex;
             }
 
@@ -4235,6 +4240,17 @@ public class PersistentTopicsBase extends AdminResource {
                 topicPolicies.setSubscriptionTypesEnabled(subTypes);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
             });
+    }
+
+    protected CompletableFuture<Void> internalRemoveSubscriptionTypesEnabled() {
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    if (!op.isPresent()) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    op.get().setSubscriptionTypesEnabled(Lists.newArrayList());
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
+                });
     }
 
     protected CompletableFuture<Void> internalRemovePublishRate() {

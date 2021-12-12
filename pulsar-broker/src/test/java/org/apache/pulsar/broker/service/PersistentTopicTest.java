@@ -532,6 +532,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
     private void testMaxProducers() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        topic.initialize();
         String role = "appid1";
         // 1. add producer1
         Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name1", role,
@@ -577,8 +578,11 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .thenReturn(Optional.of(policies));
 
         when(pulsar.getPulsarResources().getNamespaceResources()
-                        .getPolicies(TopicName.get(successTopicName).getNamespaceObject()))
-                        .thenReturn(Optional.of(policies));
+                .getPolicies(TopicName.get(successTopicName).getNamespaceObject()))
+                .thenReturn(Optional.of(policies));
+        when(pulsar.getPulsarResources().getNamespaceResources()
+                .getPoliciesAsync(TopicName.get(successTopicName).getNamespaceObject()))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(policies)));
         testMaxProducers();
     }
 
@@ -2196,7 +2200,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         sub1.addConsumer(consumer1);
         consumer1.close();
 
-        SubscriptionStatsImpl stats1 = sub1.getStats(false, false);
+        SubscriptionStatsImpl stats1 = sub1.getStats(false, false, false);
         assertEquals(stats1.keySharedMode, "AUTO_SPLIT");
         assertFalse(stats1.allowOutOfOrderDelivery);
 
@@ -2207,7 +2211,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         sub2.addConsumer(consumer2);
         consumer2.close();
 
-        SubscriptionStatsImpl stats2 = sub2.getStats(false, false);
+        SubscriptionStatsImpl stats2 = sub2.getStats(false, false, false);
         assertEquals(stats2.keySharedMode, "AUTO_SPLIT");
         assertTrue(stats2.allowOutOfOrderDelivery);
 
@@ -2219,7 +2223,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         sub3.addConsumer(consumer3);
         consumer3.close();
 
-        SubscriptionStatsImpl stats3 = sub3.getStats(false, false);
+        SubscriptionStatsImpl stats3 = sub3.getStats(false, false, false);
         assertEquals(stats3.keySharedMode, "STICKY");
         assertFalse(stats3.allowOutOfOrderDelivery);
     }

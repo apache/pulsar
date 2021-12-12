@@ -687,7 +687,7 @@ $ bookkeeper command
 ```
 
 Commands
-* `auto-recovery`
+* `autorecovery`
 * `bookie`
 * `localbookie`
 * `upgrade`
@@ -710,18 +710,18 @@ The table below lists the environment variables that you can use to configure th
 
 
 ### `auto-recovery`
-Runs an auto-recovery service daemon
+Runs an auto-recovery service
 
 Usage
 ```bash
-$ bookkeeper auto-recovery options
+$ bookkeeper autorecovery options
 ```
 
 Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`-c`, `--conf`|Configuration for the auto-recovery daemon||
+|`-c`, `--conf`|Configuration for the auto-recovery||
 
 
 ### `bookie`
@@ -736,7 +736,7 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`-c`, `--conf`|Configuration for the auto-recovery daemon||
+|`-c`, `--conf`|Configuration for the auto-recovery||
 |-readOnly|Force start a read-only bookie server|false|
 |-withAutoRecovery|Start auto-recovery service bookie server|false|
 
@@ -761,7 +761,7 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`-c`, `--conf`|Configuration for the auto-recovery daemon||
+|`-c`, `--conf`|Configuration for the auto-recovery||
 |`-u`, `--upgrade`|Upgrade the bookie’s directories||
 
 

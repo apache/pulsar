@@ -399,7 +399,6 @@ public class WebServiceTest {
                  return CompletableFuture.completedFuture(mockZooKeeper);
              }
          };
-        doReturn(mockZooKeeperClientFactory).when(pulsar).getZooKeeperClientFactory();
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(pulsar).createConfigurationMetadataStore();
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(pulsar).createLocalMetadataStore();
         doReturn(new MockedBookKeeperClientFactory()).when(pulsar).newBookKeeperClientFactory();

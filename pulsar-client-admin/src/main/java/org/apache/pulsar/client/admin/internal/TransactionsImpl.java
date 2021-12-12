@@ -20,9 +20,7 @@ package org.apache.pulsar.client.admin.internal;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -69,17 +67,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
 
     @Override
     public TransactionCoordinatorStats getCoordinatorStatsById(int coordinatorId) throws PulsarAdminException {
-        try {
-            return getCoordinatorStatsByIdAsync(coordinatorId)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getCoordinatorStatsByIdAsync(coordinatorId));
     }
 
     @Override
@@ -103,16 +91,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
 
     @Override
     public Map<Integer, TransactionCoordinatorStats> getCoordinatorStats() throws PulsarAdminException {
-        try {
-            return getCoordinatorStatsAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getCoordinatorStatsAsync());
     }
 
     @Override
@@ -140,16 +119,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
 
     @Override
     public TransactionInBufferStats getTransactionInBufferStats(TxnID txnID, String topic) throws PulsarAdminException {
-        try {
-            return getTransactionInBufferStatsAsync(txnID, topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getTransactionInBufferStatsAsync(txnID, topic));
     }
 
     @Override
@@ -180,17 +150,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     @Override
     public TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID, String topic,
                                                                         String subName) throws PulsarAdminException {
-        try {
-            return getTransactionInPendingAckStatsAsync(txnID, topic, subName)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getTransactionInPendingAckStatsAsync(txnID, topic, subName));
     }
 
     @Override
@@ -216,17 +176,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
 
     @Override
     public TransactionMetadata getTransactionMetadata(TxnID txnID) throws PulsarAdminException {
-        try {
-            return getTransactionMetadataAsync(txnID)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getTransactionMetadataAsync(txnID));
     }
 
     @Override
@@ -251,16 +201,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
 
     @Override
     public TransactionBufferStats getTransactionBufferStats(String topic) throws PulsarAdminException {
-        try {
-            return getTransactionBufferStatsAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getTransactionBufferStatsAsync(topic));
     }
 
     @Override
@@ -286,16 +227,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
 
     @Override
     public TransactionPendingAckStats getPendingAckStats(String topic, String subName) throws PulsarAdminException {
-        try {
-            return getPendingAckStatsAsync(topic, subName).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getPendingAckStatsAsync(topic, subName));
     }
 
     @Override
@@ -327,17 +259,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
                                                                                long timeout,
                                                                                TimeUnit timeUnit)
             throws PulsarAdminException {
-        try {
-            return getSlowTransactionsByCoordinatorIdAsync(coordinatorId, timeout, timeUnit)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getSlowTransactionsByCoordinatorIdAsync(coordinatorId, timeout, timeUnit));
     }
 
     @Override
@@ -349,16 +271,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     @Override
     public Map<String, TransactionMetadata> getSlowTransactions(long timeout,
                                                                 TimeUnit timeUnit) throws PulsarAdminException {
-        try {
-            return getSlowTransactionsAsync(timeout, timeUnit).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getSlowTransactionsAsync(timeout, timeUnit));
     }
 
     @Override
@@ -387,17 +300,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     public TransactionCoordinatorInternalStats getCoordinatorInternalStats(int coordinatorId,
                                                                            boolean metadata)
             throws PulsarAdminException {
-        try {
-            return getCoordinatorInternalStatsAsync(coordinatorId, metadata)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getCoordinatorInternalStatsAsync(coordinatorId, metadata));
     }
 
     @Override
@@ -429,17 +332,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     public TransactionPendingAckInternalStats getPendingAckInternalStats(String topic,
                                                                          String subName,
                                                                          boolean metadata) throws PulsarAdminException {
-        try {
-            return getPendingAckInternalStatsAsync(topic, subName, metadata)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getPendingAckInternalStatsAsync(topic, subName, metadata));
     }
 
 }
