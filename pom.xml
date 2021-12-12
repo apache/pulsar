@@ -1783,5 +1783,13 @@ flexible messaging model and an intuitive client API.</description>
       <id>confluent</id>
       <url>http://packages.confluent.io/maven/</url>
     </repository>
+    <repository>
+      <id>maven.restlet.org</id>
+      <name>maven.restlet.org</name>
+      <url>https://maven.restlet.talend.com</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
   </repositories>
 </project>
