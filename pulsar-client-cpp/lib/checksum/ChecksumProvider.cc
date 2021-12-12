@@ -23,8 +23,6 @@
 #include "crc32c_arm.h"
 #include "crc32c_sw.h"
 
-bool pmull_runtime_flag = false;
-
 namespace pulsar {
 bool isCrc32cSupported = crc32cSupported();
 
@@ -33,13 +31,7 @@ bool isCrc32cSupported = crc32cSupported();
 
 bool isCrc32ArmSupported = crc32cArmSupported();
 
-bool crc32cArmSupported() {
-    if (crc32c_runtime_check()) {
-        pmull_runtime_flag = crc32c_pmull_runtime_check();
-        return true;
-    }
-    return false;
-}
+bool crc32cArmSupported() { return crc32c_arm64_initialize();}
 #endif
 
 bool crc32cSupported() { return crc32c_initialize(); }
@@ -75,6 +67,7 @@ uint32_t crc32cHw(uint32_t previousChecksum, const void* data, int length) {
     return crc32c(previousChecksum, data, length, 0);
 }
 
+#if defined(HAVE_ARM64_CRC)
 /**
  * Computes crc32c using hardware neon instruction
  */
@@ -82,6 +75,11 @@ uint32_t crc32cHwArm(uint32_t previousChecksum, const void* data, int length) {
     assert(isCrc32ArmSupported);
     return crc32c_arm64(previousChecksum, data, length);
 }
+#else
+uint32_t crc32cHwArm(uint32_t previousChecksum, const void* data, int length) {
+    return crc32c_sw(previousChecksum, data, length); // fallback to the software implementation
+}
+#endif
 
 /**
  * Computes crc32c using sw crc-table algo

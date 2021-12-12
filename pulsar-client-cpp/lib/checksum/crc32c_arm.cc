@@ -4,6 +4,7 @@
 //  (found in the LICENSE.Apache file in the root directory).
 
 #include "crc32c_arm.h"
+#include "lib/checksum/crc32c_sw.h"
 
 #if defined(HAVE_ARM64_CRC)
 
@@ -42,10 +43,23 @@
     CRC32C24BYTES((ITR)*7 + 6) \
   } while (0)
 #endif
+namespace pulsar {
+static bool initialized = false;
+static bool pmull_runtime_flag = false;
 
-extern bool pmull_runtime_flag;
+bool crc32c_arm64_initialize() {
+    bool has_crc32c_arm_runtime = false;
+    if (!initialized) {
+        has_crc32c_arm_runtime = crc32c_runtime_check();
+        if (has_crc32c_arm_runtime) {
+            pmull_runtime_flag = crc32c_pmull_runtime_check();
+        }
+    }
+    initialized = true;
+    return has_crc32c_arm_runtime;
+}
 
-uint32_t crc32c_runtime_check(void) {
+uint32_t crc32c_runtime_check() {
 #if !defined(__APPLE__)
     uint64_t auxv = 0;
 #if defined(PULSAR_AUXV_GETAUXVAL_PRESENT)
@@ -62,7 +76,7 @@ uint32_t crc32c_runtime_check(void) {
 #endif
 }
 
-bool crc32c_pmull_runtime_check(void) {
+bool crc32c_pmull_runtime_check() {
 #if !defined(__APPLE__)
     uint64_t auxv = 0;
 #if defined(PULSAR_AUXV_GETAUXVAL_PRESENT)
@@ -76,9 +90,7 @@ bool crc32c_pmull_runtime_check(void) {
 #endif
 }
 
-
-uint32_t
-crc32c_arm64(uint32_t crc, const void* data, size_t len) {
+uint32_t crc32c_arm64(uint32_t crc, const void *data, size_t len) {
     const uint8_t *buf8;
     const uint64_t *buf64 = (uint64_t *)data;
     int length = (int)len;
@@ -174,4 +186,7 @@ crc32c_arm64(uint32_t crc, const void* data, size_t len) {
     return crc;
 }
 
+} // namespace pulsar
+#else
+#warning "HAVE_ARM64_CRC is not defined, Arm CRC32C neon will be disabled"
 #endif

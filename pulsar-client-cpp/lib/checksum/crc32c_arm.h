@@ -33,12 +33,12 @@
   PREF4X64L1(buffer, (PREF_OFFSET), 4) \
   PREF4X64L1(buffer, (PREF_OFFSET), 8) \
   PREF4X64L1(buffer, (PREF_OFFSET), 12)
-
-extern uint32_t crc32c_arm64(uint32_t crc, const void* data,
-                             size_t len);
-extern uint32_t crc32c_runtime_check(void);
-extern bool crc32c_pmull_runtime_check(void);
-
+namespace pulsar {
+bool crc32c_arm64_initialize();
+uint32_t crc32c_arm64(uint32_t crc, const void* data, size_t len);
+uint32_t crc32c_runtime_check();
+bool crc32c_pmull_runtime_check();
+}
 #ifdef __ARM_FEATURE_CRYPTO
 #define HAVE_ARM64_CRYPTO
 #include <arm_neon.h>
