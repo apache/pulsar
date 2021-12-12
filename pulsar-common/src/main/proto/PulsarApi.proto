@@ -225,7 +225,7 @@ enum ServerError {
                          // fenced. Applications are now supposed to close it and create a
                          // new producer
 
-    TcFenced= 26; // Transaction coordinator is fenced,
+    TcFenced = 26; // Transaction coordinator is fenced,
                   // the client need to be reconnected,
                   // and the tc operation need to try again
 }
