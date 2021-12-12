@@ -1379,12 +1379,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         CompletableFuture<List<String>> replicationClustersFuture = getReplicationClusters(name);
 
-        CompletableFuture<Integer> ttlFuture = getMessageTTL();
-
-        return CompletableFuture.allOf(replicationClustersFuture, ttlFuture)
+        return CompletableFuture.allOf(replicationClustersFuture)
                 .thenCompose(__ -> {
                     List<String> configuredClusters = replicationClustersFuture.join();
-                    int newMessageTTLinSeconds = ttlFuture.join();
+                    int newMessageTTLinSeconds = topicPolicies.getMessageTTLInSeconds().get();
 
                     String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
 
@@ -1454,15 +1452,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public void checkMessageExpiry() {
-        getMessageTTL().thenAccept(messageTtlInSeconds -> {
-            //If topic level policy or message ttl is not set, fall back to namespace level config.
-
-            if (messageTtlInSeconds != 0) {
-                subscriptions.forEach((__, sub) -> sub.expireMessages(messageTtlInSeconds));
-                replicators.forEach((__, replicator)
-                        -> ((PersistentReplicator) replicator).expireMessages(messageTtlInSeconds));
-            }
-        });
+        int messageTtlInSeconds = topicPolicies.getMessageTTLInSeconds().get();
+        if (messageTtlInSeconds != 0) {
+            subscriptions.forEach((__, sub) -> sub.expireMessages(messageTtlInSeconds));
+            replicators.forEach((__, replicator)
+                    -> ((PersistentReplicator) replicator).expireMessages(messageTtlInSeconds));
+        }
     }
 
     @Override
@@ -2880,31 +2875,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 return OffloadProcessStatus.forError(e.getMessage());
             }
         }
-    }
-
-    /**
-     * Get message TTL for this topic.
-     * @return Message TTL in second.
-     */
-    private CompletableFuture<Integer> getMessageTTL() {
-        //Return Topic level message TTL if exist. If topic level policy or message ttl is not set,
-        //fall back to namespace level message ttl then message ttl set for current broker.
-        Optional<Integer> messageTtl = getTopicPolicies().map(TopicPolicies::getMessageTTLInSeconds);
-        if (messageTtl.isPresent()) {
-            return CompletableFuture.completedFuture(messageTtl.get());
-        }
-
-        return brokerService.pulsar().getPulsarResources().getNamespaceResources()
-                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
-                .thenApply(optPolicies -> {
-                    if (optPolicies.isPresent()) {
-                        if (optPolicies.get().message_ttl_in_seconds != null) {
-                            return optPolicies.get().message_ttl_in_seconds;
-                        }
-                    }
-
-                    return brokerService.getPulsar().getConfiguration().getTtlDurationDefaultInSeconds();
-                });
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentTopic.class);
