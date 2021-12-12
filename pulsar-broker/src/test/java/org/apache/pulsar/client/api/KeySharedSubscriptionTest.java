@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -36,6 +37,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -44,9 +46,13 @@ import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.curator.shaded.com.google.common.collect.Lists;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.nonpersistent.NonPersistentStickyKeyDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.awaitility.Awaitility;
@@ -90,7 +96,15 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         };
     }
 
-    @BeforeMethod
+    @DataProvider(name = "topicDomain")
+    public Object[][] topicDomainProvider() {
+        return new Object[][] {
+                { "persistent" },
+                { "non-persistent" }
+        };
+    }
+
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -517,10 +531,9 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         // Since only 1 out of 10 consumers is stuck, we should be able to receive ~90% messages,
         // plus or minus for some skew in the key distribution.
-        Thread.sleep(5000);
-
-        assertEquals((double) receivedMessages.get(), N * 0.9, N * 0.3);
-
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals((double) receivedMessages.get(), N * 0.9, N * 0.3);
+        });
         for (PulsarClient c : clients) {
             c.close();
         }
@@ -936,6 +949,61 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         producer.close();
         consumer.close();
         client.close();
+    }
+
+    @Test(dataProvider = "topicDomain")
+    public void testSelectorChangedAfterAllConsumerDisconnected(String topicDomain) throws PulsarClientException,
+            ExecutionException, InterruptedException {
+        final String topicName = TopicName.get(topicDomain, "public", "default",
+                "testSelectorChangedAfterAllConsumerDisconnected" + UUID.randomUUID()).toString();
+
+        final String subName = "my-sub";
+
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .consumerName("first-consumer")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .keySharedPolicy(KeySharedPolicy.autoSplitHashRange())
+                .subscribe();
+
+        CompletableFuture<Optional<Topic>> future = pulsar.getBrokerService().getTopicIfExists(topicName);
+        assertTrue(future.isDone());
+        assertTrue(future.get().isPresent());
+        Topic topic = future.get().get();
+        PulsarApi.KeySharedMode keySharedMode = getKeySharedModeOfSubscription(topic, subName);
+        assertNotNull(keySharedMode);
+        assertEquals(keySharedMode, PulsarApi.KeySharedMode.AUTO_SPLIT);
+
+        consumer1.close();
+
+        consumer1 = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .consumerName("second-consumer")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .keySharedPolicy(KeySharedPolicy.stickyHashRange().ranges(Range.of(0, 65535)))
+                .subscribe();
+
+        future = pulsar.getBrokerService().getTopicIfExists(topicName);
+        assertTrue(future.isDone());
+        assertTrue(future.get().isPresent());
+        topic = future.get().get();
+        keySharedMode = getKeySharedModeOfSubscription(topic, subName);
+        assertNotNull(keySharedMode);
+        assertEquals(keySharedMode, PulsarApi.KeySharedMode.STICKY);
+        consumer1.close();
+    }
+
+    private PulsarApi.KeySharedMode getKeySharedModeOfSubscription(Topic topic, String subscription) {
+        if (TopicName.get(topic.getName()).getDomain().equals(TopicDomain.persistent)) {
+            return ((PersistentStickyKeyDispatcherMultipleConsumers) topic.getSubscription(subscription)
+                    .getDispatcher()).getKeySharedMode();
+        } else if (TopicName.get(topic.getName()).getDomain().equals(TopicDomain.non_persistent)) {
+            return ((NonPersistentStickyKeyDispatcherMultipleConsumers) topic.getSubscription(subscription)
+                    .getDispatcher()).getKeySharedMode();
+        }
+        return null;
     }
 
     private Consumer<String> createFixedHashRangesConsumer(String topic, String subscription, Range... ranges) throws PulsarClientException {

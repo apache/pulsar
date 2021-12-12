@@ -173,8 +173,18 @@ public class SourceStatsManager extends ComponentStatsManager {
                 .help("Exception from source.")
                 .register(collectorRegistry);
 
-        sysExceptionRateLimiter = new RateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES, null);
-        sourceExceptionRateLimiter = new RateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES, null);
+        sysExceptionRateLimiter = RateLimiter.builder()
+                .scheduledExecutorService(scheduledExecutorService)
+                .permits(5)
+                .rateTime(1)
+                .timeUnit(TimeUnit.MINUTES)
+                .build();
+        sourceExceptionRateLimiter = RateLimiter.builder()
+                .scheduledExecutorService(scheduledExecutorService)
+                .permits(5)
+                .rateTime(1)
+                .timeUnit(TimeUnit.MINUTES)
+                .build();
     }
 
     @Override

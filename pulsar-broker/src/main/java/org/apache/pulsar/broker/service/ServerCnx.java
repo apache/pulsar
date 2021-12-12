@@ -42,6 +42,8 @@ import java.net.SocketAddress;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
@@ -61,7 +63,6 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -85,6 +86,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandNewTxn;
 import org.apache.pulsar.common.intercept.InterceptException;
+import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.CommandUtils;
@@ -400,8 +402,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
                 return null;
             }).exceptionally(ex -> {
+                logAuthException(remoteAddress, "lookup", getPrincipal(), Optional.of(topicName), ex);
                 final String msg = "Exception occurred while trying to authorize lookup";
-                log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, getPrincipal(), topicName, ex);
                 ctx.writeAndFlush(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
                 lookupSemaphore.release();
                 return null;
@@ -472,9 +474,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
                 return null;
             }).exceptionally(ex -> {
+                logAuthException(remoteAddress, "partition-metadata", getPrincipal(), Optional.of(topicName), ex);
                 final String msg = "Exception occurred while trying to authorize get Partition Metadata";
-                log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, getPrincipal(), topicName);
-                ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.AuthorizationError, msg, requestId));
+                ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.AuthorizationError, msg,
+                        requestId));
                 lookupSemaphore.release();
                 return null;
             });
@@ -770,12 +773,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
             }
         } catch (Exception e) {
+            logAuthException(remoteAddress, "connect", getPrincipal(), Optional.empty(), e);
             String msg = "Unable to authenticate";
-            if (e instanceof AuthenticationException) {
-                log.warn("[{}] {}: {}", remoteAddress, msg, e.getMessage());
-            } else {
-                log.warn("[{}] {}", remoteAddress, msg, e);
-            }
             ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, msg));
             close();
         }
@@ -995,12 +994,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     }
                     return null;
         }).exceptionally(ex -> {
-            String msg = String.format("[%s] %s with role %s", remoteAddress, ex.getMessage(), getPrincipal());
-            if (ex.getCause() instanceof PulsarServerException) {
-                log.info(msg);
-            } else {
-                log.warn(msg);
-            }
+            logAuthException(remoteAddress, "subscribe", getPrincipal(), Optional.of(topicName), ex);
             commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, ex.getMessage());
             return null;
         });
@@ -1206,8 +1200,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     }
                     return null;
         }).exceptionally(ex -> {
-            String msg = String.format("[%s] %s with role %s", remoteAddress, ex.getMessage(), getPrincipal());
-            log.warn(msg);
+            logAuthException(remoteAddress, "producer", getPrincipal(), Optional.of(topicName), ex);
             commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, ex.getMessage());
             return null;
         });
@@ -1408,6 +1401,23 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         } else {
             commandSender.sendErrorResponse(requestId, ServerError.MetadataError, "Consumer not found");
         }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ServerCnx other = (ServerCnx) o;
+        return Objects.equals(ctx().channel().id(), other.ctx().channel().id());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(ctx().channel().id());
     }
 
     @Override
@@ -1621,6 +1631,36 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         });
     }
 
+    private CompletableFuture<Boolean> isNamespaceOperationAllowed(NamespaceName namespaceName,
+                                                                   NamespaceOperation operation) {
+        CompletableFuture<Boolean> isProxyAuthorizedFuture;
+        CompletableFuture<Boolean> isAuthorizedFuture;
+        if (service.isAuthorizationEnabled()) {
+            if (originalPrincipal != null) {
+                isProxyAuthorizedFuture = service.getAuthorizationService().allowNamespaceOperationAsync(
+                        namespaceName, operation, originalPrincipal, getAuthenticationData());
+            } else {
+                isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
+            }
+            isAuthorizedFuture = service.getAuthorizationService().allowNamespaceOperationAsync(
+                    namespaceName, operation, authRole, authenticationData);
+        } else {
+            isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
+            isAuthorizedFuture = CompletableFuture.completedFuture(true);
+        }
+        return isProxyAuthorizedFuture.thenCombine(isAuthorizedFuture, (isProxyAuthorized, isAuthorized) -> {
+            if (!isProxyAuthorized) {
+                log.warn("OriginalRole {} is not authorized to perform operation {} on namespace {}",
+                        originalPrincipal, operation, namespaceName);
+            }
+            if (!isAuthorized) {
+                log.warn("Role {} is not authorized to perform operation {} on namespace {}",
+                        authRole, operation, namespaceName);
+            }
+            return isProxyAuthorized && isAuthorized;
+        });
+    }
+
     @Override
     protected void handleGetTopicsOfNamespace(CommandGetTopicsOfNamespace commandGetTopicsOfNamespace) {
         final long requestId = commandGetTopicsOfNamespace.getRequestId();
@@ -1628,23 +1668,60 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final CommandGetTopicsOfNamespace.Mode mode = commandGetTopicsOfNamespace.getMode();
         final NamespaceName namespaceName = NamespaceName.get(namespace);
 
-        getBrokerService().pulsar().getNamespaceService().getListOfTopics(namespaceName, mode)
-                .thenAccept(topics -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Received CommandGetTopicsOfNamespace for namespace [//{}] by {}, size:{}",
-                                remoteAddress, namespace, requestId, topics.size());
-                    }
-                    commandSender.sendGetTopicsOfNamespaceResponse(topics, requestId);
-                })
-                .exceptionally(ex -> {
-                    log.warn("[{}] Error GetTopicsOfNamespace for namespace [//{}] by {}",
-                            remoteAddress, namespace, requestId);
-                    commandSender.sendErrorResponse(requestId,
-                            BrokerServiceException.getClientErrorCode(new ServerMetadataException(ex)),
-                            ex.getMessage());
-
-                    return null;
-                });
+        final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
+        if (lookupSemaphore.tryAcquire()) {
+            if (invalidOriginalPrincipal(originalPrincipal)) {
+                final String msg = "Valid Proxy Client role should be provided for getTopicsOfNamespaceRequest ";
+                log.warn("[{}] {} with role {} and proxyClientAuthRole {} on namespace {}", remoteAddress, msg,
+                        authRole, originalPrincipal, namespaceName);
+                commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, msg);
+                lookupSemaphore.release();
+                return;
+            }
+            isNamespaceOperationAllowed(namespaceName, NamespaceOperation.GET_TOPICS).thenApply(isAuthorized -> {
+                if (isAuthorized) {
+                    getBrokerService().pulsar().getNamespaceService().getListOfTopics(namespaceName, mode)
+                        .thenAccept(topics -> {
+                            if (log.isDebugEnabled()) {
+                                log.debug(
+                                        "[{}] Received CommandGetTopicsOfNamespace for namespace [//{}] by {}, size:{}",
+                                        remoteAddress, namespace, requestId, topics.size());
+                            }
+                            commandSender.sendGetTopicsOfNamespaceResponse(topics, requestId);
+                            lookupSemaphore.release();
+                        })
+                        .exceptionally(ex -> {
+                            log.warn("[{}] Error GetTopicsOfNamespace for namespace [//{}] by {}",
+                                    remoteAddress, namespace, requestId);
+                            commandSender.sendErrorResponse(requestId,
+                                    BrokerServiceException.getClientErrorCode(new ServerMetadataException(ex)),
+                                    ex.getMessage());
+                            lookupSemaphore.release();
+                            return null;
+                        });
+                } else {
+                    final String msg = "Proxy Client is not authorized to GetTopicsOfNamespace";
+                    log.warn("[{}] {} with role {} on namespace {}", remoteAddress, msg, getPrincipal(), namespaceName);
+                    commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, msg);
+                    lookupSemaphore.release();
+                }
+                return null;
+            }).exceptionally(ex -> {
+                logNamespaceNameAuthException(remoteAddress, "GetTopicsOfNamespace", getPrincipal(),
+                        Optional.of(namespaceName), ex);
+                final String msg = "Exception occurred while trying to authorize GetTopicsOfNamespace";
+                commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, msg);
+                lookupSemaphore.release();
+                return null;
+            });
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Failed GetTopicsOfNamespace lookup due to too many lookup-requests {}", remoteAddress,
+                        namespaceName);
+            }
+            commandSender.sendErrorResponse(requestId, ServerError.TooManyRequests,
+                    "Failed due to too many pending lookup requests");
+        }
     }
 
     @Override
@@ -2266,5 +2343,29 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @Override
     public void execute(Runnable runnable) {
         ctx.channel().eventLoop().execute(runnable);
+    }
+
+    private static void logAuthException(SocketAddress remoteAddress, String operation,
+                                         String principal, Optional<TopicName> topic, Throwable ex) {
+        String topicString = topic.map(t -> ", topic=" + t.toString()).orElse("");
+        if (ex instanceof AuthenticationException) {
+            log.info("[{}] Failed to authenticate: operation={}, principal={}{}, reason={}",
+                     remoteAddress, operation, principal, topicString, ex.getMessage());
+        } else {
+            log.error("[{}] Error trying to authenticate: operation={}, principal={}{}",
+                      remoteAddress, operation, principal, topicString, ex);
+        }
+    }
+
+    private static void logNamespaceNameAuthException(SocketAddress remoteAddress, String operation,
+                                         String principal, Optional<NamespaceName> namespaceName, Throwable ex) {
+        String namespaceNameString = namespaceName.map(t -> ", namespace=" + t.toString()).orElse("");
+        if (ex instanceof AuthenticationException) {
+            log.info("[{}] Failed to authenticate: operation={}, principal={}{}, reason={}",
+                    remoteAddress, operation, principal, namespaceNameString, ex.getMessage());
+        } else {
+            log.error("[{}] Error trying to authenticate: operation={}, principal={}{}",
+                    remoteAddress, operation, principal, namespaceNameString, ex);
+        }
     }
 }

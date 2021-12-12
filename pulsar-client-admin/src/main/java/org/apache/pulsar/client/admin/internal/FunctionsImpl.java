@@ -105,7 +105,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(getApiException(response));
                         } else {
                             List<String> functions = response.readEntity(new GenericType<List<String>>() {});
@@ -144,7 +144,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(getApiException(response));
                         } else {
                             future.complete(response.readEntity(FunctionConfig.class));
@@ -183,7 +183,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(getApiException(response));
                         } else {
                             future.complete(response.readEntity(FunctionStatus.class));
@@ -226,7 +226,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(getApiException(response));
                         } else {
                             future.complete(response.readEntity(
@@ -269,7 +269,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(getApiException(response));
                         } else {
                             future.complete(response.readEntity(
@@ -309,7 +309,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(getApiException(response));
                         } else {
                             future.complete(response.readEntity(FunctionStats.class));
@@ -919,7 +919,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     public List<ConnectorDefinition> getConnectorsList() throws PulsarAdminException {
         try {
             Response response = request(functions.path("connectors")).get();
-            if (!response.getStatusInfo().equals(Response.Status.OK)) {
+            if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                 throw getApiException(response);
             }
             return response.readEntity(new GenericType<List<ConnectorDefinition>>() {
@@ -976,7 +976,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(getApiException(response));
                         } else {
                             future.complete(response.readEntity(FunctionState.class));

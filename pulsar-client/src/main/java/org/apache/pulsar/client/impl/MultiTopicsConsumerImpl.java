@@ -22,7 +22,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMap.Builder;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Queues;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import org.apache.commons.lang3.tuple.Pair;
@@ -162,7 +161,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         this.internalConfig = getInternalConsumerConfig();
         this.stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ConsumerStatsRecorderImpl(this) : null;
 
-        // start track and auto subscribe partition increasement
+        // start track and auto subscribe partition increment
         if (conf.isAutoUpdatePartitions()) {
             topicsPartitionChangedListener = new TopicsPartitionChangedListener();
             partitionsAutoUpdateTimeout = client.timer()
@@ -234,10 +233,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             log.debug("[{}] startReceivingMessages for {} new consumers in topics consumer, state: {}",
                 topic, newConsumers.size(), getState());
         }
+
         if (getState() == State.Ready) {
             newConsumers.forEach(consumer -> {
                 consumer.increaseAvailablePermits(consumer.getConnectionHandler().cnx(), conf.getReceiverQueueSize());
-                receiveMessageFromConsumer(consumer);
+                internalPinnedExecutor.execute(() -> receiveMessageFromConsumer(consumer));
             });
         }
     }
@@ -257,18 +257,23 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 // mark this consumer to be resumed later: if No more space left in shared queue,
                 // or if any consumer is already paused (to create fair chance for already paused consumers)
                 pausedConsumers.add(consumer);
+
+                // Since we din't get a mutex, the condition on the incoming queue might have changed after
+                // we have paused the current consumer. We need to re-check in order to avoid this consumer
+                // from getting stalled.
+                resumeReceivingFromPausedConsumersIfNeeded();
             } else {
                 // Schedule next receiveAsync() if the incoming queue is not full. Use a different thread to avoid
                 // recursion and stack overflow
-                client.getInternalExecutorService().execute(() -> receiveMessageFromConsumer(consumer));
+                internalPinnedExecutor.execute(() -> receiveMessageFromConsumer(consumer));
             }
         });
     }
 
     private void messageReceived(ConsumerImpl<T> consumer, Message<T> message) {
         checkArgument(message instanceof MessageImpl);
-        TopicMessageImpl<T> topicMessage = new TopicMessageImpl<>(
-                consumer.getTopic(), consumer.getTopicNameWithoutPartition(), message);
+        TopicMessageImpl<T> topicMessage = new TopicMessageImpl<>(consumer.getTopic(),
+                consumer.getTopicNameWithoutPartition(), message, consumer);
 
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Received message from topics-consumer {}",
@@ -276,7 +281,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
 
         // if asyncReceive is waiting : return message to callback without adding to incomingMessages queue
-        CompletableFuture<Message<T>> receivedFuture = pollPendingReceive();
+        CompletableFuture<Message<T>> receivedFuture = nextPendingReceive();
         if (receivedFuture != null) {
             unAckedMessageTracker.add(topicMessage.getMessageId());
             completePendingReceive(receivedFuture, topicMessage);
@@ -303,7 +308,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     break;
                 }
 
-                client.getInternalExecutorService().execute(() -> {
+                internalPinnedExecutor.execute(() -> {
                     receiveMessageFromConsumer(consumer);
                 });
             }
@@ -363,9 +368,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         CompletableFuture<Messages<T>> result = cancellationHandler.createFuture();
         try {
             lock.writeLock().lock();
-            if (pendingBatchReceives == null) {
-                pendingBatchReceives = Queues.newConcurrentLinkedQueue();
-            }
             if (hasEnoughMessagesForBatchReceive()) {
                 MessagesImpl<T> messages = getNewMessagesImpl();
                 Message<T> msgPeeked = incomingMessages.peek();
@@ -516,13 +518,17 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             .map(c -> c.unsubscribeAsync()).collect(Collectors.toList());
 
         FutureUtil.waitForAll(futureList)
+            .thenCompose((r) -> {
+                setState(State.Closed);
+                cleanupMultiConsumer();
+                log.info("[{}] [{}] [{}] Unsubscribed Topics Consumer",
+                        topic, subscription, consumerName);
+                // fail all pending-receive futures to notify application
+                return failPendingReceive();
+            })
             .whenComplete((r, ex) -> {
                 if (ex == null) {
-                    setState(State.Closed);
-                    unAckedMessageTracker.close();
                     unsubscribeFuture.complete(null);
-                    log.info("[{}] [{}] [{}] Unsubscribed Topics Consumer",
-                        topic, subscription, consumerName);
                 } else {
                     setState(State.Failed);
                     unsubscribeFuture.completeExceptionally(ex);
@@ -552,15 +558,16 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             .map(c -> c.closeAsync()).collect(Collectors.toList());
 
         FutureUtil.waitForAll(futureList)
+            .thenCompose((r) -> {
+                setState(State.Closed);
+                cleanupMultiConsumer();
+                log.info("[{}] [{}] Closed Topics Consumer", topic, subscription);
+                // fail all pending-receive futures to notify application
+                return failPendingReceive();
+            })
             .whenComplete((r, ex) -> {
                 if (ex == null) {
-                    setState(State.Closed);
-                    unAckedMessageTracker.close();
                     closeFuture.complete(null);
-                    log.info("[{}] [{}] Closed Topics Consumer", topic, subscription);
-                    client.cleanupConsumer(this);
-                    // fail all pending-receive futures to notify application
-                    failPendingReceive();
                 } else {
                     setState(State.Failed);
                     closeFuture.completeExceptionally(ex);
@@ -572,11 +579,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         return closeFuture;
     }
 
-    private void failPendingReceive() {
-        if (pinnedExecutor != null && !pinnedExecutor.isShutdown()) {
-            failPendingReceives(pendingReceives);
-            failPendingBatchReceives(pendingBatchReceives);
-        }
+    private void cleanupMultiConsumer() {
+        unAckedMessageTracker.close();
+        client.cleanupConsumer(this);
     }
 
     @Override
@@ -852,6 +857,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             .exceptionally(e -> {
                 log.warn("Failed subscription for createPartitionedConsumer: {} {}, e:{}",
                     topicName, numPartitions,  e);
+                consumer.cleanupMultiConsumer();
                 subscribeFuture.completeExceptionally(
                     PulsarClientException.wrap(((Throwable) e).getCause(), String.format("Failed to subscribe %s with %d partitions", topicName, numPartitions)));
                 return null;
@@ -972,14 +978,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 }
 
                 // We have successfully created new consumers, so we can start receiving messages for them
-                startReceivingMessages(
-                    consumers.values().stream()
-                        .filter(consumer1 -> {
-                            String consumerTopicName = consumer1.getTopic();
-                            return TopicName.get(consumerTopicName).getPartitionedTopicName().equals(
-                                    TopicName.get(topicName).getPartitionedTopicName());
-                        })
-                        .collect(Collectors.toList()));
+                startReceivingMessages(consumers.values().stream()
+                                .filter(consumer1 -> {
+                                    String consumerTopicName = consumer1.getTopic();
+                                    return TopicName.get(consumerTopicName).getPartitionedTopicName().equals(
+                                            TopicName.get(topicName).getPartitionedTopicName());
+                                })
+                                .collect(Collectors.toList()));
 
                 subscribeResult.complete(null);
                 log.info("[{}] [{}] Success subscribe new topic {} in topics consumer, partitions: {}, allTopicPartitionsNumber: {}",

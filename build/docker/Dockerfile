@@ -25,10 +25,11 @@ ADD protobuf.patch /pulsar
 
 RUN apt-get update && \
     apt-get install -y tig g++ cmake libssl-dev libcurl4-openssl-dev \
-                liblog4cxx-dev libprotobuf-dev libboost-all-dev google-mock libgtest-dev \
-                libjsoncpp-dev libxml2-utils protobuf-compiler wget \
-                curl doxygen openjdk-8-jdk-headless clang-format-5.0 \
-                gnupg2 golang-1.10-go zip unzip libzstd-dev libsnappy-dev
+                liblog4cxx-dev libprotobuf-dev google-mock libgtest-dev \
+                libboost-dev libboost-program-options-dev libboost-system-dev libboost-python-dev \
+                libxml2-utils protobuf-compiler wget \
+                curl doxygen openjdk-8-jdk-headless openjdk-11-jdk-headless clang-format-5.0 \
+                gnupg2 golang-1.13-go zip unzip libzstd-dev libsnappy-dev python3-pip libpython-dev
 
 # Compile and install gtest
 RUN cd /usr/src/gtest && cmake . && make && cp libgtest.a /usr/lib
@@ -62,7 +63,7 @@ RUN wget https://artifacts.crowdin.com/repo/deb/crowdin.deb -O crowdin.deb
 RUN dpkg -i crowdin.deb
 
 # Install PIP and PDoc
-RUN wget https://bootstrap.pypa.io/get-pip.py && python get-pip.py
+RUN wget https://bootstrap.pypa.io/2.7/get-pip.py && python get-pip.py && rm get-pip.py
 RUN pip install pdoc
 
 # Install Protobuf doc generator (requires Go)

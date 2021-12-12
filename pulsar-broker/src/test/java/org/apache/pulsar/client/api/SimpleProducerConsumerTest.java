@@ -3890,4 +3890,133 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
         assertEquals(1, res.getFields().size());
     }
+
+    /**
+     * Test validates that consumer of partitioned-topic utilizes threads of all partitioned-consumers and slow-listener
+     * of one of the partition doesn't impact listener-processing of other partition.
+     * <p>
+     * Test starts consumer with 10 partitions where one of the partition listener gets blocked but that will not impact
+     * processing of other 9 partitions and they will be processed successfully.
+     * As of involved #11455(Fix Consumer listener does not respect receiver queue size),
+     * This test has changed the purpose that different thread run the messageListener. Because messageListener has to
+     * be called one by one, it's possible to run by the same one thread.
+     *
+     * @throws Exception
+     */
+    @Test(timeOut = 20000)
+    public void testPartitionTopicsOnSeparateListener() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final String topicName = "persistent://my-property/my-ns/one-partitioned-topic";
+        final String subscriptionName = "my-sub-";
+
+        PulsarClient pulsarClient = PulsarClient.builder().listenerThreads(10).serviceUrl(lookupUrl.toString()).build();
+
+        // create partitioned topic
+        int partitions = 10;
+        admin.topics().createPartitionedTopic(topicName, partitions);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, partitions);
+
+        // each partition
+        int totalMessages = partitions * 2;
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicInteger count = new AtomicInteger();
+
+        Set<String> listenerThreads = Sets.newConcurrentHashSet();
+        MessageListener<byte[]> messageListener = (c, m) -> {
+            if (count.incrementAndGet() == totalMessages) {
+                latch.countDown();
+            }
+            listenerThreads.add(Thread.currentThread().getName());
+        };
+        @Cleanup
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topicName).messageListener(messageListener)
+                .subscriptionName(subscriptionName + 1).consumerName("aaa").subscribe();
+        log.info("Consumer1 created. topic: {}", consumer1.getTopic());
+
+        @Cleanup
+        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).enableBatching(false).create();
+        log.info("Producer1 created. topic: {}", producer1.getTopic());
+
+        for (int i = 0; i < totalMessages; i++) {
+            producer1.newMessage().value(("one-partitioned-topic-value-producer1-" + i).getBytes(UTF_8)).send();
+        }
+        latch.await();
+        assertTrue(listenerThreads.size() >= 1);
+        pulsarClient.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test(timeOut = 30000)
+    public void testShareConsumerWithMessageListener() throws Exception {
+        String topic = "testReadAheadWhenAddingConsumers-" + UUID.randomUUID();
+        int total = 200;
+        Set<Integer> resultSet = Sets.newConcurrentHashSet();
+        AtomicInteger r1 = new AtomicInteger(0);
+        AtomicInteger r2 = new AtomicInteger(0);
+
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .maxPendingMessages(500)
+                .enableBatching(false)
+                .create();
+
+        @Cleanup
+        Consumer<Integer> c1 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("shared")
+                .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(10)
+                .consumerName("c1")
+                .messageListener((MessageListener<Integer>) (consumer, msg) -> {
+                    log.info("c1 received : {}", msg.getValue());
+                    try {
+                        resultSet.add(msg.getValue());
+                        r1.incrementAndGet();
+                        consumer.acknowledge(msg);
+                        Thread.sleep(10);
+                    } catch (InterruptedException ignore) {
+                        //
+                    } catch (PulsarClientException ex) {
+                        log.error("c1 acknowledge error", ex);
+                    }
+                })
+                .subscribe();
+
+        for (int i = 0; i < total; i++) {
+            producer.newMessage()
+                    .value(i)
+                    .send();
+        }
+
+        @Cleanup
+        Consumer<Integer> c2 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("shared")
+                .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(10)
+                .consumerName("c2")
+                .messageListener((MessageListener<Integer>) (consumer, msg) -> {
+                    log.info("c2 received : {}", msg.getValue());
+                    try {
+                        resultSet.add(msg.getValue());
+                        r2.incrementAndGet();
+                        consumer.acknowledge(msg);
+                        Thread.sleep(10);
+                    } catch (InterruptedException ignore) {
+                        //
+                    } catch (PulsarClientException ex) {
+                        log.error("c2 acknowledge error", ex);
+                    }
+                })
+                .subscribe();
+
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(r1.get() >= 1);
+            assertTrue(r2.get() >= 1);
+            assertEquals(resultSet.size(), total);
+        });
+    }
 }
