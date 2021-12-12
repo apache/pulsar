@@ -206,6 +206,4 @@ uint32_t crc32c_arm64(uint32_t crc, const void *data, size_t len) {
 }
 
 }  // namespace pulsar
-#else
-#warning "HAVE_ARM64_CRC is not defined, Arm CRC32C neon will be disabled"
 #endif
