@@ -79,9 +79,16 @@ TEST(ClientTest, testSwHwChecksum) {
     // (b.2) sw: incremental checksum on multiple partial data
     swChecksum1 = crc32cHw(0, (char *)data.c_str(), data.length());
     uint32_t swIncrementalChecksum = crc32cSw(swChecksum1, (char *)data.c_str(), data.length());
-
     ASSERT_EQ(hwIncrementalChecksum, hwDoubleChecksum);
     ASSERT_EQ(hwIncrementalChecksum, swIncrementalChecksum);
+    // (c.1) hw arm: checksum on full data
+    uint32_t hwArmDoubleChecksum = crc32cHwArm(0, (char *)doubleData.c_str(), doubleData.length());
+    // (c.2) hw arm: incremental checksum on multiple partial data
+    hwArmChecksum1 = crc32cHwArm(0, (char *)data.c_str(), data.length());
+    uint32_t hwArmIncrementalChecksum = crc32cHw(hwArmChecksum1, (char *)data.c_str(), data.length());
+    ASSERT_EQ(swDoubleChecksum, hwArmDoubleChecksum);
+    ASSERT_EQ(hwArmIncrementalChecksum, hwArmDoubleChecksum);
+    ASSERT_EQ(hwArmIncrementalChecksum, swIncrementalChecksum);
 }
 
 TEST(ClientTest, testServerConnectError) {
