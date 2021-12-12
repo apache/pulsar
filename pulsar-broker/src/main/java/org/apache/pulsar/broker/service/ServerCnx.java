@@ -2008,9 +2008,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (ex instanceof ManagedLedgerException.ManagedLedgerFencedException || ex != null
                 && ex.getCause() instanceof ManagedLedgerException.ManagedLedgerFencedException) {
             if (log.isDebugEnabled()) {
-                log.debug("The managerLedger was fenced for the request {}", op);
+                log.debug("Throw a CoordinatorNotFoundException to client "
+                        + "with the message got from a ManagedLedgerFencedException for the request {}", op);
             }
-            return ex;
+            return new CoordinatorException.CoordinatorNotFoundException(ex.getMessage());
 
         }
         log.error("Send response error for {} request {}.", op, requestId, ex);

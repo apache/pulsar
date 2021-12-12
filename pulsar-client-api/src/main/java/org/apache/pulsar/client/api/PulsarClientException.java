@@ -910,19 +910,6 @@ public class PulsarClientException extends IOException {
         }
     }
 
-    /**
-     * Exception is thrown when the TC was fenced.
-     */
-    public static class TcFencedException extends PulsarClientException {
-        /**
-         * Constructs an {@code TcFencedException} with the specified detail message.
-         * @param msg The detail message (which was provided by the managerLedgerFenced exception).
-         */
-        public TcFencedException(String msg) {
-            super(msg);
-        }
-    }
-
     // wrap an exception to enriching more info messages.
     public static Throwable wrap(Throwable t, String msg) {
         msg += "\n" + t.getMessage();

@@ -119,14 +119,4 @@ public abstract class CoordinatorException extends Exception {
 
         }
     }
-
-    /**
-     * Exception is thrown when the TC was fenced.
-     */
-    public static class TcFencedException extends CoordinatorException {
-
-        public TcFencedException(String message) {
-            super(message);
-        }
-    }
 }

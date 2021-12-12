@@ -451,7 +451,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     }
 
     private boolean checkIfNeedRetryByError(ServerError error, String message, OpBase<?> op) {
-        if (error == ServerError.TransactionCoordinatorNotFound || error == ServerError.TcFenced) {
+        if (error == ServerError.TransactionCoordinatorNotFound) {
             if (getState() != State.Connecting) {
                 //What need to be lock is the operation changing state instead of reconnecting
                 lock.lock();
