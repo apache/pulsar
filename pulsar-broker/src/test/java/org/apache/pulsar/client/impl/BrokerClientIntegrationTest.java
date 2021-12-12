@@ -49,9 +49,11 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Cleanup;
@@ -68,6 +70,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
+import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -606,55 +609,50 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         final PulsarClientImpl pulsarClient2;
 
         final String topicName = "persistent://prop/usw/my-ns/cocurrentLoadingTopic";
-        int concurrentTopic = pulsar.getConfiguration().getMaxConcurrentTopicLoadRequest();
         final int concurrentLookupRequests = 20;
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(concurrentLookupRequests);
+        pulsar.getConfiguration().setAuthorizationEnabled(false);
 
-        try {
-            pulsar.getConfiguration().setAuthorizationEnabled(false);
-            stopBroker();
-            startBroker();
-            pulsar.getConfiguration().setMaxConcurrentTopicLoadRequest(1);
-            String lookupUrl = pulsar.getBrokerServiceUrl();
+        Field field = BrokerService.class.getDeclaredField("topicLoadRequestSemaphore");
+        field.setAccessible(true);
+        field.set(pulsar.getBrokerService(), new AtomicReference<Semaphore>(
+                new Semaphore(1, false)));
+        String lookupUrl = pulsar.getBrokerServiceUrl();
 
-            pulsarClient = (PulsarClientImpl) PulsarClient.builder().serviceUrl(lookupUrl)
-                    .statsInterval(0, TimeUnit.SECONDS).maxNumberOfRejectedRequestPerConnection(0).build();
+        pulsarClient = (PulsarClientImpl) PulsarClient.builder().serviceUrl(lookupUrl)
+                .statsInterval(0, TimeUnit.SECONDS).maxNumberOfRejectedRequestPerConnection(0).build();
 
-            pulsarClient2 = (PulsarClientImpl) PulsarClient.builder().serviceUrl(lookupUrl)
-                    .statsInterval(0, TimeUnit.SECONDS).ioThreads(concurrentLookupRequests).connectionsPerBroker(20)
-                    .build();
+        pulsarClient2 = (PulsarClientImpl) PulsarClient.builder().serviceUrl(lookupUrl)
+                .statsInterval(0, TimeUnit.SECONDS).ioThreads(concurrentLookupRequests).connectionsPerBroker(20)
+                .build();
 
-            ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();
-            ClientCnx cnx = producer.cnx();
-            assertTrue(cnx.channel().isActive());
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();
+        ClientCnx cnx = producer.cnx();
+        assertTrue(cnx.channel().isActive());
 
-            final List<CompletableFuture<Producer<byte[]>>> futures = Lists.newArrayList();
-            final int totalProducers = 10;
-            CountDownLatch latch = new CountDownLatch(totalProducers);
-            for (int i = 0; i < totalProducers; i++) {
-                executor.submit(() -> {
-                    final String randomTopicName1 = topicName + randomUUID().toString();
-                    final String randomTopicName2 = topicName + randomUUID().toString();
-                    // pass producer-name to avoid exception: producer is already connected to topic
-                    synchronized (futures) {
-                        futures.add(pulsarClient2.newProducer().topic(randomTopicName1).createAsync());
-                        futures.add(pulsarClient.newProducer().topic(randomTopicName2).createAsync());
-                    }
-                    latch.countDown();
-                });
-            }
-
-            latch.await();
-            synchronized (futures) {
-                FutureUtil.waitForAll(futures).get();
-            }
-            pulsarClient.close();
-            pulsarClient2.close();
-        } finally {
-            // revert back to original value
-            pulsar.getConfiguration().setMaxConcurrentTopicLoadRequest(concurrentTopic);
-            executor.shutdownNow();
+        final List<CompletableFuture<Producer<byte[]>>> futures = Lists.newArrayList();
+        final int totalProducers = 10;
+        CountDownLatch latch = new CountDownLatch(totalProducers);
+        for (int i = 0; i < totalProducers; i++) {
+            executor.submit(() -> {
+                final String randomTopicName1 = topicName + randomUUID().toString();
+                final String randomTopicName2 = topicName + randomUUID().toString();
+                // pass producer-name to avoid exception: producer is already connected to topic
+                synchronized (futures) {
+                    futures.add(pulsarClient2.newProducer().topic(randomTopicName1).createAsync());
+                    futures.add(pulsarClient.newProducer().topic(randomTopicName2).createAsync());
+                }
+                latch.countDown();
+            });
         }
+
+        latch.await();
+        synchronized (futures) {
+            FutureUtil.waitForAll(futures).get();
+        }
+        pulsarClient.close();
+        pulsarClient2.close();
     }
 
     /**
