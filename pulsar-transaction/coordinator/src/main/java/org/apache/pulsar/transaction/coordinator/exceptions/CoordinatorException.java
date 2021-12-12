@@ -121,11 +121,11 @@ public abstract class CoordinatorException extends Exception {
     }
 
     /**
-     * Exception is thrown when a isRetryable Exception was thrown.
+     * Exception is thrown when the TC was fenced.
      */
-    public static class TcOperationRetryException extends CoordinatorException {
+    public static class TcFencedException extends CoordinatorException {
 
-        public TcOperationRetryException(String message) {
+        public TcFencedException(String message) {
             super(message);
         }
     }

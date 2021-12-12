@@ -225,8 +225,9 @@ enum ServerError {
                          // fenced. Applications are now supposed to close it and create a
                          // new producer
 
-    TcOperationRetry = 26; // Transaction coordinator is not Ready,
-                         // the tc operation need to try again
+    TcFenced= 26; // Transaction coordinator is fenced,
+                  // the client need to be reconnected,
+                  // and the tc operation need to try again
 }
 
 enum AuthMethod {

@@ -18,19 +18,27 @@
  */
 package org.apache.pulsar.broker.transaction;
 
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.TransactionMetaStoreHandler;
 import org.apache.pulsar.client.impl.transaction.TransactionCoordinatorClientImpl;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
+import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
+import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -41,10 +49,11 @@ import java.util.Collections;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.fail;
+import static org.junit.Assert.assertFalse;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
+@Slf4j
 public class TransactionClientConnectTest extends TransactionTestBase {
 
     private static final String RECONNECT_TOPIC = NAMESPACE1 + "/txn-client-reconnect-test";
@@ -81,10 +90,9 @@ public class TransactionClientConnectTest extends TransactionTestBase {
         try {
             callable1.call().get();
         } catch (ExecutionException e) {
-            if (!(e.getCause() instanceof TransactionCoordinatorClientException.InvalidTxnStatusException)
-                    && !(e.getCause() instanceof TransactionCoordinatorClientException.TransactionNotFoundException)) {
-                fail();
-            }
+            assertFalse(e.getCause() instanceof TransactionCoordinatorClientException.CoordinatorNotFoundException);
+            waitToReady();
+            callable1.call().get();
         }
         fence(getPulsarServiceList().get(0).getTransactionMetadataStoreService());
         CompletableFuture<?> completableFuture = callable2.call();
@@ -92,20 +100,17 @@ public class TransactionClientConnectTest extends TransactionTestBase {
             completableFuture.get(3, TimeUnit.SECONDS);
         } catch (TimeoutException ignore) {
         } catch (ExecutionException e) {
-            if (!(e.getCause() instanceof TransactionCoordinatorClientException.InvalidTxnStatusException)
-                    && !(e.getCause() instanceof TransactionCoordinatorClientException.TransactionNotFoundException)) {
-                fail();
-            }
+            Assert.assertFalse(e.getCause()
+                    instanceof TransactionCoordinatorClientException.CoordinatorNotFoundException);
         }
 
         unFence(getPulsarServiceList().get(0).getTransactionMetadataStoreService());
         try {
+            waitToReady();
             completableFuture.get();
         } catch (ExecutionException e) {
-            if (!(e.getCause() instanceof TransactionCoordinatorClientException.InvalidTxnStatusException)
-                    && !(e.getCause() instanceof TransactionCoordinatorClientException.TransactionNotFoundException)) {
-                fail();
-            }
+            Assert.assertFalse(e.getCause()
+                    instanceof TransactionCoordinatorClientException.CoordinatorNotFoundException);
         }
     }
 
@@ -187,5 +192,32 @@ public class TransactionClientConnectTest extends TransactionTestBase {
         field.setAccessible(true);
         field.set(((MLTransactionMetadataStore) transactionMetadataStoreService.getStores()
                 .get(TransactionCoordinatorID.get(0))).getManagedLedger(), ManagedLedgerImpl.State.LedgerOpened);
+    }
+
+    public void waitToReady() throws Exception{
+        TransactionMetadataStoreService transactionMetadataStoreService =
+                getPulsarServiceList().get(0).getTransactionMetadataStoreService();
+        Class<TransactionMetadataStoreService> transactionMetadataStoreServiceClass =
+                TransactionMetadataStoreService.class;
+        Field field1 =
+                transactionMetadataStoreServiceClass.getDeclaredField("stores");
+        field1.setAccessible(true);
+        Map<TransactionCoordinatorID, TransactionMetadataStore> stores =
+                (Map<TransactionCoordinatorID, TransactionMetadataStore>) field1
+                        .get(transactionMetadataStoreService);
+        Awaitility.await().until(() -> {
+            for (TransactionMetadataStore transactionMetadataStore : stores.values()) {
+                Class<TransactionMetadataStoreState> transactionMetadataStoreStateClass =
+                        TransactionMetadataStoreState.class;
+                Field field = transactionMetadataStoreStateClass.getDeclaredField("state");
+                field.setAccessible(true);
+                TransactionMetadataStoreState.State state =
+                        (TransactionMetadataStoreState.State) field.get(transactionMetadataStore);
+                if (!state.equals(TransactionMetadataStoreState.State.Ready)) {
+                    return false;
+                }
+            }
+            return true;
+        });
     }
 }

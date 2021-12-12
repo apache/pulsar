@@ -1997,7 +1997,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return true;
         }
     }
-    private Throwable handleException(Throwable ex, String op, long requestId) {
+    private Throwable handleTxnException(Throwable ex, String op, long requestId) {
         if (ex instanceof CoordinatorException.CoordinatorNotFoundException || ex != null
                 && ex.getCause() instanceof CoordinatorException.CoordinatorNotFoundException) {
             if (log.isDebugEnabled()) {
@@ -2008,19 +2008,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (ex instanceof ManagedLedgerException.ManagedLedgerFencedException || ex != null
                 && ex.getCause() instanceof ManagedLedgerException.ManagedLedgerFencedException) {
             if (log.isDebugEnabled()) {
-                log.debug("Throw a CoordinatorNotFoundException to client "
-                        + "with the message got from a ManagedLedgerFencedException for the request {}", op);
+                log.debug("The managerLedger was fenced for the request {}", op);
             }
-            return new CoordinatorException.CoordinatorNotFoundException(ex.getMessage());
+            return ex;
 
         }
-        if (TransactionMetadataStoreService.isRetryableException(ex) || ex.getCause() != null
-                && TransactionMetadataStoreService.isRetryableException(ex.getCause())) {
-            return new CoordinatorException.TcOperationRetryException(ex.getMessage());
-        } else {
-            log.error("Send response error for {} request {}.", op, requestId, ex);
-            return ex;
-        }
+        log.error("Send response error for {} request {}.", op, requestId, ex);
+        return ex;
     }
     @Override
     protected void handleNewTxn(CommandNewTxn command) {
@@ -2046,7 +2040,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     ctx.writeAndFlush(Commands.newTxnResponse(requestId, txnID.getLeastSigBits(),
                             txnID.getMostSigBits()));
                 } else {
-                    ex = handleException(ex, BaseCommand.Type.NEW_TXN.name(), requestId);
+                    ex = handleTxnException(ex, BaseCommand.Type.NEW_TXN.name(), requestId);
 
                     ctx.writeAndFlush(Commands.newTxnResponse(requestId, tcId.getId(),
                             BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
@@ -2082,7 +2076,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(requestId,
                                 txnID.getLeastSigBits(), txnID.getMostSigBits()));
                     } else {
-                        ex = handleException(ex, BaseCommand.Type.ADD_PARTITION_TO_TXN.name(), requestId);
+                        ex = handleTxnException(ex, BaseCommand.Type.ADD_PARTITION_TO_TXN.name(), requestId);
 
                         ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(requestId, txnID.getMostSigBits(),
                                 BrokerServiceException.getClientErrorCode(ex),
@@ -2113,7 +2107,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         ctx.writeAndFlush(Commands.newEndTxnResponse(requestId,
                                 txnID.getLeastSigBits(), txnID.getMostSigBits()));
                     } else {
-                        ex = handleException(ex, BaseCommand.Type.END_TXN.name(), requestId);
+                        ex = handleTxnException(ex, BaseCommand.Type.END_TXN.name(), requestId);
                         ctx.writeAndFlush(Commands.newEndTxnResponse(requestId, txnID.getMostSigBits(),
                                 BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
 
@@ -2327,7 +2321,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 txnID.getLeastSigBits(), txnID.getMostSigBits()));
                         log.info("handle add partition to txn finish.");
                     } else {
-                        ex = handleException(ex, BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(), requestId);
+                        ex = handleTxnException(ex, BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(), requestId);
 
                         ctx.writeAndFlush(Commands.newAddSubscriptionToTxnResponse(requestId,
                                 txnID.getMostSigBits(), BrokerServiceException.getClientErrorCode(ex),

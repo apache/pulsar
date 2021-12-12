@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.common.api.proto.ServerError;
@@ -238,8 +239,8 @@ public class BrokerServiceException extends Exception {
             return ServerError.TransactionConflict;
         } else if (t instanceof CoordinatorException.TransactionNotFoundException) {
             return ServerError.TransactionNotFound;
-        } else if (t instanceof CoordinatorException.TcOperationRetryException) {
-            return ServerError.TcOperationRetry;
+        } else if (t instanceof ManagedLedgerException.ManagedLedgerFencedException) {
+            return ServerError.TcFenced;
         } else {
             if (checkCauseIfUnknown) {
                 return getClientErrorCode(t.getCause(), false);

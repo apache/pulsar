@@ -911,14 +911,14 @@ public class PulsarClientException extends IOException {
     }
 
     /**
-     * Exception is thrown when a isRetryable Exception was thrown.
+     * Exception is thrown when the TC was fenced.
      */
-    public static class TcOperationRetryException extends PulsarClientException {
+    public static class TcFencedException extends PulsarClientException {
         /**
-         * Constructs an {@code TcOperationRetryException} with the specified detail message.
-         * @param msg The detail message (which was provided by the retryable exception).
+         * Constructs an {@code TcFencedException} with the specified detail message.
+         * @param msg The detail message (which was provided by the managerLedgerFenced exception).
          */
-        public TcOperationRetryException(String msg) {
+        public TcFencedException(String msg) {
             super(msg);
         }
     }
