@@ -893,6 +893,11 @@ public class ServerCnxTest {
                 producerName, Collections.emptyMap(), false);
         channel.writeInbound(createProducer3);
 
+        // 1nd producer will fail
+        response = getResponse();
+        assertEquals(response.getClass(), CommandError.class);
+        assertEquals(((CommandError) response).getRequestId(), 1);
+
         // 3nd producer will fail
         response = getResponse();
         assertEquals(response.getClass(), CommandError.class);

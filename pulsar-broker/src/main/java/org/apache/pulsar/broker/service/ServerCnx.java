@@ -1322,10 +1322,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     remoteAddress, topicName, producerId, ex.getMessage());
 
             producer.closeNow(true);
-            if (producerFuture.completeExceptionally(ex)) {
-                commandSender.sendErrorResponse(requestId,
-                        BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
-            }
+            producerFuture.completeExceptionally(ex);
+            commandSender.sendErrorResponse(requestId,
+                    BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
             return null;
         });
 
