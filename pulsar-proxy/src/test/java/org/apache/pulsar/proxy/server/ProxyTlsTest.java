@@ -21,6 +21,7 @@ package org.apache.pulsar.proxy.server;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.mockito.Mockito.doReturn;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -89,7 +90,7 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
         }
-
+        producer.close();
         client.close();
     }
 
@@ -99,7 +100,10 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
                 .serviceUrl(proxyService.getServiceUrlTls())
                 .allowTlsInsecureConnection(false).tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).build();
         TenantInfo tenantInfo = createDefaultTenantInfo();
-        admin.tenants().createTenant("sample", tenantInfo);
+        List<String> tenants = admin.tenants().getTenants();
+        if(!tenants.contains("sample")) {
+            admin.tenants().createTenant("sample", tenantInfo);
+        }
         admin.topics().createPartitionedTopic("persistent://sample/test/local/partitioned-topic", 2);
 
         Producer<byte[]> producer = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/partitioned-topic")

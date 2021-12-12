@@ -195,6 +195,7 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         Assert.assertEquals(msgs, count);
         consumer.acknowledgeCumulative(msg);
         consumer.close();
+        proxyClient.close();
         log.info("-- Exiting {} test --", methodName);
     }
 
