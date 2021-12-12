@@ -26,12 +26,11 @@
 namespace pulsar {
 bool isCrc32cSupported = crc32cSupported();
 
-
 #if defined(HAVE_ARM64_CRC)
 
 bool isCrc32ArmSupported = crc32cArmSupported();
 
-bool crc32cArmSupported() { return crc32c_arm64_initialize();}
+bool crc32cArmSupported() { return crc32c_arm64_initialize(); }
 #endif
 
 bool crc32cSupported() { return crc32c_initialize(); }
@@ -77,7 +76,7 @@ uint32_t crc32cHwArm(uint32_t previousChecksum, const void* data, int length) {
 }
 #else
 uint32_t crc32cHwArm(uint32_t previousChecksum, const void* data, int length) {
-    return crc32c_sw(previousChecksum, data, length); // fallback to the software implementation
+    return crc32c_sw(previousChecksum, data, length);  // fallback to the software implementation
 }
 #endif
 

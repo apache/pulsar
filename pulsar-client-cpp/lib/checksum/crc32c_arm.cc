@@ -45,22 +45,22 @@
 
 #ifdef HAVE_ARM64_CRYPTO
 /* unfolding to compute 8 * 3 = 24 bytes parallelly */
-#define CRC32C24BYTES(ITR)                                    \
-  crc1 = crc32c_u64(crc1, *(buf64 + BLK_LENGTH + (ITR)));     \
-  crc2 = crc32c_u64(crc2, *(buf64 + BLK_LENGTH * 2 + (ITR))); \
-  crc0 = crc32c_u64(crc0, *(buf64 + (ITR)));
+#define CRC32C24BYTES(ITR)                                      \
+    crc1 = crc32c_u64(crc1, *(buf64 + BLK_LENGTH + (ITR)));     \
+    crc2 = crc32c_u64(crc2, *(buf64 + BLK_LENGTH * 2 + (ITR))); \
+    crc0 = crc32c_u64(crc0, *(buf64 + (ITR)));
 
 /* unfolding to compute 24 * 7 = 168 bytes parallelly */
-#define CRC32C7X24BYTES(ITR)   \
-  do {                         \
-    CRC32C24BYTES((ITR)*7 + 0) \
-    CRC32C24BYTES((ITR)*7 + 1) \
-    CRC32C24BYTES((ITR)*7 + 2) \
-    CRC32C24BYTES((ITR)*7 + 3) \
-    CRC32C24BYTES((ITR)*7 + 4) \
-    CRC32C24BYTES((ITR)*7 + 5) \
-    CRC32C24BYTES((ITR)*7 + 6) \
-  } while (0)
+#define CRC32C7X24BYTES(ITR)       \
+    do {                           \
+        CRC32C24BYTES((ITR)*7 + 0) \
+        CRC32C24BYTES((ITR)*7 + 1) \
+        CRC32C24BYTES((ITR)*7 + 2) \
+        CRC32C24BYTES((ITR)*7 + 3) \
+        CRC32C24BYTES((ITR)*7 + 4) \
+        CRC32C24BYTES((ITR)*7 + 5) \
+        CRC32C24BYTES((ITR)*7 + 6) \
+    } while (0)
 #endif
 namespace pulsar {
 static bool initialized = false;
@@ -116,9 +116,9 @@ uint32_t crc32c_arm64(uint32_t crc, const void *data, size_t len) {
     crc ^= 0xffffffff;
 
     /*
-   * Pmull runtime check here.
-   * Raspberry Pi supports crc32 but doesn't support pmull.
-   * Skip Crc32c Parallel computation if no crypto extension available.
+     * Pmull runtime check here.
+     * Raspberry Pi supports crc32 but doesn't support pmull.
+     * Skip Crc32c Parallel computation if no crypto extension available.
      */
     if (pmull_runtime_flag) {
 /* Macro (HAVE_ARM64_CRYPTO) is used for compiling check  */
@@ -205,7 +205,7 @@ uint32_t crc32c_arm64(uint32_t crc, const void *data, size_t len) {
     return crc;
 }
 
-} // namespace pulsar
+}  // namespace pulsar
 #else
 #warning "HAVE_ARM64_CRC is not defined, Arm CRC32C neon will be disabled"
 #endif
