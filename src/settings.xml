@@ -47,13 +47,4 @@
       </properties>
     </profile>
   </profiles>
-
-  <mirrors>
-    <mirror>
-      <id>restlet-http-unblocker</id>
-      <mirrorOf>central</mirrorOf>
-      <name>restlet-http-unblocker</name>
-      <url>http://maven.restlet.org</url>
-    </mirror>
-  </mirrors>
 </settings>
