@@ -69,7 +69,7 @@ You can use the following commands to upload a package.
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
 ```shell
-bin/pulsar-admin packages upload functions://public/default/example@v0.1 --path package-file --description package-description
+bin/pulsar-admin packages upload function://public/default/example@v0.1 --path package-file --description package-description
 ```
 
 <!--REST API-->
@@ -97,7 +97,7 @@ You can use the following commands to download a package.
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
 ```shell
-bin/pulsar-admin packages download functions://public/default/example@v0.1 --path package-file
+bin/pulsar-admin packages download function://public/default/example@v0.1 --path package-file
 ```
 
 <!--REST API-->

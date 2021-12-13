@@ -38,7 +38,7 @@
 #ifdef _MSC_VER
 #pragma message("BOOST_ARCH_X86_64 is not defined, CRC32C will be disabled")
 #else
-#warning "BOOST_ARCH_X86_64 is not defined, CRC32C will be disabled"
+#warning "BOOST_ARCH_X86_64 is not defined, CRC32C SSE4.2 will be disabled"
 #endif
 #endif
 

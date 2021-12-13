@@ -93,6 +93,16 @@ public class CmdFunctionWorker extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Triggers a rebalance of functions to workers")
+    class Rebalance extends BaseCommand {
+
+        @Override
+        void runCmd() throws Exception {
+            getAdmin().worker().rebalance();
+            print("Rebalance command sent successfully");
+        }
+    }
+
     public CmdFunctionWorker(Supplier<PulsarAdmin> admin) throws PulsarClientException {
         super("functions-worker", admin);
         jcommander.addCommand("function-stats", new FunctionsStats());
@@ -100,6 +110,7 @@ public class CmdFunctionWorker extends CmdBase {
         jcommander.addCommand("get-cluster", new GetCluster());
         jcommander.addCommand("get-cluster-leader", new GetClusterLeader());
         jcommander.addCommand("get-function-assignments", new GetFunctionAssignments());
+        jcommander.addCommand("rebalance", new Rebalance());
     }
 
 }

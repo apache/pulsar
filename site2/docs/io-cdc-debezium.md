@@ -189,14 +189,16 @@ You can use one of the following methods to create a configuration file.
 
     ```json
     {
-        "database.hostname": "localhost",
-        "database.port": "5432",
-        "database.user": "postgres",
-        "database.password": "postgres",
-        "database.dbname": "postgres",
-        "database.server.name": "dbserver1",
-        "schema.whitelist": "inventory",
-        "pulsar.service.url": "pulsar://127.0.0.1:6650"
+       "configs": {
+          "database.hostname": "localhost",
+          "database.port": "5432",
+          "database.user": "postgres",
+          "database.password": "postgres",
+          "database.dbname": "postgres",
+          "database.server.name": "dbserver1",
+          "schema.whitelist": "inventory",
+          "pulsar.service.url": "pulsar://127.0.0.1:6650"
+       }
     }
     ```
 
@@ -322,13 +324,15 @@ You need to create a configuration file before using the Pulsar Debezium connect
 
     ```json
     {
-        "mongodb.hosts": "rs0/mongodb:27017",
-        "mongodb.name": "dbserver1",
-        "mongodb.user": "debezium",
-        "mongodb.password": "dbz",
-        "mongodb.task.id": "1",
-        "database.whitelist": "inventory",
-        "pulsar.service.url": "pulsar://127.0.0.1:6650"
+       "configs": {
+          "mongodb.hosts": "rs0/mongodb:27017",
+          "mongodb.name": "dbserver1",
+          "mongodb.user": "debezium",
+          "mongodb.password": "dbz",
+          "mongodb.task.id": "1",
+          "database.whitelist": "inventory",
+          "pulsar.service.url": "pulsar://127.0.0.1:6650"
+       }
     }
     ```
 
@@ -347,12 +351,12 @@ You need to create a configuration file before using the Pulsar Debezium connect
     configs:
 
         ## config for pg, docker image: debezium/example-postgress:0.10
-        mongodb.hosts: "rs0/mongodb:27017",
-        mongodb.name: "dbserver1",
-        mongodb.user: "debezium",
-        mongodb.password: "dbz",
-        mongodb.task.id: "1",
-        database.whitelist: "inventory",
+        mongodb.hosts: "rs0/mongodb:27017"
+        mongodb.name: "dbserver1"
+        mongodb.user: "debezium"
+        mongodb.password: "dbz"
+        mongodb.task.id: "1"
+        database.whitelist: "inventory"
 
         ## PULSAR_SERVICE_URL_CONFIG
         pulsar.service.url: "pulsar://127.0.0.1:6650"

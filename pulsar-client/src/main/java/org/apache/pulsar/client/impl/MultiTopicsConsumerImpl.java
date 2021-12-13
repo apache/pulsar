@@ -149,6 +149,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         this.allTopicPartitionsNumber = new AtomicInteger(0);
         this.startMessageId = startMessageId != null ? new BatchMessageIdImpl(MessageIdImpl.convertToMessageIdImpl(startMessageId)) : null;
         this.startMessageRollbackDurationInSec = startMessageRollbackDurationInSec;
+        this.paused = conf.isStartPaused();
 
         if (conf.getAckTimeoutMillis() != 0) {
             if (conf.getTickDurationMillis() > 0) {

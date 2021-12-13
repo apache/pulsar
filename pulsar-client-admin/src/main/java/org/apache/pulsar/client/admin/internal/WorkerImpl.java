@@ -23,9 +23,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.ClientErrorException;
+import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -190,5 +192,16 @@ public class WorkerImpl extends BaseResource implements Worker {
                     }
                 });
         return future;
+    }
+
+    @Override
+    public void rebalance() throws PulsarAdminException {
+        sync(this::rebalanceAsync);
+    }
+
+    @Override
+    public CompletableFuture<Void> rebalanceAsync() {
+        final WebTarget path = worker.path("rebalance");
+        return asyncPutRequest(path,  Entity.entity("", MediaType.APPLICATION_JSON));
     }
 }

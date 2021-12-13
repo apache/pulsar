@@ -2031,7 +2031,7 @@ public class BrokerService implements Closeable {
     public Map<String, TopicStatsImpl> getTopicStats() {
         HashMap<String, TopicStatsImpl> stats = new HashMap<>();
 
-        forEachTopic(topic -> stats.put(topic.getName(), topic.getStats(false, false)));
+        forEachTopic(topic -> stats.put(topic.getName(), topic.getStats(false, false, false)));
 
         return stats;
     }
@@ -2149,6 +2149,9 @@ public class BrokerService implements Closeable {
                     });
         }
 
+        // add listener to notify topic subscriptionTypesEnabled changed.
+        registerConfigurationListener("subscriptionTypesEnabled", this::updateBrokerSubscriptionTypesEnabled);
+
         // add more listeners here
     }
 
@@ -2186,6 +2189,17 @@ public class BrokerService implements Closeable {
             forEachTopic(topic -> {
                 if (topic.getDispatchRateLimiter().isPresent()) {
                     topic.getDispatchRateLimiter().get().updateDispatchRate();
+                }
+            });
+        });
+    }
+
+    private void updateBrokerSubscriptionTypesEnabled(Object subscriptionTypesEnabled) {
+        this.pulsar().getExecutor().execute(() -> {
+            // update subscriptionTypesEnabled
+            forEachTopic(topic -> {
+                if (topic instanceof AbstractTopic) {
+                    ((AbstractTopic) topic).updateBrokerSubscriptionTypesEnabled();
                 }
             });
         });

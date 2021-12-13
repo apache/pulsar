@@ -1103,7 +1103,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     }
                 }
                 callback.resetComplete(newPosition);
-
+                updateLastActive();
             }
 
             @Override

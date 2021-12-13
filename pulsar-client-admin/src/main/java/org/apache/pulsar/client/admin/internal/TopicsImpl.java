@@ -44,6 +44,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -698,10 +699,12 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public TopicStats getStats(String topic, boolean getPreciseBacklog,
-                               boolean subscriptionBacklogSize) throws PulsarAdminException {
+    public TopicStats getStats(String topic, GetStatsOptions getStatsOptions) throws PulsarAdminException {
+        boolean getPreciseBacklog = getStatsOptions.isGetPreciseBacklog();
+        boolean subscriptionBacklogSize = getStatsOptions.isSubscriptionBacklogSize();
+        boolean getEarliestTimeInBacklog = getStatsOptions.isGetEarliestTimeInBacklog();
         try {
-            return getStatsAsync(topic, getPreciseBacklog, subscriptionBacklogSize)
+            return getStatsAsync(topic, getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog)
                     .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
@@ -715,11 +718,13 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public CompletableFuture<TopicStats> getStatsAsync(String topic, boolean getPreciseBacklog,
-                                                       boolean subscriptionBacklogSize) {
+                                                       boolean subscriptionBacklogSize,
+                                                       boolean getEarliestTimeInBacklog) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "stats")
                 .queryParam("getPreciseBacklog", getPreciseBacklog)
-                .queryParam("subscriptionBacklogSize", subscriptionBacklogSize);
+                .queryParam("subscriptionBacklogSize", subscriptionBacklogSize)
+                .queryParam("getEarliestTimeInBacklog", getEarliestTimeInBacklog);
         final CompletableFuture<TopicStats> future = new CompletableFuture<>();
 
         InvocationCallback<TopicStats> persistentCB = new InvocationCallback<TopicStats>() {

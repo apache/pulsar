@@ -1849,6 +1849,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         CompactedTopic compactedTopic = mock(CompactedTopic.class);
+        when(compactedTopic.newCompactedLedger(any(Position.class), anyLong()))
+                .thenReturn(CompletableFuture.completedFuture(null));
         new CompactorSubscription(topic, compactedTopic, Compactor.COMPACTION_SUBSCRIPTION, cursorMock);
         verify(compactedTopic, Mockito.times(1)).newCompactedLedger(position, ledgerId);
     }
@@ -2200,7 +2202,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         sub1.addConsumer(consumer1);
         consumer1.close();
 
-        SubscriptionStatsImpl stats1 = sub1.getStats(false, false);
+        SubscriptionStatsImpl stats1 = sub1.getStats(false, false, false);
         assertEquals(stats1.keySharedMode, "AUTO_SPLIT");
         assertFalse(stats1.allowOutOfOrderDelivery);
 
@@ -2211,7 +2213,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         sub2.addConsumer(consumer2);
         consumer2.close();
 
-        SubscriptionStatsImpl stats2 = sub2.getStats(false, false);
+        SubscriptionStatsImpl stats2 = sub2.getStats(false, false, false);
         assertEquals(stats2.keySharedMode, "AUTO_SPLIT");
         assertTrue(stats2.allowOutOfOrderDelivery);
 
@@ -2223,7 +2225,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         sub3.addConsumer(consumer3);
         consumer3.close();
 
-        SubscriptionStatsImpl stats3 = sub3.getStats(false, false);
+        SubscriptionStatsImpl stats3 = sub3.getStats(false, false, false);
         assertEquals(stats3.keySharedMode, "STICKY");
         assertFalse(stats3.allowOutOfOrderDelivery);
     }

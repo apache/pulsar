@@ -102,6 +102,7 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
         sinkConfig.setConfigs(configs);
         sinkConfig.setRetainOrdering(false);
         sinkConfig.setAutoAck(true);
+        sinkConfig.setCleanupSubscription(false);
         sinkConfig.setTimeoutMs(2000l);
         sinkConfig.setRuntimeFlags("-DKerberos");
         Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null));
@@ -308,6 +309,22 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
     }
 
     @Test
+    public void testMergeDifferentCleanupSubscription() {
+        SinkConfig sinkConfig = createSinkConfig();
+        SinkConfig newSinkConfig = createUpdatedSinkConfig("cleanupSubscription", false);
+        SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
+        assertEquals(
+                mergedConfig.getCleanupSubscription().booleanValue(),
+                false
+        );
+        mergedConfig.setCleanupSubscription(sinkConfig.getCleanupSubscription());
+        assertEquals(
+                new Gson().toJson(sinkConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
+    @Test
     public void testMergeRuntimeFlags() {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newFunctionConfig = createUpdatedSinkConfig("runtimeFlags", "-Dfoo=bar2");
@@ -365,6 +382,7 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
         sinkConfig.setConfigs(new HashMap<>());
         sinkConfig.setAutoAck(true);
         sinkConfig.setTimeoutMs(2000l);
+        sinkConfig.setCleanupSubscription(true);
         sinkConfig.setArchive("DummyArchive.nar");
         return sinkConfig;
     }

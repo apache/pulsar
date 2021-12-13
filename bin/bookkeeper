@@ -88,7 +88,7 @@ bookkeeper_help() {
 Usage: bookkeeper <command>
 where command is one of:
     bookie              Run a bookie server
-    autorecovery        Run AutoRecovery service daemon
+    autorecovery        Run AutoRecovery service
     localbookie <n>     Run a test ensemble of <n> bookies locally
     upgrade             Upgrade bookie filesystem
     shell               Run shell for admin commands
@@ -183,6 +183,9 @@ fi
 
 BOOKIE_LOG_DIR=${BOOKIE_LOG_DIR:-"$BK_HOME/logs"}
 BOOKIE_LOG_FILE=${BOOKIE_LOG_FILE:-"bookkeeper-server.log"}
+if [ ! -d "$BOOKIE_LOG_DIR" ]; then
+  mkdir -p "$BOOKIE_LOG_DIR"
+fi
 
 #Configure log configuration system properties
 OPTS="$OPTS -Dpulsar.log.appender=$BOOKIE_LOG_APPENDER"

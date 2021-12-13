@@ -54,6 +54,7 @@ public class NamespaceResources extends BaseResources<Policies> {
 
     private static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
     private static final String NAMESPACE_BASE_PATH = "/namespace";
+    private static final String BUNDLE_DATA_BASE_PATH = "/loadbalance/bundle-data";
 
     public NamespaceResources(MetadataStore localStore, MetadataStore configurationStore, int operationTimeoutSec) {
         super(configurationStore, Policies.class, operationTimeoutSec);
@@ -260,25 +261,7 @@ public class NamespaceResources extends BaseResources<Policies> {
 
         public CompletableFuture<Void> clearPartitionedTopicMetadataAsync(NamespaceName namespaceName) {
             final String globalPartitionedPath = joinPath(PARTITIONED_TOPIC_PATH, namespaceName.toString());
-
-            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-
-            deleteRecursiveAsync(this, globalPartitionedPath)
-                    .thenAccept(ignore -> {
-                        log.info("Clear partitioned topic metadata [{}] success.", namespaceName);
-                        completableFuture.complete(null);
-                    }).exceptionally(ex -> {
-                if (ex.getCause().getCause() instanceof KeeperException.NoNodeException) {
-                    completableFuture.complete(null);
-                } else {
-                    log.error("Clear partitioned topic metadata failed.");
-                    completableFuture.completeExceptionally(ex.getCause());
-                    return null;
-                }
-                return null;
-            });
-
-            return completableFuture;
+            return getStore().deleteRecursive(globalPartitionedPath);
         }
 
         public CompletableFuture<Void> clearPartitionedTopicTenantAsync(String tenant) {
@@ -296,4 +279,17 @@ public class NamespaceResources extends BaseResources<Policies> {
             return future;
         }
     }
+
+    // clear resource of `/loadbalance/bundle-data/{tenant}/{namespace}/` in metadata-store
+    public CompletableFuture<Void> deleteBundleDataAsync(NamespaceName ns) {
+        final String namespaceBundlePath = joinPath(BUNDLE_DATA_BASE_PATH, ns.toString());
+        return getStore().deleteRecursive(namespaceBundlePath);
+    }
+
+    // clear resource of `/loadbalance/bundle-data/{tenant}/` in metadata-store
+    public CompletableFuture<Void> deleteBundleDataTenantAsync(String tenant) {
+        final String tenantBundlePath = joinPath(BUNDLE_DATA_BASE_PATH, tenant);
+        return getStore().deleteRecursive(tenantBundlePath);
+    }
+
 }

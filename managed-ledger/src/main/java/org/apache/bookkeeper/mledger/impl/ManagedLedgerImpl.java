@@ -35,6 +35,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
+import java.io.IOException;
 import java.time.Clock;
 import java.util.Collections;
 import java.util.HashMap;
@@ -131,12 +132,14 @@ import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.metadata.api.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 
 public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private static final long MegaByte = 1024 * 1024;
@@ -1149,6 +1152,43 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    @Override
+    public CompletableFuture<Long> getEarliestMessagePublishTimeInBacklog() {
+        PositionImpl pos = getMarkDeletePositionOfSlowestConsumer();
+
+        return getEarliestMessagePublishTimeOfPos(pos);
+    }
+
+    public CompletableFuture<Long> getEarliestMessagePublishTimeOfPos(PositionImpl pos) {
+        CompletableFuture<Long> future = new CompletableFuture<>();
+        if (pos == null) {
+            future.complete(0L);
+            return future;
+        }
+        PositionImpl nextPos = getNextValidPosition(pos);
+
+        asyncReadEntry(nextPos, new ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                try {
+                    long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
+                    future.complete(entryTimestamp);
+                } catch (IOException e) {
+                    log.error("Error deserializing message for message position {}", nextPos, e);
+                    future.completeExceptionally(e);
+                }
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                log.error("Error read entry for position {}", nextPos, exception);
+                future.completeExceptionally(exception);
+            }
+        }, null);
+
+        return future;
+    }
+
     /**
      * Get estimated backlog size from a specific position.
      */
@@ -1825,21 +1865,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Reading entry ledger {}: {}", name, position.getLedgerId(), position.getEntryId());
         }
-        if (!ledgers.containsKey(position.getLedgerId())) {
-            log.error("[{}] Failed to get message with ledger {}:{} the ledgerId does not belong to this topic "
-                    + "or has been deleted.", name, position.getLedgerId(), position.getEntryId());
-            callback.readEntryFailed(new ManagedLedgerException.NonRecoverableLedgerException("Message not found, "
-                + "the ledgerId does not belong to this topic or has been deleted"), ctx);
-            return;
-        }
         if (position.getLedgerId() == currentLedger.getId()) {
             asyncReadEntry(currentLedger, position, callback, ctx);
-        } else {
+        } else if (ledgers.containsKey(position.getLedgerId())) {
             getLedgerHandle(position.getLedgerId()).thenAccept(ledger -> asyncReadEntry(ledger, position, callback, ctx)).exceptionally(ex -> {
                 log.error("[{}] Error opening ledger for reading at position {} - {}", name, position, ex.getMessage());
                 callback.readEntryFailed(ManagedLedgerException.getManagedLedgerException(ex.getCause()), ctx);
                 return null;
             });
+        } else {
+            log.error("[{}] Failed to get message with ledger {}:{} the ledgerId does not belong to this topic "
+                    + "or has been deleted.", name, position.getLedgerId(), position.getEntryId());
+            callback.readEntryFailed(new ManagedLedgerException.NonRecoverableLedgerException("Message not found, "
+                    + "the ledgerId does not belong to this topic or has been deleted"), ctx);
         }
 
     }

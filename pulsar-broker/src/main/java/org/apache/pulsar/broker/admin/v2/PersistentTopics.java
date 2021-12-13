@@ -708,7 +708,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401,
-                    message = "Don't have permission to adminisActions to be grantedtrate resources on this tenant"),
+                    message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant does not exist"),
             @ApiResponse(code = 406, message = "The number of partitions should be more than 0 and"
@@ -743,7 +743,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message =
-                    "Don't have permission to adminisActions to be grantedtrate resources on this tenant"),
+                    "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant does not exist"),
             @ApiResponse(code = 409, message = "Partitioned topic does not exist"),
@@ -950,9 +950,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog,
             @ApiParam(value = "If return backlog size for each subscription, require locking on ledger so be careful "
                     + "not to use when there's heavy traffic.")
-            @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize) {
+            @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize,
+            @ApiParam(value = "If return time of the earliest message in backlog")
+            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog) {
         validateTopicName(tenant, namespace, encodedTopic);
-        return internalGetStats(authoritative, getPreciseBacklog, subscriptionBacklogSize);
+        return internalGetStats(authoritative, getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog);
     }
 
     @GET
@@ -1032,11 +1034,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog,
             @ApiParam(value = "If return backlog size for each subscription, require locking on ledger so be careful "
                     + "not to use when there's heavy traffic.")
-            @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize) {
+            @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize,
+            @ApiParam(value = "If return the earliest time in backlog")
+            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog) {
         try {
             validatePartitionedTopicName(tenant, namespace, encodedTopic);
             internalGetPartitionedStats(asyncResponse, authoritative, perPartition, getPreciseBacklog,
-                    subscriptionBacklogSize);
+                    subscriptionBacklogSize, getEarliestTimeInBacklog);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
