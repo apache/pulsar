@@ -334,17 +334,17 @@
 <tbody>
 <tr class="altColor">
 <td class="colFirst"><code>void</code></td>
+<td class="colLast"><span class="typeNameLabel">BrokerInterceptorWithClassLoader.</span><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptorWithClassLoader.html#initialize-org.apache.pulsar.broker.PulsarService-">initialize</a></span>(<a href="../../../../../org/apache/pulsar/broker/PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsarService)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>void</code></td>
 <td class="colLast"><span class="typeNameLabel">BrokerInterceptor.</span><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptor.html#initialize-org.apache.pulsar.broker.PulsarService-">initialize</a></span>(<a href="../../../../../org/apache/pulsar/broker/PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsarService)</code>
 <div class="block">Initialize the broker interceptor.</div>
 </td>
 </tr>
-<tr class="rowColor">
-<td class="colFirst"><code>void</code></td>
-<td class="colLast"><span class="typeNameLabel">BrokerInterceptor.BrokerInterceptorDisabled.</span><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptor.BrokerInterceptorDisabled.html#initialize-org.apache.pulsar.broker.PulsarService-">initialize</a></span>(<a href="../../../../../org/apache/pulsar/broker/PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsarService)</code>&nbsp;</td>
-</tr>
 <tr class="altColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><span class="typeNameLabel">BrokerInterceptorWithClassLoader.</span><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptorWithClassLoader.html#initialize-org.apache.pulsar.broker.PulsarService-">initialize</a></span>(<a href="../../../../../org/apache/pulsar/broker/PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsarService)</code>&nbsp;</td>
+<td class="colLast"><span class="typeNameLabel">BrokerInterceptor.BrokerInterceptorDisabled.</span><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptor.BrokerInterceptorDisabled.html#initialize-org.apache.pulsar.broker.PulsarService-">initialize</a></span>(<a href="../../../../../org/apache/pulsar/broker/PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsarService)</code>&nbsp;</td>
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>void</code></td>
@@ -377,7 +377,9 @@
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><span class="typeNameLabel">NoopLoadManager.</span><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/loadbalance/NoopLoadManager.html#initialize-org.apache.pulsar.broker.PulsarService-">initialize</a></span>(<a href="../../../../../org/apache/pulsar/broker/PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar)</code>&nbsp;</td>
+<td class="colLast"><span class="typeNameLabel">ModularLoadManager.</span><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/loadbalance/ModularLoadManager.html#initialize-org.apache.pulsar.broker.PulsarService-">initialize</a></span>(<a href="../../../../../org/apache/pulsar/broker/PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar)</code>
+<div class="block">Initialize this load manager using the given pulsar service.</div>
+</td>
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>void</code></td>
@@ -387,9 +389,7 @@
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><span class="typeNameLabel">ModularLoadManager.</span><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/loadbalance/ModularLoadManager.html#initialize-org.apache.pulsar.broker.PulsarService-">initialize</a></span>(<a href="../../../../../org/apache/pulsar/broker/PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar)</code>
-<div class="block">Initialize this load manager using the given pulsar service.</div>
-</td>
+<td class="colLast"><span class="typeNameLabel">NoopLoadManager.</span><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/loadbalance/NoopLoadManager.html#initialize-org.apache.pulsar.broker.PulsarService-">initialize</a></span>(<a href="../../../../../org/apache/pulsar/broker/PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar)</code>&nbsp;</td>
 </tr>
 </tbody>
 </table>
@@ -432,7 +432,7 @@
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><span class="typeNameLabel">SimpleLoadManagerImpl.</span><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/loadbalance/impl/SimpleLoadManagerImpl.html#initialize-org.apache.pulsar.broker.PulsarService-">initialize</a></span>(<a href="../../../../../org/apache/pulsar/broker/PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar)</code>&nbsp;</td>
+<td class="colLast"><span class="typeNameLabel">ModularLoadManagerWrapper.</span><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/loadbalance/impl/ModularLoadManagerWrapper.html#initialize-org.apache.pulsar.broker.PulsarService-">initialize</a></span>(<a href="../../../../../org/apache/pulsar/broker/PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar)</code>&nbsp;</td>
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>void</code></td>
@@ -442,7 +442,7 @@
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><span class="typeNameLabel">ModularLoadManagerWrapper.</span><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/loadbalance/impl/ModularLoadManagerWrapper.html#initialize-org.apache.pulsar.broker.PulsarService-">initialize</a></span>(<a href="../../../../../org/apache/pulsar/broker/PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar)</code>&nbsp;</td>
+<td class="colLast"><span class="typeNameLabel">SimpleLoadManagerImpl.</span><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/loadbalance/impl/SimpleLoadManagerImpl.html#initialize-org.apache.pulsar.broker.PulsarService-">initialize</a></span>(<a href="../../../../../org/apache/pulsar/broker/PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar)</code>&nbsp;</td>
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>static boolean</code></td>
@@ -704,11 +704,11 @@
 <tbody>
 <tr class="altColor">
 <td class="colFirst"><code>@NotNull org.apache.pulsar.common.protocol.schema.SchemaStorage</code></td>
-<td class="colLast"><span class="typeNameLabel">SchemaStorageFactory.</span><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/schema/SchemaStorageFactory.html#create-org.apache.pulsar.broker.PulsarService-">create</a></span>(<a href="../../../../../org/apache/pulsar/broker/PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar)</code>&nbsp;</td>
+<td class="colLast"><span class="typeNameLabel">BookkeeperSchemaStorageFactory.</span><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/schema/BookkeeperSchemaStorageFactory.html#create-org.apache.pulsar.broker.PulsarService-">create</a></span>(<a href="../../../../../org/apache/pulsar/broker/PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar)</code>&nbsp;</td>
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>@NotNull org.apache.pulsar.common.protocol.schema.SchemaStorage</code></td>
-<td class="colLast"><span class="typeNameLabel">BookkeeperSchemaStorageFactory.</span><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/schema/BookkeeperSchemaStorageFactory.html#create-org.apache.pulsar.broker.PulsarService-">create</a></span>(<a href="../../../../../org/apache/pulsar/broker/PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar)</code>&nbsp;</td>
+<td class="colLast"><span class="typeNameLabel">SchemaStorageFactory.</span><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/schema/SchemaStorageFactory.html#create-org.apache.pulsar.broker.PulsarService-">create</a></span>(<a href="../../../../../org/apache/pulsar/broker/PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar)</code>&nbsp;</td>
 </tr>
 </tbody>
 </table>
@@ -725,12 +725,12 @@
 </tr>
 <tbody>
 <tr class="altColor">
-<td class="colFirst"><code>static <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Collection.html?is-external=true" title="class or interface in java.util">Collection</a>&lt;org.apache.pulsar.common.stats.Metrics&gt;</code></td>
-<td class="colLast"><span class="typeNameLabel">MBeanStatsGenerator.</span><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/stats/MBeanStatsGenerator.html#generate-org.apache.pulsar.broker.PulsarService-">generate</a></span>(<a href="../../../../../org/apache/pulsar/broker/PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar)</code>&nbsp;</td>
-</tr>
-<tr class="rowColor">
 <td class="colFirst"><code>static <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats&gt;&gt;</code></td>
 <td class="colLast"><span class="typeNameLabel">BookieClientStatsGenerator.</span><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/stats/BookieClientStatsGenerator.html#generate-org.apache.pulsar.broker.PulsarService-">generate</a></span>(<a href="../../../../../org/apache/pulsar/broker/PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>static <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Collection.html?is-external=true" title="class or interface in java.util">Collection</a>&lt;org.apache.pulsar.common.stats.Metrics&gt;</code></td>
+<td class="colLast"><span class="typeNameLabel">MBeanStatsGenerator.</span><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/stats/MBeanStatsGenerator.html#generate-org.apache.pulsar.broker.PulsarService-">generate</a></span>(<a href="../../../../../org/apache/pulsar/broker/PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar)</code>&nbsp;</td>
 </tr>
 </tbody>
 </table>

@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":9,"i2":9,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10,"i14":9,"i15":9,"i16":10,"i17":10,"i18":10,"i19":10,"i20":10,"i21":10,"i22":10,"i23":10,"i24":10,"i25":10,"i26":10,"i27":10,"i28":10,"i29":9,"i30":9,"i31":10,"i32":10,"i33":10,"i34":10,"i35":10,"i36":10,"i37":10,"i38":10,"i39":10,"i40":10,"i41":10,"i42":10,"i43":10,"i44":10,"i45":10,"i46":10,"i47":10,"i48":10,"i49":10};
+var methods = {"i0":10,"i1":9,"i2":9,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10,"i14":9,"i15":9,"i16":10,"i17":10,"i18":10,"i19":10,"i20":10,"i21":10,"i22":10,"i23":10,"i24":10,"i25":10,"i26":10,"i27":10,"i28":10,"i29":9,"i30":9,"i31":10,"i32":10,"i33":10,"i34":10,"i35":10,"i36":10,"i37":10,"i38":10,"i39":10,"i40":9,"i41":10,"i42":10,"i43":10,"i44":10,"i45":10,"i46":10,"i47":10,"i48":10,"i49":10,"i50":10};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -401,35 +401,39 @@ implements <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/AutoClos
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/namespace/NamespaceService.html#isServiceUnitOwnedAsync-org.apache.pulsar.common.naming.ServiceUnitId-">isServiceUnitOwnedAsync</a></span>(org.apache.pulsar.common.naming.ServiceUnitId&nbsp;suName)</code>&nbsp;</td>
 </tr>
 <tr id="i40" class="altColor">
-<td class="colFirst"><code>protected void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/namespace/NamespaceService.html#onNamespaceBundleOwned-org.apache.pulsar.common.naming.NamespaceBundle-">onNamespaceBundleOwned</a></span>(<a href="../../../../../org/apache/pulsar/common/naming/NamespaceBundle.html" title="class in org.apache.pulsar.common.naming">NamespaceBundle</a>&nbsp;bundle)</code>&nbsp;</td>
+<td class="colFirst"><code>static boolean</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/namespace/NamespaceService.html#isSystemServiceNamespace-java.lang.String-">isSystemServiceNamespace</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;namespace)</code>&nbsp;</td>
 </tr>
 <tr id="i41" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/namespace/NamespaceService.html#onNamespaceBundleUnload-org.apache.pulsar.common.naming.NamespaceBundle-">onNamespaceBundleUnload</a></span>(<a href="../../../../../org/apache/pulsar/common/naming/NamespaceBundle.html" title="class in org.apache.pulsar.common.naming">NamespaceBundle</a>&nbsp;bundle)</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/namespace/NamespaceService.html#onNamespaceBundleOwned-org.apache.pulsar.common.naming.NamespaceBundle-">onNamespaceBundleOwned</a></span>(<a href="../../../../../org/apache/pulsar/common/naming/NamespaceBundle.html" title="class in org.apache.pulsar.common.naming">NamespaceBundle</a>&nbsp;bundle)</code>&nbsp;</td>
 </tr>
 <tr id="i42" class="altColor">
+<td class="colFirst"><code>protected void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/namespace/NamespaceService.html#onNamespaceBundleUnload-org.apache.pulsar.common.naming.NamespaceBundle-">onNamespaceBundleUnload</a></span>(<a href="../../../../../org/apache/pulsar/common/naming/NamespaceBundle.html" title="class in org.apache.pulsar.common.naming">NamespaceBundle</a>&nbsp;bundle)</code>&nbsp;</td>
+</tr>
+<tr id="i43" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/namespace/NamespaceService.html#registerBootstrapNamespaces--">registerBootstrapNamespaces</a></span>()</code>
 <div class="block">Register all the bootstrap name spaces including the heartbeat namespace.</div>
 </td>
 </tr>
-<tr id="i43" class="rowColor">
+<tr id="i44" class="altColor">
 <td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/namespace/NamespaceService.html#registerNamespace-org.apache.pulsar.common.naming.NamespaceName-boolean-">registerNamespace</a></span>(org.apache.pulsar.common.naming.NamespaceName&nbsp;nsname,
                  boolean&nbsp;ensureOwned)</code>
 <div class="block">Tried to registers a namespace to this instance.</div>
 </td>
 </tr>
-<tr id="i44" class="altColor">
+<tr id="i45" class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/namespace/NamespaceService.html#registerSLANamespace--">registerSLANamespace</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i45" class="rowColor">
+<tr id="i46" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/namespace/NamespaceService.html#removeOwnedServiceUnit-org.apache.pulsar.common.naming.NamespaceBundle-">removeOwnedServiceUnit</a></span>(<a href="../../../../../org/apache/pulsar/common/naming/NamespaceBundle.html" title="class in org.apache.pulsar.common.naming">NamespaceBundle</a>&nbsp;nsBundle)</code>&nbsp;</td>
 </tr>
-<tr id="i46" class="altColor">
+<tr id="i47" class="rowColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/namespace/NamespaceService.html#splitAndOwnBundle-org.apache.pulsar.common.naming.NamespaceBundle-boolean-org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm-">splitAndOwnBundle</a></span>(<a href="../../../../../org/apache/pulsar/common/naming/NamespaceBundle.html" title="class in org.apache.pulsar.common.naming">NamespaceBundle</a>&nbsp;bundle,
                  boolean&nbsp;unload,
@@ -437,17 +441,17 @@ implements <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/AutoClos
 <div class="block">1.</div>
 </td>
 </tr>
-<tr id="i47" class="rowColor">
+<tr id="i48" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/namespace/NamespaceService.html#unloadNamespaceBundle-org.apache.pulsar.common.naming.NamespaceBundle-">unloadNamespaceBundle</a></span>(<a href="../../../../../org/apache/pulsar/common/naming/NamespaceBundle.html" title="class in org.apache.pulsar.common.naming">NamespaceBundle</a>&nbsp;bundle)</code>&nbsp;</td>
 </tr>
-<tr id="i48" class="altColor">
+<tr id="i49" class="rowColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/namespace/NamespaceService.html#unloadNamespaceBundle-org.apache.pulsar.common.naming.NamespaceBundle-long-java.util.concurrent.TimeUnit-">unloadNamespaceBundle</a></span>(<a href="../../../../../org/apache/pulsar/common/naming/NamespaceBundle.html" title="class in org.apache.pulsar.common.naming">NamespaceBundle</a>&nbsp;bundle,
                      long&nbsp;timeout,
                      <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/TimeUnit.html?is-external=true" title="class or interface in java.util.concurrent">TimeUnit</a>&nbsp;timeoutUnit)</code>&nbsp;</td>
 </tr>
-<tr id="i49" class="rowColor">
+<tr id="i50" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/namespace/NamespaceService.html#unloadSLANamespace--">unloadSLANamespace</a></span>()</code>&nbsp;</td>
 </tr>
@@ -1106,6 +1110,15 @@ implements <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/AutoClos
 <li class="blockList">
 <h4>getSLAMonitorBrokerName</h4>
 <pre>public static&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;getSLAMonitorBrokerName(org.apache.pulsar.common.naming.ServiceUnitId&nbsp;ns)</pre>
+</li>
+</ul>
+<a name="isSystemServiceNamespace-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>isSystemServiceNamespace</h4>
+<pre>public static&nbsp;boolean&nbsp;isSystemServiceNamespace(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;namespace)</pre>
 </li>
 </ul>
 <a name="registerSLANamespace--">

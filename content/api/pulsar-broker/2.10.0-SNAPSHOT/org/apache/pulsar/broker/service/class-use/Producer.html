@@ -137,12 +137,12 @@
 <td class="colLast"><span class="typeNameLabel">Topic.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/Topic.html#getProducers--">getProducers</a></span>()</code>&nbsp;</td>
 </tr>
 <tr class="rowColor">
-<td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="../../../../../../org/apache/pulsar/broker/service/Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a>&gt;</code></td>
-<td class="colLast"><span class="typeNameLabel">AbstractTopic.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#getProducers--">getProducers</a></span>()</code>&nbsp;</td>
-</tr>
-<tr class="altColor">
 <td class="colFirst"><code>org.apache.pulsar.common.util.collections.ConcurrentLongHashMap&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="../../../../../../org/apache/pulsar/broker/service/Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a>&gt;&gt;</code></td>
 <td class="colLast"><span class="typeNameLabel">ServerCnx.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/ServerCnx.html#getProducers--">getProducers</a></span>()</code>&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="../../../../../../org/apache/pulsar/broker/service/Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a>&gt;</code></td>
+<td class="colLast"><span class="typeNameLabel">AbstractTopic.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#getProducers--">getProducers</a></span>()</code>&nbsp;</td>
 </tr>
 </tbody>
 </table>
@@ -167,11 +167,11 @@
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><span class="typeNameLabel">TransportCnx.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/TransportCnx.html#closeProducer-org.apache.pulsar.broker.service.Producer-">closeProducer</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a>&nbsp;producer)</code>&nbsp;</td>
+<td class="colLast"><span class="typeNameLabel">ServerCnx.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/ServerCnx.html#closeProducer-org.apache.pulsar.broker.service.Producer-">closeProducer</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a>&nbsp;producer)</code>&nbsp;</td>
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><span class="typeNameLabel">ServerCnx.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/ServerCnx.html#closeProducer-org.apache.pulsar.broker.service.Producer-">closeProducer</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a>&nbsp;producer)</code>&nbsp;</td>
+<td class="colLast"><span class="typeNameLabel">TransportCnx.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/TransportCnx.html#closeProducer-org.apache.pulsar.broker.service.Producer-">closeProducer</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a>&nbsp;producer)</code>&nbsp;</td>
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>protected void</code></td>
@@ -198,11 +198,11 @@
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><span class="typeNameLabel">TransportCnx.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/TransportCnx.html#removedProducer-org.apache.pulsar.broker.service.Producer-">removedProducer</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a>&nbsp;producer)</code>&nbsp;</td>
+<td class="colLast"><span class="typeNameLabel">ServerCnx.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/ServerCnx.html#removedProducer-org.apache.pulsar.broker.service.Producer-">removedProducer</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a>&nbsp;producer)</code>&nbsp;</td>
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><span class="typeNameLabel">ServerCnx.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/ServerCnx.html#removedProducer-org.apache.pulsar.broker.service.Producer-">removedProducer</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a>&nbsp;producer)</code>&nbsp;</td>
+<td class="colLast"><span class="typeNameLabel">TransportCnx.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/TransportCnx.html#removedProducer-org.apache.pulsar.broker.service.Producer-">removedProducer</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a>&nbsp;producer)</code>&nbsp;</td>
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>void</code></td>

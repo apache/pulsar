@@ -126,6 +126,13 @@
 </tr>
 <tbody>
 <tr class="altColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><span class="typeNameLabel">BrokerInterceptorWithClassLoader.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptorWithClassLoader.html#beforeSendMessage-org.apache.pulsar.broker.service.Subscription-org.apache.bookkeeper.mledger.Entry-long:A-org.apache.pulsar.common.api.proto.MessageMetadata-">beforeSendMessage</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/Subscription.html" title="interface in org.apache.pulsar.broker.service">Subscription</a>&nbsp;subscription,
+                 org.apache.bookkeeper.mledger.Entry&nbsp;entry,
+                 long[]&nbsp;ackSet,
+                 org.apache.pulsar.common.api.proto.MessageMetadata&nbsp;msgMetadata)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
 <td class="colFirst"><code>default void</code></td>
 <td class="colLast"><span class="typeNameLabel">BrokerInterceptor.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptor.html#beforeSendMessage-org.apache.pulsar.broker.service.Subscription-org.apache.bookkeeper.mledger.Entry-long:A-org.apache.pulsar.common.api.proto.MessageMetadata-">beforeSendMessage</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/Subscription.html" title="interface in org.apache.pulsar.broker.service">Subscription</a>&nbsp;subscription,
                  org.apache.bookkeeper.mledger.Entry&nbsp;entry,
@@ -133,13 +140,6 @@
                  org.apache.pulsar.common.api.proto.MessageMetadata&nbsp;msgMetadata)</code>
 <div class="block">Intercept messages before sending them to the consumers.</div>
 </td>
-</tr>
-<tr class="rowColor">
-<td class="colFirst"><code>void</code></td>
-<td class="colLast"><span class="typeNameLabel">BrokerInterceptorWithClassLoader.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptorWithClassLoader.html#beforeSendMessage-org.apache.pulsar.broker.service.Subscription-org.apache.bookkeeper.mledger.Entry-long:A-org.apache.pulsar.common.api.proto.MessageMetadata-">beforeSendMessage</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/Subscription.html" title="interface in org.apache.pulsar.broker.service">Subscription</a>&nbsp;subscription,
-                 org.apache.bookkeeper.mledger.Entry&nbsp;entry,
-                 long[]&nbsp;ackSet,
-                 org.apache.pulsar.common.api.proto.MessageMetadata&nbsp;msgMetadata)</code>&nbsp;</td>
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>void</code></td>
