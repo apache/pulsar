@@ -51,7 +51,8 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
     }
 
     @BeforeClass(alwaysRun = true)
-    public void setupFunctionWorkers() {
+    public void setupFunctionWorkers() throws Exception {
+        super.setupCluster();
         final int numFunctionWorkers = 2;
         log.info("Setting up {} function workers : function runtime type = {}",
             numFunctionWorkers, functionRuntimeType);
@@ -63,6 +64,7 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
     public void teardownFunctionWorkers() {
         log.info("Tearing down function workers ...");
         pulsarCluster.stopWorkers();
+        super.tearDownCluster();
         log.info("All functions workers are stopped.");
     }
 

@@ -98,11 +98,13 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
                 .startMessageIdInclusive().readerName(subscription).create();
         int count = 0;
         while (reader.hasMessageAvailable()) {
-            Assert.assertTrue(keys.remove(reader.readNext(1, TimeUnit.SECONDS).getKey()));
-            count++;
+            if (keys.remove(reader.readNext(5, TimeUnit.SECONDS).getKey())) {
+                count++;
+            }
         }
         Assert.assertEquals(count, topicNum);
         Assert.assertFalse(reader.hasMessageAvailable());
+        reader.close();
     }
 
     @Test(timeOut = 10000)
@@ -124,7 +126,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
                 .startMessageIdInclusive().readerName(subscription).create();
 
         while (reader.hasMessageAvailable()) {
-            Assert.assertTrue(keys.remove(reader.readNext(2, TimeUnit.SECONDS).getKey()));
+            keys.remove(reader.readNext(2, TimeUnit.SECONDS).getKey());
         }
         // start from latest with start message inclusive should only read the last 3 message from 3 partition
         Assert.assertEquals(keys.size(), msgNum - topicNum);
@@ -132,6 +134,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         Assert.assertFalse(keys.contains("key13"));
         Assert.assertFalse(keys.contains("key12"));
         Assert.assertFalse(reader.hasMessageAvailable());
+        reader.close();
     }
 
     @Test(timeOut = 10000)
