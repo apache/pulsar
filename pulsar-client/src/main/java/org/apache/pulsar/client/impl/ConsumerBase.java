@@ -918,6 +918,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 if (!isListenerHandlingMessage) {
                     final Message<T> msg = internalReceive(0, TimeUnit.MILLISECONDS);
                     if (msg != null) {
+                        isListenerHandlingMessage = true;
                         // Trigger the notification on the message listener in a separate thread to avoid blocking the
                         // internal pinned executor thread while the message processing happens
                         if (SubscriptionType.Key_Shared == conf.getSubscriptionType()) {
@@ -928,7 +929,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                                 callMessageListener(msg);
                             });
                         }
-                        isListenerHandlingMessage = true;
                     }
                 }
             } catch (PulsarClientException e) {
