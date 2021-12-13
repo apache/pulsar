@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.namespace;
 
+import static org.apache.pulsar.broker.namespace.NamespaceService.HEARTBEAT_NAMESPACE_PATTERN;
+import static org.apache.pulsar.broker.namespace.NamespaceService.HEARTBEAT_NAMESPACE_PATTERN_V2;
 import static org.junit.Assert.assertNotEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -592,6 +594,14 @@ public class NamespaceServiceTest extends BrokerTestBase {
         for (NamespaceBundle b : namespaceService.getNamespaceBundleFactory().getBundles(nsname).getBundles()) {
             assertNotEquals(b.getBundleRange(), hotBundle);
         }
+    }
+
+    @Test
+    public void testHeartbeatNamespaceMatch() throws Exception {
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), conf);
+        NamespaceBundle namespaceBundle = pulsar.getNamespaceService().getNamespaceBundleFactory().getFullBundle(namespaceName);
+        assertTrue(NamespaceService.isSystemServiceNamespace(
+                        NamespaceBundle.getBundleNamespace(namespaceBundle.toString())));
     }
 
     @SuppressWarnings("unchecked")
