@@ -20,7 +20,6 @@ package org.apache.pulsar.tests.integration.admin;
 
 import static org.testng.Assert.assertNotNull;
 
-import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -40,18 +39,18 @@ import org.testng.annotations.Test;
 public class AdminTest extends MessagingBase {
 
     @Test(dataProvider = "ServiceAndAdminUrls")
-    public void testUnderReplicatedState(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
+    public void testUnderReplicatedState(String serviceUrl, String adminUrl) throws Exception {
 
         String topicName = getNonPartitionedTopic("replicated-state", true);
 
         @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder()
-                .serviceHttpUrl(adminUrl.get())
+                .serviceHttpUrl(adminUrl)
                 .build();
 
         @Cleanup
         final PulsarClient client = PulsarClient.builder()
-                .serviceUrl(serviceUrl.get())
+                .serviceUrl(serviceUrl)
                 .build();
 
         @Cleanup
