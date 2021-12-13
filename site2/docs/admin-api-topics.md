@@ -279,7 +279,7 @@ You can check the following statistics of a given non-partitioned topic.
 
           -   **backlogSize**: Size of backlog for this subscription (in bytes).
           
-          -   **earliestMsgPublishTimeInBacklog**:  publish time of the earliest message in the backlog for the subscription.
+          -   **earliestMsgPublishTimeInBacklog**: the publish time of the earliest message in the backlog for the subscription.
 
           -   **msgBacklogNoDelayed**: Number of messages in the subscription backlog that do not contain the delay messages.
 
