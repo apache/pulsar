@@ -45,7 +45,8 @@ public class ConsumerConfig {
     private Map<String, String> consumerProperties = new HashMap<>();
     private Integer receiverQueueSize;
     private CryptoConfig cryptoConfig;
-    private boolean poolMessages;
+    @Builder.Default
+    private boolean poolMessages = true;
 
     public ConsumerConfig(String schemaType) {
         this.schemaType = schemaType;

@@ -585,19 +585,19 @@ public class FunctionConfigUtilsTest {
     public void testPoolMessages() {
         FunctionConfig functionConfig = createFunctionConfig();
         Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, null);
-        assertFalse(functionDetails.getSource().getInputSpecsMap().get("test-input").getPoolMessages());
+        assertTrue(functionDetails.getSource().getInputSpecsMap().get("test-input").getPoolMessages());
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
-        assertFalse(convertedConfig.getInputSpecs().get("test-input").isPoolMessages());
+        assertTrue(convertedConfig.getInputSpecs().get("test-input").isPoolMessages());
 
         Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
         inputSpecs.put("test-input", ConsumerConfig.builder()
-                .poolMessages(true).build());
+                .poolMessages(false).build());
         functionConfig.setInputSpecs(inputSpecs);
 
         functionDetails = FunctionConfigUtils.convert(functionConfig, null);
-        assertTrue(functionDetails.getSource().getInputSpecsMap().get("test-input").getPoolMessages());
+        assertFalse(functionDetails.getSource().getInputSpecsMap().get("test-input").getPoolMessages());
 
         convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
-        assertTrue(convertedConfig.getInputSpecs().get("test-input").isPoolMessages());
+        assertFalse(convertedConfig.getInputSpecs().get("test-input").isPoolMessages());
     }
 }
