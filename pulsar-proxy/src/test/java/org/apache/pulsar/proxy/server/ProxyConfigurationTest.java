@@ -33,6 +33,7 @@ import java.util.Properties;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
+@Test(groups = "broker")
 public class ProxyConfigurationTest {
 
     @Test
