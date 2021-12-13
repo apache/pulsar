@@ -23,6 +23,7 @@ import static org.mockito.Mockito.doReturn;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -104,13 +105,14 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
         if(!tenants.contains("sample")) {
             admin.tenants().createTenant("sample", tenantInfo);
         }
-        admin.topics().createPartitionedTopic("persistent://sample/test/local/tls-partitioned-topic", 2);
+        String topic = "persistent://sample/test/local/" + UUID.randomUUID().toString();
+        admin.topics().createPartitionedTopic(topic, 2);
 
-        Producer<byte[]> producer = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/tls-partitioned-topic")
+        Producer<byte[]> producer = client.newProducer(Schema.BYTES).topic(topic)
                 .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
 
         // Create a consumer directly attached to broker
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://sample/test/local/tls-partitioned-topic")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("my-sub").subscribe();
 
         for (int i = 0; i < 10; i++) {

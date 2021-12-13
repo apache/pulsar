@@ -278,6 +278,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 return op == MockZooKeeper.Op.GET_CHILDREN
                     && path.equals("/admin/policies/my-tenant");
             });
+        // clear caches to load data from metadata-store again
+        pulsar.getGlobalZkCache().invalidateAll();
         try {
             namespaces.getTenantNamespaces(this.testTenant);
             fail("should have failed");
