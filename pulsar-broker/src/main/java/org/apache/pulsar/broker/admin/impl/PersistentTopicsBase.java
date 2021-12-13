@@ -3564,8 +3564,8 @@ public class PersistentTopicsBase extends AdminResource {
                     } catch (Exception e) {
                         if (e instanceof WebApplicationException) {
                             if (log.isDebugEnabled()) {
-                                log.debug("[{}] Failed to trigger compaction on topic {}, " +
-                                                "redirecting to other brokers.", clientAppId(), topicName, e);
+                                log.debug("[{}] Failed to trigger compaction on topic {}, "
+                                        + "redirecting to other brokers.", clientAppId(), topicName, e);
                             }
                             resumeAsyncResponseExceptionally(asyncResponse, e);
                             return;
