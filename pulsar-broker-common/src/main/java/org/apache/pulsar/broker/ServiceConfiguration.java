@@ -576,7 +576,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_POLICIES,
         doc = "How often is the thread pool scheduled to check whether a snapshot needs to be taken.(disable with value 0)"
     )
-    private int brokerDeduplicationSnapshotFrequencyInSeconds = 120;
+    private int brokerDeduplicationSnapshotFrequencyInSeconds = 10;
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "If this time interval is exceeded, a snapshot will be taken."
