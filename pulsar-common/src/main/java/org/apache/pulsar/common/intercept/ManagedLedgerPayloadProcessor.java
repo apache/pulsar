@@ -36,7 +36,7 @@ public interface ManagedLedgerPayloadProcessor {
 
         /**
          * To release any resource used during the process.
-         * NOTE: To avoid memory leak, do the following
+         * NOTE: To avoid memory leak, do the following ONLY if a different ByteBuf instance was returned in process()
          *       1. Call processedPayload.release() to release a reference
          *       2. Do any other cleanup needed
          *
