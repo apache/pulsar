@@ -41,7 +41,7 @@ Packages can efficiently use the same set of functions and IO connectors. For ex
    |type|Specify one of the supported package types: function, sink and source.|
    |tenant|Specify the tenant where you want to create the package.|
    |namespace|Specify the namespace where you want to create the package.|
-   |name|Specify the complete name of the package, using the format <tenant>/<namespace>/<package name>.|
+   |name|Specify the complete name of the package, using the format `<tenant>/<namespace>/<package name>`.|
    |version|Specify the version of the package using the format `MajorVerion.MinorVersion` in numerals.|
 
    The information you provide creates a URL for a package, in the format `<type>://<tenant>/<namespace>/<package name>/<version>`.
