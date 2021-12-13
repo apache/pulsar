@@ -695,19 +695,23 @@ public class PulsarFunctionE2ETest {
                 return false;
             }
         }, 50, 150);
-
         // 3 send message
         int totalMsgs = 10;
+        Set<String> remainingMessagesToReceive = new HashSet<>();
         for (int i = 0; i < totalMsgs; i++) {
-            producer.newMessage().property(propertyKey, propertyValue).value("fail" + i).send();
+            String messageBody = "fail" + i;
+            producer.newMessage().property(propertyKey, propertyValue).value(messageBody).send();
+            remainingMessagesToReceive.add(messageBody);
         }
 
         //4 All messages should enter DLQ
         for (int i = 0; i < totalMsgs; i++) {
             Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
             assertNotNull(message);
-            assertEquals(message.getValue(), "fail" + i);
+            remainingMessagesToReceive.remove(message.getValue());
         }
+
+        assertEquals(remainingMessagesToReceive, Collections.emptySet());
 
         //clean up
         producer.close();
