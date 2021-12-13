@@ -1169,12 +1169,9 @@ public class ReplicatorTest extends ReplicatorTestBase {
         String systemTopic = TopicName.get("persistent", NamespaceName.get(namespace),
                 EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME).toString();
         admin1.topics().createNonPartitionedTopic(topic);
-        Awaitility.await()
-                .until(() -> pulsar1.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
-        Awaitility.await()
-                .until(() -> pulsar2.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
-        Awaitility.await()
-                .until(() -> pulsar3.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        //wait until topic creation syncs to the other clusters.
+        Awaitility.await().untilAsserted(()-> Assert.assertTrue(admin2.namespaces().getTopics(namespace).contains(topic)));
+        Awaitility.await().untilAsserted(()-> Assert.assertTrue(admin3.namespaces().getTopics(namespace).contains(topic)));
         admin1.topics().setRetention(topic, new RetentionPolicies(10, 10));
         admin2.topics().setRetention(topic, new RetentionPolicies(20, 20));
         admin3.topics().setRetention(topic, new RetentionPolicies(30, 30));

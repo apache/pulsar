@@ -62,7 +62,7 @@ public class SimpleProducerConsumerTest {
     private URI lookupUrl;
     private PulsarClient pulsarClient;
 
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     public void setup() throws PulsarClientException, URISyntaxException, PulsarAdminException {
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
         pulsarContainer = new PulsarContainer();
@@ -80,11 +80,17 @@ public class SimpleProducerConsumerTest {
         admin.close();
     }
 
-    @AfterClass
-    public void cleanup() throws PulsarClientException {
-        pulsarClient.close();
-        pulsarContainer.stop();
-        pulsarContainer.close();
+    @AfterClass(alwaysRun = true)
+    public void cleanup() throws Exception {
+        if (pulsarClient != null) {
+            pulsarClient.close();
+            pulsarClient = null;
+        }
+        if (pulsarContainer != null) {
+            pulsarContainer.stop();
+            pulsarContainer.close();
+            pulsarContainer = null;
+        }
     }
 
     private PulsarClient newPulsarClient(String url, int intervalInSecs) throws PulsarClientException {
