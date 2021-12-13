@@ -699,7 +699,7 @@ public class PulsarFunctionE2ETest {
         // 3 send message
         int totalMsgs = 10;
         for (int i = 0; i < totalMsgs; i++) {
-            producer.newMessage().property(propertyKey, propertyValue).value("fail" + i).sendAsync();
+            producer.newMessage().property(propertyKey, propertyValue).value("fail" + i).send();
         }
 
         //4 All messages should enter DLQ
