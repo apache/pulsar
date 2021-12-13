@@ -499,7 +499,7 @@ public class TransactionMetadataStoreService {
         return resultFuture.thenCompose((future) -> endTxnInTransactionMetadataStore(txnID, txnAction));
     }
 
-    public static boolean isRetryableException(Throwable e) {
+    private static boolean isRetryableException(Throwable e) {
         return (e instanceof TransactionMetadataStoreStateException
                 || e instanceof RequestTimeoutException
                 || e instanceof ManagedLedgerException
