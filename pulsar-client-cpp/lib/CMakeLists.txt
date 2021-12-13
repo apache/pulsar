@@ -69,6 +69,11 @@ if (BUILD_DYNAMIC_LIB)
     endif()
 endif()
 
+include(CheckCXXSymbolExists)
+check_cxx_symbol_exists(getauxval auvx.h HAVE_AUXV_GETAUXVAL)
+if(HAVE_AUXV_GETAUXVAL)
+    add_definitions(-DPULSAR_AUXV_GETAUXVAL_PRESENT)
+endif()
 
 ### pulsarSharedNossl not static link ssl, it could avoid rebuild libpulsar when ssl lib need update.
 ### pulsarSharedNossl is build under condition LINK_STATIC=ON, we should replace static ssl libs with dynamic libs.
