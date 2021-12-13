@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import static org.apache.pulsar.broker.namespace.NamespaceService.HEARTBEAT_NAMESPACE_PATTERN;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import java.util.HashMap;
@@ -92,8 +91,7 @@ public class ThresholdShedder implements LoadSheddingStrategy {
             MutableBoolean atLeastOneBundleSelected = new MutableBoolean(false);
 
             if (localData.getBundles().size() > 1) {
-                loadData.getBundleData().entrySet().stream()
-                    .filter(e -> !HEARTBEAT_NAMESPACE_PATTERN.matcher(e.getKey()).matches())
+                loadData.getBundleDataForLoadShedding().entrySet().stream()
                     .map((e) -> {
                         String bundle = e.getKey();
                         BundleData bundleData = e.getValue();
