@@ -84,7 +84,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private Optional<Integer> webServicePortTls = Optional.empty();
 
     @FieldContext(doc = "Hostname or IP address the service binds on, default is 0.0.0.0.")
-    private String bindAddress;
+    private String bindAddress = "0.0.0.0";
 
     @FieldContext(doc = "Maximum size of a text message during parsing in WebSocket proxy")
     private int webSocketMaxTextFrameSize = 1024 * 1024;
@@ -120,13 +120,13 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private String brokerClientTrustCertsFilePath = "";
 
     @FieldContext(doc = "Number of IO threads in Pulsar client used in WebSocket proxy")
-    private int webSocketNumIoThreads = Runtime.getRuntime().availableProcessors();
+    private int webSocketNumIoThreads = 8;
 
     @FieldContext(doc = "Number of threads to used in HTTP server")
     private int numHttpServerThreads = Math.max(6, Runtime.getRuntime().availableProcessors());
 
     @FieldContext(doc = "Number of connections per broker in Pulsar client used in WebSocket proxy")
-    private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
+    private int webSocketConnectionsPerBroker = 8;
 
     @FieldContext(doc = "Timeout of idling WebSocket session (in milliseconds)")
     private int webSocketSessionIdleTimeoutMillis = 300000;

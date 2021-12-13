@@ -576,7 +576,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_POLICIES,
         doc = "How often is the thread pool scheduled to check whether a snapshot needs to be taken.(disable with value 0)"
     )
-    private int brokerDeduplicationSnapshotFrequencyInSeconds = 120;
+    private int brokerDeduplicationSnapshotFrequencyInSeconds = 10;
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "If this time interval is exceeded, a snapshot will be taken."
@@ -699,7 +699,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "Reducing to lower value can give more accuracy while throttling publish but "
                     + "it uses more CPU to perform frequent check. (Disable publish throttling with value 0)"
         )
-    private int topicPublisherThrottlingTickTimeMillis = 5;
+    private int topicPublisherThrottlingTickTimeMillis = 10;
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Enable precise rate limit for topic publish"
@@ -815,7 +815,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Default dispatch-throttling is disabled for consumers which already caught-up with"
             + " published messages and don't have backlog. This enables dispatch-throttling for "
             + " non-backlog consumers as well.")
-    private boolean dispatchThrottlingOnNonBacklogConsumerEnabled = false;
+    private boolean dispatchThrottlingOnNonBacklogConsumerEnabled = true;
 
     @FieldContext(
             category = CATEGORY_POLICIES,
@@ -933,7 +933,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Number of worker threads to serve non-persistent topic")
-    private int numWorkerThreadsForNonPersistentTopic = Runtime.getRuntime().availableProcessors();
+    private int numWorkerThreadsForNonPersistentTopic = 8;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -1590,7 +1590,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_STORAGE_ML,
         doc = "Threshold to which bring down the cache level when eviction is triggered"
     )
-    private double managedLedgerCacheEvictionWatermark = 0.9f;
+    private double managedLedgerCacheEvictionWatermark = 0.9;
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Configure the cache eviction frequency for the managed ledger cache. Default is 100/s")
     private double managedLedgerCacheEvictionFrequency = 100.0;
@@ -1636,12 +1636,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_STORAGE_ML,
         doc = "Number of threads to be used for managed ledger tasks dispatching"
     )
-    private int managedLedgerNumWorkerThreads = Runtime.getRuntime().availableProcessors();
+    private int managedLedgerNumWorkerThreads = 8;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Number of threads to be used for managed ledger scheduled tasks"
     )
-    private int managedLedgerNumSchedulerThreads = Runtime.getRuntime().availableProcessors();
+    private int managedLedgerNumSchedulerThreads = 8;
 
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
@@ -1999,7 +1999,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_REPLICATION,
         doc = "Enable replication metrics"
     )
-    private boolean replicationMetricsEnabled = false;
+    private boolean replicationMetricsEnabled = true;
     @FieldContext(
         category = CATEGORY_REPLICATION,
         doc = "Max number of connections to open for each broker in a remote cluster.\n\n"
@@ -2136,12 +2136,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_WEBSOCKET,
         doc = "Number of IO threads in Pulsar Client used in WebSocket proxy"
     )
-    private int webSocketNumIoThreads = Runtime.getRuntime().availableProcessors();
+    private int webSocketNumIoThreads = 8;
     @FieldContext(
         category = CATEGORY_WEBSOCKET,
         doc = "Number of connections per Broker in Pulsar Client used in WebSocket proxy"
     )
-    private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
+    private int webSocketConnectionsPerBroker = 8;
     @FieldContext(
         category = CATEGORY_WEBSOCKET,
         doc = "Time in milliseconds that idle WebSocket session times out"
