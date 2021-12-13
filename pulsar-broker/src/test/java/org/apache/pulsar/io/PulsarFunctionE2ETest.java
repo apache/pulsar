@@ -1094,7 +1094,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         functionConfig.setParallelism(1);
         functionConfig.setSubName(subscriptionName);
         functionConfig.setInputSpecs(Collections.singletonMap(sourceTopic,
-                ConsumerConfig.builder().poolMessages(true).build()));
+                ConsumerConfig.builder().build()));
         functionConfig.setAutoAck(true);
         functionConfig.setClassName(ByteBufferFunction.class.getName());
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);

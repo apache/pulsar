@@ -64,8 +64,7 @@ public class FunctionConfigUtilsTest {
         Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
         inputSpecs.put("test-input", ConsumerConfig.builder()
                 .isRegexPattern(true)
-                .serdeClassName("test-serde")
-                .poolMessages(true).build());
+                .serdeClassName("test-serde").build());
         functionConfig.setInputSpecs(inputSpecs);
         functionConfig.setOutput("test-output");
         functionConfig.setOutputSerdeClassName("test-serde");

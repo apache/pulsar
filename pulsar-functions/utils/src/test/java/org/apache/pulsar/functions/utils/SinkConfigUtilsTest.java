@@ -86,8 +86,7 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
         inputSpecs.put("test-input", ConsumerConfig.builder()
                 .isRegexPattern(true)
                 .receiverQueueSize(532)
-                .serdeClassName("test-serde")
-                .poolMessages(true).build());
+                .serdeClassName("test-serde").build());
         sinkConfig.setInputs(Collections.singleton("test-input"));
         sinkConfig.setInputSpecs(inputSpecs);
         sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
@@ -404,18 +403,18 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
     public void testPoolMessages() throws IOException {
         SinkConfig sinkConfig = createSinkConfig();
         Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null));
-        assertFalse(functionDetails.getSource().getInputSpecsMap().get("test-input").getPoolMessages());
+        assertTrue(functionDetails.getSource().getInputSpecsMap().get("test-input").getPoolMessages());
         SinkConfig convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
-        assertFalse(convertedConfig.getInputSpecs().get("test-input").isPoolMessages());
+        assertTrue(convertedConfig.getInputSpecs().get("test-input").isPoolMessages());
 
         Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
         inputSpecs.put("test-input", ConsumerConfig.builder()
-                .poolMessages(true).build());
+                .poolMessages(false).build());
         sinkConfig.setInputSpecs(inputSpecs);
 
         functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null));
-        assertTrue(functionDetails.getSource().getInputSpecsMap().get("test-input").getPoolMessages());
+        assertFalse(functionDetails.getSource().getInputSpecsMap().get("test-input").getPoolMessages());
         convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
-        assertTrue(convertedConfig.getInputSpecs().get("test-input").isPoolMessages());
+        assertFalse(convertedConfig.getInputSpecs().get("test-input").isPoolMessages());
     }
 }

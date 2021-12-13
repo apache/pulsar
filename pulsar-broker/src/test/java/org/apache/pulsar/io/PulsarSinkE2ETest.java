@@ -480,7 +480,6 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         String jarFilePathUrl = PulsarSinkE2ETest.class.getProtectionDomain().getCodeSource().getLocation().toURI().toString();
         testPulsarSinkStats(jarFilePathUrl, sinkConfig -> {
             sinkConfig.setClassName(ByteBufferSink.class.getName());
-            sinkConfig.getInputSpecs().values().forEach(consumerConfig -> consumerConfig.setPoolMessages(true));
             return sinkConfig;
         });
     }
