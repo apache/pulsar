@@ -174,10 +174,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     private void testSink(SinkTester tester, boolean builtin) throws Exception {
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
         tester.startServiceContainer(pulsarCluster);
         try {
             runSinkTester(tester, builtin);
@@ -191,10 +187,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                                                         boolean builtinSink,
                                                                         SourceTester<ServiceContainerT> sourceTester)
             throws Exception {
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
         ServiceContainerT serviceContainer = sinkTester.startServiceContainer(pulsarCluster);
         try {
             runSinkTester(sinkTester, builtinSink);
@@ -886,11 +878,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             return;
         }
 
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
-
         String inputTopicName = "persistent://public/default/test-function-local-run-" + runtime + "-input-" + randomName(8);
         String outputTopicName = "test-function-local-run-" + runtime + "-output-" + randomName(8);
 
@@ -1016,10 +1003,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         String inputTopicName = "test-" + type + "-count-window-" + functionRuntimeType + "-input-" + randomName(8);
         String outputTopicName = "test-" + type + "-count-window-" + functionRuntimeType + "-output-" + randomName(8);
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
         try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
             admin.topics().createNonPartitionedTopic(inputTopicName);
             admin.topics().createNonPartitionedTopic(outputTopicName);
@@ -1176,11 +1159,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     private void testFunctionNegAck(Runtime runtime) throws Exception {
         if (functionRuntimeType == FunctionRuntimeType.THREAD) {
             return;
-        }
-
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
         }
 
         Schema<?> schema;
@@ -1375,11 +1353,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             schema = Schema.BYTES;
         }
 
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
-
         String inputTopicName = "persistent://public/default/test-publish-" + runtime + "-input-" + randomName(8);
         String outputTopicName = "test-publish-" + runtime + "-output-" + randomName(8);
         try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
@@ -1502,11 +1475,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             return;
         }
 
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
-
         String inputTopicName = "persistent://public/default/test-serde-java-input-" + randomName(8);
         String outputTopicName = "test-publish-serde-output-" + randomName(8);
         try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
@@ -1576,11 +1544,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         if (functionRuntimeType == FunctionRuntimeType.THREAD && runtime == Runtime.PYTHON) {
             // python can only run on process mode
             return;
-        }
-
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
         }
 
         Schema<?> schema;
@@ -2160,11 +2123,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         String functionName = "test-autoschema-fn-" + randomName(8);
         final int numMessages = 10;
 
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
-
         // submit the exclamation function
         submitFunction(
             Runtime.JAVA,
@@ -2355,11 +2313,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // This is the binlog count that contained in mysql container.
         final int numMessages = 47;
 
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
-
         @Cleanup
         PulsarClient client = PulsarClient.builder()
             .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
@@ -2452,11 +2405,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // This is the binlog count that contained in postgresql container.
         final int numMessages = 26;
 
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
-
         @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
@@ -2539,11 +2487,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // This is the binlog count that contained in mongodb container.
         final int numMessages = 17;
-
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
@@ -2652,11 +2595,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         if (functionRuntimeType == FunctionRuntimeType.THREAD && runtime == Runtime.GO) {
             // go can only run on process mode
             return;
-        }
-
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
         }
         
         Schema<?> schema;
