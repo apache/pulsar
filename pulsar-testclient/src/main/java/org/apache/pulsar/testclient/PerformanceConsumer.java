@@ -573,7 +573,7 @@ public class PerformanceConsumer {
                         dec.format(rateAck));
             }
             log.info(
-                    "Throughput received: {} msg --- {}  msg/s -- {} Mbit/s  "
+                    "Throughput received: {} msg --- {}  msg/s --- {} Mbit/s  "
                             + "--- Latency: mean: {} ms - med: {} "
                             + "- 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
                     intFormat.format(total),
@@ -622,7 +622,7 @@ public class PerformanceConsumer {
         }
         log.info(
             "Aggregated throughput stats --- {} records received --- {} msg/s --- {} Mbit/s"
-                 + "--- AckRate: {}  msg/s --- ack failed {} msg",
+                 + " --- AckRate: {}  msg/s --- ack failed {} msg",
             totalMessagesReceived.sum(),
             dec.format(rate),
             dec.format(throughput),

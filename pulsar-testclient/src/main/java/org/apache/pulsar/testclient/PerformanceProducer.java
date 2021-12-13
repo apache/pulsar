@@ -509,7 +509,7 @@ public class PerformanceProducer {
                 totalTxnOpSuccess = totalEndTxnOpSuccessNum.sum();
                 totalTxnOpFail = totalEndTxnOpFailNum.sum();
                 rateOpenTxn = numTxnOpSuccess.sumThenReset() / elapsed;
-                log.info("--- Transaction : {} transaction end successfully ---{} transaction end failed "
+                log.info("--- Transaction : {} transaction end successfully --- {} transaction end failed "
                                 + "--- {} Txn/s",
                         totalTxnOpSuccess, totalTxnOpFail, totalFormat.format(rateOpenTxn));
             }
@@ -728,6 +728,7 @@ public class PerformanceProducer {
                     PulsarClient pulsarClient = client;
                     messageBuilder.sendAsync().thenRun(() -> {
                         bytesSent.add(payloadData.length);
+                        messagesSent.increment();
 
                         totalMessagesSent.increment();
                         totalBytesSent.add(payloadData.length);
