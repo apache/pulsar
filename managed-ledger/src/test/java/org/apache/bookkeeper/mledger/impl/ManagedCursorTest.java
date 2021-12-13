@@ -26,6 +26,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -767,6 +768,47 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         for (Future<AtomicBoolean> f : futures) {
             assertTrue(f.get().get());
         }
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000)
+    void testLastActiveAfterResetCursor() throws Exception {
+        ManagedLedger ledger = factory.open("test_cursor_ledger");
+        ManagedCursor cursor = ledger.openCursor("tla");
+
+        PositionImpl lastPosition = null;
+        for (int i = 0; i < 3; i++) {
+            lastPosition = (PositionImpl) ledger.addEntry("dummy-entry".getBytes(Encoding));
+        }
+
+        final AtomicBoolean moveStatus = new AtomicBoolean(false);
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+
+        long lastActive = cursor.getLastActive();
+
+        cursor.asyncResetCursor(lastPosition, new AsyncCallbacks.ResetCursorCallback() {
+            @Override
+            public void resetComplete(Object ctx) {
+                moveStatus.set(true);
+                countDownLatch.countDown();
+            }
+
+            @Override
+            public void resetFailed(ManagedLedgerException exception, Object ctx) {
+                moveStatus.set(false);
+                countDownLatch.countDown();
+            }
+        });
+
+        countDownLatch.await();
+        assertTrue(moveStatus.get());
+
+        assertNotNull(lastPosition);
+        assertEquals(lastPosition, cursor.getReadPosition());
+
+        assertNotEquals(lastActive, cursor.getLastActive());
+
+        cursor.close();
         ledger.close();
     }
 

@@ -277,6 +277,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         for (String topic : topicList) {
             PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
             persistentTopic.getBrokerService().getPulsar().getConfiguration().setTtlDurationDefaultInSeconds(-1);
+            persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().updateBrokerValue(-1);
         }
         pulsar.getBrokerService().forEachTopic(Topic::checkMessageExpiry);
         //wait for checkMessageExpiry

@@ -20,9 +20,6 @@ package org.apache.pulsar.broker.resources;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Joiner;
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -31,11 +28,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.apache.zookeeper.common.PathUtils;
 
 /**
  * Base class for all configuration resources to access configurations from metadata-store.
@@ -180,72 +175,5 @@ public class BaseResources<T> {
         StringBuilder sb = new StringBuilder();
         Joiner.on('/').appendTo(sb, parts);
         return sb.toString();
-    }
-
-    protected static CompletableFuture<Void> deleteRecursiveAsync(BaseResources resources, final String pathRoot) {
-        PathUtils.validatePath(pathRoot);
-
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        listSubTreeBFSAsync(resources, pathRoot).whenComplete((tree, ex) -> {
-            if (ex == null) {
-                log.debug("Deleting {} with size {}", tree, tree.size());
-
-                final List<CompletableFuture<Void>> futures = new ArrayList<>();
-                for (int i = tree.size() - 1; i >= 0; --i) {
-                    // Delete the leaves first and eventually get rid of the root
-                    futures.add(resources.deleteAsync(tree.get(i)));
-                }
-
-                FutureUtil.waitForAll(futures).handle((result, exception) -> {
-                    if (exception != null) {
-                        log.error("Failed to remove partitioned topics", exception);
-                        return completableFuture.completeExceptionally(exception.getCause());
-                    }
-                    return completableFuture.complete(null);
-                });
-            } else {
-                log.warn("Failed to delete partitioned topics z-node [{}]", pathRoot, ex.getCause());
-            }
-        });
-
-        return completableFuture;
-    }
-
-    protected static CompletableFuture<List<String>> listSubTreeBFSAsync(BaseResources resources,
-            final String pathRoot) {
-        Deque<String> queue = new LinkedList<>();
-        List<String> tree = new ArrayList<>();
-        queue.add(pathRoot);
-        tree.add(pathRoot);
-        CompletableFuture<List<String>> completableFuture = new CompletableFuture<>();
-        final List<CompletableFuture<Void>> futures = new ArrayList<>();
-        for (int i = 0; i < queue.size(); i++) {
-            String node = queue.pollFirst();
-            if (node == null) {
-                break;
-            }
-            futures.add(resources.getChildrenAsync(node)
-                    .whenComplete((children, ex) -> {
-                        if (ex == null) {
-                            for (final String child : (List<String>) children) {
-                                final String childPath = node + "/" + child;
-                                queue.add(childPath);
-                                tree.add(childPath);
-                            }
-                        } else {
-                            log.warn("Failed to get data error from z-node [{}]", node);
-                        }
-                    }));
-        }
-
-        FutureUtil.waitForAll(futures).handle((result, exception) -> {
-            if (exception != null) {
-                log.error("Failed to get partitioned topics", exception);
-                return completableFuture.completeExceptionally(exception.getCause());
-            }
-            return completableFuture.complete(tree);
-        });
-
-        return completableFuture;
     }
 }
