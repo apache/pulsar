@@ -329,6 +329,10 @@
         {
           "type": "doc",
           "id": "version-2.3.2/admin-api-partitioned-topics"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.3.2/admin-api-schemas"
         }
       ]
     },
