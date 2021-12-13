@@ -965,7 +965,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         final String cluster1 = pulsar1.getConfig().getClusterName();
         final String cluster2 = pulsar2.getConfig().getClusterName();
         final String namespace = "pulsar/ns-" + System.nanoTime();
-        final String topicName = "persistent://" + namespace + "/topic1";
+        final String topicName = "persistent://" + namespace + "/testUpdateGlobalTopicPartition";
         int startPartitions = 4;
         int newPartitions = 8;
         final String subscriberName = "sub1";
