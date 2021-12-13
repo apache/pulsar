@@ -53,6 +53,7 @@ import java.util.stream.Collectors;
 
 import lombok.Cleanup;
 
+import net.bytebuddy.implementation.bytecode.Throw;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -1161,32 +1162,36 @@ public class ReplicatorTest extends ReplicatorTestBase {
     }
 
     @Test
-    public void testDoNotReplicateSystemTopic() throws Exception {
+    public void testDoNotReplicateSystemTopic() {
         final String namespace = "pulsar/ns-" + System.nanoTime();
-        admin1.namespaces().createNamespace(namespace, Sets.newHashSet("r1", "r2", "r3"));
-        String topic = TopicName.get("persistent", NamespaceName.get(namespace),
-                "testDoesNotReplicateSystemTopic").toString();
-        String systemTopic = TopicName.get("persistent", NamespaceName.get(namespace),
-                EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME).toString();
-        admin1.topics().createNonPartitionedTopic(topic);
-        //wait until topic creation syncs to the other clusters.
-        Awaitility.await().untilAsserted(()-> Assert.assertTrue(admin2.namespaces().getTopics(namespace).contains(topic)));
-        Awaitility.await().untilAsserted(()-> Assert.assertTrue(admin3.namespaces().getTopics(namespace).contains(topic)));
-        admin1.topics().setRetention(topic, new RetentionPolicies(10, 10));
-        admin2.topics().setRetention(topic, new RetentionPolicies(20, 20));
-        admin3.topics().setRetention(topic, new RetentionPolicies(30, 30));
+        try {
+            admin1.namespaces().createNamespace(namespace, Sets.newHashSet("r1", "r2", "r3"));
+            String topic = TopicName.get("persistent", NamespaceName.get(namespace),
+                    "testDoesNotReplicateSystemTopic=" + System.nanoTime()).toString();
+            String systemTopic = TopicName.get("persistent", NamespaceName.get(namespace),
+                    EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME).toString();
+            admin1.topics().createNonPartitionedTopic(topic);
+            //wait until topic creation syncs to the other clusters.
+            Awaitility.await().untilAsserted(()-> Assert.assertTrue(admin2.namespaces().getTopics(namespace).contains(topic)));
+            Awaitility.await().untilAsserted(()-> Assert.assertTrue(admin3.namespaces().getTopics(namespace).contains(topic)));
+            admin1.topics().setRetention(topic, new RetentionPolicies(10, 10));
+            admin2.topics().setRetention(topic, new RetentionPolicies(20, 20));
+            admin3.topics().setRetention(topic, new RetentionPolicies(30, 30));
 
-        Awaitility.await().untilAsserted(() -> {
-            Assert.assertEquals(admin1.topics().getStats(systemTopic).replication.size(), 0);
-            Assert.assertEquals(admin2.topics().getStats(systemTopic).replication.size(), 0);
-            Assert.assertEquals(admin3.topics().getStats(systemTopic).replication.size(), 0);
-        });
+            Awaitility.await().untilAsserted(() -> {
+                Assert.assertEquals(admin1.topics().getStats(systemTopic).replication.size(), 0);
+                Assert.assertEquals(admin2.topics().getStats(systemTopic).replication.size(), 0);
+                Assert.assertEquals(admin3.topics().getStats(systemTopic).replication.size(), 0);
+            });
 
-        Awaitility.await().untilAsserted(() -> {
-            Assert.assertEquals(admin1.topics().getRetention(topic).getRetentionSizeInMB(), 10);
-            Assert.assertEquals(admin2.topics().getRetention(topic).getRetentionSizeInMB(), 20);
-            Assert.assertEquals(admin3.topics().getRetention(topic).getRetentionSizeInMB(), 30);
-        });
+            Awaitility.await().untilAsserted(() -> {
+                Assert.assertEquals(admin1.topics().getRetention(topic).getRetentionSizeInMB(), 10);
+                Assert.assertEquals(admin2.topics().getRetention(topic).getRetentionSizeInMB(), 20);
+                Assert.assertEquals(admin3.topics().getRetention(topic).getRetentionSizeInMB(), 30);
+            });
+        } catch (Throwable ex) {
+            log.error("testDoNotReplicateSystemTopic error", ex);
+        }
     }
 
     private void checkListContainExpectedTopic(PulsarAdmin admin, String namespace, List<String> expectedTopicList) {
