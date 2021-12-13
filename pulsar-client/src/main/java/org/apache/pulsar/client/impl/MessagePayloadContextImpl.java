@@ -88,6 +88,7 @@ public class MessagePayloadContextImpl implements MessagePayloadContext {
             ackBitSet.recycle();
             ackBitSet = null;
         }
+        recyclerHandle.recycle(this);
     }
 
     @Override

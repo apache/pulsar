@@ -502,4 +502,10 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         conf.setNegativeAckRedeliveryBackoff(negativeAckRedeliveryBackoff);
         return this;
     }
+
+    @Override
+    public ConsumerBuilder<T> startPaused(boolean paused) {
+        conf.setStartPaused(paused);
+        return this;
+    }
 }

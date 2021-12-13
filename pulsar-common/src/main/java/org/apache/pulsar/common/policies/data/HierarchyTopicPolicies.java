@@ -38,6 +38,7 @@ public class HierarchyTopicPolicies {
     final PolicyHierarchyValue<Integer> maxProducersPerTopic;
     final Map<BacklogQuotaType, PolicyHierarchyValue<BacklogQuota>> backLogQuotaMap;
     final PolicyHierarchyValue<Integer> topicMaxMessageSize;
+    final PolicyHierarchyValue<Integer> messageTTLInSeconds;
 
     public HierarchyTopicPolicies() {
         deduplicationEnabled = new PolicyHierarchyValue<>();
@@ -50,5 +51,6 @@ public class HierarchyTopicPolicies {
                 .put(BacklogQuotaType.message_age, new PolicyHierarchyValue<>())
                 .build();
         topicMaxMessageSize = new PolicyHierarchyValue<>();
+        messageTTLInSeconds = new PolicyHierarchyValue<>();
     }
 }
