@@ -3495,6 +3495,14 @@ public class PersistentTopicsBase extends AdminResource {
                 validateGlobalNamespaceOwnership(namespaceName);
             }
         } catch (Exception e) {
+            if (e instanceof WebApplicationException) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Failed to trigger compaction on topic {}, redirecting to other brokers.",
+                            clientAppId(), topicName, e);
+                }
+                resumeAsyncResponseExceptionally(asyncResponse, e);
+                return;
+            }
             log.error("[{}] Failed to trigger compaction on topic {}", clientAppId(), topicName, e);
             resumeAsyncResponseExceptionally(asyncResponse, e);
             return;
@@ -3554,6 +3562,14 @@ public class PersistentTopicsBase extends AdminResource {
                     try {
                         internalTriggerCompactionNonPartitionedTopic(authoritative);
                     } catch (Exception e) {
+                        if (e instanceof WebApplicationException) {
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] Failed to trigger compaction on topic {}, "
+                                        + "redirecting to other brokers.", clientAppId(), topicName, e);
+                            }
+                            resumeAsyncResponseExceptionally(asyncResponse, e);
+                            return;
+                        }
                         log.error("[{}] Failed to trigger compaction on topic {}", clientAppId(), topicName, e);
                         resumeAsyncResponseExceptionally(asyncResponse, e);
                         return;
