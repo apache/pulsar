@@ -4,6 +4,16 @@ title: Manage packages
 sidebar_label: Packages
 ---
 
+> **Important**
+>
+> This page only shows **some frequently used operations**.
+>
+> - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/).
+> 
+> - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
+> 
+> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/).
+
 Package managers or package-management systems automatically manage packages in a consistent manner. These tools simplify the installation tasks, upgrade process, and deletion operations for users. A package is the minimal unit that a package manager deals with. In Pulsar, packages are organized at the tenant- and namespace-level to manage Pulsar Functions and Pulsar IO connectors (i.e., source and sink).
 
 ## What is a package?
@@ -12,7 +22,7 @@ A package is a set of elements that the user would like to reuse in later operat
 
 The package management system in Pulsar stores the data and metadata of each package (as shown in the table below) and tracks the package versions. 
 
-|**Metadata**|**Description**|
+|Metadata|Description|
 |--|--|
 |description|The description of the package.|
 |contact|The contact information of a package. For example, an email address of the developer team.|
@@ -31,7 +41,7 @@ Packages can efficiently use the same set of functions and IO connectors. For ex
    |type|Specify one of the supported package types: function, sink and source.|
    |tenant|Specify the tenant where you want to create the package.|
    |namespace|Specify the namespace where you want to create the package.|
-   |name|Specify the complete name of the package, using the format &lt;tenant>/&lt;namespace>/&lt;package name>.|
+   |name|Specify the complete name of the package, using the format <tenant>/<namespace>/<package name>.|
    |version|Specify the version of the package using the format `MajorVerion.MinorVersion` in numerals.|
 
    The information you provide creates a URL for a package, in the format `<type>://<tenant>/<namespace>/<package name>/<version>`.
@@ -250,10 +260,3 @@ List all packages of a specific type under a namespace asynchronously.
   CompletableFuture<List<String>> listPackagesAsync(String type, String namespace);
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
-
-
-> **Note**  
-> This page only includes some of the most frequently used operations.
-> * For more information about the commands, flags, descriptions, and more in Pulsar administrator, see [Pulsar admin](https://pulsar.apache.org/tools/pulsar-admin/).
-> * For more information about the parameters, responses, samples, and more in REST API, see {@inject: rest:REST:/} API.
-> * For more information about the classes, methods, descriptions, and more Java administrator API, see [Java admin API](https://pulsar.apache.org/api/admin/).
