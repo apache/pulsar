@@ -533,8 +533,8 @@ public class PerformanceTransaction {
                     ? "Throughput transaction: {} transaction executes --- {} transaction/s"
                     : "Throughput task: {} task executes --- {} task/s";
             log.info(
-                    txnOrTaskLog + "  ---send Latency: mean: {} ms - med: {} "
-                            + "- 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}" + "---ack Latency: "
+                    txnOrTaskLog + "  --- send Latency: mean: {} ms - med: {} "
+                            + "- 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}" + " --- ack Latency: "
                             + "mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
                     intFormat.format(total),
                     dec.format(rate),
@@ -582,8 +582,8 @@ public class PerformanceTransaction {
                 "Aggregated throughput stats --- {} transaction executed --- {} transaction/s "
                         + " --- {} transaction open successfully --- {} transaction open failed"
                         + " --- {} transaction end successfully --- {} transaction end failed"
-                        + "--- {} message ack failed --- {} message send failed"
-                        + "--- {} message ack success --- {} message send success ",
+                        + " --- {} message ack failed --- {} message send failed"
+                        + " --- {} message ack success --- {} message send success ",
                 total,
                 dec.format(rate),
                 numTransactionOpenSuccess,
@@ -606,9 +606,9 @@ public class PerformanceTransaction {
         long numMessageSendFailed = numMessagesSendFailed.sum();
         long numMessageSendSuccess = numMessagesSendSuccess.sum();
         log.info(
-                "Aggregated throughput stats --- {} task executed --- {} task/s "
-                        + "--- {} message ack failed --- {} message send failed"
-                        + "--- {} message ack success --- {} message send success ",
+                "Aggregated throughput stats --- {} task executed --- {} task/s"
+                        + " --- {} message ack failed --- {} message send failed"
+                        + " --- {} message ack success --- {} message send success",
                 total,
                 totalFormat.format(rate),
                 numMessageAckFailed,
