@@ -112,6 +112,9 @@ public class BrokerInterceptors implements BrokerInterceptor {
     public void consumerCreated(ServerCnx cnx,
                                  Consumer consumer,
                                  Map<String, String> metadata) {
+        if (interceptors == null || interceptors.isEmpty()) {
+            return;
+        }
         for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
             value.consumerCreated(
                     cnx,
@@ -123,6 +126,9 @@ public class BrokerInterceptors implements BrokerInterceptor {
     @Override
     public void producerCreated(ServerCnx cnx, Producer producer,
                                  Map<String, String> metadata){
+        if (interceptors == null || interceptors.isEmpty()) {
+            return;
+        }
         for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
             value.producerCreated(cnx, producer, metadata);
         }
@@ -132,6 +138,9 @@ public class BrokerInterceptors implements BrokerInterceptor {
     public void messageProduced(ServerCnx cnx, Producer producer, long startTimeNs, long ledgerId,
                                  long entryId, Rate rateIn,
                                  Topic.PublishContext publishContext) {
+        if (interceptors == null || interceptors.isEmpty()) {
+            return;
+        }
         for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
             value.messageProduced(cnx, producer, startTimeNs, ledgerId, entryId, rateIn, publishContext);
         }
@@ -140,6 +149,9 @@ public class BrokerInterceptors implements BrokerInterceptor {
     @Override
     public  void messageDispatched(ServerCnx cnx, Consumer consumer, long ledgerId,
                                    long entryId, ByteBuf headersAndPayload) {
+        if (interceptors == null || interceptors.isEmpty()) {
+            return;
+        }
         for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
             value.messageDispatched(cnx, consumer, ledgerId, entryId, headersAndPayload);
         }
@@ -148,6 +160,9 @@ public class BrokerInterceptors implements BrokerInterceptor {
     @Override
     public void messageAcked(ServerCnx cnx, Consumer consumer,
                               CommandAck ackCmd) {
+        if (interceptors == null || interceptors.isEmpty()) {
+            return;
+        }
         for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
             value.messageAcked(cnx, consumer, ackCmd);
         }
@@ -155,6 +170,9 @@ public class BrokerInterceptors implements BrokerInterceptor {
 
     @Override
     public void onConnectionCreated(ServerCnx cnx) {
+        if (interceptors == null || interceptors.isEmpty()) {
+            return;
+        }
         for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
             value.onConnectionCreated(cnx);
         }

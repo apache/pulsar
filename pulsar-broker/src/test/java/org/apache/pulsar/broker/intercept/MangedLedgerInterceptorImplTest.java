@@ -101,7 +101,7 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         int numberOfEntries = 10;
         final String ledgerAndCursorName = "topicEntryMetadataSequenceId";
 
-        ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(getBrokerEntryMetadataInterceptors());
+        ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(getBrokerEntryMetadataInterceptors(),null);
 
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(2);
@@ -155,7 +155,7 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000)
     public void testRecoveryIndex() throws Exception {
         final int MOCK_BATCH_SIZE = 2;
-        ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(getBrokerEntryMetadataInterceptors());
+        ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(getBrokerEntryMetadataInterceptors(),null);
 
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setManagedLedgerInterceptor(interceptor);
@@ -197,7 +197,7 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         final int MOCK_BATCH_SIZE = 2;
         final int maxEntriesPerLedger = 5;
         int maxSequenceIdPerLedger = MOCK_BATCH_SIZE * maxEntriesPerLedger;
-        ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(getBrokerEntryMetadataInterceptors());
+        ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(getBrokerEntryMetadataInterceptors(),null);
 
 
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();

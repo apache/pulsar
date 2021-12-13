@@ -491,7 +491,6 @@ public class Producer {
             callback.isMarker = isMarker;
             if (callback.propertyMap != null) {
                 callback.propertyMap.clear();
-                callback.propertyMap = null;
             }
             return callback;
         }
@@ -512,7 +511,6 @@ public class Producer {
             callback.isMarker = isMarker;
             if (callback.propertyMap != null) {
                 callback.propertyMap.clear();
-                callback.propertyMap = null;
             }
             return callback;
         }

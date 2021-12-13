@@ -43,10 +43,6 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
     private final Set<ManagedLedgerPayloadProcessor.Processor> inputProcessors;
     private final Set<ManagedLedgerPayloadProcessor.Processor> outputProcessors;
 
-    public ManagedLedgerInterceptorImpl(Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors) {
-        this(brokerEntryMetadataInterceptors, null);
-    }
-
     public ManagedLedgerInterceptorImpl(Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors,
                                         Set<ManagedLedgerPayloadProcessor> brokerEntryPayloadProcessors) {
         this.brokerEntryMetadataInterceptors = brokerEntryMetadataInterceptors;

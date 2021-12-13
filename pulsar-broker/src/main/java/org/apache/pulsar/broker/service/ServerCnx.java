@@ -1433,7 +1433,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
             Consumer consumer = consumerFuture.getNow(null);
-            consumerFuture.getNow(null).messageAcked(ack).thenRun(() -> {
+            consumer.messageAcked(ack).thenRun(() -> {
                         if (hasRequestId) {
                             ctx.writeAndFlush(Commands.newAckResponse(
                                     requestId, null, null, consumerId));
