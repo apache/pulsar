@@ -196,17 +196,17 @@ public class RuntimeUtilsTest {
                 AuthenticationConfig.builder().build(),
                 "shardId",
                 23,
-                 1234L,
+                1234L,
                 "logConfigFile",
                 "secretsProviderClassName",
                 "secretsProviderConfig",
                 false,
                 null,
                 null,
-        1234,
-        "narExtractionDirectory",
-        "functionInstanceClassPath",
-        "");
+                "narExtractionDirectory",
+                "functionInstanceClassPath",
+                "",
+                "");
 
         log.info("cmd {}", cmd);
 
