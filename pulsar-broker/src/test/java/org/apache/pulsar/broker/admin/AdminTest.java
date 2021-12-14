@@ -92,6 +92,7 @@ import org.mockito.ArgumentCaptor;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Ignore;
 import org.testng.annotations.Test;
 
 import org.slf4j.Logger;
@@ -404,6 +405,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @Ignore
     public void properties() throws Exception {
         assertEquals(properties.getTenants(), Lists.newArrayList());
         verify(properties, times(1)).validateSuperUserAccess();
