@@ -102,7 +102,7 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     @Override
     public ReaderBuilder<T> loadConf(Map<String, Object> config) {
         MessageId startMessageId = conf.getStartMessageId();
-        conf = ConfigurationDataUtils.loadData(config, conf, ReaderConfigurationData.class);
+        conf = ConfigurationDataUtils.loadData(config, conf);
         conf.setStartMessageId(startMessageId);
         return this;
     }

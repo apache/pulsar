@@ -51,20 +51,17 @@ public final class ConfigurationDataUtils {
         return mapper.get();
     }
 
-    private ConfigurationDataUtils() {}
+    private ConfigurationDataUtils() {
+    }
 
     public static <T> T loadData(Map<String, Object> config,
-                                 T existingData,
-                                 Class<T> dataCls) {
+                                 T existingData) {
         ObjectMapper mapper = getThreadLocal();
         try {
-            String existingConfigJson = mapper.writeValueAsString(existingData);
-            Map<String, Object> existingConfig = mapper.readValue(existingConfigJson, Map.class);
             Map<String, Object> newConfig = new HashMap<>();
-            newConfig.putAll(existingConfig);
             newConfig.putAll(config);
             String configJson = mapper.writeValueAsString(newConfig);
-            return mapper.readValue(configJson, dataCls);
+            return mapper.readerForUpdating(existingData).readValue(configJson);
         } catch (IOException e) {
             throw new RuntimeException("Failed to load config into existing configuration data", e);
         }

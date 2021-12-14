@@ -80,7 +80,7 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder loadConf(Map<String, Object> config) {
         conf = ConfigurationDataUtils.loadData(
-            config, conf, ClientConfigurationData.class);
+            config, conf);
         return this;
     }
 

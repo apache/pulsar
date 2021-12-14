@@ -85,7 +85,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public ConsumerBuilder<T> loadConf(Map<String, Object> config) {
-        this.conf = ConfigurationDataUtils.loadData(config, conf, ConsumerConfigurationData.class);
+        this.conf = ConfigurationDataUtils.loadData(config, conf);
         return this;
     }
 

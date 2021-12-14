@@ -19,10 +19,8 @@
 package org.apache.pulsar.client.impl.conf;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Sets;
-
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Set;
@@ -31,7 +29,6 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -134,6 +131,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private RegexSubscriptionMode regexSubscriptionMode = RegexSubscriptionMode.PersistentOnly;
 
+    @JsonIgnore
     private transient DeadLetterPolicy deadLetterPolicy;
 
     private boolean retryEnable = false;
@@ -149,12 +147,13 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private boolean resetIncludeHead = false;
 
+    @JsonIgnore
     private transient KeySharedPolicy keySharedPolicy;
 
     private boolean batchIndexAckEnabled = false;
 
     private boolean ackReceiptEnabled = false;
-    
+
     private boolean poolMessages = false;
 
     @JsonIgnore

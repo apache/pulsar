@@ -18,24 +18,24 @@
  */
 package org.apache.pulsar.client.impl.conf;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableSet;
-import org.testng.Assert;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableSet;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
+import java.util.regex.Pattern;
 import org.apache.pulsar.client.api.BatcherBuilder;
+import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 /**
@@ -61,7 +61,7 @@ public class ConfigurationDataUtilsTest {
         config.put("authParams", "testAuthParams");
         config.put("authParamMap", authParamMap);
 
-        confData = ConfigurationDataUtils.loadData(config, confData, ClientConfigurationData.class);
+        confData = ConfigurationDataUtils.loadData(config, confData);
         assertEquals("pulsar://localhost:6650", confData.getServiceUrl());
         assertEquals(70000, confData.getMaxLookupRequest());
         assertEquals(50, confData.getMaxLookupRedirects());
@@ -82,11 +82,11 @@ public class ConfigurationDataUtilsTest {
         config.put("producerName", "test-producer");
         config.put("batchingEnabled", false);
         confData.setBatcherBuilder(BatcherBuilder.DEFAULT);
-        confData = ConfigurationDataUtils.loadData(config, confData, ProducerConfigurationData.class);
+        confData = ConfigurationDataUtils.loadData(config, confData);
         assertEquals("test-producer", confData.getProducerName());
         assertFalse(confData.isBatchingEnabled());
         assertEquals(1234, confData.getBatchingMaxMessages());
-        assertEquals(60,confData.getAutoUpdatePartitionsIntervalSeconds());
+        assertEquals(60, confData.getAutoUpdatePartitionsIntervalSeconds());
     }
 
     @Test
@@ -94,16 +94,22 @@ public class ConfigurationDataUtilsTest {
         ConsumerConfigurationData confData = new ConsumerConfigurationData();
         confData.setSubscriptionName("unknown-subscription");
         confData.setPriorityLevel(10000);
+        Pattern pattern = Pattern.compile(".*");
+        confData.setTopicsPattern(pattern);
         confData.setConsumerName("unknown-consumer");
         confData.setAutoUpdatePartitionsIntervalSeconds(1, TimeUnit.MINUTES);
         Map<String, Object> config = new HashMap<>();
         config.put("subscriptionName", "test-subscription");
         config.put("priorityLevel", 100);
-        confData = ConfigurationDataUtils.loadData(config, confData, ConsumerConfigurationData.class);
+        DeadLetterPolicy dlt = DeadLetterPolicy.builder().deadLetterTopic("dlt").build();
+        confData.setDeadLetterPolicy(dlt);
+        confData = ConfigurationDataUtils.loadData(config, confData);
+        assertEquals(dlt.getDeadLetterTopic(), confData.getDeadLetterPolicy().getDeadLetterTopic());
         assertEquals("test-subscription", confData.getSubscriptionName());
+        assertEquals(pattern, confData.getTopicsPattern());
         assertEquals(100, confData.getPriorityLevel());
         assertEquals("unknown-consumer", confData.getConsumerName());
-        assertEquals(60,confData.getAutoUpdatePartitionsIntervalSeconds());
+        assertEquals(60, confData.getAutoUpdatePartitionsIntervalSeconds());
     }
 
     @Test
@@ -115,7 +121,7 @@ public class ConfigurationDataUtilsTest {
         Map<String, Object> config = new HashMap<>();
         config.put("topicNames", ImmutableSet.of("test-topic"));
         config.put("receiverQueueSize", 100);
-        confData = ConfigurationDataUtils.loadData(config, confData, ReaderConfigurationData.class);
+        confData = ConfigurationDataUtils.loadData(config, confData);
         assertEquals("test-topic", confData.getTopicName());
         assertEquals(100, confData.getReceiverQueueSize());
         assertEquals("unknown-reader", confData.getReaderName());
@@ -131,7 +137,7 @@ public class ConfigurationDataUtilsTest {
         config.put("unknown", "test-topic");
         config.put("receiverQueueSize", 100);
         try {
-            ConfigurationDataUtils.loadData(config, confData, ReaderConfigurationData.class);
+            ConfigurationDataUtils.loadData(config, confData);
             fail("Should fail loading configuration data with unknown fields");
         } catch (RuntimeException re) {
             assertTrue(re.getCause() instanceof IOException);
@@ -169,7 +175,7 @@ public class ConfigurationDataUtilsTest {
         config.put("authParams", "testAuthParams");
         config.put("authParamMap", authParamMap);
 
-        confData = ConfigurationDataUtils.loadData(config, confData, ClientConfigurationData.class);
+        confData = ConfigurationDataUtils.loadData(config, confData);
         assertEquals("pulsar://localhost:6650", confData.getServiceUrl());
         assertEquals("testAuthParams", confData.getAuthParams());
         assertEquals("v1", confData.getAuthParamMap().get("k1"));
@@ -208,7 +214,8 @@ public class ConfigurationDataUtilsTest {
         clientConfig.setSocks5ProxyPassword("test123");
 
         PulsarClientImpl pulsarClient = new PulsarClientImpl(clientConfig);
-        assertEquals(pulsarClient.getConfiguration().getSocks5ProxyAddress(), new InetSocketAddress("localhost", 11080));
+        assertEquals(pulsarClient.getConfiguration().getSocks5ProxyAddress(),
+                new InetSocketAddress("localhost", 11080));
         assertEquals(pulsarClient.getConfiguration().getSocks5ProxyUsername(), "test");
         assertEquals(pulsarClient.getConfiguration().getSocks5ProxyPassword(), "test123");
 

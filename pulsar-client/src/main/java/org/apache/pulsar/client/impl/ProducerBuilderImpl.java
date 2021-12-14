@@ -116,7 +116,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     @Override
     public ProducerBuilder<T> loadConf(Map<String, Object> config) {
         conf = ConfigurationDataUtils.loadData(
-            config, conf, ProducerConfigurationData.class);
+            config, conf);
         return this;
     }
 
