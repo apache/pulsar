@@ -730,9 +730,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         synchronized (this) {
             currentSize = incomingMessages.size();
             startMessageId = clearReceiverQueue();
-            if (possibleSendToDeadLetterTopicMessages != null) {
-                possibleSendToDeadLetterTopicMessages.clear();
-            }
+            clearDLQMessages();
         }
 
         boolean isDurable = subscriptionMode == SubscriptionMode.Durable;
@@ -986,9 +984,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private void closeConsumerTasks() {
         unAckedMessageTracker.close();
-        if (possibleSendToDeadLetterTopicMessages != null) {
-            possibleSendToDeadLetterTopicMessages.clear();
-        }
+        clearDLQMessages();
         acknowledgmentsGroupingTracker.close();
         if (batchReceiveTimeout != null) {
             batchReceiveTimeout.cancel();
@@ -1064,11 +1060,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             BatchMessageIdImpl batchMessageIdImpl = new BatchMessageIdImpl(messageId.getLedgerId(),
                     messageId.getEntryId(), getPartitionIndex(), index, numMessages, acker);
 
+            boolean possibleToDeadLetter = deadLetterPolicy != null &&
+                    redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount();
             final ByteBuf payloadBuffer = (singleMessagePayload != null) ? singleMessagePayload : payload;
             final MessageImpl<U> message = MessageImpl.create(topicName.toString(), batchMessageIdImpl,
-                    msgMetadata, singleMessageMetadata, payloadBuffer,
-                    createEncryptionContext(msgMetadata), cnx(), schema, redeliveryCount, poolMessages
-            );
+                    msgMetadata, singleMessageMetadata, payloadBuffer, createEncryptionContext(msgMetadata), cnx(),
+                    schema, redeliveryCount, poolMessages, possibleToDeadLetter);
             message.setBrokerEntryMetadata(brokerEntryMetadata);
             return message;
         } catch (IOException | IllegalStateException e) {
@@ -1086,8 +1083,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                             final ByteBuf payload,
                                             final Schema<U> schema,
                                             final int redeliveryCount) {
+        boolean possibleToDeadLetter = deadLetterPolicy != null &&
+                redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount();
         final MessageImpl<U> message = MessageImpl.create(topicName.toString(), messageId, messageMetadata, payload,
-                createEncryptionContext(messageMetadata), cnx(), schema, redeliveryCount, poolMessages
+                createEncryptionContext(messageMetadata), cnx(), schema, redeliveryCount, poolMessages, possibleToDeadLetter
         );
         message.setBrokerEntryMetadata(brokerEntryMetadata);
         return message;
@@ -1823,6 +1822,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             .sendAsync()
                             .thenAccept(messageIdInDLQ -> {
                                 possibleSendToDeadLetterTopicMessages.remove(finalMessageId);
+                                message.releaseDLQ();
                                 acknowledgeAsync(finalMessageId).whenComplete((v, ex) -> {
                                     if (ex != null) {
                                         log.warn("[{}] [{}] [{}] Failed to acknowledge the message {} of the original topic but send to the DLQ successfully.",
@@ -2502,6 +2502,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     public Map<MessageIdImpl, List<MessageImpl<T>>> getPossibleSendToDeadLetterTopicMessages() {
         return possibleSendToDeadLetterTopicMessages;
+    }
+
+    private void clearDLQMessages() {
+        if (possibleSendToDeadLetterTopicMessages != null) {
+            possibleSendToDeadLetterTopicMessages.values().forEach( messages -> messages.forEach(MessageImpl::releaseDLQ));
+            possibleSendToDeadLetterTopicMessages.clear();
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerImpl.class);

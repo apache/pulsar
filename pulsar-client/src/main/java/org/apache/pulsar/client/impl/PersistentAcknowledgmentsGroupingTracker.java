@@ -253,7 +253,10 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     private void clearMessageIdFromUnAckTrackerAndDeadLetter(MessageIdImpl messageId) {
         consumer.getUnAckedMessageTracker().remove(messageId);
         if (consumer.getPossibleSendToDeadLetterTopicMessages() != null) {
-            consumer.getPossibleSendToDeadLetterTopicMessages().remove(messageId);
+            List<? extends MessageImpl<?>> messages = consumer.getPossibleSendToDeadLetterTopicMessages().remove(messageId);
+            if (messages != null) {
+                messages.forEach(MessageImpl::releaseDLQ);
+            }
         }
     }
 
