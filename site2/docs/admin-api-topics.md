@@ -197,7 +197,7 @@ You can check the following statistics of a given non-partitioned topic.
 
   -   **storageSize**: The sum of the ledgers' storage size for this topic. The space used to store the messages for the topic.
 
-  -   **earliestMsgPublishTimeInBacklogs**: The publish time of the earliest message in the backlog.
+  -   **earliestMsgPublishTimeInBacklogs**: The publish time of the earliest message in the backlog (ms).
 
   -   **bytesInCounter**: Total bytes published to the topic.
 
@@ -279,7 +279,7 @@ You can check the following statistics of a given non-partitioned topic.
 
           -   **backlogSize**: Size of backlog for this subscription (in bytes).
           
-          -   **earliestMsgPublishTimeInBacklog**: The publish time of the earliest message in the backlog for the subscription.
+          -   **earliestMsgPublishTimeInBacklog**: The publish time of the earliest message in the backlog for the subscription (ms).
 
           -   **msgBacklogNoDelayed**: Number of messages in the subscription backlog that do not contain the delay messages.
 
