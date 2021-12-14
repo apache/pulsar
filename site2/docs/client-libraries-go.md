@@ -306,7 +306,7 @@ canc()
 
 Pulsar Go client registers client metrics using Prometheus. This section demonstrates how to create a simple Pulsar producer application that exposes Prometheus metrics via HTTP.
 
-First, write a simple producer application:
+1. Write a simple producer application.
 
 ```go
 // Create a pulsar client
