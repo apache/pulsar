@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.intercept;
 
+import io.netty.buffer.ByteBuf;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
@@ -58,4 +59,38 @@ public interface ManagedLedgerInterceptor {
      * @param propertiesMap  map of properties.
      */
     void onUpdateManagedLedgerInfo(Map<String, String> propertiesMap);
+
+    /**
+     * A reference handle to the payload processor
+     */
+    interface PayloadProcessorHandle {
+        /**
+         * To obtain the processed data
+         * @return processed data
+         */
+        ByteBuf getProcessedPayload();
+
+        /**
+         * To release resources used in processor, if any
+         */
+        void release();
+    }
+    /**
+     * Intercept after entry is read from ledger, before it gets cached.
+     * @param dataReadFromLedger data from ledger
+     * @return handle to the processor
+     */
+    default PayloadProcessorHandle processPayloadBeforeEntryCache(ByteBuf dataReadFromLedger){
+        return null;
+    }
+
+    /**
+     * Intercept before payload gets written to ledger
+     * @param ledgerWriteOp OpAddEntry used to trigger ledger write.
+     * @param dataToBeStoredInLedger data to be stored in ledger
+     * @return handle to the processor
+     */
+    default PayloadProcessorHandle processPayloadBeforeLedgerWrite(OpAddEntry ledgerWriteOp, ByteBuf dataToBeStoredInLedger){
+        return null;
+    }
 }
