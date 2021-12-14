@@ -364,7 +364,7 @@ if err != nil {
 }
 ```
 
-Then configure a locally running Prometheus instance to scrape metrics from the application with the following `prometheus.yml`:
+2. To scrape metrics from applications, configure a local running Prometheus instance using a configuration file (`prometheus.yml`).
 
 ```yaml
 scrape_configs:
