@@ -33,8 +33,10 @@ runs:
             # Set vm.swappiness=1 to avoid swapping and allow high RAM usage
             echo 1 | sudo tee /proc/sys/vm/swappiness
             # Set swappiness to 1 for all cgroups and sub-groups
-            for swappiness_file in /sys/fs/cgroup/memory/*/memory.swappiness /sys/fs/cgroup/memory/*/*/memory.swappiness; do
-              echo 1 | sudo tee $swappiness_file > /dev/null
+            for swappiness_dir in /sys/fs/cgroup/memory/*/ /sys/fs/cgroup/memory/*/*/; do
+              if [ -d "swappiness_dir" ]; then
+                echo 1 | sudo tee $(swappiness_dir)memory.swappiness > /dev/null
+              fi
             done
 
             # use "madvise" Linux Transparent HugePages (THP) setting
