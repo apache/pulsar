@@ -147,7 +147,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                             this.connectFuture.complete(null);
                         }
                         this.connectionHandler.resetBackoff();
-                        pendingRequests.forEach(this::checkStateAndSendRequest);
+                        pendingRequests.forEach((requestID, opBase) -> checkStateAndSendRequest(opBase));
                     });
                 }).exceptionally((e) -> {
                     internalPinnedExecutor.execute(() -> {
@@ -200,7 +200,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         internalPinnedExecutor.execute(() -> {
             pendingRequests.put(requestId, op);
             timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-            checkStateAndSendRequest(requestId, op);
+            checkStateAndSendRequest(op);
         });
         return callback;
     }
@@ -241,8 +241,18 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                                 BaseCommand.Type.NEW_TXN.name(), requestId);
                     }
                     pendingRequests.put(requestId, op);
-                    timer.newTimeout(timeout ->
-                            checkStateAndSendRequest(requestId, op), op.backoff.next(), TimeUnit.MILLISECONDS);
+                    timer.newTimeout(timeout -> {
+                                internalPinnedExecutor.execute(() -> {
+                                    if (!pendingRequests.containsKey(requestId)) {
+                                        if (LOG.isDebugEnabled()) {
+                                            LOG.debug("The request {} already timeout", requestId);
+                                        }
+                                        return;
+                                    }
+                                    checkStateAndSendRequest(op);
+                                });
+                            }
+                            , op.backoff.next(), TimeUnit.MILLISECONDS);
                     return;
                 }
                 LOG.error("Got {} for request {} error {}", BaseCommand.Type.NEW_TXN.name(),
@@ -269,7 +279,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         internalPinnedExecutor.execute(() -> {
             pendingRequests.put(requestId, op);
             timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-            checkStateAndSendRequest(requestId, op);
+            checkStateAndSendRequest(op);
         });
 
         return callback;
@@ -311,8 +321,18 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                                 BaseCommand.Type.ADD_PARTITION_TO_TXN.name(), requestId);
                     }
                     pendingRequests.put(requestId, op);
-                    timer.newTimeout(timeout ->
-                            checkStateAndSendRequest(requestId, op), op.backoff.next(), TimeUnit.MILLISECONDS);
+                    timer.newTimeout(timeout -> {
+                                internalPinnedExecutor.execute(() -> {
+                                    if (!pendingRequests.containsKey(requestId)) {
+                                        if (LOG.isDebugEnabled()) {
+                                            LOG.debug("The request {} already timeout", requestId);
+                                        }
+                                        return;
+                                    }
+                                    checkStateAndSendRequest(op);
+                                });
+                            }
+                            , op.backoff.next(), TimeUnit.MILLISECONDS);
                     return;
                 }
                 LOG.error("{} for request {} error {} with txnID {}.", BaseCommand.Type.ADD_PARTITION_TO_TXN.name(),
@@ -340,7 +360,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         internalPinnedExecutor.execute(() -> {
             pendingRequests.put(requestId, op);
             timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-            checkStateAndSendRequest(requestId, op);
+            checkStateAndSendRequest(op);
         });
         return callback;
     }
@@ -380,8 +400,18 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                                 BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(), requestId);
                     }
                     pendingRequests.put(requestId, op);
-                    timer.newTimeout(timeout ->
-                            checkStateAndSendRequest(requestId, op), op.backoff.next(), TimeUnit.MILLISECONDS);
+                    timer.newTimeout(timeout -> {
+                                internalPinnedExecutor.execute(() -> {
+                                    if (!pendingRequests.containsKey(requestId)) {
+                                        if (LOG.isDebugEnabled()) {
+                                            LOG.debug("The request {} already timeout", requestId);
+                                        }
+                                        return;
+                                    }
+                                    checkStateAndSendRequest(op);
+                                });
+                            }
+                            , op.backoff.next(), TimeUnit.MILLISECONDS);
                     return;
                 }
                 LOG.error("{} failed for request {} error {}.", BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(),
@@ -407,7 +437,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         internalPinnedExecutor.execute(() -> {
             pendingRequests.put(requestId, op);
             timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-            checkStateAndSendRequest(requestId, op);
+            checkStateAndSendRequest(op);
         });
         return callback;
     }
@@ -448,8 +478,18 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                                 BaseCommand.Type.END_TXN.name(), requestId);
                     }
                     pendingRequests.put(requestId, op);
-                    timer.newTimeout(timeout ->
-                            checkStateAndSendRequest(requestId, op), op.backoff.next(), TimeUnit.MILLISECONDS);
+                    timer.newTimeout(timeout -> {
+                                internalPinnedExecutor.execute(() -> {
+                                    if (!pendingRequests.containsKey(requestId)) {
+                                        if (LOG.isDebugEnabled()) {
+                                            LOG.debug("The request {} already timeout", requestId);
+                                        }
+                                        return;
+                                    }
+                                    checkStateAndSendRequest(op);
+                                });
+                            }
+                            , op.backoff.next(), TimeUnit.MILLISECONDS);
                     return;
                 }
                 LOG.error("Got {} response for request {} error {}", BaseCommand.Type.END_TXN.name(),
@@ -594,13 +634,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         return true;
     }
 
-    private void checkStateAndSendRequest(long requestId, OpBase<?> op) {
-        if (!pendingRequests.containsKey(requestId)) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("The request {} already timeout", requestId);
-            }
-            return;
-        }
+    private void checkStateAndSendRequest(OpBase<?> op) {
         switch (getState()) {
             case Ready:
                 ClientCnx cnx = cnx();
