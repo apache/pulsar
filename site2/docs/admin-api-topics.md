@@ -391,7 +391,7 @@ The following is an example of a topic status.
   "msgChunkPublished" : false,
   "storageSize" : 504,
   "backlogSize" : 0,
-  "earliestMsgPublishTimeInBacklog": 0,
+  "earliestMsgPublishTimeInBacklogs": 0,
   "offloadedStorageSize" : 0,
   "publishers" : [ {
     "accessMode" : "Shared",
