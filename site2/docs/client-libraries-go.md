@@ -304,17 +304,23 @@ canc()
 
 #### How to use Prometheus metrics in producer
 
+Pulsar Go client registers client metrics using Prometheus. In this guide, we'll show you how to create a simple Pulsar producer application that exposes Prometheus metrics via HTTP.
+
+First, write a simple producer application:
+
 ```go
+// Create a pulsar client
 client, err := pulsar.NewClient(pulsar.ClientOptions{
 	URL: "pulsar://localhost:6650",
 })
-
 if err != nil {
     log.Fatal(err)
 }
 
 defer client.Close()
 
+// Start a separate goroutine for Prometheus metrics
+// In this case, Prometheus metrics can be accessed via http://localhost:2112/metrics
 go func() {
     prometheusPort := 2112
     log.Printf("Starting Prometheus metrics at http://localhost:%v/metrics\n", prometheusPort)
@@ -325,6 +331,7 @@ go func() {
     }
 }()
 
+// Create a producer
 producer, err := client.CreateProducer(pulsar.ProducerOptions{
     Topic: "topic-1",
 })
@@ -334,19 +341,10 @@ if err != nil {
 
 defer producer.Close()
 
-consumer, err := client.Subscribe(pulsar.ConsumerOptions{
-    Topic:            "topic-1",
-    SubscriptionName: "my-sub",
-    Type:             pulsar.Shared,
-})
-if err != nil {
-    log.Fatal(err)
-}
-
-defer consumer.Close()
-
 ctx := context.Background()
 
+// Write your business logic here
+// In this case, we build a simple web server. You can produce a message by requesting http://localhost:8082/produce
 webPort := 8082
 http.HandleFunc("/produce", func(w http.ResponseWriter, r *http.Request) {
     msgId, err := producer.Send(ctx, &pulsar.ProducerMessage{
@@ -360,24 +358,13 @@ http.HandleFunc("/produce", func(w http.ResponseWriter, r *http.Request) {
     }
 })
 
-http.HandleFunc("/consume", func(w http.ResponseWriter, r *http.Request) {
-    msg, err := consumer.Receive(ctx)
-    if err != nil {
-        log.Fatal(err)
-    } else {
-        log.Printf("Received message msgId: %v -- content: '%s'\n", msg.ID(), string(msg.Payload()))
-        fmt.Fprintf(w, "Received message msgId: %v -- content: '%s'\n", msg.ID(), string(msg.Payload()))
-        consumer.Ack(msg)
-    }
-})
-
 err = http.ListenAndServe(":"+strconv.Itoa(webPort), nil)
 if err != nil {
     log.Fatal(err)
 }
 ```
 
-`prometheus.yml`:
+Then configure a locally running Prometheus instance to scrape metrics from the application with the following `prometheus.yml`:
 
 ```yaml
 scrape_configs:
@@ -387,6 +374,8 @@ scrape_configs:
   - targets:
     - localhost:2112
 ```
+
+Finally, you can query pulsar client metrics on Prometheus!
 
 ### Producer configuration
 
@@ -649,6 +638,68 @@ if err != nil {
 defer consumer.Close()
 ```
 
+#### How to use Prometheus metrics in consumer
+
+In this guide, we'll show you how to create a simple Pulsar consumer application that exposes Prometheus metrics via HTTP.
+
+```go
+// Create a pulsar client
+client, err := pulsar.NewClient(pulsar.ClientOptions{
+    URL: "pulsar://localhost:6650",
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+defer client.Close()
+
+// Start a separate goroutine for Prometheus metrics
+// In this case, Prometheus metrics can be accessed via http://localhost:2112/metrics
+go func() {
+    prometheusPort := 2112
+    log.Printf("Starting Prometheus metrics at http://localhost:%v/metrics\n", prometheusPort)
+    http.Handle("/metrics", promhttp.Handler())
+    err = http.ListenAndServe(":"+strconv.Itoa(prometheusPort), nil)
+    if err != nil {
+        log.Fatal(err)
+    }
+}()
+
+// Create a consumer
+consumer, err := client.Subscribe(pulsar.ConsumerOptions{
+    Topic:            "topic-1",
+    SubscriptionName: "sub-1",
+    Type:             pulsar.Shared,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+defer consumer.Close()
+
+ctx := context.Background()
+
+// Write your business logic here
+// In this case, we build a simple web server. You can consume a message by requesting http://localhost:8083/consume
+webPort := 8083
+http.HandleFunc("/consume", func(w http.ResponseWriter, r *http.Request) {
+    msg, err := consumer.Receive(ctx)
+    if err != nil {
+        log.Fatal(err)
+    } else {
+        log.Printf("Received message msgId: %v -- content: '%s'\n", msg.ID(), string(msg.Payload()))
+        fmt.Fprintf(w, "Received message msgId: %v -- content: '%s'\n", msg.ID(), string(msg.Payload()))
+        consumer.Ack(msg)
+    }
+})
+
+err = http.ListenAndServe(":"+strconv.Itoa(webPort), nil)
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+The configuration of Prometheus instance is the same as we introduced in [producer metrics section](#how-to-use-prometheus-metrics-in-producer).
 
 ### Consumer configuration
 
