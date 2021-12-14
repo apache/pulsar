@@ -104,13 +104,7 @@ public class TransactionClientConnectTest extends TransactionTestBase {
         }
 
         unFence(getPulsarServiceList().get(0).getTransactionMetadataStoreService());
-        try {
-            waitToReady();
-            completableFuture.get();
-        } catch (ExecutionException e) {
-            Assert.assertFalse(e.getCause()
-                    instanceof TransactionCoordinatorClientException.CoordinatorNotFoundException);
-        }
+        completableFuture.get();
     }
 
     @Test
@@ -179,7 +173,7 @@ public class TransactionClientConnectTest extends TransactionTestBase {
 
         TransactionMetadataStoreService transactionMetadataStoreService =
                 getPulsarServiceList().get(0).getTransactionMetadataStoreService();
-        // remove transaction metadata store
+        // remove transaction metadap0-ta store
         transactionMetadataStoreService.removeTransactionMetadataStore(TransactionCoordinatorID.get(0)).get();
 
     }

@@ -204,38 +204,50 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     }
 
     void handleNewTxnResponse(CommandNewTxnResponse response) {
-        long requestId = response.getRequestId();
-        OpForTxnIdCallBack op = (OpForTxnIdCallBack) pendingRequests.remove(requestId);
-        if (op == null) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Got new txn response for timeout {} - {}", response.getTxnidMostBits(),
-                    response.getTxnidLeastBits());
-            }
-            return;
-        }
-
-        if (!response.hasError()) {
-            TxnID txnID = new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits());
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Got new txn response {} for request {}", txnID, requestId);
-            }
-            op.callback.complete(txnID);
+        boolean hasError = response.hasError();
+        ServerError error;
+        String message;
+        if (hasError) {
+             error = response.getError();
+             message = response.getMessage();
         } else {
-            if (checkIfNeedRetryByError(response.getError(), response.getMessage(), op)) {
+            error = null;
+            message = null;
+        }
+        TxnID txnID = new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits());
+        long requestId = response.getRequestId();
+        internalPinnedExecutor.execute(() -> {
+            OpForTxnIdCallBack op = (OpForTxnIdCallBack) pendingRequests.remove(requestId);
+            if (op == null) {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("Get a response for the {}  request {} error "
-                                    + "TransactionCoordinatorNotFound and try it again",
-                            BaseCommand.Type.NEW_TXN.name(), requestId);
+                    LOG.debug("Got new txn response for timeout {} - {}", txnID.getMostSigBits(),
+                            txnID.getLeastSigBits());
                 }
-                timer.newTimeout(timeout ->
-                        checkStateAndSendRequest(requestId, op), op.backoff.next(), TimeUnit.MILLISECONDS);
                 return;
             }
-            LOG.error("Got {} for request {} error {}", BaseCommand.Type.NEW_TXN.name(),
-                    requestId, response.getError());
-        }
 
-        onResponse(op);
+            if (!hasError) {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Got new txn response {} for request {}", txnID, requestId);
+                }
+                op.callback.complete(txnID);
+            } else {
+                if (checkIfNeedRetryByError(error, message, op)) {
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Get a response for the {}  request {} error "
+                                        + "TransactionCoordinatorNotFound and try it again",
+                                BaseCommand.Type.NEW_TXN.name(), requestId);
+                    }
+                    timer.newTimeout(timeout ->
+                            checkStateAndSendRequest(requestId, op), op.backoff.next(), TimeUnit.MILLISECONDS);
+                    return;
+                }
+                LOG.error("Got {} for request {} error {}", BaseCommand.Type.NEW_TXN.name(),
+                        requestId, error);
+            }
+
+            onResponse(op);
+        });
     }
 
     public CompletableFuture<Void> addPublishPartitionToTxnAsync(TxnID txnID, List<String> partitions) {
@@ -259,39 +271,51 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     }
 
     void handleAddPublishPartitionToTxnResponse(CommandAddPartitionToTxnResponse response) {
-        long requestId = response.getRequestId();
-        OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(requestId);
-        if (op == null) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Got add publish partition to txn response for timeout {} - {}", response.getTxnidMostBits(),
-                        response.getTxnidLeastBits());
-            }
-            return;
-        }
-
-        if (!response.hasError()) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Add publish partition for request {} success.", requestId);
-            }
-            op.callback.complete(null);
+        boolean hasError = response.hasError();
+        ServerError error;
+        String message;
+        if (hasError) {
+            error = response.getError();
+            message = response.getMessage();
         } else {
-            if (checkIfNeedRetryByError(response.getError(), response.getMessage(), op)) {
+            error = null;
+            message = null;
+        }
+        TxnID txnID = new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits());
+        long requestId = response.getRequestId();
+        internalPinnedExecutor.execute(() -> {
+            OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(requestId);
+            if (op == null) {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("Get a response for the {} request {} "
-                                    + " error TransactionCoordinatorNotFound and try it again",
-                            BaseCommand.Type.ADD_PARTITION_TO_TXN.name(), requestId);
+                    LOG.debug("Got add publish partition to txn response for timeout {} - {}", txnID.getMostSigBits(),
+                            txnID.getLeastSigBits());
                 }
-                timer.newTimeout(timeout ->
-                        checkStateAndSendRequest(requestId, op), op.backoff.next(), TimeUnit.MILLISECONDS);
                 return;
             }
-            LOG.error("{} for request {} error {} with txnID {}.", BaseCommand.Type.ADD_PARTITION_TO_TXN.name(),
-                    response.getRequestId(), response.getError(), new TxnID(response.getTxnidMostBits(),
-                            response.getTxnidLeastBits()));
 
-        }
+            if (!hasError) {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Add publish partition for request {} success.", requestId);
+                }
+                op.callback.complete(null);
+            } else {
+                if (checkIfNeedRetryByError(error, message, op)) {
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Get a response for the {} request {} "
+                                        + " error TransactionCoordinatorNotFound and try it again",
+                                BaseCommand.Type.ADD_PARTITION_TO_TXN.name(), requestId);
+                    }
+                    timer.newTimeout(timeout ->
+                            checkStateAndSendRequest(requestId, op), op.backoff.next(), TimeUnit.MILLISECONDS);
+                    return;
+                }
+                LOG.error("{} for request {} error {} with txnID {}.", BaseCommand.Type.ADD_PARTITION_TO_TXN.name(),
+                        requestId, error, txnID);
 
-        onResponse(op);
+            }
+
+            onResponse(op);
+        });
     }
 
     public CompletableFuture<Void> addSubscriptionToTxn(TxnID txnID, List<Subscription> subscriptionList) {
@@ -313,37 +337,49 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     }
 
     public void handleAddSubscriptionToTxnResponse(CommandAddSubscriptionToTxnResponse response) {
-        long requestId = response.getRequestId();
-        OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(requestId);
-        if (op == null) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Add subscription to txn timeout for request {}.", requestId);
-            }
-            return;
-        }
-
-        if (!response.hasError()) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Add subscription to txn success for request {}.", requestId);
-            }
-            op.callback.complete(null);
+        boolean hasError = response.hasError();
+        ServerError error;
+        String message;
+        if (hasError) {
+            error = response.getError();
+            message = response.getMessage();
         } else {
-            LOG.error("Add subscription to txn failed for request {} error {}.",
-                    requestId, response.getError());
-            if (checkIfNeedRetryByError(response.getError(), response.getMessage(), op)) {
+            error = null;
+            message = null;
+        }
+        long requestId = response.getRequestId();
+        internalPinnedExecutor.execute(() -> {
+            OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(requestId);
+            if (op == null) {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("Get a response for {} request {} error TransactionCoordinatorNotFound and try it again",
-                            BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(), requestId);
+                    LOG.debug("Add subscription to txn timeout for request {}.", requestId);
                 }
-                timer.newTimeout(timeout ->
-                        checkStateAndSendRequest(requestId, op), op.backoff.next(), TimeUnit.MILLISECONDS);
                 return;
             }
-            LOG.error("{} failed for request {} error {}.", BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(),
-                    response.getRequestId(), response.getError());
 
-        }
-        onResponse(op);
+            if (!hasError) {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Add subscription to txn success for request {}.", requestId);
+                }
+                op.callback.complete(null);
+            } else {
+                LOG.error("Add subscription to txn failed for request {} error {}.",
+                        requestId, error);
+                if (checkIfNeedRetryByError(error, message, op)) {
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Get a response for {} request {} error TransactionCoordinatorNotFound and try it again",
+                                BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(), requestId);
+                    }
+                    timer.newTimeout(timeout ->
+                            checkStateAndSendRequest(requestId, op), op.backoff.next(), TimeUnit.MILLISECONDS);
+                    return;
+                }
+                LOG.error("{} failed for request {} error {}.", BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(),
+                       requestId, error);
+
+            }
+            onResponse(op);
+        });
     }
 
     public CompletableFuture<Void> endTxnAsync(TxnID txnID, TxnAction action) {
@@ -364,37 +400,50 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     }
 
     void handleEndTxnResponse(CommandEndTxnResponse response) {
-        long requestId = response.getRequestId();
-        OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(requestId);
-        if (op == null) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Got end txn response for timeout {} - {}", response.getTxnidMostBits(),
-                        response.getTxnidLeastBits());
-            }
-            return;
-        }
-
-        if (!response.hasError()) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Got end txn response success for request {}", requestId);
-            }
-            op.callback.complete(null);
+        boolean hasError = response.hasError();
+        ServerError error;
+        String message;
+        if (hasError) {
+            error = response.getError();
+            message = response.getMessage();
         } else {
-            if (checkIfNeedRetryByError(response.getError(), response.getMessage(), op)) {
+            error = null;
+            message = null;
+        }
+        TxnID txnID = new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits());
+        long requestId = response.getRequestId();
+        internalPinnedExecutor.execute(() -> {
+            OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(requestId);
+            if (op == null) {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("Get a response for the {} request {} error "
-                                    + "TransactionCoordinatorNotFound and try it again",
-                            BaseCommand.Type.END_TXN.name(), requestId);
+                    LOG.debug("Got end txn response for timeout {} - {}", txnID.getMostSigBits(),
+                            txnID.getLeastSigBits());
                 }
-                timer.newTimeout(timeout ->
-                    checkStateAndSendRequest(requestId, op), op.backoff.next(), TimeUnit.MILLISECONDS);
                 return;
             }
-            LOG.error("Got {} response for request {} error {}", BaseCommand.Type.END_TXN.name(),
-                    requestId, response.getError());
 
-        }
-        onResponse(op);
+            if (!hasError) {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Got end txn response success for request {}", requestId);
+                }
+                op.callback.complete(null);
+            } else {
+                if (checkIfNeedRetryByError(error, message, op)) {
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Get a response for the {} request {} error "
+                                        + "TransactionCoordinatorNotFound and try it again",
+                                BaseCommand.Type.END_TXN.name(), requestId);
+                    }
+                    timer.newTimeout(timeout ->
+                            checkStateAndSendRequest(requestId, op), op.backoff.next(), TimeUnit.MILLISECONDS);
+                    return;
+                }
+                LOG.error("Got {} response for request {} error {}", BaseCommand.Type.END_TXN.name(),
+                        requestId, error);
+
+            }
+            onResponse(op);
+        });
     }
 
 
@@ -545,7 +594,6 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                     }
                     break;
                 case Connecting:
-                    timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
                     pendingRequests.put(requestId, op);
                     break;
                 case Closing:
