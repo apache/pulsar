@@ -91,7 +91,7 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
 
     @Override
     public void messageProduced(ServerCnx cnx, Producer producer, long startTimeNs, long ledgerId,
-                                 long entryId, Rate rateIn,
+                                 long entryId,
                                  Topic.PublishContext publishContext) {
         log.info("Message published topic={}, producer={}",
             producer.getTopic().getName(), producer.getProducerName());
