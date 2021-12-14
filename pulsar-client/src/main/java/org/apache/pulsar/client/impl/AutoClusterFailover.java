@@ -48,6 +48,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         this.secondary = secondary;
         this.failoverDelayMs = failoverDelayMs;
         this.switchBackDelayMs = switchBackDelayMs;
+        this.currentPulsarServiceUrl = primary;
         this.primaryFailedTimestamp = -1;
         this.primaryRecoverTimestamp = -1;
         this.secondaryFailedTimestamp = -1;
@@ -57,7 +58,6 @@ public class AutoClusterFailover implements ServiceUrlProvider {
     @Override
     public void initialize(PulsarClient client) {
         this.pulsarClient = client;
-        this.currentPulsarServiceUrl = primary;
 
         // start to probe primary cluster active or not
         this.timer.scheduleAtFixedRate(new TimerTask() {

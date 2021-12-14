@@ -784,7 +784,7 @@ public class PulsarClientImpl implements PulsarClient {
             } catch (PulsarClientException e) {
                 throwable = e;
             }
-            if (conf != null && conf.getAuthentication() != null) {
+            if (conf.getAuthentication() != null) {
                 try {
                     conf.getAuthentication().close();
                 } catch (Throwable t) {

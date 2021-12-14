@@ -40,6 +40,7 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
 
     private ControlledClusterFailover(String defaultServiceUrl, String urlProvider) throws IOException {
         this.defaultServiceUrl = defaultServiceUrl;
+        this.currentPulsarServiceUrl = defaultServiceUrl;
         this.pulsarUrlProvider = new URL(urlProvider);
         this.timer = new Timer("pulsar-service-provider");
     }
@@ -47,7 +48,6 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
     @Override
     public void initialize(PulsarClient client) {
         this.pulsarClient = client;
-        this.currentPulsarServiceUrl = defaultServiceUrl;
 
         // start to check service url every 30 seconds
         this.timer.scheduleAtFixedRate(new TimerTask() {
@@ -57,6 +57,7 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
                 try {
                     newPulsarUrl = fetchServiceUrl();
                     if (!currentPulsarServiceUrl.equals(newPulsarUrl)) {
+                        log.info("Switch Pulsar service url from {} to {}", currentPulsarServiceUrl, newPulsarUrl);
                         pulsarClient.updateServiceUrl(newPulsarUrl);
                         currentPulsarServiceUrl = newPulsarUrl;
                     }
@@ -109,5 +110,9 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
         public ControlledClusterFailover build() throws IOException {
             return new ControlledClusterFailover(defaultServiceUrl, urlProvider);
         }
+    }
+
+    public static Builder builder() {
+        return new Builder();
     }
 }
