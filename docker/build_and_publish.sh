@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,7 +19,15 @@
 #
 
 ROOT_DIR=$(git rev-parse --show-toplevel)
-cd $ROOT_DIR/build/docker
+cd $ROOT_DIR/docker
+
+# We should only publish images that are made from official and approved releases
+# and thus ignore all the release candidates that are just tagged during the release
+# process
+if [[ ${TRAVIS_TAG} == *"candidate"* || ${TRAVIS_TAG} == *"rc"* ]]; then
+    echo "Skipping non-final release tag ${TRAVIS_TAG}"
+    exit 0
+fi
 
 if [ -z "$DOCKER_USER" ]; then
     echo "Docker user in variable \$DOCKER_USER was not set. Skipping image publishing"
@@ -51,7 +59,22 @@ set -x
 # Fail if any of the subsequent commands fail
 set -e
 
-# Push all images and tags
-docker push ${docker_registry_org}/pulsar-build:ubuntu-16.04
+# TODO mvnd -> mvn
+mvn -f pulsar/pom.xml install -Ddocker.organization=${docker_registry_org} -Pdocker,push,-main -am
+
+#docker tag pulsar:latest ${docker_registry_org}/pulsar:latest
+#docker tag pulsar-all:latest ${docker_registry_org}/pulsar-all:latest
+#
+#docker tag pulsar:latest ${docker_registry_org}/pulsar:$MVN_VERSION
+#docker tag pulsar-all:latest ${docker_registry_org}/pulsar-all:$MVN_VERSION
+#docker tag pulsar-grafana:latest ${docker_registry_org}/pulsar-grafana:$MVN_VERSION
+#
+## Push all images and tags
+#docker push ${docker_registry_org}/pulsar:latest
+#docker push ${docker_registry_org}/pulsar-all:latest
+#docker push ${docker_registry_org}/pulsar-grafana:latest
+#docker push ${docker_registry_org}/pulsar:$MVN_VERSION
+#docker push ${docker_registry_org}/pulsar-all:$MVN_VERSION
+#docker push ${docker_registry_org}/pulsar-grafana:$MVN_VERSION
 
 echo "Finished pushing images to ${docker_registry_org}"

@@ -71,8 +71,11 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 10
 # 4. /pulsar - hadoop writes to this directory
 RUN mkdir /pulsar && chmod g+w /pulsar
 
-ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64
-RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/java-11-openjdk-amd64/conf/security/java.security
+RUN java_home=$(ls -d1 /usr/lib/jvm/java-11-openjdk-*) ; \
+    ln -s "$java_home" /usr/lib/jvm/java
+
+ENV JAVA_HOME /usr/lib/jvm/java
+RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/java/conf/security/java.security
 ADD target/python-client/ /pulsar/pulsar-client
 
 ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE

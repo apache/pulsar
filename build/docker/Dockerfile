@@ -51,8 +51,13 @@ RUN cd /usr/src/gmock && cmake . && make && cp libgmock.a /usr/lib
 # Include gtest parallel to speed up unit tests
 RUN git clone https://github.com/google/gtest-parallel.git
 
-ENV JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-amd64
-ENV JAVA_HOME_11=/usr/lib/jvm/java-1.11.0-openjdk-amd64
+RUN java_home=$(ls -d1 /usr/lib/jvm/java-1.8.0-openjdk-*) ; \
+    ln -s "$java_home" /usr/lib/jvm/java8 ; \
+    java_home_11=$(ls -d1 /usr/lib/jvm/java-1.11.0-openjdk-*) ; \
+    ln -s "$java_home_11" /usr/lib/jvm/java11
+
+ENV JAVA_HOME /usr/lib/jvm/java8
+ENV JAVA_HOME_11 /usr/lib/jvm/java11
 
 ## Website build dependencies
 

@@ -36,13 +36,32 @@ Example: `apachepulsar/pulsar-build:ubuntu-16.04`
 
 ### Build pulsar-build image
 
+We provide Docker images for multiple architectures including amd64 and arm64, by leveraging Docker build kit, please
+make sure to start a BuildKit daemon with command `docker buildx create --use --driver docker-container`.
+
+If you want to build Docker image only for local testing in your current machine (without pushing to a registry), you
+can build the image without BuildKit, like this:
 
 ```shell
 docker build -t apachepulsar/pulsar-build:ubuntu-16.04 .
 ```
 
-### Publish pulsar-build image
+It's an unusual case when you want to build multi-arch images locally without pushing to a registry, but in case you
+want to do this, run command:
 
 ```shell
-publish.sh
+docker buildx build --no-cache --platform=linux/amd64,linux/arm64 --load -t apachepulsar/pulsar-build:ubuntu-16.04 .
 ```
+
+This command builds multi-arch images in your local machine, but be careful when you
+run `docker push apachepulsar/pulsar-build:ubuntu-16.04`, **only one** image matching your system architecture will be
+pushed.
+
+If you want to push all images with different architectures to remote Docker registry, you can build and push with
+command:
+
+```shell
+docker buildx build --no-cache --platform=linux/amd64,linux/arm64 --push -t apachepulsar/pulsar-build:ubuntu-16.04 .
+```
+
+> Make sure to log into the registry with command `docker login <registry.address>` before running the command above.

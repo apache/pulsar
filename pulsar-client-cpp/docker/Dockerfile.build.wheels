@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,11 +17,10 @@
 # under the License.
 #
 
-ROOT_DIR=$(git rev-parse --show-toplevel)
+ARG BASE_IMAGE
 
-pushd $ROOT_DIR > /dev/null
+FROM $BASE_IMAGE
 
-# Get the project version from the Maven pom.xml
-src/get-project-version.py
+COPY . /pulsar
 
-popd > /dev/null
+RUN /pulsar/pulsar-client-cpp/docker/build-wheel-file-within-docker.sh

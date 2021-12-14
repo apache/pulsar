@@ -33,6 +33,8 @@
   <properties>
     <skipBuildPythonClient>false</skipBuildPythonClient>
     <skipCopyPythonClients>false</skipCopyPythonClients>
+    <docker.build.skip>true</docker.build.skip>
+    <docker.push.skip>true</docker.push.skip>
   </properties>
 
   <dependencies>
@@ -53,6 +55,24 @@
   </dependencies>
 
   <profiles>
+    <profile>
+      <id>build</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <properties>
+        <docker.build.skip>false</docker.build.skip>
+      </properties>
+    </profile>
+    <profile>
+      <id>push</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <properties>
+        <docker.push.skip>false</docker.push.skip>
+      </properties>
+    </profile>
     <profile>
       <id>docker</id>
       <build>
@@ -79,6 +99,64 @@
                   </arguments>
                 </configuration>
               </execution>
+              <execution>
+                <id>docker-build</id>
+                <phase>compile</phase>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <configuration>
+                  <skip>${docker.build.skip}</skip>
+                  <executable>docker</executable>
+                  <workingDirectory>${project.basedir}</workingDirectory>
+                  <arguments>
+                    <argument>build</argument>
+                   <argument>--no-cache</argument>
+                    <argument>--build-arg</argument>
+                    <argument>PULSAR_TARBALL=target/pulsar-server-distribution-${project.version}-bin.tar.gz</argument>
+                    <argument>-t</argument>
+                    <argument>pulsar:${project.version}</argument>
+                    <argument>-t</argument>
+                    <argument>pulsar:latest</argument>
+                    <argument>-t</argument>
+                    <argument>${docker.organization}/pulsar:${project.version}</argument>
+                    <argument>-t</argument>
+                    <argument>${docker.organization}/pulsar:latest</argument>
+                    <argument>.</argument>
+                  </arguments>
+                </configuration>
+              </execution>
+              <execution>
+                <id>docker-push</id>
+                <phase>compile</phase>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <configuration>
+                  <skip>${docker.push.skip}</skip>
+                  <environmentVariables>
+                    <DOCKER_BUILDKIT>1</DOCKER_BUILDKIT>
+                  </environmentVariables>
+                  <executable>docker</executable>
+                  <workingDirectory>${project.basedir}</workingDirectory>
+                  <arguments>
+                    <argument>buildx</argument>
+                    <argument>build</argument>
+                   <argument>--no-cache</argument>
+                    <argument>--platform=linux/amd64,linux/arm64</argument>
+                    <argument>--build-arg</argument>
+                    <argument>PULSAR_TARBALL=target/pulsar-server-distribution-${project.version}-bin.tar.gz</argument>
+                    <argument>--build-arg</argument>
+                    <argument>UBUNTU_MIRROR=${env.UBUNTU_MIRROR}</argument>
+                    <argument>--push</argument>
+                    <argument>-t</argument>
+                    <argument>${docker.organization}/pulsar:${project.version}</argument>
+                    <argument>-t</argument>
+                    <argument>${docker.organization}/pulsar:latest</argument>
+                    <argument>.</argument>
+                  </arguments>
+                </configuration>
+              </execution>
             </executions>
           </plugin>
           <plugin>
@@ -101,59 +179,6 @@
                 </configuration>
               </execution>
             </executions>
-          </plugin>
-          <plugin>
-            <groupId>com.spotify</groupId>
-            <artifactId>dockerfile-maven-plugin</artifactId>
-            <version>${dockerfile-maven.version}</version>
-            <executions>
-              <execution>
-                <id>default</id>
-                <goals>
-                  <goal>build</goal>
-                </goals>
-              </execution>
-              <execution>
-                <id>add-no-repo-and-version</id>
-                <goals>
-                  <goal>tag</goal>
-                </goals>
-                <configuration>
-                  <repository>pulsar</repository>
-                  <tag>${project.version}</tag>
-                </configuration>
-              </execution>
-              <execution>
-                <id>add-no-repo-and-latest</id>
-                <goals>
-                  <goal>tag</goal>
-                </goals>
-                <configuration>
-                  <repository>pulsar</repository>
-                  <tag>latest</tag>
-                </configuration>
-              </execution>
-              <execution>
-                <id>tag-and-push-latest</id>
-                <goals>
-                  <goal>tag</goal>
-                  <goal>push</goal>
-                </goals>
-                <configuration>
-                  <repository>${docker.organization}/pulsar</repository>
-                  <tag>latest</tag>
-                </configuration>
-              </execution>
-            </executions>
-            <configuration>
-              <repository>${docker.organization}/pulsar</repository>
-              <pullNewerImage>false</pullNewerImage>
-              <tag>${project.version}</tag>
-              <buildArgs>
-                <PULSAR_TARBALL>target/pulsar-server-distribution-${project.version}-bin.tar.gz</PULSAR_TARBALL>
-                <UBUNTU_MIRROR>${env.UBUNTU_MIRROR}</UBUNTU_MIRROR>
-              </buildArgs>
-            </configuration>
           </plugin>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>

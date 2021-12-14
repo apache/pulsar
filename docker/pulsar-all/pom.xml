@@ -69,14 +69,6 @@
     <profile>
       <id>docker</id>
       <!-- include the docker image only when docker profile is active -->
-      <dependencies>
-        <dependency>
-          <groupId>${project.groupId}</groupId>
-          <artifactId>pulsar-docker-image</artifactId>
-          <version>${project.version}</version>
-          <classifier>docker-info</classifier>
-        </dependency>
-      </dependencies>
       <build>
         <plugins>
           <plugin>
@@ -119,57 +111,73 @@
             </executions>
           </plugin>
           <plugin>
-            <groupId>com.spotify</groupId>
-            <artifactId>dockerfile-maven-plugin</artifactId>
-            <version>${dockerfile-maven.version}</version>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <version>${exec-maven-plugin.version}</version>
             <executions>
               <execution>
-                <id>default</id>
+                <id>docker-build</id>
+                <phase>package</phase>
                 <goals>
-                  <goal>build</goal>
-                </goals>
-              </execution>
-              <execution>
-                <id>add-no-repo-and-version</id>
-                <goals>
-                  <goal>tag</goal>
+                  <goal>exec</goal>
                 </goals>
                 <configuration>
-                  <repository>pulsar-all</repository>
-                  <tag>${project.version}</tag>
+                  <environmentVariables>
+                    <DOCKER_BUILDKIT>1</DOCKER_BUILDKIT>
+                  </environmentVariables>
+                  <executable>docker</executable>
+                  <workingDirectory>${project.basedir}</workingDirectory>
+                  <arguments>
+                    <argument>build</argument>
+                    <argument>--no-cache</argument>
+                    <argument>--build-arg</argument>
+                    <argument>PULSAR_TARBALL=target/pulsar-server-distribution-${project.version}-bin.tar.gz</argument>
+                    <argument>-t</argument>
+                    <argument>pulsar-all:${project.version}</argument>
+                    <argument>-t</argument>
+                    <argument>pulsar-all:latest</argument>
+                    <argument>-t</argument>
+                    <argument>${docker.organization}/pulsar-all:${project.version}</argument>
+                    <argument>-t</argument>
+                    <argument>${docker.organization}/pulsar-all:latest</argument>
+                    <argument>.</argument>
+                  </arguments>
                 </configuration>
               </execution>
               <execution>
-                <id>add-no-repo-and-latest</id>
+                <id>docker-push</id>
+                <phase>deploy</phase>
                 <goals>
-                  <goal>tag</goal>
+                  <goal>exec</goal>
                 </goals>
                 <configuration>
-                  <repository>pulsar-all</repository>
-                  <tag>latest</tag>
-                </configuration>
-              </execution>
-              <execution>
-                <id>tag-and-push-latest</id>
-                <goals>
-                  <goal>tag</goal>
-                  <goal>push</goal>
-                </goals>
-                <configuration>
-                  <repository>${docker.organization}/pulsar-all</repository>
-                  <tag>latest</tag>
+                  <environmentVariables>
+                    <DOCKER_BUILDKIT>1</DOCKER_BUILDKIT>
+                  </environmentVariables>
+                  <executable>docker</executable>
+                  <workingDirectory>${project.basedir}</workingDirectory>
+                  <arguments>
+                    <argument>buildx</argument>
+                    <argument>build</argument>
+                    <argument>--no-cache</argument>
+                    <argument>--platform=linux/amd64,linux/arm64</argument>
+                    <argument>--build-arg</argument>
+                    <argument>
+                      PULSAR_IO_DIR=target/apache-pulsar-io-connectors-${project.version}-bin
+                    </argument>
+                    <argument>
+                      PULSAR_OFFLOADER_TARBALL=target/pulsar-offloader-distribution-${project.version}-bin.tar.gz
+                    </argument>
+                    <argument>--push</argument>
+                    <argument>-t</argument>
+                    <argument>${docker.organization}/pulsar-all:${project.version}</argument>
+                    <argument>-t</argument>
+                    <argument>${docker.organization}/pulsar-all:latest</argument>
+                    <argument>.</argument>
+                  </arguments>
                 </configuration>
               </execution>
             </executions>
-            <configuration>
-              <repository>${docker.organization}/pulsar-all</repository>
-              <pullNewerImage>false</pullNewerImage>
-              <tag>${project.version}</tag>
-              <buildArgs>
-                <PULSAR_IO_DIR>target/apache-pulsar-io-connectors-${project.version}-bin</PULSAR_IO_DIR>
-                <PULSAR_OFFLOADER_TARBALL>target/pulsar-offloader-distribution-${project.version}-bin.tar.gz</PULSAR_OFFLOADER_TARBALL>
-              </buildArgs>
-            </configuration>
           </plugin>
         </plugins>
       </build>
