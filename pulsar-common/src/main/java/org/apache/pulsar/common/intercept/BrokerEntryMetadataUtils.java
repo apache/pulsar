@@ -21,6 +21,7 @@ package org.apache.pulsar.common.intercept;
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.LinkedHashSet;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,7 +30,7 @@ import org.slf4j.LoggerFactory;
 /**
  * A tool class for loading BrokerEntryMetadataInterceptor classes.
  */
-public class BrokerEntryMetadataUtils {
+public class BrokerEntryMetadataUtils<T> {
 
     private static final Logger log = LoggerFactory.getLogger(BrokerEntryMetadataUtils.class);
 
@@ -51,6 +52,30 @@ public class BrokerEntryMetadataUtils {
                     }
                 } catch (ClassNotFoundException e) {
                     log.error("Load BrokerEntryMetadataInterceptor class for {} failed.", interceptorName, e);
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+        return interceptors;
+    }
+    public static <T> Set<T> loadInterceptors(
+            Set<String> interceptorNames, ClassLoader classLoader) {
+        Set<T> interceptors = new LinkedHashSet<>();
+        if (interceptorNames != null && interceptorNames.size() > 0) {
+            for (String interceptorName : interceptorNames) {
+                try {
+                    Class<T> clz = (Class<T>) ClassLoaderUtils
+                        .loadClass(interceptorName, classLoader);
+                    try {
+                        interceptors.add(clz.getDeclaredConstructor().newInstance());
+                    } catch (InstantiationException | IllegalAccessException
+                        | InvocationTargetException | NoSuchMethodException e) {
+                        log.error("Create new instance for {} failed. Exception is {}",
+                            interceptorName, e);
+                        throw new RuntimeException(e);
+                    }
+                } catch (ClassNotFoundException e) {
+                    log.error("Load class for {} failed. Exception is {}", interceptorName, e);
                     throw new RuntimeException(e);
                 }
             }

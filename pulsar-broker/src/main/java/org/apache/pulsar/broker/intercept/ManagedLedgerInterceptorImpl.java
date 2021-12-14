@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import io.netty.buffer.ByteBuf;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -25,9 +27,11 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.mledger.impl.OpAddEntry;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
+import org.apache.pulsar.common.intercept.ManagedLedgerPayloadProcessor;
 import org.apache.pulsar.common.protocol.Commands;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,9 +40,23 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerInterceptorImpl.class);
     private static final String INDEX = "index";
     private final Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors;
+    private final Set<ManagedLedgerPayloadProcessor.Processor> inputProcessors;
+    private final Set<ManagedLedgerPayloadProcessor.Processor> outputProcessors;
 
-    public ManagedLedgerInterceptorImpl(Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors) {
+    public ManagedLedgerInterceptorImpl(Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors,
+                                        Set<ManagedLedgerPayloadProcessor> brokerEntryPayloadProcessors) {
         this.brokerEntryMetadataInterceptors = brokerEntryMetadataInterceptors;
+        if (brokerEntryPayloadProcessors != null) {
+            this.inputProcessors = new LinkedHashSet<>();
+            this.outputProcessors = new LinkedHashSet<>();
+            for (ManagedLedgerPayloadProcessor processor : brokerEntryPayloadProcessors) {
+                this.inputProcessors.add(processor.inputProcessor());
+                this.outputProcessors.add(processor.outputProcessor());
+            }
+        } else {
+            this.inputProcessors = null;
+            this.outputProcessors = null;
+        }
     }
 
     public long getIndex() {
@@ -128,5 +146,48 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
                 propertiesMap.put(INDEX, String.valueOf(((AppendIndexMetadataInterceptor) interceptor).getIndex()));
             }
         }
+    }
+
+    private PayloadProcessorHandle processPayload(Set<ManagedLedgerPayloadProcessor.Processor> processors,
+                                                  Object context, ByteBuf payload) {
+
+        ByteBuf tmpData = payload;
+        final Set<ImmutablePair<ManagedLedgerPayloadProcessor.Processor, ByteBuf>> processedSet = new LinkedHashSet<>();
+        for (ManagedLedgerPayloadProcessor.Processor payloadProcessor : processors) {
+            if (payloadProcessor != null) {
+                tmpData = payloadProcessor.process(context, tmpData);
+                processedSet.add(new ImmutablePair<>(payloadProcessor, tmpData));
+            }
+        }
+        final ByteBuf dataToReturn = tmpData;
+        return new PayloadProcessorHandle() {
+            @Override
+            public ByteBuf getProcessedPayload() {
+                return dataToReturn;
+            }
+
+            @Override
+            public void release() {
+                for (ImmutablePair<ManagedLedgerPayloadProcessor.Processor, ByteBuf> p : processedSet) {
+                    p.left.release(p.right);
+                }
+                processedSet.clear();
+            }
+        };
+    }
+    @Override
+    public PayloadProcessorHandle processPayloadBeforeLedgerWrite(OpAddEntry op, ByteBuf ledgerData) {
+        if (this.inputProcessors == null || this.inputProcessors.size() == 0) {
+            return null;
+        }
+        return processPayload(this.inputProcessors, op.getCtx(), ledgerData);
+    }
+
+    @Override
+    public PayloadProcessorHandle processPayloadBeforeEntryCache(ByteBuf ledgerData){
+        if (this.outputProcessors == null || this.outputProcessors.size() == 0) {
+            return null;
+        }
+        return processPayload(this.outputProcessors, null, ledgerData);
     }
 }
