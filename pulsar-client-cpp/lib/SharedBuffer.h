@@ -52,6 +52,8 @@ class SharedBuffer {
 
         this->capacity_ = right.capacity_;
         right.capacity_ = 0;
+
+        return *this;
     }
 
     /**
