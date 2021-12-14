@@ -487,8 +487,8 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
                 byte[] oldValueData = transaction.getForUpdate(optionDontCache, pathBytes, false);
                 MetaValue metaValue = MetaValue.parse(oldValueData);
                 if (expectedVersion.isPresent()) {
-                    if (metaValue == null && expectedVersion.get() != -1 ||
-                            metaValue != null && !expectedVersion.get().equals(metaValue.getVersion())) {
+                    if (metaValue == null && expectedVersion.get() != -1
+                            || metaValue != null && !expectedVersion.get().equals(metaValue.getVersion())) {
                         throw new MetadataStoreException.BadVersionException(
                                 String.format("Version mismatch, actual=%s, expect=%s",
                                         metaValue == null ? null : metaValue.getVersion(), expectedVersion.get()));

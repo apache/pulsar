@@ -25,7 +25,6 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.discover.BookieServiceInfo;
 import org.apache.bookkeeper.proto.DataFormats.BookieServiceInfoFormat;
-import org.apache.bookkeeper.server.service.BookieService;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.Stat;
 
