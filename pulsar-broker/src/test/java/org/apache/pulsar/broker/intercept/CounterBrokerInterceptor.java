@@ -41,7 +41,6 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.CommandAck;
-import org.apache.pulsar.common.stats.Rate;
 import org.eclipse.jetty.server.Response;
 
 

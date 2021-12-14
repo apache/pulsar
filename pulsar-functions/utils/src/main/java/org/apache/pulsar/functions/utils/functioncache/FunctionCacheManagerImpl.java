@@ -19,7 +19,6 @@
 
 package org.apache.pulsar.functions.utils.functioncache;
 
-import com.google.common.base.Preconditions;
 import org.apache.pulsar.functions.utils.Exceptions;
 
 import java.io.File;
