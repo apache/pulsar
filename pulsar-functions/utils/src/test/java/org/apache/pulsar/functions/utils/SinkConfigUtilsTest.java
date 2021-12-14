@@ -364,10 +364,7 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newSinkConfig = createUpdatedSinkConfig("cleanupSubscription", false);
         SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
-        assertEquals(
-                mergedConfig.getCleanupSubscription().booleanValue(),
-                false
-        );
+        assertFalse(mergedConfig.getCleanupSubscription());
         mergedConfig.setCleanupSubscription(sinkConfig.getCleanupSubscription());
         assertEquals(
                 new Gson().toJson(sinkConfig),
@@ -384,22 +381,6 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
                 mergedConfig.getRuntimeFlags(), "-Dfoo=bar2"
         );
         mergedConfig.setRuntimeFlags(sinkConfig.getRuntimeFlags());
-        assertEquals(
-                new Gson().toJson(sinkConfig),
-                new Gson().toJson(mergedConfig)
-        );
-    }
-
-    @Test
-    public void testMergeDifferentCleanupSubscription() {
-        SinkConfig sinkConfig = createSinkConfig();
-        SinkConfig newSinkConfig = createUpdatedSinkConfig("cleanupSubscription", false);
-        SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
-        assertEquals(
-                mergedConfig.getCleanupSubscription().booleanValue(),
-                false
-        );
-        mergedConfig.setCleanupSubscription(sinkConfig.getCleanupSubscription());
         assertEquals(
                 new Gson().toJson(sinkConfig),
                 new Gson().toJson(mergedConfig)
