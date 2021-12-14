@@ -375,7 +375,7 @@ scrape_configs:
     - localhost:2112
 ```
 
-Finally, you can query pulsar client metrics on Prometheus!
+Now you can query Pulsar client metrics on Prometheus.
 
 ### Producer configuration
 
