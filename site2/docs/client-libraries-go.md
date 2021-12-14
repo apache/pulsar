@@ -309,7 +309,7 @@ Pulsar Go client registers client metrics using Prometheus. This section demonst
 1. Write a simple producer application.
 
 ```go
-// Create a pulsar client
+// Create a Pulsar client
 client, err := pulsar.NewClient(pulsar.ClientOptions{
 	URL: "pulsar://localhost:6650",
 })
