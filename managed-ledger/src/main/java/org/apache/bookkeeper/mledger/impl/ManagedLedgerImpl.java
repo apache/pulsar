@@ -2425,7 +2425,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
 
             long totalSizeToDelete = 0;
-            boolean retentionSizeQuotaMet = false;
             // skip ledger if retention constraint met
             for (LedgerInfo ls : ledgers.headMap(slowestReaderLedgerId, false).values()) {
                 // currentLedger can not be deleted
