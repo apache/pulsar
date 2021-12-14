@@ -55,6 +55,7 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
+import org.testng.annotations.Ignore;
 import org.testng.annotations.Test;
 
 public class TopicReaderTest extends ProducerConsumerBase {
@@ -932,6 +933,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
     }
 
     @Test
+    @Ignore
     public void testMessageAvailableAfterRestart() throws Exception {
         String topic = "persistent://my-property/use/my-ns/testMessageAvailableAfterRestart";
         String content = "my-message-1";

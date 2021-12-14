@@ -62,6 +62,7 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
+import org.testng.annotations.Ignore;
 import org.testng.annotations.Test;
 
 public class KeySharedSubscriptionTest extends ProducerConsumerBase {
@@ -636,6 +637,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test
+    @Ignore
     public void testRemoveFirstConsumer() throws Exception {
         this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "testReadAheadWhenAddingConsumers-" + UUID.randomUUID();
