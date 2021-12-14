@@ -344,7 +344,7 @@ defer producer.Close()
 ctx := context.Background()
 
 // Write your business logic here
-// In this case, we build a simple web server. You can produce a message by requesting http://localhost:8082/produce
+// In this case, you build a simple Web server. You can produce messages by requesting http://localhost:8082/produce
 webPort := 8082
 http.HandleFunc("/produce", func(w http.ResponseWriter, r *http.Request) {
     msgId, err := producer.Send(ctx, &pulsar.ProducerMessage{
