@@ -502,12 +502,7 @@ public class ZookeeperCacheTest {
         ZooKeeper zkSession = zkCacheService.zkSession.get();
         zkCacheService.zkSession.set(null);
 
-        try {
-            zkCache.getAsync(key2).get();
-            fail("it should have failed with NPE");
-        } catch (Exception e) {
-            assertTrue(e.getCause() instanceof NullPointerException);
-        }
+        assertFalse(zkCache.getAsync(key2).get().isPresent());
 
         // global-Zk session is connected now
         zkCacheService.zkSession.set(zkSession);
