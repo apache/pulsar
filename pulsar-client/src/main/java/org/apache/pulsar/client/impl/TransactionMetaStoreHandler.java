@@ -197,8 +197,11 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newTxn(transactionCoordinatorId, requestId, unit.toMillis(timeout));
         OpForTxnIdCallBack op = OpForTxnIdCallBack.create(cmd, callback, client);
-        timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-        checkStateAndSendRequest(requestId, op);
+        internalPinnedExecutor.execute(() -> {
+            pendingRequests.put(requestId, op);
+            timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
+            checkStateAndSendRequest(requestId, op);
+        });
         return callback;
     }
 
@@ -237,6 +240,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                                         + "TransactionCoordinatorNotFound and try it again",
                                 BaseCommand.Type.NEW_TXN.name(), requestId);
                     }
+                    pendingRequests.put(requestId, op);
                     timer.newTimeout(timeout ->
                             checkStateAndSendRequest(requestId, op), op.backoff.next(), TimeUnit.MILLISECONDS);
                     return;
@@ -260,10 +264,14 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newAddPartitionToTxn(
                 requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), partitions);
-        timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
         OpForVoidCallBack op = OpForVoidCallBack
                 .create(cmd, callback, client);
-        checkStateAndSendRequest(requestId, op);
+        internalPinnedExecutor.execute(() -> {
+            pendingRequests.put(requestId, op);
+            timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
+            checkStateAndSendRequest(requestId, op);
+        });
+
         return callback;
     }
 
@@ -302,6 +310,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                                         + " error TransactionCoordinatorNotFound and try it again",
                                 BaseCommand.Type.ADD_PARTITION_TO_TXN.name(), requestId);
                     }
+                    pendingRequests.put(requestId, op);
                     timer.newTimeout(timeout ->
                             checkStateAndSendRequest(requestId, op), op.backoff.next(), TimeUnit.MILLISECONDS);
                     return;
@@ -328,8 +337,11 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         ByteBuf cmd = Commands.newAddSubscriptionToTxn(
                 requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), subscriptionList);
         OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback, client);
-        timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-        checkStateAndSendRequest(requestId, op);
+        internalPinnedExecutor.execute(() -> {
+            pendingRequests.put(requestId, op);
+            timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
+            checkStateAndSendRequest(requestId, op);
+        });
         return callback;
     }
 
@@ -367,6 +379,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                         LOG.debug("Get a response for {} request {} error TransactionCoordinatorNotFound and try it again",
                                 BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(), requestId);
                     }
+                    pendingRequests.put(requestId, op);
                     timer.newTimeout(timeout ->
                             checkStateAndSendRequest(requestId, op), op.backoff.next(), TimeUnit.MILLISECONDS);
                     return;
@@ -391,8 +404,11 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         BaseCommand cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), action);
         ByteBuf buf = Commands.serializeWithSize(cmd);
         OpForVoidCallBack op = OpForVoidCallBack.create(buf, callback, client);
-        timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-        checkStateAndSendRequest(requestId, op);
+        internalPinnedExecutor.execute(() -> {
+            pendingRequests.put(requestId, op);
+            timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
+            checkStateAndSendRequest(requestId, op);
+        });
         return callback;
     }
 
@@ -431,6 +447,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                                         + "TransactionCoordinatorNotFound and try it again",
                                 BaseCommand.Type.END_TXN.name(), requestId);
                     }
+                    pendingRequests.put(requestId, op);
                     timer.newTimeout(timeout ->
                             checkStateAndSendRequest(requestId, op), op.backoff.next(), TimeUnit.MILLISECONDS);
                     return;
@@ -578,53 +595,49 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     }
 
     private void checkStateAndSendRequest(long requestId, OpBase<?> op) {
-        internalPinnedExecutor.execute(() -> {
-            if (op.callback.isDone()) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("The  request {} was already timeout", requestId);
+        if (!pendingRequests.containsKey(requestId)) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("The request {} already timeout", requestId);
+            }
+            return;
+        }
+        switch (getState()) {
+            case Ready:
+                ClientCnx cnx = cnx();
+                if (cnx != null) {
+                    op.cmd.retain();
+                    cnx.ctx().writeAndFlush(op.cmd, cnx().ctx().voidPromise());
+                } else {
+                    LOG.error("The cnx was null when the TC handler was ready", new NullPointerException());
                 }
-                return;
-            }
-            switch (getState()) {
-                case Ready:
-                    ClientCnx cnx = cnx();
-                    if (cnx != null) {
-                        pendingRequests.put(requestId, op);
-                        op.cmd.retain();
-                        cnx.ctx().writeAndFlush(op.cmd, cnx().ctx().voidPromise());
-                    } else {
-                        LOG.error("The cnx was null when the TC handler was ready", new NullPointerException());
-                    }
-                    break;
-                case Connecting:
-                    pendingRequests.put(requestId, op);
-                    break;
-                case Closing:
-                case Closed:
-                    op.callback.completeExceptionally(
-                            new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
-                                    "Transaction meta store handler for tcId "
-                                            + transactionCoordinatorId
-                                            + " is closing or closed."));
-                    onResponse(op);
-                    break;
-                case Failed:
-                case Uninitialized:
-                    op.callback.completeExceptionally(
-                            new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
-                                    "Transaction meta store handler for tcId "
-                                            + transactionCoordinatorId
-                                            + " not connected."));
-                    onResponse(op);
-                    break;
-                default:
-                    op.callback.completeExceptionally(
-                            new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
-                                    transactionCoordinatorId));
-                    onResponse(op);
-                    break;
-            }
-        });
+                break;
+            case Connecting:
+                break;
+            case Closing:
+            case Closed:
+                op.callback.completeExceptionally(
+                        new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
+                                "Transaction meta store handler for tcId "
+                                        + transactionCoordinatorId
+                                        + " is closing or closed."));
+                onResponse(op);
+                break;
+            case Failed:
+            case Uninitialized:
+                op.callback.completeExceptionally(
+                        new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
+                                "Transaction meta store handler for tcId "
+                                        + transactionCoordinatorId
+                                        + " not connected."));
+                onResponse(op);
+                break;
+            default:
+                op.callback.completeExceptionally(
+                        new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
+                                transactionCoordinatorId));
+                onResponse(op);
+                break;
+        }
     }
 
     @Override
