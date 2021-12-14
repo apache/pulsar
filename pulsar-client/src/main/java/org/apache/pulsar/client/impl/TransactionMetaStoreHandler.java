@@ -76,6 +76,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         }
     }
 
+    private final boolean blockIfReachMaxPendingOps;
     private final Semaphore semaphore;
 
     private Timeout requestTimeout;
@@ -87,6 +88,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         super(pulsarClient, topic);
         this.transactionCoordinatorId = transactionCoordinatorId;
         this.timeoutQueue = new ConcurrentLinkedQueue<>();
+        this.blockIfReachMaxPendingOps = true;
         this.semaphore = new Semaphore(1000);
         this.requestTimeout = pulsarClient.timer().newTimeout(this, pulsarClient.getConfiguration().getOperationTimeoutMs(), TimeUnit.MILLISECONDS);
         this.connectionHandler = new ConnectionHandler(
@@ -114,68 +116,74 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
 
     @Override
     public void connectionOpened(ClientCnx cnx) {
-        LOG.info("Transaction meta handler with transaction coordinator id {} connection opened.",
-            transactionCoordinatorId);
+        internalPinnedExecutor.execute(() -> {
+            LOG.info("Transaction meta handler with transaction coordinator id {} connection opened.",
+                    transactionCoordinatorId);
 
-        if (getState() == State.Closing || getState() == State.Closed) {
-            setState(State.Closed);
-            failPendingRequest();
-            this.pendingRequests.clear();
-            return;
-        }
-
-        connectionHandler.setClientCnx(cnx);
-        cnx.registerTransactionMetaStoreHandler(transactionCoordinatorId, this);
-
-        // if broker protocol version < 19, don't send TcClientConnectRequest to broker.
-        if (cnx.getRemoteEndpointProtocolVersion() > ProtocolVersion.v18.getValue()) {
-            long requestId = client.newRequestId();
-            ByteBuf request = Commands.newTcClientConnectRequest(transactionCoordinatorId, requestId);
-
-            cnx.sendRequestWithId(request, requestId).thenRun(() -> {
-                LOG.info("Transaction coordinator client connect success! tcId : {}", transactionCoordinatorId);
-                if (!changeToReadyState()) {
-                    setState(State.Closed);
-                    cnx.channel().close();
-                }
-
-                if (!this.connectFuture.isDone()) {
-                    this.connectFuture.complete(null);
-                }
-                this.connectionHandler.resetBackoff();
-                internalPinnedExecutor.execute(() -> {
-                    pendingRequests.forEach(this::checkStateAndSendRequest);
-                    pendingRequests.clear();
-                });
-            }).exceptionally((e) -> {
-                LOG.error("Transaction coordinator client connect fail! tcId : {}",
-                        transactionCoordinatorId, e.getCause());
-                if (getState() == State.Closing || getState() == State.Closed
-                        || e.getCause() instanceof PulsarClientException.NotAllowedException) {
-                    setState(State.Closed);
-                    cnx.channel().close();
-                } else {
-                    connectionHandler.reconnectLater(e.getCause());
-                }
-                return null;
-            });
-        } else {
-            if (!changeToReadyState()) {
-                cnx.channel().close();
+            if (getState() == State.Closing || getState() == State.Closed) {
+                setState(State.Closed);
+                failPendingRequest();
+                this.pendingRequests.clear();
+                return;
             }
-            this.connectFuture.complete(null);
-        }
+
+            connectionHandler.setClientCnx(cnx);
+            cnx.registerTransactionMetaStoreHandler(transactionCoordinatorId, this);
+
+            // if broker protocol version < 19, don't send TcClientConnectRequest to broker.
+            if (cnx.getRemoteEndpointProtocolVersion() > ProtocolVersion.v18.getValue()) {
+                long requestId = client.newRequestId();
+                ByteBuf request = Commands.newTcClientConnectRequest(transactionCoordinatorId, requestId);
+
+                cnx.sendRequestWithId(request, requestId).thenRun(() -> {
+                    internalPinnedExecutor.execute(() -> {
+                        LOG.info("Transaction coordinator client connect success! tcId : {}", transactionCoordinatorId);
+                        if (!changeToReadyState()) {
+                            setState(State.Closed);
+                            cnx.channel().close();
+                        }
+
+                        if (!this.connectFuture.isDone()) {
+                            this.connectFuture.complete(null);
+                        }
+                        this.connectionHandler.resetBackoff();
+                        pendingRequests.forEach(this::checkStateAndSendRequest);
+                        pendingRequests.clear();
+                    });
+                }).exceptionally((e) -> {
+                    internalPinnedExecutor.execute(() -> {
+                        LOG.error("Transaction coordinator client connect fail! tcId : {}",
+                                transactionCoordinatorId, e.getCause());
+                        if (getState() == State.Closing || getState() == State.Closed
+                                || e.getCause() instanceof PulsarClientException.NotAllowedException) {
+                            setState(State.Closed);
+                            cnx.channel().close();
+                        } else {
+                            connectionHandler.reconnectLater(e.getCause());
+                        }
+                    });
+                    return null;
+                });
+            } else {
+                if (!changeToReadyState()) {
+                    cnx.channel().close();
+                }
+                this.connectFuture.complete(null);
+            }
+        });
     }
 
     private void failPendingRequest() {
-        pendingRequests.keys().forEach(k -> {
-            OpBase<?> op = pendingRequests.remove(k);
-            if (op != null && !op.callback.isDone()) {
-                op.callback.completeExceptionally(new PulsarClientException.AlreadyClosedException(
-                        "Could not get response from transaction meta store when " +
-                                "the transaction meta store has already close."));
-                onResponse(op);
-            }
+        internalPinnedExecutor.execute(() -> {
+            pendingRequests.keys().forEach(k -> {
+                OpBase<?> op = pendingRequests.remove(k);
+                if (op != null && !op.callback.isDone()) {
+                    op.callback.completeExceptionally(new PulsarClientException.AlreadyClosedException(
+                            "Could not get response from transaction meta store when " +
+                                    "the transaction meta store has already close."));
+                    onResponse(op);
+                }
+            });
         });
     }
 
@@ -184,11 +192,13 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             LOG.debug("New transaction with timeout in ms {}", unit.toMillis(timeout));
         }
         CompletableFuture<TxnID> callback = new CompletableFuture<>();
-
+        if (!canSendRequest(callback)) {
+            return callback;
+        }
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newTxn(transactionCoordinatorId, requestId, unit.toMillis(timeout));
         OpForTxnIdCallBack op = OpForTxnIdCallBack.create(cmd, callback, client);
-
+        timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
         checkStateAndSendRequest(requestId, op);
         return callback;
     }
@@ -218,7 +228,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                             BaseCommand.Type.NEW_TXN.name(), requestId);
                 }
                 timer.newTimeout(timeout ->
-                    tryInternalExecuteCommandAgain(op, requestId), op.backoff.next(), TimeUnit.MILLISECONDS);
+                        checkStateAndSendRequest(requestId, op), op.backoff.next(), TimeUnit.MILLISECONDS);
                 return;
             }
             LOG.error("Got {} for request {} error {}", BaseCommand.Type.NEW_TXN.name(),
@@ -233,15 +243,17 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             LOG.debug("Add publish partition {} to txn {}", partitions, txnID);
         }
         CompletableFuture<Void> callback = new CompletableFuture<>();
-
+        if (!canSendRequest(callback)) {
+            return callback;
+        }
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newAddPartitionToTxn(
                 requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), partitions);
-
+        timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
         OpForVoidCallBack op = OpForVoidCallBack
                 .create(cmd, callback, client);
         timer.newTimeout(timeout ->
-                        tryInternalExecuteCommandAgain(op, requestId), op.backoff.next(), TimeUnit.MILLISECONDS);
+                checkStateAndSendRequest(requestId, op), op.backoff.next(), TimeUnit.MILLISECONDS);
 
         return callback;
     }
@@ -270,7 +282,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                             BaseCommand.Type.ADD_PARTITION_TO_TXN.name(), requestId);
                 }
                 timer.newTimeout(timeout ->
-                    tryInternalExecuteCommandAgain(op, requestId), op.backoff.next(), TimeUnit.MILLISECONDS);
+                        checkStateAndSendRequest(requestId, op), op.backoff.next(), TimeUnit.MILLISECONDS);
                 return;
             }
             LOG.error("{} for request {} error {} with txnID {}.", BaseCommand.Type.ADD_PARTITION_TO_TXN.name(),
@@ -288,11 +300,14 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         }
 
         CompletableFuture<Void> callback = new CompletableFuture<>();
-
+        if (!canSendRequest(callback)) {
+            return callback;
+        }
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newAddSubscriptionToTxn(
                 requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), subscriptionList);
         OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback, client);
+        timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
         checkStateAndSendRequest(requestId, op);
         return callback;
     }
@@ -321,7 +336,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                             BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(), requestId);
                 }
                 timer.newTimeout(timeout ->
-                        tryInternalExecuteCommandAgain(op, requestId), op.backoff.next(), TimeUnit.MILLISECONDS);
+                        checkStateAndSendRequest(requestId, op), op.backoff.next(), TimeUnit.MILLISECONDS);
                 return;
             }
             LOG.error("{} failed for request {} error {}.", BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(),
@@ -336,11 +351,14 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             LOG.debug("End txn {}, action {}", txnID, action);
         }
         CompletableFuture<Void> callback = new CompletableFuture<>();
-
+        if (!canSendRequest(callback)) {
+            return callback;
+        }
         long requestId = client.newRequestId();
         BaseCommand cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), action);
         ByteBuf buf = Commands.serializeWithSize(cmd);
         OpForVoidCallBack op = OpForVoidCallBack.create(buf, callback, client);
+        timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
         checkStateAndSendRequest(requestId, op);
         return callback;
     }
@@ -369,7 +387,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                             BaseCommand.Type.END_TXN.name(), requestId);
                 }
                 timer.newTimeout(timeout ->
-                    tryInternalExecuteCommandAgain(op, requestId), op.backoff.next(), TimeUnit.MILLISECONDS);
+                    checkStateAndSendRequest(requestId, op), op.backoff.next(), TimeUnit.MILLISECONDS);
                 return;
             }
             LOG.error("Got {} response for request {} error {}", BaseCommand.Type.END_TXN.name(),
@@ -379,20 +397,6 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         onResponse(op);
     }
 
-    private <T> void tryInternalExecuteCommandAgain(OpBase<T> op, long requestId) {
-        ClientCnx cnx = cnx();
-        if (cnx == null) {
-            if (getState().equals(State.Connecting)) {
-                timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-                pendingRequests.put(requestId, op);
-                return;
-            }
-            timer.newTimeout(timeout ->
-                tryInternalExecuteCommandAgain(op, requestId), op.backoff.next(), TimeUnit.MILLISECONDS);
-            return;
-        }
-        checkStateAndSendRequest(requestId, op);
-    }
 
     private boolean checkIfNeedRetryByError(ServerError error, String message, OpBase<?> op) {
         if (error == ServerError.TransactionCoordinatorNotFound) {
@@ -509,6 +513,23 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         semaphore.release();
     }
 
+    private boolean canSendRequest(CompletableFuture<?> callback) {
+        try {
+            if (blockIfReachMaxPendingOps) {
+                semaphore.acquire();
+            } else {
+                if (!semaphore.tryAcquire()) {
+                    callback.completeExceptionally(new TransactionCoordinatorClientException("Reach max pending ops."));
+                    return false;
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            callback.completeExceptionally(TransactionCoordinatorClientException.unwrap(e));
+            return false;
+        }
+        return true;
+    }
 
     private void checkStateAndSendRequest(long requestId, OpBase<?> op) {
         internalPinnedExecutor.execute(() -> {
@@ -517,11 +538,10 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                     ClientCnx cnx = cnx();
                     if (cnx != null) {
                         pendingRequests.put(requestId, op);
-                        timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
                         op.cmd.retain();
                         cnx.ctx().writeAndFlush(op.cmd, cnx().ctx().voidPromise());
                     } else {
-                        tryInternalExecuteCommandAgain(op, requestId);
+                        LOG.error("The cnx was null when the TC handler was ready", new NullPointerException());
                     }
                     break;
                 case Connecting:
@@ -558,45 +578,47 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
 
     @Override
     public void run(Timeout timeout) throws Exception {
-        if (timeout.isCancelled()) {
-            return;
-        }
-        long timeToWaitMs;
-        if (getState() == State.Closing || getState() == State.Closed) {
-            return;
-        }
-        RequestTime peeked = timeoutQueue.peek();
-        while (peeked != null && peeked.creationTimeMs + client.getConfiguration().getOperationTimeoutMs()
-                - System.currentTimeMillis() <= 0) {
-            RequestTime lastPolled = timeoutQueue.poll();
-            if (lastPolled != null) {
-                OpBase<?> op = pendingRequests.remove(lastPolled.requestId);
-                if (op != null && !op.callback.isDone()) {
-                    op.callback.completeExceptionally(new PulsarClientException.TimeoutException(
-                            "Could not get response from transaction meta store within given timeout."));
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("Transaction coordinator request {} is timeout.", lastPolled.requestId);
-                    }
-                    onResponse(op);
-                }
-            } else {
-                break;
+        internalPinnedExecutor.execute(() -> {
+            if (timeout.isCancelled()) {
+                return;
             }
-            peeked = timeoutQueue.peek();
-        }
+            long timeToWaitMs;
+            if (getState() == State.Closing || getState() == State.Closed) {
+                return;
+            }
+            RequestTime peeked = timeoutQueue.peek();
+            while (peeked != null && peeked.creationTimeMs + client.getConfiguration().getOperationTimeoutMs()
+                    - System.currentTimeMillis() <= 0) {
+                RequestTime lastPolled = timeoutQueue.poll();
+                if (lastPolled != null) {
+                    OpBase<?> op = pendingRequests.remove(lastPolled.requestId);
+                    if (op != null && !op.callback.isDone()) {
+                        op.callback.completeExceptionally(new PulsarClientException.TimeoutException(
+                                "Could not get response from transaction meta store within given timeout."));
+                        if (LOG.isDebugEnabled()) {
+                            LOG.debug("Transaction coordinator request {} is timeout.", lastPolled.requestId);
+                        }
+                        onResponse(op);
+                    }
+                } else {
+                    break;
+                }
+                peeked = timeoutQueue.peek();
+            }
 
-        if (peeked == null) {
-            timeToWaitMs = client.getConfiguration().getOperationTimeoutMs();
-        } else {
-            long diff = (peeked.creationTimeMs + client.getConfiguration().getOperationTimeoutMs())
-                    - System.currentTimeMillis();
-            if (diff <= 0) {
+            if (peeked == null) {
                 timeToWaitMs = client.getConfiguration().getOperationTimeoutMs();
             } else {
-                timeToWaitMs = diff;
+                long diff = (peeked.creationTimeMs + client.getConfiguration().getOperationTimeoutMs())
+                        - System.currentTimeMillis();
+                if (diff <= 0) {
+                    timeToWaitMs = client.getConfiguration().getOperationTimeoutMs();
+                } else {
+                    timeToWaitMs = diff;
+                }
             }
-        }
-        requestTimeout = client.timer().newTimeout(this, timeToWaitMs, TimeUnit.MILLISECONDS);
+            requestTimeout = client.timer().newTimeout(this, timeToWaitMs, TimeUnit.MILLISECONDS);
+        });
     }
 
     private ClientCnx cnx() {
