@@ -251,11 +251,16 @@ public class PartitionedProducerImplTest {
         producerConfData.setMessageRoutingMode(MessageRoutingMode.CustomPartition);
         producerConfData.setCustomMessageRouter(new CustomMessageRouter());
 
-        PartitionedProducerImpl impl = new PartitionedProducerImpl(
-                clientImpl, topicName, producerConfData,
-                1, null, null, null);
+        PartitionedProducerImpl partitionedProducerImpl = new PartitionedProducerImpl(
+                clientImpl, topicName, producerConfData, 1, null, null, null);
 
-        assertEquals(impl.getNumOfPartitions(), 1);
+        assertEquals(partitionedProducerImpl.getNumOfPartitions(), 1);
+
+        String nonPartitionedTopicName = "test-get-num-of-partitions-for-non-partitioned-topic";
+        ProducerConfigurationData producerConfDataNonPartitioned = new ProducerConfigurationData();
+        ProducerImpl producerImpl = new ProducerImpl(clientImpl, nonPartitionedTopicName, producerConfDataNonPartitioned,
+                null, 0, null, null);
+        assertEquals(producerImpl.getNumOfPartitions(), 0);
     }
 
 }
