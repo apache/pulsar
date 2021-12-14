@@ -553,7 +553,6 @@ public class Producer {
             isMarker = false;
             if (propertyMap != null) {
                 propertyMap.clear();
-                propertyMap = null;
             }
             recyclerHandle.recycle(this);
         }
