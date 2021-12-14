@@ -206,7 +206,7 @@ public class RuntimeUtilsTest {
         1234,
         "narExtractionDirectory",
         "functionInstanceClassPath",
-        false);
+        "");
 
         log.info("cmd {}", cmd);
 
