@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":10,"i2":10,"i3":9,"i4":10,"i5":10,"i6":10,"i7":10};
+var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":9,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -199,40 +199,91 @@ implements <a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInte
 </tr>
 <tr id="i2" class="altColor">
 <td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptors.html#consumerCreated-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-java.util.Map-">consumerCreated</a></span>(<a href="../../../../../org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a>&nbsp;cnx,
+               <a href="../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+               <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;metadata)</code>
+<div class="block">Intercept after a consumer is created.</div>
+</td>
+</tr>
+<tr id="i3" class="rowColor">
+<td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptors.html#initialize-org.apache.pulsar.broker.PulsarService-">initialize</a></span>(<a href="../../../../../org/apache/pulsar/broker/PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsarService)</code>
 <div class="block">Initialize the broker interceptor.</div>
 </td>
 </tr>
-<tr id="i3" class="rowColor">
+<tr id="i4" class="altColor">
 <td class="colFirst"><code>static <a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptor.html" title="interface in org.apache.pulsar.broker.intercept">BrokerInterceptor</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptors.html#load-org.apache.pulsar.broker.ServiceConfiguration-">load</a></span>(org.apache.pulsar.broker.ServiceConfiguration&nbsp;conf)</code>
 <div class="block">Load the broker event interceptor for the given <tt>interceptor</tt> list.</div>
 </td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i5" class="rowColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptors.html#messageAcked-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-org.apache.pulsar.common.api.proto.CommandAck-">messageAcked</a></span>(<a href="../../../../../org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a>&nbsp;cnx,
+            <a href="../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+            org.apache.pulsar.common.api.proto.CommandAck&nbsp;ackCmd)</code>
+<div class="block">Intercept after a message ack is processed.</div>
+</td>
+</tr>
+<tr id="i6" class="altColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptors.html#messageDispatched-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-long-long-io.netty.buffer.ByteBuf-">messageDispatched</a></span>(<a href="../../../../../org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a>&nbsp;cnx,
+                 <a href="../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+                 long&nbsp;ledgerId,
+                 long&nbsp;entryId,
+                 io.netty.buffer.ByteBuf&nbsp;headersAndPayload)</code>
+<div class="block">Intercept after a message is dispatched to consumer.</div>
+</td>
+</tr>
+<tr id="i7" class="rowColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptors.html#messageProduced-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Producer-long-long-long-org.apache.pulsar.broker.service.Topic.PublishContext-">messageProduced</a></span>(<a href="../../../../../org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a>&nbsp;cnx,
+               <a href="../../../../../org/apache/pulsar/broker/service/Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a>&nbsp;producer,
+               long&nbsp;startTimeNs,
+               long&nbsp;ledgerId,
+               long&nbsp;entryId,
+               <a href="../../../../../org/apache/pulsar/broker/service/Topic.PublishContext.html" title="interface in org.apache.pulsar.broker.service">Topic.PublishContext</a>&nbsp;publishContext)</code>
+<div class="block">Intercept after a message is produced.</div>
+</td>
+</tr>
+<tr id="i8" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptors.html#onConnectionClosed-org.apache.pulsar.broker.service.ServerCnx-">onConnectionClosed</a></span>(<a href="../../../../../org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a>&nbsp;cnx)</code>
 <div class="block">Called by the broker while connection closed.</div>
 </td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i9" class="rowColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptors.html#onConnectionCreated-org.apache.pulsar.broker.service.ServerCnx-">onConnectionCreated</a></span>(<a href="../../../../../org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a>&nbsp;cnx)</code>
+<div class="block">Called by the broker when a new connection is created.</div>
+</td>
+</tr>
+<tr id="i10" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptors.html#onPulsarCommand-org.apache.pulsar.common.api.proto.BaseCommand-org.apache.pulsar.broker.service.ServerCnx-">onPulsarCommand</a></span>(org.apache.pulsar.common.api.proto.BaseCommand&nbsp;command,
                <a href="../../../../../org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a>&nbsp;cnx)</code>
 <div class="block">Called by the broker while new command incoming.</div>
 </td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptors.html#onWebserviceRequest-javax.servlet.ServletRequest-">onWebserviceRequest</a></span>(javax.servlet.ServletRequest&nbsp;request)</code>
 <div class="block">Called by the web service while new request incoming.</div>
 </td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i12" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptors.html#onWebserviceResponse-javax.servlet.ServletRequest-javax.servlet.ServletResponse-">onWebserviceResponse</a></span>(javax.servlet.ServletRequest&nbsp;request,
                     javax.servlet.ServletResponse&nbsp;response)</code>
 <div class="block">Intercept the webservice response before send to client.</div>
+</td>
+</tr>
+<tr id="i13" class="rowColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptors.html#producerCreated-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Producer-java.util.Map-">producerCreated</a></span>(<a href="../../../../../org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a>&nbsp;cnx,
+               <a href="../../../../../org/apache/pulsar/broker/service/Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a>&nbsp;producer,
+               <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;metadata)</code>
+<div class="block">Called by the broker when a new connection is created.</div>
 </td>
 </tr>
 </table>
@@ -320,6 +371,128 @@ implements <a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInte
 <dd><code>entry</code> - entry</dd>
 <dd><code>ackSet</code> - entry ack bitset. it is either <tt>null</tt> or an array of long-based bitsets.</dd>
 <dd><code>msgMetadata</code> - message metadata. The message metadata will be recycled after this call.</dd>
+</dl>
+</li>
+</ul>
+<a name="consumerCreated-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-java.util.Map-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>consumerCreated</h4>
+<pre>public&nbsp;void&nbsp;consumerCreated(<a href="../../../../../org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a>&nbsp;cnx,
+                            <a href="../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+                            <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;metadata)</pre>
+<div class="block"><span class="descfrmTypeLabel">Description copied from interface:&nbsp;<code><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptor.html#consumerCreated-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-java.util.Map-">BrokerInterceptor</a></code></span></div>
+<div class="block">Intercept after a consumer is created.</div>
+<dl>
+<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptor.html#consumerCreated-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-java.util.Map-">consumerCreated</a></code>&nbsp;in interface&nbsp;<code><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptor.html" title="interface in org.apache.pulsar.broker.intercept">BrokerInterceptor</a></code></dd>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>cnx</code> - client Connection</dd>
+<dd><code>consumer</code> - Consumer object</dd>
+<dd><code>metadata</code> - A map of metdata</dd>
+</dl>
+</li>
+</ul>
+<a name="producerCreated-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Producer-java.util.Map-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>producerCreated</h4>
+<pre>public&nbsp;void&nbsp;producerCreated(<a href="../../../../../org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a>&nbsp;cnx,
+                            <a href="../../../../../org/apache/pulsar/broker/service/Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a>&nbsp;producer,
+                            <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;metadata)</pre>
+<div class="block"><span class="descfrmTypeLabel">Description copied from interface:&nbsp;<code><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptor.html#producerCreated-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Producer-java.util.Map-">BrokerInterceptor</a></code></span></div>
+<div class="block">Called by the broker when a new connection is created.</div>
+<dl>
+<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptor.html#producerCreated-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Producer-java.util.Map-">producerCreated</a></code>&nbsp;in interface&nbsp;<code><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptor.html" title="interface in org.apache.pulsar.broker.intercept">BrokerInterceptor</a></code></dd>
+</dl>
+</li>
+</ul>
+<a name="messageProduced-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Producer-long-long-long-org.apache.pulsar.broker.service.Topic.PublishContext-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>messageProduced</h4>
+<pre>public&nbsp;void&nbsp;messageProduced(<a href="../../../../../org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a>&nbsp;cnx,
+                            <a href="../../../../../org/apache/pulsar/broker/service/Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a>&nbsp;producer,
+                            long&nbsp;startTimeNs,
+                            long&nbsp;ledgerId,
+                            long&nbsp;entryId,
+                            <a href="../../../../../org/apache/pulsar/broker/service/Topic.PublishContext.html" title="interface in org.apache.pulsar.broker.service">Topic.PublishContext</a>&nbsp;publishContext)</pre>
+<div class="block"><span class="descfrmTypeLabel">Description copied from interface:&nbsp;<code><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptor.html#messageProduced-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Producer-long-long-long-org.apache.pulsar.broker.service.Topic.PublishContext-">BrokerInterceptor</a></code></span></div>
+<div class="block">Intercept after a message is produced.</div>
+<dl>
+<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptor.html#messageProduced-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Producer-long-long-long-org.apache.pulsar.broker.service.Topic.PublishContext-">messageProduced</a></code>&nbsp;in interface&nbsp;<code><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptor.html" title="interface in org.apache.pulsar.broker.intercept">BrokerInterceptor</a></code></dd>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>cnx</code> - client Connection</dd>
+<dd><code>producer</code> - Producer object</dd>
+<dd><code>publishContext</code> - Publish Context</dd>
+</dl>
+</li>
+</ul>
+<a name="messageDispatched-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-long-long-io.netty.buffer.ByteBuf-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>messageDispatched</h4>
+<pre>public&nbsp;void&nbsp;messageDispatched(<a href="../../../../../org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a>&nbsp;cnx,
+                              <a href="../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+                              long&nbsp;ledgerId,
+                              long&nbsp;entryId,
+                              io.netty.buffer.ByteBuf&nbsp;headersAndPayload)</pre>
+<div class="block"><span class="descfrmTypeLabel">Description copied from interface:&nbsp;<code><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptor.html#messageDispatched-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-long-long-io.netty.buffer.ByteBuf-">BrokerInterceptor</a></code></span></div>
+<div class="block">Intercept after a message is dispatched to consumer.</div>
+<dl>
+<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptor.html#messageDispatched-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-long-long-io.netty.buffer.ByteBuf-">messageDispatched</a></code>&nbsp;in interface&nbsp;<code><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptor.html" title="interface in org.apache.pulsar.broker.intercept">BrokerInterceptor</a></code></dd>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>cnx</code> - client Connection</dd>
+<dd><code>consumer</code> - Consumer object</dd>
+<dd><code>ledgerId</code> - Ledger ID</dd>
+<dd><code>entryId</code> - Entry ID</dd>
+<dd><code>headersAndPayload</code> - Data</dd>
+</dl>
+</li>
+</ul>
+<a name="messageAcked-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-org.apache.pulsar.common.api.proto.CommandAck-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>messageAcked</h4>
+<pre>public&nbsp;void&nbsp;messageAcked(<a href="../../../../../org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a>&nbsp;cnx,
+                         <a href="../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+                         org.apache.pulsar.common.api.proto.CommandAck&nbsp;ackCmd)</pre>
+<div class="block"><span class="descfrmTypeLabel">Description copied from interface:&nbsp;<code><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptor.html#messageAcked-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-org.apache.pulsar.common.api.proto.CommandAck-">BrokerInterceptor</a></code></span></div>
+<div class="block">Intercept after a message ack is processed.</div>
+<dl>
+<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptor.html#messageAcked-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-org.apache.pulsar.common.api.proto.CommandAck-">messageAcked</a></code>&nbsp;in interface&nbsp;<code><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptor.html" title="interface in org.apache.pulsar.broker.intercept">BrokerInterceptor</a></code></dd>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>cnx</code> - client Connection</dd>
+<dd><code>ackCmd</code> - Command object</dd>
+</dl>
+</li>
+</ul>
+<a name="onConnectionCreated-org.apache.pulsar.broker.service.ServerCnx-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>onConnectionCreated</h4>
+<pre>public&nbsp;void&nbsp;onConnectionCreated(<a href="../../../../../org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a>&nbsp;cnx)</pre>
+<div class="block"><span class="descfrmTypeLabel">Description copied from interface:&nbsp;<code><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptor.html#onConnectionCreated-org.apache.pulsar.broker.service.ServerCnx-">BrokerInterceptor</a></code></span></div>
+<div class="block">Called by the broker when a new connection is created.</div>
+<dl>
+<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptor.html#onConnectionCreated-org.apache.pulsar.broker.service.ServerCnx-">onConnectionCreated</a></code>&nbsp;in interface&nbsp;<code><a href="../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptor.html" title="interface in org.apache.pulsar.broker.intercept">BrokerInterceptor</a></code></dd>
 </dl>
 </li>
 </ul>

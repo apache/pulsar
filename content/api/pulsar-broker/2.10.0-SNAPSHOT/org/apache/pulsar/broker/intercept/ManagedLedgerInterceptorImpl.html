@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10};
+var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -122,6 +122,21 @@ implements org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor</pre
 <div class="summary">
 <ul class="blockList">
 <li class="blockList">
+<!-- ======== NESTED CLASS SUMMARY ======== -->
+<ul class="blockList">
+<li class="blockList"><a name="nested.class.summary">
+<!--   -->
+</a>
+<h3>Nested Class Summary</h3>
+<ul class="blockList">
+<li class="blockList"><a name="nested.classes.inherited.from.class.org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor">
+<!--   -->
+</a>
+<h3>Nested classes/interfaces inherited from interface&nbsp;org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor</h3>
+<code>org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor.PayloadProcessorHandle</code></li>
+</ul>
+</li>
+</ul>
 <!-- ======== CONSTRUCTOR SUMMARY ======== -->
 <ul class="blockList">
 <li class="blockList"><a name="constructor.summary">
@@ -134,7 +149,8 @@ implements org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor</pre
 <th class="colOne" scope="col">Constructor and Description</th>
 </tr>
 <tr class="altColor">
-<td class="colOne"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/intercept/ManagedLedgerInterceptorImpl.html#ManagedLedgerInterceptorImpl-java.util.Set-">ManagedLedgerInterceptorImpl</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Set.html?is-external=true" title="class or interface in java.util">Set</a>&lt;org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor&gt;&nbsp;brokerEntryMetadataInterceptors)</code>&nbsp;</td>
+<td class="colOne"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/intercept/ManagedLedgerInterceptorImpl.html#ManagedLedgerInterceptorImpl-java.util.Set-java.util.Set-">ManagedLedgerInterceptorImpl</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Set.html?is-external=true" title="class or interface in java.util">Set</a>&lt;org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor&gt;&nbsp;brokerEntryMetadataInterceptors,
+                            <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Set.html?is-external=true" title="class or interface in java.util">Set</a>&lt;org.apache.pulsar.common.intercept.ManagedLedgerPayloadProcessor&gt;&nbsp;brokerEntryPayloadProcessors)</code>&nbsp;</td>
 </tr>
 </table>
 </li>
@@ -173,6 +189,15 @@ implements org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor</pre
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/intercept/ManagedLedgerInterceptorImpl.html#onUpdateManagedLedgerInfo-java.util.Map-">onUpdateManagedLedgerInfo</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;propertiesMap)</code>&nbsp;</td>
 </tr>
+<tr id="i5" class="rowColor">
+<td class="colFirst"><code>org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor.PayloadProcessorHandle</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/intercept/ManagedLedgerInterceptorImpl.html#processPayloadBeforeEntryCache-io.netty.buffer.ByteBuf-">processPayloadBeforeEntryCache</a></span>(io.netty.buffer.ByteBuf&nbsp;ledgerData)</code>&nbsp;</td>
+</tr>
+<tr id="i6" class="altColor">
+<td class="colFirst"><code>org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor.PayloadProcessorHandle</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/intercept/ManagedLedgerInterceptorImpl.html#processPayloadBeforeLedgerWrite-org.apache.bookkeeper.mledger.impl.OpAddEntry-io.netty.buffer.ByteBuf-">processPayloadBeforeLedgerWrite</a></span>(org.apache.bookkeeper.mledger.impl.OpAddEntry&nbsp;op,
+                               io.netty.buffer.ByteBuf&nbsp;ledgerData)</code>&nbsp;</td>
+</tr>
 </table>
 <ul class="blockList">
 <li class="blockList"><a name="methods.inherited.from.class.java.lang.Object">
@@ -195,13 +220,14 @@ implements org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor</pre
 <!--   -->
 </a>
 <h3>Constructor Detail</h3>
-<a name="ManagedLedgerInterceptorImpl-java.util.Set-">
+<a name="ManagedLedgerInterceptorImpl-java.util.Set-java.util.Set-">
 <!--   -->
 </a>
 <ul class="blockListLast">
 <li class="blockList">
 <h4>ManagedLedgerInterceptorImpl</h4>
-<pre>public&nbsp;ManagedLedgerInterceptorImpl(<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Set.html?is-external=true" title="class or interface in java.util">Set</a>&lt;org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor&gt;&nbsp;brokerEntryMetadataInterceptors)</pre>
+<pre>public&nbsp;ManagedLedgerInterceptorImpl(<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Set.html?is-external=true" title="class or interface in java.util">Set</a>&lt;org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor&gt;&nbsp;brokerEntryMetadataInterceptors,
+                                    <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Set.html?is-external=true" title="class or interface in java.util">Set</a>&lt;org.apache.pulsar.common.intercept.ManagedLedgerPayloadProcessor&gt;&nbsp;brokerEntryPayloadProcessors)</pre>
 </li>
 </ul>
 </li>
@@ -265,13 +291,40 @@ implements org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor</pre
 <a name="onUpdateManagedLedgerInfo-java.util.Map-">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>onUpdateManagedLedgerInfo</h4>
 <pre>public&nbsp;void&nbsp;onUpdateManagedLedgerInfo(<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;propertiesMap)</pre>
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
 <dd><code>onUpdateManagedLedgerInfo</code>&nbsp;in interface&nbsp;<code>org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor</code></dd>
+</dl>
+</li>
+</ul>
+<a name="processPayloadBeforeLedgerWrite-org.apache.bookkeeper.mledger.impl.OpAddEntry-io.netty.buffer.ByteBuf-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>processPayloadBeforeLedgerWrite</h4>
+<pre>public&nbsp;org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor.PayloadProcessorHandle&nbsp;processPayloadBeforeLedgerWrite(org.apache.bookkeeper.mledger.impl.OpAddEntry&nbsp;op,
+                                                                                                                               io.netty.buffer.ByteBuf&nbsp;ledgerData)</pre>
+<dl>
+<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
+<dd><code>processPayloadBeforeLedgerWrite</code>&nbsp;in interface&nbsp;<code>org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor</code></dd>
+</dl>
+</li>
+</ul>
+<a name="processPayloadBeforeEntryCache-io.netty.buffer.ByteBuf-">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>processPayloadBeforeEntryCache</h4>
+<pre>public&nbsp;org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor.PayloadProcessorHandle&nbsp;processPayloadBeforeEntryCache(io.netty.buffer.ByteBuf&nbsp;ledgerData)</pre>
+<dl>
+<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
+<dd><code>processPayloadBeforeEntryCache</code>&nbsp;in interface&nbsp;<code>org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor</code></dd>
 </dl>
 </li>
 </ul>

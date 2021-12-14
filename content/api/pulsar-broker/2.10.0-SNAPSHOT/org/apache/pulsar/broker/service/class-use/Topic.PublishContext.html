@@ -83,27 +83,33 @@
 </tr>
 <tbody>
 <tr class="altColor">
+<td class="colFirst"><a href="#org.apache.pulsar.broker.intercept">org.apache.pulsar.broker.intercept</a></td>
+<td class="colLast">
+<div class="block">Pulsar broker interceptor.</div>
+</td>
+</tr>
+<tr class="rowColor">
 <td class="colFirst"><a href="#org.apache.pulsar.broker.rest">org.apache.pulsar.broker.rest</a></td>
 <td class="colLast">
 <div class="block">Licensed to the Apache Software Foundation (ASF) under one
  or more contributor license agreements.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><a href="#org.apache.pulsar.broker.service">org.apache.pulsar.broker.service</a></td>
 <td class="colLast">
 <div class="block">Licensed to the Apache Software Foundation (ASF) under one
  or more contributor license agreements.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><a href="#org.apache.pulsar.broker.service.nonpersistent">org.apache.pulsar.broker.service.nonpersistent</a></td>
 <td class="colLast">
 <div class="block">Licensed to the Apache Software Foundation (ASF) under one
  or more contributor license agreements.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><a href="#org.apache.pulsar.broker.service.persistent">org.apache.pulsar.broker.service.persistent</a></td>
 <td class="colLast">
 <div class="block">Licensed to the Apache Software Foundation (ASF) under one
@@ -115,6 +121,49 @@
 </li>
 <li class="blockList">
 <ul class="blockList">
+<li class="blockList"><a name="org.apache.pulsar.broker.intercept">
+<!--   -->
+</a>
+<h3>Uses of <a href="../../../../../../org/apache/pulsar/broker/service/Topic.PublishContext.html" title="interface in org.apache.pulsar.broker.service">Topic.PublishContext</a> in <a href="../../../../../../org/apache/pulsar/broker/intercept/package-summary.html">org.apache.pulsar.broker.intercept</a></h3>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
+<caption><span>Methods in <a href="../../../../../../org/apache/pulsar/broker/intercept/package-summary.html">org.apache.pulsar.broker.intercept</a> with parameters of type <a href="../../../../../../org/apache/pulsar/broker/service/Topic.PublishContext.html" title="interface in org.apache.pulsar.broker.service">Topic.PublishContext</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Method and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><span class="typeNameLabel">BrokerInterceptorWithClassLoader.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptorWithClassLoader.html#messageProduced-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Producer-long-long-long-org.apache.pulsar.broker.service.Topic.PublishContext-">messageProduced</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a>&nbsp;cnx,
+               <a href="../../../../../../org/apache/pulsar/broker/service/Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a>&nbsp;producer,
+               long&nbsp;startTimeNs,
+               long&nbsp;ledgerId,
+               long&nbsp;entryId,
+               <a href="../../../../../../org/apache/pulsar/broker/service/Topic.PublishContext.html" title="interface in org.apache.pulsar.broker.service">Topic.PublishContext</a>&nbsp;publishContext)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>default void</code></td>
+<td class="colLast"><span class="typeNameLabel">BrokerInterceptor.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptor.html#messageProduced-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Producer-long-long-long-org.apache.pulsar.broker.service.Topic.PublishContext-">messageProduced</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a>&nbsp;cnx,
+               <a href="../../../../../../org/apache/pulsar/broker/service/Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a>&nbsp;producer,
+               long&nbsp;startTimeNs,
+               long&nbsp;ledgerId,
+               long&nbsp;entryId,
+               <a href="../../../../../../org/apache/pulsar/broker/service/Topic.PublishContext.html" title="interface in org.apache.pulsar.broker.service">Topic.PublishContext</a>&nbsp;publishContext)</code>
+<div class="block">Intercept after a message is produced.</div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><span class="typeNameLabel">BrokerInterceptors.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptors.html#messageProduced-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Producer-long-long-long-org.apache.pulsar.broker.service.Topic.PublishContext-">messageProduced</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a>&nbsp;cnx,
+               <a href="../../../../../../org/apache/pulsar/broker/service/Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a>&nbsp;producer,
+               long&nbsp;startTimeNs,
+               long&nbsp;ledgerId,
+               long&nbsp;entryId,
+               <a href="../../../../../../org/apache/pulsar/broker/service/Topic.PublishContext.html" title="interface in org.apache.pulsar.broker.service">Topic.PublishContext</a>&nbsp;publishContext)</code>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+</li>
 <li class="blockList"><a name="org.apache.pulsar.broker.rest">
 <!--   -->
 </a>

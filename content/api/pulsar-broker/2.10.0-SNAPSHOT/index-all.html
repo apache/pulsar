@@ -2040,6 +2040,14 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/stats/NamespaceStats.html#consumerCount">consumerCount</a></span> - Variable in class org.apache.pulsar.broker.stats.<a href="org/apache/pulsar/broker/stats/NamespaceStats.html" title="class in org.apache.pulsar.broker.stats">NamespaceStats</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/intercept/BrokerInterceptor.html#consumerCreated-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-java.util.Map-">consumerCreated(ServerCnx, Consumer, Map&lt;String, String&gt;)</a></span> - Method in interface org.apache.pulsar.broker.intercept.<a href="org/apache/pulsar/broker/intercept/BrokerInterceptor.html" title="interface in org.apache.pulsar.broker.intercept">BrokerInterceptor</a></dt>
+<dd>
+<div class="block">Intercept after a consumer is created.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/intercept/BrokerInterceptors.html#consumerCreated-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-java.util.Map-">consumerCreated(ServerCnx, Consumer, Map&lt;String, String&gt;)</a></span> - Method in class org.apache.pulsar.broker.intercept.<a href="org/apache/pulsar/broker/intercept/BrokerInterceptors.html" title="class in org.apache.pulsar.broker.intercept">BrokerInterceptors</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/intercept/BrokerInterceptorWithClassLoader.html#consumerCreated-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-java.util.Map-">consumerCreated(ServerCnx, Consumer, Map&lt;String, String&gt;)</a></span> - Method in class org.apache.pulsar.broker.intercept.<a href="org/apache/pulsar/broker/intercept/BrokerInterceptorWithClassLoader.html" title="class in org.apache.pulsar.broker.intercept">BrokerInterceptorWithClassLoader</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/Dispatcher.html#consumerFlow-org.apache.pulsar.broker.service.Consumer-int-">consumerFlow(Consumer, int)</a></span> - Method in interface org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/Dispatcher.html" title="interface in org.apache.pulsar.broker.service">Dispatcher</a></dt>
 <dd>
 <div class="block">Indicates that this consumer is now ready to receive more messages.</div>
@@ -4421,6 +4429,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v3/Packages.html#getMeta-java.lang.String-java.lang.String-java.lang.String-java.lang.String-java.lang.String-javax.ws.rs.container.AsyncResponse-">getMeta(String, String, String, String, String, AsyncResponse)</a></span> - Method in class org.apache.pulsar.broker.admin.v3.<a href="org/apache/pulsar/broker/admin/v3/Packages.html" title="class in org.apache.pulsar.broker.admin.v3">Packages</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/Consumer.html#getMetadata--">getMetadata()</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/EntryWrapper.html#getMetadata--">getMetadata()</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/EntryWrapper.html" title="class in org.apache.pulsar.broker.service">EntryWrapper</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/Producer.html#getMetadata--">getMetadata()</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a></dt>
@@ -4831,6 +4841,8 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/SubscriptionOption.html#getPropertiesMap-java.util.List-">getPropertiesMap(List&lt;KeyValue&gt;)</a></span> - Static method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/SubscriptionOption.html" title="class in org.apache.pulsar.broker.service">SubscriptionOption</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/Namespaces.html#getProperty-javax.ws.rs.container.AsyncResponse-java.lang.String-java.lang.String-java.lang.String-">getProperty(AsyncResponse, String, String, String)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/Namespaces.html" title="class in org.apache.pulsar.broker.admin.v2">Namespaces</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/Topic.PublishContext.html#getProperty-java.lang.String-">getProperty(String)</a></span> - Method in interface org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/Topic.PublishContext.html" title="interface in org.apache.pulsar.broker.service">Topic.PublishContext</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.SchemaInfo.Builder.html#getProps-int-">getProps(int)</a></span> - Method in class org.apache.pulsar.broker.service.schema.proto.<a href="org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.SchemaInfo.Builder.html" title="class in org.apache.pulsar.broker.service.schema.proto">SchemaRegistryFormat.SchemaInfo.Builder</a></dt>
 <dd>
@@ -7192,6 +7204,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/BrokerService.html#isBrokerEntryMetadataEnabled--">isBrokerEntryMetadataEnabled()</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/BrokerService.html#isBrokerPayloadProcessorEnabled--">isBrokerPayloadProcessorEnabled()</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/AbstractTopic.html#isBrokerPublishRateExceeded--">isBrokerPublishRateExceeded()</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/AbstractTopic.html" title="class in org.apache.pulsar.broker.service">AbstractTopic</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/Topic.html#isBrokerPublishRateExceeded--">isBrokerPublishRateExceeded()</a></span> - Method in interface org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/Topic.html" title="interface in org.apache.pulsar.broker.service">Topic</a></dt>
@@ -7834,7 +7848,7 @@
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/intercept/ManagedLedgerInterceptorImpl.html" title="class in org.apache.pulsar.broker.intercept"><span class="typeNameLink">ManagedLedgerInterceptorImpl</span></a> - Class in <a href="org/apache/pulsar/broker/intercept/package-summary.html">org.apache.pulsar.broker.intercept</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/intercept/ManagedLedgerInterceptorImpl.html#ManagedLedgerInterceptorImpl-java.util.Set-">ManagedLedgerInterceptorImpl(Set&lt;BrokerEntryMetadataInterceptor&gt;)</a></span> - Constructor for class org.apache.pulsar.broker.intercept.<a href="org/apache/pulsar/broker/intercept/ManagedLedgerInterceptorImpl.html" title="class in org.apache.pulsar.broker.intercept">ManagedLedgerInterceptorImpl</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/intercept/ManagedLedgerInterceptorImpl.html#ManagedLedgerInterceptorImpl-java.util.Set-java.util.Set-">ManagedLedgerInterceptorImpl(Set&lt;BrokerEntryMetadataInterceptor&gt;, Set&lt;ManagedLedgerPayloadProcessor&gt;)</a></span> - Constructor for class org.apache.pulsar.broker.intercept.<a href="org/apache/pulsar/broker/intercept/ManagedLedgerInterceptorImpl.html" title="class in org.apache.pulsar.broker.intercept">ManagedLedgerInterceptorImpl</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/stats/metrics/ManagedLedgerMetrics.html" title="class in org.apache.pulsar.broker.stats.metrics"><span class="typeNameLink">ManagedLedgerMetrics</span></a> - Class in <a href="org/apache/pulsar/broker/stats/metrics/package-summary.html">org.apache.pulsar.broker.stats.metrics</a></dt>
 <dd>&nbsp;</dd>
@@ -7945,6 +7959,14 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/PersistentTopic.html#MESSAGE_RATE_BACKOFF_MS">MESSAGE_RATE_BACKOFF_MS</a></span> - Static variable in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/PersistentTopic.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentTopic</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/intercept/BrokerInterceptor.html#messageAcked-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-org.apache.pulsar.common.api.proto.CommandAck-">messageAcked(ServerCnx, Consumer, CommandAck)</a></span> - Method in interface org.apache.pulsar.broker.intercept.<a href="org/apache/pulsar/broker/intercept/BrokerInterceptor.html" title="interface in org.apache.pulsar.broker.intercept">BrokerInterceptor</a></dt>
+<dd>
+<div class="block">Intercept after a message ack is processed.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/intercept/BrokerInterceptors.html#messageAcked-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-org.apache.pulsar.common.api.proto.CommandAck-">messageAcked(ServerCnx, Consumer, CommandAck)</a></span> - Method in class org.apache.pulsar.broker.intercept.<a href="org/apache/pulsar/broker/intercept/BrokerInterceptors.html" title="class in org.apache.pulsar.broker.intercept">BrokerInterceptors</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/intercept/BrokerInterceptorWithClassLoader.html#messageAcked-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-org.apache.pulsar.common.api.proto.CommandAck-">messageAcked(ServerCnx, Consumer, CommandAck)</a></span> - Method in class org.apache.pulsar.broker.intercept.<a href="org/apache/pulsar/broker/intercept/BrokerInterceptorWithClassLoader.html" title="class in org.apache.pulsar.broker.intercept">BrokerInterceptorWithClassLoader</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/Consumer.html#messageAcked-org.apache.pulsar.common.api.proto.CommandAck-">messageAcked(CommandAck)</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/service/persistent/MessageDeduplication.html" title="class in org.apache.pulsar.broker.service.persistent"><span class="typeNameLink">MessageDeduplication</span></a> - Class in <a href="org/apache/pulsar/broker/service/persistent/package-summary.html">org.apache.pulsar.broker.service.persistent</a></dt>
@@ -7957,7 +7979,23 @@
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/service/persistent/MessageDeduplication.MessageDupUnknownException.html" title="class in org.apache.pulsar.broker.service.persistent"><span class="typeNameLink">MessageDeduplication.MessageDupUnknownException</span></a> - Exception in <a href="org/apache/pulsar/broker/service/persistent/package-summary.html">org.apache.pulsar.broker.service.persistent</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/intercept/BrokerInterceptor.html#messageDispatched-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-long-long-io.netty.buffer.ByteBuf-">messageDispatched(ServerCnx, Consumer, long, long, ByteBuf)</a></span> - Method in interface org.apache.pulsar.broker.intercept.<a href="org/apache/pulsar/broker/intercept/BrokerInterceptor.html" title="interface in org.apache.pulsar.broker.intercept">BrokerInterceptor</a></dt>
+<dd>
+<div class="block">Intercept after a message is dispatched to consumer.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/intercept/BrokerInterceptors.html#messageDispatched-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-long-long-io.netty.buffer.ByteBuf-">messageDispatched(ServerCnx, Consumer, long, long, ByteBuf)</a></span> - Method in class org.apache.pulsar.broker.intercept.<a href="org/apache/pulsar/broker/intercept/BrokerInterceptors.html" title="class in org.apache.pulsar.broker.intercept">BrokerInterceptors</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/intercept/BrokerInterceptorWithClassLoader.html#messageDispatched-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-long-long-io.netty.buffer.ByteBuf-">messageDispatched(ServerCnx, Consumer, long, long, ByteBuf)</a></span> - Method in class org.apache.pulsar.broker.intercept.<a href="org/apache/pulsar/broker/intercept/BrokerInterceptorWithClassLoader.html" title="class in org.apache.pulsar.broker.intercept">BrokerInterceptorWithClassLoader</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/MessageDeduplication.MessageDupUnknownException.html#MessageDupUnknownException--">MessageDupUnknownException()</a></span> - Constructor for exception org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/MessageDeduplication.MessageDupUnknownException.html" title="class in org.apache.pulsar.broker.service.persistent">MessageDeduplication.MessageDupUnknownException</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/intercept/BrokerInterceptor.html#messageProduced-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Producer-long-long-long-org.apache.pulsar.broker.service.Topic.PublishContext-">messageProduced(ServerCnx, Producer, long, long, long, Topic.PublishContext)</a></span> - Method in interface org.apache.pulsar.broker.intercept.<a href="org/apache/pulsar/broker/intercept/BrokerInterceptor.html" title="interface in org.apache.pulsar.broker.intercept">BrokerInterceptor</a></dt>
+<dd>
+<div class="block">Intercept after a message is produced.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/intercept/BrokerInterceptors.html#messageProduced-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Producer-long-long-long-org.apache.pulsar.broker.service.Topic.PublishContext-">messageProduced(ServerCnx, Producer, long, long, long, Topic.PublishContext)</a></span> - Method in class org.apache.pulsar.broker.intercept.<a href="org/apache/pulsar/broker/intercept/BrokerInterceptors.html" title="class in org.apache.pulsar.broker.intercept">BrokerInterceptors</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/intercept/BrokerInterceptorWithClassLoader.html#messageProduced-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Producer-long-long-long-org.apache.pulsar.broker.service.Topic.PublishContext-">messageProduced(ServerCnx, Producer, long, long, long, Topic.PublishContext)</a></span> - Method in class org.apache.pulsar.broker.intercept.<a href="org/apache/pulsar/broker/intercept/BrokerInterceptorWithClassLoader.html" title="class in org.apache.pulsar.broker.intercept">BrokerInterceptorWithClassLoader</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/service/persistent/MessageRedeliveryController.html" title="class in org.apache.pulsar.broker.service.persistent"><span class="typeNameLink">MessageRedeliveryController</span></a> - Class in <a href="org/apache/pulsar/broker/service/persistent/package-summary.html">org.apache.pulsar.broker.service.persistent</a></dt>
 <dd>&nbsp;</dd>
@@ -8484,6 +8522,14 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/intercept/BrokerInterceptors.html#onConnectionClosed-org.apache.pulsar.broker.service.ServerCnx-">onConnectionClosed(ServerCnx)</a></span> - Method in class org.apache.pulsar.broker.intercept.<a href="org/apache/pulsar/broker/intercept/BrokerInterceptors.html" title="class in org.apache.pulsar.broker.intercept">BrokerInterceptors</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/intercept/BrokerInterceptorWithClassLoader.html#onConnectionClosed-org.apache.pulsar.broker.service.ServerCnx-">onConnectionClosed(ServerCnx)</a></span> - Method in class org.apache.pulsar.broker.intercept.<a href="org/apache/pulsar/broker/intercept/BrokerInterceptorWithClassLoader.html" title="class in org.apache.pulsar.broker.intercept">BrokerInterceptorWithClassLoader</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/intercept/BrokerInterceptor.html#onConnectionCreated-org.apache.pulsar.broker.service.ServerCnx-">onConnectionCreated(ServerCnx)</a></span> - Method in interface org.apache.pulsar.broker.intercept.<a href="org/apache/pulsar/broker/intercept/BrokerInterceptor.html" title="interface in org.apache.pulsar.broker.intercept">BrokerInterceptor</a></dt>
+<dd>
+<div class="block">Called by the broker when a new connection is created.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/intercept/BrokerInterceptors.html#onConnectionCreated-org.apache.pulsar.broker.service.ServerCnx-">onConnectionCreated(ServerCnx)</a></span> - Method in class org.apache.pulsar.broker.intercept.<a href="org/apache/pulsar/broker/intercept/BrokerInterceptors.html" title="class in org.apache.pulsar.broker.intercept">BrokerInterceptors</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/intercept/BrokerInterceptorWithClassLoader.html#onConnectionCreated-org.apache.pulsar.broker.service.ServerCnx-">onConnectionCreated(ServerCnx)</a></span> - Method in class org.apache.pulsar.broker.intercept.<a href="org/apache/pulsar/broker/intercept/BrokerInterceptorWithClassLoader.html" title="class in org.apache.pulsar.broker.intercept">BrokerInterceptorWithClassLoader</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/web/PulsarServerConnector.html#onEndPointClosed-org.eclipse.jetty.io.EndPoint-">onEndPointClosed(EndPoint)</a></span> - Method in class org.apache.pulsar.broker.web.<a href="org/apache/pulsar/broker/web/PulsarServerConnector.html" title="class in org.apache.pulsar.broker.web">PulsarServerConnector</a></dt>
 <dd>&nbsp;</dd>
@@ -9272,6 +9318,10 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/web/ProcessHandlerFilter.html#ProcessHandlerFilter-org.apache.pulsar.broker.PulsarService-">ProcessHandlerFilter(PulsarService)</a></span> - Constructor for class org.apache.pulsar.broker.web.<a href="org/apache/pulsar/broker/web/ProcessHandlerFilter.html" title="class in org.apache.pulsar.broker.web">ProcessHandlerFilter</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/intercept/ManagedLedgerInterceptorImpl.html#processPayloadBeforeEntryCache-io.netty.buffer.ByteBuf-">processPayloadBeforeEntryCache(ByteBuf)</a></span> - Method in class org.apache.pulsar.broker.intercept.<a href="org/apache/pulsar/broker/intercept/ManagedLedgerInterceptorImpl.html" title="class in org.apache.pulsar.broker.intercept">ManagedLedgerInterceptorImpl</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/intercept/ManagedLedgerInterceptorImpl.html#processPayloadBeforeLedgerWrite-org.apache.bookkeeper.mledger.impl.OpAddEntry-io.netty.buffer.ByteBuf-">processPayloadBeforeLedgerWrite(OpAddEntry, ByteBuf)</a></span> - Method in class org.apache.pulsar.broker.intercept.<a href="org/apache/pulsar/broker/intercept/ManagedLedgerInterceptorImpl.html" title="class in org.apache.pulsar.broker.intercept">ManagedLedgerInterceptorImpl</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/PersistentSubscription.html#processReplicatedSubscriptionSnapshot-org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot-">processReplicatedSubscriptionSnapshot(ReplicatedSubscriptionsSnapshot)</a></span> - Method in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/PersistentSubscription.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentSubscription</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/Subscription.html#processReplicatedSubscriptionSnapshot-org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot-">processReplicatedSubscriptionSnapshot(ReplicatedSubscriptionsSnapshot)</a></span> - Method in interface org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/Subscription.html" title="interface in org.apache.pulsar.broker.service">Subscription</a></dt>
@@ -9303,6 +9353,14 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/BrokerServiceException.ProducerBusyException.html#ProducerBusyException-java.lang.String-">ProducerBusyException(String)</a></span> - Constructor for exception org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/BrokerServiceException.ProducerBusyException.html" title="class in org.apache.pulsar.broker.service">BrokerServiceException.ProducerBusyException</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/stats/NamespaceStats.html#producerCount">producerCount</a></span> - Variable in class org.apache.pulsar.broker.stats.<a href="org/apache/pulsar/broker/stats/NamespaceStats.html" title="class in org.apache.pulsar.broker.stats">NamespaceStats</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/intercept/BrokerInterceptor.html#producerCreated-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Producer-java.util.Map-">producerCreated(ServerCnx, Producer, Map&lt;String, String&gt;)</a></span> - Method in interface org.apache.pulsar.broker.intercept.<a href="org/apache/pulsar/broker/intercept/BrokerInterceptor.html" title="interface in org.apache.pulsar.broker.intercept">BrokerInterceptor</a></dt>
+<dd>
+<div class="block">Called by the broker when a new connection is created.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/intercept/BrokerInterceptors.html#producerCreated-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Producer-java.util.Map-">producerCreated(ServerCnx, Producer, Map&lt;String, String&gt;)</a></span> - Method in class org.apache.pulsar.broker.intercept.<a href="org/apache/pulsar/broker/intercept/BrokerInterceptors.html" title="class in org.apache.pulsar.broker.intercept">BrokerInterceptors</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/intercept/BrokerInterceptorWithClassLoader.html#producerCreated-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Producer-java.util.Map-">producerCreated(ServerCnx, Producer, Map&lt;String, String&gt;)</a></span> - Method in class org.apache.pulsar.broker.intercept.<a href="org/apache/pulsar/broker/intercept/BrokerInterceptorWithClassLoader.html" title="class in org.apache.pulsar.broker.intercept">BrokerInterceptorWithClassLoader</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/BrokerServiceException.ProducerFencedException.html#ProducerFencedException-java.lang.String-">ProducerFencedException(String)</a></span> - Constructor for exception org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/BrokerServiceException.ProducerFencedException.html" title="class in org.apache.pulsar.broker.service">BrokerServiceException.ProducerFencedException</a></dt>
 <dd>&nbsp;</dd>
@@ -11252,6 +11310,8 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/Namespaces.html#setProperties-javax.ws.rs.container.AsyncResponse-java.lang.String-java.lang.String-java.util.Map-">setProperties(AsyncResponse, String, String, Map&lt;String, String&gt;)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/Namespaces.html" title="class in org.apache.pulsar.broker.admin.v2">Namespaces</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/Namespaces.html#setProperty-javax.ws.rs.container.AsyncResponse-java.lang.String-java.lang.String-java.lang.String-java.lang.String-">setProperty(AsyncResponse, String, String, String, String)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/Namespaces.html" title="class in org.apache.pulsar.broker.admin.v2">Namespaces</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/Topic.PublishContext.html#setProperty-java.lang.String-java.lang.Object-">setProperty(String, Object)</a></span> - Method in interface org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/Topic.PublishContext.html" title="interface in org.apache.pulsar.broker.service">Topic.PublishContext</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.SchemaInfo.Builder.html#setProps-int-org.apache.pulsar.broker.service.schema.proto.SchemaRegistryFormat.SchemaInfo.KeyValuePair-">setProps(int, SchemaRegistryFormat.SchemaInfo.KeyValuePair)</a></span> - Method in class org.apache.pulsar.broker.service.schema.proto.<a href="org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.SchemaInfo.Builder.html" title="class in org.apache.pulsar.broker.service.schema.proto">SchemaRegistryFormat.SchemaInfo.Builder</a></dt>
 <dd>

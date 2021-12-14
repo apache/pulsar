@@ -83,46 +83,52 @@
 </tr>
 <tbody>
 <tr class="altColor">
+<td class="colFirst"><a href="#org.apache.pulsar.broker.intercept">org.apache.pulsar.broker.intercept</a></td>
+<td class="colLast">
+<div class="block">Pulsar broker interceptor.</div>
+</td>
+</tr>
+<tr class="rowColor">
 <td class="colFirst"><a href="#org.apache.pulsar.broker.service">org.apache.pulsar.broker.service</a></td>
 <td class="colLast">
 <div class="block">Licensed to the Apache Software Foundation (ASF) under one
  or more contributor license agreements.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><a href="#org.apache.pulsar.broker.service.nonpersistent">org.apache.pulsar.broker.service.nonpersistent</a></td>
 <td class="colLast">
 <div class="block">Licensed to the Apache Software Foundation (ASF) under one
  or more contributor license agreements.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><a href="#org.apache.pulsar.broker.service.persistent">org.apache.pulsar.broker.service.persistent</a></td>
 <td class="colLast">
 <div class="block">Licensed to the Apache Software Foundation (ASF) under one
  or more contributor license agreements.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><a href="#org.apache.pulsar.broker.stats.prometheus">org.apache.pulsar.broker.stats.prometheus</a></td>
 <td class="colLast">
 <div class="block">Licensed to the Apache Software Foundation (ASF) under one
  or more contributor license agreements.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><a href="#org.apache.pulsar.broker.transaction.pendingack">org.apache.pulsar.broker.transaction.pendingack</a></td>
 <td class="colLast">
 <div class="block">Component for processing pending acks for transactions.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><a href="#org.apache.pulsar.broker.transaction.pendingack.impl">org.apache.pulsar.broker.transaction.pendingack.impl</a></td>
 <td class="colLast">
 <div class="block">The implementation for processing pending acks in transactions.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><a href="#org.apache.pulsar.compaction">org.apache.pulsar.compaction</a></td>
 <td class="colLast">
 <div class="block">Licensed to the Apache Software Foundation (ASF) under one
@@ -134,6 +140,86 @@
 </li>
 <li class="blockList">
 <ul class="blockList">
+<li class="blockList"><a name="org.apache.pulsar.broker.intercept">
+<!--   -->
+</a>
+<h3>Uses of <a href="../../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a> in <a href="../../../../../../org/apache/pulsar/broker/intercept/package-summary.html">org.apache.pulsar.broker.intercept</a></h3>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
+<caption><span>Methods in <a href="../../../../../../org/apache/pulsar/broker/intercept/package-summary.html">org.apache.pulsar.broker.intercept</a> with parameters of type <a href="../../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Method and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><span class="typeNameLabel">BrokerInterceptorWithClassLoader.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptorWithClassLoader.html#consumerCreated-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-java.util.Map-">consumerCreated</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a>&nbsp;cnx,
+               <a href="../../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+               <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;metadata)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>default void</code></td>
+<td class="colLast"><span class="typeNameLabel">BrokerInterceptor.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptor.html#consumerCreated-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-java.util.Map-">consumerCreated</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a>&nbsp;cnx,
+               <a href="../../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+               <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;metadata)</code>
+<div class="block">Intercept after a consumer is created.</div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><span class="typeNameLabel">BrokerInterceptors.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptors.html#consumerCreated-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-java.util.Map-">consumerCreated</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a>&nbsp;cnx,
+               <a href="../../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+               <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;metadata)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><span class="typeNameLabel">BrokerInterceptorWithClassLoader.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptorWithClassLoader.html#messageAcked-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-org.apache.pulsar.common.api.proto.CommandAck-">messageAcked</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a>&nbsp;cnx,
+            <a href="../../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+            org.apache.pulsar.common.api.proto.CommandAck&nbsp;ackCmd)</code>&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code>default void</code></td>
+<td class="colLast"><span class="typeNameLabel">BrokerInterceptor.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptor.html#messageAcked-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-org.apache.pulsar.common.api.proto.CommandAck-">messageAcked</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a>&nbsp;cnx,
+            <a href="../../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+            org.apache.pulsar.common.api.proto.CommandAck&nbsp;ackCmd)</code>
+<div class="block">Intercept after a message ack is processed.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><span class="typeNameLabel">BrokerInterceptors.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptors.html#messageAcked-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-org.apache.pulsar.common.api.proto.CommandAck-">messageAcked</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a>&nbsp;cnx,
+            <a href="../../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+            org.apache.pulsar.common.api.proto.CommandAck&nbsp;ackCmd)</code>&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><span class="typeNameLabel">BrokerInterceptorWithClassLoader.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptorWithClassLoader.html#messageDispatched-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-long-long-io.netty.buffer.ByteBuf-">messageDispatched</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a>&nbsp;cnx,
+                 <a href="../../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+                 long&nbsp;ledgerId,
+                 long&nbsp;entryId,
+                 io.netty.buffer.ByteBuf&nbsp;headersAndPayload)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>default void</code></td>
+<td class="colLast"><span class="typeNameLabel">BrokerInterceptor.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptor.html#messageDispatched-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-long-long-io.netty.buffer.ByteBuf-">messageDispatched</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a>&nbsp;cnx,
+                 <a href="../../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+                 long&nbsp;ledgerId,
+                 long&nbsp;entryId,
+                 io.netty.buffer.ByteBuf&nbsp;headersAndPayload)</code>
+<div class="block">Intercept after a message is dispatched to consumer.</div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><span class="typeNameLabel">BrokerInterceptors.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/intercept/BrokerInterceptors.html#messageDispatched-org.apache.pulsar.broker.service.ServerCnx-org.apache.pulsar.broker.service.Consumer-long-long-io.netty.buffer.ByteBuf-">messageDispatched</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a>&nbsp;cnx,
+                 <a href="../../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+                 long&nbsp;ledgerId,
+                 long&nbsp;entryId,
+                 io.netty.buffer.ByteBuf&nbsp;headersAndPayload)</code>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+</li>
 <li class="blockList"><a name="org.apache.pulsar.broker.service">
 <!--   -->
 </a>
