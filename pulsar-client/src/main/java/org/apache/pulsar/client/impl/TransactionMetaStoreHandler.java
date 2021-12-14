@@ -148,7 +148,6 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                         }
                         this.connectionHandler.resetBackoff();
                         pendingRequests.forEach(this::checkStateAndSendRequest);
-                        pendingRequests.clear();
                     });
                 }).exceptionally((e) -> {
                     internalPinnedExecutor.execute(() -> {
@@ -264,9 +263,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
         OpForVoidCallBack op = OpForVoidCallBack
                 .create(cmd, callback, client);
-        timer.newTimeout(timeout ->
-                checkStateAndSendRequest(requestId, op), op.backoff.next(), TimeUnit.MILLISECONDS);
-
+        checkStateAndSendRequest(requestId, op);
         return callback;
     }
 
@@ -582,6 +579,12 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
 
     private void checkStateAndSendRequest(long requestId, OpBase<?> op) {
         internalPinnedExecutor.execute(() -> {
+            if (op.callback.isDone()) {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("The  request {} was already timeout", requestId);
+                }
+                return;
+            }
             switch (getState()) {
                 case Ready:
                     ClientCnx cnx = cnx();
