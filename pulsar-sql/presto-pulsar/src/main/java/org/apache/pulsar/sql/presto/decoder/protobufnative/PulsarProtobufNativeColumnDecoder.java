@@ -50,6 +50,7 @@ import io.prestosql.spi.type.RealType;
 import io.prestosql.spi.type.RowType;
 import io.prestosql.spi.type.RowType.Field;
 import io.prestosql.spi.type.SmallintType;
+import io.prestosql.spi.type.TimestampType;
 import io.prestosql.spi.type.TinyintType;
 import io.prestosql.spi.type.Type;
 import io.prestosql.spi.type.VarbinaryType;
@@ -69,7 +70,8 @@ public class PulsarProtobufNativeColumnDecoder {
             BigintType.BIGINT,
             RealType.REAL,
             DoubleType.DOUBLE,
-            VarbinaryType.VARBINARY);
+            VarbinaryType.VARBINARY,
+            TimestampType.TIMESTAMP);
 
     private final Type columnType;
     private final String columnMapping;
@@ -190,6 +192,12 @@ public class PulsarProtobufNativeColumnDecoder {
 
             if (columnType instanceof RealType) {
                 return floatToIntBits((Float) value);
+            }
+
+            //return seconds field of protobuf/timestamp
+            if (columnType instanceof TimestampType && value instanceof DynamicMessage) {
+                DynamicMessage message = (DynamicMessage) value;
+                return (long) message.getField(message.getDescriptorForType().findFieldByName("seconds"));
             }
 
             throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED,

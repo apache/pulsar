@@ -25,23 +25,13 @@ import static java.util.stream.Collectors.toList;
 
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.Descriptors;
+import com.google.protobuf.TimestampProto;
 import io.airlift.log.Logger;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.spi.PrestoException;
 import io.prestosql.spi.connector.ColumnMetadata;
-import io.prestosql.spi.type.ArrayType;
-import io.prestosql.spi.type.BigintType;
-import io.prestosql.spi.type.BooleanType;
-import io.prestosql.spi.type.DoubleType;
-import io.prestosql.spi.type.IntegerType;
-import io.prestosql.spi.type.RealType;
-import io.prestosql.spi.type.RowType;
-import io.prestosql.spi.type.StandardTypes;
-import io.prestosql.spi.type.Type;
-import io.prestosql.spi.type.TypeManager;
-import io.prestosql.spi.type.TypeSignature;
-import io.prestosql.spi.type.TypeSignatureParameter;
-import io.prestosql.spi.type.VarbinaryType;
+import io.prestosql.spi.type.*;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -142,11 +132,16 @@ public class PulsarProtobufNativeRowDecoderFactory implements PulsarRowDecoderFa
                             ImmutableList.of(TypeSignatureParameter.typeParameter(keyType),
                                     TypeSignatureParameter.typeParameter(valueType)));
                 } else {
-                    //row
-                    dataType = RowType.from(msg.getFields().stream()
-                            .map(rowField -> new RowType.Field(Optional.of(rowField.getName()),
-                                    parseProtobufPrestoType(rowField)))
-                            .collect(toImmutableList()));
+                    if (TimestampProto.getDescriptor().toProto().getName().equals(msg.getFile().toProto().getName())) {
+                        //if msg type is protobuf/timestamp
+                        dataType = TimestampType.TIMESTAMP;
+                    } else {
+                        //row
+                        dataType = RowType.from(msg.getFields().stream()
+                                .map(rowField -> new RowType.Field(Optional.of(rowField.getName()),
+                                        parseProtobufPrestoType(rowField)))
+                                .collect(toImmutableList()));
+                    }
                 }
                 break;
             default:
