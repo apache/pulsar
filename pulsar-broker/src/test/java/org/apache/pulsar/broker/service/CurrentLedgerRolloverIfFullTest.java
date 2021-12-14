@@ -26,6 +26,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
+import org.awaitility.Awaitility;
 import org.junit.Test;
 import org.testng.Assert;
 
@@ -73,7 +74,9 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
         }
 
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
-        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), msgNum / 2);
+        Awaitility.await()
+                .untilAsserted(()->
+                        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), msgNum / 2));
 
         for (int i = 0; i < msgNum; i++) {
             Message<byte[]> msg = consumer.receive(2, TimeUnit.SECONDS);
@@ -83,15 +86,17 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
 
         // all the messages have been acknowledged
         // and all the ledgers have been removed except the the last ledger
-        Thread.sleep(500);
-        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
-        Assert.assertNotEquals(managedLedger.getCurrentLedgerSize(), 0);
+        Awaitility.await()
+                .untilAsserted(()-> Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1));
+        Awaitility.await()
+                .untilAsserted(()-> Assert.assertNotEquals(managedLedger.getCurrentLedgerSize(), 0));
 
         // trigger a ledger rollover
         // the last ledger will be closed and removed and we have one ledger for empty
         managedLedger.rollCurrentLedgerIfFull();
-        Thread.sleep(1000);
-        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
-        Assert.assertEquals(managedLedger.getTotalSize(), 0);
+        Awaitility.await()
+                .untilAsserted(()-> Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1));
+        Awaitility.await()
+                .untilAsserted(()-> Assert.assertEquals(managedLedger.getTotalSize(), 0));
     }
 }
