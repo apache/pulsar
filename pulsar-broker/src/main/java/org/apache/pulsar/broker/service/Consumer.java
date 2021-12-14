@@ -1023,6 +1023,10 @@ public class Consumer {
         return startMessageId;
     }
 
+    public Map<String, String> getMetadata() {
+        return metadata;
+    }
+
     private int getStickyKeyHash(Entry entry) {
         byte[] stickyKey = Commands.peekStickyKey(entry.getDataBuffer(), topicName, subscription.getName());
         return StickyKeyConsumerSelector.makeStickyKeyHash(stickyKey);

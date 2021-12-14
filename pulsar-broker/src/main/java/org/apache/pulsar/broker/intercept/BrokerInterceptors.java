@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.intercept;
 
 import com.google.common.collect.ImmutableMap;
+import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.util.Map;
 import javax.servlet.ServletException;
@@ -28,9 +29,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.BaseCommand;
+import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.intercept.InterceptException;
 
@@ -99,6 +104,75 @@ public class BrokerInterceptors implements BrokerInterceptor {
                 entry,
                 ackSet,
                 msgMetadata);
+        }
+    }
+
+    @Override
+    public void consumerCreated(ServerCnx cnx,
+                                 Consumer consumer,
+                                 Map<String, String> metadata) {
+        if (interceptors == null || interceptors.isEmpty()) {
+            return;
+        }
+        for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
+            value.consumerCreated(
+                    cnx,
+                    consumer,
+                    metadata);
+        }
+    }
+
+    @Override
+    public void producerCreated(ServerCnx cnx, Producer producer,
+                                 Map<String, String> metadata){
+        if (interceptors == null || interceptors.isEmpty()) {
+            return;
+        }
+        for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
+            value.producerCreated(cnx, producer, metadata);
+        }
+    }
+
+    @Override
+    public void messageProduced(ServerCnx cnx, Producer producer, long startTimeNs, long ledgerId,
+                                 long entryId, Topic.PublishContext publishContext) {
+        if (interceptors == null || interceptors.isEmpty()) {
+            return;
+        }
+        for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
+            value.messageProduced(cnx, producer, startTimeNs, ledgerId, entryId, publishContext);
+        }
+    }
+
+    @Override
+    public  void messageDispatched(ServerCnx cnx, Consumer consumer, long ledgerId,
+                                   long entryId, ByteBuf headersAndPayload) {
+        if (interceptors == null || interceptors.isEmpty()) {
+            return;
+        }
+        for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
+            value.messageDispatched(cnx, consumer, ledgerId, entryId, headersAndPayload);
+        }
+    }
+
+    @Override
+    public void messageAcked(ServerCnx cnx, Consumer consumer,
+                              CommandAck ackCmd) {
+        if (interceptors == null || interceptors.isEmpty()) {
+            return;
+        }
+        for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
+            value.messageAcked(cnx, consumer, ackCmd);
+        }
+    }
+
+    @Override
+    public void onConnectionCreated(ServerCnx cnx) {
+        if (interceptors == null || interceptors.isEmpty()) {
+            return;
+        }
+        for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
+            value.onConnectionCreated(cnx);
         }
     }
 
