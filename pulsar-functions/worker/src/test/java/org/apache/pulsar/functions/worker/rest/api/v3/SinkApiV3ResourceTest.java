@@ -1320,7 +1320,7 @@ public class SinkApiV3ResourceTest {
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
-        String packagePath = String.format("http://foo.com/connector.jar", Utils.BUILTIN);
+        String packagePath = "http://foo.com/connector.jar";
         when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(sink)))
                 .thenReturn(FunctionMetaData.newBuilder().setPackageLocation(
                         Function.PackageLocationMetaData.newBuilder().setPackagePath(packagePath).build()).build());
@@ -1339,7 +1339,7 @@ public class SinkApiV3ResourceTest {
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
-        String packagePath = String.format("file://foo/connector.jar", Utils.BUILTIN);
+        String packagePath = "file://foo/connector.jar";
         when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(sink)))
                 .thenReturn(FunctionMetaData.newBuilder().setPackageLocation(
                         Function.PackageLocationMetaData.newBuilder().setPackagePath(packagePath).build()).build());
