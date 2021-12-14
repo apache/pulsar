@@ -641,7 +641,7 @@ defer consumer.Close()
 #### How to use Prometheus metrics in consumer
 
 In this guide, we'll show you how to create a simple Pulsar consumer application that exposes Prometheus metrics via HTTP.
-
+1. Write a simple consumer application.
 ```go
 // Create a pulsar client
 client, err := pulsar.NewClient(pulsar.ClientOptions{
