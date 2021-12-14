@@ -371,7 +371,7 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "Pulsar");
 
     conversation_t* conversation = find_or_create_conversation(pinfo);
-    auto* state = (ConnectionState*) conversation_get_proto_data(conversation,proto_pulsar);
+    auto state = (ConnectionState*) conversation_get_proto_data(conversation,proto_pulsar);
     if (state == nullptr) {
         state = new ConnectionState();
         conversation_add_proto_data(conversation, proto_pulsar, state);
@@ -389,7 +389,7 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
         return maxOffset;
     }
 
-    auto* ptr = (uint8_t*) tvb_get_ptr(tvb, offset, cmdSize);
+    auto ptr = (uint8_t*) tvb_get_ptr(tvb, offset, cmdSize);
     if (!command.ParseFromArray(ptr, cmdSize)) {
         proto_tree_add_boolean_format(tree, hf_pulsar_error, tvb, offset, cmdSize, true,
                                       "Error parsing protocol buffer command");
