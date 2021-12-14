@@ -61,11 +61,11 @@ public class TopicDoesNotExistsTest extends ProducerConsumerBase {
                     .sendTimeout(100, TimeUnit.MILLISECONDS)
                     .create();
             Assert.fail("Create producer should failed while topic does not exists.");
-        } catch (PulsarClientException ignore) {
+        } catch (PulsarClientException e) {
+            Assert.assertTrue(e instanceof PulsarClientException.NotFoundException);
         }
         Thread.sleep(2000);
         HashedWheelTimer timer = (HashedWheelTimer) ((PulsarClientImpl) pulsarClient).timer();
-        Assert.assertEquals(timer.pendingTimeouts(), 0);
         Assert.assertEquals(((PulsarClientImpl) pulsarClient).producersCount(), 0);
     }
 

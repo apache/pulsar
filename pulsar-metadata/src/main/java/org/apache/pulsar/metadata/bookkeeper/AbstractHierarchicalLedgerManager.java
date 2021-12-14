@@ -190,7 +190,8 @@ abstract class AbstractHierarchicalLedgerManager {
             final int successRc, final int failureRc) {
         store.getChildren(path)
                 .thenAccept(ledgerNodes -> {
-                    Set<Long> activeLedgers = HierarchicalLedgerUtils.ledgerListToSet(ledgerNodes, ledgerRootPath, path);
+                    Set<Long> activeLedgers = HierarchicalLedgerUtils.ledgerListToSet(ledgerNodes,
+                            ledgerRootPath, path);
                     if (log.isDebugEnabled()) {
                         log.debug("Processing ledgers: {}", activeLedgers);
                     }
