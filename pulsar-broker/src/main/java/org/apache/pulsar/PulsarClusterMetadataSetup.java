@@ -218,7 +218,8 @@ public class PulsarClusterMetadataSetup {
         log.info("Setting up cluster {} with metadata-store={} configuration-store={}", arguments.cluster,
                 arguments.metadataStoreUrl, arguments.configurationStore);
 
-        MetadataStoreExtended localStore = initMetadataStore(arguments.metadataStoreUrl, arguments.zkSessionTimeoutMillis);
+        MetadataStoreExtended localStore =
+                initMetadataStore(arguments.metadataStoreUrl, arguments.zkSessionTimeoutMillis);
         MetadataStoreExtended configStore = initMetadataStore(arguments.configurationStore,
                 arguments.zkSessionTimeoutMillis);
 
