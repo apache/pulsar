@@ -640,10 +640,10 @@ defer consumer.Close()
 
 #### How to use Prometheus metrics in consumer
 
-In this guide, we'll show you how to create a simple Pulsar consumer application that exposes Prometheus metrics via HTTP.
+In this guide, This section demonstrates how to create a simple Pulsar consumer application that exposes Prometheus metrics via HTTP.
 1. Write a simple consumer application.
 ```go
-// Create a pulsar client
+// Create a Pulsar client
 client, err := pulsar.NewClient(pulsar.ClientOptions{
     URL: "pulsar://localhost:6650",
 })
@@ -680,7 +680,7 @@ defer consumer.Close()
 ctx := context.Background()
 
 // Write your business logic here
-// In this case, we build a simple web server. You can consume a message by requesting http://localhost:8083/consume
+// In this case, you build a simple Web server. You can consume messages by requesting http://localhost:8083/consume
 webPort := 8083
 http.HandleFunc("/consume", func(w http.ResponseWriter, r *http.Request) {
     msg, err := consumer.Receive(ctx)
@@ -699,7 +699,18 @@ if err != nil {
 }
 ```
 
-The configuration of Prometheus instance is the same as we introduced in [producer metrics section](#how-to-use-prometheus-metrics-in-producer).
+2. To scrape metrics from applications, configure a local running Prometheus instance using a configuration file (`prometheus.yml`).
+
+```yaml
+scrape_configs:
+- job_name: pulsar-client-go-metrics
+  scrape_interval: 10s
+  static_configs:
+  - targets:
+    - localhost:2112
+```
+
+Now you can query Pulsar client metrics on Prometheus.
 
 ### Consumer configuration
 
