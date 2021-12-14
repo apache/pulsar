@@ -236,7 +236,7 @@ public class PulsarClusterMetadataSetup {
 
 
         if (localStore instanceof ZKMetadataStore && configStore instanceof ZKMetadataStore) {
-            String uriStr = bkConf.getMetadataServiceUri();
+            String uriStr = bkConf.getMetadataServiceUri().replace("metadata-store:", "zk://");
             if (arguments.existingBkMetadataServiceUri != null) {
                 uriStr = arguments.existingBkMetadataServiceUri;
             } else if (arguments.bookieMetadataServiceUri != null) {
