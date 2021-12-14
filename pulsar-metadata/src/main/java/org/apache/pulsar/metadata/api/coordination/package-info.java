@@ -16,27 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.metadata.impl.batching;
-
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-
-@Data
-@AllArgsConstructor
-public class OpGetChildren implements MetadataOp {
-
-    private final String path;
-    private final CompletableFuture<List<String>> future = new CompletableFuture<>();
-
-    @Override
-    public Type getType() {
-        return Type.GET_CHILDREN;
-    }
-
-    @Override
-    public int size() {
-        return path.length();
-    }
-}
+package org.apache.pulsar.metadata.api.coordination;

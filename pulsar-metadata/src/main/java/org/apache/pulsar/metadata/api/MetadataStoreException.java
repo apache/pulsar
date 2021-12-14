@@ -40,7 +40,7 @@ public class MetadataStoreException extends IOException {
     }
 
     /**
-     * Implementation is invalid
+     * Implementation is invalid.
      */
     public static class InvalidImplementationException extends MetadataStoreException {
         public InvalidImplementationException() {

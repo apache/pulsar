@@ -29,7 +29,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import lombok.Cleanup;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.bookie.Bookie;
@@ -303,10 +302,10 @@ public class BKCluster implements AutoCloseable {
     private static String getLoopbackInterfaceName() {
         try {
             Enumeration<NetworkInterface> nifs = NetworkInterface.getNetworkInterfaces();
-            Iterator var1 = Collections.list(nifs).iterator();
+            Iterator<NetworkInterface> var1 = Collections.list(nifs).iterator();
 
-            while(var1.hasNext()) {
-                NetworkInterface nif = (NetworkInterface)var1.next();
+            while (var1.hasNext()) {
+                NetworkInterface nif = var1.next();
                 if (nif.isLoopback()) {
                     return nif.getName();
                 }
