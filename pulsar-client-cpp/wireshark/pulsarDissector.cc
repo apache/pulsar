@@ -18,9 +18,7 @@
  */
 #include <glib.h>
 #include <config.h>
-#include <epan/expert.h>
 #include <epan/packet.h>
-#include <epan/prefs.h>
 #include <epan/proto.h>
 #include <epan/column-utils.h>
 #include <epan/dissectors/packet-tcp.h>
@@ -230,15 +228,15 @@ struct MessageIdComparator {
 
 struct RequestData {
     uint32_t requestFrame;
-    nstime_t requestTimestamp{};
+    nstime_t requestTimestamp;
     uint32_t ackFrame;
-    nstime_t ackTimestamp{};
+    nstime_t ackTimestamp;
 
     RequestData(): requestFrame(UINT32_MAX),ackFrame(UINT32_MAX) {}
 };
 
 struct RequestResponseData : public RequestData {
-    uint64_t id{};  // producer / consumer id
+    uint64_t id;  // producer / consumer id
 };
 
 struct ProducerData {
@@ -267,7 +265,7 @@ struct ConnectionState {
 static void dissect_message_metadata(proto_tree* frame_tree, tvbuff_t *tvb, int offset,
                                      int maxOffset) {
     // Decode message metadata
-    auto metadataSize = (uint32_t) tvb_get_ntohl(tvb, offset);
+    auto metadataSize = tvb_get_ntohl(tvb, offset);
     offset += 4;
 
     if (offset + metadataSize > maxOffset) {
@@ -277,7 +275,7 @@ static void dissect_message_metadata(proto_tree* frame_tree, tvbuff_t *tvb, int 
     }
 
     static MessageMetadata msgMetadata;
-    auto* ptr = (uint8_t*) tvb_get_ptr(tvb, offset, metadataSize);
+    auto ptr = tvb_get_ptr(tvb, offset, metadataSize);
 
     if (!msgMetadata.ParseFromArray(ptr, metadataSize)) {
         proto_tree_add_boolean_format(frame_tree, hf_pulsar_error, tvb, offset, metadataSize, true,
