@@ -236,7 +236,7 @@ public class ServiceConfigurationTest {
                         + key + "' conf/broker.conf default value doesn't match java default value\nConf: "+ fileValue + "\nJava: " + javaValue);
                 counter++;
             }
-            assertEquals(377, counter);
+            assertEquals(counter, 378);
         }
 
     }
