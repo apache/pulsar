@@ -1351,7 +1351,7 @@ public class SourceApiV3ResourceTest {
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
-        String packagePath = String.format("http://foo.com/connector.jar", Utils.BUILTIN);
+        String packagePath = "http://foo.com/connector.jar";
         when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(source)))
                 .thenReturn(FunctionMetaData.newBuilder().setPackageLocation(
                         PackageLocationMetaData.newBuilder().setPackagePath(packagePath).build()).build());
@@ -1370,7 +1370,7 @@ public class SourceApiV3ResourceTest {
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
-        String packagePath = String.format("file://foo/connector.jar", Utils.BUILTIN);
+        String packagePath = "file://foo/connector.jar";
         when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(source)))
                 .thenReturn(FunctionMetaData.newBuilder().setPackageLocation(
                         PackageLocationMetaData.newBuilder().setPackagePath(packagePath).build()).build());
