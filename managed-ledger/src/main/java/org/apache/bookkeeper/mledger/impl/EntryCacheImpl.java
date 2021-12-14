@@ -38,6 +38,7 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.util.RangeCache;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
@@ -50,6 +51,7 @@ public class EntryCacheImpl implements EntryCache {
 
     private final EntryCacheManager manager;
     private final ManagedLedgerImpl ml;
+    private ManagedLedgerInterceptor interceptor;
     private final RangeCache<PositionImpl, EntryImpl> entries;
     private final boolean copyEntries;
 
@@ -58,6 +60,7 @@ public class EntryCacheImpl implements EntryCache {
     public EntryCacheImpl(EntryCacheManager manager, ManagedLedgerImpl ml, boolean copyEntries) {
         this.manager = manager;
         this.ml = ml;
+        this.interceptor = ml.getManagedLedgerInterceptor();
         this.entries = new RangeCache<>(EntryImpl::getLength, EntryImpl::getTimestamp);
         this.copyEntries = copyEntries;
 
@@ -215,7 +218,7 @@ public class EntryCacheImpl implements EntryCache {
                             Iterator<LedgerEntry> iterator = ledgerEntries.iterator();
                             if (iterator.hasNext()) {
                                 LedgerEntry ledgerEntry = iterator.next();
-                                EntryImpl returnEntry = EntryImpl.create(ledgerEntry);
+                                EntryImpl returnEntry = EntryCacheManager.create(ledgerEntry, interceptor);
 
                                 manager.mlFactoryMBean.recordCacheMiss(1, returnEntry.getLength());
                                 ml.mbean.addReadEntriesSample(1, returnEntry.getLength());
@@ -301,7 +304,7 @@ public class EntryCacheImpl implements EntryCache {
                             final List<EntryImpl> entriesToReturn
                                 = Lists.newArrayListWithExpectedSize(entriesToRead);
                             for (LedgerEntry e : ledgerEntries) {
-                                EntryImpl entry = EntryImpl.create(e);
+                                EntryImpl entry = EntryCacheManager.create(e, interceptor);
 
                                 entriesToReturn.add(entry);
                                 totalSize += entry.getLength();

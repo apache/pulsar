@@ -212,7 +212,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
         for (int i = 0; i < 505; i++) {
-            producer.newMessage().send();
+            producer.newMessage().value("messages for test transaction consumer".getBytes()).send();
         }
         Thread thread = new Thread(() -> {
             try {

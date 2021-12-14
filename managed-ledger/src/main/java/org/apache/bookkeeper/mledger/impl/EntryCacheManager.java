@@ -33,10 +33,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -154,9 +156,11 @@ public class EntryCacheManager {
 
     protected class EntryCacheDisabled implements EntryCache {
         private final ManagedLedgerImpl ml;
+        private final ManagedLedgerInterceptor interceptor;
 
         public EntryCacheDisabled(ManagedLedgerImpl ml) {
             this.ml = ml;
+            this.interceptor = ml.getManagedLedgerInterceptor();
         }
 
         @Override
@@ -200,7 +204,7 @@ public class EntryCacheManager {
                         try {
                             for (LedgerEntry e : ledgerEntries) {
                                 // Insert the entries at the end of the list (they will be unsorted for now)
-                                EntryImpl entry = EntryImpl.create(e);
+                                EntryImpl entry = create(e, interceptor);
                                 entries.add(entry);
                                 totalSize += entry.getLength();
                             }
@@ -232,7 +236,7 @@ public class EntryCacheManager {
                             Iterator<LedgerEntry> iterator = ledgerEntries.iterator();
                             if (iterator.hasNext()) {
                                 LedgerEntry ledgerEntry = iterator.next();
-                                EntryImpl returnEntry = EntryImpl.create(ledgerEntry);
+                                EntryImpl returnEntry = create(ledgerEntry, interceptor);
 
                                 mlFactoryMBean.recordCacheMiss(1, returnEntry.getLength());
                                 ml.getMBean().addReadEntriesSample(1, returnEntry.getLength());
@@ -260,6 +264,27 @@ public class EntryCacheManager {
 
     public static Entry create(long ledgerId, long entryId, ByteBuf data) {
         return EntryImpl.create(ledgerId, entryId, data);
+    }
+
+    public static EntryImpl create(LedgerEntry ledgerEntry, ManagedLedgerInterceptor interceptor) {
+        ManagedLedgerInterceptor.PayloadProcessorHandle processorHandle = null;
+        if (interceptor != null) {
+            ByteBuf duplicateBuffer = ledgerEntry.getEntryBuffer().retainedDuplicate();
+            processorHandle = interceptor
+                    .processPayloadBeforeEntryCache(duplicateBuffer);
+            if (processorHandle != null) {
+                ledgerEntry  = LedgerEntryImpl.create(ledgerEntry.getLedgerId(),ledgerEntry.getEntryId(),
+                        ledgerEntry.getLength(),processorHandle.getProcessedPayload());
+            } else {
+                duplicateBuffer.release();
+            }
+        }
+        EntryImpl returnEntry = EntryImpl.create(ledgerEntry);
+        if (processorHandle != null) {
+            processorHandle.release();
+            ledgerEntry.close();
+        }
+        return returnEntry;
     }
 
     private static final Logger log = LoggerFactory.getLogger(EntryCacheManager.class);

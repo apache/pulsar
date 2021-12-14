@@ -25,6 +25,7 @@ import com.google.common.collect.Sets;
 import io.netty.util.internal.PlatformDependent;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -1088,6 +1089,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Enable or disable the broker interceptor, which is only used for testing for now"
     )
     private boolean disableBrokerInterceptors = true;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "List of interceptors for payload processing.")
+    private Set<String> brokerEntryPayloadProcessors = new LinkedHashSet<>();
 
     @FieldContext(
         doc = "There are two policies to apply when broker metadata session expires: session expired happens, \"shutdown\" or \"reconnect\". \n\n"

@@ -171,7 +171,6 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected List<String> internalGetPartitionedTopicList() {
-        validateAdminAccessForTenant(namespaceName.getTenant());
         validateNamespaceOperation(namespaceName, NamespaceOperation.GET_TOPICS);
         // Validate that namespace exists, throws 404 if it doesn't exist
         try {
@@ -3495,6 +3494,14 @@ public class PersistentTopicsBase extends AdminResource {
                 validateGlobalNamespaceOwnership(namespaceName);
             }
         } catch (Exception e) {
+            if (e instanceof WebApplicationException) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Failed to trigger compaction on topic {}, redirecting to other brokers.",
+                            clientAppId(), topicName, e);
+                }
+                resumeAsyncResponseExceptionally(asyncResponse, e);
+                return;
+            }
             log.error("[{}] Failed to trigger compaction on topic {}", clientAppId(), topicName, e);
             resumeAsyncResponseExceptionally(asyncResponse, e);
             return;
@@ -3554,6 +3561,14 @@ public class PersistentTopicsBase extends AdminResource {
                     try {
                         internalTriggerCompactionNonPartitionedTopic(authoritative);
                     } catch (Exception e) {
+                        if (e instanceof WebApplicationException) {
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] Failed to trigger compaction on topic {}, "
+                                        + "redirecting to other brokers.", clientAppId(), topicName, e);
+                            }
+                            resumeAsyncResponseExceptionally(asyncResponse, e);
+                            return;
+                        }
                         log.error("[{}] Failed to trigger compaction on topic {}", clientAppId(), topicName, e);
                         resumeAsyncResponseExceptionally(asyncResponse, e);
                         return;
