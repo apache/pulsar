@@ -23,7 +23,7 @@ You can set a namespace isolation policy for a cluster using one of the followin
 pulsar-admin ns-isolation-policy set options
 ```
 
-For more information about the command `pulsar-admin ns-isolation-policy set options`, see [here](https://pulsar.apache.org/tools/pulsar-admin/).
+For more information about the command `pulsar-admin ns-isolation-policy set`, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.8.0-SNAPSHOT/#-em-set-em-).
 
 **Example**
 
@@ -59,7 +59,7 @@ You can set a bookie affinity group using one of the following methods.
 pulsar-admin namespaces set-bookie-affinity-group options
 ```
 
-For more information about the command `pulsar-admin namespaces set-bookie-affinity-group options`, see [here](https://pulsar.apache.org/tools/pulsar-admin/).
+For more information about the command `pulsar-admin namespaces set-bookie-affinity-group`, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.8.0-SNAPSHOT/#-em-set-bookie-affinity-group-em-).
 
 **Example**
 
