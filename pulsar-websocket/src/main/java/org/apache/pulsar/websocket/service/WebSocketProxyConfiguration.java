@@ -120,13 +120,13 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private String brokerClientTrustCertsFilePath = "";
 
     @FieldContext(doc = "Number of IO threads in Pulsar client used in WebSocket proxy")
-    private int webSocketNumIoThreads = 8;
+    private int webSocketNumIoThreads = Runtime.getRuntime().availableProcessors();
 
     @FieldContext(doc = "Number of threads to used in HTTP server")
     private int numHttpServerThreads = Math.max(6, Runtime.getRuntime().availableProcessors());
 
     @FieldContext(doc = "Number of connections per broker in Pulsar client used in WebSocket proxy")
-    private int webSocketConnectionsPerBroker = 8;
+    private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
 
     @FieldContext(doc = "Timeout of idling WebSocket session (in milliseconds)")
     private int webSocketSessionIdleTimeoutMillis = 300000;

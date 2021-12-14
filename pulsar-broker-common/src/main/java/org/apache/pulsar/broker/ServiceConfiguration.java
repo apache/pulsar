@@ -576,7 +576,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_POLICIES,
         doc = "How often is the thread pool scheduled to check whether a snapshot needs to be taken.(disable with value 0)"
     )
-    private int brokerDeduplicationSnapshotFrequencyInSeconds = 10;
+    private int brokerDeduplicationSnapshotFrequencyInSeconds = 120;
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "If this time interval is exceeded, a snapshot will be taken."
@@ -933,7 +933,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Number of worker threads to serve non-persistent topic")
-    private int numWorkerThreadsForNonPersistentTopic = 8;
+    private int numWorkerThreadsForNonPersistentTopic = Runtime.getRuntime().availableProcessors();
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -1636,12 +1636,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_STORAGE_ML,
         doc = "Number of threads to be used for managed ledger tasks dispatching"
     )
-    private int managedLedgerNumWorkerThreads = 8;
+    private int managedLedgerNumWorkerThreads = Runtime.getRuntime().availableProcessors();
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Number of threads to be used for managed ledger scheduled tasks"
     )
-    private int managedLedgerNumSchedulerThreads = 8;
+    private int managedLedgerNumSchedulerThreads = Runtime.getRuntime().availableProcessors();
 
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
@@ -2136,12 +2136,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_WEBSOCKET,
         doc = "Number of IO threads in Pulsar Client used in WebSocket proxy"
     )
-    private int webSocketNumIoThreads = 8;
+    private int webSocketNumIoThreads = Runtime.getRuntime().availableProcessors();
     @FieldContext(
         category = CATEGORY_WEBSOCKET,
         doc = "Number of connections per Broker in Pulsar Client used in WebSocket proxy"
     )
-    private int webSocketConnectionsPerBroker = 8;
+    private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
     @FieldContext(
         category = CATEGORY_WEBSOCKET,
         doc = "Time in milliseconds that idle WebSocket session times out"
