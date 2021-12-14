@@ -372,7 +372,6 @@ public class PerformanceConsumer {
                 if (arguments.testTime > 0) {
                     if (System.nanoTime() > testEndTime) {
                         log.info("------------------- DONE -----------------------");
-                        printAggregatedStats();
                         PerfClientUtils.exit(0);
                         thread.interrupt();
                     }
@@ -380,7 +379,6 @@ public class PerformanceConsumer {
                 if (arguments.totalNumTxn > 0) {
                     if (totalEndTxnOpFailNum.sum() + totalEndTxnOpSuccessNum.sum() >= arguments.totalNumTxn) {
                         log.info("------------------- DONE -----------------------");
-                        printAggregatedStats();
                         PerfClientUtils.exit(0);
                         thread.interrupt();
                     }
