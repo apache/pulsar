@@ -471,7 +471,7 @@ public class Producer {
             producer.publishOperationCompleted();
             if (producer.cnx.getBrokerService().getInterceptor() != null){
                 producer.cnx.getBrokerService().getInterceptor().messageProduced(
-                        (ServerCnx) producer.cnx, producer, startTimeNs, ledgerId, entryId, rateIn, this);
+                        (ServerCnx) producer.cnx, producer, startTimeNs, ledgerId, entryId, this);
             }
             recycle();
         }

@@ -39,7 +39,6 @@ import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.intercept.InterceptException;
 import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.common.stats.Rate;
 
 /**
  * A broker interceptor with it's classloader.
@@ -77,9 +76,8 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
 
     @Override
     public void messageProduced(ServerCnx cnx, Producer producer, long startTimeNs, long ledgerId,
-                                long entryId, Rate rateIn,
-                                Topic.PublishContext publishContext) {
-        this.interceptor.messageProduced(cnx, producer, startTimeNs, ledgerId, entryId, rateIn, publishContext);
+                                long entryId, Topic.PublishContext publishContext) {
+        this.interceptor.messageProduced(cnx, producer, startTimeNs, ledgerId, entryId, publishContext);
     }
 
     @Override

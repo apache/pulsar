@@ -38,7 +38,6 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.common.intercept.InterceptException;
-import org.apache.pulsar.common.stats.Rate;
 
 /**
  * A plugin interface that allows you to intercept the
@@ -98,8 +97,7 @@ public interface BrokerInterceptor extends AutoCloseable {
      * @param publishContext Publish Context
      */
     default void messageProduced(ServerCnx cnx, Producer producer, long startTimeNs, long ledgerId,
-                                 long entryId, Rate rateIn,
-                                 Topic.PublishContext publishContext) {
+                                 long entryId, Topic.PublishContext publishContext) {
     }
 
     /**
