@@ -144,7 +144,7 @@ public class TransactionImpl implements Transaction {
 
     @Override
     public CompletableFuture<Void> commit() {
-        return checkIfOpenOrCommitting().thenCompose((value) -> {
+        return checkIfOpenOrCommittingOrAborting().thenCompose((value) -> {
             CompletableFuture<Void> commitFuture = new CompletableFuture<>();
             this.state = State.COMMITTING;
             allOpComplete().whenComplete((v, e) -> {
@@ -172,7 +172,7 @@ public class TransactionImpl implements Transaction {
 
     @Override
     public CompletableFuture<Void> abort() {
-        return checkIfOpenOrAborting().thenCompose(value -> {
+        return checkIfOpenOrCommittingOrAborting().thenCompose(value -> {
             CompletableFuture<Void> abortFuture = new CompletableFuture<>();
             this.state = State.ABORTING;
             allOpComplete().whenComplete((v, e) -> {
@@ -221,16 +221,8 @@ public class TransactionImpl implements Transaction {
         }
     }
 
-    private CompletableFuture<Void> checkIfOpenOrCommitting() {
-        if (state == State.OPEN || state == State.COMMITTING) {
-            return CompletableFuture.completedFuture(null);
-        } else {
-            return invalidTxnStatusFuture();
-        }
-    }
-
-    private CompletableFuture<Void> checkIfOpenOrAborting() {
-        if (state == State.OPEN || state == State.ABORTING) {
+    private CompletableFuture<Void> checkIfOpenOrCommittingOrAborting() {
+        if (state == State.OPEN || state == State.COMMITTING || state == State.ABORTING) {
             return CompletableFuture.completedFuture(null);
         } else {
             return invalidTxnStatusFuture();
