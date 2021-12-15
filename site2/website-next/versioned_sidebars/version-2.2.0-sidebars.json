@@ -367,6 +367,54 @@
           "id": "version-2.2.0/cookbooks-message-queue"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Development",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.2.0/develop-tools"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.0/develop-binary-protocol"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.0/develop-schema"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.0/develop-load-manager"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.0/develop-cpp"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Reference",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.2.0/reference-terminology"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.0/reference-cli-tools"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.0/pulsar-admin"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.0/reference-configuration"
+        }
+      ]
     }
   ]
 }
