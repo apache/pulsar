@@ -332,6 +332,7 @@ file(MAKE_DIRECTORY ${AUTOGEN_DIR})
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_BINARY_DIR}/include
   ${AUTOGEN_DIR}
   ${Boost_INCLUDE_DIR}
   ${OPENSSL_INCLUDE_DIR}
