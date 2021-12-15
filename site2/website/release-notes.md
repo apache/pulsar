@@ -12,15 +12,15 @@ It also includes fixes for some breaking changes introduces in 2.9.0.
 - Upgrade OkHttp3 to address CVE-2021-0341[#13065](https://github.com/apache/pulsar/pull/13065)
 
 #### Java Client
-- Fixed  a data race on the Producer to get a Connection [#13176](https://github.com/apache/pulsar/pull/13176)
+- Fixed a data race on the Producer to get a Connection [#13176](https://github.com/apache/pulsar/pull/13176)
 - Producer: Send CloseProducer on timeout [#13161](https://github.com/apache/pulsar/pull/13161)
-- Let the Producer reconnect for state RegisteringSchema [#12781](https://github.com/apache/pulsar/pull/12781)
 - Use epoch to version Producer's cnx to prevent early delivery of messages [#12779](https://github.com/apache/pulsar/pull/12779)
-- Removed a data race in MultiTopicsConsumerImpl to ensure correct message order[#12456](https://github.com/apache/pulsar/pull/12456)
+- Removed a data race in MultiTopicsConsumerImpl to ensure correct message order [#12456](https://github.com/apache/pulsar/pull/12456)
+- Fix consume message order issue when use listener [#13023](https://github.com/apache/pulsar/pull/13023)
+- Make Audience Field Optional in OAuth2 Client Credentials [#11988](https://github.com/apache/pulsar/pull/11988)
 
 #### Broker
 - Fix LeaderElectionService.getCurrentLeader and add support for empheralOwner in MockZooKeeper [#13066](https://github.com/apache/pulsar/pull/13066)
-- Fixed shedding for heartbeat [#13208](https://github.com/apache/pulsar/pull/13208)
 - Removed tenant permission verification when list partitioned-topic [#13138](https://github.com/apache/pulsar/pull/13138)
 - Fixed and improve topic ownership assignment [#13069](https://github.com/apache/pulsar/pull/13069)
 - Fixed consume message order issue when use listener.[#13023](https://github.com/apache/pulsar/pull/13023)
@@ -28,10 +28,11 @@ It also includes fixes for some breaking changes introduces in 2.9.0.
 - REST API: Fix incompatibility of BacklogQuota [#13291](https://github.com/apache/pulsar/pull/13291)
 - Fixed unordered consuming case in Key_Shared subscription.[#12890](https://github.com/apache/pulsar/pull/12890)
 - Fixed the incorrect total size when BrokerEntryMetadata is enabled[#12714](https://github.com/apache/pulsar/pull/12714)
+- Revert new AuthorizationProvider method [#13133](https://github.com/apache/pulsar/pull/13133)
 
 #### Pulsar Functions
-- Upgraded Debezium to 1.7.1[#12644](https://github.com/apache/pulsar/pull/12644)
-- Fixed Kubernetes Pulsar Functions containers not exposing metrics port for scraping[#12065](https://github.com/apache/pulsar/pull/12065)
+- Fix classloader leaks [#12973](https://github.com/apache/pulsar/pull/12973)
+- Fixed Kubernetes Pulsar Functions containers not exposing metrics port for scraping [#12065](https://github.com/apache/pulsar/pull/12065)
 
 ### 2.9.0
 #### 2021-11-25
