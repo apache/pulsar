@@ -20,6 +20,7 @@ package org.apache.pulsar.sql.presto.decoder.protobufnative;
 
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Timestamp;
 import io.netty.buffer.ByteBuf;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.decoder.FieldValueProvider;
@@ -43,6 +44,7 @@ import static io.prestosql.spi.type.BigintType.BIGINT;
 import static io.prestosql.spi.type.BooleanType.BOOLEAN;
 import static io.prestosql.spi.type.DoubleType.DOUBLE;
 import static io.prestosql.spi.type.IntegerType.INTEGER;
+import static io.prestosql.spi.type.TimestampType.TIMESTAMP;
 import static io.prestosql.spi.type.VarbinaryType.VARBINARY;
 import static io.prestosql.spi.type.VarcharType.VARCHAR;
 import static org.apache.pulsar.sql.presto.TestPulsarConnector.getPulsarConnectorId;
@@ -83,6 +85,7 @@ public class TestProtobufNativeDecoder extends AbstractDecoderTester {
                 .setBoolField(true)
                 .setBytesField(ByteString.copyFrom("abc".getBytes()))
                 .setTestEnum(TestMsg.TestEnum.FAILOVER)
+                .setTimestampField(Timestamp.newBuilder().setSeconds(System.currentTimeMillis()).build())
                 .build();
 
         ByteBuf payload = io.netty.buffer.Unpooled
@@ -162,6 +165,11 @@ public class TestProtobufNativeDecoder extends AbstractDecoderTester {
                 "testEnum", VARCHAR, false, false, "testEnum", null, null,
                 PulsarColumnHandle.HandleKeyValueType.NONE);
         checkValue(decodedRow, enumFieldColumnHandle, testMessage.getTestEnum().name());
+
+        PulsarColumnHandle timestampFieldColumnHandle = new PulsarColumnHandle(getPulsarConnectorId().toString(),
+                "timestampField", TIMESTAMP,false,false,"timestampField",null,null,
+                PulsarColumnHandle.HandleKeyValueType.NONE);
+        checkValue(decodedRow, timestampFieldColumnHandle, testMessage.getTimestampField().getSeconds());
 
     }
 
