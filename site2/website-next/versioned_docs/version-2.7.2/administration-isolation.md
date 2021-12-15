@@ -31,7 +31,7 @@ pulsar-admin ns-isolation-policy set options
 
 ```
 
-For more information about the command `pulsar-admin ns-isolation-policy set`, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.8.0-SNAPSHOT/#-em-set-em-).
+For more information about the command `pulsar-admin ns-isolation-policy set`, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.7.0-SNAPSHOT/#-em-set-em-).
 
 **Example**
 
