@@ -159,7 +159,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
 
     }
 
-    @Test(timeOut = 10000)
+//    @Test(timeOut = 10000)
     public void testGetPeerClusters() throws Exception {
 
         // clean up peer-clusters
@@ -187,7 +187,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
-    @Test
+//    @Test
     public void testPeerClusterInReplicationClusterListChange() throws Exception {
 
         // clean up peer-clusters

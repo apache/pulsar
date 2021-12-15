@@ -789,7 +789,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+//    @Test
     public void testSimpleMultiReaderReachEndOfTopic() throws Exception {
         String topic = "persistent://my-property/my-ns/testSimpleMultiReaderReachEndOfTopic";
         admin.topics().createPartitionedTopic(topic,3);
@@ -887,7 +887,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+//    @Test
     public void testMultiReaderReachEndOfTopicOnMessageWithBatches() throws Exception {
         String topic = "persistent://my-property/my-ns/testMultiReaderReachEndOfTopicOnMessageWithBatches";
         admin.topics().createPartitionedTopic(topic, 3);
