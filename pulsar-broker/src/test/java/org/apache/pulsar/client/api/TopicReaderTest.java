@@ -970,6 +970,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
     }
 
     @Test
+    @Ignore
     public void testMultiReaderMessageAvailableAfterRestart() throws Exception {
         String topic = "persistent://my-property/use/my-ns/" + UUID.randomUUID().toString();
         String content = "my-message-1";

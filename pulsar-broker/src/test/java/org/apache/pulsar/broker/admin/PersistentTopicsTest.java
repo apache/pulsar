@@ -55,6 +55,7 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Ignore;
 import org.testng.annotations.Test;
 
 import javax.ws.rs.container.AsyncResponse;
@@ -610,6 +611,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @Ignore
     public void testPeekWithSubscriptionNameNotExist() throws Exception {
         final String topicName = "testTopic";
         final String topic = TopicName.get(
