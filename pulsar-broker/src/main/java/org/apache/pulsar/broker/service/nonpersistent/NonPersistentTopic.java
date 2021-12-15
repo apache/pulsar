@@ -429,6 +429,35 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         return deleteFuture;
     }
 
+    private CompletableFuture<Void> tryToDeletePartitionedMetadata() {
+        if (TopicName.get(topic).isPartitioned() && !deletePartitionedTopicMetadataWhileInactive()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        TopicName topicName = TopicName.get(TopicName.get(topic).getPartitionedTopicName());
+        String path = AdminResource.path(AdminResource.PARTITIONED_TOPIC_PATH_ZNODE, topicName.getNamespace()
+                , topicName.getDomain().value(), topicName.getEncodedLocalName());
+        try {
+            if (!getBrokerService().pulsar().getGlobalZkCache().exists(path)) {
+                return CompletableFuture.completedFuture(null);
+            }
+            CompletableFuture<Void> deleteMetadataFuture = new CompletableFuture<>();
+            getBrokerService().pulsar().getGlobalZkCache().getZooKeeper().delete(path, -1
+                    , (rc, s, o) -> {
+                        if (KeeperException.Code.OK.intValue() == rc
+                                || KeeperException.Code.NONODE.intValue() == rc) {
+                            getBrokerService().pulsar().getGlobalZkCache().invalidate(path);
+                            deleteMetadataFuture.complete(null);
+                        } else {
+                            deleteMetadataFuture.completeExceptionally(
+                                    KeeperException.create(KeeperException.Code.get(rc)));
+                        }
+                    }, null);
+            return deleteMetadataFuture;
+        } catch (Exception e) {
+            return FutureUtil.failedFuture(e);
+        }
+    }
+
     /**
      * Close this topic - close all producers and subscriptions associated with this topic
      *
@@ -872,6 +901,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                     }
 
                     stopReplProducers().thenCompose(v -> delete(true, false, true))
+                            .thenAccept(__ -> tryToDeletePartitionedMetadata())
                             .thenRun(() -> log.info("[{}] Topic deleted successfully due to inactivity", topic))
                             .exceptionally(e -> {
                                 if (e.getCause() instanceof TopicBusyException) {
