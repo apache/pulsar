@@ -123,7 +123,7 @@ public class PulsarBrokerStarterTest {
         assertTrue(serviceConfig.isBacklogQuotaCheckEnabled());
         assertEquals(serviceConfig.getManagedLedgerDefaultMarkDeleteRateLimit(), 5.0);
         assertEquals(serviceConfig.getReplicationProducerQueueSize(), 50);
-        assertFalse(serviceConfig.isReplicationMetricsEnabled());
+        assertTrue(serviceConfig.isReplicationMetricsEnabled());
         assertTrue(serviceConfig.isBookkeeperClientHealthCheckEnabled());
         assertEquals(serviceConfig.getBookkeeperClientHealthCheckErrorThresholdPerInterval(), 5);
         assertTrue(serviceConfig.isBookkeeperClientRackawarePolicyEnabled());

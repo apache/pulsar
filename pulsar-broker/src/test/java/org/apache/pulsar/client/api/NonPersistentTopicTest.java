@@ -66,6 +66,7 @@ import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -112,12 +113,16 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             final String topicPartitionName = "non-persistent://public/default/issue-9173-partition-0";
 
             // Then error when subscribe to a partition of a non-persistent topic that does not exist
-            assertThrows(PulsarClientException.TopicDoesNotExistException.class,
+            assertThrows(PulsarClientException.NotFoundException.class,
                     () -> pulsarClient.newConsumer().topic(topicPartitionName).subscriptionName("sub-issue-9173").subscribe());
 
             // Then error when produce to a partition of a non-persistent topic that does not exist
-            assertThrows(PulsarClientException.TopicDoesNotExistException.class,
-                    () -> pulsarClient.newProducer().topic(topicPartitionName).create());
+            try {
+                pulsarClient.newProducer().topic(topicPartitionName).create();
+                Assert.fail("Should failed due to topic not exist");
+            } catch (Exception e) {
+                assertTrue(e instanceof PulsarClientException.NotFoundException);
+            }
         } finally {
             conf.setAllowAutoTopicCreation(defaultAllowAutoTopicCreation);
         }

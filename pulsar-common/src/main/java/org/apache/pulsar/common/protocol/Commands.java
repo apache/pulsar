@@ -48,7 +48,6 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
-import org.apache.pulsar.common.api.proto.KeyLongValue;
 import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.api.proto.AuthMethod;

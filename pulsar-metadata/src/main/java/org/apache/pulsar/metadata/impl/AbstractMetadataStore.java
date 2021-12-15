@@ -31,7 +31,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -313,7 +312,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     }
 
     /**
-     * Run the task in the executor thread and fail the future if the executor is shutting down
+     * Run the task in the executor thread and fail the future if the executor is shutting down.
      */
     protected void execute(Runnable task, CompletableFuture<?> future) {
         try {

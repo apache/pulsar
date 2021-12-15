@@ -22,6 +22,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
@@ -210,6 +211,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         superAdmin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet(tenantRole), Sets.newHashSet("test")));
         superAdmin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+        assertNull(superAdmin.namespaces().getPublishRate(namespace));
 
         // subscriptionRole doesn't have topic-level authorization, so it will fail to get topic stats-internal info
         try {

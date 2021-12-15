@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import io.netty.buffer.ByteBuf;
 import java.io.IOException;
+import java.util.Map;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -27,9 +29,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.BaseCommand;
+import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.intercept.InterceptException;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -52,6 +58,43 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
                                   MessageMetadata msgMetadata) {
         this.interceptor.beforeSendMessage(
             subscription, entry, ackSet, msgMetadata);
+    }
+
+    @Override
+    public void producerCreated(ServerCnx cnx, Producer producer,
+                                Map<String, String> metadata){
+        this.interceptor.producerCreated(cnx, producer, metadata);
+    }
+
+    @Override
+    public void consumerCreated(ServerCnx cnx,
+                                Consumer consumer,
+                                Map<String, String> metadata) {
+        this.interceptor.consumerCreated(
+                cnx, consumer, metadata);
+    }
+
+    @Override
+    public void messageProduced(ServerCnx cnx, Producer producer, long startTimeNs, long ledgerId,
+                                long entryId, Topic.PublishContext publishContext) {
+        this.interceptor.messageProduced(cnx, producer, startTimeNs, ledgerId, entryId, publishContext);
+    }
+
+    @Override
+    public  void messageDispatched(ServerCnx cnx, Consumer consumer, long ledgerId,
+                                   long entryId, ByteBuf headersAndPayload) {
+        this.interceptor.messageDispatched(cnx, consumer, ledgerId, entryId, headersAndPayload);
+    }
+
+    @Override
+    public void messageAcked(ServerCnx cnx, Consumer consumer,
+                             CommandAck ackCmd) {
+        this.interceptor.messageAcked(cnx, consumer, ackCmd);
+    }
+
+    @Override
+    public void onConnectionCreated(ServerCnx cnx) {
+        this.interceptor.onConnectionCreated(cnx);
     }
 
     @Override

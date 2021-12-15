@@ -20,7 +20,6 @@ package org.apache.pulsar.metadata.impl;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import io.netty.util.concurrent.DefaultThreadFactory;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
@@ -29,9 +28,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.zookeeper.AsyncCallback.StatCallback;
 import org.apache.zookeeper.KeeperException;
@@ -40,7 +37,7 @@ import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 
 /**
- * Monitor the ZK session state every few seconds and send notifications
+ * Monitor the ZK session state every few seconds and send notifications.
  */
 @Slf4j
 public class ZKSessionWatcher implements AutoCloseable, Watcher {

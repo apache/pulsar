@@ -47,25 +47,25 @@ public class MetadataStoreConfig {
     private final String configFilePath = null;
 
     /**
-     * Whether we should enable metadata operations batching
+     * Whether we should enable metadata operations batching.
      */
     @Builder.Default
     private final boolean batchingEnabled = true;
 
     /**
-     * Maximum delay to impose on batching grouping
+     * Maximum delay to impose on batching grouping.
      */
     @Builder.Default
     private final int batchingMaxDelayMillis = 5;
 
     /**
-     * Maximum number of operations to include in a singular batch
+     * Maximum number of operations to include in a singular batch.
      */
     @Builder.Default
     private final int batchingMaxOperations = 1_000;
 
     /**
-     * Maximum size of a batch
+     * Maximum size of a batch.
      */
     @Builder.Default
     private final int batchingMaxSizeKb = 128;

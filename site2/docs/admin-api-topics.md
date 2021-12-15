@@ -197,6 +197,8 @@ You can check the following statistics of a given non-partitioned topic.
 
   -   **storageSize**: The sum of the ledgers' storage size for this topic. The space used to store the messages for the topic.
 
+  -   **earliestMsgPublishTimeInBacklogs**: The publish time of the earliest message in the backlog (ms).
+
   -   **bytesInCounter**: Total bytes published to the topic.
 
   -   **msgInCounter**: Total messages published to the topic.
@@ -276,6 +278,8 @@ You can check the following statistics of a given non-partitioned topic.
           -   **chunkedMessageRate**: Chunked message dispatch rate.
 
           -   **backlogSize**: Size of backlog for this subscription (in bytes).
+          
+          -   **earliestMsgPublishTimeInBacklog**: The publish time of the earliest message in the backlog for the subscription (ms).
 
           -   **msgBacklogNoDelayed**: Number of messages in the subscription backlog that do not contain the delay messages.
 
@@ -387,6 +391,7 @@ The following is an example of a topic status.
   "msgChunkPublished" : false,
   "storageSize" : 504,
   "backlogSize" : 0,
+  "earliestMsgPublishTimeInBacklogs": 0,
   "offloadedStorageSize" : 0,
   "publishers" : [ {
     "accessMode" : "Shared",
@@ -412,6 +417,7 @@ The following is an example of a topic status.
       "chunkedMessageRate" : 0,
       "msgBacklog" : 0,
       "backlogSize" : 0,
+      "earliestMsgPublishTimeInBacklog": 0,
       "msgBacklogNoDelayed" : 0,
       "blockedSubscriptionOnUnackedMsgs" : false,
       "msgDelayed" : 0,

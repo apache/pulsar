@@ -402,6 +402,10 @@ public class PersistentTopicsBase extends AdminResource {
     protected void internalUpdatePartitionedTopic(int numPartitions,
                                                   boolean updateLocalTopicOnly, boolean authoritative,
                                                   boolean force) {
+        if (numPartitions <= 0) {
+            throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0");
+        }
+
         validateTopicOwnership(topicName, authoritative);
         validateTopicPolicyOperation(topicName, PolicyName.PARTITION, PolicyOperation.WRITE);
         // Only do the validation if it's the first hop.
@@ -465,9 +469,6 @@ public class PersistentTopicsBase extends AdminResource {
             return;
         }
 
-        if (numPartitions <= 0) {
-            throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0");
-        }
         try {
             tryCreatePartitionsAsync(numPartitions).get(DEFAULT_OPERATION_TIMEOUT_SEC, TimeUnit.SECONDS);
             updatePartitionedTopic(topicName, numPartitions, force).get(DEFAULT_OPERATION_TIMEOUT_SEC,
@@ -2943,8 +2944,8 @@ public class PersistentTopicsBase extends AdminResource {
         return retentionPolicies;
     }
 
-    protected CompletableFuture<RetentionPolicies> internalGetRetention(boolean applied) {
-        return getTopicPoliciesAsyncWithRetry(topicName)
+    protected CompletableFuture<RetentionPolicies> internalGetRetention(boolean applied, boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getRetentionPolicies).orElseGet(() -> {
                 if (applied) {
                     RetentionPolicies policies = getNamespacePolicies(namespaceName).retention_policies;
@@ -2956,11 +2957,11 @@ public class PersistentTopicsBase extends AdminResource {
             }));
     }
 
-    protected CompletableFuture<Void> internalSetRetention(RetentionPolicies retention) {
+    protected CompletableFuture<Void> internalSetRetention(RetentionPolicies retention, boolean isGlobal) {
         if (retention == null) {
             return CompletableFuture.completedFuture(null);
         }
-        return getTopicPoliciesAsyncWithRetry(topicName)
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenCompose(op -> {
                 TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
                 for (BacklogQuota.BacklogQuotaType backlogQuotaType : BacklogQuota.BacklogQuotaType.values()) {
@@ -2980,19 +2981,20 @@ public class PersistentTopicsBase extends AdminResource {
                     }
                 }
                 topicPolicies.setRetentionPolicies(retention);
+                topicPolicies.setIsGlobal(isGlobal);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
             });
     }
 
-    protected CompletableFuture<Void> internalRemoveRetention() {
-        return getTopicPoliciesAsyncWithRetry(topicName)
-            .thenCompose(op -> {
-                if (!op.isPresent()) {
-                    return CompletableFuture.completedFuture(null);
-                }
-                op.get().setRetentionPolicies(null);
-                return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
-            });
+    protected CompletableFuture<Void> internalRemoveRetention(boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+                .thenCompose(op -> {
+                    if (!op.isPresent()) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    op.get().setRetentionPolicies(null);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
+                });
     }
 
     protected CompletableFuture<PersistencePolicies> internalGetPersistence(boolean applied) {

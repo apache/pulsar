@@ -309,6 +309,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         STATE_UPDATER.set(this, State.None);
         this.ledgersStat = null;
         this.mbean = new ManagedLedgerMBeanImpl(this);
+        if (config.getManagedLedgerInterceptor() != null) {
+            this.managedLedgerInterceptor = config.getManagedLedgerInterceptor();
+        }
         this.entryCache = factory.getEntryCacheManager().getEntryCache(this);
         this.waitingCursors = Queues.newConcurrentLinkedQueue();
         this.waitingEntryCallBacks = Queues.newConcurrentLinkedQueue();
@@ -319,9 +322,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.maximumRolloverTimeMs = getMaximumRolloverTimeMs(config);
         this.mlOwnershipChecker = mlOwnershipChecker;
         this.propertiesMap = Maps.newHashMap();
-        if (config.getManagedLedgerInterceptor() != null) {
-            this.managedLedgerInterceptor = config.getManagedLedgerInterceptor();
-        }
     }
 
     synchronized void initialize(final ManagedLedgerInitializeLedgerCallback callback, final Object ctx) {
@@ -2425,7 +2425,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
 
             long totalSizeToDelete = 0;
-            boolean retentionSizeQuotaMet = false;
             // skip ledger if retention constraint met
             for (LedgerInfo ls : ledgers.headMap(slowestReaderLedgerId, false).values()) {
                 // currentLedger can not be deleted

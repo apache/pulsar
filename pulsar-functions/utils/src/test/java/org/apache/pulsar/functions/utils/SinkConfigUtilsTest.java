@@ -364,10 +364,7 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newSinkConfig = createUpdatedSinkConfig("cleanupSubscription", false);
         SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
-        assertEquals(
-                mergedConfig.getCleanupSubscription().booleanValue(),
-                false
-        );
+        assertFalse(mergedConfig.getCleanupSubscription());
         mergedConfig.setCleanupSubscription(sinkConfig.getCleanupSubscription());
         assertEquals(
                 new Gson().toJson(sinkConfig),

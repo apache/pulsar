@@ -1326,7 +1326,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     defaultValue = "latest",
                     allowableValues = "latest, earliest, ledgerId:entryId"
             )
-                    MessageIdImpl messageId,
+                    ResetCursorData resetCursorData,
             @ApiParam(value = "Is replicated required to perform this operation")
             @QueryParam("replicated") boolean replicated
     ) {
@@ -1336,6 +1336,9 @@ public class PersistentTopics extends PersistentTopicsBase {
                 throw new RestException(Response.Status.BAD_REQUEST, "Create subscription on non-persistent topic"
                         + "can only be done through client");
             }
+            MessageIdImpl messageId = resetCursorData == null ? null :
+                    new MessageIdImpl(resetCursorData.getLedgerId(), resetCursorData.getEntryId(),
+                            resetCursorData.getPartitionIndex());
             internalCreateSubscription(asyncResponse, decode(encodedSubName), messageId, authoritative, replicated);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
@@ -1937,12 +1940,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @QueryParam("applied") boolean applied,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalGetRetention(applied))
+            .thenCompose(__ -> internalGetRetention(applied, isGlobal))
             .thenAccept(asyncResponse::resume)
             .exceptionally(ex -> {
                 handleTopicPolicyException("getRetention", ex, asyncResponse);
@@ -1965,10 +1969,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Retention policies for the specified namespace") RetentionPolicies retention) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetRetention(retention))
+            .thenCompose(__ -> internalSetRetention(retention, isGlobal))
             .thenRun(() -> {
                 try {
                     log.info("[{}] Successfully updated retention: namespace={}, topic={}, retention={}",
@@ -2000,10 +2005,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalRemoveRetention())
+            .thenCompose(__ -> internalRemoveRetention(isGlobal))
             .thenRun(() -> {
                 log.info("[{}] Successfully remove retention: namespace={}, topic={}",
                         clientAppId(),

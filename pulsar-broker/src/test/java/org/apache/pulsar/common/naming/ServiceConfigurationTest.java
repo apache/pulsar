@@ -23,12 +23,19 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+
+import java.beans.Introspector;
+import java.beans.PropertyDescriptor;
 import java.io.ByteArrayInputStream;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import lombok.Cleanup;
@@ -209,5 +216,28 @@ public class ServiceConfigurationTest {
         assertEquals(conf.getBookkeeperMetadataStoreUrl(), "xx:other-system");
         assertTrue(conf.isConfigurationStoreSeparated());
         assertTrue(conf.isBookkeeperMetadataStoreSeparated());
+    }
+
+    @Test
+    public void testConfigFileDefaults() throws Exception {
+        try (FileInputStream stream = new FileInputStream("../conf/broker.conf")) {
+            final ServiceConfiguration javaConfig = PulsarConfigurationLoader.create(new Properties(), ServiceConfiguration.class);
+            final ServiceConfiguration fileConfig = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
+            List<String> toSkip = Arrays.asList("properties", "class");
+            int counter = 0;
+            for (PropertyDescriptor pd : Introspector.getBeanInfo(ServiceConfiguration.class).getPropertyDescriptors()) {
+                if (pd.getReadMethod() == null || toSkip.contains(pd.getName())) {
+                    continue;
+                }
+                final String key = pd.getName();
+                final Object javaValue = pd.getReadMethod().invoke(javaConfig);
+                final Object fileValue = pd.getReadMethod().invoke(fileConfig);
+                assertTrue(Objects.equals(javaValue, fileValue), "property '"
+                        + key + "' conf/broker.conf default value doesn't match java default value\nConf: "+ fileValue + "\nJava: " + javaValue);
+                counter++;
+            }
+            assertEquals(counter, 378);
+        }
+
     }
 }

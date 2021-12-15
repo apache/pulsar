@@ -64,7 +64,7 @@ jobs:
           df -h
 
       - name: run install by skip tests
-        run: mvn -q -B -ntp clean install -DskipTests -DskipSourceReleaseAssembly=true -Dspotbugs.skip=true -Dlicense.skip=true
+        run: mvn -q -B -ntp install -Pcore-modules,-main -DskipTests -DskipSourceReleaseAssembly=true -Dspotbugs.skip=true -Dlicense.skip=true
 
       - name: generate swagger json file
         run: mvn -B -ntp -pl pulsar-broker install -DskipTests -Pswagger
