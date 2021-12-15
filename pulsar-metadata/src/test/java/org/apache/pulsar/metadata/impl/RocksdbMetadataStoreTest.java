@@ -112,4 +112,28 @@ public class RocksdbMetadataStoreTest {
         store.close();
         FileUtils.deleteQuietly(tempDir.toFile());
     }
+
+    @Test
+    public void testMultipleInstances() throws Exception {
+
+        Path tempDir = Files.createTempDirectory("RocksdbMetadataStoreTest");
+        log.info("Temp dir:{}", tempDir.toAbsolutePath());
+        MetadataStore store1 = MetadataStoreFactory.create("rocksdb://" + tempDir.toAbsolutePath(),
+                MetadataStoreConfig.builder().build());
+
+        MetadataStore store2 = MetadataStoreFactory.create("rocksdb://" + tempDir.toAbsolutePath(),
+                MetadataStoreConfig.builder().build());
+
+        // We should get the same instance
+        Assert.assertTrue(store1 == store2);
+
+        store1.put("/test", new byte[0], Optional.empty()).join();
+        Assert.assertTrue(store2.exists("/test").join());
+
+        store1.close();
+        store2.put("/test-2", new byte[0], Optional.empty()).join();
+        Assert.assertTrue(store2.exists("/test-2").join());
+
+        FileUtils.deleteQuietly(tempDir.toFile());
+    }
 }
