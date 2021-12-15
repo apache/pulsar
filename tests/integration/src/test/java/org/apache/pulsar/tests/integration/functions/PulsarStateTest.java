@@ -51,6 +51,7 @@ import static org.testng.Assert.fail;
  * State related test cases.
  */
 @Slf4j
+@Test(enabled = false)
 public class PulsarStateTest extends PulsarStandaloneTestSuite {
 
     public static final String WORDCOUNT_PYTHON_CLASS =
@@ -134,7 +135,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         getSourceInfoNotFound(sourceName);
     }
 
-//    @Test(groups = {"java_state", "state", "function", "java_function"})
+    @Test(groups = {"java_state", "state", "function", "java_function"})
     public void testSinkState() throws Exception {
         String inputTopicName = "test-state-sink-input-" + randomName(8);
         String sinkName = "test-state-sink-" + randomName(8);

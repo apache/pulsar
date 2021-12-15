@@ -31,7 +31,6 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Ignore;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
@@ -43,13 +42,13 @@ public class SmokeTest {
 
     private PulsarContainer pulsarContainer;
 
-//    @BeforeClass
+    @BeforeClass
     public void setup(){
         pulsarContainer = new PulsarContainer();
         pulsarContainer.start();
     }
 
-//    @Test
+    @Test
     public void checkClient() throws PulsarClientException {
 
         @Cleanup
@@ -78,7 +77,7 @@ public class SmokeTest {
 
     }
 
-//    @Test
+    @Test
     public void checkAdmin() throws PulsarClientException, PulsarAdminException {
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarContainer.getPulsarAdminUrl()).build();
         List<String> expectedNamespacesList = new ArrayList<>();
@@ -87,7 +86,7 @@ public class SmokeTest {
         Assert.assertEquals(admin.namespaces().getNamespaces("public"), expectedNamespacesList);
     }
 
-//    @AfterClass
+    @AfterClass
     public void cleanup(){
         pulsarContainer.stop();
     }

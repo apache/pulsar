@@ -41,7 +41,7 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
 
     }
 
-    @Test
+//    @Test
     public void testCurrentLedgerRolloverIfFull() throws Exception {
         super.baseSetup();
         final String topicName = "persistent://prop/ns-abc/CurrentLedgerRolloverIfFullTest";
