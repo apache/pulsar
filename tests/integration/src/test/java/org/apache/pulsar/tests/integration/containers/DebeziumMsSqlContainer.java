@@ -19,7 +19,6 @@
 package org.apache.pulsar.tests.integration.containers;
 
 
-import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
 import org.testcontainers.containers.wait.strategy.Wait;
 
 import java.time.Duration;

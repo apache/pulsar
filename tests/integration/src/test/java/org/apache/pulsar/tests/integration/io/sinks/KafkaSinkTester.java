@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.tests.integration.io.sinks;
 
-import static org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase.randomName;
 import static org.apache.pulsar.tests.integration.topologies.PulsarTestBase.randomName;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
