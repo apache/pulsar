@@ -352,24 +352,26 @@ The Apache Software License, Version 2.0
     - org.apache.commons-commons-compress-1.21.jar
     - org.apache.commons-commons-lang3-3.11.jar
  * Netty
-    - io.netty-netty-buffer-4.1.68.Final.jar
-    - io.netty-netty-codec-4.1.68.Final.jar
-    - io.netty-netty-codec-dns-4.1.68.Final.jar
-    - io.netty-netty-codec-http-4.1.68.Final.jar
-    - io.netty-netty-codec-http2-4.1.68.Final.jar
-    - io.netty-netty-codec-socks-4.1.68.Final.jar
-    - io.netty-netty-codec-haproxy-4.1.68.Final.jar
-    - io.netty-netty-common-4.1.68.Final.jar
-    - io.netty-netty-handler-4.1.68.Final.jar
-    - io.netty-netty-handler-proxy-4.1.68.Final.jar
-    - io.netty-netty-resolver-4.1.68.Final.jar
-    - io.netty-netty-resolver-dns-4.1.68.Final.jar
-    - io.netty-netty-transport-4.1.68.Final.jar
-    - io.netty-netty-transport-native-epoll-4.1.68.Final-linux-x86_64.jar
-    - io.netty-netty-transport-native-epoll-4.1.68.Final.jar
-    - io.netty-netty-transport-native-unix-common-4.1.68.Final.jar
-    - io.netty-netty-transport-native-unix-common-4.1.68.Final-linux-x86_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.42.Final.jar
+    - io.netty-netty-buffer-4.1.72.Final.jar
+    - io.netty-netty-codec-4.1.72.Final.jar
+    - io.netty-netty-codec-dns-4.1.72.Final.jar
+    - io.netty-netty-codec-http-4.1.72.Final.jar
+    - io.netty-netty-codec-http2-4.1.72.Final.jar
+    - io.netty-netty-codec-socks-4.1.72.Final.jar
+    - io.netty-netty-codec-haproxy-4.1.72.Final.jar
+    - io.netty-netty-common-4.1.72.Final.jar
+    - io.netty-netty-handler-4.1.72.Final.jar
+    - io.netty-netty-handler-proxy-4.1.72.Final.jar
+    - io.netty-netty-resolver-4.1.72.Final.jar
+    - io.netty-netty-resolver-dns-4.1.72.Final.jar
+    - io.netty-netty-transport-4.1.72.Final.jar
+    - io.netty-netty-transport-classes-epoll-4.1.72.Final.jar
+    - io.netty-netty-transport-native-epoll-4.1.72.Final-linux-x86_64.jar
+    - io.netty-netty-transport-native-epoll-4.1.72.Final.jar
+    - io.netty-netty-transport-native-unix-common-4.1.72.Final.jar
+    - io.netty-netty-transport-native-unix-common-4.1.72.Final-linux-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.46.Final.jar
+    - io.netty-netty-tcnative-classes-2.0.46.Final.jar
  * Prometheus client
     - io.prometheus-simpleclient-0.5.0.jar
     - io.prometheus-simpleclient_common-0.5.0.jar
