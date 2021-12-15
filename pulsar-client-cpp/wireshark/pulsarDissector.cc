@@ -18,7 +18,9 @@
  */
 #include <glib.h>
 #include <config.h>
+#include <epan/expert.h>
 #include <epan/packet.h>
+#include <epan/prefs.h>
 #include <epan/proto.h>
 #include <epan/column-utils.h>
 #include <epan/dissectors/packet-tcp.h>
