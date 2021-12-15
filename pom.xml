@@ -108,8 +108,8 @@ flexible messaging model and an intuitive client API.</description>
     <snappy.version>1.1.7</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>3.2.5</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
-    <netty.version>4.1.68.Final</netty.version>
-    <netty-tc-native.version>2.0.42.Final</netty-tc-native.version>
+    <netty.version>4.1.72.Final</netty.version>
+    <netty-tc-native.version>2.0.46.Final</netty-tc-native.version>
     <jetty.version>9.4.43.v20210629</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.34</jersey.version>
