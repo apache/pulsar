@@ -144,7 +144,7 @@ public class TransactionImpl implements Transaction {
 
     @Override
     public CompletableFuture<Void> commit() {
-        return checkIfOpen().thenCompose((value) -> {
+        return checkIfOpenOrCommitting().thenCompose((value) -> {
             CompletableFuture<Void> commitFuture = new CompletableFuture<>();
             this.state = State.COMMITTING;
             allOpComplete().whenComplete((v, e) -> {
@@ -172,7 +172,7 @@ public class TransactionImpl implements Transaction {
 
     @Override
     public CompletableFuture<Void> abort() {
-        return checkIfOpen().thenCompose(value -> {
+        return checkIfOpenOrAborting().thenCompose(value -> {
             CompletableFuture<Void> abortFuture = new CompletableFuture<>();
             this.state = State.ABORTING;
             allOpComplete().whenComplete((v, e) -> {
@@ -217,11 +217,32 @@ public class TransactionImpl implements Transaction {
         if (state == State.OPEN) {
             return CompletableFuture.completedFuture(null);
         } else {
-            return FutureUtil.failedFuture(new InvalidTxnStatusException("[" + txnIdMostBits + ":"
-                    + txnIdLeastBits + "] with unexpected state : "
-                    + state.name() + ", expect " + State.OPEN + " state!"));
+            return invalidTxnStatusFuture();
         }
     }
+
+    private CompletableFuture<Void> checkIfOpenOrCommitting() {
+        if (state == State.OPEN || state == State.COMMITTING) {
+            return CompletableFuture.completedFuture(null);
+        } else {
+            return invalidTxnStatusFuture();
+        }
+    }
+
+    private CompletableFuture<Void> checkIfOpenOrAborting() {
+        if (state == State.OPEN || state == State.ABORTING) {
+            return CompletableFuture.completedFuture(null);
+        } else {
+            return invalidTxnStatusFuture();
+        }
+    }
+
+    private CompletableFuture<Void> invalidTxnStatusFuture() {
+        return FutureUtil.failedFuture(new InvalidTxnStatusException("[" + txnIdMostBits + ":"
+                + txnIdLeastBits + "] with unexpected state : "
+                + state.name() + ", expect " + State.OPEN + " state!"));
+    }
+
 
     private CompletableFuture<Void> allOpComplete() {
         List<CompletableFuture<?>> futureList = new ArrayList<>();
