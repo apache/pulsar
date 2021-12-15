@@ -41,7 +41,7 @@ public class BacklogQuotaCompatibilityTest {
     private final BacklogQuota.RetentionPolicy testPolicy = BacklogQuota.RetentionPolicy.consumer_backlog_eviction;
 
     @Test
-    public void testV27SetV28Read() throws Exception {
+    public void testV27ClientSetV28BrokerRead() throws Exception {
         Policies writePolicy = new Policies();
         BacklogQuotaImpl writeBacklogQuota = new BacklogQuotaImpl();
         writeBacklogQuota.setLimit(1024);
@@ -59,8 +59,7 @@ public class BacklogQuotaCompatibilityTest {
     }
 
     @Test
-    public void testV28SetV27Read() throws Exception {
-        JSONMetadataSerdeSimpleType<Policies> simpleType = new JSONMetadataSerdeSimpleType<>(typeRef);
+    public void testV28ClientSetV28BrokerRead() throws Exception {
         Policies writePolicy = new Policies();
         BacklogQuotaImpl writeBacklogQuota = new BacklogQuotaImpl();
         writeBacklogQuota.setLimitSize(1024);
@@ -75,6 +74,13 @@ public class BacklogQuotaCompatibilityTest {
         Assert.assertEquals(readBacklogQuota.getLimit(), 1024);
         Assert.assertEquals(readBacklogQuota.getLimitTime(), 60);
         Assert.assertEquals(readBacklogQuota.getPolicy(), testPolicy);
+    }
+
+    @Test
+    public void testV28ClientSetV27BrokerRead() {
+        BacklogQuotaImpl writeBacklogQuota = new BacklogQuotaImpl();
+        writeBacklogQuota.setLimitSize(1024);
+        Assert.assertEquals(1024, writeBacklogQuota.getLimit());
     }
 
     @Test

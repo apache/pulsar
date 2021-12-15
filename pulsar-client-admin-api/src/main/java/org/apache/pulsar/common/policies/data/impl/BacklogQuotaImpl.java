@@ -31,6 +31,8 @@ public class BacklogQuotaImpl implements BacklogQuota {
 
     /**
      * backlog quota by size in byte, remains for compatible.
+     * for the details: https://github.com/apache/pulsar/pull/13291
+     * @since 2.9.1
      */
     @Deprecated
     private Long limit;
@@ -77,6 +79,7 @@ public class BacklogQuotaImpl implements BacklogQuota {
 
     public void setLimitSize(long limitSize) {
         this.limitSize = limitSize;
+        this.limit = limitSize;
     }
 
     public int getLimitTime() {
