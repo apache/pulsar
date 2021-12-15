@@ -57,6 +57,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
+import org.testng.annotations.Ignore;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
@@ -675,6 +676,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      * @throws Exception
      */
     @Test(timeOut = 10000)
+    @Ignore
     public void testBlockBrokerDispatching() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

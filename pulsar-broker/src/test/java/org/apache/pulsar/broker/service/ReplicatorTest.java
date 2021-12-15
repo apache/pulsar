@@ -99,6 +99,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
+import org.testng.annotations.Ignore;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
@@ -811,6 +812,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     }
 
     @Test
+    @Ignore
     public void testReplicatorWithPartitionedTopic() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String persistentTopicName = "persistent://" + namespace + "/partTopic" + UUID.randomUUID();
