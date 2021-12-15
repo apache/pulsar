@@ -17,35 +17,3 @@
  * under the License.
  */
 package org.apache.pulsar.proxy.stats;
-
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import lombok.Getter;
-import org.apache.pulsar.common.stats.Rate;
-
-@Getter
-@JsonIgnoreProperties(value = { "msgInRate", "msgOutRate" })
-public class TopicStats {
-
-    double msgRateIn;
-    double msgByteIn;
-    double msgRateOut;
-    double msgByteOut;
-
-    Rate msgInRate;
-    Rate msgOutRate;
-
-    public TopicStats() {
-        this.msgInRate = new Rate();
-        this.msgOutRate = new Rate();
-    }
-
-    public void calculate() {
-        msgInRate.calculateRate();
-        msgOutRate.calculateRate();
-        msgRateIn = msgInRate.getRate();
-        msgByteIn = msgInRate.getValueRate();
-        msgRateOut = msgOutRate.getRate();
-        msgByteOut = msgOutRate.getValueRate();
-    }
-
-}
