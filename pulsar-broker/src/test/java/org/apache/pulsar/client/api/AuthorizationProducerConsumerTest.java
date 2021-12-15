@@ -295,6 +295,8 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         assertEquals(tenantAdmin.namespaces().getMaxSubscriptionsPerTopic(namespace).intValue(), 20);
         tenantAdmin.namespaces().removeMaxSubscriptionsPerTopic(namespace);
         assertNull(tenantAdmin.namespaces().getMaxSubscriptionsPerTopic(namespace));
+
+        log.info("-- Exiting {} test --", methodName);
     }
 
     @Test

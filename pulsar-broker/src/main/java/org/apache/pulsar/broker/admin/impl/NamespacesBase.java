@@ -1341,7 +1341,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalRemoveReplicatorDispatchRate() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.WRITE);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.WRITE);
         try {
             updatePolicies(namespaceName, policies -> {
                 policies.replicatorDispatchRate.remove(pulsar().getConfiguration().getClusterName());
@@ -1357,7 +1357,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetReplicatorDispatchRate(DispatchRateImpl dispatchRate) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.WRITE);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.WRITE);
         log.info("[{}] Set namespace replicator dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
         try {
             updatePolicies(namespaceName, policies -> {
