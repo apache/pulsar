@@ -91,8 +91,8 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testTxnPerf() throws Exception {
         String argString = "--topics-c %s --topics-p %s -threads 1 -ntxn 50 -u %s -ss %s -np 1 -au %s";
-        String testConsumeTopic = testTopic + UUID.randomUUID().toString();
-        String testProduceTopic = testTopic + UUID.randomUUID().toString();
+        String testConsumeTopic = testTopic + UUID.randomUUID();
+        String testProduceTopic = testTopic + UUID.randomUUID();
         String testSub = "testSub";
         admin.topics().createPartitionedTopic(testConsumeTopic, 1);
         String args = String.format(argString, testConsumeTopic, testProduceTopic,
@@ -119,9 +119,8 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
         CountDownLatch countDownLatch = new CountDownLatch(50);
         for (int i = 0; i < 50
                 ; i++) {
-            produceToConsumeTopic.newMessage().value(("testConsume " + i).getBytes()).sendAsync().thenRun(() -> {
-                countDownLatch.countDown();
-            });
+            produceToConsumeTopic.newMessage().value(("testConsume " + i).getBytes()).sendAsync().thenRun(
+                    countDownLatch::countDown);
         }
 
         countDownLatch.await();
@@ -149,11 +148,11 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
         for (int i = 0; i < 50; i++) {
-            Message message = consumeFromProduceTopic.receive(2, TimeUnit.SECONDS);
+            Message<byte[]> message = consumeFromProduceTopic.receive(2, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
             consumeFromProduceTopic.acknowledge(message);
         }
-        Message message = consumeFromConsumeTopic.receive(2, TimeUnit.SECONDS);
+        Message<byte[]> message = consumeFromConsumeTopic.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(message);
         message = consumeFromProduceTopic.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(message);
@@ -187,16 +186,16 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
                 .enableBatchIndexAcknowledgment(false)
                 .subscribe();
         for (int i = 0; i < totalMessage; i++) {
-           Message message = consumer.receive(2, TimeUnit.SECONDS);
+           Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
            Assert.assertNotNull(message);
            consumer.acknowledge(message);
         }
-        Message message = consumer.receive(2, TimeUnit.SECONDS);
+        Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(message);
     }
 
     @Test
-    public void testConsumeTxnMessage() throws InterruptedException, PulsarClientException, ExecutionException {
+    public void testConsumeTxnMessage() throws InterruptedException, PulsarClientException {
         String argString = "%s -r 10 -u %s -txn -ss %s -st %s -sp %s -ntxn %d";
         String subName = "sub";
         String topic = testTopic + UUID.randomUUID();
@@ -230,10 +229,10 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
                 .enableBatchIndexAcknowledgment(false)
                .subscribe();
         for (int i = 0; i < 5; i++) {
-            Message message = consumer.receive(2, TimeUnit.SECONDS);
+            Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
         }
-        Message message = consumer.receive(2, TimeUnit.SECONDS);
+        Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(message);
     }
 

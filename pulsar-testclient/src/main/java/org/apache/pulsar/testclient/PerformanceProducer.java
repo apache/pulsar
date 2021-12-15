@@ -73,7 +73,6 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_BATCHING_MAX_MESSAGES;
-import static org.apache.pulsar.testclient.utils.PerformanceUtils.buildTransaction;
 
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -421,7 +420,7 @@ public class PerformanceProducer {
                 clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
             }
 
-            try (PulsarAdmin client = clientBuilder.build();) {
+            try (PulsarAdmin client = clientBuilder.build()) {
                 for (String topic : arguments.topics) {
                     log.info("Creating partitioned topic {} with {} partitions", topic, arguments.partitions);
                     try {
@@ -658,8 +657,8 @@ public class PerformanceProducer {
             }
             // Send messages on all topics/producers
             long totalSent = 0;
-            AtomicReference<Transaction> transactionAtomicReference = buildTransaction(client,
-                    arguments.isEnableTransaction, arguments.transactionTimeout);
+            AtomicReference<Transaction> transactionAtomicReference = new AtomicReference<>(client.newTransaction()
+                    .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS).build().get());
             AtomicLong numMessageSend = new AtomicLong(0);
             Semaphore numMsgPerTxnLimit = new Semaphore(arguments.numMessagesPerTransaction);
             while (true) {
