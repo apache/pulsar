@@ -50,7 +50,7 @@ public class MetadataStoreFactoryImpl {
             return new LocalMemoryMetadataStore(metadataURL, metadataStoreConfig);
         }
         if (metadataURL.startsWith("rocksdb://")) {
-            return new RocksdbMetadataStore(metadataURL, metadataStoreConfig);
+            return RocksdbMetadataStore.get(metadataURL, metadataStoreConfig);
         } else {
             return new ZKMetadataStore(metadataURL, metadataStoreConfig, enableSessionWatcher);
         }
