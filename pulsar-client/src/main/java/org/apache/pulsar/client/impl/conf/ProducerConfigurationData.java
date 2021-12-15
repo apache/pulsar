@@ -53,7 +53,7 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
 
     public static final int DEFAULT_BATCHING_MAX_MESSAGES = 1000;
-    public static final int DEFAULT_MAX_PENDING_MESSAGES = 1000;
+    public static final int DEFAULT_MAX_PENDING_MESSAGES = 0;
     public static final int DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS = 50000;
 
     private String topicName = null;

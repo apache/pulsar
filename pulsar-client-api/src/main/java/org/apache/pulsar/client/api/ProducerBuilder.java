@@ -172,7 +172,7 @@ public interface ProducerBuilder<T> extends Cloneable {
      * the client application. Until, the producer gets a successful acknowledgment back from the broker,
      * it will keep in memory (direct memory pool) all the messages in the pending queue.
      *
-     * <p>Default is 1000.
+     * <p>Default is 0, disable the pending messages check.
      *
      * @param maxPendingMessages
      *            the max size of the pending messages queue for the producer
