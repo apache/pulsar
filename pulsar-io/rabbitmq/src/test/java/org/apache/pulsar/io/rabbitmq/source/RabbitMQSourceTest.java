@@ -42,7 +42,7 @@ public class RabbitMQSourceTest {
         rabbitMQBrokerManager.stopBroker();
     }
 
-    @Test
+//    @Test
     public void TestOpenAndWriteSink() throws Exception {
         Map<String, Object> configs = new HashMap<>();
         configs.put("host", "localhost");

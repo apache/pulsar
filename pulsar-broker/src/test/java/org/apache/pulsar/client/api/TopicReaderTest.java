@@ -733,7 +733,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         reader4.close();
     }
 
-    @Test
+//    @Test
     public void testSimpleReaderReachEndOfTopic() throws Exception {
         Reader<byte[]> reader = pulsarClient.newReader().topic("persistent://my-property/my-ns/testSimpleReaderReachEndOfTopic")
                 .startMessageId(MessageId.earliest).create();
