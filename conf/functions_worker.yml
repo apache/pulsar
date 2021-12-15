@@ -126,6 +126,10 @@ functionRuntimeFactoryConfigs:
     # change the extra dependencies location:
     extraFunctionDependenciesDir:
 
+#### Additional JVM tuning (only process and Kubernetes runtime) ####
+#   This arguments will be added to the command line execution of 'java'
+#additionalJavaRuntimeArguments: ['-XX:+ExitOnOutOfMemoryError']
+
 #### Thread Runtime ####
 # Pulsar function instances are run as threads
 

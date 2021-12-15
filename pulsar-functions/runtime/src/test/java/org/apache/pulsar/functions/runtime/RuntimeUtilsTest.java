@@ -20,6 +20,8 @@ package org.apache.pulsar.functions.runtime;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.jose4j.json.internal.json_simple.JSONObject;
@@ -28,9 +30,13 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
+import static org.testng.AssertJUnit.assertTrue;
+
+@Slf4j
 public class RuntimeUtilsTest {
 
     @Test
@@ -166,5 +172,51 @@ public class RuntimeUtilsTest {
                         false
                 }
         };
+    }
+
+    @Test(dataProvider = "k8sRuntime")
+    public void getAdditionalJavaRuntimeArguments(boolean k8sRuntime) throws Exception {
+
+        InstanceConfig instanceConfig = new InstanceConfig();
+        instanceConfig.setClusterName("kluster");
+        instanceConfig.setInstanceId(3000);
+        instanceConfig.setFunctionId("func-7734");
+        instanceConfig.setFunctionVersion("1.0.0");
+        instanceConfig.setMaxBufferedTuples(5);
+        instanceConfig.setPort(1337);
+        instanceConfig.setFunctionDetails(Function.FunctionDetails.newBuilder().build());
+        instanceConfig.setAdditionalJavaRuntimeArguments(Arrays.asList("-XX:+ExitOnOutOfMemoryError"));
+
+        List<String> cmd = RuntimeUtils.getCmd(instanceConfig, "instanceFile",
+                "extraDependenciesDir", /* extra dependencies for running instances */
+                "logDirectory",
+                "originalCodeFileName",
+                "pulsarServiceUrl",
+                "stateStorageServiceUrl",
+                AuthenticationConfig.builder().build(),
+                "shardId",
+                23,
+                1234L,
+                "logConfigFile",
+                "secretsProviderClassName",
+                "secretsProviderConfig",
+                false,
+                null,
+                null,
+                "narExtractionDirectory",
+                "functionInstanceClassPath",
+                false,
+                "");
+
+        log.info("cmd {}", cmd);
+
+        assertTrue(cmd.contains("-XX:+ExitOnOutOfMemoryError"));
+
+        // verify that the additional runtime arguments are passed before the Java class
+        int indexJavaClass = cmd.indexOf("org.apache.pulsar.functions.instance.JavaInstanceMain");
+        int indexAdditionalArguments = cmd.indexOf("-XX:+ExitOnOutOfMemoryError");
+        assertTrue(indexJavaClass > 0);
+        assertTrue(indexAdditionalArguments > 0);
+        assertTrue(indexAdditionalArguments < indexJavaClass);
     }
 }

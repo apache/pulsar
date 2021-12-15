@@ -189,6 +189,9 @@ public class FunctionActioner {
         instanceConfig.setFunctionAuthenticationSpec(functionAuthSpec);
         instanceConfig.setMaxPendingAsyncRequests(workerConfig.getMaxPendingAsyncRequests());
         instanceConfig.setExposePulsarAdminClientEnabled(workerConfig.isExposeAdminClientEnabled());
+        if (workerConfig.getAdditionalJavaRuntimeArguments() != null) {
+            instanceConfig.setAdditionalJavaRuntimeArguments(workerConfig.getAdditionalJavaRuntimeArguments());
+        }
         return instanceConfig;
     }
 
