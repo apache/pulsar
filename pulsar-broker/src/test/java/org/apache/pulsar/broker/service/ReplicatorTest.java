@@ -811,8 +811,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         reader2.closeAsync().get();
     }
 
-    @Test
-    @Ignore
+//    @Test
     public void testReplicatorWithPartitionedTopic() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String persistentTopicName = "persistent://" + namespace + "/partTopic" + UUID.randomUUID();

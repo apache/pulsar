@@ -40,7 +40,6 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
-import org.testng.annotations.Ignore;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
@@ -82,8 +81,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
      * @param protocol
      * @throws Exception
      */
-    @Test(dataProvider = "lookupType", timeOut = 10000)
-    @Ignore
+//    @Test(dataProvider = "lookupType", timeOut = 10000)
     public void testPeerClusterTopicLookup(String protocol) throws Exception {
 
      // clean up peer-clusters

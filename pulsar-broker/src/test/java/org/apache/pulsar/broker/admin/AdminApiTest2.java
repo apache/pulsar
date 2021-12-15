@@ -1557,8 +1557,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(topic);
     }
 
-    @Test(timeOut = 30000)
-    @Ignore
+//    @Test(timeOut = 30000)
     public void testMaxSubPerTopicApi() throws Exception {
         final String myNamespace = "prop-xyz/ns" + UUID.randomUUID();
         admin.namespaces().createNamespace(myNamespace, Sets.newHashSet("test"));

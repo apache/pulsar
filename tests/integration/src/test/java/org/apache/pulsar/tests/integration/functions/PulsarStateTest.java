@@ -38,7 +38,6 @@ import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
 import org.apache.pulsar.tests.integration.suites.PulsarStandaloneTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.testng.annotations.Ignore;
 import org.testng.annotations.Test;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -135,8 +134,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         getSourceInfoNotFound(sourceName);
     }
 
-    @Test(groups = {"java_state", "state", "function", "java_function"})
-    @Ignore
+//    @Test(groups = {"java_state", "state", "function", "java_function"})
     public void testSinkState() throws Exception {
         String inputTopicName = "test-state-sink-input-" + randomName(8);
         String sinkName = "test-state-sink-" + randomName(8);

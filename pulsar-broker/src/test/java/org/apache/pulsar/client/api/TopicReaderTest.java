@@ -932,8 +932,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
-    @Ignore
+//    @Test
     public void testMessageAvailableAfterRestart() throws Exception {
         String topic = "persistent://my-property/use/my-ns/testMessageAvailableAfterRestart";
         String content = "my-message-1";
@@ -969,8 +968,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     }
 
-    @Test
-    @Ignore
+//    @Test
     public void testMultiReaderMessageAvailableAfterRestart() throws Exception {
         String topic = "persistent://my-property/use/my-ns/" + UUID.randomUUID().toString();
         String content = "my-message-1";

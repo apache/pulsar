@@ -53,7 +53,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Ignore;
 import org.testng.annotations.Test;
 
 /**
@@ -183,8 +182,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         }
     }
 
-    @Test
-    @Ignore
+//    @Test
     public void testSeekForBatchMessageAndSpecifiedBatchIndex() throws Exception {
         final String topicName = "persistent://prop/use/ns-abcd/testSeekForBatch";
         String subscriptionName = "my-subscription-batch";

@@ -83,8 +83,7 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
         return result != null && !result.schema.isDeleted();
     }
 
-    @Test
-    @Ignore
+//    @Test
     public void testGCWillDeleteSchema() throws Exception {
         // 1. Simple successful GC
         String topicName = "non-persistent://prop/ns-abc/topic-1";

@@ -404,8 +404,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
-    @Ignore
+//    @Test
     public void properties() throws Exception {
         assertEquals(properties.getTenants(), Lists.newArrayList());
         verify(properties, times(1)).validateSuperUserAccess();

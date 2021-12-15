@@ -38,18 +38,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-@Ignore
+@Test(enabled=false)
 public class SmokeTest {
 
     private PulsarContainer pulsarContainer;
 
-    @BeforeClass
+//    @BeforeClass
     public void setup(){
         pulsarContainer = new PulsarContainer();
         pulsarContainer.start();
     }
 
-    @Test
+//    @Test
     public void checkClient() throws PulsarClientException {
 
         @Cleanup
@@ -78,7 +78,7 @@ public class SmokeTest {
 
     }
 
-    @Test
+//    @Test
     public void checkAdmin() throws PulsarClientException, PulsarAdminException {
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarContainer.getPulsarAdminUrl()).build();
         List<String> expectedNamespacesList = new ArrayList<>();
@@ -87,7 +87,7 @@ public class SmokeTest {
         Assert.assertEquals(admin.namespaces().getNamespaces("public"), expectedNamespacesList);
     }
 
-    @AfterClass
+//    @AfterClass
     public void cleanup(){
         pulsarContainer.stop();
     }

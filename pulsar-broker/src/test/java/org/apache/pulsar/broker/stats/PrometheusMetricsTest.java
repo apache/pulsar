@@ -71,7 +71,6 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Ignore;
 import org.testng.annotations.Test;
 
 import com.google.common.base.MoreObjects;
@@ -724,8 +723,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         p2.close();
     }
 
-    @Test
-    @Ignore
+//    @Test
     public void testAuthMetrics() throws IOException, AuthenticationException {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
