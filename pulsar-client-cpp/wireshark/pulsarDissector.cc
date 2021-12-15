@@ -515,10 +515,10 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
         }
         case BaseCommand::SEND: {
             const CommandSend& send = command.send();
-            RequestData& request_data = state->producers[send.producer_id()].messages[send.sequence_id()];
-            request_data.requestFrame = pinfo->fd->num;
-            request_data.requestTimestamp.secs = pinfo->fd->abs_ts.secs;
-            request_data.requestTimestamp.nsecs = pinfo->fd->abs_ts.nsecs;
+            RequestData& reqData = state->producers[send.producer_id()].messages[send.sequence_id()];
+            reqData.requestFrame = pinfo->fd->num;
+            reqData.requestTimestamp.secs = pinfo->fd->abs_ts.secs;
+            reqData.requestTimestamp.nsecs = pinfo->fd->abs_ts.nsecs;
 
             ProducerData& producerData = state->producers[send.producer_id()];
 
@@ -543,17 +543,17 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
                 PROTO_ITEM_SET_GENERATED(item);
 
                 // Pair with frame information
-                link_to_response_frame(cmd_tree, tvb, cmdOffset, cmdSize, request_data);
+                link_to_response_frame(cmd_tree, tvb, cmdOffset, cmdSize, reqData);
             }
             break;
         }
         case BaseCommand::SEND_RECEIPT: {
             const CommandSendReceipt& send_receipt = command.send_receipt();
-            RequestData & request_data = state->producers[send_receipt.producer_id()].messages[send_receipt
+            RequestData & reqData = state->producers[send_receipt.producer_id()].messages[send_receipt
                     .sequence_id()];
-            request_data.ackFrame = pinfo->fd->num;
-            request_data.ackTimestamp.secs = pinfo->fd->abs_ts.secs;
-            request_data.ackTimestamp.nsecs = pinfo->fd->abs_ts.nsecs;
+            reqData.ackFrame = pinfo->fd->num;
+            reqData.ackTimestamp.secs = pinfo->fd->abs_ts.secs;
+            reqData.ackTimestamp.nsecs = pinfo->fd->abs_ts.nsecs;
 
             ProducerData& producerData = state->producers[send_receipt.producer_id()];
             col_append_fstr(pinfo->cinfo, COL_INFO, " / %s / %" G_GINT64_MODIFIER "u",
@@ -579,7 +579,7 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
                                              producerData.topic.c_str());
                 PROTO_ITEM_SET_GENERATED(item);
 
-                link_to_request_frame(cmd_tree, tvb, cmdOffset, cmdSize, request_data);
+                link_to_request_frame(cmd_tree, tvb, cmdOffset, cmdSize, reqData);
             }
             break;
         }
@@ -624,11 +624,11 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
         case BaseCommand::MESSAGE: {
             const CommandMessage& message = command.message();
             state->consumers[message.consumer_id()].messages[message.message_id()];
-            RequestData& request_data =
+            RequestData& reqData =
                     state->consumers[message.consumer_id()].messages[message.message_id()];
-            request_data.requestFrame = pinfo->fd->num;
-            request_data.requestTimestamp.secs = pinfo->fd->abs_ts.secs;
-            request_data.requestTimestamp.nsecs = pinfo->fd->abs_ts.nsecs;
+            reqData.requestFrame = pinfo->fd->num;
+            reqData.requestTimestamp.secs = pinfo->fd->abs_ts.secs;
+            reqData.requestTimestamp.nsecs = pinfo->fd->abs_ts.nsecs;
 
             const ConsumerData& consumerData = state->consumers[message.consumer_id()];
 
@@ -651,16 +651,16 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
                 PROTO_ITEM_SET_GENERATED(item);
 
                 // Pair with frame information
-                link_to_response_frame(cmd_tree, tvb, cmdOffset, cmdSize, request_data);
+                link_to_response_frame(cmd_tree, tvb, cmdOffset, cmdSize, reqData);
             }
             break;
         }
         case BaseCommand::ACK: {
             const CommandAck& ack = command.ack();
-            RequestData& request_data = state->consumers[ack.consumer_id()].messages[ack.message_id().Get(0)];
-            request_data.ackFrame = pinfo->fd->num;
-            request_data.ackTimestamp.secs = pinfo->fd->abs_ts.secs;
-            request_data.ackTimestamp.nsecs = pinfo->fd->abs_ts.nsecs;
+            RequestData& reqData = state->consumers[ack.consumer_id()].messages[ack.message_id().Get(0)];
+            reqData.ackFrame = pinfo->fd->num;
+            reqData.ackTimestamp.secs = pinfo->fd->abs_ts.secs;
+            reqData.ackTimestamp.nsecs = pinfo->fd->abs_ts.nsecs;
 
             const ConsumerData& consumerData = state->consumers[ack.consumer_id()];
 
@@ -683,7 +683,7 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
                 PROTO_ITEM_SET_GENERATED(item);
 
                 // Pair with frame information
-                link_to_request_frame(cmd_tree, tvb, cmdOffset, cmdSize, request_data);
+                link_to_request_frame(cmd_tree, tvb, cmdOffset, cmdSize, reqData);
             }
             break;
         }
