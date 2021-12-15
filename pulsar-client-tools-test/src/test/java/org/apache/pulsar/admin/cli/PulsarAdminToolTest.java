@@ -59,6 +59,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ResourceQuotas;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.admin.Tenants;
+import org.apache.pulsar.client.admin.TopicPolicies;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.admin.internal.OffloadProcessStatusImpl;
@@ -876,6 +877,40 @@ public class PulsarAdminToolTest {
     }
 
     @Test
+    public void topicPolicies() throws Exception {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        TopicPolicies mockTopicsPolicies = mock(TopicPolicies.class);
+        TopicPolicies mockGlobalTopicsPolicies = mock(TopicPolicies.class);
+        when(admin.topicPolicies()).thenReturn(mockTopicsPolicies);
+        when(admin.topicPolicies(false)).thenReturn(mockTopicsPolicies);
+        when(admin.topicPolicies(true)).thenReturn(mockGlobalTopicsPolicies);
+        Schemas mockSchemas = mock(Schemas.class);
+        when(admin.schemas()).thenReturn(mockSchemas);
+        Lookup mockLookup = mock(Lookup.class);
+        when(admin.lookups()).thenReturn(mockLookup);
+
+        CmdTopicPolicies cmdTopics = new CmdTopicPolicies(() -> admin);
+
+        cmdTopics.run(split("get-retention persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopicsPolicies).getRetention("persistent://myprop/clust/ns1/ds1", false);
+        cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 10m -s 20M"));
+        verify(mockTopicsPolicies).setRetention("persistent://myprop/clust/ns1/ds1",
+                new RetentionPolicies(10, 20));
+        cmdTopics.run(split("remove-retention persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopicsPolicies).removeRetention("persistent://myprop/clust/ns1/ds1");
+
+        // Reset the cmd, and check global option
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        cmdTopics.run(split("get-retention persistent://myprop/clust/ns1/ds1 -g"));
+        verify(mockGlobalTopicsPolicies).getRetention("persistent://myprop/clust/ns1/ds1", false);
+        cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 10m -s 20M -g"));
+        verify(mockGlobalTopicsPolicies).setRetention("persistent://myprop/clust/ns1/ds1",
+                new RetentionPolicies(10, 20));
+        cmdTopics.run(split("remove-retention persistent://myprop/clust/ns1/ds1 -g"));
+        verify(mockGlobalTopicsPolicies).removeRetention("persistent://myprop/clust/ns1/ds1");
+    }
+
+    @Test
     public void topics() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Topics mockTopics = mock(Topics.class);
@@ -1166,18 +1201,10 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("get-message-by-id persistent://myprop/clust/ns1/ds1 -l 10 -e 2"));
         verify(mockTopics).getMessageById("persistent://myprop/clust/ns1/ds1", 10,2);
 
-        cmdTopics.run(split("get-retention persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getRetention("persistent://myprop/clust/ns1/ds1", false);
-        cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 10m -s 20M"));
-        verify(mockTopics).setRetention("persistent://myprop/clust/ns1/ds1",
-                new RetentionPolicies(10, 20));
-        cmdTopics.run(split("remove-retention persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).removeRetention("persistent://myprop/clust/ns1/ds1");
-
         cmdTopics.run(split("get-dispatch-rate persistent://myprop/clust/ns1/ds1 -ap"));
         verify(mockTopics).getDispatchRate("persistent://myprop/clust/ns1/ds1", true);
         cmdTopics.run(split("remove-dispatch-rate persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).removeRetention("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics).removeDispatchRate("persistent://myprop/clust/ns1/ds1");
         cmdTopics.run(split("set-dispatch-rate persistent://myprop/clust/ns1/ds1 -md -1 -bd -1 -dt 2"));
         verify(mockTopics).setDispatchRate("persistent://myprop/clust/ns1/ds1", DispatchRate.builder()
                 .dispatchThrottlingRateInMsg(-1)
