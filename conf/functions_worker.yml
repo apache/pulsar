@@ -43,7 +43,7 @@ downloadDirectory: download/pulsar_functions
 # jvmGCMetricsLoggerClassName:
 
 #################################################################
-# Function metadata managment (assignment, scheduling, and etc)
+# Function metadata management (assignment, scheduling, and etc)
 #################################################################
 
 # Configure the pulsar client used by function metadata management
@@ -57,6 +57,7 @@ pulsarServiceUrl: pulsar://localhost:6650
 # For TLS:
 # webServiceUrl=https://localhost:8443/
 pulsarWebServiceUrl: http://localhost:8080
+functionWebServiceUrl: http://localhost:8080
 
 ############################################
 # security settings for pulsar broker client
@@ -74,7 +75,7 @@ pulsarWebServiceUrl: http://localhost:8080
 #
 # Authentication plugin to use when connecting to bookies
 # bookkeeperClientAuthenticationPlugin:
-# BookKeeper auth plugin implementatation specifics parameters name and values
+# BookKeeper auth plugin implementation specifics parameters name and values
 # bookkeeperClientAuthenticationParametersName:
 # Parameters for bookkeeper auth plugin
 # bookkeeperClientAuthenticationParameters:
@@ -322,7 +323,7 @@ tlsCertRefreshCheckDurationSec: 300
 connectorsDirectory: ./connectors
 functionsDirectory: ./functions
 
-# Should connector config be validated during during submission
+# Should connector config be validated during submission
 validateConnectorConfig: false
 
 # Whether to initialize distributed log metadata by runtime.
