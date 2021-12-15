@@ -313,8 +313,14 @@ public class PerformanceTransaction {
                     try {
                         producers = buildProducers(client, arguments);
                         consumers = buildConsumer(client, arguments);
-                        atomicReference = new AtomicReference<>(client.newTransaction()
-                                .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS).build().get());
+                        if (!arguments.isDisableTransaction) {
+                            atomicReference = new AtomicReference<>(client.newTransaction()
+                                    .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS)
+                                    .build()
+                                    .get());
+                        } else {
+                            atomicReference = new AtomicReference<>(null);
+                        }
                     } catch (Exception e) {
                         log.error("Failed to build Producer/Consumer with exception : ", e);
                         executorService.shutdownNow();

@@ -590,8 +590,15 @@ public class PerformanceProducer {
                     // enable round robin message routing if it is a partitioned topic
                     .messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
 
+            AtomicReference<Transaction> transactionAtomicReference;
             if (arguments.isEnableTransaction) {
                 producerBuilder.sendTimeout(0, TimeUnit.SECONDS);
+                transactionAtomicReference = new AtomicReference<>(client.newTransaction()
+                        .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS)
+                        .build()
+                        .get());
+            } else {
+                transactionAtomicReference = new AtomicReference<>(null);
             }
             if (arguments.producerName != null) {
                 String producerName = String.format("%s%s%d", arguments.producerName, arguments.separator, producerId);
@@ -657,8 +664,6 @@ public class PerformanceProducer {
             }
             // Send messages on all topics/producers
             long totalSent = 0;
-            AtomicReference<Transaction> transactionAtomicReference = new AtomicReference<>(client.newTransaction()
-                    .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS).build().get());
             AtomicLong numMessageSend = new AtomicLong(0);
             Semaphore numMsgPerTxnLimit = new Semaphore(arguments.numMessagesPerTransaction);
             while (true) {

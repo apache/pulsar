@@ -361,8 +361,13 @@ public class PerformanceConsumer {
         }
         PulsarClient pulsarClient = clientBuilder.build();
 
-        AtomicReference<Transaction> atomicReference = new AtomicReference<>(pulsarClient.newTransaction()
-                .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS).build().get());
+        AtomicReference<Transaction> atomicReference;
+        if (arguments.isEnableTransaction) {
+            atomicReference = new AtomicReference<>(pulsarClient.newTransaction()
+                    .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS).build().get());
+        } else {
+            atomicReference = new AtomicReference<>(null);
+        }
 
         AtomicLong messageAckedCount = new AtomicLong();
         Semaphore messageReceiveLimiter = new Semaphore(arguments.numMessagesPerTransaction);
