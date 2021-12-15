@@ -1072,10 +1072,10 @@ void proto_register_pulsar() {
     // register the new protocol, protocol fields, and subtrees
     static dissector_handle_t pulsar_handle;
 
-    proto_pulsar = proto_register_protocol("Pulsar Wire Protocol", /* name        */
-                                           "Apache Pulsar",   /* short name  */
-                                           "apache.pulsar"    /* filter name */
-                                           );
+    proto_pulsar = proto_register_protocol("Pulsar Wire Protocol", /* name       */
+                                        "Apache Pulsar", /* short name */
+                                        "apache.pulsar" /* abbrev     */
+                                        );
 
     /* Setup protocol subtree array */
     static int *ett[] = { &ett_pulsar };
