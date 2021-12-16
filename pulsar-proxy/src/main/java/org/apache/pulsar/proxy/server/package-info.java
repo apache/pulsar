@@ -16,11 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.policies.data;
-
-import com.fasterxml.jackson.annotation.JsonAlias;
-
-public abstract class BacklogQuotaMixIn {
-    @JsonAlias("limit")
-    private long limitSize;
-}
+package org.apache.pulsar.proxy.server;

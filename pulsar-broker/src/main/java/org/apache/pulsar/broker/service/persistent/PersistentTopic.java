@@ -1426,10 +1426,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @VisibleForTesting
     public CompletableFuture<List<String>> getReplicationClusters(TopicName topicName) {
-        return brokerService.pulsar()
-                .getTopicPoliciesService()
-                .getTopicPoliciesAsyncWithRetry(topicName, null, brokerService.pulsar().getExecutor())
-                .thenCompose(topicPolicies -> {
+        CompletableFuture<Optional<TopicPolicies>> future = new CompletableFuture<>();
+        if (isSystemTopic()) {
+            //Topic Policies System Topic have to skip the topic policy.
+            future.complete(Optional.empty());
+        } else {
+            future = brokerService.pulsar().getTopicPoliciesService()
+                    .getTopicPoliciesAsyncWithRetry(topicName, null, brokerService.pulsar().getExecutor(), false);
+        }
+        return future.thenCompose(topicPolicies -> {
                     if (!topicPolicies.isPresent() || topicPolicies.get().getReplicationClusters() == null) {
                         return brokerService.pulsar().getPulsarResources()
                                 .getNamespaceResources()

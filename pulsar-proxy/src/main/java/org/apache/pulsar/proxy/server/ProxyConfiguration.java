@@ -26,10 +26,9 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.stream.Collectors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
+import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
@@ -149,7 +148,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private String advertisedAddress;
 
-    @FieldContext(category=CATEGORY_SERVER,
+    @FieldContext(category = CATEGORY_SERVER,
             doc = "Enable or disable the proxy protocol.")
     private boolean haProxyProtocolEnabled;
 
@@ -300,7 +299,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private String anonymousUserRole = null;
 
-    /***** --- TLS --- ****/
+    // TLS
 
     @Deprecated
     private boolean tlsEnabledInProxy = false;
@@ -361,7 +360,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private boolean tlsRequireTrustedClientCertOnConnect = false;
 
-    /**** --- KeyStore TLS config variables --- ****/
+    // KeyStore TLS config variables
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
@@ -411,7 +410,9 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private String tlsTrustStorePassword = null;
 
-    /**** --- KeyStore TLS config variables used for proxy to auth with broker--- ****/
+    /**
+     * KeyStore TLS config variables used for proxy to auth with broker.
+     */
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
             doc = "Whether the Pulsar proxy use KeyStore type to authenticate with Pulsar brokers"
@@ -459,7 +460,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private Set<String> brokerClientTlsProtocols = new TreeSet<>();
 
-    /***** --- HTTP --- ****/
+    // HTTP
 
     @FieldContext(
         category = CATEGORY_HTTP,
@@ -478,7 +479,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
             + "proxy, this should be set to the minimum value, 1, so that clients "
             + "see the data as soon as possible."
     )
-    private int httpOutputBufferSize = 32*1024;
+    private int httpOutputBufferSize = 32 * 1024;
 
     @FieldContext(
             minValue = 1,
@@ -532,15 +533,16 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private Set<String> additionalServlets = new TreeSet<>();
 
     @FieldContext(
-            category =  CATEGORY_HTTP,
+            category = CATEGORY_HTTP,
             doc = "Enable the enforcement of limits on the incoming HTTP requests"
-        )
+    )
     private boolean httpRequestsLimitEnabled = false;
 
     @FieldContext(
-            category =  CATEGORY_HTTP,
-            doc = "Max HTTP requests per seconds allowed. The excess of requests will be rejected with HTTP code 429 (Too many requests)"
-        )
+            category = CATEGORY_HTTP,
+            doc = "Max HTTP requests per seconds allowed."
+                    + " The excess of requests will be rejected with HTTP code 429 (Too many requests)"
+    )
     private double httpRequestsMaxPerSecond = 100.0;
 
     @PropertiesContext(
@@ -587,7 +589,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private boolean useSeparateThreadPoolForProxyExtensions = true;
 
-    /***** --- WebSocket --- ****/
+    /***** --- WebSocket. --- ****/
     @FieldContext(
             category = CATEGORY_WEBSOCKET,
             doc = "Enable or disable the WebSocket servlet"
