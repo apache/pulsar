@@ -47,13 +47,13 @@ public class KafkaSinkConfig implements Serializable {
     @FieldDoc(
             required = false,
             defaultValue = "",
-            help = "Protocol used to communicate with kafka brokers.")
+            help = "Protocol used to communicate with Kafka brokers.")
     private String securityProtocol;
 
     @FieldDoc(
             required = false,
             defaultValue = "",
-            help = "SASL mechanism used for kafka client connections.")
+            help = "SASL mechanism used for Kafka client connections.")
     private String saslMechanism;
 
     @FieldDoc(

@@ -700,7 +700,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "Reducing to lower value can give more accuracy while throttling publish but "
                     + "it uses more CPU to perform frequent check. (Disable publish throttling with value 0)"
         )
-    private int topicPublisherThrottlingTickTimeMillis = 5;
+    private int topicPublisherThrottlingTickTimeMillis = 10;
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Enable precise rate limit for topic publish"
@@ -816,7 +816,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Default dispatch-throttling is disabled for consumers which already caught-up with"
             + " published messages and don't have backlog. This enables dispatch-throttling for "
             + " non-backlog consumers as well.")
-    private boolean dispatchThrottlingOnNonBacklogConsumerEnabled = false;
+    private boolean dispatchThrottlingOnNonBacklogConsumerEnabled = true;
 
     @FieldContext(
             category = CATEGORY_POLICIES,
@@ -1596,7 +1596,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_STORAGE_ML,
         doc = "Threshold to which bring down the cache level when eviction is triggered"
     )
-    private double managedLedgerCacheEvictionWatermark = 0.9f;
+    private double managedLedgerCacheEvictionWatermark = 0.9;
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Configure the cache eviction frequency for the managed ledger cache. Default is 100/s")
     private double managedLedgerCacheEvictionFrequency = 100.0;
@@ -2005,7 +2005,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_REPLICATION,
         doc = "Enable replication metrics"
     )
-    private boolean replicationMetricsEnabled = false;
+    private boolean replicationMetricsEnabled = true;
     @FieldContext(
         category = CATEGORY_REPLICATION,
         doc = "Max number of connections to open for each broker in a remote cluster.\n\n"

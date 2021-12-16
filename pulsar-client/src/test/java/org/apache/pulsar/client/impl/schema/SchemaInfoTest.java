@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import com.google.common.collect.Maps;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;

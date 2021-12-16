@@ -108,8 +108,8 @@ flexible messaging model and an intuitive client API.</description>
     <snappy.version>1.1.7</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>3.2.5</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
-    <netty.version>4.1.68.Final</netty.version>
-    <netty-tc-native.version>2.0.42.Final</netty-tc-native.version>
+    <netty.version>4.1.72.Final</netty.version>
+    <netty-tc-native.version>2.0.46.Final</netty-tc-native.version>
     <jetty.version>9.4.43.v20210629</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.34</jersey.version>
@@ -225,7 +225,7 @@ flexible messaging model and an intuitive client API.</description>
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
     <exec-maven-plugin.version>3.0.0</exec-maven-plugin.version>
     <license-maven-plugin.version>4.0.rc2</license-maven-plugin.version>
-    <directory-maven-plugin.version>0.3.1</directory-maven-plugin.version>
+    <directory-maven-plugin.version>1.0</directory-maven-plugin.version>
     <maven-enforcer-plugin.version>3.0.0-M3</maven-enforcer-plugin.version>
     <!-- surefire.version is defined in apache parent pom -->
     <!-- it is used for surefire, failsafe and surefire-report plugins -->
@@ -1770,6 +1770,7 @@ flexible messaging model and an intuitive client API.</description>
           <configuration>
             <configLocation>${pulsar.basedir}/buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
             <suppressionsLocation>${pulsar.basedir}/buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
+            <includeTestSourceDirectory>true</includeTestSourceDirectory>
             <encoding>UTF-8</encoding>
             <excludes>**/proto/*</excludes>
           </configuration>

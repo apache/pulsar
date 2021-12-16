@@ -20,7 +20,6 @@ package org.apache.pulsar.metadata.impl;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
@@ -66,7 +65,8 @@ import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 
 @Slf4j
-public class ZKMetadataStore extends AbstractBatchedMetadataStore implements MetadataStoreExtended, MetadataStoreLifecycle {
+public class ZKMetadataStore extends AbstractBatchedMetadataStore
+        implements MetadataStoreExtended, MetadataStoreLifecycle {
 
     private final String metadataURL;
     private final MetadataStoreConfig metadataStoreConfig;
@@ -127,7 +127,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore implements Met
                         } else {
                             log.error("Failed to recreate persistent watch on ZooKeeper: {}", Code.get(rc));
                             sessionWatcher.ifPresent(ZKSessionWatcher::setSessionInvalid);
-                            // On the reconnectable client, mark the session as expired to trigger a new reconnect and 
+                            // On the reconnectable client, mark the session as expired to trigger a new reconnect and
                             // we will have the chance to set the watch again.
                             if (zkc instanceof PulsarZooKeeperClient) {
                                 ((PulsarZooKeeperClient) zkc).process(
@@ -146,7 +146,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore implements Met
     protected void batchOperation(List<MetadataOp> ops) {
         try {
             zkc.multi(ops.stream().map(this::convertOp).collect(Collectors.toList()), (rc, path, ctx, results) -> {
-                if (results == null ) {
+                if (results == null) {
                     Code code = Code.get(rc);
                     if (code == Code.CONNECTIONLOSS) {
                         // There is the chance that we caused a connection reset by sending or requesting a batch

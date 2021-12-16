@@ -320,6 +320,10 @@ public class RuntimeUtils {
 
             args.add("-Dio.netty.tryReflectionSetAccessible=true");
 
+            if (instanceConfig.getAdditionalJavaRuntimeArguments() != null) {
+                args.addAll(instanceConfig.getAdditionalJavaRuntimeArguments());
+            }
+
             if (!isEmpty(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
                 for (String runtimeFlagArg : splitRuntimeArgs(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
                     args.add(runtimeFlagArg);

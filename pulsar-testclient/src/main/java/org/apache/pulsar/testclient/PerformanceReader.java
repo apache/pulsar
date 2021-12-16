@@ -231,7 +231,6 @@ public class PerformanceReader {
             }
             if (arguments.numMessages > 0 && totalMessagesReceived.sum() >= arguments.numMessages) {
                 log.info("------------- DONE (reached the maximum number: [{}] of consumption) --------------", arguments.numMessages);
-                printAggregatedStats();
                 PerfClientUtils.exit(0);
             }
             messagesReceived.increment();

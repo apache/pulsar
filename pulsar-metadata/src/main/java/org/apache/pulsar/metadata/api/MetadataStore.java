@@ -20,12 +20,10 @@ package org.apache.pulsar.metadata.api;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.annotations.Beta;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
-
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 

@@ -21,7 +21,6 @@ package org.apache.pulsar.proxy.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
-
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -42,7 +41,6 @@ import io.netty.handler.ssl.SslHandler;
 import io.netty.util.CharsetUtil;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
-
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -50,16 +48,12 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
-
 import javax.net.ssl.SSLSession;
-
 import lombok.Getter;
-
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.tls.TlsHostnameVerifier;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
@@ -67,6 +61,7 @@ import org.apache.pulsar.common.api.proto.CommandConnected;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarDecoder;
 import org.apache.pulsar.common.stats.Rate;
+import org.apache.pulsar.common.tls.TlsHostnameVerifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -152,25 +147,29 @@ public class DirectProxyHandler {
                 inboundOutboundChannelMap.put(outboundChannel.id() , inboundChannel.id());
             }
 
-            if (config.isHaProxyProtocolEnabled()) {
-                if (proxyConnection.hasHAProxyMessage()) {
-                    outboundChannel.writeAndFlush(encodeProxyProtocolMessage(proxyConnection.getHAProxyMessage()));
-                } else {
-                    if (inboundChannel.remoteAddress() instanceof InetSocketAddress) {
-                        InetSocketAddress clientAddress = (InetSocketAddress) inboundChannel.remoteAddress();
-                        String sourceAddress = clientAddress.getAddress().getHostAddress();
-                        int sourcePort = clientAddress.getPort();
-                        if (outboundChannel.localAddress() instanceof InetSocketAddress) {
-                            InetSocketAddress proxyAddress = (InetSocketAddress) inboundChannel.remoteAddress();
-                            String destinationAddress = proxyAddress.getAddress().getHostAddress();
-                            int destinationPort = proxyAddress.getPort();
-                            HAProxyMessage msg = new HAProxyMessage(HAProxyProtocolVersion.V1, HAProxyCommand.PROXY,
-                                    HAProxyProxiedProtocol.TCP4, sourceAddress, destinationAddress, sourcePort, destinationPort);
-                            outboundChannel.writeAndFlush(encodeProxyProtocolMessage(msg));
-                            msg.release();
-                        }
-                    }
+            if (!config.isHaProxyProtocolEnabled()) {
+                return;
+            }
+
+            if (proxyConnection.hasHAProxyMessage()) {
+                outboundChannel.writeAndFlush(encodeProxyProtocolMessage(proxyConnection.getHAProxyMessage()));
+            } else {
+                if (!(inboundChannel.remoteAddress() instanceof InetSocketAddress)) {
+                    return;
                 }
+                if (!(outboundChannel.localAddress() instanceof InetSocketAddress)) {
+                    return;
+                }
+                InetSocketAddress clientAddress = (InetSocketAddress) inboundChannel.remoteAddress();
+                String sourceAddress = clientAddress.getAddress().getHostAddress();
+                int sourcePort = clientAddress.getPort();
+                InetSocketAddress proxyAddress = (InetSocketAddress) inboundChannel.remoteAddress();
+                String destinationAddress = proxyAddress.getAddress().getHostAddress();
+                int destinationPort = proxyAddress.getPort();
+                HAProxyMessage msg = new HAProxyMessage(HAProxyProtocolVersion.V1, HAProxyCommand.PROXY,
+                        HAProxyProxiedProtocol.TCP4, sourceAddress, destinationAddress, sourcePort, destinationPort);
+                outboundChannel.writeAndFlush(encodeProxyProtocolMessage(msg));
+                msg.release();
             }
         });
     }
@@ -246,9 +245,9 @@ public class DirectProxyHandler {
                 break;
 
             case HandshakeCompleted:
-                ProxyService.opsCounter.inc();
+                ProxyService.OPS_COUNTER.inc();
                 if (msg instanceof ByteBuf) {
-                    ProxyService.bytesCounter.inc(((ByteBuf) msg).readableBytes());
+                    ProxyService.BYTES_COUNTER.inc(((ByteBuf) msg).readableBytes());
                 }
                 inboundChannel.writeAndFlush(msg).addListener(this);
                 break;
@@ -352,14 +351,16 @@ public class DirectProxyHandler {
                     // Enable parsing feature, proxyLogLevel(1 or 2)
                     // Add parser handler
                     if (connected.hasMaxMessageSize()) {
-                        inboundChannel.pipeline().replace("frameDecoder", "newFrameDecoder",
-                                                          new LengthFieldBasedFrameDecoder(connected.getMaxMessageSize()
-                                                                                           + Commands.MESSAGE_SIZE_FRAME_PADDING,
-                                                                                           0, 4, 0, 4));
+                        inboundChannel.pipeline()
+                                .replace("frameDecoder", "newFrameDecoder",
+                                        new LengthFieldBasedFrameDecoder(connected.getMaxMessageSize()
+                                                + Commands.MESSAGE_SIZE_FRAME_PADDING,
+                                                0, 4, 0, 4));
                         outboundChannel.pipeline().replace("frameDecoder", "newFrameDecoder",
-                                                           new LengthFieldBasedFrameDecoder(
-                                                               connected.getMaxMessageSize()
-                                                               + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
+                                new LengthFieldBasedFrameDecoder(
+                                        connected.getMaxMessageSize()
+                                                + Commands.MESSAGE_SIZE_FRAME_PADDING,
+                                        0, 4, 0, 4));
 
                         inboundChannel.pipeline().addBefore("handler", "inboundParser",
                                                             new ParserProxyHandler(service, inboundChannel,

@@ -19,11 +19,9 @@
 package org.apache.pulsar.metadata.impl.batching;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import org.apache.pulsar.metadata.api.GetResult;
 
 @Data
 @AllArgsConstructor
