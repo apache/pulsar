@@ -18,45 +18,39 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.io.IOException;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
- * The provider to provide the service url.
+ * {@link ControlledClusterFailoverBuilder} is used to configure and create instance of {@link ServiceUrlProvider}
  *
- * <p>This allows applications to retrieve the service URL from an external configuration provider and,
- * more importantly, to force the Pulsar client to reconnect if the service URL has been changed.
- *
- * <p>It can be passed with {@link ClientBuilder#serviceUrlProvider(ServiceUrlProvider)}
+ * @since 2.10.0
  */
 @InterfaceAudience.Public
-@InterfaceStability.Stable
-public interface ServiceUrlProvider extends AutoCloseable {
+@InterfaceStability.Evolving
+public interface ControlledClusterFailoverBuilder {
+    /**
+     * Set default service url.
+     *
+     * @param serviceUrl
+     * @return
+     */
+    ControlledClusterFailoverBuilder defaultServiceUrl(String serviceUrl);
 
     /**
-     * Initialize the service url provider with Pulsar client instance.
+     * Set the service url provider. ServiceUrlProvider will fetch serviceUrl from urlProvider periodically.
      *
-     * <p>This can be used by the provider to force the Pulsar client to reconnect whenever the service url might have
-     * changed. See {@link PulsarClient#updateServiceUrl(String)}.
-     *
-     * @param client
-     *            created pulsar client.
+     * @param urlProvider
+     * @return
      */
-    void initialize(PulsarClient client);
+    ControlledClusterFailoverBuilder urlProvider(String urlProvider);
 
     /**
-     * Get the current service URL the Pulsar client should connect to.
+     * Build the ServiceUrlProvider instance.
      *
-     * @return the pulsar service url.
+     * @return
+     * @throws IOException
      */
-    String getServiceUrl();
-
-    /**
-     * Close the resource that the provider allocated.
-     *
-     */
-    @Override
-    default void close() {
-        // do nothing
-    }
+    ServiceUrlProvider build() throws IOException;
 }

@@ -18,15 +18,19 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
+import org.apache.pulsar.client.api.ControlledClusterFailoverBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 
@@ -34,15 +38,14 @@ import org.apache.pulsar.client.api.ServiceUrlProvider;
 public class ControlledClusterFailover implements ServiceUrlProvider {
     private PulsarClient pulsarClient;
     private volatile String currentPulsarServiceUrl;
-    private final String defaultServiceUrl;
     private final URL pulsarUrlProvider;
-    private final Timer timer;
+    private final ScheduledExecutorService executor;
 
     private ControlledClusterFailover(String defaultServiceUrl, String urlProvider) throws IOException {
-        this.defaultServiceUrl = defaultServiceUrl;
         this.currentPulsarServiceUrl = defaultServiceUrl;
         this.pulsarUrlProvider = new URL(urlProvider);
-        this.timer = new Timer("pulsar-service-provider");
+        this.executor = Executors.newSingleThreadScheduledExecutor(
+                new DefaultThreadFactory("pulsar-service-provider"));
     }
 
     @Override
@@ -50,23 +53,20 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
         this.pulsarClient = client;
 
         // start to check service url every 30 seconds
-        this.timer.scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
-                String newPulsarUrl = null;
-                try {
-                    newPulsarUrl = fetchServiceUrl();
-                    if (!currentPulsarServiceUrl.equals(newPulsarUrl)) {
-                        log.info("Switch Pulsar service url from {} to {}", currentPulsarServiceUrl, newPulsarUrl);
-                        pulsarClient.updateServiceUrl(newPulsarUrl);
-                        currentPulsarServiceUrl = newPulsarUrl;
-                    }
-                } catch (IOException e) {
-                    log.error("Failed to switch new Pulsar URL, current: {}, new: {}",
-                            currentPulsarServiceUrl, newPulsarUrl, e);
+        this.executor.scheduleAtFixedRate(catchingAndLoggingThrowables(() -> {
+            String newPulsarUrl = null;
+            try {
+                newPulsarUrl = fetchServiceUrl();
+                if (!currentPulsarServiceUrl.equals(newPulsarUrl)) {
+                    log.info("Switch Pulsar service url from {} to {}", currentPulsarServiceUrl, newPulsarUrl);
+                    pulsarClient.updateServiceUrl(newPulsarUrl);
+                    currentPulsarServiceUrl = newPulsarUrl;
                 }
+            } catch (IOException e) {
+                log.error("Failed to switch new Pulsar URL, current: {}, new: {}",
+                        currentPulsarServiceUrl, newPulsarUrl, e);
             }
-        }, 30_000, 30_000);
+        }), 30_000, 30_000, TimeUnit.MILLISECONDS);
     }
 
     private String fetchServiceUrl() throws IOException {
@@ -90,29 +90,29 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
 
     @Override
     public void close() {
-        this.timer.cancel();
+        this.executor.shutdown();
     }
 
-    public static class Builder{
+    public static class ControlledClusterFailoverBuilderImpl implements ControlledClusterFailoverBuilder {
         private String defaultServiceUrl;
         private String urlProvider;
 
-        public Builder defaultServiceUrl(String defaultServiceUrl) {
-            this.defaultServiceUrl = defaultServiceUrl;
+        public ControlledClusterFailoverBuilder defaultServiceUrl(String serviceUrl) {
+            this.defaultServiceUrl = serviceUrl;
             return this;
         }
 
-        public Builder urlProvider(String urlProvider) {
+        public ControlledClusterFailoverBuilder urlProvider(String urlProvider) {
             this.urlProvider = urlProvider;
             return this;
         }
 
-        public ControlledClusterFailover build() throws IOException {
+        public ServiceUrlProvider build() throws IOException {
             return new ControlledClusterFailover(defaultServiceUrl, urlProvider);
         }
     }
 
-    public static Builder builder() {
-        return new Builder();
+    public static ControlledClusterFailoverBuilder builder() {
+        return new ControlledClusterFailoverBuilderImpl();
     }
 }

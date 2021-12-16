@@ -18,13 +18,16 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.base.Strings;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.AutoClusterFailoverBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
@@ -35,24 +38,23 @@ public class AutoClusterFailover implements ServiceUrlProvider {
     private volatile String currentPulsarServiceUrl;
     private final String primary;
     private final String secondary;
-    private final long failoverDelayMs;
-    private final long switchBackDelayMs;
-    private final Timer timer;
-    private volatile long primaryFailedTimestamp;
-    private long primaryRecoverTimestamp;
-    private long secondaryFailedTimestamp;
-    private final int timeout = 30_000;
+    private final long failoverDelayNs;
+    private final long switchBackDelayNs;
+    private final ScheduledExecutorService executor;
+    private long recoverTimestamp;
+    private long failedTimestamp;
+    private final int TIMEOUT = 30_000;
 
-    private AutoClusterFailover(String primary, String secondary, long failoverDelayMs, long switchBackDelayMs) {
+    private AutoClusterFailover(String primary, String secondary, long failoverDelayNs, long switchBackDelayNs) {
         this.primary = primary;
         this.secondary = secondary;
-        this.failoverDelayMs = failoverDelayMs;
-        this.switchBackDelayMs = switchBackDelayMs;
+        this.failoverDelayNs = failoverDelayNs;
+        this.switchBackDelayNs = switchBackDelayNs;
         this.currentPulsarServiceUrl = primary;
-        this.primaryFailedTimestamp = -1;
-        this.primaryRecoverTimestamp = -1;
-        this.secondaryFailedTimestamp = -1;
-        this.timer = new Timer("pulsar-service-provider");
+        this.recoverTimestamp = -1;
+        this.failedTimestamp = -1;
+        this.executor = Executors.newSingleThreadScheduledExecutor(
+                new DefaultThreadFactory("pulsar-service-provider"));
     }
 
     @Override
@@ -60,85 +62,17 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         this.pulsarClient = client;
 
         // start to probe primary cluster active or not
-        this.timer.scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
-                // current pulsar serviceUrl is primary
-                if (currentPulsarServiceUrl.equals(primary)) {
-                    if (probeAvailable(primary, timeout)) {
-                        primaryFailedTimestamp = -1;
-                        return;
-                    }
-
-                    if (primaryFailedTimestamp == -1) {
-                        primaryFailedTimestamp = System.currentTimeMillis();
-                    } else if (System.currentTimeMillis() - primaryFailedTimestamp < failoverDelayMs) {
-                        return;
-                    } else if (probeAvailable(secondary, timeout)){
-                        log.info("Current Pulsar service is primary: {}, it has been down for {} ms, "
-                                        + "switch to the secondary service: {}. The first primary service down at: {}",
-                                currentPulsarServiceUrl, System.currentTimeMillis() - primaryFailedTimestamp,
-                                secondary, primaryFailedTimestamp);
-                        try {
-                            pulsarClient.updateServiceUrl(secondary);
-                            currentPulsarServiceUrl = secondary;
-                        } catch (PulsarClientException e) {
-                            log.error("Failed to switch to secondary service URL ", e);
-                        }
-                    } else {
-                        log.error("Current Pulsar service is primary: {}, it has been down for {} ms. "
-                                + "Failed to switch to secondary service URL, "
-                                + "because secondary service URL is not available",
-                                currentPulsarServiceUrl, System.currentTimeMillis() - primaryFailedTimestamp);
-                    }
-                } else { // current pulsar service URL is secondary, probe whether we need to switch back to primary.
-                    if (!probeAvailable(currentPulsarServiceUrl, timeout)) {
-                        if (secondaryFailedTimestamp == -1) {
-                            secondaryFailedTimestamp = System.currentTimeMillis();
-                        } else if (System.currentTimeMillis() - secondaryFailedTimestamp >= failoverDelayMs
-                                && probeAvailable(primary, timeout)) {
-                            log.info("Current Pulsar service is secondary: {}, it has been down for {} ms, "
-                                    + "switch back to primary service: {}", currentPulsarServiceUrl,
-                                    System.currentTimeMillis() - secondaryFailedTimestamp, primary);
-                            try {
-                                pulsarClient.updateServiceUrl(primary);
-                                currentPulsarServiceUrl = primary;
-                                return;
-                            } catch (PulsarClientException e) {
-                                log.error("Current Pulsar service is secondary: {}, it has been down for {} ms. "
-                                        + "Failed to switch to secondary service URL ",
-                                        currentPulsarServiceUrl,
-                                        System.currentTimeMillis() - secondaryFailedTimestamp, e);
-                            }
-                        }
-
-                        return;
-                    }
-
-                    secondaryFailedTimestamp = -1;
-
-                    if (!probeAvailable(primary, timeout)) {
-                        primaryRecoverTimestamp = -1;
-                        return;
-                    }
-                    if (primaryRecoverTimestamp == -1) {
-                        primaryRecoverTimestamp = System.currentTimeMillis();
-                    } else if (System.currentTimeMillis() - primaryRecoverTimestamp >= switchBackDelayMs) {
-                        log.info("Current Pulsar service is secondary: {}, "
-                                        + "the primary service: {} has been recover for {} ms, "
-                                        + "switch back to the primary service",
-                                currentPulsarServiceUrl, primary, System.currentTimeMillis() - primaryRecoverTimestamp);
-                        try {
-                            pulsarClient.updateServiceUrl(primary);
-                            currentPulsarServiceUrl = primary;
-                        } catch (PulsarClientException e) {
-                            log.error("Current Pulsar service is secondary: {}, "
-                                    + "failed to switch back to primary service URL ", currentPulsarServiceUrl, e);
-                        }
-                    }
-                }
+        this.executor.scheduleAtFixedRate(catchingAndLoggingThrowables(() -> {
+            if (currentPulsarServiceUrl.equals(primary)) {
+                // current service url is primary, probe whether it is down
+                probeAndUpdateServiceUrl(secondary);
+            } else {
+                // current service url is secondary, probe whether it is down
+                probeAndUpdateServiceUrl(primary);
+                // secondary cluster is up, check whether need to switch back to primary
+                probeAndCheckSwitchBack(primary);
             }
-        }, 30_000, 30_000);
+        }), 30_000, 30_000, TimeUnit.MILLISECONDS);
 
     }
 
@@ -149,10 +83,10 @@ public class AutoClusterFailover implements ServiceUrlProvider {
 
     @Override
     public void close() {
-        this.timer.cancel();
+        this.executor.shutdown();
     }
 
-    private boolean probeAvailable(String url, int timeout) {
+    private boolean probeAvailable(String url) {
         try {
             String hostAndPort = parseHostAndPort(url);
             if (Strings.isNullOrEmpty(hostAndPort)) {
@@ -160,10 +94,11 @@ public class AutoClusterFailover implements ServiceUrlProvider {
             }
 
             Socket socket = new Socket();
-            socket.connect(new InetSocketAddress(parseHost(hostAndPort), parsePort(hostAndPort)), timeout);
+            socket.connect(new InetSocketAddress(parseHost(hostAndPort), parsePort(hostAndPort)), TIMEOUT);
             socket.close();
             return true;
         } catch (Exception e) {
+            log.error("Failed to probe available, url: {}", url, e);
             return false;
         }
     }
@@ -196,30 +131,90 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         return Integer.valueOf(hostAndPort.substring(portSeparatorPos+1));
     }
 
-    public static class Builder {
+    private static Long Ns2Ms(long timeStampNs) {
+        return timeStampNs / 1000000;
+    }
+
+    private void updateServiceUrl(String target) {
+        try {
+            pulsarClient.updateServiceUrl(target);
+            currentPulsarServiceUrl = target;
+        } catch (PulsarClientException e) {
+            log.error("Current Pulsar service is {}, "
+                    + "failed to switch back to {} ", currentPulsarServiceUrl, target, e);
+        }
+    }
+
+    private void probeAndUpdateServiceUrl(String targetServiceUrl) {
+        if (probeAvailable(currentPulsarServiceUrl)) {
+            failedTimestamp = -1;
+            return;
+        }
+
+        long currentTimestamp = System.nanoTime();
+        if (failedTimestamp == -1) {
+            failedTimestamp = currentTimestamp;
+        } else if (currentTimestamp - failedTimestamp >= failoverDelayNs) {
+            if (probeAvailable(targetServiceUrl)) {
+                log.info("Current Pulsar service is {}, it has been down for {} ms, "
+                                + "switch to the service: {}. The current service down at: {}",
+                        currentPulsarServiceUrl, Ns2Ms(currentTimestamp - failedTimestamp),
+                        targetServiceUrl, Ns2Ms(failedTimestamp));
+                updateServiceUrl(targetServiceUrl);
+                failedTimestamp = -1;
+            } else {
+                log.error("Current Pulsar service is {}, it has been down for {} ms. "
+                                + "Failed to switch to service {}, "
+                                + "because it is not available",
+                        currentPulsarServiceUrl, Ns2Ms(currentTimestamp - failedTimestamp),
+                        targetServiceUrl);
+            }
+        }
+    }
+
+    private void probeAndCheckSwitchBack(String target) {
+        long currentTimestamp = System.nanoTime();
+        if (!probeAvailable(target)) {
+            recoverTimestamp = -1;
+            return;
+        }
+
+        if (recoverTimestamp == -1) {
+            recoverTimestamp = currentTimestamp;
+        } else if (currentTimestamp - recoverTimestamp >= switchBackDelayNs) {
+            log.info("Current Pulsar service is secondary: {}, "
+                            + "the primary service: {} has been recover for {} ms, "
+                            + "switch back to the primary service",
+                    currentPulsarServiceUrl, target, Ns2Ms(currentTimestamp - recoverTimestamp));
+            updateServiceUrl(target);
+            recoverTimestamp = -1;
+        }
+    }
+
+    public static class AutoClusterFailoverBuilderImpl implements AutoClusterFailoverBuilder {
         private String primary;
         private String secondary;
         private long failoverDelayMs;
         private long switchBackDelayMs;
 
 
-        public Builder primary(String primary) {
+        public AutoClusterFailoverBuilder primary(String primary) {
             this.primary = primary;
             return this;
         }
 
-        public Builder secondary(String secondary) {
+        public AutoClusterFailoverBuilder secondary(String secondary) {
             this.secondary = secondary;
             return this;
         }
 
-        public Builder failoverDelay(int failoverDelay, TimeUnit failoverDelayTimeUnit) {
-            this.failoverDelayMs = failoverDelayTimeUnit.toMillis(failoverDelay);
+        public AutoClusterFailoverBuilder failoverDelay(int failoverDelay, TimeUnit failoverDelayTimeUnit) {
+            this.failoverDelayMs = failoverDelayTimeUnit.toNanos(failoverDelay);
             return this;
         }
 
-        public Builder switchBackDelay(int switchBackDelay, TimeUnit switchBackDelayTimeUnit) {
-            this.switchBackDelayMs = switchBackDelayTimeUnit.toMillis(switchBackDelay);
+        public AutoClusterFailoverBuilder switchBackDelay(int switchBackDelay, TimeUnit switchBackDelayTimeUnit) {
+            this.switchBackDelayMs = switchBackDelayTimeUnit.toNanos(switchBackDelay);
             return this;
         }
 
@@ -228,7 +223,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         }
     }
 
-    public static Builder builder() {
-        return new Builder();
+    public static AutoClusterFailoverBuilder builder() {
+        return new AutoClusterFailoverBuilderImpl();
     }
 }
