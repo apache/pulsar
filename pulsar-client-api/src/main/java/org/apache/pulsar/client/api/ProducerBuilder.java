@@ -188,7 +188,7 @@ public interface ProducerBuilder<T> extends Cloneable {
      * The purpose of this setting is to have an upper-limit on the number
      * of pending messages when publishing on a partitioned topic.
      *
-     * <p>Default is 50000.
+     * <p>Default is 0, disable the pending messages across partitions check.
      *
      * <p>If publishing at high rate over a topic with many partitions (especially when publishing messages without a
      * partitioning key), it might be beneficial to increase this parameter to allow for more pipelining within the
@@ -198,6 +198,7 @@ public interface ProducerBuilder<T> extends Cloneable {
      *            max pending messages across all the partitions
      * @return the producer builder instance
      */
+    @Deprecated
     ProducerBuilder<T> maxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions);
 
     /**
