@@ -1,0 +1,106 @@
+{
+  "version-2.2.1/docsSidebar": [
+    {
+      "type": "category",
+      "label": "Getting Started",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.2.1/pulsar-2.0"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/standalone"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/standalone-docker"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/client-libraries"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Concepts and Architecture",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.2.1/concepts-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/concepts-messaging"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/concepts-architecture-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/concepts-clients"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/concepts-replication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/concepts-multi-tenancy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/concepts-authentication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/concepts-topic-compaction"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/concepts-tiered-storage"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/concepts-schema-registry"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar Functions",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.2.1/functions-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/functions-quickstart"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/functions-api"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/functions-deploying"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/functions-guarantees"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/functions-state"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/functions-metrics"
+        }
+      ]
+    }
+  ]
+}
