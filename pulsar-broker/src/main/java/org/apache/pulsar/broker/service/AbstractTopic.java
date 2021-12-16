@@ -153,6 +153,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     protected void updateTopicPolicy(TopicPolicies data) {
         topicPolicies.getMaxSubscriptionsPerTopic().updateTopicValue(data.getMaxSubscriptionsPerTopic());
         topicPolicies.getMaxProducersPerTopic().updateTopicValue(data.getMaxProducerPerTopic());
+        topicPolicies.getMaxConsumerPerTopic().updateTopicValue(data.getMaxConsumerPerTopic());
         topicPolicies.getInactiveTopicPolicies().updateTopicValue(data.getInactiveTopicPolicies());
         topicPolicies.getDeduplicationEnabled().updateTopicValue(data.getDeduplicationEnabled());
         topicPolicies.getSubscriptionTypesEnabled().updateTopicValue(
@@ -175,6 +176,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         topicPolicies.getMessageTTLInSeconds().updateNamespaceValue(namespacePolicies.message_ttl_in_seconds);
         topicPolicies.getMaxSubscriptionsPerTopic().updateNamespaceValue(namespacePolicies.max_subscriptions_per_topic);
         topicPolicies.getMaxProducersPerTopic().updateNamespaceValue(namespacePolicies.max_producers_per_topic);
+        topicPolicies.getMaxConsumerPerTopic().updateNamespaceValue(namespacePolicies.max_consumers_per_topic);
         topicPolicies.getInactiveTopicPolicies().updateNamespaceValue(namespacePolicies.inactive_topic_policies);
         topicPolicies.getDeduplicationEnabled().updateNamespaceValue(namespacePolicies.deduplicationEnabled);
         topicPolicies.getSubscriptionTypesEnabled().updateNamespaceValue(
@@ -194,6 +196,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         updateBrokerSubscriptionTypesEnabled();
         topicPolicies.getMaxSubscriptionsPerTopic().updateBrokerValue(config.getMaxSubscriptionsPerTopic());
         topicPolicies.getMaxProducersPerTopic().updateBrokerValue(config.getMaxProducersPerTopic());
+        topicPolicies.getMaxConsumerPerTopic().updateBrokerValue(config.getMaxConsumersPerTopic());
         topicPolicies.getDeduplicationEnabled().updateBrokerValue(config.isBrokerDeduplicationEnabled());
         //init backlogQuota
         topicPolicies.getBackLogQuotaMap()
@@ -273,18 +276,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     protected boolean isConsumersExceededOnTopic() {
-        Integer maxConsumers = getTopicPolicies().map(TopicPolicies::getMaxConsumerPerTopic).orElse(null);
-        if (maxConsumers == null) {
-
-            // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks
-            Policies policies = brokerService.pulsar().getPulsarResources().getNamespaceResources().getPoliciesIfCached(
-                            TopicName.get(topic).getNamespaceObject())
-                    .orElseGet(() -> new Policies());
-
-            maxConsumers = policies.max_consumers_per_topic;
-        }
-        final int maxConsumersPerTopic = maxConsumers != null ? maxConsumers
-                : brokerService.pulsar().getConfiguration().getMaxConsumersPerTopic();
+        int maxConsumersPerTopic = topicPolicies.getMaxConsumerPerTopic().get();
         if (maxConsumersPerTopic > 0 && maxConsumersPerTopic <= getNumberOfConsumers()) {
             return true;
         }
