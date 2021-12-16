@@ -29,6 +29,7 @@
 #include <pulsar/ConsoleLoggerFactory.h>
 #include <boost/algorithm/string/predicate.hpp>
 #include <sstream>
+#include <stdexcept>
 #include <lib/HTTPLookupService.h>
 #include <lib/TopicName.h>
 #include <algorithm>
@@ -147,6 +148,9 @@ LookupServicePtr ClientImpl::getLookup() { return lookupServicePtr_; }
 
 void ClientImpl::createProducerAsync(const std::string& topic, ProducerConfiguration conf,
                                      CreateProducerCallback callback) {
+    if (conf.isChunkingEnabled() && conf.getBatchingEnabled()) {
+        throw std::invalid_argument("Batching and chunking of messages can't be enabled together");
+    }
     TopicNamePtr topicName;
     {
         Lock lock(mutex_);
