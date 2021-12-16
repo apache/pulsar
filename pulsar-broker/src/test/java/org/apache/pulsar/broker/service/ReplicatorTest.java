@@ -99,7 +99,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
-import org.testng.annotations.Ignore;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
@@ -135,7 +134,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
-    @Test
+//    @Test
     public void testConfigChange() throws Exception {
         log.info("--- Starting ReplicatorTest::testConfigChange ---");
         // This test is to verify that the config change on global namespace is successfully applied in broker during
@@ -218,7 +217,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // Case 3: TODO: Once automatic cleanup is implemented, add tests case to verify auto removal of clusters
     }
 
-    @Test(timeOut = 10000)
+//    @Test(timeOut = 10000)
     public void activeBrokerParse() throws Exception {
         pulsar1.getConfiguration().setAuthorizationEnabled(true);
         //init clusterData
@@ -237,7 +236,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     }
 
     @SuppressWarnings("unchecked")
-    @Test(timeOut = 30000)
+//    @Test(timeOut = 30000)
     public void testConcurrentReplicator() throws Exception {
 
         log.info("--- Starting ReplicatorTest::testConcurrentReplicator ---");
@@ -294,12 +293,12 @@ public class ReplicatorTest extends ReplicatorTestBase {
         executor.shutdown();
     }
 
-    @DataProvider(name = "namespace")
+//    @DataProvider(name = "namespace")
     public Object[][] namespaceNameProvider() {
         return new Object[][] { { "pulsar/ns" }, { "pulsar/global/ns" } };
     }
 
-    @Test(dataProvider = "namespace")
+//    @Test(dataProvider = "namespace")
     public void testReplication(String namespace) throws Exception {
         log.info("--- Starting ReplicatorTest::testReplication ---");
 
@@ -377,7 +376,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         consumer3.receive(1);
     }
 
-    @Test
+//    @Test
     public void testReplicationOverrides() throws Exception {
         log.info("--- Starting ReplicatorTest::testReplicationOverrides ---");
 
@@ -438,7 +437,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         }
     }
 
-    @Test()
+//    @Test()
     public void testFailures() throws Exception {
 
         log.info("--- Starting ReplicatorTest::testFailures ---");
@@ -459,7 +458,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
     }
 
-    @Test(timeOut = 30000)
+//    @Test(timeOut = 30000)
     public void testReplicatePeekAndSkip() throws Exception {
 
         final TopicName dest = TopicName.get(
@@ -482,7 +481,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         assertNull(entry);
     }
 
-    @Test(timeOut = 30000)
+//    @Test(timeOut = 30000)
     public void testReplicatorClearBacklog() throws Exception {
 
         // This test is to verify that reset cursor fails on global topic
@@ -512,7 +511,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         assertEquals(status.replicationBacklog, 0);
     }
 
-    @Test(timeOut = 30000)
+//    @Test(timeOut = 30000)
     public void testResetCursorNotFail() throws Exception {
 
         log.info("--- Starting ReplicatorTest::testResetCursorNotFail ---");
@@ -537,7 +536,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         admin1.topics().resetCursor(dest.toString(), "sub-id", System.currentTimeMillis());
     }
 
-    @Test
+//    @Test
     public void testReplicationForBatchMessages() throws Exception {
         log.info("--- Starting ReplicatorTest::testReplicationForBatchMessages ---");
 
@@ -594,7 +593,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 30000)
+//    @Test(timeOut = 30000)
     public void testDeleteReplicatorFailure() throws Exception {
         log.info("--- Starting ReplicatorTest::testDeleteReplicatorFailure ---");
         final String topicName = "persistent://pulsar/ns/repltopicbatch-" + System.currentTimeMillis() + "-";
@@ -635,7 +634,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     }
 
     @SuppressWarnings("unchecked")
-    @Test(priority = 5, timeOut = 30000)
+//    @Test(priority = 5, timeOut = 30000)
     public void testReplicatorProducerClosing() throws Exception {
         log.info("--- Starting ReplicatorTest::testDeleteReplicatorFailure ---");
         final String topicName = "persistent://pulsar/ns/repltopicbatch-" + System.currentTimeMillis() + "-";
@@ -667,7 +666,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
      * @throws Exception
      */
 
-    @Test(timeOut = 60000, enabled = true, priority = -1)
+//    @Test(timeOut = 60000, enabled = true, priority = -1)
     public void testResumptionAfterBacklogRelaxed() throws Exception {
         List<RetentionPolicy> policies = Lists.newArrayList();
         policies.add(RetentionPolicy.producer_exception);
@@ -736,7 +735,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 15000)
+//    @Test(timeOut = 15000)
     public void testCloseReplicatorStartProducer() throws Exception {
         TopicName dest = TopicName.get("persistent://pulsar/ns1/closeCursor-" + System.currentTimeMillis() + "-");
         // Producer on r1
@@ -782,7 +781,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         assertNull(replicatorProducer);
     }
 
-    @Test(timeOut = 30000)
+//    @Test(timeOut = 30000)
     public void verifyChecksumAfterReplication() throws Exception {
         final String topicName = "persistent://pulsar/ns/checksumAfterReplication-" + System.currentTimeMillis() + "-";
 
@@ -858,7 +857,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
      * @param isPartitionedTopic
      * @throws Exception
      */
-    @Test(dataProvider = "partitionedTopic")
+//    @Test(dataProvider = "partitionedTopic")
     public void testReplicatorOnPartitionedTopic(boolean isPartitionedTopic) throws Exception {
 
         log.info("--- Starting ReplicatorTest::{} --- ", methodName);
@@ -913,7 +912,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
     }
 
-    @Test
+//    @Test
     public void testReplicatedCluster() throws Exception {
 
         log.info("--- Starting ReplicatorTest::testReplicatedCluster ---");
@@ -960,7 +959,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
      * </pre>
      * @throws Exception
      */
-    @Test
+//    @Test
     public void testUpdateGlobalTopicPartition() throws Exception {
         log.info("--- Starting ReplicatorTest::testUpdateGlobalTopicPartition ---");
 
@@ -1007,7 +1006,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         client2.close();
     }
 
-    @Test
+//    @Test
     public void testCleanupTopic() throws Exception {
 
         final String cluster1 = pulsar1.getConfig().getClusterName();
@@ -1082,7 +1081,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         consumer.close();
     }
 
-    @Test
+//    @Test
     public void createPartitionedTopicTest() throws Exception {
         final String cluster1 = pulsar1.getConfig().getClusterName();
         final String cluster2 = pulsar2.getConfig().getClusterName();
@@ -1121,7 +1120,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         checkListContainExpectedTopic(admin3, namespace, expectedTopicList);
     }
 
-    @Test(priority = 100)
+//    @Test(priority = 100)
     public void testRemoveClusterFromNamespace() throws Exception {
         final String cluster3 = "r3";
 
@@ -1162,7 +1161,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 pulsar1.getBrokerService().getReplicationClients().get(cluster3)));
     }
 
-    @Test
+//    @Test
     public void testDoNotReplicateSystemTopic() {
         final String namespace = "pulsar/ns-" + System.nanoTime();
         try {
