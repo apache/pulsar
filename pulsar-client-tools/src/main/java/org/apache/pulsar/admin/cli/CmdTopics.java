@@ -263,6 +263,10 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("get-maxProducers");
             cmdUsageFormatter.addDeprecatedCommand("set-maxProducers");
             cmdUsageFormatter.addDeprecatedCommand("remove-maxProducers");
+
+            cmdUsageFormatter.addDeprecatedCommand("get-retention");
+            cmdUsageFormatter.addDeprecatedCommand("set-retention");
+            cmdUsageFormatter.addDeprecatedCommand("remove-retention");
         }
     }
 
