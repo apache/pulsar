@@ -2342,7 +2342,7 @@ flexible messaging model and an intuitive client API.</description>
     </repository>
     <repository>
       <id>restlet</id>
-      <url>http://maven.icm.edu.pl/artifactory/repo/</url>
+      <url>https://maven.icm.edu.pl/artifactory/repo/</url>
       <snapshots>
         <enabled>false</enabled>
       </snapshots>
