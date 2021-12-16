@@ -352,6 +352,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         topic, subscription));
             }
 
+            if(StringUtils.isNotBlank(conf.getDeadLetterPolicy().getInitSubscriptionName())) {
+                this.deadLetterPolicy.setInitSubscriptionName(conf.getDeadLetterPolicy().getInitSubscriptionName());
+            } else {
+                this.deadLetterPolicy.setInitSubscriptionName(conf.getSubscriptionName());
+            }
+
+            this.deadLetterPolicy.setInitSubscriptionType(conf.getDeadLetterPolicy().getInitSubscriptionType());
+
         } else {
             deadLetterPolicy = null;
             possibleSendToDeadLetterTopicMessages = null;
@@ -1855,10 +1863,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             createProducerLock.writeLock().lock();
             try {
                 if (deadLetterProducer == null) {
-                    deadLetterProducer = client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
-                            .topic(this.deadLetterPolicy.getDeadLetterTopic())
-                            .blockIfQueueFull(false)
-                            .createAsync();
+                    // We first need to create the initial subscription for this DLQ topic.
+                    // Otherwise, when we do not set the retention, it may lead to data loss.
+                    // The default initial subscription name is the subscription name of the current consumer.
+                    CompletableFuture<Consumer<byte[]>> deadLetterConsumer =
+                            client.newConsumer(Schema.AUTO_PRODUCE_BYTES(schema))
+                                    .topic(this.deadLetterPolicy.getDeadLetterTopic())
+                                    .subscriptionName(this.deadLetterPolicy.getInitSubscriptionName())
+                                    .subscribeAsync();
+                    deadLetterProducer = deadLetterConsumer.thenComposeAsync(Consumer::closeAsync)
+                            .thenComposeAsync(ignored ->
+                            client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
+                                    .topic(this.deadLetterPolicy.getDeadLetterTopic())
+                                    .blockIfQueueFull(false)
+                                    .createAsync());
                 }
             } finally {
                 createProducerLock.writeLock().unlock();
