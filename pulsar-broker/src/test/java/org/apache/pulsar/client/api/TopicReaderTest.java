@@ -55,7 +55,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
-import org.testng.annotations.Ignore;
 import org.testng.annotations.Test;
 
 public class TopicReaderTest extends ProducerConsumerBase {
@@ -110,7 +109,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         };
     }
 
-    @Test
+//    @Test
     public void testSimpleReader() throws Exception {
         Reader<byte[]> reader = pulsarClient.newReader().topic("persistent://my-property/my-ns/testSimpleReader")
                 .startMessageId(MessageId.earliest).create();
@@ -138,7 +137,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+//    @Test
     public void testSimpleMultiReader() throws Exception {
         String topic = "persistent://my-property/my-ns/testSimpleMultiReader";
         admin.topics().createPartitionedTopic(topic, 3);
@@ -165,7 +164,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+//    @Test
     public void testReaderAfterMessagesWerePublished() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/testReaderAfterMessagesWerePublished")
                 .create();
@@ -193,7 +192,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+//    @Test
     public void testMultiReaderAfterMessagesWerePublished() throws Exception {
         String topic = "persistent://my-property/my-ns/testMultiReaderAfterMessagesWerePublished";
         admin.topics().createPartitionedTopic(topic, 3);
@@ -220,7 +219,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+//    @Test
     public void testMultipleReaders() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/testMultipleReaders")
                 .create();
@@ -261,7 +260,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+//    @Test
     public void testMultiMultipleReaders() throws Exception {
         final String topic = "persistent://my-property/my-ns/testMultiMultipleReaders";
         admin.topics().createPartitionedTopic(topic, 3);
@@ -299,7 +298,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+//    @Test
     public void testTopicStats() throws Exception {
         String topicName = "persistent://my-property/my-ns/testTopicStats";
 
@@ -320,7 +319,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         assertEquals(stats.subscriptions.size(), 0);
     }
 
-    @Test
+//    @Test
     public void testMultiTopicStats() throws Exception {
         String topicName = "persistent://my-property/my-ns/testMultiTopicStats";
         admin.topics().createPartitionedTopic(topicName, 3);
@@ -342,7 +341,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         assertEquals(stats.subscriptions.size(), 0);
     }
 
-    @Test(dataProvider = "variationsForResetOnLatestMsg")
+//    @Test(dataProvider = "variationsForResetOnLatestMsg")
     public void testReaderOnLatestMessage(boolean startInclusive, int numOfMessages) throws Exception {
         final String topicName = "persistent://my-property/my-ns/ReaderOnLatestMessage";
         final int halfOfMsgs = numOfMessages / 2;
@@ -387,7 +386,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test(dataProvider = "variationsForResetOnLatestMsg")
+//    @Test(dataProvider = "variationsForResetOnLatestMsg")
     public void testMultiReaderOnLatestMessage(boolean startInclusive, int numOfMessages) throws Exception {
         final String topicName = "persistent://my-property/my-ns/testMultiReaderOnLatestMessage" + System.currentTimeMillis();
         admin.topics().createPartitionedTopic(topicName, 3);
@@ -435,7 +434,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         reader.close();
     }
 
-    @Test
+//    @Test
     public void testReaderOnSpecificMessage() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/testReaderOnSpecificMessage")
                 .create();
@@ -465,7 +464,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+//    @Test
     public void testReaderOnSpecificMessageWithBatches() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic("persistent://my-property/my-ns/testReaderOnSpecificMessageWithBatches").enableBatching(true)
@@ -507,7 +506,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test(groups = "encryption")
+//    @Test(groups = "encryption")
     public void testECDSAEncryption() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -577,7 +576,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(groups = "encryption")
+//    @Test(groups = "encryption")
     public void testMultiReaderECDSAEncryption() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -646,7 +645,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         reader.close();
     }
 
-    @Test(groups = "encryption")
+//    @Test(groups = "encryption")
     public void testDefaultCryptoKeyReader() throws Exception {
         final String topic = "persistent://my-property/my-ns/test-reader-default-crypto-key-reader"
                 + System.currentTimeMillis();
@@ -843,7 +842,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+//    @Test
     public void testReaderReachEndOfTopicOnMessageWithBatches() throws Exception {
         String topic = "persistent://my-property/my-ns/testReaderReachEndOfTopicOnMessageWithBatches" + UUID.randomUUID();
         Reader<byte[]> reader = pulsarClient.newReader()
@@ -1010,7 +1009,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     }
 
-    @Test(dataProvider = "variationsForHasMessageAvailable")
+//    @Test(dataProvider = "variationsForHasMessageAvailable")
     public void testHasMessageAvailable(boolean enableBatch, boolean startInclusive) throws Exception {
         final String topicName = "persistent://my-property/my-ns/HasMessageAvailable";
         final int numOfMessage = 100;
@@ -1071,7 +1070,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test(timeOut = 20000)
+//    @Test(timeOut = 20000)
     public void testHasMessageAvailableWithBatch() throws Exception {
         final String topicName = "persistent://my-property/my-ns/testHasMessageAvailableWithBatch";
         final int numOfMessage = 10;
@@ -1141,7 +1140,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         reader.close();
     }
 
-    @Test
+//    @Test
     public void testReaderNonDurableIsAbleToSeekRelativeTime() throws Exception {
         final int numOfMessage = 10;
         final String topicName = "persistent://my-property/my-ns/ReaderNonDurableIsAbleToSeekRelativeTime";
@@ -1165,7 +1164,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+//    @Test
     public void testMultiReaderNonDurableIsAbleToSeekRelativeTime() throws Exception {
         final int numOfMessage = 10;
         final String topicName = "persistent://my-property/my-ns/ReaderNonDurableIsAbleToSeekRelativeTime";
@@ -1188,7 +1187,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+//    @Test
     public void testReaderIsAbleToSeekWithTimeOnBeginningOfTopic() throws Exception {
         final String topicName = "persistent://my-property/my-ns/ReaderSeekWithTimeOnBeginningOfTopic";
         final int numOfMessage = 10;
@@ -1237,7 +1236,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+//    @Test
     public void testMultiReaderIsAbleToSeekWithTimeOnBeginningOfTopic() throws Exception {
         final String topicName = "persistent://my-property/my-ns/MultiReaderSeekWithTimeOnBeginningOfTopic";
         final int numOfMessage = 10;
@@ -1283,7 +1282,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+//    @Test
     public void testReaderIsAbleToSeekWithMessageIdOnMiddleOfTopic() throws Exception {
         final String topicName = "persistent://my-property/my-ns/ReaderSeekWithMessageIdOnMiddleOfTopic";
         final int numOfMessage = 100;
@@ -1338,7 +1337,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+//    @Test
     public void testReaderIsAbleToSeekWithTimeOnMiddleOfTopic() throws Exception {
         final String topicName = "persistent://my-property/my-ns/ReaderIsAbleToSeekWithTimeOnMiddleOfTopic";
         final int numOfMessage = 10;
@@ -1371,7 +1370,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+//    @Test
     public void testMultiReaderIsAbleToSeekWithTimeOnMiddleOfTopic() throws Exception {
         final String topicName = "persistent://my-property/my-ns/testMultiReaderIsAbleToSeekWithTimeOnMiddleOfTopic" + System.currentTimeMillis();
         final int numOfMessage = 10;
@@ -1399,7 +1398,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test(dataProvider = "variationsForExpectedPos")
+//    @Test(dataProvider = "variationsForExpectedPos")
     public void testReaderStartMessageIdAtExpectedPos(boolean batching, boolean startInclusive, int numOfMessages)
             throws Exception {
         final String topicName = "persistent://my-property/my-ns/ReaderStartMessageIdAtExpectedPos";
@@ -1462,7 +1461,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+//    @Test
     public void testReaderBuilderConcurrentCreate() throws Exception {
         String topicName = "persistent://my-property/my-ns/testReaderBuilderConcurrentCreate_";
         int numTopic = 30;
@@ -1519,7 +1518,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+//    @Test
     public void testReaderStartInMiddleOfBatch() throws Exception {
         final String topicName = "persistent://my-property/my-ns/ReaderStartInMiddleOfBatch";
         final int numOfMessage = 100;
@@ -1558,7 +1557,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+//    @Test
     public void testHasMessageAvailableOnEmptyTopic() throws Exception {
         String topic = "my-property/my-ns/topic-" + UUID.randomUUID();
 
