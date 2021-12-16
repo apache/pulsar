@@ -16,32 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.zookeeper;
-
-import java.util.concurrent.CompletableFuture;
-
-import org.apache.zookeeper.ZooKeeper;
-
-public interface ZooKeeperClientFactory {
-    enum SessionType {
-        /**
-         * Create a normal ZK session that requires a valid quorum
-         */
-        ReadWrite,
-
-        /**
-         * Create a ZK session that allow the client to stay connected (in read only mode) to a ZK server that has lost
-         * the quorum
-         */
-        AllowReadOnly,
-    }
-    /**
-     * Return a future yielding a connected ZooKeeper client
-     *
-     * @param serverList
-     * @param sessionType
-     * @param zkSessionTimeoutMillis
-     * @return
-     */
-    CompletableFuture<ZooKeeper> create(String serverList, SessionType sessionType, int zkSessionTimeoutMillis);
-}
+package org.apache.pulsar.proxy.stats;
