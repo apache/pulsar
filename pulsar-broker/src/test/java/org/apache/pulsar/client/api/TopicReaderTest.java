@@ -1490,7 +1490,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 10000)
+//    @Test(timeOut = 10000)
     public void testMultiReaderBuilderConcurrentCreate() throws Exception {
         String topicName = "persistent://my-property/my-ns/testMultiReaderBuilderConcurrentCreate_";
         int numTopic = 30;

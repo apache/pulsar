@@ -77,7 +77,7 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
+//    @Test
     public void testGetFromEmpty() throws Exception {
         assertTrue(offsetBackingStore.get(
             Arrays.asList(ByteBuffer.wrap("empty-key".getBytes(UTF_8))),
@@ -85,7 +85,7 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
         ).get().isEmpty());
     }
 
-    @Test
+//    @Test
     public void testGetFromEmptyCallback() throws Exception {
         CompletableFuture<Map<ByteBuffer, ByteBuffer>> callbackFuture = new CompletableFuture<>();
         assertTrue(offsetBackingStore.get(
@@ -101,12 +101,12 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
         assertTrue(callbackFuture.get().isEmpty());
     }
 
-    @Test
+//    @Test
     public void testGetSet() throws Exception {
         testGetSet(false);
     }
 
-    @Test
+//    @Test
     public void testGetSetCallback() throws Exception {
         testGetSet(true);
     }
