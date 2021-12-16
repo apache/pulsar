@@ -7,9 +7,10 @@
 Apache Pulsar 2.9.1 is a bugfix release, that includes library upgrades for important security issues (like Apache Log4j2).
 It also includes fixes for some breaking changes introduces in 2.9.0.
 
-### Most notable changes:
+### Library updates:
 - Bump log4j to 2.16.0 [#13277](https://github.com/apache/pulsar/pull/13277)
-- Upgrade OkHttp3 to address CVE-2021-0341[#13065](https://github.com/apache/pulsar/pull/13065)
+- Upgrade OkHttp3 to address CVE-2021-0341 [#13065](https://github.com/apache/pulsar/pull/13065)
+- Upgrade Netty to 4.1.72 - CVE-2021-43797 [#13328](https://github.com/apache/pulsar/pull/13328)
 
 #### Java Client
 - Fixed a data race on the Producer to get a Connection [#13176](https://github.com/apache/pulsar/pull/13176)
