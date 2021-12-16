@@ -91,7 +91,7 @@ TEST(MessageTest, testMessageBuilder) {
         ASSERT_NE(msg.getData(), originalAddress);
     }
     {
-        auto msg = MessageBuilder().setAllocatedContent(originalAddress, value.length()).build();
+        auto msg = MessageBuilder().setAllocatedContent(&value[0], value.length()).build();
         ASSERT_EQ(msg.getData(), originalAddress);
     }
     {
