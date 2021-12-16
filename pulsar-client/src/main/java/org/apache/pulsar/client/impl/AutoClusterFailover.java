@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.net.InetSocketAddress;
@@ -135,8 +134,8 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         return Integer.valueOf(hostAndPort.substring(portSeparatorPos+1));
     }
 
-    private static Long Ns2Ms(long timeStampNs) {
-        return timeStampNs / 1000000;
+    private static long nanosToMillis(long nanos) {
+        return Math.max(0L, Math.round(nanos / 1_000_000.0d));
     }
 
     private void updateServiceUrl(String target) {
@@ -162,7 +161,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
             if (probeAvailable(targetServiceUrl)) {
                 log.info("Current Pulsar service is {}, it has been down for {} ms, "
                                 + "switch to the service {}. The current service down at {}",
-                        currentPulsarServiceUrl, Ns2Ms(currentTimestamp - failedTimestamp),
+                        currentPulsarServiceUrl, nanosToMillis(currentTimestamp - failedTimestamp),
                         targetServiceUrl, failedTimestamp);
                 updateServiceUrl(targetServiceUrl);
                 failedTimestamp = -1;
@@ -170,7 +169,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
                 log.error("Current Pulsar service is {}, it has been down for {} ms. "
                                 + "Failed to switch to service {}, "
                                 + "because it is not available",
-                        currentPulsarServiceUrl, Ns2Ms(currentTimestamp - failedTimestamp),
+                        currentPulsarServiceUrl, nanosToMillis(currentTimestamp - failedTimestamp),
                         targetServiceUrl);
             }
         }
@@ -189,7 +188,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
             log.info("Current Pulsar service is secondary: {}, "
                             + "the primary service: {} has been recover for {} ms, "
                             + "switch back to the primary service",
-                    currentPulsarServiceUrl, target, Ns2Ms(currentTimestamp - recoverTimestamp));
+                    currentPulsarServiceUrl, target, nanosToMillis(currentTimestamp - recoverTimestamp));
             updateServiceUrl(target);
             recoverTimestamp = -1;
         }
