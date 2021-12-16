@@ -473,6 +473,24 @@ class PULSAR_PUBLIC ProducerConfiguration {
      */
     ProducerConfiguration& setProperties(const std::map<std::string, std::string>& properties);
 
+    /**
+     * If message size is higher than allowed max publish-payload size by broker then enableChunking helps
+     * producer to split message into multiple chunks and publish them to broker separately in order. So, it
+     * allows client to successfully publish large size of messages in pulsar.
+     *
+     * Set it true to enable this feature.
+     *
+     * Default: false
+     *
+     * @return the ProducerConfiguration self
+     */
+    ProducerConfiguration& setChunkingEnabled(bool chunkingEnabled);
+
+    /**
+     * The getter associated with setChunkingEnabled().
+     */
+    bool isChunkingEnabled() const;
+
     friend class PulsarWrapper;
 
    private:
