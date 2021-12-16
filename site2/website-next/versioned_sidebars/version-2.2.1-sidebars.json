@@ -175,6 +175,96 @@
           "id": "version-2.2.1/deploy-monitoring"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Administration",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.2.1/administration-zk-bk"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/administration-geo"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/administration-dashboard"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/administration-stats"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/administration-load-distribution"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/administration-proxy"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Security",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.2.1/security-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/security-tls-transport"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/security-tls-authentication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/security-athenz"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/security-authorization"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/security-encryption"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/security-extending"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Client Libraries",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.2.1/client-libraries-java"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/client-libraries-go"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/client-libraries-python"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/client-libraries-cpp"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.1/client-libraries-websocket"
+        }
+      ]
     }
   ]
 }
