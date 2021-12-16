@@ -533,7 +533,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                 if (isOwner) {
                     sourceInstanceStatusData = getComponentInstanceStatus(tenant, namespace, name, assignment.getInstance().getInstanceId(), null);
                 } else {
-                    sourceInstanceStatusData = worker().getFunctionAdmin().source().getSourceStatus(
+                    sourceInstanceStatusData = worker().getFunctionAdmin().sources().getSourceStatus(
                             assignment.getInstance().getFunctionMetaData().getFunctionDetails().getTenant(),
                             assignment.getInstance().getFunctionMetaData().getFunctionDetails().getNamespace(),
                             assignment.getInstance().getFunctionMetaData().getFunctionDetails().getName(),
