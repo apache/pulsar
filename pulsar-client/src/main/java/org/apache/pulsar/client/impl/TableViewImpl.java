@@ -188,7 +188,10 @@ public class TableViewImpl<T> implements TableView<T> {
         try {
             if (msg.hasKey()) {
                 if (log.isDebugEnabled()) {
-                    log.debug("Applying message. key={} value={}", msg.getKey(), msg.getValue());
+                    log.debug("Applying message from topic {}. key={} value={}",
+                            conf.getTopicName(),
+                            msg.getKey(),
+                            msg.getValue());
                 }
 
                 try {
