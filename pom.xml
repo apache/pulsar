@@ -2341,9 +2341,8 @@ flexible messaging model and an intuitive client API.</description>
       </snapshots>
     </repository>
     <repository>
-      <id>maven.restlet.org</id>
-      <name>maven.restlet.org</name>
-      <url>https://maven.restlet.talend.com</url>
+      <id>restlet</id>
+      <url>http://maven.icm.edu.pl/artifactory/repo/</url>
       <snapshots>
         <enabled>false</enabled>
       </snapshots>
