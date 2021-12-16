@@ -812,7 +812,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             consumer.close();
                         }
                     } catch (Exception be) {
-                        log.info("Failed to clean up consumer on closed connection {}, {}", consumer, be.getMessage());
+                        log.error("Failed to clean up consumer on closed connection {}, {}", consumer, be.getMessage());
                     }
                 } else if (ex.getCause() instanceof SubscriptionBusyException) {
                     log.warn("[{}][{}] {}", topic, subscriptionName, ex.getMessage());
