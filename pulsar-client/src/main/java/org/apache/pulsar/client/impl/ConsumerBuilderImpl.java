@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -201,6 +202,13 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     public ConsumerBuilder<T> subscriptionName(String subscriptionName) {
         checkArgument(StringUtils.isNotBlank(subscriptionName), "subscriptionName cannot be blank");
         conf.setSubscriptionName(subscriptionName);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> subscriptionProperties(Map<String, String> subscriptionProperties) {
+        checkArgument(subscriptionProperties != null, "subscriptionProperties cannot be null");
+        conf.setSubscriptionProperties(Collections.unmodifiableMap(subscriptionProperties));
         return this;
     }
 
@@ -492,6 +500,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     public ConsumerBuilder<T> negativeAckRedeliveryBackoff(NegativeAckRedeliveryBackoff negativeAckRedeliveryBackoff) {
         checkArgument(negativeAckRedeliveryBackoff != null, "negativeAckRedeliveryBackoff must not be null.");
         conf.setNegativeAckRedeliveryBackoff(negativeAckRedeliveryBackoff);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> startPaused(boolean paused) {
+        conf.setStartPaused(paused);
         return this;
     }
 }

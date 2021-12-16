@@ -27,7 +27,6 @@ import com.mongodb.reactivestreams.client.MongoDatabase;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SinkContext;
 import org.bson.BsonDocument;
-import org.bson.Document;
 import org.mockito.Mock;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -41,8 +40,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;

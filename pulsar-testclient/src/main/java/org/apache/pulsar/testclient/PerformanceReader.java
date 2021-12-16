@@ -134,6 +134,10 @@ public class PerformanceReader {
         @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be " +
                 "used for handling connections to brokers, default is 1 thread")
         public int ioThreads = 1;
+
+        @Parameter(names = {"-lt", "--num-listener-threads"}, description = "Set the number of threads"
+                + " to be used for message listeners")
+        public int listenerThreads = 1;
     }
 
     public static void main(String[] args) throws Exception {
@@ -195,7 +199,7 @@ public class PerformanceReader {
                 arguments.authParams = prop.getProperty("authParams", null);
             }
 
-            if (arguments.useTls == false) {
+            if (!arguments.useTls) {
                 arguments.useTls = Boolean.parseBoolean(prop.getProperty("useTls"));
             }
 
@@ -227,7 +231,6 @@ public class PerformanceReader {
             }
             if (arguments.numMessages > 0 && totalMessagesReceived.sum() >= arguments.numMessages) {
                 log.info("------------- DONE (reached the maximum number: [{}] of consumption) --------------", arguments.numMessages);
-                printAggregatedStats();
                 PerfClientUtils.exit(0);
             }
             messagesReceived.increment();
@@ -252,6 +255,7 @@ public class PerformanceReader {
                 .connectionsPerBroker(arguments.maxConnections) //
                 .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
                 .ioThreads(arguments.ioThreads) //
+                .listenerThreads(arguments.listenerThreads)
                 .enableTls(arguments.useTls) //
                 .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
 

@@ -4,10 +4,6 @@ title: Pulsar binary protocol specification
 sidebar_label: "Binary protocol"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 Pulsar uses a custom binary protocol for communications between producers/consumers and brokers. This protocol is designed to support required features, such as acknowledgements and flow control, while ensuring maximum transport and implementation efficiency.
 
 Clients and brokers exchange *commands* with each other. Commands are formatted as binary [protocol buffer](https://developers.google.com/protocol-buffers/) (aka *protobuf*) messages. The format of protobuf commands is specified in the [`PulsarApi.proto`](https://github.com/apache/pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto) file and also documented in the [Protobuf interface](#protobuf-interface) section below.
@@ -186,6 +182,10 @@ messages to the broker, referring to the producer id negotiated before.
 
 ![Producer interaction](/assets/binary-protocol-producer.png)
 
+If the client does not receive a response indicating producer creation success or failure,
+the client should first send a command to close the original producer before sending a
+command to re-attempt producer creation.
+
 ##### Command Producer
 
 ```protobuf
@@ -288,6 +288,11 @@ Parameters:
 When receiving a `CloseProducer` command, the broker will stop accepting any
 more messages for the producer, wait until all pending messages are persisted
 and then reply `Success` to the client.
+
+If the client does not receive a response to a `Producer` command within a timeout,
+the client must first send a `CloseProducer` command before sending another
+`Producer` command. The client does not need to await a response to the `CloseProducer`
+command before sending the next `Producer` command.
 
 The broker can send a `CloseProducer` command to client when it's performing
 a graceful failover (eg: broker is being restarted, or the topic is being unloaded

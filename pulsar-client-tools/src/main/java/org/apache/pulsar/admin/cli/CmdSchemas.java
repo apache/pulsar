@@ -19,6 +19,7 @@
 package org.apache.pulsar.admin.cli;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
@@ -48,16 +49,27 @@ public class CmdSchemas extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--version" }, description = "version", required = false)
+        @Parameter(names = {"-v", "--version"}, description = "version", required = false)
         private Long version;
+
+        @Parameter(names = {"-a", "--all-version"}, description = "all version", required = false)
+        private boolean all = false;
 
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            if (version == null) {
+            if (version != null && all) {
+                throw new ParameterException("Only one or neither of --version and --all-version can be specified.");
+            }
+            if (version == null && !all) {
                 System.out.println(getAdmin().schemas().getSchemaInfoWithVersion(topic));
-            } else {
+            } else if (!all) {
+                if (version < 0) {
+                    throw new ParameterException("Option --version must be greater than 0, but found " + version);
+                }
                 System.out.println(getAdmin().schemas().getSchemaInfo(topic, version));
+            } else {
+                print(getAdmin().schemas().getAllSchemas(topic));
             }
         }
     }
@@ -127,10 +139,10 @@ public class CmdSchemas extends CmdBase {
                                     .withPojo(cls)
                                     .withAlwaysAllowNull(alwaysAllowNull)
                                     .build();
-            if (type.toLowerCase().equalsIgnoreCase("avro")) {
+            if (type.equalsIgnoreCase("avro")) {
                 input.setType("AVRO");
                 input.setSchema(SchemaExtractor.getAvroSchemaInfo(schemaDefinition));
-            } else if (type.toLowerCase().equalsIgnoreCase("json")){
+            } else if (type.equalsIgnoreCase("json")){
                 input.setType("JSON");
                 input.setSchema(SchemaExtractor.getJsonSchemaInfo(schemaDefinition));
             }

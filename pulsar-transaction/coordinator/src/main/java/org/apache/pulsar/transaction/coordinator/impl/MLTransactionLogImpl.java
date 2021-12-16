@@ -68,19 +68,19 @@ public class MLTransactionLogImpl implements TransactionLog {
 
     private final TopicName topicName;
 
-    private final MLTransactionLogInterceptor mlTransactionLogInterceptor;
-
     public MLTransactionLogImpl(TransactionCoordinatorID tcID,
                                 ManagedLedgerFactory managedLedgerFactory,
                                 ManagedLedgerConfig managedLedgerConfig) {
-        this.topicName = TopicName.get(TopicDomain.persistent.value(),
-                NamespaceName.SYSTEM_NAMESPACE, TRANSACTION_LOG_PREFIX + tcID.getId());
+        this.topicName = getMLTransactionLogName(tcID);
         this.tcId = tcID.getId();
-        this.mlTransactionLogInterceptor = new MLTransactionLogInterceptor();
-        managedLedgerConfig.setManagedLedgerInterceptor(this.mlTransactionLogInterceptor);
         this.managedLedgerFactory = managedLedgerFactory;
         this.managedLedgerConfig = managedLedgerConfig;
         this.entryQueue = new SpscArrayQueue<>(2000);
+    }
+
+    public static TopicName getMLTransactionLogName(TransactionCoordinatorID tcID) {
+        return TopicName.get(TopicDomain.persistent.value(),
+                NamespaceName.SYSTEM_NAMESPACE, TRANSACTION_LOG_PREFIX + tcID.getId());
     }
 
     @Override
@@ -157,7 +157,6 @@ public class MLTransactionLogImpl implements TransactionLog {
             @Override
             public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                 buf.release();
-                mlTransactionLogInterceptor.setMaxLocalTxnId(transactionMetadataEntry.getMaxLocalTxnId());
                 completableFuture.complete(position);
             }
 
@@ -238,57 +237,22 @@ public class MLTransactionLogImpl implements TransactionLog {
         }
     }
 
-    public CompletableFuture<Long> getMaxLocalTxnId() {
-
-        CompletableFuture<Long> completableFuture = new CompletableFuture<>();
-        PositionImpl position = (PositionImpl) managedLedger.getLastConfirmedEntry();
-
-        if (position != null && position.getEntryId() != -1
-                && ((ManagedLedgerImpl) managedLedger).ledgerExists(position.getLedgerId())) {
-            ((ManagedLedgerImpl) this.managedLedger).asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
-                @Override
-                public void readEntryComplete(Entry entry, Object ctx) {
-                    TransactionMetadataEntry lastConfirmEntry = new TransactionMetadataEntry();
-                    ByteBuf buffer = entry.getDataBuffer();
-                    lastConfirmEntry.parseFrom(buffer, buffer.readableBytes());
-                    completableFuture.complete(lastConfirmEntry.getMaxLocalTxnId());
-                }
-
-                @Override
-                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                    log.error("[{}] MLTransactionLog recover MaxLocalTxnId fail!", topicName, exception);
-                    completableFuture.completeExceptionally(exception);
-                }
-            }, null);
-        } else if (managedLedger.getProperties()
-                .get(MLTransactionLogInterceptor.MAX_LOCAL_TXN_ID) != null) {
-            completableFuture.complete(Long.parseLong(managedLedger.getProperties()
-                    .get(MLTransactionLogInterceptor.MAX_LOCAL_TXN_ID)));
-        } else {
-            log.error("[{}] MLTransactionLog recover MaxLocalTxnId fail! "
-                    + "not found MaxLocalTxnId in managedLedger and properties", topicName);
-            completableFuture.completeExceptionally(new ManagedLedgerException(topicName
-                    + "MLTransactionLog recover MaxLocalTxnId fail! "
-                    + "not found MaxLocalTxnId in managedLedger and properties"));
-        }
-        return completableFuture;
-    }
-
     class FillEntryQueueCallback implements AsyncCallbacks.ReadEntriesCallback {
 
         private final AtomicLong outstandingReadsRequests = new AtomicLong(0);
+        private boolean isReadable = true;
 
         boolean fillQueue() {
             if (entryQueue.size() < entryQueue.capacity() && outstandingReadsRequests.get() == 0) {
                 if (cursor.hasMoreEntries()) {
                     outstandingReadsRequests.incrementAndGet();
                     readAsync(100, this);
-                    return true;
+                    return isReadable;
                 } else {
                     return false;
                 }
             } else {
-                return true;
+                return isReadable;
             }
         }
 
@@ -309,6 +273,11 @@ public class MLTransactionLogImpl implements TransactionLog {
 
         @Override
         public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+            if (managedLedgerConfig.isAutoSkipNonRecoverableData()
+                    && exception instanceof ManagedLedgerException.NonRecoverableLedgerException
+                    || exception instanceof ManagedLedgerException.ManagedLedgerFencedException) {
+                isReadable = false;
+            }
             log.error("Transaction log init fail error!", exception);
             outstandingReadsRequests.decrementAndGet();
         }

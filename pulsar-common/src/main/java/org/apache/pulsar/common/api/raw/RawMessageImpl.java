@@ -81,6 +81,14 @@ public class RawMessageImpl implements RawMessage {
         return msg;
     }
 
+    public RawMessage updatePayloadForChunkedMessage(ByteBuf chunkedTotalPayload) {
+        if (!msgMetadata.getMetadata().hasNumChunksFromMsg() || msgMetadata.getMetadata().getNumChunksFromMsg() <= 1) {
+            throw new RuntimeException("The update payload operation only support multi chunked messages.");
+        }
+        payload = chunkedTotalPayload;
+        return this;
+    }
+
     @Override
     public Map<String, String> getProperties() {
         if (singleMessageMetadata != null && singleMessageMetadata.getPropertiesCount() > 0) {
@@ -168,6 +176,42 @@ public class RawMessageImpl implements RawMessage {
             return singleMessageMetadata.isPartitionKeyB64Encoded();
         }
         return msgMetadata.getMetadata().isPartitionKeyB64Encoded();
+    }
+
+    @Override
+    public String getUUID() {
+        if (msgMetadata.getMetadata().hasUuid()) {
+            return msgMetadata.getMetadata().getUuid();
+        } else {
+            return null;
+        }
+    }
+
+    @Override
+    public int getChunkId() {
+        if (msgMetadata.getMetadata().hasChunkId()) {
+            return msgMetadata.getMetadata().getChunkId();
+        } else {
+            return -1;
+        }
+    }
+
+    @Override
+    public int getNumChunksFromMsg() {
+        if (msgMetadata.getMetadata().hasNumChunksFromMsg()) {
+            return msgMetadata.getMetadata().getNumChunksFromMsg();
+        } else {
+            return -1;
+        }
+    }
+
+    @Override
+    public int getTotalChunkMsgSize() {
+        if (msgMetadata.getMetadata().hasTotalChunkMsgSize()) {
+            return msgMetadata.getMetadata().getTotalChunkMsgSize();
+        } else {
+            return -1;
+        }
     }
 
     public int getBatchSize() {

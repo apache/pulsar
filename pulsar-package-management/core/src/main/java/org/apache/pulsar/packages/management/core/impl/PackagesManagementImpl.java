@@ -143,7 +143,8 @@ public class PackagesManagementImpl implements PackagesManagement {
     public CompletableFuture<Void> delete(PackageName packageName) {
         return CompletableFuture.allOf(
             storage.deleteAsync(metadataPath(packageName)),
-            storage.deleteAsync(packagePath(packageName)));
+            storage.deleteAsync(packagePath(packageName)),
+            storage.deleteAsync(packageName.toRestPath()));
     }
 
     @Override
@@ -248,7 +249,7 @@ public class PackagesManagementImpl implements PackagesManagement {
     }
 
     private String packagePath(PackageName packageName) {
-        return packageName.toRestPath();
+        return packageName.toRestPath() + "/data";
     }
 
     private String packageWithoutVersionPath(PackageName packageName) {

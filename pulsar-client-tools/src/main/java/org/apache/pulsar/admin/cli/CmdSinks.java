@@ -39,6 +39,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -190,13 +191,13 @@ public class CmdSinks extends CmdBase {
             if (isBlank(clientAuthParams) && !isBlank(DEPRECATED_clientAuthParams)) {
                 clientAuthParams = DEPRECATED_clientAuthParams;
             }
-            if (useTls == false && DEPRECATED_useTls != null) {
+            if (!useTls && DEPRECATED_useTls != null) {
                 useTls = DEPRECATED_useTls;
             }
-            if (tlsAllowInsecureConnection == false && DEPRECATED_tlsAllowInsecureConnection != null) {
+            if (!tlsAllowInsecureConnection && DEPRECATED_tlsAllowInsecureConnection != null) {
                 tlsAllowInsecureConnection = DEPRECATED_tlsAllowInsecureConnection;
             }
-            if (tlsHostNameVerificationEnabled == false && DEPRECATED_tlsHostNameVerificationEnabled != null) {
+            if (!tlsHostNameVerificationEnabled && DEPRECATED_tlsHostNameVerificationEnabled != null) {
                 tlsHostNameVerificationEnabled = DEPRECATED_tlsHostNameVerificationEnabled;
             }
             if (isBlank(tlsTrustCertFilePath) && !isBlank(DEPRECATED_tlsTrustCertFilePath)) {
@@ -358,6 +359,8 @@ public class CmdSinks extends CmdBase {
         protected Long negativeAckRedeliveryDelayMs;
         @Parameter(names = "--custom-runtime-options", description = "A string that encodes options to customize the runtime, see docs for configured runtime for details")
         protected String customRuntimeOptions;
+        @Parameter(names = "--secrets", description = "The map of secretName to an object that encapsulates how the secret is fetched by the underlying secrets provider")
+        protected String secretsString;
 
         protected SinkConfig sinkConfig;
 
@@ -521,6 +524,15 @@ public class CmdSinks extends CmdBase {
 
             if (customRuntimeOptions != null) {
                 sinkConfig.setCustomRuntimeOptions(customRuntimeOptions);
+            }
+
+            if (secretsString != null) {
+                Type type = new TypeToken<Map<String, Object>>() {}.getType();
+                Map<String, Object> secretsMap = new Gson().fromJson(secretsString, type);
+                if (secretsMap == null) {
+                    secretsMap = Collections.emptyMap();
+                }
+                sinkConfig.setSecrets(secretsMap);
             }
 
             // check if configs are valid

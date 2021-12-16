@@ -5,10 +5,6 @@ sidebar_label: "Authentication using Kerberos"
 original_id: security-kerberos
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 [Kerberos](https://web.mit.edu/kerberos/) is a network authentication protocol. By using secret-key cryptography, [Kerberos](https://web.mit.edu/kerberos/) is designed to provide strong authentication for client applications and server applications. 
 
 In Pulsar, you can use Kerberos with [SASL](https://en.wikipedia.org/wiki/Simple_Authentication_and_Security_Layer) as a choice for authentication. And Pulsar uses the [Java Authentication and Authorization Service (JAAS)](https://en.wikipedia.org/wiki/Java_Authentication_and_Authorization_Service) for SASL configuration. You need to provide JAAS configurations for Kerberos authentication. 

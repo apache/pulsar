@@ -23,12 +23,11 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.common.events.EventsTopicNames;
 
 public class SystemTopic extends PersistentTopic {
 
-    public SystemTopic(String topic, ManagedLedger ledger, BrokerService brokerService)
-            throws BrokerServiceException.NamingException, PulsarServerException {
+    public SystemTopic(String topic, ManagedLedger ledger, BrokerService brokerService) throws PulsarServerException {
         super(topic, ledger, brokerService);
     }
 
@@ -59,9 +58,13 @@ public class SystemTopic extends PersistentTopic {
 
     @Override
     public CompletableFuture<Void> checkReplication() {
+        if (EventsTopicNames.isTopicPoliciesSystemTopic(topic)) {
+            return super.checkReplication();
+        }
         return CompletableFuture.completedFuture(null);
     }
 
+    @Override
     public CompletableFuture<Boolean> isCompactionEnabled() {
         // All system topics are using compaction, even though is not explicitly set in the policies.
         return CompletableFuture.completedFuture(true);

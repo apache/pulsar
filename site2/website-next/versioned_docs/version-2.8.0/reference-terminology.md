@@ -5,10 +5,6 @@ sidebar_label: "Terminology"
 original_id: reference-terminology
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 Here is a glossary of terms related to Apache Pulsar:
 
 ### Concepts

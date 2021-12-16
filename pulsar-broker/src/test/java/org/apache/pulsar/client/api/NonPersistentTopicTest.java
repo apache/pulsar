@@ -66,6 +66,7 @@ import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -112,12 +113,16 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             final String topicPartitionName = "non-persistent://public/default/issue-9173-partition-0";
 
             // Then error when subscribe to a partition of a non-persistent topic that does not exist
-            assertThrows(PulsarClientException.TopicDoesNotExistException.class,
+            assertThrows(PulsarClientException.NotFoundException.class,
                     () -> pulsarClient.newConsumer().topic(topicPartitionName).subscriptionName("sub-issue-9173").subscribe());
 
             // Then error when produce to a partition of a non-persistent topic that does not exist
-            assertThrows(PulsarClientException.TopicDoesNotExistException.class,
-                    () -> pulsarClient.newProducer().topic(topicPartitionName).create());
+            try {
+                pulsarClient.newProducer().topic(topicPartitionName).create();
+                Assert.fail("Should failed due to topic not exist");
+            } catch (Exception e) {
+                assertTrue(e instanceof PulsarClientException.NotFoundException);
+            }
         } finally {
             conf.setAllowAutoTopicCreation(defaultAllowAutoTopicCreation);
         }
@@ -491,7 +496,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         assertNotNull(topicRef);
 
         rolloverPerIntervalStats(pulsar);
-        stats = topicRef.getStats(false, false);
+        stats = topicRef.getStats(false, false, false);
         subStats = stats.getSubscriptions().values().iterator().next();
 
         // subscription stats
@@ -509,7 +514,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         Thread.sleep(timeWaitToSync);
 
         rolloverPerIntervalStats(pulsar);
-        stats = topicRef.getStats(false, false);
+        stats = topicRef.getStats(false, false, false);
         subStats = stats.getSubscriptions().values().iterator().next();
 
         assertTrue(subStats.getMsgRateOut() > 0);
@@ -576,7 +581,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             assertNotNull(replicatorR3);
 
             rolloverPerIntervalStats(replicationPulasr);
-            stats = topicRef.getStats(false, false);
+            stats = topicRef.getStats(false, false, false);
             subStats = stats.getSubscriptions().values().iterator().next();
 
             // subscription stats
@@ -647,7 +652,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             Thread.sleep(timeWaitToSync);
 
             rolloverPerIntervalStats(replicationPulasr);
-            stats = topicRef.getStats(false, false);
+            stats = topicRef.getStats(false, false, false);
             subStats = stats.getSubscriptions().values().iterator().next();
 
             assertTrue(subStats.getMsgRateOut() > 0);
@@ -863,7 +868,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
             NonPersistentTopic topic = (NonPersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
             pulsar.getBrokerService().updateRates();
-            NonPersistentTopicStats stats = topic.getStats(false, false);
+            NonPersistentTopicStats stats = topic.getStats(false, false, false);
             NonPersistentPublisherStats npStats = stats.getPublishers().get(0);
             NonPersistentSubscriptionStats sub1Stats = stats.getSubscriptions().get("subscriber-1");
             NonPersistentSubscriptionStats sub2Stats = stats.getSubscriptions().get("subscriber-2");

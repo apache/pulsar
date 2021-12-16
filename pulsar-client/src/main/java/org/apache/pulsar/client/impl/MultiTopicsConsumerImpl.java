@@ -149,6 +149,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         this.allTopicPartitionsNumber = new AtomicInteger(0);
         this.startMessageId = startMessageId != null ? new BatchMessageIdImpl(MessageIdImpl.convertToMessageIdImpl(startMessageId)) : null;
         this.startMessageRollbackDurationInSec = startMessageRollbackDurationInSec;
+        this.paused = conf.isStartPaused();
 
         if (conf.getAckTimeoutMillis() != 0) {
             if (conf.getTickDurationMillis() > 0) {
@@ -1338,7 +1339,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 return FutureUtil.failedFuture(new NotSupportedException("not support shrink topic partitions"));
             }
         }).exceptionally(throwable -> {
-            log.warn("[{}] Failed to get partitions for topic to determine if new partitions are added", throwable);
+            log.warn("Failed to get partitions for topic to determine if new partitions are added", throwable);
             return null;
         });
     }

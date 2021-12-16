@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockBookKeeper;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.atLeast;
@@ -37,6 +38,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -442,11 +444,20 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             // OK
         }
 
-        // 4. simple remove producer
+        // 4. Try to remove with unequal producer
+        Producer producerCopy = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name",
+                role, false, null, SchemaVersion.Latest, 0, false,
+                ProducerAccessMode.Shared, Optional.empty());
+        topic.removeProducer(producerCopy);
+        // Expect producer to be in map
+        assertEquals(topic.getProducers().size(), 1);
+        assertSame(topic.getProducers().get(producer.getProducerName()), producer);
+
+        // 5. simple remove producer
         topic.removeProducer(producer);
         assertEquals(topic.getProducers().size(), 0);
 
-        // 5. duplicate remove
+        // 6. duplicate remove
         topic.removeProducer(producer); /* noop */
     }
 
@@ -522,6 +533,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
     private void testMaxProducers() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        topic.initialize();
         String role = "appid1";
         // 1. add producer1
         Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name1", role,
@@ -567,8 +579,11 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .thenReturn(Optional.of(policies));
 
         when(pulsar.getPulsarResources().getNamespaceResources()
-                        .getPolicies(TopicName.get(successTopicName).getNamespaceObject()))
-                        .thenReturn(Optional.of(policies));
+                .getPolicies(TopicName.get(successTopicName).getNamespaceObject()))
+                .thenReturn(Optional.of(policies));
+        when(pulsar.getPulsarResources().getNamespaceResources()
+                .getPoliciesAsync(TopicName.get(successTopicName).getNamespaceObject()))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(policies)));
         testMaxProducers();
     }
 
@@ -674,9 +689,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setRequestId(1)
                 .setSubType(SubType.Exclusive);
 
-        Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), cmd.isReadCompacted(), InitialPosition.Latest,
-                0 /*avoid reseting cursor*/, false, null);
+        SubscriptionOption subscriptionOption = getSubscriptionOption(cmd);
+
+        Future<Consumer> f1 = topic.subscribe(subscriptionOption);
         try {
             f1.get();
             fail("should fail with exception");
@@ -684,6 +699,17 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             // Expected
             assertTrue(ee.getCause() instanceof BrokerServiceException.NamingException);
         }
+    }
+
+    private SubscriptionOption getSubscriptionOption(CommandSubscribe cmd) {
+        SubscriptionOption subscriptionOption = SubscriptionOption.builder().cnx(serverCnx)
+                .subscriptionName(cmd.getSubscription()).consumerId(cmd.getConsumerId()).subType(cmd.getSubType())
+                .priorityLevel(0).consumerName(cmd.getConsumerName()).isDurable(cmd.isDurable()).startMessageId(null)
+                .metadata(Collections.emptyMap()).readCompacted(false)
+                .initialPosition(InitialPosition.Latest).subscriptionProperties(Optional.empty())
+                .startMessageRollbackDurationSec(0).replicatedSubscriptionStateArg(false).keySharedMeta(null)
+                .build();
+        return subscriptionOption;
     }
 
     @Test
@@ -700,15 +726,11 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setSubType(SubType.Exclusive);
 
         // 1. simple subscribe
-        Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), cmd.isReadCompacted(), InitialPosition.Latest,
-                0 /*avoid reseting cursor*/, false, null);
+        Future<Consumer> f1 = topic.subscribe(getSubscriptionOption(cmd));
         f1.get();
 
         // 2. duplicate subscribe
-        Future<Consumer> f2 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), cmd.isReadCompacted(), InitialPosition.Latest,
-                0 /*avoid reseting cursor*/, false, null);
+        Future<Consumer> f2 = topic.subscribe(getSubscriptionOption(cmd));
         try {
             f2.get();
             fail("should fail with exception");
@@ -1244,9 +1266,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setRequestId(1)
                 .setSubType(SubType.Exclusive);
 
-        Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest,
-                0 /*avoid reseting cursor*/, false /* replicated */, null);
+        Future<Consumer> f1 = topic.subscribe(getSubscriptionOption(cmd));
         f1.get();
 
         assertTrue(topic.delete().isCompletedExceptionally());
@@ -1268,9 +1288,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setReadCompacted(false)
                 .setSubType(SubType.Exclusive);
 
-        Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), cmd.isReadCompacted(), InitialPosition.Latest,
-                0 /*avoid reseting cursor*/, false /* replicated */, null);
+        Future<Consumer> f1 = topic.subscribe(getSubscriptionOption(cmd));
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -1327,21 +1345,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setRequestId(1)
                 .setSubType(SubType.Exclusive);
 
-        Future<Consumer> f1 = topic.subscribe(
-                serverCnx,
-                cmd.getSubscription(),
-                cmd.getConsumerId(),
-                cmd.getSubType(),
-                0,
-                cmd.getConsumerName(),
-                cmd.isDurable(),
-                null,
-                Collections.emptyMap(),
-                cmd.isReadCompacted(),
-                InitialPosition.Latest,
-                0 /*avoid reseting cursor*/,
-                false /* replicated */,
-                null);
+        Future<Consumer> f1 = topic.subscribe(getSubscriptionOption(cmd));
 
         f1.get();
 
@@ -1435,9 +1439,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setRequestId(1)
                 .setSubType(SubType.Exclusive);
 
-        Future<Consumer> f = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), cmd.isReadCompacted(), InitialPosition.Latest,
-                0 /*avoid reseting cursor*/, false /* replicated */, null);
+        Future<Consumer> f = topic.subscribe(getSubscriptionOption(cmd));
         try {
             f.get();
             fail("should have failed");
@@ -1578,10 +1580,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setSubType(SubType.Failover);
 
         // 1. Subscribe with non partition topic
-        Future<Consumer> f1 = topic1.subscribe(serverCnx, cmd1.getSubscription(), cmd1.getConsumerId(),
-                cmd1.getSubType(), 0, cmd1.getConsumerName(), cmd1.isDurable(), null, Collections.emptyMap(),
-                cmd1.isReadCompacted(), InitialPosition.Latest,
-                0 /*avoid reseting cursor*/, false /* replicated */, null);
+        Future<Consumer> f1 = topic1.subscribe(getSubscriptionOption(cmd1));
         f1.get();
 
         // 2. Subscribe with partition topic
@@ -1596,10 +1595,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setRequestId(1)
                 .setSubType(SubType.Failover);
 
-        Future<Consumer> f2 = topic2.subscribe(serverCnx, cmd2.getSubscription(), cmd2.getConsumerId(),
-                cmd2.getSubType(), 0, cmd2.getConsumerName(), cmd2.isDurable(), null, Collections.emptyMap(),
-                cmd2.isReadCompacted(), InitialPosition.Latest,
-                0 /*avoid reseting cursor*/, false /* replicated */, null);
+        Future<Consumer> f2 = topic2.subscribe(getSubscriptionOption(cmd2));
         f2.get();
 
         // 3. Subscribe and create second consumer
@@ -1612,10 +1608,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setRequestId(1)
                 .setSubType(SubType.Failover);
 
-        Future<Consumer> f3 = topic2.subscribe(serverCnx, cmd3.getSubscription(), cmd3.getConsumerId(),
-                cmd3.getSubType(), 0, cmd3.getConsumerName(), cmd3.isDurable(), null, Collections.emptyMap(),
-                cmd3.isReadCompacted(), InitialPosition.Latest,
-                0 /*avoid reseting cursor*/, false /* replicated */, null);
+        Future<Consumer> f3 = topic2.subscribe(getSubscriptionOption(cmd3));
         f3.get();
 
         assertEquals(
@@ -1639,10 +1632,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setRequestId(1)
                 .setSubType(SubType.Failover);
 
-        Future<Consumer> f4 = topic2.subscribe(serverCnx, cmd4.getSubscription(), cmd4.getConsumerId(),
-                cmd4.getSubType(), 0, cmd4.getConsumerName(), cmd4.isDurable(), null, Collections.emptyMap(),
-                cmd4.isReadCompacted(), InitialPosition.Latest,
-                0 /*avoid reseting cursor*/, false /* replicated */, null);
+        Future<Consumer> f4 = topic2.subscribe(getSubscriptionOption(cmd4));
         f4.get();
 
         assertEquals(
@@ -1671,10 +1661,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setRequestId(1)
                 .setSubType(SubType.Exclusive);
 
-        Future<Consumer> f5 = topic2.subscribe(serverCnx, cmd5.getSubscription(), cmd5.getConsumerId(),
-                cmd5.getSubType(), 0, cmd5.getConsumerName(), cmd5.isDurable(), null, Collections.emptyMap(),
-                cmd5.isReadCompacted(), InitialPosition.Latest,
-                0 /*avoid reseting cursor*/, false /* replicated */, null);
+        Future<Consumer> f5 = topic2.subscribe(getSubscriptionOption(cmd5));
         try {
             f5.get();
             fail("should fail with exception");
@@ -1693,10 +1680,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setRequestId(1)
                 .setSubType(SubType.Exclusive);
 
-        Future<Consumer> f6 = topic2.subscribe(serverCnx, cmd6.getSubscription(), cmd6.getConsumerId(),
-                cmd6.getSubType(), 0, cmd6.getConsumerName(), cmd6.isDurable(), null, Collections.emptyMap(),
-                cmd6.isReadCompacted(), InitialPosition.Latest,
-                0 /*avoid reseting cursor*/, false /* replicated */, null);
+        Future<Consumer> f6 = topic2.subscribe(getSubscriptionOption(cmd6));
         f6.get();
 
         // 7. unsubscribe exclusive sub
@@ -1866,6 +1850,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         CompactedTopic compactedTopic = mock(CompactedTopic.class);
+        when(compactedTopic.newCompactedLedger(any(Position.class), anyLong()))
+                .thenReturn(CompletableFuture.completedFuture(null));
         new CompactorSubscription(topic, compactedTopic, Compactor.COMPACTION_SUBSCRIPTION, cursorMock);
         verify(compactedTopic, Mockito.times(1)).newCompactedLedger(position, ledgerId);
     }
@@ -2182,9 +2168,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setRequestId(1)
                 .setSubType(SubType.Exclusive);
 
-        Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), cmd.isReadCompacted(), InitialPosition.Latest,
-                cmd.getStartMessageRollbackDurationSec(), false, null);
+        Future<Consumer> f1 = topic.subscribe(getSubscriptionOption(cmd));
         f1.get();
 
         Future<Void> f2 = topic.unsubscribe(successSubName);
@@ -2219,7 +2203,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         sub1.addConsumer(consumer1);
         consumer1.close();
 
-        SubscriptionStatsImpl stats1 = sub1.getStats(false, false);
+        SubscriptionStatsImpl stats1 = sub1.getStats(false, false, false);
         assertEquals(stats1.keySharedMode, "AUTO_SPLIT");
         assertFalse(stats1.allowOutOfOrderDelivery);
 
@@ -2230,7 +2214,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         sub2.addConsumer(consumer2);
         consumer2.close();
 
-        SubscriptionStatsImpl stats2 = sub2.getStats(false, false);
+        SubscriptionStatsImpl stats2 = sub2.getStats(false, false, false);
         assertEquals(stats2.keySharedMode, "AUTO_SPLIT");
         assertTrue(stats2.allowOutOfOrderDelivery);
 
@@ -2242,7 +2226,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         sub3.addConsumer(consumer3);
         consumer3.close();
 
-        SubscriptionStatsImpl stats3 = sub3.getStats(false, false);
+        SubscriptionStatsImpl stats3 = sub3.getStats(false, false, false);
         assertEquals(stats3.keySharedMode, "STICKY");
         assertFalse(stats3.allowOutOfOrderDelivery);
     }
@@ -2301,7 +2285,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         topicPolicies.setReplicationClusters(topicClusters);
         Optional<TopicPolicies> optionalTopicPolicies = Optional.of(topicPolicies);
         topicPoliciesFuture.complete(optionalTopicPolicies);
-        when(topicPoliciesService.getTopicPoliciesAsyncWithRetry(any(), any(), any())).thenReturn(topicPoliciesFuture);
+        when(topicPoliciesService.getTopicPoliciesAsyncWithRetry(any(), any(), any(), anyBoolean())).thenReturn(topicPoliciesFuture);
 
         topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         replicationClusters = topic.getReplicationClusters(name);

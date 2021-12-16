@@ -235,4 +235,32 @@ public class PartitionedProducerImplTest {
         assertEquals(stats.getTotalSendFailed(), 1);
     }
 
+    @Test
+    public void testGetNumOfPartitions() throws Exception {
+        String topicName = "test-get-num-of-partitions";
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        conf.setStatsIntervalSeconds(100);
+
+        ThreadFactory threadFactory = new DefaultThreadFactory("client-test-stats", Thread.currentThread().isDaemon());
+        EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), false, threadFactory);
+
+        PulsarClientImpl clientImpl = new PulsarClientImpl(conf, eventLoopGroup);
+
+        ProducerConfigurationData producerConfData = new ProducerConfigurationData();
+        producerConfData.setMessageRoutingMode(MessageRoutingMode.CustomPartition);
+        producerConfData.setCustomMessageRouter(new CustomMessageRouter());
+
+        PartitionedProducerImpl partitionedProducerImpl = new PartitionedProducerImpl(
+                clientImpl, topicName, producerConfData, 1, null, null, null);
+
+        assertEquals(partitionedProducerImpl.getNumOfPartitions(), 1);
+
+        String nonPartitionedTopicName = "test-get-num-of-partitions-for-non-partitioned-topic";
+        ProducerConfigurationData producerConfDataNonPartitioned = new ProducerConfigurationData();
+        ProducerImpl producerImpl = new ProducerImpl(clientImpl, nonPartitionedTopicName, producerConfDataNonPartitioned,
+                null, 0, null, null);
+        assertEquals(producerImpl.getNumOfPartitions(), 0);
+    }
+
 }

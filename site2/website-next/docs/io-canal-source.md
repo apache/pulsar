@@ -4,10 +4,6 @@ title: Canal source connector
 sidebar_label: "Canal source connector"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The Canal source connector pulls messages from MySQL to Pulsar topics.
 
 ## Configuration

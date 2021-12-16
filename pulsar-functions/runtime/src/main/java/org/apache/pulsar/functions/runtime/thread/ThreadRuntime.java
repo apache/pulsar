@@ -59,19 +59,19 @@ public class ThreadRuntime implements Runtime {
     private static final int THREAD_SHUTDOWN_TIMEOUT_MILLIS = 10_000;
 
     @Getter
-    private InstanceConfig instanceConfig;
+    private final InstanceConfig instanceConfig;
     private JavaInstanceRunnable javaInstanceRunnable;
-    private ThreadGroup threadGroup;
-    private FunctionCacheManager fnCache;
-    private String jarFile;
-    private ClientBuilder clientBuilder;
-    private PulsarClient pulsarClient;
-    private PulsarAdmin pulsarAdmin;
-    private String stateStorageImplClass;
-    private String stateStorageServiceUrl;
-    private SecretsProvider secretsProvider;
-    private FunctionCollectorRegistry collectorRegistry;
-    private String narExtractionDirectory;
+    private final ThreadGroup threadGroup;
+    private final FunctionCacheManager fnCache;
+    private final String jarFile;
+    private final ClientBuilder clientBuilder;
+    private final PulsarClient pulsarClient;
+    private final PulsarAdmin pulsarAdmin;
+    private final String stateStorageImplClass;
+    private final String stateStorageServiceUrl;
+    private final SecretsProvider secretsProvider;
+    private final FunctionCollectorRegistry collectorRegistry;
+    private final String narExtractionDirectory;
     private final Optional<ConnectorsManager> connectorsManager;
 
     ThreadRuntime(InstanceConfig instanceConfig,
@@ -149,7 +149,7 @@ public class ThreadRuntime implements Runtime {
             } catch (FileNotFoundException e) {
                 // this is usually like
                 // java.io.FileNotFoundException: /tmp/pulsar-nar/xxx.jar-unpacked/xxxxx/META-INF/MANIFEST.MF'
-                log.error("The file {} does not look like a .nar file", jarFile, e.toString());
+                log.error("The file {} does not look like a .nar file {}", jarFile, e.toString());
             }
         }
         if (!loadedAsNar) {
@@ -215,7 +215,6 @@ public class ThreadRuntime implements Runtime {
         }
     }
 
-    @SuppressWarnings("deprecation")
     @Override
     public void stop() {
         if (fnThread != null) {
