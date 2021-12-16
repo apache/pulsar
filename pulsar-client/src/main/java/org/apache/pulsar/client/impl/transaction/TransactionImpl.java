@@ -29,6 +29,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.InvalidTxnStatusException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.TransactionNotFoundException;
@@ -146,11 +147,15 @@ public class TransactionImpl implements Transaction {
     public CompletableFuture<Void> commit() {
         return checkIfOpenOrCommitting().thenCompose((value) -> {
             CompletableFuture<Void> commitFuture = new CompletableFuture<>();
-            this.state = State.COMMITTING;
             allOpComplete().whenComplete((v, e) -> {
                 if (e != null) {
-                    abort().whenComplete((vx, ex) -> commitFuture.completeExceptionally(e));
+                    log.error(e.getMessage());
+                    commitFuture.completeExceptionally(new PulsarClientException
+                            .TransactionCanNotEndException("The transaction [" + this.txnIdMostBits + ":"
+                            + this.txnIdLeastBits + "] cannot be committed"
+                            + "because there are some transaction operations that failed with exception", e));
                 } else {
+                    this.state = State.COMMITTING;
                     tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits))
                             .whenComplete((vx, ex) -> {
                                 if (ex != null) {
@@ -174,7 +179,6 @@ public class TransactionImpl implements Transaction {
     public CompletableFuture<Void> abort() {
         return checkIfOpenOrAborting().thenCompose(value -> {
             CompletableFuture<Void> abortFuture = new CompletableFuture<>();
-            this.state = State.ABORTING;
             allOpComplete().whenComplete((v, e) -> {
                 if (e != null) {
                     log.error(e.getMessage());
@@ -184,6 +188,7 @@ public class TransactionImpl implements Transaction {
                             cumulativeAckConsumers
                                     .putIfAbsent(consumer, consumer.clearIncomingMessagesAndGetMessageNumber()));
                 }
+                this.state = State.ABORTING;
                 tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits)).whenComplete((vx, ex) -> {
                     if (cumulativeAckConsumers != null) {
                         cumulativeAckConsumers.forEach(ConsumerImpl::increaseAvailablePermits);

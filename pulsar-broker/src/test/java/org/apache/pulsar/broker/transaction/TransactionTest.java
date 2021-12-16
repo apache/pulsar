@@ -635,4 +635,33 @@ public class TransactionTest extends TransactionTestBase {
         commitTxn.commit();
     }
 
+    @Test
+    public void testCommittedWhenHasTxnOpFailed() throws Exception {
+        Transaction transaction = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build()
+                .get();
+
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
+                .topic(NAMESPACE1 + "/test")
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+        for (PulsarService pulsarService : getPulsarServiceList()) {
+            Field field = ManagedLedgerImpl.class.getDeclaredField("state");
+            field.setAccessible(true);
+            field.set(((MLTransactionMetadataStore) pulsarService.getTransactionMetadataStoreService().getStores()
+                    .get(TransactionCoordinatorID.get(0))).getManagedLedger(), ManagedLedgerImpl.State.Closed);
+        }
+        producer.newMessage(transaction)
+                .value("test")
+                .sendAsync();
+        try {
+            transaction.commit().get();
+        } catch (ExecutionException exception) {
+            assertTrue(exception.getCause() instanceof PulsarClientException.TransactionCanNotEndException);
+        }
+
+    }
 }
