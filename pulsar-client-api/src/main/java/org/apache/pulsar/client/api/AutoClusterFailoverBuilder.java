@@ -53,7 +53,7 @@ public interface AutoClusterFailoverBuilder {
      * @param timeUnit
      * @return
      */
-    AutoClusterFailoverBuilder failoverDelay(int failoverDelay, TimeUnit timeUnit);
+    AutoClusterFailoverBuilder failoverDelay(long failoverDelay, TimeUnit timeUnit);
 
     /**
      * Set the switchBackDelay. When switched to the secondary cluster, and after the primary cluster comes back,
@@ -63,7 +63,7 @@ public interface AutoClusterFailoverBuilder {
      * @param timeUnit
      * @return
      */
-    AutoClusterFailoverBuilder switchBackDelay(int switchBackDelay, TimeUnit timeUnit);
+    AutoClusterFailoverBuilder switchBackDelay(long switchBackDelay, TimeUnit timeUnit);
 
     /**
      * Build the ServiceUrlProvider instance.

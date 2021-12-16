@@ -28,6 +28,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.client.api.ControlledClusterFailoverBuilder;
@@ -35,6 +36,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 
 @Slf4j
+@Data
 public class ControlledClusterFailover implements ServiceUrlProvider {
     private PulsarClient pulsarClient;
     private volatile String currentPulsarServiceUrl;

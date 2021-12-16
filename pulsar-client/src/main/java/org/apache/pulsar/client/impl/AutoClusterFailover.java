@@ -26,6 +26,7 @@ import java.net.Socket;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.AutoClusterFailoverBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -33,6 +34,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 
 @Slf4j
+@Data
 public class AutoClusterFailover implements ServiceUrlProvider {
     private PulsarClient pulsarClient;
     private volatile String currentPulsarServiceUrl;
@@ -194,8 +196,8 @@ public class AutoClusterFailover implements ServiceUrlProvider {
     public static class AutoClusterFailoverBuilderImpl implements AutoClusterFailoverBuilder {
         private String primary;
         private String secondary;
-        private long failoverDelayMs;
-        private long switchBackDelayMs;
+        private long failoverDelayNs;
+        private long switchBackDelayNs;
 
 
         public AutoClusterFailoverBuilder primary(String primary) {
@@ -208,18 +210,18 @@ public class AutoClusterFailover implements ServiceUrlProvider {
             return this;
         }
 
-        public AutoClusterFailoverBuilder failoverDelay(int failoverDelay, TimeUnit failoverDelayTimeUnit) {
-            this.failoverDelayMs = failoverDelayTimeUnit.toNanos(failoverDelay);
+        public AutoClusterFailoverBuilder failoverDelay(long failoverDelay, TimeUnit timeUnit) {
+            this.failoverDelayNs = timeUnit.toNanos(failoverDelay);
             return this;
         }
 
-        public AutoClusterFailoverBuilder switchBackDelay(int switchBackDelay, TimeUnit switchBackDelayTimeUnit) {
-            this.switchBackDelayMs = switchBackDelayTimeUnit.toNanos(switchBackDelay);
+        public AutoClusterFailoverBuilder switchBackDelay(long switchBackDelay, TimeUnit timeUnit) {
+            this.switchBackDelayNs = timeUnit.toNanos(switchBackDelay);
             return this;
         }
 
-        public AutoClusterFailover build() {
-            return new AutoClusterFailover(primary, secondary, failoverDelayMs, switchBackDelayMs);
+        public ServiceUrlProvider build() {
+            return new AutoClusterFailover(primary, secondary, failoverDelayNs, switchBackDelayNs);
         }
     }
 
