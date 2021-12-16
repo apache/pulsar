@@ -315,8 +315,78 @@ msg, err = consumer.Receive(ctx)
 fmt.Println(msg.Payload())
 canc()
 </code></pre>
+<h4><a class="anchor" aria-hidden="true" id="how-to-use-prometheus-metrics-in-producer"></a><a href="#how-to-use-prometheus-metrics-in-producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>How to use Prometheus metrics in producer</h4>
+<p>Pulsar Go client registers client metrics using Prometheus. This section demonstrates how to create a simple Pulsar producer application that exposes Prometheus metrics via HTTP.</p>
+<ol>
+<li>Write a simple producer application.</li>
+</ol>
+<pre><code class="hljs css language-go"><span class="hljs-comment">// Create a Pulsar client</span>
+client, err := pulsar.NewClient(pulsar.ClientOptions{
+    URL: <span class="hljs-string">"pulsar://localhost:6650"</span>,
+})
+<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> {
+    log.Fatal(err)
+}
+
+<span class="hljs-keyword">defer</span> client.Close()
+
+<span class="hljs-comment">// Start a separate goroutine for Prometheus metrics</span>
+<span class="hljs-comment">// In this case, Prometheus metrics can be accessed via http://localhost:2112/metrics</span>
+<span class="hljs-keyword">go</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span></span> {
+    prometheusPort := <span class="hljs-number">2112</span>
+    log.Printf(<span class="hljs-string">"Starting Prometheus metrics at http://localhost:%v/metrics\n"</span>, prometheusPort)
+    http.Handle(<span class="hljs-string">"/metrics"</span>, promhttp.Handler())
+    err = http.ListenAndServe(<span class="hljs-string">":"</span>+strconv.Itoa(prometheusPort), <span class="hljs-literal">nil</span>)
+    <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> {
+        log.Fatal(err)
+    }
+}()
+
+<span class="hljs-comment">// Create a producer</span>
+producer, err := client.CreateProducer(pulsar.ProducerOptions{
+    Topic: <span class="hljs-string">"topic-1"</span>,
+})
+<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> {
+    log.Fatal(err)
+}
+
+<span class="hljs-keyword">defer</span> producer.Close()
+
+ctx := context.Background()
+
+<span class="hljs-comment">// Write your business logic here</span>
+<span class="hljs-comment">// In this case, you build a simple Web server. You can produce messages by requesting http://localhost:8082/produce</span>
+webPort := <span class="hljs-number">8082</span>
+http.HandleFunc(<span class="hljs-string">"/produce"</span>, <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(w http.ResponseWriter, r *http.Request)</span></span> {
+    msgId, err := producer.Send(ctx, &amp;pulsar.ProducerMessage{
+        Payload: []<span class="hljs-keyword">byte</span>(fmt.Sprintf(<span class="hljs-string">"hello world"</span>)),
+    })
+    <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> {
+        log.Fatal(err)
+    } <span class="hljs-keyword">else</span> {
+        log.Printf(<span class="hljs-string">"Published message: %v"</span>, msgId)
+        fmt.Fprintf(w, <span class="hljs-string">"Published message: %v"</span>, msgId)
+    }
+})
+
+err = http.ListenAndServe(<span class="hljs-string">":"</span>+strconv.Itoa(webPort), <span class="hljs-literal">nil</span>)
+<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> {
+    log.Fatal(err)
+}
+</code></pre>
+<ol>
+<li>To scrape metrics from applications, configure a local running Prometheus instance using a configuration file (<code>prometheus.yml</code>).</li>
+</ol>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">scrape_configs:</span>
+<span class="hljs-bullet">-</span> <span class="hljs-attr">job_name:</span> <span class="hljs-string">pulsar-client-go-metrics</span>
+  <span class="hljs-attr">scrape_interval:</span> <span class="hljs-string">10s</span>
+  <span class="hljs-attr">static_configs:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-attr">targets:</span>
+    <span class="hljs-bullet">-</span> <span class="hljs-string">localhost:2112</span>
+</code></pre>
+<p>Now you can query Pulsar client metrics on Prometheus.</p>
 <h3><a class="anchor" aria-hidden="true" id="producer-配置"></a><a href="#producer-配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer 配置</h3>
-<p>名称 | 描述 | 默认 | :-------- | :---------- |:---------- | | Topic | 指定该消费者将订阅的 topic。 This argument is required when constructing the reader. | | | Name | Name specify a name for the producer. If not assigned, the system will generate a globally unique name which can be access with Producer.ProducerName(). | | | Properties | Properties 将附加一组应用程序定义的属性。这个属性将会在主题统计中可见 | | | SendTimeout | sendTimeout 设置未被服务器确认的消息的超时时间 | 30s | | DisableBlockIfQueueFull | DisableBlockIfQueueFull 控制如果生产者的消息队列已满，则 Send 和 SendAsync 是否阻塞 | false | | MaxPendingMessages | MaxPendingMessages 设置队列的最大大小，该队列包含待处理的消息以接收来自代理的确认。 | | | HashingScheme | HashingScheme change the <code>HashingScheme</code> used to chose the partition on where to publish a particular message. | JavaStringHash | | CompressionType | CompressionType set the compression type for the producer. | 不压缩 | | 压缩等级 | 定义所需的压缩级别 | 选项有：Default 、Faster 和 Better | Default | | MessageRouter | MessageRouter 通过 MessageRouter 的实现设置了自定义消息路由策略 | | | DisableBatching | DisableBatching 控制是否为生产者启用消息的自动批处理 | false | | BatchingMaxPublishDelay | BatchingMaxPublishDelay set the time period within which the messages sent will be batched | 1ms | | BatchingMaxMessages | BatchingMaxMessages set the maximum number of messages permitted in a batch. | 1000 | | BatchingMaxSize | BatchingMaxSize 设置批处理中允许的最大字节数 | 128KB | | Schema | Schema 通过传递 <code>Schema</code> 的实现来设置自定义模式类型 | bytes[] | | Interceptors | 拦截器链 这些拦截器在 <code>ProducerInterceptor</code> 接口中定义的某些点被调用。 | None | | MaxReconnectToBroker | MaxReconnectToBroker 设置最大重链次数 | ultimate | | BatcherBuilderType | BatcherBuilderType 设置批处理生成器类型。 这用于在启用批处理时创建批处理容器。 选项有：DefaultBatchBuilder 和 KeyBasedBatchBuilder | DefaultBatchBuilder |</p>
+<p>Name | Description | Default | :-------- | :---------- |:---------- | | Topic | Topic specify the topic this consumer will subscribe to. This argument is required when constructing the reader. | | | Name | Name specify a name for the producer. If not assigned, the system will generate a globally unique name which can be access with Producer.ProducerName(). | | | Properties | Properties 将附加一组应用程序定义的属性。这个属性将会在主题统计中可见 | | | SendTimeout | sendTimeout 设置未被服务器确认的消息的超时时间 | 30s | | DisableBlockIfQueueFull | DisableBlockIfQueueFull 控制如果生产者的消息队列已满，则 Send 和 SendAsync 是否阻塞 | false | | MaxPendingMessages | MaxPendingMessages 设置队列的最大大小，该队列包含待处理的消息以接收来自代理的确认。 | | | HashingScheme | HashingScheme change the <code>HashingScheme</code> used to chose the partition on where to publish a particular message. | JavaStringHash | | CompressionType | CompressionType set the compression type for the producer. | 不压缩 | | 压缩等级 | 定义所需的压缩级别 | 选项有：Default 、Faster 和 Better | Default | | MessageRouter | MessageRouter 通过 MessageRouter 的实现设置了自定义消息路由策略 | | | DisableBatching | DisableBatching 控制是否为生产者启用消息的自动批处理 | false | | BatchingMaxPublishDelay | BatchingMaxPublishDelay set the time period within which the messages sent will be batched | 1ms | | BatchingMaxMessages | BatchingMaxMessages set the maximum number of messages permitted in a batch. | 1000 | | BatchingMaxSize | BatchingMaxSize 设置批处理中允许的最大字节数 | 128KB | | Schema | Schema 通过传递 <code>Schema</code> 的实现来设置自定义模式类型 | bytes[] | | Interceptors | 拦截器链 这些拦截器在 <code>ProducerInterceptor</code> 接口中定义的某些点被调用。 | None | | MaxReconnectToBroker | MaxReconnectToBroker 设置最大重链次数 | ultimate | | BatcherBuilderType | BatcherBuilderType 设置批处理生成器类型。 这用于在启用批处理时创建批处理容器。 选项有：DefaultBatchBuilder 和 KeyBasedBatchBuilder | DefaultBatchBuilder |</p>
 <h2><a class="anchor" aria-hidden="true" id="消费者"></a><a href="#消费者" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消费者</h2>
 <p>Pulsar consumers subscribe to one or more Pulsar topics and listen for incoming messages produced on that topic/those topics. You can <a href="#consumer-configuration">configure</a> Go consumers using a <code>ConsumerOptions</code> object. Here's a basic example that uses channels:</p>
 <pre><code class="hljs css language-go">consumer, err := client.Subscribe(pulsar.ConsumerOptions{
@@ -533,6 +603,74 @@ err = msg.GetSchemaValue(&amp;s)
 
 <span class="hljs-keyword">defer</span> consumer.Close()
 </code></pre>
+<h4><a class="anchor" aria-hidden="true" id="how-to-use-prometheus-metrics-in-consumer"></a><a href="#how-to-use-prometheus-metrics-in-consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>How to use Prometheus metrics in consumer</h4>
+<p>In this guide, This section demonstrates how to create a simple Pulsar consumer application that exposes Prometheus metrics via HTTP. 1. Write a simple consumer application.</p>
+<pre><code class="hljs css language-go"><span class="hljs-comment">// Create a Pulsar client</span>
+client, err := pulsar.NewClient(pulsar.ClientOptions{
+    URL: <span class="hljs-string">"pulsar://localhost:6650"</span>,
+})
+<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> {
+    log.Fatal(err)
+}
+
+<span class="hljs-keyword">defer</span> client.Close()
+
+<span class="hljs-comment">// Start a separate goroutine for Prometheus metrics</span>
+<span class="hljs-comment">// In this case, Prometheus metrics can be accessed via http://localhost:2112/metrics</span>
+<span class="hljs-keyword">go</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span></span> {
+    prometheusPort := <span class="hljs-number">2112</span>
+    log.Printf(<span class="hljs-string">"Starting Prometheus metrics at http://localhost:%v/metrics\n"</span>, prometheusPort)
+    http.Handle(<span class="hljs-string">"/metrics"</span>, promhttp.Handler())
+    err = http.ListenAndServe(<span class="hljs-string">":"</span>+strconv.Itoa(prometheusPort), <span class="hljs-literal">nil</span>)
+    <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> {
+        log.Fatal(err)
+    }
+}()
+
+<span class="hljs-comment">// Create a consumer</span>
+consumer, err := client.Subscribe(pulsar.ConsumerOptions{
+    Topic:            <span class="hljs-string">"topic-1"</span>,
+    SubscriptionName: <span class="hljs-string">"sub-1"</span>,
+    Type:             pulsar.Shared,
+})
+<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> {
+    log.Fatal(err)
+}
+
+<span class="hljs-keyword">defer</span> consumer.Close()
+
+ctx := context.Background()
+
+<span class="hljs-comment">// Write your business logic here</span>
+<span class="hljs-comment">// In this case, you build a simple Web server. You can consume messages by requesting http://localhost:8083/consume</span>
+webPort := <span class="hljs-number">8083</span>
+http.HandleFunc(<span class="hljs-string">"/consume"</span>, <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(w http.ResponseWriter, r *http.Request)</span></span> {
+    msg, err := consumer.Receive(ctx)
+    <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> {
+        log.Fatal(err)
+    } <span class="hljs-keyword">else</span> {
+        log.Printf(<span class="hljs-string">"Received message msgId: %v -- content: '%s'\n"</span>, msg.ID(), <span class="hljs-keyword">string</span>(msg.Payload()))
+        fmt.Fprintf(w, <span class="hljs-string">"Received message msgId: %v -- content: '%s'\n"</span>, msg.ID(), <span class="hljs-keyword">string</span>(msg.Payload()))
+        consumer.Ack(msg)
+    }
+})
+
+err = http.ListenAndServe(<span class="hljs-string">":"</span>+strconv.Itoa(webPort), <span class="hljs-literal">nil</span>)
+<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> {
+    log.Fatal(err)
+}
+</code></pre>
+<ol>
+<li>To scrape metrics from applications, configure a local running Prometheus instance using a configuration file (<code>prometheus.yml</code>).</li>
+</ol>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">scrape_configs:</span>
+<span class="hljs-bullet">-</span> <span class="hljs-attr">job_name:</span> <span class="hljs-string">pulsar-client-go-metrics</span>
+  <span class="hljs-attr">scrape_interval:</span> <span class="hljs-string">10s</span>
+  <span class="hljs-attr">static_configs:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-attr">targets:</span>
+    <span class="hljs-bullet">-</span> <span class="hljs-string">localhost:2112</span>
+</code></pre>
+<p>Now you can query Pulsar client metrics on Prometheus.</p>
 <h3><a class="anchor" aria-hidden="true" id="消费者配置"></a><a href="#消费者配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消费者配置</h3>
 <p>Name | Description | Default | :-------- | :---------- |:---------- | | Topic | Topic specify the topic this consumer will subscribe to. This argument is required when constructing the reader. | | | Topics | Specify a list of topics this consumer will subscribe on. Either a topic, a list of topics or a topics pattern are required when subscribing| | | TopicsPattern | Specify a regular expression to subscribe to multiple topics under the same namespace. Either a topic, a list of topics or a topics pattern are required when subscribing | | | AutoDiscoveryPeriod | Specify the interval in which to poll for new partitions or new topics if using a TopicsPattern. | | | SubscriptionName | Specify the subscription name for this consumer. This argument is required when subscribing | | | Name | Set the consumer name | | | Properties | Properties attach a set of application defined properties to the producer This properties will be visible in the topic stats | | | Type | Select the subscription type to be used when subscribing to the topic. | Exclusive | | SubscriptionInitialPosition | InitialPosition at which the cursor will be set when subscribe | Latest | | DLQ | Configuration for Dead Letter Queue consumer policy. | no DLQ | | MessageChannel | Sets a <code>MessageChannel</code> for the consumer. When a message is received, it will be pushed to the channel for consumption | | | ReceiverQueueSize | Sets the size of the consumer receive queue. | 1000 | | NackRedeliveryDelay| 重新传递未能处理的消息的延迟时间 | 1 min | | ReadCompact | 如果启用，消费者将从压缩的主题中读取消息，而不是读取主题的完整消息积压 | false | | ReplicateSubscriptionState | 将订阅标记为已复制以使其跨集群保持同步 | false | | KeySharedPolicy | Key Shared 消费者策略的配置。 | | | RetryEnable | 自动重试开关，打开会将消息发送到默认填写的 DLQPolicy 主题 | false | | Interceptors | 拦截器链。 这些拦截器在 <code>ConsumerInterceptor</code> 接口中定义的某些点被调用。 | | | MaxReconnectToBroker | MaxReconnectToBroker 设置了重链 broker 的最大重试次数。 | ultimate | | Schema | Schema 通过传递 <code>Schema</code> 的实现来设置自定义模式类型 | bytes[] |</p>
 <h2><a class="anchor" aria-hidden="true" id="reader"></a><a href="#reader" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Reader</h2>
@@ -547,7 +685,7 @@ err = msg.GetSchemaValue(&amp;s)
 <span class="hljs-keyword">defer</span> reader.Close()
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="reader-操作"></a><a href="#reader-操作" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Reader 操作</h3>
-<p>Pulsar Go reader 有以下可用方法：</p>
+<p>Pulsar Go readers have the following methods available:</p>
 <table>
 <thead>
 <tr><th style="text-align:left">方法</th><th style="text-align:left">说明</th><th style="text-align:left">返回类型</th></tr>
@@ -562,7 +700,7 @@ err = msg.GetSchemaValue(&amp;s)
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="reader-示例"></a><a href="#reader-示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Reader 示例</h3>
-<h4><a class="anchor" aria-hidden="true" id="如何使用-reader-读取下一个消息"></a><a href="#如何使用-reader-读取下一个消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>如何使用 reader 读取“下一个”消息</h4>
+<h4><a class="anchor" aria-hidden="true" id="如何使用阅读器读取下一个消息"></a><a href="#如何使用阅读器读取下一个消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>如何使用阅读器读取“下一个”消息</h4>
 <p>Here's an example usage of a Go reader that uses the <code>Next()</code> method to process incoming messages:</p>
 <pre><code class="hljs css language-go"><span class="hljs-keyword">import</span> (
     <span class="hljs-string">"context"</span>
@@ -608,7 +746,7 @@ reader, err := client.CreateReader(pulsar.ReaderOptions{
     StartMessageID: pulsar.DeserializeMessageID(lastSavedId),
 })
 </code></pre>
-<h4><a class="anchor" aria-hidden="true" id="如何使用-reader-读取特定消息"></a><a href="#如何使用-reader-读取特定消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>如何使用 reader 读取特定消息</h4>
+<h4><a class="anchor" aria-hidden="true" id="如何使用阅读器读取特定消息"></a><a href="#如何使用阅读器读取特定消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>如何使用阅读器读取特定消息</h4>
 <pre><code class="hljs css language-go">client, err := NewClient(pulsar.ClientOptions{
     URL: lookupURL,
 })
@@ -673,9 +811,9 @@ readerInclusive, err := client.CreateReader(pulsar.ReaderOptions{
 <span class="hljs-keyword">defer</span> readerInclusive.Close()
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="reader-配置"></a><a href="#reader-配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Reader 配置</h3>
-<p>名称 | 描述 | 默认 | :-------- | :---------- |:---------- | | Topic | 指定该消费者将订阅的 topic。 构建 reader 时需要此参数。 | | | 名称 | 设置 reader 名称。 | | | Properties | Attach a set of application defined properties to the reader. This properties will be visible in the topic stats | | | StartMessageID | StartMessageID initial reader positioning is done by specifying a message id. | | | StartMessageIDInclusive | If true, the reader will start at the <code>StartMessageID</code>, included. Default is <code>false</code> and the reader will start from the &quot;next&quot; message | false | | MessageChannel | MessageChannel sets a <code>MessageChannel</code> for the consumer When a message is received, it will be pushed to the channel for consumption| | | ReceiverQueueSize | ReceiverQueueSize sets the size of the consumer receive queue. | 1000 | | SubscriptionRolePrefix| SubscriptionRolePrefix set the subscription role prefix. | “reader” | | ReadCompacted | If enabled, the reader will read messages from the compacted topic rather than reading the full message backlog of the topic. ReadCompacted can only be enabled when reading from a persistent topic. | false|</p>
+<p>Name | Description | Default | :-------- | :---------- |:---------- | | Topic | Topic specify the topic this consumer will subscribe to. This argument is required when constructing the reader. | | | Name | Name set the reader name. | | | Properties | Attach a set of application defined properties to the reader. This properties will be visible in the topic stats | | | StartMessageID | StartMessageID initial reader positioning is done by specifying a message id. | | | StartMessageIDInclusive | If true, the reader will start at the <code>StartMessageID</code>, included. Default is <code>false</code> and the reader will start from the &quot;next&quot; message | false | | MessageChannel | MessageChannel sets a <code>MessageChannel</code> for the consumer When a message is received, it will be pushed to the channel for consumption| | | ReceiverQueueSize | ReceiverQueueSize sets the size of the consumer receive queue. | 1000 | | SubscriptionRolePrefix| SubscriptionRolePrefix set the subscription role prefix. | “reader” | | ReadCompacted | If enabled, the reader will read messages from the compacted topic rather than reading the full message backlog of the topic. ReadCompacted can only be enabled when reading from a persistent topic. | false|</p>
 <h2><a class="anchor" aria-hidden="true" id="消息"></a><a href="#消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消息</h2>
-<p>Pulsar Go 客户端提供了一个 <code>ProducerMessage</code> 接口，你可以用它来构造到 Pulsar 主题的消息。下面是示例消息：</p>
+<p>The Pulsar Go client provides a <code>ProducerMessage</code> interface that you can use to construct messages to producer on Pulsar topics. Here's an example message:</p>
 <pre><code class="hljs css language-go">msg := pulsar.ProducerMessage{
     Payload: []<span class="hljs-keyword">byte</span>(<span class="hljs-string">"Here is some message data"</span>),
     Key: <span class="hljs-string">"message-key"</span>,
@@ -690,7 +828,7 @@ readerInclusive, err := client.CreateReader(pulsar.ReaderOptions{
     log.Fatalf(<span class="hljs-string">"Could not publish message due to: %v"</span>, err)
 }
 </code></pre>
-<p><code>ProducerMessage</code> 对象可以使用以下方法参数：</p>
+<p>The following methods parameters are available for <code>ProducerMessage</code> objects:</p>
 <table>
 <thead>
 <tr><th style="text-align:left">参数名</th><th style="text-align:left">说明</th></tr>
@@ -709,7 +847,7 @@ readerInclusive, err := client.CreateReader(pulsar.ReaderOptions{
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="tls-加密和身份验证"></a><a href="#tls-加密和身份验证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>TLS 加密和身份验证</h2>
-<p>要使用 <a href="/docs/zh-CN/next/security-tls-transport">TLS 加密</a>，你需要按照如下配置你的客户端：</p>
+<p>In order to use <a href="/docs/zh-CN/next/security-tls-transport">TLS encryption</a>, you'll need to configure your client to do so:</p>
 <ul>
 <li>使用 <code>pulsar+ssl</code> URL 类型</li>
 <li>设置 <code>TLSTrustCertCertsFilePath</code> 到你的客户端和 Pulsar broker 使用的 TLS 证书路径</li>
@@ -723,7 +861,7 @@ readerInclusive, err := client.CreateReader(pulsar.ReaderOptions{
 }
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="oauth2-身份验证"></a><a href="#oauth2-身份验证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>OAuth2 身份验证</h2>
-<p>要使用 <a href="/docs/zh-CN/next/security-oauth2">OAuth2 身份验证</a>，您需要配置您的客户端来执行以下操作。 此示例显示如何配置 OAuth2 身份验证。</p>
+<p>To use <a href="/docs/zh-CN/next/security-oauth2">OAuth2 authentication</a>, you'll need to configure your client to perform the following operations. This example shows how to configure OAuth2 authentication.</p>
 <pre><code class="hljs css language-go">oauth := pulsar.NewAuthenticationOAuth2(<span class="hljs-keyword">map</span>[<span class="hljs-keyword">string</span>]<span class="hljs-keyword">string</span>{
         <span class="hljs-string">"type"</span>:       <span class="hljs-string">"client_credentials"</span>,
         <span class="hljs-string">"issuerUrl"</span>:  <span class="hljs-string">"https://dev-kt-aa9ne.us.auth0.com"</span>,

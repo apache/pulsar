@@ -150,31 +150,32 @@ REST API 中 <code>:schema</code> 分为 persistent（持久化）和 non-persis
 <li><p><strong>msgThroughputOut</strong>：所有本地和副本消费者每秒调度消息字节数之和（byte/s）。</p></li>
 <li><p><strong>averageMsgSize</strong>：在最近时间间隔内发布消息的平均大小（以字节为单位）。</p></li>
 <li><p><strong>storageSize</strong>：当前 topic 对应 ledger 存储大小之和。 用于存储该主题消息的空间。</p></li>
-<li><p><strong>bytesInCounter</strong>: 发布到 topic 的字节数。</p></li>
-<li><p><strong>msgInCounter</strong>: 已发布的消息总数。</p></li>
-<li><p><strong>bytesOutCounter</strong>: 发送到消费者的总字节数。</p></li>
-<li><p><strong>msgOutCounter</strong>: 已向消费者发布的消息总数。</p></li>
-<li><p><strong>msgChunkPublished</strong>: Topic上发布了消息块。</p></li>
-<li><p><strong>backlogSize</strong>: 估计的未消费或积压的总大小（字节）。</p></li>
-<li><p><strong>offloadedStorageSize</strong>: 用于存储该离载topic的信息的空间（以字节为单位）。</p></li>
-<li><p><strong>waitingPublishers</strong>: 在排他性访问模式下，在队列中等待的生产者数量。</p></li>
-<li><p><strong>deduplicationStatus</strong>: topic的消息重复处理的状态。</p></li>
-<li><p><strong>topicEpoch</strong>: 如果没有设置，topic默认或者为空</p></li>
-<li><p><strong>non-Conquired Messagesranges</strong>: 非连续删除消息的数量范围。</p></li>
-<li><p><strong>non-Conquired Messagesranges</strong>: 非连续已删除消息范围的序列化大小。</p></li>
+<li><p><strong>earliestMsgPublishTimeInBacklogs</strong>: The publish time of the earliest message in the backlog (ms).</p></li>
+<li><p><strong>bytesInCounter</strong>: Total bytes published to the topic.</p></li>
+<li><p><strong>msgInCounter</strong>: Total messages published to the topic.</p></li>
+<li><p><strong>bytesOutCounter</strong>: Total bytes delivered to consumers.</p></li>
+<li><p><strong>msgOutCounter</strong>: Total messages delivered to consumers.</p></li>
+<li><p><strong>msgChunkPublished</strong>: Topic has chunked message published on it.</p></li>
+<li><p><strong>backlogSize</strong>: Estimated total unconsumed or backlog size (in bytes).</p></li>
+<li><p><strong>offloadedStorageSize</strong>: Space used to store the offloaded messages for the topic (in bytes).</p></li>
+<li><p><strong>waitingPublishers</strong>: The number of publishers waiting in a queue in exclusive access mode.</p></li>
+<li><p><strong>deduplicationStatus</strong>: The status of message deduplication for the topic.</p></li>
+<li><p><strong>topicEpoch</strong>: The topic epoch or empty if not set.</p></li>
+<li><p><strong>nonContiguousDeletedMessagesRanges</strong>: The number of non-contiguous deleted messages ranges.</p></li>
+<li><p><strong>nonContiguousDeletedMessagesRangesSerializedSize</strong>: The serialized size of non-contiguous deleted messages ranges.</p></li>
 <li><p><strong>publishers</strong>: The list of all local publishers into the topic. 该列表的范围从零到千不等。</p>
 <ul>
-<li><p>** accessMode**: 生产者需要的主题访问类型。</p></li>
+<li><p><strong>accessMode</strong>: The type of access to the topic that the producer requires.</p></li>
 <li><p><strong>msgRateIn</strong>：发布者每秒发布消息的总速率（msg/s）。</p></li>
 <li><p><strong>msgThroughputIn</strong>：发布者发布消息的总吞吐量（byte/s）。</p></li>
 <li><p><strong>averageMsgSize</strong>：发布者在最近时间间隔内发布消息的平均大小（以字节为单位）。</p></li>
-<li><p><strong>chunkedMessageRate</strong>: 此生产者收到的有关此主题的总分块消息数。</p></li>
+<li><p><strong>chunkedMessageRate</strong>: Total chunked message count received for this producer on this topic.</p></li>
 <li><p><strong>producerId</strong>：该主题对应的生产者内部识别号。</p></li>
 <li><p><strong>producerName</strong>：由客户端生成的生产者内部识别名称。</p></li>
 <li><p><strong>address</strong>：连接生产者所需的 IP 地址和端口号。</p></li>
 <li><p><strong>connectedSince</strong>：生产者上次创建或者重新连接时的时间戳。</p></li>
-<li><p>** clientVersion**: 生产者客户端库的版本。</p></li>
-<li><p>** metadata **: 与发布者关联的元数据（键/值字符串）。</p></li>
+<li><p><strong>clientVersion</strong>: The client library version of this producer.</p></li>
+<li><p><strong>metadata</strong>: Metadata (key/value strings) associated with this publisher.</p></li>
 </ul></li>
 <li><p><strong>subscriptions</strong>：该主题下的所有本地订阅列表。</p>
 <ul>
@@ -189,25 +190,26 @@ REST API 中 <code>:schema</code> 分为 persistent（持久化）和 non-persis
 <li><p><strong>lastConsumedFlowTimestamp</strong>：收到的最后一条流量指令的时间戳。</p></li>
 <li><p><strong>lastConsumedTimestamp</strong>：消费者所有已消费消息的最新时间戳。</p></li>
 <li><p><strong>lastAckedTimestamp</strong>：消费者所有已被 ack 消息的最新时间戳</p></li>
-<li><p><strong>bytesOutCounter</strong>: 发送到消费者的字节总数。</p></li>
-<li><p><strong>msgOutCounter</strong>: 已向消费者发布的消息总数。</p></li>
-<li><p><strong>msgRateOut</strong>：在此订阅中发送消息的总速率 (msg/s) 。</p></li>
-<li><p><strong>chunkedMessageRate</strong>: Chunked 消息发送率。</p></li>
-<li><p><strong>积压大小</strong>: 此订阅的积压大小(字节)。</p></li>
-<li><p><strong>msgBacklogNoDelayed</strong>: 订阅积压中不包含延迟消息的消息数量。</p></li>
-<li><p><strong>blockedConsumerOnUnackedMsgs</strong>：用于验证订阅是否因达到未确认消息阈值而被阻止的标志。</p></li>
-<li><p><strong>msgDelayed</strong>: 当前正在跟踪的延迟消息数量。</p></li>
-<li><p><strong>unackedMessages</strong>：消费者未确认消息的数量。</p></li>
-<li><p><strong>activeConsumerName</strong>: 一个活动消费者订阅中处于活动状态的消费者的名称。 例如, failover 或者 exclusive</p></li>
-<li><p><strong>totalMsgExpired</strong>: 此订阅过期的消息总数。</p></li>
-<li><p><strong>last MarkDeleteAdvancedTimestamp</strong>: 最后标记删除位置的高级时间戳。</p></li>
-<li><p><strong>durable</strong>: 订阅是持久的还是短暂的(例如来自一个reader)。</p></li>
-<li><p><strong>replicated</strong>: 标记订阅状态在不同区域保持同步。</p></li>
-<li><p>** allowOutOfOrderDelivery **: Key_Shared订阅器是否允许无序传递。</p></li>
-<li><p>** keySharedMode **: Key_Shared 订阅模式是AUTO_SPLIT(自动拆分)还是STICKY(粘性)。</p></li>
-<li><p><strong>消费者AfterMarkDeletePosition</strong>: 这是Key_Shared 订阅的，以便在Key_Shared 订阅中获得最近加入的消费者。</p></li>
-<li><p><strong>non-Conquired Messagesranges</strong>: 非连续删除消息的数量范围。</p></li>
-<li><p><strong>non-Conquired Messagesranges</strong>: 非连续已删除消息范围的序列化大小。</p></li>
+<li><p><strong>bytesOutCounter</strong>: Total bytes delivered to consumer.</p></li>
+<li><p><strong>msgOutCounter</strong>: Total messages delivered to consumer.</p></li>
+<li><p><strong>msgRateRedeliver</strong>: Total rate of messages redelivered on this subscription (msg/s).</p></li>
+<li><p><strong>chunkedMessageRate</strong>: Chunked message dispatch rate.</p></li>
+<li><p><strong>backlogSize</strong>: Size of backlog for this subscription (in bytes).</p></li>
+<li><p><strong>earliestMsgPublishTimeInBacklog</strong>: The publish time of the earliest message in the backlog for the subscription (ms).</p></li>
+<li><p><strong>msgBacklogNoDelayed</strong>: Number of messages in the subscription backlog that do not contain the delay messages.</p></li>
+<li><p><strong>blockedSubscriptionOnUnackedMsgs</strong>: Flag to verify if a subscription is blocked due to reaching threshold of unacked messages.</p></li>
+<li><p><strong>msgDelayed</strong>: Number of delayed messages currently being tracked.</p></li>
+<li><p><strong>unackedMessages</strong>: Number of unacknowledged messages for the subscription.</p></li>
+<li><p><strong>activeConsumerName</strong>: The name of the consumer that is active for single active consumer subscriptions. For example, failover or exclusive.</p></li>
+<li><p><strong>totalMsgExpired</strong>: Total messages expired on this subscription.</p></li>
+<li><p><strong>lastMarkDeleteAdvancedTimestamp</strong>: Last MarkDelete position advanced timestamp.</p></li>
+<li><p><strong>durable</strong>: Whether the subscription is durable or ephemeral (for example, from a reader).</p></li>
+<li><p><strong>replicated</strong>: Mark that the subscription state is kept in sync across different regions.</p></li>
+<li><p><strong>allowOutOfOrderDelivery</strong>: Whether out of order delivery is allowed on the Key_Shared subscription.</p></li>
+<li><p><strong>keySharedMode</strong>: Whether the Key_Shared subscription mode is AUTO_SPLIT or STICKY.</p></li>
+<li><p><strong>consumersAfterMarkDeletePosition</strong>: This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription.</p></li>
+<li><p><strong>nonContiguousDeletedMessagesRanges</strong>: The number of non-contiguous deleted messages ranges.</p></li>
+<li><p><strong>nonContiguousDeletedMessagesRangesSerializedSize</strong>: The serialized size of non-contiguous deleted messages ranges.</p></li>
 <li><p><strong>consumers</strong>：连接到此订阅的消费者列表。</p>
 <ul>
 <li><p><strong>msgRateOut</strong>：发送给消费者的消息总速率（msg/s）。</p></li>
@@ -218,17 +220,17 @@ REST API 中 <code>:schema</code> 分为 persistent（持久化）和 non-persis
 <li><p><strong>blockedConsumerOnUnackedMsgs</strong>：验证消费者是否因达到未确认消息数的阀值而被阻塞。</p></li>
 <li><p><strong>lastConsumedTimestamp</strong>：消费者最后一次读取消息的时间戳。</p></li>
 <li><p><strong>lastAckedTimestamp</strong>：消费者最后一次确认消息的时间戳。</p></li>
-<li><p><strong>address</strong>：连接生产者所需的 IP 地址和端口号。</p></li>
-<li><p><strong>connectedSince</strong>：生产者上次创建或者重新连接时的时间戳。</p></li>
-<li><p>** clientVersion**: 生产者客户端库的版本。</p></li>
-<li><p><strong>bytesOutCounter</strong>: 发送到消费者的字节总数。</p></li>
-<li><p><strong>msgOutCounter</strong>: 已向消费者发布的消息总数。</p></li>
-<li><p><strong>msgRateOut</strong>：消费者到达消息的总速率 (msg/s) 。</p></li>
-<li><p><strong>chunkedMessageRate</strong>: 已分发 chunked 总数。</p></li>
-<li><p><strong>avgMessagesPerentre</strong>: 消费者平均每次进入的消息数量。</p></li>
-<li><p><strong>readPositionWhenjoining</strong>: 当新的消费者加入时游标的读取位置。</p></li>
-<li><p><strong>keyHashRanges</strong>: 如果是Key_Shared 子模式，指派给该消费者的哈希范围。</p></li>
-<li><p>** metadata **: 与消费者关联的元数据（键/值字符串）。</p></li>
+<li><p><strong>address</strong>: The IP address and source port for the connection of this consumer.</p></li>
+<li><p><strong>connectedSince</strong>: The timestamp when this consumer is created or reconnected last time.</p></li>
+<li><p><strong>clientVersion</strong>: The client library version of this consumer.</p></li>
+<li><p><strong>bytesOutCounter</strong>: Total bytes delivered to consumer.</p></li>
+<li><p><strong>msgOutCounter</strong>: Total messages delivered to consumer.</p></li>
+<li><p><strong>msgRateRedeliver</strong>: Total rate of messages redelivered by this consumer (msg/s).</p></li>
+<li><p><strong>chunkedMessageRate</strong>: Total chunked messages dispatched.</p></li>
+<li><p><strong>avgMessagesPerEntry</strong>: Number of average messages per entry for the consumer consumed.</p></li>
+<li><p><strong>readPositionWhenJoining</strong>: The read position of the cursor when the consumer joining.</p></li>
+<li><p><strong>keyHashRanges</strong>: Hash ranges assigned to this consumer if is Key_Shared sub mode.</p></li>
+<li><p><strong>metadata</strong>: Metadata (key/value strings) associated with this consumer.</p></li>
 </ul></li>
 </ul></li>
 </ul></li>
@@ -262,6 +264,7 @@ REST API 中 <code>:schema</code> 分为 persistent（持久化）和 non-persis
   <span class="hljs-attr">"msgChunkPublished"</span> : <span class="hljs-literal">false</span>,
   <span class="hljs-attr">"storageSize"</span> : <span class="hljs-number">504</span>,
   <span class="hljs-attr">"backlogSize"</span> : <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"earliestMsgPublishTimeInBacklogs"</span>: <span class="hljs-number">0</span>,
   <span class="hljs-attr">"offloadedStorageSize"</span> : <span class="hljs-number">0</span>,
   <span class="hljs-attr">"publishers"</span> : [ {
     <span class="hljs-attr">"accessMode"</span> : <span class="hljs-string">"Shared"</span>,
@@ -287,6 +290,7 @@ REST API 中 <code>:schema</code> 分为 persistent（持久化）和 non-persis
       <span class="hljs-attr">"chunkedMessageRate"</span> : <span class="hljs-number">0</span>,
       <span class="hljs-attr">"msgBacklog"</span> : <span class="hljs-number">0</span>,
       <span class="hljs-attr">"backlogSize"</span> : <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"earliestMsgPublishTimeInBacklog"</span>: <span class="hljs-number">0</span>,
       <span class="hljs-attr">"msgBacklogNoDelayed"</span> : <span class="hljs-number">0</span>,
       <span class="hljs-attr">"blockedSubscriptionOnUnackedMsgs"</span> : <span class="hljs-literal">false</span>,
       <span class="hljs-attr">"msgDelayed"</span> : <span class="hljs-number">0</span>,
@@ -873,7 +877,8 @@ producer.send(<span class="hljs-string">"Partitioned topic message"</span>.getBy
 </span></div></div><div id="tab-group-2221-content-2223" class="tab-pane" data-group="group_2221" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/deleteSubscription?version=2.8.1&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/namespaces/:tenant/:namespace/:topic/subscription/:subscription</i></a>
 </p>
 </span></div></div><div id="tab-group-2221-content-2224" class="tab-pane" data-group="group_2221" tabindex="-1"><div><span><pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;<br />String subscriptionName = <span class="hljs-string">"my-subscription"</span>;<br />admin.topics().deleteSubscription(topic, subscriptionName);<br /></code></pre>
-</span></div></div></div></div></span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/admin-api-permissions"><span class="arrow-prev">← </span><span>权限管理</span></a><a class="docs-next button" href="/docs/zh-CN/next/admin-api-functions"><span>Functions</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#管理主题资源">管理主题资源</a><ul class="toc-headings"><li><a href="#列出-topic">列出 topic</a></li><li><a href="#授权">授权</a></li><li><a href="#获取权限">获取权限</a></li><li><a href="#取消权限">取消权限</a></li><li><a href="#删除-topic">删除 topic</a></li><li><a href="#卸载-topic">卸载 topic</a></li><li><a href="#获取统计信息">获取统计信息</a></li><li><a href="#获取内部统计信息">获取内部统计信息</a></li><li><a href="#查看消息">查看消息</a></li><li><a href="#按-id-获取消息">按 ID 获取消息</a></li><li><a href="#检查消息">检查消息</a></li><li><a href="#按-id-获取消息-1">按 ID 获取消息</a></li><li><a href="#跳过消息">跳过消息</a></li><li><a href="#跳过所有消息">跳过所有消息</a></li><li><a href="#重置cursor">重置cursor</a></li><li><a href="#查询topic">查询topic</a></li><li><a href="#查找已分区主题">查找已分区主题</a></li><li><a href="#获取bundle">获取bundle</a></li><li><a href="#获取订阅">获取订阅</a></li><li><a href="#最后一条消息id">最后一条消息Id</a></li><li><a href="#获取-backlog-大小">获取 backlog 大小</a></li></ul></li><li><a href="#管理非分区主题">管理非分区主题</a><ul class="toc-headings"><li><a href="#创建">创建</a></li><li><a href="#删除">删除</a></li><li><a href="#获取资源列表">获取资源列表</a></li><li><a href="#统计信息">统计信息</a></li></ul></li><li><a href="#管理分区主题">管理分区主题</a><ul class="toc-headings"><li><a href="#创建-1">创建</a></li><li><a href="#create-missed-partitions">Create missed partitions</a></li><li><a href="#获取元数据">获取元数据</a></li><li><a href="#更新">更新</a></li><li><a href="#删除-1">删除</a></li><li><a href="#获取资源列表-1">获取资源列表</a></li><li><a href="#统计信息-1">统计信息</a></li><li><a href="#internal-stats">Internal stats</a></li></ul></li><li><a href="#发布到分区主题">发布到分区主题</a><ul class="toc-headings"><li><a href="#routing-mode">Routing mode</a></li><li><a href="#custom-message-router">Custom message router</a></li><li><a href="#使用-key-时如何选择分区">使用 Key 时如何选择分区</a></li></ul></li><li><a href="#管理订阅">管理订阅</a><ul class="toc-headings"><li><a href="#create-subscription">Create subscription</a></li><li><a href="#get-subscription">Get subscription</a></li><li><a href="#unsubscribe-subscription">Unsubscribe subscription</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></div></div></div>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/admin-api-permissions"><span class="arrow-prev">← </span><span>权限管理</span></a><a class="docs-next button" href="/docs/zh-CN/next/admin-api-functions"><span>Functions</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#管理主题资源">管理主题资源</a><ul class="toc-headings"><li><a href="#列出-topic">列出 topic</a></li><li><a href="#授权">授权</a></li><li><a href="#获取权限">获取权限</a></li><li><a href="#取消权限">取消权限</a></li><li><a href="#删除-topic">删除 topic</a></li><li><a href="#卸载-topic">卸载 topic</a></li><li><a href="#获取统计信息">获取统计信息</a></li><li><a href="#获取内部统计信息">获取内部统计信息</a></li><li><a href="#查看消息">查看消息</a></li><li><a href="#按-id-获取消息">按 ID 获取消息</a></li><li><a href="#检查消息">检查消息</a></li><li><a href="#按-id-获取消息-1">按 ID 获取消息</a></li><li><a href="#跳过消息">跳过消息</a></li><li><a href="#跳过所有消息">跳过所有消息</a></li><li><a href="#重置cursor">重置cursor</a></li><li><a href="#查询topic">查询topic</a></li><li><a href="#查找已分区主题">查找已分区主题</a></li><li><a href="#获取bundle">获取bundle</a></li><li><a href="#获取订阅">获取订阅</a></li><li><a href="#最后一条消息id">最后一条消息Id</a></li><li><a href="#获取-backlog-大小">获取 backlog 大小</a></li></ul></li><li><a href="#管理非分区主题">管理非分区主题</a><ul class="toc-headings"><li><a href="#创建">创建</a></li><li><a href="#删除">删除</a></li><li><a href="#获取资源列表">获取资源列表</a></li><li><a href="#统计信息">统计信息</a></li></ul></li><li><a href="#管理分区主题">管理分区主题</a><ul class="toc-headings"><li><a href="#创建-1">创建</a></li><li><a href="#create-missed-partitions">Create missed partitions</a></li><li><a href="#获取元数据">获取元数据</a></li><li><a href="#更新">更新</a></li><li><a href="#删除-1">删除</a></li><li><a href="#获取资源列表-1">获取资源列表</a></li><li><a href="#统计信息-1">统计信息</a></li><li><a href="#internal-stats">Internal stats</a></li></ul></li><li><a href="#发布到分区主题">发布到分区主题</a><ul class="toc-headings"><li><a href="#routing-mode">Routing mode</a></li><li><a href="#custom-message-router">Custom message router</a></li><li><a href="#使用-key-时如何选择分区">使用 Key 时如何选择分区</a></li></ul></li><li><a href="#管理订阅">管理订阅</a><ul class="toc-headings"><li><a href="#create-subscription">Create subscription</a></li><li><a href="#get-subscription">Get subscription</a></li><li><a href="#unsubscribe-subscription">Unsubscribe subscription</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10};
+var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -219,40 +219,47 @@ implements <a href="../../../../../org/apache/pulsar/broker/service/TopicPolicie
 </td>
 </tr>
 <tr id="i7" class="rowColor">
+<td class="colFirst"><code>org.apache.pulsar.common.policies.data.TopicPolicies</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/SystemTopicBasedTopicPoliciesService.html#getTopicPolicies-org.apache.pulsar.common.naming.TopicName-boolean-">getTopicPolicies</a></span>(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
+                boolean&nbsp;isGlobal)</code>
+<div class="block">Get global policies for a topic async.</div>
+</td>
+</tr>
+<tr id="i8" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;org.apache.pulsar.common.policies.data.TopicPolicies&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/SystemTopicBasedTopicPoliciesService.html#getTopicPoliciesBypassCacheAsync-org.apache.pulsar.common.naming.TopicName-">getTopicPoliciesBypassCacheAsync</a></span>(org.apache.pulsar.common.naming.TopicName&nbsp;topicName)</code>
 <div class="block">Get policies for a topic without cache async.</div>
 </td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code>org.apache.pulsar.common.policies.data.TopicPolicies</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/SystemTopicBasedTopicPoliciesService.html#getTopicPoliciesIfExists-org.apache.pulsar.common.naming.TopicName-">getTopicPoliciesIfExists</a></span>(org.apache.pulsar.common.naming.TopicName&nbsp;topicName)</code>
 <div class="block">Get policies from current cache.</div>
 </td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/SystemTopicBasedTopicPoliciesService.html#registerListener-org.apache.pulsar.common.naming.TopicName-org.apache.pulsar.broker.service.TopicPolicyListener-">registerListener</a></span>(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
                 <a href="../../../../../org/apache/pulsar/broker/service/TopicPolicyListener.html" title="interface in org.apache.pulsar.broker.service">TopicPolicyListener</a>&lt;org.apache.pulsar.common.policies.data.TopicPolicies&gt;&nbsp;listener)</code>&nbsp;</td>
 </tr>
-<tr id="i10" class="altColor">
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/SystemTopicBasedTopicPoliciesService.html#removeOwnedNamespaceBundleAsync-org.apache.pulsar.common.naming.NamespaceBundle-">removeOwnedNamespaceBundleAsync</a></span>(<a href="../../../../../org/apache/pulsar/common/naming/NamespaceBundle.html" title="class in org.apache.pulsar.common.naming">NamespaceBundle</a>&nbsp;namespaceBundle)</code>
 <div class="block">Remove owned namespace bundle async.</div>
 </td>
 </tr>
-<tr id="i11" class="rowColor">
+<tr id="i12" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/SystemTopicBasedTopicPoliciesService.html#start--">start</a></span>()</code>
 <div class="block">Start the topic policy service.</div>
 </td>
 </tr>
-<tr id="i12" class="altColor">
+<tr id="i13" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/SystemTopicBasedTopicPoliciesService.html#unregisterListener-org.apache.pulsar.common.naming.TopicName-org.apache.pulsar.broker.service.TopicPolicyListener-">unregisterListener</a></span>(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
                   <a href="../../../../../org/apache/pulsar/broker/service/TopicPolicyListener.html" title="interface in org.apache.pulsar.broker.service">TopicPolicyListener</a>&lt;org.apache.pulsar.common.policies.data.TopicPolicies&gt;&nbsp;listener)</code>&nbsp;</td>
 </tr>
-<tr id="i13" class="rowColor">
+<tr id="i14" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/SystemTopicBasedTopicPoliciesService.html#updateTopicPoliciesAsync-org.apache.pulsar.common.naming.TopicName-org.apache.pulsar.common.policies.data.TopicPolicies-">updateTopicPoliciesAsync</a></span>(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
                         org.apache.pulsar.common.policies.data.TopicPolicies&nbsp;policies)</code>
@@ -272,7 +279,7 @@ implements <a href="../../../../../org/apache/pulsar/broker/service/TopicPolicie
 <!--   -->
 </a>
 <h3>Methods inherited from interface&nbsp;org.apache.pulsar.broker.service.<a href="../../../../../org/apache/pulsar/broker/service/TopicPoliciesService.html" title="interface in org.apache.pulsar.broker.service">TopicPoliciesService</a></h3>
-<code><a href="../../../../../org/apache/pulsar/broker/service/TopicPoliciesService.html#getTopicPoliciesAsyncWithRetry-org.apache.pulsar.common.naming.TopicName-org.apache.pulsar.client.impl.Backoff-java.util.concurrent.ScheduledExecutorService-">getTopicPoliciesAsyncWithRetry</a></code></li>
+<code><a href="../../../../../org/apache/pulsar/broker/service/TopicPoliciesService.html#getTopicPoliciesAsyncWithRetry-org.apache.pulsar.common.naming.TopicName-org.apache.pulsar.client.impl.Backoff-java.util.concurrent.ScheduledExecutorService-boolean-">getTopicPoliciesAsyncWithRetry</a></code></li>
 </ul>
 </li>
 </ul>
@@ -354,6 +361,29 @@ implements <a href="../../../../../org/apache/pulsar/broker/service/TopicPolicie
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/broker/service/TopicPoliciesService.html#getTopicPolicies-org.apache.pulsar.common.naming.TopicName-">getTopicPolicies</a></code>&nbsp;in interface&nbsp;<code><a href="../../../../../org/apache/pulsar/broker/service/TopicPoliciesService.html" title="interface in org.apache.pulsar.broker.service">TopicPoliciesService</a></code></dd>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>topicName</code> - topic name</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>future of the topic policies</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/broker/service/BrokerServiceException.TopicPoliciesCacheNotInitException.html" title="class in org.apache.pulsar.broker.service">BrokerServiceException.TopicPoliciesCacheNotInitException</a></code></dd>
+</dl>
+</li>
+</ul>
+<a name="getTopicPolicies-org.apache.pulsar.common.naming.TopicName-boolean-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getTopicPolicies</h4>
+<pre>public&nbsp;org.apache.pulsar.common.policies.data.TopicPolicies&nbsp;getTopicPolicies(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
+                                                                             boolean&nbsp;isGlobal)
+                                                                      throws <a href="../../../../../org/apache/pulsar/broker/service/BrokerServiceException.TopicPoliciesCacheNotInitException.html" title="class in org.apache.pulsar.broker.service">BrokerServiceException.TopicPoliciesCacheNotInitException</a></pre>
+<div class="block"><span class="descfrmTypeLabel">Description copied from interface:&nbsp;<code><a href="../../../../../org/apache/pulsar/broker/service/TopicPoliciesService.html#getTopicPolicies-org.apache.pulsar.common.naming.TopicName-boolean-">TopicPoliciesService</a></code></span></div>
+<div class="block">Get global policies for a topic async.</div>
+<dl>
+<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/broker/service/TopicPoliciesService.html#getTopicPolicies-org.apache.pulsar.common.naming.TopicName-boolean-">getTopicPolicies</a></code>&nbsp;in interface&nbsp;<code><a href="../../../../../org/apache/pulsar/broker/service/TopicPoliciesService.html" title="interface in org.apache.pulsar.broker.service">TopicPoliciesService</a></code></dd>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>topicName</code> - topic name</dd>
 <dt><span class="returnLabel">Returns:</span></dt>

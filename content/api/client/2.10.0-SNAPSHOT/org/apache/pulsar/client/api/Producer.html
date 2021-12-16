@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -165,48 +165,52 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/io/Closeable.htm
 </td>
 </tr>
 <tr id="i6" class="altColor">
+<td class="colFirst"><code>int</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#getNumOfPartitions--">getNumOfPartitions</a></span>()</code>&nbsp;</td>
+</tr>
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#getProducerName--">getProducerName</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerStats.html" title="interface in org.apache.pulsar.client.api">ProducerStats</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#getStats--">getStats</a></span>()</code>
 <div class="block">Get statistics for the producer.</div>
 </td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#getTopic--">getTopic</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#isConnected--">isConnected</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i10" class="altColor">
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html" title="interface in org.apache.pulsar.client.api">TypedMessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#newMessage--">newMessage</a></span>()</code>
 <div class="block">Create a new message builder.</div>
 </td>
 </tr>
-<tr id="i11" class="rowColor">
+<tr id="i12" class="altColor">
 <td class="colFirst"><code>&lt;V&gt;&nbsp;<a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html" title="interface in org.apache.pulsar.client.api">TypedMessageBuilder</a>&lt;V&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#newMessage-org.apache.pulsar.client.api.Schema-">newMessage</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a>&lt;V&gt;&nbsp;schema)</code>
 <div class="block">Create a new message builder with schema, not required same parameterized type with the producer.</div>
 </td>
 </tr>
-<tr id="i12" class="altColor">
+<tr id="i13" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html" title="interface in org.apache.pulsar.client.api">TypedMessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#newMessage-org.apache.pulsar.client.api.transaction.Transaction-">newMessage</a></span>(<a href="../../../../../org/apache/pulsar/client/api/transaction/Transaction.html" title="interface in org.apache.pulsar.client.api.transaction">Transaction</a>&nbsp;txn)</code>
 <div class="block">Create a new message builder with transaction.</div>
 </td>
 </tr>
-<tr id="i13" class="rowColor">
+<tr id="i14" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-T-">send</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&nbsp;message)</code>
 <div class="block">Sends a message.</div>
 </td>
 </tr>
-<tr id="i14" class="altColor">
+<tr id="i15" class="rowColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-T-">sendAsync</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&nbsp;message)</code>
 <div class="block">Send a message asynchronously.</div>
@@ -505,13 +509,26 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/io/Closeable.htm
 <a name="getLastDisconnectedTimestamp--">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>getLastDisconnectedTimestamp</h4>
 <pre>long&nbsp;getLastDisconnectedTimestamp()</pre>
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>The last disconnected timestamp of the producer</dd>
+</dl>
+</li>
+</ul>
+<a name="getNumOfPartitions--">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>getNumOfPartitions</h4>
+<pre>int&nbsp;getNumOfPartitions()</pre>
+<dl>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>the number of partitions per topic.</dd>
 </dl>
 </li>
 </ul>

@@ -223,8 +223,8 @@
 <tr><td>webServicePort</td><td>Port to use to server HTTP request</td><td>8080</td></tr>
 <tr><td>webServicePortTls</td><td>Port to use to server HTTPS request</td><td>8443</td></tr>
 <tr><td>webSocketServiceEnabled</td><td>Enable the WebSocket API service in broker</td><td>false</td></tr>
-<tr><td>webSocketNumIoThreads</td><td>The number of IO threads in Pulsar Client used in WebSocket proxy.</td><td>8</td></tr>
-<tr><td>webSocketConnectionsPerBroker</td><td>The number of connections per Broker in Pulsar Client used in WebSocket proxy.</td><td>8</td></tr>
+<tr><td>webSocketNumIoThreads</td><td>The number of IO threads in Pulsar Client used in WebSocket proxy.</td><td>Runtime.getRuntime().availableProcessors()</td></tr>
+<tr><td>webSocketConnectionsPerBroker</td><td>The number of connections per Broker in Pulsar Client used in WebSocket proxy.</td><td>Runtime.getRuntime().availableProcessors()</td></tr>
 <tr><td>webSocketSessionIdleTimeoutMillis</td><td>Time in milliseconds that idle WebSocket session times out.</td><td>300000</td></tr>
 <tr><td>webSocketMaxTextFrameSize</td><td>The maximum size of a text message during parsing in WebSocket proxy.</td><td>1048576</td></tr>
 <tr><td>exposeTopicLevelMetricsInPrometheus</td><td>Whether to enable topic level metrics.</td><td>true</td></tr>
@@ -238,6 +238,7 @@
 <tr><td>brokerDeduplicationMaxNumberOfProducers</td><td>The maximum number of producers for which information will be stored for deduplication purposes.</td><td>10000</td></tr>
 <tr><td>brokerDeduplicationEntriesInterval</td><td>The number of entries after which a deduplication informational snapshot is taken. A larger interval will lead to fewer snapshots being taken, though this would also lengthen the topic recovery time (the time required for entries published after the snapshot to be replayed).</td><td>1000</td></tr>
 <tr><td>brokerDeduplicationProducerInactivityTimeoutMinutes</td><td>The time of inactivity (in minutes) after which the broker will discard deduplication information related to a disconnected producer.</td><td>360</td></tr>
+<tr><td>brokerDeduplicationSnapshotFrequencyInSeconds</td><td>How often is the thread pool scheduled to check whether a snapshot needs to be taken. The value of <code>0</code> means it is disabled.</td><td>120</td></tr>
 <tr><td>dispatchThrottlingRatePerReplicatorInMsg</td><td>The default messages per second dispatch throttling-limit for every replicator in replication. The value of <code>0</code> means disabling replication message dispatch-throttling</td><td>0</td></tr>
 <tr><td>dispatchThrottlingRatePerReplicatorInByte</td><td>The default bytes per second dispatch throttling-limit for every replicator in replication. The value of <code>0</code> means disabling replication message-byte dispatch-throttling</td><td>0</td></tr>
 <tr><td>zooKeeperSessionTimeoutMillis</td><td>Zookeeper session timeout in milliseconds</td><td>30000</td></tr>
@@ -667,8 +668,8 @@
 <tr><td>managedLedgerDefaultWriteQuorum</td><td></td><td>1</td></tr>
 <tr><td>managedLedgerDefaultAckQuorum</td><td></td><td>1</td></tr>
 <tr><td>managedLedgerDigestType</td><td>Default type of checksum to use when writing to BookKeeper.</td><td>CRC32C</td></tr>
-<tr><td>managedLedgerNumWorkerThreads</td><td>Number of threads to be used for managed ledger tasks dispatching.</td><td>8</td></tr>
-<tr><td>managedLedgerNumSchedulerThreads</td><td>Number of threads to be used for managed ledger scheduled tasks.</td><td>8</td></tr>
+<tr><td>managedLedgerNumWorkerThreads</td><td>Number of threads to be used for managed ledger tasks dispatching.</td><td>Runtime.getRuntime().availableProcessors()</td></tr>
+<tr><td>managedLedgerNumSchedulerThreads</td><td>Number of threads to be used for managed ledger scheduled tasks.</td><td>Runtime.getRuntime().availableProcessors()</td></tr>
 <tr><td>managedLedgerCacheSizeMB</td><td></td><td>N/A</td></tr>
 <tr><td>managedLedgerCacheCopyEntries</td><td>Whether to copy the entry payloads when inserting in cache.</td><td>false</td></tr>
 <tr><td>managedLedgerCacheEvictionWatermark</td><td></td><td>0.9</td></tr>
