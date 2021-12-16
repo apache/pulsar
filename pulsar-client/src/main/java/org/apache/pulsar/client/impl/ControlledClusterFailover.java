@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
+import com.google.common.base.Strings;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.io.InputStream;
@@ -42,6 +43,7 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
     private volatile String currentPulsarServiceUrl;
     private final URL pulsarUrlProvider;
     private final ScheduledExecutorService executor;
+    private final int interval = 30_000;
 
     private ControlledClusterFailover(String defaultServiceUrl, String urlProvider) throws IOException {
         this.currentPulsarServiceUrl = defaultServiceUrl;
@@ -59,7 +61,8 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
             String newPulsarUrl = null;
             try {
                 newPulsarUrl = fetchServiceUrl();
-                if (!currentPulsarServiceUrl.equals(newPulsarUrl)) {
+                if (!Strings.isNullOrEmpty(newPulsarUrl) &&
+                        !currentPulsarServiceUrl.equals(newPulsarUrl)) {
                     log.info("Switch Pulsar service url from {} to {}", currentPulsarServiceUrl, newPulsarUrl);
                     pulsarClient.updateServiceUrl(newPulsarUrl);
                     currentPulsarServiceUrl = newPulsarUrl;
@@ -68,10 +71,10 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
                 log.error("Failed to switch new Pulsar URL, current: {}, new: {}",
                         currentPulsarServiceUrl, newPulsarUrl, e);
             }
-        }), 30_000, 30_000, TimeUnit.MILLISECONDS);
+        }), getInterval(), getInterval(), TimeUnit.MILLISECONDS);
     }
 
-    private String fetchServiceUrl() throws IOException {
+    String fetchServiceUrl() throws IOException {
         // call the service to get service URL
         InputStream inputStream = null;
         try {

@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.net.InetSocketAddress;
@@ -45,6 +46,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
     private final ScheduledExecutorService executor;
     private long recoverTimestamp;
     private long failedTimestamp;
+    private final int interval = 30_000;
     private final int TIMEOUT = 30_000;
 
     private AutoClusterFailover(String primary, String secondary, long failoverDelayNs, long switchBackDelayNs) {
@@ -74,7 +76,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
                 // secondary cluster is up, check whether need to switch back to primary
                 probeAndCheckSwitchBack(primary);
             }
-        }), 30_000, 30_000, TimeUnit.MILLISECONDS);
+        }), getInterval(), getInterval(), TimeUnit.MILLISECONDS);
 
     }
 
@@ -88,7 +90,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         this.executor.shutdown();
     }
 
-    private boolean probeAvailable(String url) {
+    boolean probeAvailable(String url) {
         try {
             String hostAndPort = parseHostAndPort(url);
             if (Strings.isNullOrEmpty(hostAndPort)) {
@@ -159,9 +161,9 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         } else if (currentTimestamp - failedTimestamp >= failoverDelayNs) {
             if (probeAvailable(targetServiceUrl)) {
                 log.info("Current Pulsar service is {}, it has been down for {} ms, "
-                                + "switch to the service: {}. The current service down at: {}",
+                                + "switch to the service {}. The current service down at {}",
                         currentPulsarServiceUrl, Ns2Ms(currentTimestamp - failedTimestamp),
-                        targetServiceUrl, Ns2Ms(failedTimestamp));
+                        targetServiceUrl, failedTimestamp);
                 updateServiceUrl(targetServiceUrl);
                 failedTimestamp = -1;
             } else {
