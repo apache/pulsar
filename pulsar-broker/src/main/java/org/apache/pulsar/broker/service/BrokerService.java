@@ -2289,8 +2289,14 @@ public class BrokerService implements Closeable {
         configRegisteredListeners.put(configKey, listener);
     }
 
-    public <T> void registerPublishBufferLimitListener(Consumer<PublishBufferEvent> listener) {
+    public void registerPublishBufferLimitListener(Consumer<PublishBufferEvent> listener) {
         publishBufferLimitListeners.add(listener);
+    }
+
+    public void unRegisterPublishBufferLimitListener(Consumer<PublishBufferEvent> listener) {
+        if (listener != null) {
+            publishBufferLimitListeners.remove(listener);
+        }
     }
 
     private void checkPulishBufferLimit() {

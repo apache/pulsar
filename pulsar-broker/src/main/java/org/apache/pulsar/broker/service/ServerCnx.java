@@ -2356,13 +2356,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     public void closeProducer(Producer producer) {
         // removes producer-connection from map and send close command to producer
+        service.unRegisterPublishBufferLimitListener(this::handlePulishBufferLimit);
         safelyRemoveProducer(producer);
         if (getRemoteEndpointProtocolVersion() >= v5.getValue()) {
             ctx.writeAndFlush(Commands.newCloseProducer(producer.getProducerId(), -1L));
         } else {
             close();
         }
-
     }
 
     @Override
