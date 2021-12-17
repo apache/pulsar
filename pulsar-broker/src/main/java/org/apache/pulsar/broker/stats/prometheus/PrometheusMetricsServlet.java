@@ -85,8 +85,8 @@ public class PrometheusMetricsServlet extends HttpServlet {
                 if (e instanceof EOFException) {
                     // NO STACKTRACE
                     log.error("Failed to send metrics, "
-                            + "likely the client or this server closed the connection due to a timeout ({} ms elapsed): {}",
-                             time, e + "");
+                            + "likely the client or this server closed "
+                            + "the connection due to a timeout ({} ms elapsed): {}", time, e + "");
                 } else {
                     log.error("Failed to generate prometheus stats, {} ms elapsed", time, e);
                 }
