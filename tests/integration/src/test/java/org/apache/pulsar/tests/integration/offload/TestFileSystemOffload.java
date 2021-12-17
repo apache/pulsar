@@ -51,7 +51,8 @@ public class TestFileSystemOffload extends TestBaseOffload {
         result.put("managedLedgerMaxEntriesPerLedger", String.valueOf(ENTRIES_PER_LEDGER));
         result.put("managedLedgerMinLedgerRolloverTimeMinutes", "0");
         result.put("managedLedgerOffloadDriver", "filesystem");
-        result.put("fileSystemURI", "file:///");
+        // Must write to a writable directory in our test docker image.
+        result.put("fileSystemURI", "file:///pulsar/data/");
 
         return result;
     }
