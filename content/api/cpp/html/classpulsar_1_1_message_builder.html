@@ -112,6 +112,8 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:ab88fc9caf6c2406ba7b34a1770484df8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6661ff74ca3c036aff23fcec49871991"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_message_builder.html">MessageBuilder</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message_builder.html#a6661ff74ca3c036aff23fcec49871991">setContent</a> (const std::string &amp;data)</td></tr>
 <tr class="separator:a6661ff74ca3c036aff23fcec49871991"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab49bef464033d018e3a405973e13c523"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_message_builder.html">MessageBuilder</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message_builder.html#ab49bef464033d018e3a405973e13c523">setContent</a> (std::string &amp;&amp;data)</td></tr>
+<tr class="separator:ab49bef464033d018e3a405973e13c523"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae991bf6b34952c2ee0fee1c756b269cf"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_message_builder.html">MessageBuilder</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message_builder.html#ae991bf6b34952c2ee0fee1c756b269cf">setAllocatedContent</a> (void *data, size_t size)</td></tr>
 <tr class="separator:ae991bf6b34952c2ee0fee1c756b269cf"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a81a20821afe64d6222f1ba6bd026a6b4"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_message_builder.html">MessageBuilder</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message_builder.html#a81a20821afe64d6222f1ba6bd026a6b4">setProperty</a> (const std::string &amp;name, const std::string &amp;value)</td></tr>
@@ -248,7 +250,7 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Set content of the message. The message contents will be managed by the system. </p>
+<p>Set content of the message. The given data is copied into message. </p>
 
 </div>
 </div>
@@ -268,11 +270,34 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
 <p>Set the content of the message</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">data</td><td>the content of the message </td></tr>
+    <tr><td class="paramname">data</td><td>the content of the message. </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="section see"><dt>See also</dt><dd><a class="el" href="classpulsar_1_1_message_builder.html#ab88fc9caf6c2406ba7b34a1770484df8">setContent(const void*, size_t)</a> </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="ab49bef464033d018e3a405973e13c523"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classpulsar_1_1_message_builder.html">MessageBuilder</a>&amp; pulsar::MessageBuilder::setContent </td>
+          <td>(</td>
+          <td class="paramtype">std::string &amp;&amp;&#160;</td>
+          <td class="paramname"><em>data</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Set the content of the message</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">data</td><td>the content of the message. The given data is moved into message. </td></tr>
+  </table>
+  </dd>
+</dl>
 
 </div>
 </div>

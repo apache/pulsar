@@ -380,38 +380,38 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--cpu</code></td><td>The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)</td><td></td></tr>
-<tr><td><code>--ram</code></td><td>The ram in bytes that need to be allocated per function instance(applicable only to process/docker runtime)</td><td></td></tr>
-<tr><td><code>--disk</code></td><td>The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)</td><td></td></tr>
-<tr><td><code>--auto-ack</code></td><td>Whether or not the framework will automatically acknowledge messages</td><td></td></tr>
-<tr><td><code>--subs-name</code></td><td>Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer</td><td></td></tr>
-<tr><td><code>--broker-service-url</code></td><td>The URL of the Pulsar broker</td><td></td></tr>
-<tr><td><code>--classname</code></td><td>The function's class name</td><td></td></tr>
-<tr><td><code>--custom-serde-inputs</code></td><td>The map of input topics to SerDe class names (as a JSON string)</td><td></td></tr>
-<tr><td><code>--custom-schema-inputs</code></td><td>The map of input topics to Schema class names (as a JSON string)</td><td></td></tr>
-<tr><td><code>--client-auth-params</code></td><td>Client authentication param</td><td></td></tr>
-<tr><td><code>--client-auth-plugin</code></td><td>Client authentication plugin using which function-process can connect to broker</td><td></td></tr>
-<tr><td><code>--function-config-file</code></td><td>The path to a YAML config file specifying the function's configuration</td><td></td></tr>
-<tr><td><code>--hostname-verification-enabled</code></td><td>Enable hostname verification</td><td>false</td></tr>
-<tr><td><code>--instance-id-offset</code></td><td>Start the instanceIds from this offset</td><td>0</td></tr>
-<tr><td><code>--inputs</code></td><td>The function's input topic or topics (multiple topics can be specified as a comma-separated list)</td><td></td></tr>
-<tr><td><code>--log-topic</code></td><td>The topic to which the function's logs are produced</td><td></td></tr>
+<tr><td><code>--cpu</code></td><td>每个 function 实例需要分配的 cpu 核数（仅适用于在 docker 上运行时）</td><td></td></tr>
+<tr><td><code>--ram</code></td><td>每个 function 实例需要分配的 ram 字节数（仅适用于以进程运行或在 docker 上运行时）。</td><td></td></tr>
+<tr><td><code>--disk</code></td><td>每个 function 实例需要分配的磁盘字节数（仅适用于在 docker 上运行时）。</td><td></td></tr>
+<tr><td><code>--auto-ack</code></td><td>框架是否会自动确认消息</td><td></td></tr>
+<tr><td><code>--subs-name</code></td><td>如果用户想为输入 topic 的消费者设置特定订阅名称，可以使用该参数设置 Pulsar 源订阅名称</td><td></td></tr>
+<tr><td><code>--broker-service-url</code></td><td>Pulsar broker 的 URL</td><td></td></tr>
+<tr><td><code>--classname</code></td><td>Function 的类名称</td><td></td></tr>
+<tr><td><code>--custom-serde-inputs</code></td><td>输入 topic 到 SerDe 类名称的映射（以 JSON 字符串的形式）。</td><td></td></tr>
+<tr><td><code>--custom-schema-inputs</code></td><td>输入 topic 到 Schema 类名称的映射（以 JSON 字符串的形式）。</td><td></td></tr>
+<tr><td><code>--client-auth-params</code></td><td>客户端身份验证参数。</td><td></td></tr>
+<tr><td><code>--client-auth-plugin</code></td><td>客户端身份验证插件，function 进程需要通过此插件连接到 broker。</td><td></td></tr>
+<tr><td><code>--function-config-file</code></td><td>配置 Pulsar Function 的 YAML 配置文件的路径。</td><td></td></tr>
+<tr><td><code>--hostname-verification-enabled</code></td><td>启用主机名称验证</td><td>false</td></tr>
+<tr><td><code>--instance-id-offset</code></td><td>从该设置的偏移量启动实例</td><td>0</td></tr>
+<tr><td><code>--inputs</code></td><td>Function 的输入 topic（多个 topic 可以用逗号分隔）</td><td></td></tr>
+<tr><td><code>--log-topic</code></td><td>用于 Function 输出日志的 topic</td><td></td></tr>
 <tr><td><code>--jar</code></td><td>Path to the jar file for the function (if the function is written in Java). It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.</td><td></td></tr>
-<tr><td><code>--name</code></td><td>The function's name</td><td></td></tr>
-<tr><td><code>--namespace</code></td><td>The function's namespace</td><td></td></tr>
-<tr><td><code>--output</code></td><td>The function's output topic (If none is specified, no output is written)</td><td></td></tr>
-<tr><td><code>--output-serde-classname</code></td><td>The SerDe class to be used for messages output by the function</td><td></td></tr>
-<tr><td><code>--parallelism</code></td><td>The function’s parallelism factor, i.e. the number of instances of the function to run</td><td>1</td></tr>
+<tr><td><code>--name</code></td><td>Function 的名称</td><td></td></tr>
+<tr><td><code>--namespace</code></td><td>Function 的命名空间</td><td></td></tr>
+<tr><td><code>--output</code></td><td>Function 的输出 topic（如果未指定，则不做输出）</td><td></td></tr>
+<tr><td><code>--output-serde-classname</code></td><td>Function 输出消息时使用的 SerDe 类</td><td></td></tr>
+<tr><td><code>--parallelism</code></td><td>Function 的并行化参数，也就是要运行 function 实例的个数</td><td>1</td></tr>
 <tr><td><code>--processing-guarantees</code></td><td>The processing guarantees (aka delivery semantics) applied to the function. Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]</td><td>ATLEAST_ONCE</td></tr>
 <tr><td><code>--py</code></td><td>Path to the main Python file/Python Wheel file for the function (if the function is written in Python)</td><td></td></tr>
-<tr><td><code>--schema-type</code></td><td>The builtin schema type or custom schema class name to be used for messages output by the function</td><td></td></tr>
-<tr><td><code>--sliding-interval-count</code></td><td>The number of messages after which the window slides</td><td></td></tr>
-<tr><td><code>--sliding-interval-duration-ms</code></td><td>The time duration after which the window slides</td><td></td></tr>
+<tr><td><code>--schema-type</code></td><td>Function 用于输出消息的内置 schema 类型或自定义 schema 类名。</td><td></td></tr>
+<tr><td><code>--sliding-interval-count</code></td><td>窗口滑动后的消息数量。</td><td></td></tr>
+<tr><td><code>--sliding-interval-duration-ms</code></td><td>窗口滑动后的持续时间。</td><td></td></tr>
 <tr><td><code>--state-storage-service-url</code></td><td>The URL for the state storage service. By default, it it set to the service URL of the Apache BookKeeper. This service URL must be added manually when the Pulsar Function runs locally.</td><td></td></tr>
-<tr><td><code>--tenant</code></td><td>The function’s tenant</td><td></td></tr>
-<tr><td><code>--topics-pattern</code></td><td>The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)</td><td></td></tr>
-<tr><td><code>--user-config</code></td><td>User-defined config key/values</td><td></td></tr>
-<tr><td><code>--window-length-count</code></td><td>The number of messages per window</td><td></td></tr>
+<tr><td><code>--tenant</code></td><td>Function 的租户</td><td></td></tr>
+<tr><td><code>--topics-pattern</code></td><td>The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. 使用 --custom-serde-inputs 配置为模式添加 SerDe 类名称（仅适用于 Java Function）。</td><td></td></tr>
+<tr><td><code>--user-config</code></td><td>用户定义的配置键/值。</td><td></td></tr>
+<tr><td><code>--window-length-count</code></td><td>每个窗口的消息数量</td><td></td></tr>
 <tr><td><code>--window-length-duration-ms</code></td><td>The time duration of the window in milliseconds</td><td></td></tr>
 <tr><td><code>--dead-letter-topic</code></td><td>The topic where all messages which could not be processed successfully are sent</td><td></td></tr>
 <tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) for the function</td><td></td></tr>
@@ -436,32 +436,32 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--cpu</code></td><td>The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)</td><td></td></tr>
-<tr><td><code>--ram</code></td><td>The ram in bytes that need to be allocated per function instance(applicable only to process/docker runtime)</td><td></td></tr>
-<tr><td><code>--disk</code></td><td>The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)</td><td></td></tr>
-<tr><td><code>--auto-ack</code></td><td>Whether or not the framework will automatically acknowledge messages</td><td></td></tr>
-<tr><td><code>--subs-name</code></td><td>Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer</td><td></td></tr>
-<tr><td><code>--classname</code></td><td>The function's class name</td><td></td></tr>
-<tr><td><code>--custom-serde-inputs</code></td><td>The map of input topics to SerDe class names (as a JSON string)</td><td></td></tr>
-<tr><td><code>--custom-schema-inputs</code></td><td>The map of input topics to Schema class names (as a JSON string)</td><td></td></tr>
-<tr><td><code>--function-config-file</code></td><td>The path to a YAML config file specifying the function's configuration</td><td></td></tr>
-<tr><td><code>--inputs</code></td><td>The function's input topic or topics (multiple topics can be specified as a comma-separated list)</td><td></td></tr>
-<tr><td><code>--log-topic</code></td><td>The topic to which the function's logs are produced</td><td></td></tr>
+<tr><td><code>--cpu</code></td><td>每个 function 实例需要分配的 cpu 核数（仅适用于在 docker 上运行时）</td><td></td></tr>
+<tr><td><code>--ram</code></td><td>每个 function 实例需要分配的 ram 字节数（仅适用于以进程运行或在 docker 上运行时）。</td><td></td></tr>
+<tr><td><code>--disk</code></td><td>每个 function 实例需要分配的磁盘字节数（仅适用于在 docker 上运行时）。</td><td></td></tr>
+<tr><td><code>--auto-ack</code></td><td>框架是否会自动确认消息</td><td></td></tr>
+<tr><td><code>--subs-name</code></td><td>如果用户想为输入 topic 的消费者设置特定订阅名称，可以使用该参数设置 Pulsar 源订阅名称</td><td></td></tr>
+<tr><td><code>--classname</code></td><td>Function 的类名称</td><td></td></tr>
+<tr><td><code>--custom-serde-inputs</code></td><td>输入 topic 到 SerDe 类名称的映射（以 JSON 字符串的形式）。</td><td></td></tr>
+<tr><td><code>--custom-schema-inputs</code></td><td>输入 topic 到 Schema 类名称的映射（以 JSON 字符串的形式）。</td><td></td></tr>
+<tr><td><code>--function-config-file</code></td><td>配置 Pulsar Function 的 YAML 配置文件的路径。</td><td></td></tr>
+<tr><td><code>--inputs</code></td><td>Function 的输入 topic（多个 topic 可以用逗号分隔）</td><td></td></tr>
+<tr><td><code>--log-topic</code></td><td>用于 Function 输出日志的 topic</td><td></td></tr>
 <tr><td><code>--jar</code></td><td>Path to the jar file for the function (if the function is written in Java). It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.</td><td></td></tr>
-<tr><td><code>--name</code></td><td>The function's name</td><td></td></tr>
+<tr><td><code>--name</code></td><td>Function 的名称</td><td></td></tr>
 <tr><td><code>--namespace</code></td><td>The function’s namespace</td><td></td></tr>
-<tr><td><code>--output</code></td><td>The function's output topic (If none is specified, no output is written)</td><td></td></tr>
-<tr><td><code>--output-serde-classname</code></td><td>The SerDe class to be used for messages output by the function</td><td></td></tr>
-<tr><td><code>--parallelism</code></td><td>The function’s parallelism factor, i.e. the number of instances of the function to run</td><td>1</td></tr>
+<tr><td><code>--output</code></td><td>Function 的输出 topic（如果未指定，则不做输出）</td><td></td></tr>
+<tr><td><code>--output-serde-classname</code></td><td>Function 输出消息时使用的 SerDe 类</td><td></td></tr>
+<tr><td><code>--parallelism</code></td><td>Function 的并行化参数，也就是要运行 function 实例的个数</td><td>1</td></tr>
 <tr><td><code>--processing-guarantees</code></td><td>The processing guarantees (aka delivery semantics) applied to the function. Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]</td><td>ATLEAST_ONCE</td></tr>
 <tr><td><code>--py</code></td><td>Path to the main Python file/Python Wheel file for the function (if the function is written in Python)</td><td></td></tr>
-<tr><td><code>--schema-type</code></td><td>The builtin schema type or custom schema class name to be used for messages output by the function</td><td></td></tr>
-<tr><td><code>--sliding-interval-count</code></td><td>The number of messages after which the window slides</td><td></td></tr>
-<tr><td><code>--sliding-interval-duration-ms</code></td><td>The time duration after which the window slides</td><td></td></tr>
-<tr><td><code>--tenant</code></td><td>The function’s tenant</td><td></td></tr>
-<tr><td><code>--topics-pattern</code></td><td>The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)</td><td></td></tr>
-<tr><td><code>--user-config</code></td><td>User-defined config key/values</td><td></td></tr>
-<tr><td><code>--window-length-count</code></td><td>The number of messages per window</td><td></td></tr>
+<tr><td><code>--schema-type</code></td><td>Function 用于输出消息的内置 schema 类型或自定义 schema 类名。</td><td></td></tr>
+<tr><td><code>--sliding-interval-count</code></td><td>窗口滑动后的消息数量。</td><td></td></tr>
+<tr><td><code>--sliding-interval-duration-ms</code></td><td>窗口滑动后的持续时间。</td><td></td></tr>
+<tr><td><code>--tenant</code></td><td>Function 的租户</td><td></td></tr>
+<tr><td><code>--topics-pattern</code></td><td>The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. 使用 --custom-serde-inputs 配置为模式添加 SerDe 类名称（仅适用于 Java Function）。</td><td></td></tr>
+<tr><td><code>--user-config</code></td><td>用户定义的配置键/值。</td><td></td></tr>
+<tr><td><code>--window-length-count</code></td><td>每个窗口的消息数量</td><td></td></tr>
 <tr><td><code>--window-length-duration-ms</code></td><td>The time duration of the window in milliseconds</td><td></td></tr>
 <tr><td><code>--dead-letter-topic</code></td><td>The topic where all messages which could not be processed</td><td></td></tr>
 <tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) for the function</td><td></td></tr>
@@ -484,8 +484,8 @@
 </thead>
 <tbody>
 <tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) for the function</td><td></td></tr>
-<tr><td><code>--name</code></td><td>The function's name</td><td></td></tr>
-<tr><td><code>--namespace</code></td><td>The function's namespace</td><td></td></tr>
+<tr><td><code>--name</code></td><td>Function 的名称</td><td></td></tr>
+<tr><td><code>--namespace</code></td><td>Function 的命名空间</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The function's tenant</td><td></td></tr>
 </tbody>
 </table>
@@ -500,32 +500,32 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--cpu</code></td><td>The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)</td><td></td></tr>
-<tr><td><code>--ram</code></td><td>The ram in bytes that need to be allocated per function instance(applicable only to process/docker runtime)</td><td></td></tr>
-<tr><td><code>--disk</code></td><td>The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)</td><td></td></tr>
-<tr><td><code>--auto-ack</code></td><td>Whether or not the framework will automatically acknowledge messages</td><td></td></tr>
-<tr><td><code>--subs-name</code></td><td>Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer</td><td></td></tr>
-<tr><td><code>--classname</code></td><td>The function's class name</td><td></td></tr>
-<tr><td><code>--custom-serde-inputs</code></td><td>The map of input topics to SerDe class names (as a JSON string)</td><td></td></tr>
-<tr><td><code>--custom-schema-inputs</code></td><td>The map of input topics to Schema class names (as a JSON string)</td><td></td></tr>
-<tr><td><code>--function-config-file</code></td><td>The path to a YAML config file specifying the function's configuration</td><td></td></tr>
-<tr><td><code>--inputs</code></td><td>The function's input topic or topics (multiple topics can be specified as a comma-separated list)</td><td></td></tr>
-<tr><td><code>--log-topic</code></td><td>The topic to which the function's logs are produced</td><td></td></tr>
+<tr><td><code>--cpu</code></td><td>每个 function 实例需要分配的 cpu 核数（仅适用于在 docker 上运行时）</td><td></td></tr>
+<tr><td><code>--ram</code></td><td>每个 function 实例需要分配的 ram 字节数（仅适用于以进程运行或在 docker 上运行时）。</td><td></td></tr>
+<tr><td><code>--disk</code></td><td>每个 function 实例需要分配的磁盘字节数（仅适用于在 docker 上运行时）。</td><td></td></tr>
+<tr><td><code>--auto-ack</code></td><td>框架是否会自动确认消息</td><td></td></tr>
+<tr><td><code>--subs-name</code></td><td>如果用户想为输入 topic 的消费者设置特定订阅名称，可以使用该参数设置 Pulsar 源订阅名称</td><td></td></tr>
+<tr><td><code>--classname</code></td><td>Function 的类名称</td><td></td></tr>
+<tr><td><code>--custom-serde-inputs</code></td><td>输入 topic 到 SerDe 类名称的映射（以 JSON 字符串的形式）。</td><td></td></tr>
+<tr><td><code>--custom-schema-inputs</code></td><td>输入 topic 到 Schema 类名称的映射（以 JSON 字符串的形式）。</td><td></td></tr>
+<tr><td><code>--function-config-file</code></td><td>配置 Pulsar Function 的 YAML 配置文件的路径。</td><td></td></tr>
+<tr><td><code>--inputs</code></td><td>Function 的输入 topic（多个 topic 可以用逗号分隔）</td><td></td></tr>
+<tr><td><code>--log-topic</code></td><td>用于 Function 输出日志的 topic</td><td></td></tr>
 <tr><td><code>--jar</code></td><td>Path to the jar file for the function (if the function is written in Java). It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.</td><td></td></tr>
-<tr><td><code>--name</code></td><td>The function's name</td><td></td></tr>
+<tr><td><code>--name</code></td><td>Function 的名称</td><td></td></tr>
 <tr><td><code>--namespace</code></td><td>The function’s namespace</td><td></td></tr>
-<tr><td><code>--output</code></td><td>The function's output topic (If none is specified, no output is written)</td><td></td></tr>
-<tr><td><code>--output-serde-classname</code></td><td>The SerDe class to be used for messages output by the function</td><td></td></tr>
-<tr><td><code>--parallelism</code></td><td>The function’s parallelism factor, i.e. the number of instances of the function to run</td><td>1</td></tr>
+<tr><td><code>--output</code></td><td>Function 的输出 topic（如果未指定，则不做输出）</td><td></td></tr>
+<tr><td><code>--output-serde-classname</code></td><td>Function 输出消息时使用的 SerDe 类</td><td></td></tr>
+<tr><td><code>--parallelism</code></td><td>Function 的并行化参数，也就是要运行 function 实例的个数</td><td>1</td></tr>
 <tr><td><code>--processing-guarantees</code></td><td>The processing guarantees (aka delivery semantics) applied to the function. Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]</td><td>ATLEAST_ONCE</td></tr>
 <tr><td><code>--py</code></td><td>Path to the main Python file/Python Wheel file for the function (if the function is written in Python)</td><td></td></tr>
-<tr><td><code>--schema-type</code></td><td>The builtin schema type or custom schema class name to be used for messages output by the function</td><td></td></tr>
-<tr><td><code>--sliding-interval-count</code></td><td>The number of messages after which the window slides</td><td></td></tr>
-<tr><td><code>--sliding-interval-duration-ms</code></td><td>The time duration after which the window slides</td><td></td></tr>
-<tr><td><code>--tenant</code></td><td>The function’s tenant</td><td></td></tr>
-<tr><td><code>--topics-pattern</code></td><td>The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)</td><td></td></tr>
-<tr><td><code>--user-config</code></td><td>User-defined config key/values</td><td></td></tr>
-<tr><td><code>--window-length-count</code></td><td>The number of messages per window</td><td></td></tr>
+<tr><td><code>--schema-type</code></td><td>Function 用于输出消息的内置 schema 类型或自定义 schema 类名。</td><td></td></tr>
+<tr><td><code>--sliding-interval-count</code></td><td>窗口滑动后的消息数量。</td><td></td></tr>
+<tr><td><code>--sliding-interval-duration-ms</code></td><td>窗口滑动后的持续时间。</td><td></td></tr>
+<tr><td><code>--tenant</code></td><td>Function 的租户</td><td></td></tr>
+<tr><td><code>--topics-pattern</code></td><td>The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. 使用 --custom-serde-inputs 配置为模式添加 SerDe 类名称（仅适用于 Java Function）。</td><td></td></tr>
+<tr><td><code>--user-config</code></td><td>用户定义的配置键/值。</td><td></td></tr>
+<tr><td><code>--window-length-count</code></td><td>每个窗口的消息数量</td><td></td></tr>
 <tr><td><code>--window-length-duration-ms</code></td><td>The time duration of the window in milliseconds</td><td></td></tr>
 <tr><td><code>--dead-letter-topic</code></td><td>The topic where all messages which could not be processed</td><td></td></tr>
 <tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) for the function</td><td></td></tr>
@@ -548,8 +548,8 @@
 </thead>
 <tbody>
 <tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) for the function</td><td></td></tr>
-<tr><td><code>--name</code></td><td>The function's name</td><td></td></tr>
-<tr><td><code>--namespace</code></td><td>The function's namespace</td><td></td></tr>
+<tr><td><code>--name</code></td><td>Function 的名称</td><td></td></tr>
+<tr><td><code>--namespace</code></td><td>Function 的命名空间</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The function's tenant</td><td></td></tr>
 </tbody>
 </table>
@@ -566,8 +566,8 @@
 <tbody>
 <tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) for the function</td><td></td></tr>
 <tr><td><code>--instance-id</code></td><td>The function instanceId (restart all instances if instance-id is not provided)</td><td></td></tr>
-<tr><td><code>--name</code></td><td>The function's name</td><td></td></tr>
-<tr><td><code>--namespace</code></td><td>The function's namespace</td><td></td></tr>
+<tr><td><code>--name</code></td><td>Function 的名称</td><td></td></tr>
+<tr><td><code>--namespace</code></td><td>Function 的命名空间</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The function's tenant</td><td></td></tr>
 </tbody>
 </table>
@@ -584,8 +584,8 @@
 <tbody>
 <tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) for the function</td><td></td></tr>
 <tr><td><code>--instance-id</code></td><td>The function instanceId (stop all instances if instance-id is not provided)</td><td></td></tr>
-<tr><td><code>--name</code></td><td>The function's name</td><td></td></tr>
-<tr><td><code>--namespace</code></td><td>The function's namespace</td><td></td></tr>
+<tr><td><code>--name</code></td><td>Function 的名称</td><td></td></tr>
+<tr><td><code>--namespace</code></td><td>Function 的命名空间</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The function's tenant</td><td></td></tr>
 </tbody>
 </table>
@@ -602,8 +602,8 @@
 <tbody>
 <tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) for the function</td><td></td></tr>
 <tr><td><code>--instance-id</code></td><td>The function instanceId (start all instances if instance-id is not provided)</td><td></td></tr>
-<tr><td><code>--name</code></td><td>The function's name</td><td></td></tr>
-<tr><td><code>--namespace</code></td><td>The function's namespace</td><td></td></tr>
+<tr><td><code>--name</code></td><td>Function 的名称</td><td></td></tr>
+<tr><td><code>--namespace</code></td><td>Function 的命名空间</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The function's tenant</td><td></td></tr>
 </tbody>
 </table>
@@ -620,8 +620,8 @@
 <tbody>
 <tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) for the function</td><td></td></tr>
 <tr><td><code>--instance-id</code></td><td>The function instanceId (Get-status of all instances if instance-id is not provided)</td><td></td></tr>
-<tr><td><code>--name</code></td><td>The function's name</td><td></td></tr>
-<tr><td><code>--namespace</code></td><td>The function's namespace</td><td></td></tr>
+<tr><td><code>--name</code></td><td>Function 的名称</td><td></td></tr>
+<tr><td><code>--namespace</code></td><td>Function 的命名空间</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The function's tenant</td><td></td></tr>
 </tbody>
 </table>
@@ -638,8 +638,8 @@
 <tbody>
 <tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) for the function</td><td></td></tr>
 <tr><td><code>--instance-id</code></td><td>The function instanceId (Get-stats of all instances if instance-id is not provided)</td><td></td></tr>
-<tr><td><code>--name</code></td><td>The function's name</td><td></td></tr>
-<tr><td><code>--namespace</code></td><td>The function's namespace</td><td></td></tr>
+<tr><td><code>--name</code></td><td>Function 的名称</td><td></td></tr>
+<tr><td><code>--namespace</code></td><td>Function 的命名空间</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The function's tenant</td><td></td></tr>
 </tbody>
 </table>
@@ -654,7 +654,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--namespace</code></td><td>The function's namespace</td><td></td></tr>
+<tr><td><code>--namespace</code></td><td>Function 的命名空间</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The function's tenant</td><td></td></tr>
 </tbody>
 </table>
@@ -671,8 +671,8 @@
 <tbody>
 <tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) for the function</td><td></td></tr>
 <tr><td><code>-k</code>, <code>--key</code></td><td>The key for the state you want to fetch</td><td></td></tr>
-<tr><td><code>--name</code></td><td>The function's name</td><td></td></tr>
-<tr><td><code>--namespace</code></td><td>The function's namespace</td><td></td></tr>
+<tr><td><code>--name</code></td><td>Function 的名称</td><td></td></tr>
+<tr><td><code>--namespace</code></td><td>Function 的命名空间</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The function's tenant</td><td></td></tr>
 <tr><td><code>-w</code>, <code>--watch</code></td><td>Watch for changes in the value associated with a key for a Pulsar Function</td><td>false</td></tr>
 </tbody>
@@ -707,8 +707,8 @@
 </thead>
 <tbody>
 <tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) for the function</td><td></td></tr>
-<tr><td><code>--name</code></td><td>The function's name</td><td></td></tr>
-<tr><td><code>--namespace</code></td><td>The function's namespace</td><td></td></tr>
+<tr><td><code>--name</code></td><td>Function 的名称</td><td></td></tr>
+<tr><td><code>--namespace</code></td><td>Function 的命名空间</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The function's tenant</td><td></td></tr>
 <tr><td><code>--topic</code></td><td>The specific topic name that the function consumes from that you want to inject the data to</td><td></td></tr>
 <tr><td><code>--trigger-file</code></td><td>The path to the file that contains the data with which you'd like to trigger the function</td><td></td></tr>
