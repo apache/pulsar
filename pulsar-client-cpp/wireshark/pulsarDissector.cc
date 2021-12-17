@@ -84,56 +84,114 @@ static pulsar::proto::BaseCommand command;
 
 using namespace pulsar::proto;
 
-static const value_string pulsar_cmd_names[] = {  //
-        { BaseCommand::CONNECT, "Connect" },  //
-                { BaseCommand::CONNECTED, "Connected" },  //
-                { BaseCommand::SUBSCRIBE, "Subscribe" },  //
-                { BaseCommand::PRODUCER, "Producer" },  //
-                { BaseCommand::SEND, "Send" },  //
-                { BaseCommand::SEND_RECEIPT, "SendReceipt" },  //
-                { BaseCommand::SEND_ERROR, "SendError" },  //
-                { BaseCommand::MESSAGE, "Message" },  //
-                { BaseCommand::ACK, "Ack" },  //
-                { BaseCommand::FLOW, "Flow" },  //
-                { BaseCommand::UNSUBSCRIBE, "Unsubscribe" },  //
-                { BaseCommand::SUCCESS, "Success" },  //
-                { BaseCommand::ERROR, "Error" },  //
-                { BaseCommand::CLOSE_PRODUCER, "CloseProducer" },  //
-                { BaseCommand::CLOSE_CONSUMER, "CloseConsumer" },  //
-                { BaseCommand::PRODUCER_SUCCESS, "ProducerSuccess" },  //
-                { BaseCommand::PING, "Ping" },  //
-                { BaseCommand::PONG, "Pong" },  //
-        };
-
-static const value_string auth_methods_vs[] = { { AuthMethodNone, "None" },  //
-        { AuthMethodYcaV1, "YCAv1" },  //
-        { AuthMethodAthens, "Athens" }  //
+static const value_string pulsar_cmd_names[] = {
+    {BaseCommand::CONNECT, "Connect"},
+    {BaseCommand::CONNECTED, "Connected"},
+    {BaseCommand::SUBSCRIBE, "Subscribe"},
+    {BaseCommand::PRODUCER, "Producer"},
+    {BaseCommand::SEND, "Send"},
+    {BaseCommand::SEND_RECEIPT, "SendReceipt"},
+    {BaseCommand::SEND_ERROR, "SendError"},
+    {BaseCommand::MESSAGE, "Message"},
+    {BaseCommand::ACK, "Ack"},
+    {BaseCommand::FLOW, "Flow"},
+    {BaseCommand::UNSUBSCRIBE, "Unsubscribe"},
+    {BaseCommand::SUCCESS, "Success"},
+    {BaseCommand::ERROR, "Error"},
+    {BaseCommand::CLOSE_PRODUCER, "CloseProducer"},
+    {BaseCommand::CLOSE_CONSUMER, "CloseConsumer"},
+    {BaseCommand::PRODUCER_SUCCESS, "ProducerSuccess"},
+    {BaseCommand::PING, "Ping"},
+    {BaseCommand::PONG, "Pong"},
+    {BaseCommand::REDELIVER_UNACKNOWLEDGED_MESSAGES, "RedeliverUnacknowledgedMessages"},
+    {BaseCommand::PARTITIONED_METADATA, "PartitionedMetadata"},
+    {BaseCommand::PARTITIONED_METADATA_RESPONSE, "PartitionedMetadataResponse"},
+    {BaseCommand::LOOKUP, "Lookup"},
+    {BaseCommand::LOOKUP_RESPONSE, "LookupResponse"},
+    {BaseCommand::CONSUMER_STATS, "ConsumerStats"},
+    {BaseCommand::CONSUMER_STATS_RESPONSE, "ConsumerStatsResponse"},
+    {BaseCommand::SEEK, "Seek"},
+    {BaseCommand::GET_LAST_MESSAGE_ID, "GetLastMessageId"},
+    {BaseCommand::GET_LAST_MESSAGE_ID_RESPONSE, "GetLastMessageIdResponse"},
+    {BaseCommand::ACTIVE_CONSUMER_CHANGE, "ActiveConsumerChange"},
+    {BaseCommand::GET_TOPICS_OF_NAMESPACE, "GetTopicsOfNamespace"},
+    {BaseCommand::GET_TOPICS_OF_NAMESPACE_RESPONSE, "GetTopicsOfNamespaceResponse"},
+    {BaseCommand::GET_SCHEMA, "GetSchema"},
+    {BaseCommand::GET_SCHEMA_RESPONSE, "GetSchemaResponse"},
+    {BaseCommand::AUTH_CHALLENGE, "AuthChallenge"},
+    {BaseCommand::AUTH_RESPONSE, "AuthResponse"},
+    {BaseCommand::ACK_RESPONSE, "AckResponse"},
+    {BaseCommand::GET_OR_CREATE_SCHEMA, "GetOrCreateSchema"},
+    {BaseCommand::AUTH_CHALLENGE, "AuthChallenge"},
+    {BaseCommand::AUTH_RESPONSE, "AuthResponse"},
+    {BaseCommand::ACK_RESPONSE, "AckResponse"},
+    {BaseCommand::GET_OR_CREATE_SCHEMA, "GetOrCreateSchema"},
+    {BaseCommand::GET_OR_CREATE_SCHEMA_RESPONSE, "GetOrCreateSchemaResponse"},
+    {BaseCommand::NEW_TXN, "NewTxn"},
+    {BaseCommand::NEW_TXN_RESPONSE, "NewTxnResponse"},
+    {BaseCommand::ADD_PARTITION_TO_TXN, "AddPartitionToTxn"},
+    {BaseCommand::ADD_SUBSCRIPTION_TO_TXN, "AddSubscriptionToTxn"},
+    {BaseCommand::ADD_SUBSCRIPTION_TO_TXN_RESPONSE, "AddSubscriptionToTxnResponse"},
+    {BaseCommand::END_TXN, "EndTxn"},
+    {BaseCommand::END_TXN_RESPONSE, "EndTxnResponse"},
+    {BaseCommand::END_TXN_ON_PARTITION, "EndTxnOnPartition"},
+    {BaseCommand::END_TXN_ON_PARTITION_RESPONSE, "EndTxnOnPartitionResponse"},
+    {BaseCommand::END_TXN_ON_SUBSCRIPTION, "EndTxnOnSubscription"},
+    {BaseCommand::END_TXN_ON_SUBSCRIPTION_RESPONSE, "EndTxnOnSubscriptionResponse"},
+    {BaseCommand::TC_CLIENT_CONNECT_REQUEST, "TcClientConnectRequest"},
+    {BaseCommand::TC_CLIENT_CONNECT_RESPONSE, "TcClientConnectResponse"},
 };
 
-static const value_string server_errors_vs[] = { { UnknownError, "UnknownError" },  //
-        { MetadataError, "MetadataError" },  //
-        { PersistenceError, "PersistenceError" },  //
-        { AuthenticationError, "AuthenticationError" },  //
-        { AuthorizationError, "AuthorizationError" },  //
-        { ConsumerBusy, "ConsumerBusy" },  //
-        { ServiceNotReady, "ServiceNotReady" },  //
-        { ProducerBlockedQuotaExceededError, "ProducerBlockedQuotaExceededError" },  //
-        { ProducerBlockedQuotaExceededException, "ProducerBlockedQuotaExceededException" }  //
+static const value_string auth_methods_vs[] = {
+    {AuthMethodNone, "None"},     //
+    {AuthMethodYcaV1, "YCAv1"},   //
+    {AuthMethodAthens, "Athens"}  //
 };
 
-static const value_string ack_type_vs[] = { { CommandAck::Individual, "Individual" },  //
-        { CommandAck::Cumulative, "Cumulative" }  //
+static const value_string server_errors_vs[] = {
+    {UnknownError, "UnknownError"},
+    {MetadataError, "MetadataError"},
+    {PersistenceError, "PersistenceError"},
+    {AuthenticationError, "AuthenticationError"},
+    {AuthorizationError, "AuthorizationError"},
+    {ConsumerBusy, "ConsumerBusy"},
+    {ServiceNotReady, "ServiceNotReady"},
+    {ProducerBlockedQuotaExceededError, "ProducerBlockedQuotaExceededError"},
+    {ProducerBlockedQuotaExceededException, "ProducerBlockedQuotaExceededException"},
+    {ChecksumError, "ChecksumError"},
+    {UnsupportedVersionError, "UnsupportedVersionError"},
+    {TopicNotFound, "TopicNotFound"},
+    {SubscriptionNotFound, "SubscriptionNotFound"},
+    {ConsumerNotFound, "ConsumerNotFound"},
+    {TooManyRequests, "TooManyRequests"},
+    {TopicTerminatedError, "TopicTerminatedError"},
+    {ProducerBusy, "ProducerBusy"},
+    {InvalidTopicName, "InvalidTopicName"},
+    {IncompatibleSchema, "IncompatibleSchema"},
+    {ConsumerAssignError, "ConsumerAssignError"},
+    {TransactionCoordinatorNotFound, "TransactionCoordinatorNotFound"},
+    {InvalidTxnStatus, "InvalidTxnStatus"},
+    {NotAllowedError, "NotAllowedError"},
+    {TransactionConflict, "TransactionConflict"},
+    {TransactionNotFound, "TransactionNotFound"},
+    {ProducerFenced, "ProducerFenced"},
 };
 
-static const value_string protocol_version_vs[] = { { v0, "v0" },  //
-        { v1, "v1" }  //
+static const value_string ack_type_vs[] = {{CommandAck::Individual, "Individual"},
+                                           {CommandAck::Cumulative, "Cumulative"}};
+
+static const value_string protocol_version_vs[] = {
+    {v0, "v0"},   {v1, "v1"},   {v2, "v2"},   {v3, "v3"},   {v4, "v4"},   {v5, "v5"},   {v6, "v6"},
+    {v7, "v7"},   {v8, "v8"},   {v9, "v9"},   {v10, "v10"}, {v11, "v11"}, {v12, "v12"}, {v13, "v13"},
+    {v14, "v14"}, {v15, "v15"}, {v16, "v16"}, {v17, "v17"}, {v18, "v18"}, {v19, "v19"},
 };
 
-static const value_string sub_type_names_vs[] = {  //
-        { CommandSubscribe::Exclusive, "Exclusive" },  //
-                { CommandSubscribe::Shared, "Shared" },  //
-                { CommandSubscribe::Failover, "Failover" }  //
-        };
+static const value_string sub_type_names_vs[] = {
+    {CommandSubscribe::Exclusive, "Exclusive"},
+    {CommandSubscribe::Shared, "Shared"},
+    {CommandSubscribe::Failover, "Failover"},
+    {CommandSubscribe::Key_Shared, "Key_Shared"},
+};
 
 static const char* to_str(int value, const value_string* values) {
     return val_to_str(value, values, "Unknown (%d)");
@@ -157,10 +215,7 @@ struct RequestData {
     uint32_t ackFrame;
     nstime_t ackTimestamp;
 
-    RequestData()
-            : requestFrame(UINT32_MAX),
-              ackFrame(UINT32_MAX) {
-    }
+    RequestData() : requestFrame(UINT32_MAX), ackFrame(UINT32_MAX) {}
 };
 
 struct RequestResponseData : public RequestData {
@@ -190,10 +245,9 @@ struct ConnectionState {
     std::map<uint64_t, RequestResponseData> requests;
 };
 
-static void dissect_message_metadata(proto_tree* frame_tree, tvbuff_t *tvb, int offset,
-                                     int maxOffset) {
+static void dissect_message_metadata(proto_tree* frame_tree, tvbuff_t* tvb, int offset, int maxOffset) {
     // Decode message metadata
-    uint32_t metadataSize = (uint32_t) tvb_get_ntohl(tvb, offset);
+    auto metadataSize = tvb_get_ntohl(tvb, offset);
     offset += 4;
 
     if (offset + metadataSize > maxOffset) {
@@ -203,7 +257,7 @@ static void dissect_message_metadata(proto_tree* frame_tree, tvbuff_t *tvb, int 
     }
 
     static MessageMetadata msgMetadata;
-    uint8_t* ptr = (uint8_t*) tvb_get_ptr(tvb, offset, metadataSize);
+    auto ptr = tvb_get_ptr(tvb, offset, metadataSize);
 
     if (!msgMetadata.ParseFromArray(ptr, metadataSize)) {
         proto_tree_add_boolean_format(frame_tree, hf_pulsar_error, tvb, offset, metadataSize, true,
@@ -211,12 +265,9 @@ static void dissect_message_metadata(proto_tree* frame_tree, tvbuff_t *tvb, int 
         return;
     }
 
-    proto_item* md_tree = proto_tree_add_subtree_format(frame_tree, tvb, offset, metadataSize,
-                                                        ett_pulsar,
-                                                        NULL,
-                                                        "Message / %s / %" G_GINT64_MODIFIER "u",
-                                                        msgMetadata.producer_name().c_str(),
-                                                        msgMetadata.sequence_id());
+    proto_item* md_tree = proto_tree_add_subtree_format(
+        frame_tree, tvb, offset, metadataSize, ett_pulsar, nullptr, "Message / %s / %" G_GINT64_MODIFIER "u",
+        msgMetadata.producer_name().c_str(), msgMetadata.sequence_id());
     proto_tree_add_string(md_tree, hf_pulsar_producer_name, tvb, offset, metadataSize,
                           msgMetadata.producer_name().c_str());
     proto_tree_add_uint64(md_tree, hf_pulsar_sequence_id, tvb, offset, metadataSize,
@@ -229,27 +280,21 @@ static void dissect_message_metadata(proto_tree* frame_tree, tvbuff_t *tvb, int 
     }
 
     if (msgMetadata.properties_size() > 0) {
-        proto_item* properties_tree = proto_tree_add_subtree_format(frame_tree, tvb, offset,
-                                                                    metadataSize, ett_pulsar,
-                                                                    NULL,
-                                                                    "Properties");
+        proto_item* properties_tree = proto_tree_add_subtree_format(frame_tree, tvb, offset, metadataSize,
+                                                                    ett_pulsar, nullptr, "Properties");
         for (int i = 0; i < msgMetadata.properties_size(); i++) {
             const KeyValue& kv = msgMetadata.properties(i);
-            proto_tree_add_string_format(properties_tree, hf_pulsar_property, tvb, offset,
-                                         metadataSize, "", "%s : %s", kv.key().c_str(),
-                                         kv.value().c_str());
+            proto_tree_add_string_format(properties_tree, hf_pulsar_property, tvb, offset, metadataSize, "",
+                                         "%s : %s", kv.key().c_str(), kv.value().c_str());
         }
     }
 
     if (msgMetadata.replicate_to_size() > 0) {
-        proto_item* replicate_tree = proto_tree_add_subtree_format(frame_tree, tvb, offset,
-                                                                   metadataSize, ett_pulsar,
-                                                                   NULL,
-                                                                   "Replicate to");
+        proto_item* replicate_tree = proto_tree_add_subtree_format(frame_tree, tvb, offset, metadataSize,
+                                                                   ett_pulsar, nullptr, "Replicate to");
         for (int i = 0; i < msgMetadata.replicate_to_size(); i++) {
-            proto_tree_add_string_format(replicate_tree, hf_pulsar_replicated_from, tvb, offset,
-                                         metadataSize, "", "%s",
-                                         msgMetadata.replicate_to(i).c_str());
+            proto_tree_add_string_format(replicate_tree, hf_pulsar_replicated_from, tvb, offset, metadataSize,
+                                         "", "%s", msgMetadata.replicate_to(i).c_str());
         }
     }
 
@@ -260,15 +305,15 @@ static void dissect_message_metadata(proto_tree* frame_tree, tvbuff_t *tvb, int 
 
     offset += metadataSize;
     uint32_t payloadSize = maxOffset - offset;
-    proto_tree_add_subtree_format(md_tree, tvb, offset, payloadSize, ett_pulsar, NULL,
-                                  "Payload / size=%u", payloadSize);
+    proto_tree_add_subtree_format(md_tree, tvb, offset, payloadSize, ett_pulsar, nullptr, "Payload / size=%u",
+                                  payloadSize);
 }
 
 void link_to_request_frame(proto_tree* cmd_tree, tvbuff_t* tvb, int offset, int size,
                            const RequestData& reqData) {
     if (reqData.requestFrame != UINT32_MAX) {
-        proto_tree* item = proto_tree_add_uint(cmd_tree, hf_pulsar_request_in, tvb, offset, size,
-                                               reqData.requestFrame);
+        proto_tree* item =
+            proto_tree_add_uint(cmd_tree, hf_pulsar_request_in, tvb, offset, size, reqData.requestFrame);
         PROTO_ITEM_SET_GENERATED(item);
 
         nstime_t latency;
@@ -281,8 +326,8 @@ void link_to_request_frame(proto_tree* cmd_tree, tvbuff_t* tvb, int offset, int 
 void link_to_response_frame(proto_tree* cmd_tree, tvbuff_t* tvb, int offset, int size,
                             const RequestData& reqData) {
     if (reqData.ackFrame != UINT32_MAX) {
-        proto_tree* item = proto_tree_add_uint(cmd_tree, hf_pulsar_response_in, tvb, offset, size,
-                                               reqData.ackFrame);
+        proto_tree* item =
+            proto_tree_add_uint(cmd_tree, hf_pulsar_response_in, tvb, offset, size, reqData.ackFrame);
         PROTO_ITEM_SET_GENERATED(item);
 
         nstime_t latency;
@@ -295,14 +340,12 @@ void link_to_response_frame(proto_tree* cmd_tree, tvbuff_t* tvb, int offset, int
 //////////
 
 /* This method dissects fully reassembled messages */
-static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree* tree,
-                               void* data _U_) {
+static int dissect_pulsar_message(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* data _U_) {
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "Pulsar");
 
     conversation_t* conversation = find_or_create_conversation(pinfo);
-    ConnectionState* state = (ConnectionState*) conversation_get_proto_data(conversation,
-                                                                            proto_pulsar);
-    if (state == NULL) {
+    auto state = (ConnectionState*)conversation_get_proto_data(conversation, proto_pulsar);
+    if (state == nullptr) {
         state = new ConnectionState();
         conversation_add_proto_data(conversation, proto_pulsar, state);
     }
@@ -310,7 +353,7 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
     uint32_t offset = FRAME_SIZE_LEN;
     int maxOffset = tvb_captured_length(tvb);
 
-    uint32_t cmdSize = (uint32_t) tvb_get_ntohl(tvb, offset);
+    auto cmdSize = (uint32_t)tvb_get_ntohl(tvb, offset);
     offset += 4;
 
     if (offset + cmdSize > maxOffset) {
@@ -319,7 +362,7 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
         return maxOffset;
     }
 
-    uint8_t* ptr = (uint8_t*) tvb_get_ptr(tvb, offset, cmdSize);
+    auto ptr = (uint8_t*)tvb_get_ptr(tvb, offset, cmdSize);
     if (!command.ParseFromArray(ptr, cmdSize)) {
         proto_tree_add_boolean_format(tree, hf_pulsar_error, tvb, offset, cmdSize, true,
                                       "Error parsing protocol buffer command");
@@ -329,25 +372,20 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
     int cmdOffset = offset;
     offset += cmdSize;
 
-    col_add_str(pinfo->cinfo, COL_INFO,
-                val_to_str_const(command.type(), pulsar_cmd_names, "Unknown (%d)"));
+    col_add_str(pinfo->cinfo, COL_INFO, to_str(command.type(), pulsar_cmd_names));
 
-    proto_item* frame_tree = NULL;
-    proto_item* cmd_tree = NULL;
+    proto_item* frame_tree = nullptr;
+    proto_item* cmd_tree = nullptr;
     if (tree) { /* we are being asked for details */
-        proto_item *ti = proto_tree_add_item(tree, proto_pulsar, tvb, 0, -1, ENC_NA);
+        proto_item* ti = proto_tree_add_item(tree, proto_pulsar, tvb, 0, -1, ENC_NA);
         frame_tree = proto_item_add_subtree(ti, ett_pulsar);
         proto_tree_add_item(frame_tree, hf_pulsar_frame_size, tvb, 0, 4, ENC_BIG_ENDIAN);
         proto_tree_add_item(frame_tree, hf_pulsar_cmd_size, tvb, 4, 4, ENC_BIG_ENDIAN);
-        cmd_tree = proto_tree_add_subtree_format(frame_tree, tvb, 8, cmdSize, ett_pulsar,
-        NULL,
-                                                 "Command %s",
-                                                 to_str(command.type(), pulsar_cmd_names));
+        cmd_tree = proto_tree_add_subtree_format(frame_tree, tvb, 8, cmdSize, ett_pulsar, nullptr,
+                                                 "Command %s", to_str(command.type(), pulsar_cmd_names));
         proto_tree_add_string(cmd_tree, hf_pulsar_cmd_type, tvb, 8, cmdSize,
                               to_str(command.type(), pulsar_cmd_names));
     }
-
-    proto_tree* item = NULL;
 
     switch (command.type()) {
         case BaseCommand::CONNECT: {
@@ -390,9 +428,8 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
             consumerData.subType = subscribe.subtype();
 
             col_append_fstr(pinfo->cinfo, COL_INFO, " / %s / %s / %s / %s",
-                            to_str(subscribe.subtype(), sub_type_names_vs),
-                            subscribe.topic().c_str(), subscribe.subscription().c_str(),
-                            subscribe.consumer_name().c_str());
+                            to_str(subscribe.subtype(), sub_type_names_vs), subscribe.topic().c_str(),
+                            subscribe.subscription().c_str(), subscribe.consumer_name().c_str());
 
             if (tree) {
                 proto_tree_add_string(cmd_tree, hf_pulsar_topic, tvb, cmdOffset, cmdSize,
@@ -406,13 +443,8 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
                 proto_tree_add_uint64(cmd_tree, hf_pulsar_request_id, tvb, cmdOffset, cmdSize,
                                       subscribe.request_id());
                 proto_tree_add_string(
-                        cmd_tree,
-                        hf_pulsar_consumer_name,
-                        tvb,
-                        cmdOffset,
-                        cmdSize,
-                        subscribe.has_consumer_name() ?
-                                subscribe.consumer_name().c_str() : "<none>");
+                    cmd_tree, hf_pulsar_consumer_name, tvb, cmdOffset, cmdSize,
+                    subscribe.has_consumer_name() ? subscribe.consumer_name().c_str() : "<none>");
             }
             break;
         }
@@ -436,8 +468,8 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
                 proto_tree_add_uint64(cmd_tree, hf_pulsar_request_id, tvb, cmdOffset, cmdSize,
                                       producer.request_id());
                 proto_tree_add_string(
-                        cmd_tree, hf_pulsar_producer_name, tvb, cmdOffset, cmdSize,
-                        producer.has_producer_name() ? producer.producer_name().c_str() : "<none>");
+                    cmd_tree, hf_pulsar_producer_name, tvb, cmdOffset, cmdSize,
+                    producer.has_producer_name() ? producer.producer_name().c_str() : "<none>");
 
                 link_to_response_frame(cmd_tree, tvb, cmdOffset, cmdSize, reqData);
             }
@@ -445,10 +477,10 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
         }
         case BaseCommand::SEND: {
             const CommandSend& send = command.send();
-            RequestData& data = state->producers[send.producer_id()].messages[send.sequence_id()];
-            data.requestFrame = pinfo->fd->num;
-            data.requestTimestamp.secs = pinfo->fd->abs_ts.secs;
-            data.requestTimestamp.nsecs = pinfo->fd->abs_ts.nsecs;
+            RequestData& reqData = state->producers[send.producer_id()].messages[send.sequence_id()];
+            reqData.requestFrame = pinfo->fd->num;
+            reqData.requestTimestamp.secs = pinfo->fd->abs_ts.secs;
+            reqData.requestTimestamp.nsecs = pinfo->fd->abs_ts.nsecs;
 
             ProducerData& producerData = state->producers[send.producer_id()];
 
@@ -464,8 +496,8 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
                 // Decode message metadata
                 dissect_message_metadata(cmd_tree, tvb, offset, maxOffset);
 
-                item = proto_tree_add_string(cmd_tree, hf_pulsar_producer_name, tvb, cmdOffset,
-                                             cmdSize, producerData.producerName.c_str());
+                auto item = proto_tree_add_string(cmd_tree, hf_pulsar_producer_name, tvb, cmdOffset, cmdSize,
+                                                  producerData.producerName.c_str());
                 PROTO_ITEM_SET_GENERATED(item);
 
                 item = proto_tree_add_string(cmd_tree, hf_pulsar_topic, tvb, cmdOffset, cmdSize,
@@ -473,17 +505,17 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
                 PROTO_ITEM_SET_GENERATED(item);
 
                 // Pair with frame information
-                link_to_response_frame(cmd_tree, tvb, cmdOffset, cmdSize, data);
+                link_to_response_frame(cmd_tree, tvb, cmdOffset, cmdSize, reqData);
             }
             break;
         }
         case BaseCommand::SEND_RECEIPT: {
             const CommandSendReceipt& send_receipt = command.send_receipt();
-            RequestData & data = state->producers[send_receipt.producer_id()].messages[send_receipt
-                    .sequence_id()];
-            data.ackFrame = pinfo->fd->num;
-            data.ackTimestamp.secs = pinfo->fd->abs_ts.secs;
-            data.ackTimestamp.nsecs = pinfo->fd->abs_ts.nsecs;
+            RequestData& reqData =
+                state->producers[send_receipt.producer_id()].messages[send_receipt.sequence_id()];
+            reqData.ackFrame = pinfo->fd->num;
+            reqData.ackTimestamp.secs = pinfo->fd->abs_ts.secs;
+            reqData.ackTimestamp.nsecs = pinfo->fd->abs_ts.nsecs;
 
             ProducerData& producerData = state->producers[send_receipt.producer_id()];
             col_append_fstr(pinfo->cinfo, COL_INFO, " / %s / %" G_GINT64_MODIFIER "u",
@@ -496,27 +528,28 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
                                       send_receipt.sequence_id());
                 if (send_receipt.has_message_id()) {
                     const MessageIdData& messageId = send_receipt.message_id();
-                    proto_tree_add_string_format(cmd_tree, hf_pulsar_message_id, tvb, cmdOffset,
-                                                 cmdSize, "", "Message Id: %" G_GINT64_MODIFIER "u:%" G_GINT64_MODIFIER "u",
+                    proto_tree_add_string_format(cmd_tree, hf_pulsar_message_id, tvb, cmdOffset, cmdSize, "",
+                                                 "Message Id: %" G_GINT64_MODIFIER "u:%" G_GINT64_MODIFIER
+                                                 "u",
                                                  messageId.ledgerid(), messageId.entryid());
                 }
 
-                item = proto_tree_add_string(cmd_tree, hf_pulsar_producer_name, tvb, cmdOffset,
-                                             cmdSize, producerData.producerName.c_str());
+                auto item = proto_tree_add_string(cmd_tree, hf_pulsar_producer_name, tvb, cmdOffset, cmdSize,
+                                                  producerData.producerName.c_str());
                 PROTO_ITEM_SET_GENERATED(item);
 
                 item = proto_tree_add_string(cmd_tree, hf_pulsar_topic, tvb, cmdOffset, cmdSize,
                                              producerData.topic.c_str());
                 PROTO_ITEM_SET_GENERATED(item);
 
-                link_to_request_frame(cmd_tree, tvb, cmdOffset, cmdSize, data);
+                link_to_request_frame(cmd_tree, tvb, cmdOffset, cmdSize, reqData);
             }
             break;
         }
         case BaseCommand::SEND_ERROR: {
             const CommandSendError& send_error = command.send_error();
-            RequestData & reqData = state->producers[send_error.producer_id()].messages[send_error
-                    .sequence_id()];
+            RequestData& reqData =
+                state->producers[send_error.producer_id()].messages[send_error.sequence_id()];
             reqData.ackFrame = pinfo->fd->num;
             reqData.ackTimestamp.secs = pinfo->fd->abs_ts.secs;
             reqData.ackTimestamp.nsecs = pinfo->fd->abs_ts.nsecs;
@@ -526,18 +559,20 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
                             producerData.producerName.c_str(), send_error.sequence_id());
 
             if (tree) {
-                proto_tree_add_boolean_format(frame_tree, hf_pulsar_error, tvb, cmdOffset, cmdSize,
-                                              true, "Error in sending operation");
+                proto_tree_add_boolean_format(frame_tree, hf_pulsar_error, tvb, cmdOffset, cmdSize, true,
+                                              "Error in sending operation");
                 proto_tree_add_uint64(cmd_tree, hf_pulsar_producer_id, tvb, cmdOffset, cmdSize,
                                       send_error.producer_id());
                 proto_tree_add_uint64(cmd_tree, hf_pulsar_sequence_id, tvb, cmdOffset, cmdSize,
                                       send_error.sequence_id());
 
-                item = proto_tree_add_string(cmd_tree, hf_pulsar_server_error, tvb, cmdOffset, cmdSize,
-                                             to_str(send_error.error(), server_errors_vs));
+                auto item = proto_tree_add_string(cmd_tree, hf_pulsar_server_error, tvb, cmdOffset, cmdSize,
+                                                  to_str(send_error.error(), server_errors_vs));
 
-                item = proto_tree_add_string(cmd_tree, hf_pulsar_producer_name, tvb, cmdOffset,
-                                             cmdSize, producerData.producerName.c_str());
+                PROTO_ITEM_SET_GENERATED(item);
+
+                item = proto_tree_add_string(cmd_tree, hf_pulsar_producer_name, tvb, cmdOffset, cmdSize,
+                                             producerData.producerName.c_str());
                 PROTO_ITEM_SET_GENERATED(item);
 
                 item = proto_tree_add_string(cmd_tree, hf_pulsar_topic, tvb, cmdOffset, cmdSize,
@@ -552,11 +587,10 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
         case BaseCommand::MESSAGE: {
             const CommandMessage& message = command.message();
             state->consumers[message.consumer_id()].messages[message.message_id()];
-            RequestData& data =
-                    state->consumers[message.consumer_id()].messages[message.message_id()];
-            data.requestFrame = pinfo->fd->num;
-            data.requestTimestamp.secs = pinfo->fd->abs_ts.secs;
-            data.requestTimestamp.nsecs = pinfo->fd->abs_ts.nsecs;
+            RequestData& reqData = state->consumers[message.consumer_id()].messages[message.message_id()];
+            reqData.requestFrame = pinfo->fd->num;
+            reqData.requestTimestamp.secs = pinfo->fd->abs_ts.secs;
+            reqData.requestTimestamp.nsecs = pinfo->fd->abs_ts.nsecs;
 
             const ConsumerData& consumerData = state->consumers[message.consumer_id()];
 
@@ -570,8 +604,8 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
 
                 dissect_message_metadata(cmd_tree, tvb, offset, maxOffset);
 
-                item = proto_tree_add_string(cmd_tree, hf_pulsar_consumer_name, tvb, cmdOffset,
-                                             cmdSize, consumerData.consumerName.c_str());
+                auto item = proto_tree_add_string(cmd_tree, hf_pulsar_consumer_name, tvb, cmdOffset, cmdSize,
+                                                  consumerData.consumerName.c_str());
                 PROTO_ITEM_SET_GENERATED(item);
 
                 item = proto_tree_add_string(cmd_tree, hf_pulsar_topic, tvb, cmdOffset, cmdSize,
@@ -579,16 +613,16 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
                 PROTO_ITEM_SET_GENERATED(item);
 
                 // Pair with frame information
-                link_to_response_frame(cmd_tree, tvb, cmdOffset, cmdSize, data);
+                link_to_response_frame(cmd_tree, tvb, cmdOffset, cmdSize, reqData);
             }
             break;
         }
         case BaseCommand::ACK: {
             const CommandAck& ack = command.ack();
-            RequestData& data = state->consumers[ack.consumer_id()].messages[ack.message_id().Get(0)];
-            data.ackFrame = pinfo->fd->num;
-            data.ackTimestamp.secs = pinfo->fd->abs_ts.secs;
-            data.ackTimestamp.nsecs = pinfo->fd->abs_ts.nsecs;
+            RequestData& reqData = state->consumers[ack.consumer_id()].messages[ack.message_id().Get(0)];
+            reqData.ackFrame = pinfo->fd->num;
+            reqData.ackTimestamp.secs = pinfo->fd->abs_ts.secs;
+            reqData.ackTimestamp.nsecs = pinfo->fd->abs_ts.nsecs;
 
             const ConsumerData& consumerData = state->consumers[ack.consumer_id()];
 
@@ -602,8 +636,8 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
                 proto_tree_add_string(cmd_tree, hf_pulsar_ack_type, tvb, cmdOffset, cmdSize,
                                       to_str(ack.ack_type(), ack_type_vs));
 
-                item = proto_tree_add_string(cmd_tree, hf_pulsar_consumer_name, tvb, cmdOffset,
-                                             cmdSize, consumerData.consumerName.c_str());
+                auto item = proto_tree_add_string(cmd_tree, hf_pulsar_consumer_name, tvb, cmdOffset, cmdSize,
+                                                  consumerData.consumerName.c_str());
                 PROTO_ITEM_SET_GENERATED(item);
 
                 item = proto_tree_add_string(cmd_tree, hf_pulsar_topic, tvb, cmdOffset, cmdSize,
@@ -611,7 +645,7 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
                 PROTO_ITEM_SET_GENERATED(item);
 
                 // Pair with frame information
-                link_to_request_frame(cmd_tree, tvb, cmdOffset, cmdSize, data);
+                link_to_request_frame(cmd_tree, tvb, cmdOffset, cmdSize, reqData);
             }
             break;
         }
@@ -628,8 +662,8 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
                 proto_tree_add_uint(cmd_tree, hf_pulsar_message_permits, tvb, cmdOffset, cmdSize,
                                     flow.messagepermits());
 
-                item = proto_tree_add_string(cmd_tree, hf_pulsar_consumer_name, tvb, cmdOffset,
-                                             cmdSize, consumerData.consumerName.c_str());
+                auto item = proto_tree_add_string(cmd_tree, hf_pulsar_consumer_name, tvb, cmdOffset, cmdSize,
+                                                  consumerData.consumerName.c_str());
                 PROTO_ITEM_SET_GENERATED(item);
 
                 item = proto_tree_add_string(cmd_tree, hf_pulsar_topic, tvb, cmdOffset, cmdSize,
@@ -648,17 +682,16 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
             ConsumerData& consumerData = state->consumers[unsubscribe.consumer_id()];
 
             col_append_fstr(pinfo->cinfo, COL_INFO, " / %s / %s / %s / %s",
-                            to_str(consumerData.subType, sub_type_names_vs),
-                            consumerData.topic.c_str(), consumerData.subscriptionName.c_str(),
-                            consumerData.consumerName.c_str());
+                            to_str(consumerData.subType, sub_type_names_vs), consumerData.topic.c_str(),
+                            consumerData.subscriptionName.c_str(), consumerData.consumerName.c_str());
 
             if (tree) {
                 proto_tree_add_uint64(cmd_tree, hf_pulsar_consumer_id, tvb, cmdOffset, cmdSize,
                                       unsubscribe.consumer_id());
                 proto_tree_add_uint64(cmd_tree, hf_pulsar_request_id, tvb, cmdOffset, cmdSize,
                                       unsubscribe.request_id());
-                item = proto_tree_add_string(cmd_tree, hf_pulsar_topic, tvb, cmdOffset, cmdSize,
-                                             consumerData.topic.c_str());
+                auto item = proto_tree_add_string(cmd_tree, hf_pulsar_topic, tvb, cmdOffset, cmdSize,
+                                                  consumerData.topic.c_str());
                 PROTO_ITEM_IS_GENERATED(item);
                 item = proto_tree_add_string(cmd_tree, hf_pulsar_subscription, tvb, cmdOffset, cmdSize,
                                              consumerData.subscriptionName.c_str());
@@ -678,7 +711,7 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
 
         case BaseCommand::SUCCESS: {
             const CommandSuccess& success = command.success();
-            RequestResponseData & reqData = state->requests[success.request_id()];
+            RequestResponseData& reqData = state->requests[success.request_id()];
             reqData.ackFrame = pinfo->fd->num;
             reqData.ackTimestamp.secs = pinfo->fd->abs_ts.secs;
             reqData.ackTimestamp.nsecs = pinfo->fd->abs_ts.nsecs;
@@ -693,14 +726,14 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
         }
         case BaseCommand::ERROR: {
             const CommandError& error = command.error();
-            RequestResponseData & reqData = state->requests[error.request_id()];
+            RequestResponseData& reqData = state->requests[error.request_id()];
             reqData.ackFrame = pinfo->fd->num;
             reqData.ackTimestamp.secs = pinfo->fd->abs_ts.secs;
             reqData.ackTimestamp.nsecs = pinfo->fd->abs_ts.nsecs;
 
             if (tree) {
-                proto_tree_add_boolean_format(frame_tree, hf_pulsar_error, tvb, cmdOffset, cmdSize,
-                                              true, "Request failed");
+                proto_tree_add_boolean_format(frame_tree, hf_pulsar_error, tvb, cmdOffset, cmdSize, true,
+                                              "Request failed");
                 proto_tree_add_uint64(cmd_tree, hf_pulsar_request_id, tvb, cmdOffset, cmdSize,
                                       error.request_id());
                 proto_tree_add_string(cmd_tree, hf_pulsar_server_error, tvb, cmdOffset, cmdSize,
@@ -728,8 +761,8 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
                                       close_producer.producer_id());
                 proto_tree_add_uint64(cmd_tree, hf_pulsar_request_id, tvb, cmdOffset, cmdSize,
                                       close_producer.request_id());
-                item = proto_tree_add_string(cmd_tree, hf_pulsar_topic, tvb, cmdOffset, cmdSize,
-                                             producerData.topic.c_str());
+                auto item = proto_tree_add_string(cmd_tree, hf_pulsar_topic, tvb, cmdOffset, cmdSize,
+                                                  producerData.topic.c_str());
                 PROTO_ITEM_IS_GENERATED(item);
 
                 proto_tree_add_string(cmd_tree, hf_pulsar_producer_name, tvb, cmdOffset, cmdSize,
@@ -751,17 +784,16 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
             ConsumerData& consumerData = state->consumers[close_consumer.consumer_id()];
 
             col_append_fstr(pinfo->cinfo, COL_INFO, " / %s / %s / %s / %s",
-                            to_str(consumerData.subType, sub_type_names_vs),
-                            consumerData.topic.c_str(), consumerData.subscriptionName.c_str(),
-                            consumerData.consumerName.c_str());
+                            to_str(consumerData.subType, sub_type_names_vs), consumerData.topic.c_str(),
+                            consumerData.subscriptionName.c_str(), consumerData.consumerName.c_str());
 
             if (tree) {
                 proto_tree_add_uint64(cmd_tree, hf_pulsar_consumer_id, tvb, cmdOffset, cmdSize,
                                       close_consumer.consumer_id());
                 proto_tree_add_uint64(cmd_tree, hf_pulsar_request_id, tvb, cmdOffset, cmdSize,
                                       close_consumer.request_id());
-                item = proto_tree_add_string(cmd_tree, hf_pulsar_topic, tvb, cmdOffset, cmdSize,
-                                             consumerData.topic.c_str());
+                auto item = proto_tree_add_string(cmd_tree, hf_pulsar_topic, tvb, cmdOffset, cmdSize,
+                                                  consumerData.topic.c_str());
                 PROTO_ITEM_IS_GENERATED(item);
                 item = proto_tree_add_string(cmd_tree, hf_pulsar_subscription, tvb, cmdOffset, cmdSize,
                                              consumerData.subscriptionName.c_str());
@@ -781,7 +813,7 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
 
         case BaseCommand::PRODUCER_SUCCESS: {
             const CommandProducerSuccess& success = command.producer_success();
-            RequestResponseData & reqData = state->requests[success.request_id()];
+            RequestResponseData& reqData = state->requests[success.request_id()];
             reqData.ackFrame = pinfo->fd->num;
             reqData.ackTimestamp.secs = pinfo->fd->abs_ts.secs;
             reqData.ackTimestamp.nsecs = pinfo->fd->abs_ts.nsecs;
@@ -795,8 +827,8 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
                 proto_tree_add_string(cmd_tree, hf_pulsar_producer_name, tvb, cmdOffset, cmdSize,
                                       success.producer_name().c_str());
 
-                proto_tree* item = proto_tree_add_uint64(cmd_tree, hf_pulsar_producer_id, tvb,
-                                                         cmdOffset, cmdSize, producerId);
+                auto item = proto_tree_add_uint64(cmd_tree, hf_pulsar_producer_id, tvb, cmdOffset, cmdSize,
+                                                  producerId);
                 PROTO_ITEM_SET_GENERATED(item);
 
                 item = proto_tree_add_string(cmd_tree, hf_pulsar_topic, tvb, cmdOffset, cmdSize,
@@ -811,75 +843,75 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
             break;
         case BaseCommand::PONG:
             break;
-        case BaseCommand_Type_REDELIVER_UNACKNOWLEDGED_MESSAGES:
+        case BaseCommand::REDELIVER_UNACKNOWLEDGED_MESSAGES:
             break;
-        case BaseCommand_Type_PARTITIONED_METADATA:
+        case BaseCommand::PARTITIONED_METADATA:
             break;
-        case BaseCommand_Type_PARTITIONED_METADATA_RESPONSE:
+        case BaseCommand::PARTITIONED_METADATA_RESPONSE:
             break;
-        case BaseCommand_Type_LOOKUP:
+        case BaseCommand::LOOKUP:
             break;
-        case BaseCommand_Type_LOOKUP_RESPONSE:
+        case BaseCommand::LOOKUP_RESPONSE:
             break;
-        case BaseCommand_Type_CONSUMER_STATS:
+        case BaseCommand::CONSUMER_STATS:
             break;
-        case BaseCommand_Type_CONSUMER_STATS_RESPONSE:
+        case BaseCommand::CONSUMER_STATS_RESPONSE:
             break;
-        case BaseCommand_Type_REACHED_END_OF_TOPIC:
+        case BaseCommand::REACHED_END_OF_TOPIC:
             break;
-        case BaseCommand_Type_SEEK:
+        case BaseCommand::SEEK:
             break;
-        case BaseCommand_Type_GET_LAST_MESSAGE_ID:
+        case BaseCommand::GET_LAST_MESSAGE_ID:
             break;
-        case BaseCommand_Type_GET_LAST_MESSAGE_ID_RESPONSE:
+        case BaseCommand::GET_LAST_MESSAGE_ID_RESPONSE:
             break;
-        case BaseCommand_Type_ACTIVE_CONSUMER_CHANGE:
+        case BaseCommand::ACTIVE_CONSUMER_CHANGE:
             break;
-        case BaseCommand_Type_GET_TOPICS_OF_NAMESPACE:
+        case BaseCommand::GET_TOPICS_OF_NAMESPACE:
             break;
-        case BaseCommand_Type_GET_TOPICS_OF_NAMESPACE_RESPONSE:
+        case BaseCommand::GET_TOPICS_OF_NAMESPACE_RESPONSE:
             break;
-        case BaseCommand_Type_GET_SCHEMA:
+        case BaseCommand::GET_SCHEMA:
             break;
-        case BaseCommand_Type_GET_SCHEMA_RESPONSE:
+        case BaseCommand::GET_SCHEMA_RESPONSE:
             break;
-        case BaseCommand_Type_AUTH_CHALLENGE:
+        case BaseCommand::AUTH_CHALLENGE:
             break;
-        case BaseCommand_Type_AUTH_RESPONSE:
+        case BaseCommand::AUTH_RESPONSE:
             break;
-        case BaseCommand_Type_ACK_RESPONSE:
+        case BaseCommand::ACK_RESPONSE:
             break;
-        case BaseCommand_Type_GET_OR_CREATE_SCHEMA:
+        case BaseCommand::GET_OR_CREATE_SCHEMA:
             break;
-        case BaseCommand_Type_GET_OR_CREATE_SCHEMA_RESPONSE:
+        case BaseCommand::GET_OR_CREATE_SCHEMA_RESPONSE:
             break;
-        case BaseCommand_Type_NEW_TXN:
+        case BaseCommand::NEW_TXN:
             break;
-        case BaseCommand_Type_NEW_TXN_RESPONSE:
+        case BaseCommand::NEW_TXN_RESPONSE:
             break;
-        case BaseCommand_Type_ADD_PARTITION_TO_TXN:
+        case BaseCommand::ADD_PARTITION_TO_TXN:
             break;
-        case BaseCommand_Type_ADD_PARTITION_TO_TXN_RESPONSE:
+        case BaseCommand::ADD_PARTITION_TO_TXN_RESPONSE:
             break;
-        case BaseCommand_Type_ADD_SUBSCRIPTION_TO_TXN:
+        case BaseCommand::ADD_SUBSCRIPTION_TO_TXN:
             break;
-        case BaseCommand_Type_ADD_SUBSCRIPTION_TO_TXN_RESPONSE:
+        case BaseCommand::ADD_SUBSCRIPTION_TO_TXN_RESPONSE:
             break;
-        case BaseCommand_Type_END_TXN:
+        case BaseCommand::END_TXN:
             break;
-        case BaseCommand_Type_END_TXN_RESPONSE:
+        case BaseCommand::END_TXN_RESPONSE:
             break;
-        case BaseCommand_Type_END_TXN_ON_PARTITION:
+        case BaseCommand::END_TXN_ON_PARTITION:
             break;
-        case BaseCommand_Type_END_TXN_ON_PARTITION_RESPONSE:
+        case BaseCommand::END_TXN_ON_PARTITION_RESPONSE:
             break;
-        case BaseCommand_Type_END_TXN_ON_SUBSCRIPTION:
+        case BaseCommand::END_TXN_ON_SUBSCRIPTION:
             break;
-        case BaseCommand_Type_END_TXN_ON_SUBSCRIPTION_RESPONSE:
+        case BaseCommand::END_TXN_ON_SUBSCRIPTION_RESPONSE:
             break;
-        case BaseCommand_Type_TC_CLIENT_CONNECT_REQUEST:
+        case BaseCommand::TC_CLIENT_CONNECT_REQUEST:
             break;
-        case BaseCommand_Type_TC_CLIENT_CONNECT_RESPONSE:
+        case BaseCommand::TC_CLIENT_CONNECT_RESPONSE:
             break;
     }
 
@@ -887,112 +919,90 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
 }
 
 /* determine PDU length of protocol Pulsar */
-static uint32_t get_pulsar_message_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset,
-                                    void *data _U_) {
-    uint32_t len = (uint32_t) tvb_get_ntohl(tvb, offset);
+static uint32_t get_pulsar_message_len(packet_info* pinfo _U_, tvbuff_t* tvb, int offset, void* data _U_) {
+    auto len = (uint32_t)tvb_get_ntohl(tvb, offset);
     return FRAME_SIZE_LEN + len;
 }
 
-static int dissect_pulsar(tvbuff_t *tvb, packet_info* pinfo, proto_tree* tree, void* data _U_) {
+static int dissect_pulsar(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* data _U_) {
     tcp_dissect_pdus(tvb, pinfo, tree, 1, FRAME_SIZE_LEN, get_pulsar_message_len, dissect_pulsar_message,
                      data);
     return tvb_captured_length(tvb);
 }
 
-static hf_register_info hf[] = {  //
-        { &hf_pulsar_error, { "Error", "apache.pulsar.error", FT_BOOLEAN, BASE_DEC,
-        NULL, 0x0, NULL, HFILL } },  //
-                { &hf_pulsar_error_message, { "Message", "apache.pulsar.error_message", FT_STRING, 0,
-                NULL, 0x0,
-                NULL, HFILL } },  //
-                { &hf_pulsar_cmd_type, { "Command Type", "apache.pulsar.cmd.type", FT_STRING, 0,
-                NULL, 0x0,
-                NULL, HFILL } },  //
-                { &hf_pulsar_frame_size, { "Frame size", "apache.pulsar.frame_size", FT_UINT32, BASE_DEC,
-                NULL, 0x0, NULL, HFILL } },  //
-                { &hf_pulsar_cmd_size, { "Command size", "apache.pulsar.cmd_size", FT_UINT32, BASE_DEC,
-                NULL, 0x0,
-                NULL, HFILL } },  //
+static hf_register_info hf[] = {
+    //
+    {&hf_pulsar_error, {"Error", "apache.pulsar.error", FT_BOOLEAN, BASE_DEC, NULL, 0x0, NULL, HFILL}},  //
+    {&hf_pulsar_error_message,
+     {"Message", "apache.pulsar.error_message", FT_STRING, 0, NULL, 0x0, NULL, HFILL}},  //
+    {&hf_pulsar_cmd_type,
+     {"Command Type", "apache.pulsar.cmd.type", FT_STRING, 0, NULL, 0x0, NULL, HFILL}},  //
+    {&hf_pulsar_frame_size,
+     {"Frame size", "apache.pulsar.frame_size", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL}},  //
+    {&hf_pulsar_cmd_size,
+     {"Command size", "apache.pulsar.cmd_size", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL}},  //
 
-                { &hf_pulsar_client_version, { "Client version", "apache.pulsar.client_version", FT_STRING,
-                        0,
-                        NULL, 0x0, NULL, HFILL } },  //
-                { &hf_pulsar_auth_method, { "Auth method", "apache.pulsar.auth_method", FT_STRING, 0, NULL,
-                        0x0,
-                        NULL, HFILL } },  //
-                { &hf_pulsar_auth_data, { "Auth data", "apache.pulsar.auth_data", FT_STRING, 0,
-                NULL, 0x0, NULL, HFILL } },  //
-                { &hf_pulsar_protocol_version, { "Protocol version", "apache.pulsar.protocol_version",
-                        FT_STRING, 0,
-                        NULL, 0x0, NULL, HFILL } },
+    {&hf_pulsar_client_version,
+     {"Client version", "apache.pulsar.client_version", FT_STRING, 0, NULL, 0x0, NULL, HFILL}},  //
+    {&hf_pulsar_auth_method,
+     {"Auth method", "apache.pulsar.auth_method", FT_STRING, 0, NULL, 0x0, NULL, HFILL}},  //
+    {&hf_pulsar_auth_data,
+     {"Auth data", "apache.pulsar.auth_data", FT_STRING, 0, NULL, 0x0, NULL, HFILL}},  //
+    {&hf_pulsar_protocol_version,
+     {"Protocol version", "apache.pulsar.protocol_version", FT_STRING, 0, NULL, 0x0, NULL, HFILL}},
 
-                { &hf_pulsar_server_version, { "Server version", "apache.pulsar.server_version", FT_STRING,
-                        0,
-                        NULL, 0x0, NULL, HFILL } },  //
-                { &hf_pulsar_topic, { "Topic", "apache.pulsar.topic", FT_STRING, 0, NULL, 0x0,
-                NULL, HFILL } },  //
-                { &hf_pulsar_subscription, { "Subscription", "apache.pulsar.subscription", FT_STRING, 0,
-                NULL, 0x0, NULL, HFILL } },  //
-                { &hf_pulsar_subType, { "Subscription type:", "apache.pulsar.sub_type", FT_STRING, 0, NULL,
-                        0x0,
-                        NULL, HFILL } },  //
-                { &hf_pulsar_consumer_id, { "Consumer Id", "apache.pulsar.consumer_id", FT_UINT64,
-                        BASE_DEC,
-                        NULL, 0x0, NULL, HFILL } },  //
-                { &hf_pulsar_producer_id, { "Producer Id", "apache.pulsar.producer_id", FT_UINT64,
-                        BASE_DEC,
-                        NULL, 0x0, NULL, HFILL } },  //
+    {&hf_pulsar_server_version,
+     {"Server version", "apache.pulsar.server_version", FT_STRING, 0, NULL, 0x0, NULL, HFILL}},  //
+    {&hf_pulsar_topic, {"Topic", "apache.pulsar.topic", FT_STRING, 0, NULL, 0x0, NULL, HFILL}},  //
+    {&hf_pulsar_subscription,
+     {"Subscription", "apache.pulsar.subscription", FT_STRING, 0, NULL, 0x0, NULL, HFILL}},  //
+    {&hf_pulsar_subType,
+     {"Subscription type:", "apache.pulsar.sub_type", FT_STRING, 0, NULL, 0x0, NULL, HFILL}},  //
+    {&hf_pulsar_consumer_id,
+     {"Consumer Id", "apache.pulsar.consumer_id", FT_UINT64, BASE_DEC, NULL, 0x0, NULL, HFILL}},  //
+    {&hf_pulsar_producer_id,
+     {"Producer Id", "apache.pulsar.producer_id", FT_UINT64, BASE_DEC, NULL, 0x0, NULL, HFILL}},  //
 
-                { &hf_pulsar_server_error, { "Server error", "apache.pulsar.server_error", FT_STRING, 0,
-                NULL, 0x0, NULL, HFILL } },  //
-                { &hf_pulsar_ack_type, { "Ack type", "apache.pulsar.ack_type", FT_STRING, 0,
-                NULL, 0x0, NULL, HFILL } },  //
+    {&hf_pulsar_server_error,
+     {"Server error", "apache.pulsar.server_error", FT_STRING, 0, NULL, 0x0, NULL, HFILL}},               //
+    {&hf_pulsar_ack_type, {"Ack type", "apache.pulsar.ack_type", FT_STRING, 0, NULL, 0x0, NULL, HFILL}},  //
 
-                { &hf_pulsar_request_id, { "Request Id", "apache.pulsar.request_id", FT_UINT64, BASE_DEC,
-                NULL, 0x0, NULL, HFILL } },  //
-                { &hf_pulsar_consumer_name, { "Consumer Name", "apache.pulsar.consumer_name", FT_STRING,
-                        BASE_NONE,
-                        NULL, 0x0, NULL, HFILL } },  //
-                { &hf_pulsar_producer_name, { "Producer Name", "apache.pulsar.producer_name", FT_STRING,
-                        BASE_NONE,
-                        NULL, 0x0, NULL, HFILL } },  //
+    {&hf_pulsar_request_id,
+     {"Request Id", "apache.pulsar.request_id", FT_UINT64, BASE_DEC, NULL, 0x0, NULL, HFILL}},  //
+    {&hf_pulsar_consumer_name,
+     {"Consumer Name", "apache.pulsar.consumer_name", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL}},  //
+    {&hf_pulsar_producer_name,
+     {"Producer Name", "apache.pulsar.producer_name", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL}},  //
 
-                { &hf_pulsar_sequence_id, { "Sequence Id", "apache.pulsar.sequence_id", FT_UINT64,
-                        BASE_DEC,
-                        NULL, 0x0, NULL, HFILL } },  //
-                { &hf_pulsar_message_id, { "Message Id", "apache.pulsar.message_id", FT_STRING, BASE_NONE,
-                NULL, 0x0, NULL, HFILL } },  //
-                { &hf_pulsar_message_permits, { "Message Permits", "apache.pulsar.message_permits",
-                        FT_UINT32, BASE_DEC,
-                        NULL, 0x0, NULL, HFILL } },  //
+    {&hf_pulsar_sequence_id,
+     {"Sequence Id", "apache.pulsar.sequence_id", FT_UINT64, BASE_DEC, NULL, 0x0, NULL, HFILL}},  //
+    {&hf_pulsar_message_id,
+     {"Message Id", "apache.pulsar.message_id", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL}},  //
+    {&hf_pulsar_message_permits,
+     {"Message Permits", "apache.pulsar.message_permits", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL}},  //
 
-                { &hf_pulsar_publish_time, { "Publish time", "apache.pulsar.publish_time", FT_UINT64,
-                        BASE_DEC,
-                        NULL, 0x0, NULL, HFILL } },  //
+    {&hf_pulsar_publish_time,
+     {"Publish time", "apache.pulsar.publish_time", FT_UINT64, BASE_DEC, NULL, 0x0, NULL, HFILL}},  //
 
-                { &hf_pulsar_replicated_from, { "Replicated from", "apache.pulsar.replicated_from",
-                        FT_STRING, BASE_NONE,
-                        NULL, 0x0, NULL, HFILL } },  //
-                { &hf_pulsar_partition_key, { "Partition key", "apache.pulsar.partition_key", FT_STRING,
-                        BASE_NONE,
-                        NULL, 0x0, NULL, HFILL } },  //
-                { &hf_pulsar_replicate_to, { "Replicate to", "apache.pulsar.replicate_to", FT_STRING,
-                        BASE_NONE,
-                        NULL, 0x0, NULL, HFILL } },  //
-                { &hf_pulsar_property, { "Property", "apache.pulsar.property", FT_STRING, BASE_NONE,
-                NULL, 0x0, NULL, HFILL } },  //
+    {&hf_pulsar_replicated_from,
+     {"Replicated from", "apache.pulsar.replicated_from", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL}},  //
+    {&hf_pulsar_partition_key,
+     {"Partition key", "apache.pulsar.partition_key", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL}},  //
+    {&hf_pulsar_replicate_to,
+     {"Replicate to", "apache.pulsar.replicate_to", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL}},  //
+    {&hf_pulsar_property,
+     {"Property", "apache.pulsar.property", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL}},  //
 
-                { &hf_pulsar_request_in, { "Request in frame", "apache.pulsar.request_in", FT_FRAMENUM,
-                        BASE_NONE,
-                        NULL, 0, "This packet is a response to the packet with this number",
-                        HFILL } },  //
-                { &hf_pulsar_response_in, { "Response in frame", "apache.pulsar.response_in", FT_FRAMENUM,
-                        BASE_NONE,
-                        NULL, 0, "This packet will be responded in the packet with this number",
-                        HFILL } },  //
-                { &hf_pulsar_publish_latency, { "Latency", "apache.pulsar.publish_latency",
-                        FT_RELATIVE_TIME, BASE_NONE, NULL, 0x0,
-                        "How long time it took to ACK message", HFILL } }, };
+    {&hf_pulsar_request_in,
+     {"Request in frame", "apache.pulsar.request_in", FT_FRAMENUM, BASE_NONE, NULL, 0,
+      "This packet is a response to the packet with this number", HFILL}},  //
+    {&hf_pulsar_response_in,
+     {"Response in frame", "apache.pulsar.response_in", FT_FRAMENUM, BASE_NONE, NULL, 0,
+      "This packet will be responded in the packet with this number", HFILL}},  //
+    {&hf_pulsar_publish_latency,
+     {"Latency", "apache.pulsar.publish_latency", FT_RELATIVE_TIME, BASE_NONE, NULL, 0x0,
+      "How long time it took to ACK message", HFILL}},
+};
 
 ////////////////
 ///
@@ -1001,12 +1011,12 @@ void proto_register_pulsar() {
     static dissector_handle_t pulsar_handle;
 
     proto_pulsar = proto_register_protocol("Pulsar Wire Protocol", /* name       */
-                                        "Apache Pulsar", /* short name */
-                                        "apache.pulsar" /* abbrev     */
-                                        );
+                                           "Apache Pulsar",        /* short name */
+                                           "apache.pulsar"         /* abbrev     */
+    );
 
     /* Setup protocol subtree array */
-    static int *ett[] = { &ett_pulsar };
+    static int* ett[] = {&ett_pulsar};
 
     proto_register_field_array(proto_pulsar, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
@@ -1024,20 +1034,13 @@ extern __attribute__((unused)) WS_DLL_PUBLIC_DEF const int plugin_want_minor = V
 
 WS_DLL_PUBLIC void plugin_register(void);
 
-__attribute__((unused)) static void
-proto_reg_handoff_pulsar(void)
-{
-    /* empty */
-}
+__attribute__((unused)) static void proto_reg_handoff_pulsar(void) {}
 
 /* Start the functions we need for the plugin stuff */
-void
-plugin_register(void)
-{
+void plugin_register(void) {
     static proto_plugin plug;
     plug.register_protoinfo = proto_register_pulsar;
-    plug.register_handoff = proto_reg_handoff_pulsar; /* or NULL */
+    plug.register_handoff = proto_reg_handoff_pulsar; /* or nullptr */
     proto_register_plugin(&plug);
 }
-
 }

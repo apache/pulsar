@@ -115,7 +115,7 @@ public class PulsarConfigurationLoaderTest {
         final ServiceConfiguration serviceConfig = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
         assertNotNull(serviceConfig);
         assertEquals(serviceConfig.getMetadataStoreUrl(), zkServer);
-        assertEquals(serviceConfig.isBrokerDeleteInactiveTopicsEnabled(), true);
+        assertTrue(serviceConfig.isBrokerDeleteInactiveTopicsEnabled());
         assertEquals(serviceConfig.getBacklogQuotaDefaultLimitGB(), 18);
         assertEquals(serviceConfig.getClusterName(), "usc");
         assertEquals(serviceConfig.getBrokerClientAuthenticationParameters(), "role:my-role");
