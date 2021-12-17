@@ -102,13 +102,13 @@ public class TransactionCoordinatorClientException extends IOException {
     /**
      * Thrown when transaction meta was timeout.
      */
-    public static class TransactionTimeoutException extends TransactionCoordinatorClientException {
+    public static class TransactionTimeotException extends TransactionCoordinatorClientException {
 
-        public TransactionTimeoutException(Throwable t) {
+        public TransactionTimeotException(Throwable t) {
             super(t);
         }
 
-        public TransactionTimeoutException(String transactionId) {
+        public TransactionTimeotException(String transactionId) {
             super("The transaction " +  transactionId + " is timeout.");
         }
     }
