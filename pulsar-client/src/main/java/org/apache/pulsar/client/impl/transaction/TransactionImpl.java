@@ -151,9 +151,7 @@ public class TransactionImpl implements Transaction {
                 if (e != null) {
                     log.error(e.getMessage());
                     commitFuture.completeExceptionally(new PulsarClientException
-                            .TransactionCanNotEndException("The transaction [" + this.txnIdMostBits + ":"
-                            + this.txnIdLeastBits + "] cannot be committed"
-                            + "because there are some transaction operations that failed with exception", e));
+                            .TransactionCanNotCommitException(this.txnIdMostBits, this.txnIdLeastBits, e));
                 } else {
                     this.state = State.COMMITTING;
                     tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits))

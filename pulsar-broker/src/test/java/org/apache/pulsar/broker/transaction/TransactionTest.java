@@ -660,7 +660,7 @@ public class TransactionTest extends TransactionTestBase {
         try {
             transaction.commit().get();
         } catch (ExecutionException exception) {
-            assertTrue(exception.getCause() instanceof PulsarClientException.TransactionCanNotEndException);
+            assertTrue(exception.getCause() instanceof PulsarClientException.TransactionCanNotCommitException);
         }
 
     }
