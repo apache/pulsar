@@ -1,0 +1,106 @@
+{
+  "version-2.1.1-incubating/docsSidebar": [
+    {
+      "type": "category",
+      "label": "Getting Started",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/pulsar-2.0"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/standalone"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/standalone-docker"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/client-libraries"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Concepts and Architecture",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/concepts-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/concepts-messaging"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/concepts-architecture-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/concepts-clients"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/concepts-replication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/concepts-multi-tenancy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/concepts-authentication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/concepts-topic-compaction"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/concepts-tiered-storage"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/concepts-schema-registry"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar Functions",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/functions-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/functions-quickstart"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/functions-api"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/functions-deploying"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/functions-guarantees"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/functions-state"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/functions-metrics"
+        }
+      ]
+    }
+  ]
+}
