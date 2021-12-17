@@ -161,84 +161,68 @@ public class TransactionImpl implements Transaction , TimerTask {
 
     @Override
     public CompletableFuture<Void> commit() {
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        if (checkIfOpen(completableFuture)) {
+        return checkIfOpenOrCommitting().thenCompose((value) -> {
             CompletableFuture<Void> commitFuture = new CompletableFuture<>();
-            if (STATE_UPDATE.compareAndSet(this, State.OPEN, State.COMMITTING)) {
-                allOpComplete().whenComplete((v, e) -> {
-                    if (e != null) {
-                        abort().whenComplete((vx, ex) -> commitFuture.completeExceptionally(e));
-                    } else {
-                        tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits))
-                                .whenComplete((vx, ex) -> {
-                                    if (ex != null) {
-                                        if (ex instanceof TransactionNotFoundException
-                                                || ex instanceof InvalidTxnStatusException) {
-                                            this.state = State.ERROR;
-                                        }
-                                        commitFuture.completeExceptionally(ex);
-                                    } else {
-                                        STATE_UPDATE.compareAndSet(this, State.COMMITTING, State.COMMITTED);
-                                        commitFuture.complete(vx);
+            this.state = State.COMMITTING;
+            allOpComplete().whenComplete((v, e) -> {
+                if (e != null) {
+                    abort().whenComplete((vx, ex) -> commitFuture.completeExceptionally(e));
+                } else {
+                    tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits))
+                            .whenComplete((vx, ex) -> {
+                                if (ex != null) {
+                                    if (ex instanceof TransactionNotFoundException
+                                            || ex instanceof InvalidTxnStatusException) {
+                                        this.state = State.ERROR;
                                     }
-                                });
-                    }
-                });
-            } else {
-                commitFuture.completeExceptionally(new InvalidTxnStatusException("[" + txnIdMostBits + ":"
-                        + txnIdLeastBits + "] with unexpected state : "
-                        + state.name() + ", expect " + State.OPEN + " state!"));
-            }
+                                    commitFuture.completeExceptionally(ex);
+                                } else {
+                                    this.state = State.COMMITTED;
+                                    commitFuture.complete(vx);
+                                }
+                            });
+                }
+            });
             return commitFuture;
-        } else {
-            return completableFuture;
-        }
+        });
     }
 
     @Override
     public CompletableFuture<Void> abort() {
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        if (checkIfOpen(completableFuture)) {
+        return checkIfOpenOrAborting().thenCompose(value -> {
             CompletableFuture<Void> abortFuture = new CompletableFuture<>();
-            if (STATE_UPDATE.compareAndSet(this, State.OPEN, State.ABORTING)) {
-                allOpComplete().whenComplete((v, e) -> {
-                    if (e != null) {
-                        log.error(e.getMessage());
-                    }
+            this.state = State.ABORTING;
+            allOpComplete().whenComplete((v, e) -> {
+                if (e != null) {
+                    log.error(e.getMessage());
+                }
+                if (cumulativeAckConsumers != null) {
+                    cumulativeAckConsumers.forEach((consumer, integer) ->
+                            cumulativeAckConsumers
+                                    .putIfAbsent(consumer, consumer.clearIncomingMessagesAndGetMessageNumber()));
+                }
+                tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits)).whenComplete((vx, ex) -> {
                     if (cumulativeAckConsumers != null) {
-                        cumulativeAckConsumers.forEach((consumer, integer) ->
-                                cumulativeAckConsumers
-                                        .putIfAbsent(consumer, consumer.clearIncomingMessagesAndGetMessageNumber()));
+                        cumulativeAckConsumers.forEach(ConsumerImpl::increaseAvailablePermits);
+                        cumulativeAckConsumers.clear();
                     }
-                    tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits)).whenComplete((vx, ex) -> {
-                        if (cumulativeAckConsumers != null) {
-                            cumulativeAckConsumers.forEach(ConsumerImpl::increaseAvailablePermits);
-                            cumulativeAckConsumers.clear();
-                        }
 
-                        if (ex != null) {
-                            if (ex instanceof TransactionNotFoundException
-                                    || ex instanceof InvalidTxnStatusException) {
-                                this.state = State.ERROR;
-                            }
-                            abortFuture.completeExceptionally(ex);
-                        } else {
-                            this.state = State.ABORTED;
-                            abortFuture.complete(null);
+                    if (ex != null) {
+                        if (ex instanceof TransactionNotFoundException
+                                || ex instanceof InvalidTxnStatusException) {
+                            this.state = State.ERROR;
                         }
+                        abortFuture.completeExceptionally(ex);
+                    } else {
+                        this.state = State.ABORTED;
+                        abortFuture.complete(null);
+                    }
 
-                    });
                 });
-            } else {
-                abortFuture.completeExceptionally(new InvalidTxnStatusException("[" + txnIdMostBits + ":"
-                        + txnIdLeastBits + "] with unexpected state : "
-                        + state.name() + ", expect " + State.OPEN + " state!"));
-            }
+            });
 
             return abortFuture;
-        } else {
-            return completableFuture;
-        }
+        });
     }
 
     @Override
@@ -256,6 +240,29 @@ public class TransactionImpl implements Transaction , TimerTask {
             return false;
         }
     }
+
+    private CompletableFuture<Void> checkIfOpenOrCommitting() {
+        if (state == State.OPEN || state == State.COMMITTING) {
+            return CompletableFuture.completedFuture(null);
+        } else {
+            return invalidTxnStatusFuture();
+        }
+    }
+
+    private CompletableFuture<Void> checkIfOpenOrAborting() {
+        if (state == State.OPEN || state == State.ABORTING) {
+            return CompletableFuture.completedFuture(null);
+        } else {
+            return invalidTxnStatusFuture();
+        }
+    }
+
+    private CompletableFuture<Void> invalidTxnStatusFuture() {
+        return FutureUtil.failedFuture(new InvalidTxnStatusException("[" + txnIdMostBits + ":"
+                + txnIdLeastBits + "] with unexpected state : "
+                + state.name() + ", expect " + State.OPEN + " state!"));
+    }
+
 
     private CompletableFuture<Void> allOpComplete() {
         List<CompletableFuture<?>> futureList = new ArrayList<>();

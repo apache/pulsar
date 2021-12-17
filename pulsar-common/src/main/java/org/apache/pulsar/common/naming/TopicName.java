@@ -90,6 +90,14 @@ public class TopicName implements ServiceUnitId {
         }
     }
 
+    public static TopicName getPartitionedTopicName(String topic) {
+        TopicName topicName = TopicName.get(topic);
+        if (topicName.isPartitioned()) {
+            return TopicName.get(topicName.getPartitionedTopicName());
+        }
+        return topicName;
+    }
+
     public static boolean isValid(String topic) {
         try {
             get(topic);

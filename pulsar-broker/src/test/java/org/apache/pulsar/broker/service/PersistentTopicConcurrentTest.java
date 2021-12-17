@@ -127,9 +127,9 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                 .setRequestId(1)
                 .setSubType(CommandSubscribe.SubType.Exclusive);
 
-        Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), cmd.isReadCompacted(), InitialPosition.Latest,
-                0 /*avoid reseting cursor*/, false /* replicated */, null);
+        SubscriptionOption subscriptionOption = getSubscriptionOption(cmd);
+
+        Future<Consumer> f1 = topic.subscribe(subscriptionOption);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -189,9 +189,9 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                 .setRequestId(1)
                 .setSubType(CommandSubscribe.SubType.Exclusive);
 
-        Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), cmd.isReadCompacted(), InitialPosition.Latest,
-                0 /*avoid reseting cursor*/, false /* replicated */, null);
+        SubscriptionOption subscriptionOption = getSubscriptionOption(cmd);
+
+        Future<Consumer> f1 = topic.subscribe(subscriptionOption);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -257,9 +257,9 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                 .setRequestId(1)
                 .setSubType(CommandSubscribe.SubType.Exclusive);
 
-        Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), cmd.isReadCompacted(), InitialPosition.Latest,
-                0 /*avoid reseting cursor*/, false /* replicated */, null);
+        SubscriptionOption subscriptionOption = getSubscriptionOption(cmd);
+
+        Future<Consumer> f1 = topic.subscribe(subscriptionOption);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -319,9 +319,9 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                 .setRequestId(1)
                 .setSubType(CommandSubscribe.SubType.Exclusive);
 
-        Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.isDurable(), null, Collections.emptyMap(), cmd.isReadCompacted(), InitialPosition.Latest,
-                0 /*avoid reseting cursor*/, false /* replicated */, null);
+        SubscriptionOption subscriptionOption = getSubscriptionOption(cmd);
+
+        Future<Consumer> f1 = topic.subscribe(subscriptionOption);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -368,5 +368,16 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
 
         counter.await();
         assertFalse(gotException.get());
+    }
+
+    private SubscriptionOption getSubscriptionOption(CommandSubscribe cmd) {
+        return SubscriptionOption.builder().cnx(serverCnx)
+                .subscriptionName(cmd.getSubscription()).consumerId(cmd.getConsumerId()).subType(cmd.getSubType())
+                .priorityLevel(0).consumerName(cmd.getConsumerName()).isDurable(cmd.isDurable()).startMessageId(null)
+                .metadata(Collections.emptyMap()).readCompacted(cmd.isReadCompacted())
+                .subscriptionProperties(java.util.Optional.empty())
+                .initialPosition(InitialPosition.Latest)
+                .startMessageRollbackDurationSec(0).replicatedSubscriptionStateArg(false).keySharedMeta(null)
+                .build();
     }
 }

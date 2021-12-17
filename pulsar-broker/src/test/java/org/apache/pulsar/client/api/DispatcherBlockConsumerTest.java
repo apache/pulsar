@@ -25,8 +25,13 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Queues;
+import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -41,8 +46,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-
-
 import lombok.Cleanup;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -50,8 +53,8 @@ import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleC
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,12 +63,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
-
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Queues;
-import com.google.common.collect.Sets;
 
 @Test(groups = "flaky")
 public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
@@ -545,7 +542,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             assertNotNull(topicRef);
 
             rolloverPerIntervalStats();
-            stats = topicRef.getStats(false, false);
+            stats = topicRef.getStats(false, false, false);
             subStats = stats.getSubscriptions().values().iterator().next();
 
             // subscription stats
@@ -563,7 +560,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             Thread.sleep(timeWaitToSync);
 
             rolloverPerIntervalStats();
-            stats = topicRef.getStats(false, false);
+            stats = topicRef.getStats(false, false, false);
             subStats = stats.getSubscriptions().values().iterator().next();
 
             assertTrue(subStats.getMsgBacklog() > 0);
@@ -676,10 +673,12 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      * </pre>
      *
      */
-    @Test(timeOut = 10000)
+    @Test(timeOut = 60000)
     public void testBlockBrokerDispatching() {
         log.info("-- Starting {} test --", methodName);
 
+        List<Long> timestamps = new ArrayList<>();
+        timestamps.add(System.currentTimeMillis());
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerBroker();
         double unAckedMessagePercentage = pulsar.getConfiguration()
                 .getMaxUnackedMessagesPerSubscriptionOnBrokerBlocked();
@@ -688,6 +687,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
         ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
 
         try {
+            final int waitMills = 500;
             final int maxUnAckPerBroker = 200;
             final double unAckMsgPercentagePerDispatcher = 10;
             int maxUnAckPerDispatcher = (int) ((maxUnAckPerBroker * unAckMsgPercentagePerDispatcher) / 100); // 200 *
@@ -737,6 +737,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
                 String message = "my-message-" + i;
                 producer.send(message.getBytes());
             }
+            timestamps.add(System.currentTimeMillis());
 
             /*****
              * (1) try to consume messages: without acking messages and dispatcher will be blocked once it reaches
@@ -745,7 +746,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             Message<byte[]> msg = null;
             Set<MessageId> messages1 = Sets.newHashSet();
             for (int j = 0; j < totalProducedMsgs; j++) {
-                msg = consumer1Sub1.receive(100, TimeUnit.MILLISECONDS);
+                msg = consumer1Sub1.receive(waitMills, TimeUnit.MILLISECONDS);
                 if (msg != null) {
                     messages1.add(msg.getMessageId());
                 } else {
@@ -754,7 +755,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
                 // once consumer receives maxUnAckPerBroker-msgs then sleep to give a chance to scheduler to block the
                 // subscription
                 if (j == maxUnAckPerBroker) {
-                    Thread.sleep(200);
+                    Thread.sleep(waitMills);
                 }
             }
             // client must receive number of messages = maxUnAckPerbroker rather all produced messages
@@ -767,7 +768,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
                     .subscriptionType(SubscriptionType.Shared).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
             int consumer2Msgs = 0;
             for (int j = 0; j < totalProducedMsgs; j++) {
-                msg = consumer2Sub1.receive(100, TimeUnit.MILLISECONDS);
+                msg = consumer2Sub1.receive(waitMills, TimeUnit.MILLISECONDS);
                 if (msg != null) {
                     consumer2Msgs++;
                 } else {
@@ -782,6 +783,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             String dispatcherName = blockedDispatchers.values().get(0).getName();
             String subName = dispatcherName.substring(dispatcherName.lastIndexOf("/") + 2, dispatcherName.length());
             assertEquals(subName, subscriberName1);
+            timestamps.add(System.currentTimeMillis());
 
             /**
              * (2) However, other subscription2 should still be able to consume messages until it reaches to
@@ -792,7 +794,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
                     .subscriptionType(SubscriptionType.Shared).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
             Set<MessageId> messages2 = Sets.newHashSet();
             for (int j = 0; j < totalProducedMsgs; j++) {
-                msg = consumerSub2.receive(100, TimeUnit.MILLISECONDS);
+                msg = consumerSub2.receive(waitMills, TimeUnit.MILLISECONDS);
                 if (msg != null) {
                     messages2.add(msg.getMessageId());
                 } else {
@@ -802,6 +804,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             // (2.b) It should receive only messages with limit of maxUnackPerDispatcher
             assertEquals(messages2.size(), maxUnAckPerDispatcher, receiverQueueSize);
             assertEquals(blockedDispatchers.size(), 2);
+            timestamps.add(System.currentTimeMillis());
 
             /** (3) if Subscription3 is acking then it shouldn't be blocked **/
             consumer1Sub3 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
@@ -809,7 +812,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
                     .subscriptionType(SubscriptionType.Shared).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
             int consumedMsgsSub3 = 0;
             for (int j = 0; j < totalProducedMsgs; j++) {
-                msg = consumer1Sub3.receive(100, TimeUnit.MILLISECONDS);
+                msg = consumer1Sub3.receive();
                 if (msg != null) {
                     consumedMsgsSub3++;
                     consumer1Sub3.acknowledge(msg);
@@ -819,6 +822,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             }
             assertEquals(consumedMsgsSub3, totalProducedMsgs);
             assertEquals(blockedDispatchers.size(), 2);
+            timestamps.add(System.currentTimeMillis());
 
             /** (4) try to ack messages from sub1 which should unblock broker */
             messages1.forEach(consumer1Sub1::acknowledgeAsync);
@@ -836,6 +840,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             assertEquals(messages1.size(), totalProducedMsgs);
             // it unblocks all consumers
             assertEquals(blockedDispatchers.size(), 0);
+            timestamps.add(System.currentTimeMillis());
 
             /** (5) try redelivery on sub2 consumer and verify to consume all messages */
             consumerSub2.redeliverUnacknowledgedMessages();
@@ -854,11 +859,16 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             }
             latch.await();
             assertEquals(msgReceivedCount.get(), totalProducedMsgs);
+            timestamps.add(System.currentTimeMillis());
 
             consumer1Sub1.close();
             consumerSub2.close();
             consumer1Sub3.close();
 
+            for (int i = 1; i < timestamps.size(); i++) {
+                //log time cost for each step.
+                log.info("Step {} cost {}ms", i, timestamps.get(i) - timestamps.get(i - 1));
+            }
             log.info("-- Exiting {} test --", methodName);
         } catch (Exception e) {
             fail();

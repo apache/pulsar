@@ -76,7 +76,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
 import org.apache.bookkeeper.mledger.offload.OffloadersCache;
-import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.pulsar.PulsarVersion;
@@ -154,7 +153,6 @@ import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
-import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.packages.management.core.PackagesManagement;
 import org.apache.pulsar.packages.management.core.PackagesStorage;
 import org.apache.pulsar.packages.management.core.PackagesStorageProvider;
@@ -167,9 +165,6 @@ import org.apache.pulsar.websocket.WebSocketPingPongServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
-import org.apache.zookeeper.ZooKeeper;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
 import org.slf4j.Logger;
@@ -213,7 +208,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private final AtomicReference<LoadManager> loadManager = new AtomicReference<>();
     private PulsarAdmin adminClient = null;
     private PulsarClient client = null;
-    private ZooKeeperClientFactory zkClientFactory = null;
     private final String bindAddress;
     /**
      * The host component of the broker's canonical name.
@@ -244,7 +238,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private AdditionalServlets brokerAdditionalServlets;
 
     // packages management service
-    private PackagesManagement packagesManagement;
+    private Optional<PackagesManagement> packagesManagement = Optional.empty();
     private PrometheusMetricsServlet metricsServlet;
     private List<PrometheusRawMetricsProvider> pendingMetricsProviders;
 
@@ -326,10 +320,15 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     public MetadataStore createConfigurationMetadataStore() throws MetadataStoreException {
-        return MetadataStoreFactory.create(config.getConfigurationStoreServers(),
+        return MetadataStoreFactory.create(config.getConfigurationMetadataStoreUrl(),
                 MetadataStoreConfig.builder()
                         .sessionTimeoutMillis((int) config.getZooKeeperSessionTimeoutMillis())
                         .allowReadOnlyOperations(false)
+                        .configFilePath(config.getMetadataStoreConfigPath())
+                        .batchingEnabled(config.isMetadataStoreBatchingEnabled())
+                        .batchingMaxDelayMillis(config.getMetadataStoreBatchingMaxDelayMillis())
+                        .batchingMaxOperations(config.getMetadataStoreBatchingMaxOperations())
+                        .batchingMaxSizeKb(config.getMetadataStoreBatchingMaxSizeKb())
                         .build());
     }
 
@@ -487,9 +486,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 coordinationService.close();
             }
 
-            if (localMetadataStore != null) {
-                localMetadataStore.close();
-            }
+            closeLocalMetadataStore();
             if (configurationMetadataStore != null && shouldShutdownConfigurationMetadataStore) {
                 configurationMetadataStore.close();
             }
@@ -610,7 +607,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             coordinationService = new CoordinationServiceImpl(localMetadataStore);
 
-            if (!StringUtils.equals(config.getConfigurationStoreServers(), config.getZookeeperServers())) {
+            if (config.isConfigurationStoreSeparated()) {
                 configurationMetadataStore = createConfigurationMetadataStore();
                 shouldShutdownConfigurationMetadataStore = true;
             } else {
@@ -635,7 +632,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.bkClientFactory = newBookKeeperClientFactory();
 
             managedLedgerClientFactory = ManagedLedgerStorage.create(
-                config, localMetadataStore, getZkClient(),
+                config, localMetadataStore,
                     bkClientFactory, ioEventLoopGroup
             );
 
@@ -907,11 +904,22 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     public MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
-        return MetadataStoreExtended.create(config.getZookeeperServers(),
+        return MetadataStoreExtended.create(config.getMetadataStoreUrl(),
                 MetadataStoreConfig.builder()
                         .sessionTimeoutMillis((int) config.getZooKeeperSessionTimeoutMillis())
                         .allowReadOnlyOperations(false)
+                        .configFilePath(config.getMetadataStoreConfigPath())
+                        .batchingEnabled(config.isMetadataStoreBatchingEnabled())
+                        .batchingMaxDelayMillis(config.getMetadataStoreBatchingMaxDelayMillis())
+                        .batchingMaxOperations(config.getMetadataStoreBatchingMaxOperations())
+                        .batchingMaxSizeKb(config.getMetadataStoreBatchingMaxSizeKb())
                         .build());
+    }
+
+    protected void closeLocalMetadataStore() throws Exception {
+        if (localMetadataStore != null) {
+            localMetadataStore.close();
+        }
     }
 
     protected void startLeaderElectionService() {
@@ -1083,26 +1091,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return config.getStatusFilePath();
     }
 
-    /**
-     * Get default bookkeeper metadata service uri.
-     */
-    public String getMetadataServiceUri() {
-        return bookieMetadataServiceUri(this.getConfiguration());
-    }
-
     public InternalConfigurationData getInternalConfigurationData() {
-
-        String metadataServiceUri = getMetadataServiceUri();
-
-        if (StringUtils.isNotBlank(config.getBookkeeperMetadataServiceUri())) {
-            metadataServiceUri = this.getConfiguration().getBookkeeperMetadataServiceUri();
-        }
-
         return new InternalConfigurationData(
-            this.getConfiguration().getZookeeperServers(),
-            this.getConfiguration().getConfigurationStoreServers(),
+            config.getMetadataStoreUrl(),
+            config.getConfigurationMetadataStoreUrl(),
             new ClientConfiguration().getZkLedgersRootPath(),
-            metadataServiceUri,
+            config.isBookkeeperMetadataStoreSeparated() ? config.getBookkeeperMetadataStoreUrl() : null,
             this.getWorkerConfig().map(wc -> wc.getStateStorageServiceUrl()).orElse(null));
     }
 
@@ -1231,9 +1225,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private SchemaStorage createAndStartSchemaStorage() throws Exception {
         final Class<?> storageClass = Class.forName(config.getSchemaRegistryStorageClassName());
         Object factoryInstance = storageClass.getDeclaredConstructor().newInstance();
-        Method createMethod = storageClass.getMethod("create", PulsarService.class, ZooKeeper.class);
-        SchemaStorage schemaStorage = (SchemaStorage) createMethod.invoke(factoryInstance, this,
-                getZkClient());
+        Method createMethod = storageClass.getMethod("create", PulsarService.class);
+        SchemaStorage schemaStorage = (SchemaStorage) createMethod.invoke(factoryInstance, this);
         schemaStorage.start();
         return schemaStorage;
     }
@@ -1256,14 +1249,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     public OrderedExecutor getOrderedExecutor() {
         return orderedExecutor;
-    }
-
-    public ZooKeeperClientFactory getZooKeeperClientFactory() {
-        if (zkClientFactory == null) {
-            zkClientFactory = new ZookeeperBkClientFactoryImpl(orderedExecutor);
-        }
-        // Return default factory
-        return zkClientFactory;
     }
 
     public BookKeeperClientFactory newBookKeeperClientFactory() {
@@ -1466,26 +1451,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return brokerServiceUrl != null ? brokerServiceUrl : brokerServiceUrlTls;
     }
 
-    /**
-     * Get bookkeeper metadata service uri.
-     *
-     * @param config broker configuration
-     * @return the metadata service uri that bookkeeper is used
-     */
-    public static String bookieMetadataServiceUri(ServiceConfiguration config) {
-        ClientConfiguration bkConf = new ClientConfiguration();
-        // init bookkeeper metadata service uri
-        String metadataServiceUri = null;
-        try {
-            String zkServers = config.getZookeeperServers();
-            bkConf.setZkServers(zkServers);
-            metadataServiceUri = bkConf.getMetadataServiceUri();
-        } catch (ConfigurationException e) {
-            LOG.error("Failed to get bookkeeper metadata service uri", e);
-        }
-        return metadataServiceUri;
-    }
-
     public TopicPoliciesService getTopicPoliciesService() {
         return topicPoliciesService;
     }
@@ -1544,16 +1509,22 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         }
     }
 
+    public PackagesManagement getPackagesManagement() throws UnsupportedOperationException {
+        return packagesManagement.orElseThrow(() -> new UnsupportedOperationException("Package Management Service "
+                + "is not enabled in the broker."));
+    }
+
     private void startPackagesManagementService() throws IOException {
         // TODO: using provider to initialize the packages management service.
-        this.packagesManagement = new PackagesManagementImpl();
+        PackagesManagement packagesManagementService = new PackagesManagementImpl();
+        this.packagesManagement = Optional.of(packagesManagementService);
         PackagesStorageProvider storageProvider = PackagesStorageProvider
             .newProvider(config.getPackagesManagementStorageProvider());
         DefaultPackagesStorageConfiguration storageConfiguration = new DefaultPackagesStorageConfiguration();
         storageConfiguration.setProperty(config.getProperties());
         PackagesStorage storage = storageProvider.getStorage(storageConfiguration);
         storage.initialize();
-        packagesManagement.initialize(storage);
+        packagesManagementService.initialize(storage);
     }
 
     public Optional<Integer> getListenPortHTTP() {
@@ -1599,7 +1570,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         workerConfig.setAuthenticationProviders(brokerConfig.getAuthenticationProviders());
         workerConfig.setAuthorizationEnabled(brokerConfig.isAuthorizationEnabled());
         workerConfig.setAuthorizationProvider(brokerConfig.getAuthorizationProvider());
-        workerConfig.setConfigurationStoreServers(brokerConfig.getConfigurationStoreServers());
+        workerConfig.setConfigurationStoreServers(brokerConfig.getConfigurationMetadataStoreUrl());
         workerConfig.setZooKeeperSessionTimeoutMillis(brokerConfig.getZooKeeperSessionTimeoutMillis());
         workerConfig.setZooKeeperOperationTimeoutSeconds(brokerConfig.getZooKeeperOperationTimeoutSeconds());
 
@@ -1664,16 +1635,5 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     @VisibleForTesting
     protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
         return new BrokerService(pulsar, ioEventLoopGroup);
-    }
-
-    /**
-     * This is a temporary solution until we'll have migrated BK metadata to map to MetadataStore interface.
-     */
-    private ZooKeeper getZkClient() {
-        if (localMetadataStore instanceof ZKMetadataStore) {
-            return ((ZKMetadataStore) localMetadataStore).getZkClient();
-        } else {
-            throw new RuntimeException("MetadataStore implemenation is not based on ZooKeeper");
-        }
     }
 }

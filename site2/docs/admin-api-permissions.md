@@ -14,8 +14,13 @@ sidebar_label: Permissions
 > 
 > - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/).
 
-Permissions in Pulsar are managed at the [namespace](reference-terminology.md#namespace) level
-(that is, within [tenants](reference-terminology.md#tenant) and [clusters](reference-terminology.md#cluster)).
+Pulsar allows you to grant namespace-level or topic-level permission to users.
+
+- If you grant a namespace-level permission to a user, then the user can access all the topics under the namespace.
+
+- If you grant a topic-level permission to a user, then the user can access only the topic.
+
+The chapters below demonstrate how to grant namespace-level permissions to users. For how to grant topic-level permissions to users, see [manage topics](admin-api-topics.md/#grant-permission).
 
 ## Grant permissions
 

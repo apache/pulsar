@@ -15,8 +15,12 @@ All Pulsar command-line tools can be run from the `bin` directory of your [insta
 * [`bookkeeper`](#bookkeeper)
 * [`broker-tool`](#broker-tool)
 
-> ### Getting help
-> You can get help for any CLI tool, command, or subcommand using the `--help` flag, or `-h` for short. Here's an example:
+> **Important** 
+>
+> - This page only shows **some frequently used commands**. For the latest information about `pulsar`, `pulsar-client`, and `pulsar-perf`, including commands, flags, descriptions, and more information, see [Pulsar tools](https://pulsar.apache.org/tools/).
+>  
+> - You can get help for any CLI tool, command, or subcommand using the `--help` flag, or `-h` for short. Here's an example:
+> 
 > ```shell
 > $ bin/pulsar broker --help
 > ```
@@ -42,6 +46,7 @@ Commands:
 * `websocket`
 * `zookeeper`
 * `zookeeper-shell`
+* `autorecovery`
 
 Example:
 ```bash
@@ -63,7 +68,7 @@ The table below lists the environment variables that you can use to configure th
 |`PULSAR_EXTRA_CLASSPATH`|Extra paths for Pulsar's classpath||
 |`PULSAR_PID_DIR`|Folder where the pulsar server PID file should be stored||
 |`PULSAR_STOP_TIMEOUT`|Wait time before forcefully killing the Bookie server instance if attempts to stop it are not successful||
-
+|`PULSAR_GC_LOG`|Gc options to be passed to the jvm||
 
 
 ### `bookie`
@@ -266,6 +271,21 @@ Options
 |`-c`, `--conf`|Configuration file for ZooKeeper||
 |`-server`|Configuration zk address, eg: `127.0.0.1:2181`||
 
+### `autorecovery`
+
+Runs an auto-recovery service.
+
+Usage
+
+```bash
+$ pulsar autorecovery options
+```
+
+Options
+
+|Flag|Description|Default|
+|---|---|---|
+|`-c`, `--conf`|Configuration for the autorecovery|N/A|
 
 
 ## `pulsar-client`
@@ -422,6 +442,7 @@ The table below lists the environment variables that you can use to configure th
 |`PULSAR_CLIENT_CONF`|Configuration file for the client|conf/client.conf|
 |`PULSAR_EXTRA_OPTS`|Extra options to be passed to the JVM||
 |`PULSAR_EXTRA_CLASSPATH`|Extra paths for Pulsar's classpath||
+|`PULSAR_GC_LOG`|Gc options to be passed to the jvm||
 
 
 ### `consume`
@@ -452,6 +473,7 @@ Options
 |`-mc`, `--max_chunked_msg`|Max pending chunk messages|0|
 |`-n`, `--num-consumers`|Number of consumers (per topic)|1|
 |`-ioThreads`, `--num-io-threads`|Set the number of threads to be used for handling connections to brokers|1|
+|`-lt`, `--num-listener-threads`|Set the number of threads to be used for message listeners|1|
 |`-ns`, `--num-subscriptions`|Number of subscriptions (per topic)|1|
 |`-t`, `--num-topics`|The number of topics|1|
 |`-pm`, `--pool-messages`|Use the pooled message|true|
@@ -546,6 +568,7 @@ Options
 |`-n`, `--num-messages`|Number of messages to consume in total. If the value is equal to or smaller than 0, it keeps consuming messages.|0|
 |`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
 |`-ioThreads`, `--num-io-threads`|Set the number of threads to be used for handling connections to brokers|1|
+|`-lt`, `--num-listener-threads`|Set the number of threads to be used for message listeners|1|
 |`-t`, `--num-topics`|The number of topics|1|
 |`-r`, `--rate`|Simulate a slow message reader (rate in msg/s)|0|
 |`-q`, `--receiver-queue-size`|Size of the receiver queue|1000|
@@ -681,7 +704,7 @@ $ bookkeeper command
 ```
 
 Commands
-* `auto-recovery`
+* `autorecovery`
 * `bookie`
 * `localbookie`
 * `upgrade`
@@ -701,21 +724,22 @@ The table below lists the environment variables that you can use to configure th
 |ENTRY_FORMATTER_CLASS|The Java class used to format entries||
 |BOOKIE_PID_DIR|Folder where the BookKeeper server PID file should be stored||
 |BOOKIE_STOP_TIMEOUT|Wait time before forcefully killing the Bookie server instance if attempts to stop it are not successful||
+|BOOKIE_GC_LOG|Gc options to be passed to the jvm||
 
 
-### `auto-recovery`
-Runs an auto-recovery service daemon
+### `autorecovery`
+Runs an auto-recovery service
 
 Usage
 ```bash
-$ bookkeeper auto-recovery options
+$ bookkeeper autorecovery options
 ```
 
 Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`-c`, `--conf`|Configuration for the auto-recovery daemon||
+|`-c`, `--conf`|Configuration for the auto-recovery||
 
 
 ### `bookie`
@@ -730,7 +754,7 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`-c`, `--conf`|Configuration for the auto-recovery daemon||
+|`-c`, `--conf`|Configuration for the auto-recovery||
 |-readOnly|Force start a read-only bookie server|false|
 |-withAutoRecovery|Start auto-recovery service bookie server|false|
 
@@ -755,7 +779,7 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`-c`, `--conf`|Configuration for the auto-recovery daemon||
+|`-c`, `--conf`|Configuration for the auto-recovery||
 |`-u`, `--upgrade`|Upgrade the bookie’s directories||
 
 

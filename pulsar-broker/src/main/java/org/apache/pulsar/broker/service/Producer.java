@@ -29,6 +29,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -153,22 +154,17 @@ public class Producer {
         return null;
     }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(producerName);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof Producer) {
-            Producer other = (Producer) obj;
-            return Objects.equals(producerName, other.producerName)
-                    && Objects.equals(topic, other.topic)
-                    && producerId == other.producerId
-                    && Objects.equals(cnx, other.cnx);
-        }
-
-        return false;
+    /**
+     * Method to determine if this producer can replace another producer.
+     * @param other - producer to compare to this one
+     * @return true if this producer is a subsequent instantiation of the same logical producer. Otherwise, false.
+     */
+    public boolean isSuccessorTo(Producer other) {
+        return Objects.equals(producerName, other.producerName)
+                && Objects.equals(topic, other.topic)
+                && producerId == other.producerId
+                && Objects.equals(cnx, other.cnx)
+                && other.getEpoch() < epoch;
     }
 
     public void publishMessage(long producerId, long sequenceId, ByteBuf headersAndPayload, long batchSize,
@@ -322,6 +318,11 @@ public class Producer {
     }
 
     private static final class MessagePublishContext implements PublishContext, Runnable {
+        /*
+         * To store context information built by message payload
+         * processors (time duration, size etc), if any configured
+         */
+        Map<String, Object> propertyMap;
         private Producer producer;
         private long sequenceId;
         private long ledgerId;
@@ -350,6 +351,23 @@ public class Producer {
 
         public boolean isChunked() {
             return chunked;
+        }
+
+        @Override
+        public void setProperty(String propertyName, Object value){
+            if (this.propertyMap == null) {
+                this.propertyMap = new HashMap<>();
+            }
+            this.propertyMap.put(propertyName, value);
+        }
+
+        @Override
+        public Object getProperty(String propertyName){
+            if (this.propertyMap != null) {
+                return this.propertyMap.get(propertyName);
+            } else {
+                return null;
+            }
         }
 
         @Override
@@ -451,6 +469,10 @@ public class Producer {
                 producer.chunkedMessageRate.recordEvent();
             }
             producer.publishOperationCompleted();
+            if (producer.cnx.getBrokerService().getInterceptor() != null){
+                producer.cnx.getBrokerService().getInterceptor().messageProduced(
+                        (ServerCnx) producer.cnx, producer, startTimeNs, ledgerId, entryId, this);
+            }
             recycle();
         }
 
@@ -467,6 +489,9 @@ public class Producer {
             callback.originalSequenceId = -1L;
             callback.startTimeNs = startTimeNs;
             callback.isMarker = isMarker;
+            if (callback.propertyMap != null) {
+                callback.propertyMap.clear();
+            }
             return callback;
         }
 
@@ -484,6 +509,9 @@ public class Producer {
             callback.startTimeNs = startTimeNs;
             callback.chunked = chunked;
             callback.isMarker = isMarker;
+            if (callback.propertyMap != null) {
+                callback.propertyMap.clear();
+            }
             return callback;
         }
 
@@ -523,6 +551,9 @@ public class Producer {
             startTimeNs = -1L;
             chunked = false;
             isMarker = false;
+            if (propertyMap != null) {
+                propertyMap.clear();
+            }
             recyclerHandle.recycle(this);
         }
     }

@@ -47,7 +47,7 @@ public final class AutoTopicCreationOverrideImpl implements AutoTopicCreationOve
                 if (override.getDefaultNumPartitions() == null) {
                     return false;
                 }
-                if (!(override.getDefaultNumPartitions() > 0)) {
+                if (override.getDefaultNumPartitions() <= 0) {
                     return false;
                 }
             } else if (TopicType.NON_PARTITIONED.toString().equals(override.getTopicType())) {

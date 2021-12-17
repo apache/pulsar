@@ -320,6 +320,8 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(ignore -> namespaceResources().deletePoliciesAsync(namespaceName))
                 // clear z-node of local policies
                 .thenCompose(ignore -> getLocalPolicies().deleteLocalPoliciesAsync(namespaceName))
+                // clear /loadbalance/bundle-data
+                .thenCompose(ignore -> namespaceResources().deleteBundleDataAsync(namespaceName))
                 .whenComplete((ignore, ex) -> {
                     if (ex != null) {
                         log.warn("[{}] Failed to remove namespace or managed-ledger for {}",
@@ -1209,13 +1211,7 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
-        PublishRate publishRate = policies.publishMaxMessageRate.get(pulsar().getConfiguration().getClusterName());
-        if (publishRate != null) {
-            return publishRate;
-        } else {
-            throw new RestException(Status.NOT_FOUND,
-                    "Publish-rate is not configured for cluster " + pulsar().getConfiguration().getClusterName());
-        }
+        return policies.publishMaxMessageRate.get(pulsar().getConfiguration().getClusterName());
     }
 
     @SuppressWarnings("deprecation")

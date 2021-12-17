@@ -32,7 +32,6 @@ import org.apache.pulsar.io.kafka.connect.schema.KafkaSchemaWrappedSchema;
 import org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroData;
 
 import java.util.Base64;
-import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -69,15 +68,12 @@ public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte
         return record;
     }
 
-    private static Map<String, String> PROPERTIES = Collections.emptyMap();
-    private static Optional<Long> RECORD_SEQUENCE = Optional.empty();
-    private static long FLUSH_TIMEOUT_MS = 2000;
+    private static final AvroData avroData = new AvroData(1000);
 
     private class KafkaSourceRecord extends AbstractKafkaSourceRecord<KeyValue<byte[], byte[]>> implements KVRecord<byte[], byte[]> {
 
         KafkaSourceRecord(SourceRecord srcRecord) {
             super(srcRecord);
-            AvroData avroData = new AvroData(1000);
             byte[] keyBytes = keyConverter.fromConnectData(
                     srcRecord.topic(), srcRecord.keySchema(), srcRecord.key());
             this.key = keyBytes != null ? Optional.of(Base64.getEncoder().encodeToString(keyBytes)) : Optional.empty();

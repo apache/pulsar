@@ -84,7 +84,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private Optional<Integer> webServicePortTls = Optional.empty();
 
     @FieldContext(doc = "Hostname or IP address the service binds on, default is 0.0.0.0.")
-    private String bindAddress;
+    private String bindAddress = "0.0.0.0";
 
     @FieldContext(doc = "Maximum size of a text message during parsing in WebSocket proxy")
     private int webSocketMaxTextFrameSize = 1024 * 1024;
