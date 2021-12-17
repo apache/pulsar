@@ -181,6 +181,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         category = CATEGORY_FUNCTIONS,
         doc = "The path to the location to locate builtin functions"
     )
+    private Boolean uploadBuiltinSinksSources = true;
+    @FieldContext(
+            category = CATEGORY_FUNCTIONS,
+            doc = "Should the builtin sources/sinks be uploaded for the externally managed runtimes?"
+    )
     private String functionsDirectory = "./functions";
     @FieldContext(
         category = CATEGORY_FUNC_METADATA_MNG,

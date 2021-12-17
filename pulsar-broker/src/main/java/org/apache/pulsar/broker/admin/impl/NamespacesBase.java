@@ -1211,13 +1211,7 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
-        PublishRate publishRate = policies.publishMaxMessageRate.get(pulsar().getConfiguration().getClusterName());
-        if (publishRate != null) {
-            return publishRate;
-        } else {
-            throw new RestException(Status.NOT_FOUND,
-                    "Publish-rate is not configured for cluster " + pulsar().getConfiguration().getClusterName());
-        }
+        return policies.publishMaxMessageRate.get(pulsar().getConfiguration().getClusterName());
     }
 
     @SuppressWarnings("deprecation")

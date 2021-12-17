@@ -47,6 +47,7 @@ public class TopicPolicies {
     @Builder.Default
     private List<SubType> subscriptionTypesEnabled = new ArrayList<>();
     private List<String> replicationClusters;
+    private Boolean isGlobal = false;
     private PersistencePolicies persistence;
     private RetentionPolicies retentionPolicies;
     private Boolean deduplicationEnabled;
@@ -69,6 +70,10 @@ public class TopicPolicies {
     private Integer maxMessageSize;
     private Integer maxSubscriptionsPerTopic;
     private DispatchRateImpl replicatorDispatchRate;
+
+    public boolean isGlobalPolicies() {
+        return isGlobal != null && isGlobal;
+    }
 
     public boolean isReplicatorDispatchRateSet() {
         return replicatorDispatchRate != null;

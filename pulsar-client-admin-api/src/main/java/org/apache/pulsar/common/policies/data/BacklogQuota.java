@@ -30,6 +30,15 @@ public interface BacklogQuota {
 
     /**
      * Gets quota limit in size.
+     * Remains for compatible
+     *
+     * @return quota limit in bytes
+     */
+    @Deprecated
+    long getLimit();
+
+    /**
+     * Gets quota limit in size.
      *
      * @return quota limit in bytes
      */

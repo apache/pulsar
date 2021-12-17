@@ -32,10 +32,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.BlobStoreBackedInputStreamImpl;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.Blob;
-import org.jclouds.blobstore.options.GetOptions;
 import org.jclouds.io.Payload;
 import org.jclouds.io.Payloads;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -218,7 +217,7 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         }
 
         verify(spiedBlobStore, times(1))
-            .getBlob(Mockito.eq(BUCKET), Mockito.eq(objectKey), Matchers.<GetOptions>anyObject());
+            .getBlob(Mockito.eq(BUCKET), Mockito.eq(objectKey), ArgumentMatchers.any());
     }
 
     @Test

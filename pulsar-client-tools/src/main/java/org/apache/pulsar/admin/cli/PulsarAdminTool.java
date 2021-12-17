@@ -133,6 +133,7 @@ public class PulsarAdminTool {
         commandMap.put("properties", CmdTenants.CmdProperties.class); // deprecated, doesn't show in usage()
         commandMap.put("namespaces", CmdNamespaces.class);
         commandMap.put("topics", CmdTopics.class);
+        commandMap.put("topicPolicies", CmdTopicPolicies.class);
         commandMap.put("schemas", CmdSchemas.class);
         commandMap.put("bookies", CmdBookies.class);
 
