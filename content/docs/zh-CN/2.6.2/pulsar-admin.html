@@ -468,15 +468,15 @@
 <tr><td><code>--topics-pattern</code></td><td>The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. 使用 --custom-serde-inputs 配置为模式添加 SerDe 类名称（仅适用于 Java Function）。</td><td></td></tr>
 <tr><td><code>--user-config</code></td><td>用户定义的配置键/值。</td><td></td></tr>
 <tr><td><code>--window-length-count</code></td><td>每个窗口的消息数量</td><td></td></tr>
-<tr><td><code>--window-length-duration-ms</code></td><td>The time duration of the window in milliseconds</td><td></td></tr>
-<tr><td><code>--dead-letter-topic</code></td><td>The topic where all messages which could not be processed successfully are sent</td><td></td></tr>
-<tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) for the function</td><td></td></tr>
-<tr><td><code>--max-message-retries</code></td><td>How many times should we try to process a message before giving up</td><td></td></tr>
-<tr><td><code>--retain-ordering</code></td><td>Function consumes and processes messages in order</td><td></td></tr>
-<tr><td><code>--timeout-ms</code></td><td>The message timeout in milliseconds</td><td></td></tr>
-<tr><td><code>--tls-allow-insecure</code></td><td>Allow insecure tls connection</td><td>false</td></tr>
-<tr><td><code>--tls-trust-cert-path</code></td><td>The tls trust cert file path</td><td></td></tr>
-<tr><td><code>--use-tls</code></td><td>Use tls connection</td><td>false</td></tr>
+<tr><td><code>--window-length-duration-ms</code></td><td>窗口的持续时间（以毫秒为单位）</td><td></td></tr>
+<tr><td><code>--dead-letter-topic</code></td><td>所有无法成功处理的消息将发往该 topic</td><td></td></tr>
+<tr><td><code>--fqfn</code></td><td>此 function 的完全限定名称（FQFN）</td><td></td></tr>
+<tr><td><code>--max-message-retries</code></td><td>在放弃之前，应该尝试处理消息的最大次数</td><td></td></tr>
+<tr><td><code>--retain-ordering</code></td><td>Function 按顺序消费并处理消息。</td><td></td></tr>
+<tr><td><code>--timeout-ms</code></td><td>消息确认的超时时间（以毫秒为单位）</td><td></td></tr>
+<tr><td><code>--tls-allow-insecure</code></td><td>允许不安全的 TLS 连接</td><td>false</td></tr>
+<tr><td><code>--tls-trust-cert-path</code></td><td>TLS 信任证书文件路径</td><td></td></tr>
+<tr><td><code>--use-tls</code></td><td>使用 TLS 连接</td><td>false</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="create-1"></a><a href="#create-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>create</code></h3>
@@ -503,7 +503,7 @@
 <tr><td><code>--log-topic</code></td><td>用于 Function 输出日志的 topic</td><td></td></tr>
 <tr><td><code>--jar</code></td><td>Path to the jar file for the function (if the function is written in Java). It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.</td><td></td></tr>
 <tr><td><code>--name</code></td><td>Function 的名称</td><td></td></tr>
-<tr><td><code>--namespace</code></td><td>The function’s namespace</td><td></td></tr>
+<tr><td><code>--namespace</code></td><td>Function 的命名空间</td><td></td></tr>
 <tr><td><code>--output</code></td><td>Function 的输出 topic（如果未指定，则不做输出）</td><td></td></tr>
 <tr><td><code>--output-serde-classname</code></td><td>Function 输出消息时使用的 SerDe 类</td><td></td></tr>
 <tr><td><code>--parallelism</code></td><td>Function 的并行化参数，也就是要运行 function 实例的个数</td><td>1</td></tr>
@@ -516,12 +516,12 @@
 <tr><td><code>--topics-pattern</code></td><td>The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. 使用 --custom-serde-inputs 配置为模式添加 SerDe 类名称（仅适用于 Java Function）。</td><td></td></tr>
 <tr><td><code>--user-config</code></td><td>用户定义的配置键/值。</td><td></td></tr>
 <tr><td><code>--window-length-count</code></td><td>每个窗口的消息数量</td><td></td></tr>
-<tr><td><code>--window-length-duration-ms</code></td><td>The time duration of the window in milliseconds</td><td></td></tr>
-<tr><td><code>--dead-letter-topic</code></td><td>The topic where all messages which could not be processed</td><td></td></tr>
-<tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) for the function</td><td></td></tr>
-<tr><td><code>--max-message-retries</code></td><td>How many times should we try to process a message before giving up</td><td></td></tr>
-<tr><td><code>--retain-ordering</code></td><td>Function consumes and processes messages in order</td><td></td></tr>
-<tr><td><code>--timeout-ms</code></td><td>The message timeout in milliseconds</td><td></td></tr>
+<tr><td><code>--window-length-duration-ms</code></td><td>窗口的持续时间（以毫秒为单位）</td><td></td></tr>
+<tr><td><code>--dead-letter-topic</code></td><td>所有无法成功处理的消息将发往该 topic</td><td></td></tr>
+<tr><td><code>--fqfn</code></td><td>此 function 的完全限定名称（FQFN）</td><td></td></tr>
+<tr><td><code>--max-message-retries</code></td><td>在放弃之前，应该尝试处理消息的最大次数</td><td></td></tr>
+<tr><td><code>--retain-ordering</code></td><td>Function 按顺序消费并处理消息。</td><td></td></tr>
+<tr><td><code>--timeout-ms</code></td><td>消息确认的超时时间（以毫秒为单位）</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="delete-1"></a><a href="#delete-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>delete</code></h3>
@@ -535,10 +535,10 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) for the function</td><td></td></tr>
+<tr><td><code>--fqfn</code></td><td>此 function 的完全限定名称（FQFN）</td><td></td></tr>
 <tr><td><code>--name</code></td><td>Function 的名称</td><td></td></tr>
 <tr><td><code>--namespace</code></td><td>Function 的命名空间</td><td></td></tr>
-<tr><td><code>--tenant</code></td><td>The function's tenant</td><td></td></tr>
+<tr><td><code>--tenant</code></td><td>Function 的租户</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="update-1"></a><a href="#update-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>update</code></h3>
@@ -565,7 +565,7 @@
 <tr><td><code>--log-topic</code></td><td>用于 Function 输出日志的 topic</td><td></td></tr>
 <tr><td><code>--jar</code></td><td>Path to the jar file for the function (if the function is written in Java). It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.</td><td></td></tr>
 <tr><td><code>--name</code></td><td>Function 的名称</td><td></td></tr>
-<tr><td><code>--namespace</code></td><td>The function’s namespace</td><td></td></tr>
+<tr><td><code>--namespace</code></td><td>Function 的命名空间</td><td></td></tr>
 <tr><td><code>--output</code></td><td>Function 的输出 topic（如果未指定，则不做输出）</td><td></td></tr>
 <tr><td><code>--output-serde-classname</code></td><td>Function 输出消息时使用的 SerDe 类</td><td></td></tr>
 <tr><td><code>--parallelism</code></td><td>Function 的并行化参数，也就是要运行 function 实例的个数</td><td>1</td></tr>
@@ -578,12 +578,12 @@
 <tr><td><code>--topics-pattern</code></td><td>The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. 使用 --custom-serde-inputs 配置为模式添加 SerDe 类名称（仅适用于 Java Function）。</td><td></td></tr>
 <tr><td><code>--user-config</code></td><td>用户定义的配置键/值。</td><td></td></tr>
 <tr><td><code>--window-length-count</code></td><td>每个窗口的消息数量</td><td></td></tr>
-<tr><td><code>--window-length-duration-ms</code></td><td>The time duration of the window in milliseconds</td><td></td></tr>
-<tr><td><code>--dead-letter-topic</code></td><td>The topic where all messages which could not be processed</td><td></td></tr>
-<tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) for the function</td><td></td></tr>
-<tr><td><code>--max-message-retries</code></td><td>How many times should we try to process a message before giving up</td><td></td></tr>
-<tr><td><code>--retain-ordering</code></td><td>Function consumes and processes messages in order</td><td></td></tr>
-<tr><td><code>--timeout-ms</code></td><td>The message timeout in milliseconds</td><td></td></tr>
+<tr><td><code>--window-length-duration-ms</code></td><td>窗口的持续时间（以毫秒为单位）</td><td></td></tr>
+<tr><td><code>--dead-letter-topic</code></td><td>所有无法成功处理的消息将发往该 topic</td><td></td></tr>
+<tr><td><code>--fqfn</code></td><td>此 function 的完全限定名称（FQFN）</td><td></td></tr>
+<tr><td><code>--max-message-retries</code></td><td>在放弃之前，应该尝试处理消息的最大次数</td><td></td></tr>
+<tr><td><code>--retain-ordering</code></td><td>Function 按顺序消费并处理消息。</td><td></td></tr>
+<tr><td><code>--timeout-ms</code></td><td>消息确认的超时时间（以毫秒为单位）</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-1"></a><a href="#get-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get</code></h3>
@@ -597,10 +597,10 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) for the function</td><td></td></tr>
+<tr><td><code>--fqfn</code></td><td>此 function 的完全限定名称（FQFN）</td><td></td></tr>
 <tr><td><code>--name</code></td><td>Function 的名称</td><td></td></tr>
 <tr><td><code>--namespace</code></td><td>Function 的命名空间</td><td></td></tr>
-<tr><td><code>--tenant</code></td><td>The function's tenant</td><td></td></tr>
+<tr><td><code>--tenant</code></td><td>Function 的租户</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="restart"></a><a href="#restart" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>restart</code></h3>
@@ -614,11 +614,11 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) for the function</td><td></td></tr>
-<tr><td><code>--instance-id</code></td><td>The function instanceId (restart all instances if instance-id is not provided)</td><td></td></tr>
+<tr><td><code>--fqfn</code></td><td>此 function 的完全限定名称（FQFN）</td><td></td></tr>
+<tr><td><code>--instance-id</code></td><td>Function 实例 id (如果没有提供实例 id，则重启所有实例）</td><td></td></tr>
 <tr><td><code>--name</code></td><td>Function 的名称</td><td></td></tr>
 <tr><td><code>--namespace</code></td><td>Function 的命名空间</td><td></td></tr>
-<tr><td><code>--tenant</code></td><td>The function's tenant</td><td></td></tr>
+<tr><td><code>--tenant</code></td><td>Function 的租户</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="stop"></a><a href="#stop" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>stop</code></h3>
@@ -632,11 +632,11 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) for the function</td><td></td></tr>
-<tr><td><code>--instance-id</code></td><td>The function instanceId (stop all instances if instance-id is not provided)</td><td></td></tr>
+<tr><td><code>--fqfn</code></td><td>此 function 的完全限定名称（FQFN）</td><td></td></tr>
+<tr><td><code>--instance-id</code></td><td>Function 实例 id (如果没有提供实例 id，则关闭所有实例）</td><td></td></tr>
 <tr><td><code>--name</code></td><td>Function 的名称</td><td></td></tr>
 <tr><td><code>--namespace</code></td><td>Function 的命名空间</td><td></td></tr>
-<tr><td><code>--tenant</code></td><td>The function's tenant</td><td></td></tr>
+<tr><td><code>--tenant</code></td><td>Function 的租户</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="start"></a><a href="#start" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>start</code></h3>
@@ -650,11 +650,11 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) for the function</td><td></td></tr>
-<tr><td><code>--instance-id</code></td><td>The function instanceId (start all instances if instance-id is not provided)</td><td></td></tr>
+<tr><td><code>--fqfn</code></td><td>此 function 的完全限定名称（FQFN）</td><td></td></tr>
+<tr><td><code>--instance-id</code></td><td>Function 实例 id (如果没有提供实例 id，则启动所有实例）</td><td></td></tr>
 <tr><td><code>--name</code></td><td>Function 的名称</td><td></td></tr>
 <tr><td><code>--namespace</code></td><td>Function 的命名空间</td><td></td></tr>
-<tr><td><code>--tenant</code></td><td>The function's tenant</td><td></td></tr>
+<tr><td><code>--tenant</code></td><td>Function 的租户</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="status"></a><a href="#status" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>status</code></h3>
@@ -668,11 +668,11 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) for the function</td><td></td></tr>
-<tr><td><code>--instance-id</code></td><td>The function instanceId (Get-status of all instances if instance-id is not provided)</td><td></td></tr>
+<tr><td><code>--fqfn</code></td><td>此 function 的完全限定名称（FQFN）</td><td></td></tr>
+<tr><td><code>--instance-id</code></td><td>Function 实例 id (如果没有提供实例 id，则获取所有实例的的状态）</td><td></td></tr>
 <tr><td><code>--name</code></td><td>Function 的名称</td><td></td></tr>
 <tr><td><code>--namespace</code></td><td>Function 的命名空间</td><td></td></tr>
-<tr><td><code>--tenant</code></td><td>The function's tenant</td><td></td></tr>
+<tr><td><code>--tenant</code></td><td>Function 的租户</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="stats"></a><a href="#stats" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>stats</code></h3>
@@ -686,11 +686,11 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) for the function</td><td></td></tr>
-<tr><td><code>--instance-id</code></td><td>The function instanceId (Get-stats of all instances if instance-id is not provided)</td><td></td></tr>
+<tr><td><code>--fqfn</code></td><td>此 function 的完全限定名称（FQFN）</td><td></td></tr>
+<tr><td><code>--instance-id</code></td><td>Function 实例 id (如果没有提供实例 id，则获取所有实例的的状态）</td><td></td></tr>
 <tr><td><code>--name</code></td><td>Function 的名称</td><td></td></tr>
 <tr><td><code>--namespace</code></td><td>Function 的命名空间</td><td></td></tr>
-<tr><td><code>--tenant</code></td><td>The function's tenant</td><td></td></tr>
+<tr><td><code>--tenant</code></td><td>Function 的租户</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="list-2"></a><a href="#list-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>list</code></h3>
@@ -705,7 +705,7 @@
 </thead>
 <tbody>
 <tr><td><code>--namespace</code></td><td>Function 的命名空间</td><td></td></tr>
-<tr><td><code>--tenant</code></td><td>The function's tenant</td><td></td></tr>
+<tr><td><code>--tenant</code></td><td>Function 的租户</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="querystate"></a><a href="#querystate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>querystate</code></h3>
@@ -719,12 +719,12 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) for the function</td><td></td></tr>
-<tr><td><code>-k</code>, <code>--key</code></td><td>The key for the state you want to fetch</td><td></td></tr>
+<tr><td><code>--fqfn</code></td><td>此 function 的完全限定名称（FQFN）</td><td></td></tr>
+<tr><td><code>-k</code>, <code>--key</code></td><td>想要获取的状态对应的关键字</td><td></td></tr>
 <tr><td><code>--name</code></td><td>Function 的名称</td><td></td></tr>
 <tr><td><code>--namespace</code></td><td>Function 的命名空间</td><td></td></tr>
-<tr><td><code>--tenant</code></td><td>The function's tenant</td><td></td></tr>
-<tr><td><code>-w</code>, <code>--watch</code></td><td>Watch for changes in the value associated with a key for a Pulsar Function</td><td>false</td></tr>
+<tr><td><code>--tenant</code></td><td>Function 的租户</td><td></td></tr>
+<tr><td><code>-w</code>, <code>--watch</code></td><td>监视与 Pulsar Function 键相关值的变化</td><td>false</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="putstate"></a><a href="#putstate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>putstate</code></h3>
@@ -756,13 +756,13 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) for the function</td><td></td></tr>
+<tr><td><code>--fqfn</code></td><td>此 function 的完全限定名称（FQFN）</td><td></td></tr>
 <tr><td><code>--name</code></td><td>Function 的名称</td><td></td></tr>
 <tr><td><code>--namespace</code></td><td>Function 的命名空间</td><td></td></tr>
-<tr><td><code>--tenant</code></td><td>The function's tenant</td><td></td></tr>
-<tr><td><code>--topic</code></td><td>The specific topic name that the function consumes from that you want to inject the data to</td><td></td></tr>
-<tr><td><code>--trigger-file</code></td><td>The path to the file that contains the data with which you'd like to trigger the function</td><td></td></tr>
-<tr><td><code>--trigger-value</code></td><td>The value with which you want to trigger the function</td><td></td></tr>
+<tr><td><code>--tenant</code></td><td>Function 的租户</td><td></td></tr>
+<tr><td><code>--topic</code></td><td>特定的 topic 名称，用户将数据注入到该 topic ，function 从该 topic 消费数据</td><td></td></tr>
+<tr><td><code>--trigger-file</code></td><td>文件路径，该路径中包含你想触发 function 时需要的数据</td><td></td></tr>
+<tr><td><code>--trigger-value</code></td><td>触发 function 时使用的值</td><td></td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="functions-worker"></a><a href="#functions-worker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>functions-worker</code></h2>
@@ -905,8 +905,8 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-b</code>, <code>--bundles</code></td><td>The number of bundles to activate</td><td>0</td></tr>
-<tr><td><code>-c</code>, <code>--clusters</code></td><td>List of clusters this namespace will be assigned</td><td></td></tr>
+<tr><td><code>-b</code>, <code>--bundles</code></td><td>要激活的 bundle 数量</td><td>0</td></tr>
+<tr><td><code>-c</code>, <code>--clusters</code></td><td>将分配此命名空间的集群列表</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="delete-2"></a><a href="#delete-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>delete</code></h3>
@@ -925,8 +925,8 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--enable</code>, <code>-e</code></td><td>Enable message deduplication on the specified namespace</td><td>false</td></tr>
-<tr><td><code>--disable</code>, <code>-d</code></td><td>Disable message deduplication on the specified namespace</td><td>false</td></tr>
+<tr><td><code>--enable</code>, <code>-e</code></td><td>在指定的命名空间上启用删除重复消息</td><td>false</td></tr>
+<tr><td><code>--disable</code>, <code>-d</code></td><td>在指定的命名空间上禁用删除重复消息</td><td>false</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="set-auto-topic-creation"></a><a href="#set-auto-topic-creation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set-auto-topic-creation</code></h3>
@@ -986,8 +986,8 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--actions</code></td><td>Actions to be granted (<code>produce</code> or <code>consume</code>)</td><td></td></tr>
-<tr><td><code>--role</code></td><td>The client role to which to grant the permissions</td><td></td></tr>
+<tr><td><code>--actions</code></td><td>要授权的操作(<code>produce</code> 或 <code>consume</code>)</td><td></td></tr>
+<tr><td><code>--role</code></td><td>要授予权限的客户角色</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="revoke-permission"></a><a href="#revoke-permission" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>revoke-permission</code></h3>
@@ -1001,7 +1001,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--role</code></td><td>The client role to which to revoke the permissions</td><td></td></tr>
+<tr><td><code>--role</code></td><td>要撤销权限的客户角色</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="grant-subscription-permission"></a><a href="#grant-subscription-permission" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>grant-subscription-permission</code></h3>
@@ -1015,8 +1015,8 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--roles</code></td><td>The client roles to which to grant the permissions (comma separated roles)</td><td></td></tr>
-<tr><td><code>--subscription</code></td><td>The subscription name for which permission will be granted to roles</td><td></td></tr>
+<tr><td><code>--roles</code></td><td>要授予权限的客户角色 (逗号分隔的角色)</td><td></td></tr>
+<tr><td><code>--subscription</code></td><td>将授予角色权限的订阅名称</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="revoke-subscription-permission"></a><a href="#revoke-subscription-permission" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>revoke-subscription-permission</code></h3>
@@ -1030,8 +1030,8 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--role</code></td><td>The client role to which to revoke the permissions</td><td></td></tr>
-<tr><td><code>--subscription</code></td><td>The subscription name for which permission will be revoked to roles</td><td></td></tr>
+<tr><td><code>--role</code></td><td>要撤销权限的客户角色</td><td></td></tr>
+<tr><td><code>--subscription</code></td><td>将撤销角色权限的订阅名称</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="set-clusters"></a><a href="#set-clusters" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set-clusters</code></h3>
@@ -1045,7 +1045,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-c</code>, <code>--clusters</code></td><td>Replication clusters ID list (comma-separated values)</td><td></td></tr>
+<tr><td><code>-c</code>, <code>--clusters</code></td><td>Replication 集群的 ID 列表（逗号分支的值）</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-clusters"></a><a href="#get-clusters" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-clusters</code></h3>
@@ -1069,7 +1069,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-l</code>, <code>--limit</code></td><td>The backlog size limit (for example <code>10M</code> or <code>16G</code>)</td><td></td></tr>
+<tr><td><code>-l</code>, <code>--limit</code></td><td>积压的大小限制 (例如，<code>10M</code> 或 <code>16G</code>)</td><td></td></tr>
 <tr><td><code>-p</code>, <code>--policy</code></td><td>The retention policy to enforce when the limit is reached. The valid options are: <code>producer_request_hold</code>, <code>producer_exception</code> or <code>consumer_backlog_eviction</code></td><td></td></tr>
 </tbody>
 </table>
@@ -1101,8 +1101,8 @@
 <tbody>
 <tr><td><code>-a</code>, <code>--bookkeeper-ack-quorum</code></td><td>The number of acks (guaranteed copies) to wait for each entry</td><td>0</td></tr>
 <tr><td><code>-e</code>, <code>--bookkeeper-ensemble</code></td><td>The number of bookies to use for a topic</td><td>0</td></tr>
-<tr><td><code>-w</code>, <code>--bookkeeper-write-quorum</code></td><td>How many writes to make of each entry</td><td>0</td></tr>
-<tr><td><code>-r</code>, <code>--ml-mark-delete-max-rate</code></td><td>Throttling rate of mark-delete operation (0 means no throttle)</td><td></td></tr>
+<tr><td><code>-w</code>, <code>--bookkeeper-write-quorum</code></td><td>每个 entry 要写入多少次</td><td>0</td></tr>
+<tr><td><code>-r</code>, <code>--ml-mark-delete-max-rate</code></td><td>标记删除操作的限流频率(0表示不限制)</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-message-ttl"></a><a href="#get-message-ttl" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-message-ttl</code></h3>
@@ -1145,7 +1145,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-g</code>, <code>--group</code></td><td>Anti-affinity group name</td><td></td></tr>
+<tr><td><code>-g</code>, <code>--group</code></td><td>Anti-affinity 组名</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-anti-affinity-namespaces"></a><a href="#get-anti-affinity-namespaces" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-anti-affinity-namespaces</code></h3>
@@ -1160,7 +1160,7 @@
 </thead>
 <tbody>
 <tr><td><code>-c</code>, <code>--cluster</code></td><td>集群名称</td><td></td></tr>
-<tr><td><code>-g</code>, <code>--group</code></td><td>Anti-affinity group name</td><td></td></tr>
+<tr><td><code>-g</code>, <code>--group</code></td><td>Anti-affinity 组名</td><td></td></tr>
 <tr><td><code>-p</code>, <code>--tenant</code></td><td>Tenant is only used for authorization. Client has to be admin of any of the tenant to access this api</td><td></td></tr>
 </tbody>
 </table>
@@ -1200,7 +1200,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-b</code>, <code>--bundle</code></td><td>{start-boundary}_{end-boundary} (e.g. 0x00000000_0xffffffff)</td><td></td></tr>
+<tr><td><code>-b</code>, <code>--bundle</code></td><td>{start-boundary}_{end-boundary} (例如，0x000000_0xffffffff)</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="split-bundle"></a><a href="#split-bundle" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>split-bundle</code></h3>
@@ -1214,8 +1214,8 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-b</code>, <code>--bundle</code></td><td>{start-boundary}_{end-boundary} (e.g. 0x00000000_0xffffffff)</td><td></td></tr>
-<tr><td><code>-u</code>, <code>--unload</code></td><td>Unload newly split bundles after splitting old bundle</td><td>false</td></tr>
+<tr><td><code>-b</code>, <code>--bundle</code></td><td>{start-boundary}_{end-boundary} (例如，0x000000_0xffffffff)</td><td></td></tr>
+<tr><td><code>-u</code>, <code>--unload</code></td><td>拆分旧的 bundle 后卸载新切分的 bundle</td><td>false</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="set-dispatch-rate"></a><a href="#set-dispatch-rate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set-dispatch-rate</code></h3>
@@ -1229,9 +1229,9 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-bd</code>, <code>--byte-dispatch-rate</code></td><td>The byte dispatch rate (default -1 will be overwrite if not passed)</td><td>-1</td></tr>
-<tr><td><code>-dt</code>, <code>--dispatch-rate-period</code></td><td>The dispatch rate period in second type (default 1 second will be overwrite if not passed)</td><td>1</td></tr>
-<tr><td><code>-md</code>, <code>--msg-dispatch-rate</code></td><td>The message dispatch rate (default -1 will be overwrite if not passed)</td><td>-1</td></tr>
+<tr><td><code>-bd</code>, <code>--byte-dispatch-rate</code></td><td>字节派发速率(默认 -1， 如果不通过将被覆盖)</td><td>-1</td></tr>
+<tr><td><code>-dt</code>, <code>--dispatch-rate-period</code></td><td>以秒为单位的派发速率的周期（默认1秒，如果不通过将被覆盖）</td><td>1</td></tr>
+<tr><td><code>-md</code>, <code>--msg-dispatch-rate</code></td><td>消息派发速率（默认 -1，如果不通过将被覆盖）</td><td>-1</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-dispatch-rate"></a><a href="#get-dispatch-rate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-dispatch-rate</code></h3>
@@ -1250,9 +1250,9 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-bd</code>, <code>--byte-dispatch-rate</code></td><td>The byte dispatch rate (default -1 will be overwrite if not passed)</td><td>-1</td></tr>
-<tr><td><code>-dt</code>, <code>--dispatch-rate-period</code></td><td>The dispatch rate period in second type (default 1 second will be overwrite if not passed)</td><td>1</td></tr>
-<tr><td><code>-md</code>, <code>--msg-dispatch-rate</code></td><td>The message dispatch rate (default -1 will be overwrite if not passed)</td><td>-1</td></tr>
+<tr><td><code>-bd</code>, <code>--byte-dispatch-rate</code></td><td>字节派发速率(默认 -1， 如果不通过将被覆盖)</td><td>-1</td></tr>
+<tr><td><code>-dt</code>, <code>--dispatch-rate-period</code></td><td>以秒为单位的派发速率的周期（默认1秒，如果不通过将被覆盖）</td><td>1</td></tr>
+<tr><td><code>-md</code>, <code>--msg-dispatch-rate</code></td><td>消息派发速率（默认 -1，如果不通过将被覆盖）</td><td>-1</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-replicator-dispatch-rate"></a><a href="#get-replicator-dispatch-rate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-replicator-dispatch-rate</code></h3>
@@ -1271,8 +1271,8 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-sr</code>, <code>--subscribe-rate</code></td><td>The subscribe rate (default -1 will be overwrite if not passed)</td><td>-1</td></tr>
-<tr><td><code>-st</code>, <code>--subscribe-rate-period</code></td><td>The subscribe rate period in second type (default 30 second will be overwrite if not passed)</td><td>30</td></tr>
+<tr><td><code>-sr</code>, <code>--subscribe-rate</code></td><td>订阅速率(默认 -1， 如果不通过将被覆盖)</td><td>-1</td></tr>
+<tr><td><code>-st</code>, <code>--subscribe-rate-period</code></td><td>以秒为单位的订阅速率的周期（默认30秒，如果不通过将被覆盖）</td><td>30</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-subscribe-rate"></a><a href="#get-subscribe-rate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-subscribe-rate</code></h3>
@@ -1291,9 +1291,9 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-bd</code>, <code>--byte-dispatch-rate</code></td><td>The byte dispatch rate (default -1 will be overwrite if not passed)</td><td>-1</td></tr>
-<tr><td><code>-dt</code>, <code>--dispatch-rate-period</code></td><td>The dispatch rate period in second type (default 1 second will be overwrite if not passed)</td><td>1</td></tr>
-<tr><td><code>-md</code>, <code>--sub-msg-dispatch-rate</code></td><td>The message dispatch rate (default -1 will be overwrite if not passed)</td><td>-1</td></tr>
+<tr><td><code>-bd</code>, <code>--byte-dispatch-rate</code></td><td>字节派发速率(默认 -1， 如果不通过将被覆盖)</td><td>-1</td></tr>
+<tr><td><code>-dt</code>, <code>--dispatch-rate-period</code></td><td>以秒为单位的派发速率的周期（默认1秒，如果不通过将被覆盖）</td><td>1</td></tr>
+<tr><td><code>-md</code>, <code>--sub-msg-dispatch-rate</code></td><td>消息派发速率（默认 -1，如果不通过将被覆盖）</td><td>-1</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-subscription-dispatch-rate"></a><a href="#get-subscription-dispatch-rate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-subscription-dispatch-rate</code></h3>
@@ -1331,9 +1331,9 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-b</code>, <code>--bundle</code></td><td>{start-boundary}_{end-boundary} (e.g. 0x00000000_0xffffffff)</td><td></td></tr>
-<tr><td><code>-force</code>, <code>--force</code></td><td>Whether to force a clear backlog without prompt</td><td>false</td></tr>
-<tr><td><code>-s</code>, <code>--sub</code></td><td>The subscription name</td><td></td></tr>
+<tr><td><code>-b</code>, <code>--bundle</code></td><td>{start-boundary}_{end-boundary} (例如，0x000000_0xffffffff)</td><td></td></tr>
+<tr><td><code>-force</code>, <code>--force</code></td><td>是否在没有提示的情况下强制清除积压数据</td><td>false</td></tr>
+<tr><td><code>-s</code>, <code>--sub</code></td><td>订阅名称</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="unsubscribe"></a><a href="#unsubscribe" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>unsubscribe</code></h3>
@@ -1347,8 +1347,8 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-b</code>, <code>--bundle</code></td><td>{start-boundary}_{end-boundary} (e.g. 0x00000000_0xffffffff)</td><td></td></tr>
-<tr><td><code>-s</code>, <code>--sub</code></td><td>The subscription name</td><td></td></tr>
+<tr><td><code>-b</code>, <code>--bundle</code></td><td>{start-boundary}_{end-boundary} (例如，0x000000_0xffffffff)</td><td></td></tr>
+<tr><td><code>-s</code>, <code>--sub</code></td><td>订阅名称</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="set-encryption-required"></a><a href="#set-encryption-required" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set-encryption-required</code></h3>
@@ -1362,8 +1362,8 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-d</code>, <code>--disable</code></td><td>Disable message encryption required</td><td>false</td></tr>
-<tr><td><code>-e</code>, <code>--enable</code></td><td>Enable message encryption required</td><td>false</td></tr>
+<tr><td><code>-d</code>, <code>--disable</code></td><td>禁用需要的消息加密</td><td>false</td></tr>
+<tr><td><code>-e</code>, <code>--enable</code></td><td>启用需要的消息加密</td><td>false</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="set-delayed-delivery"></a><a href="#set-delayed-delivery" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set-delayed-delivery</code></h3>
@@ -1426,7 +1426,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-p</code>, <code>--max-producers-per-topic</code></td><td>maxProducersPerTopic for a namespace</td><td>0</td></tr>
+<tr><td><code>-p</code>, <code>--max-producers-per-topic</code></td><td>一个命名空间下每个主题的最大生产者数量</td><td>0</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-max-consumers-per-topic"></a><a href="#get-max-consumers-per-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-max-consumers-per-topic</code></h3>
@@ -1445,7 +1445,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-c</code>, <code>--max-consumers-per-topic</code></td><td>maxConsumersPerTopic for a namespace</td><td>0</td></tr>
+<tr><td><code>-c</code>, <code>--max-consumers-per-topic</code></td><td>一个命名空间下每个主题的最大消费者数量</td><td>0</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-max-consumers-per-subscription"></a><a href="#get-max-consumers-per-subscription" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-max-consumers-per-subscription</code></h3>
@@ -1464,7 +1464,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-c</code>, <code>--max-consumers-per-subscription</code></td><td>maxConsumersPerSubscription for a namespace</td><td>0</td></tr>
+<tr><td><code>-c</code>, <code>--max-consumers-per-subscription</code></td><td>一个命名空间下每个订阅的最大消费者数量</td><td>0</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-max-unacked-messages-per-subscription"></a><a href="#get-max-unacked-messages-per-subscription" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-max-unacked-messages-per-subscription</code></h3>
@@ -1540,7 +1540,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-s</code>, <code>--size</code></td><td>Maximum number of bytes stored in the pulsar cluster for a topic before data will start being automatically offloaded to longterm storage (eg: 10M, 16G, 3T, 100). Negative values disable automatic offload. 0 triggers offloading as soon as possible.</td><td>-1</td></tr>
+<tr><td><code>-s</code>, <code>--size</code></td><td>在数据开始自动卸载到持久化存储之前存储在 Pulsar 集群中的最大字节数，例如 10M。 负值标识禁用自动卸载。 0 值会触发尽快卸载。</td><td>-1</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-offload-deletion-lag"></a><a href="#get-offload-deletion-lag" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-offload-deletion-lag</code></h3>
@@ -1584,7 +1584,7 @@
 </thead>
 <tbody>
 <tr><td><code>-c</code>, <code>--compatibility</code></td><td>Compatibility level required for new schemas created via a Producer. Possible values (Full, Backward, Forward, None).</td><td>Full</td></tr>
-<tr><td><code>-d</code>, <code>--disabled</code></td><td>Disable automatic schema updates.</td><td>false</td></tr>
+<tr><td><code>-d</code>, <code>--disabled</code></td><td>禁用自动更新 schema。</td><td>false</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-publish-rate"></a><a href="#get-publish-rate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-publish-rate</code></h3>
@@ -1632,11 +1632,11 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--auto-failover-policy-params</code></td><td>Comma-separated name=value auto failover policy parameters</td><td>[]</td></tr>
+<tr><td><code>--auto-failover-policy-params</code></td><td>逗号分隔的 name=value 形式，用于自动灾备策略的参数</td><td>[]</td></tr>
 <tr><td><code>--auto-failover-policy-type</code></td><td>Auto failover policy type name. Currently available options: min_available.</td><td>[]</td></tr>
-<tr><td><code>--namespaces</code></td><td>Comma-separated namespaces regex list</td><td>[]</td></tr>
-<tr><td><code>--primary</code></td><td>Comma-separated primary broker regex list</td><td>[]</td></tr>
-<tr><td><code>--secondary</code></td><td>Comma-separated secondary broker regex list</td><td>[]</td></tr>
+<tr><td><code>--namespaces</code></td><td>逗号分隔的命名空间正则表达式列表</td><td>[]</td></tr>
+<tr><td><code>--primary</code></td><td>逗号分隔的主 broker 正则表达式列表</td><td>[]</td></tr>
+<tr><td><code>--secondary</code></td><td>逗号分隔的备用 broker 正则表达式列表</td><td>[]</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-2"></a><a href="#get-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get</code></h3>
@@ -1670,7 +1670,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--broker</code></td><td>Broker name to get namespace-isolation policies attached to it</td><td></td></tr>
+<tr><td><code>--broker</code></td><td>指定 borker 名称，用于以获取附加到它的命名空间隔离策略</td><td></td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="topics-1"></a><a href="#topics-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>topics</code></h2>
@@ -1733,7 +1733,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-w</code>, <code>--wait-complete</code></td><td>Wait for compaction to complete</td><td>false</td></tr>
+<tr><td><code>-w</code>, <code>--wait-complete</code></td><td>等待操作完成</td><td>false</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="offload"></a><a href="#offload" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>offload</code></h3>
@@ -1747,7 +1747,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-s</code>, <code>--size-threshold</code></td><td>The maximum amount of data to keep in BookKeeper for the specific topic</td><td></td></tr>
+<tr><td><code>-s</code>, <code>--size-threshold</code></td><td>针对特定 topic，设置在 Bookeeper 中保存的最大数据量</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="offload-status"></a><a href="#offload-status" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>offload-status</code></h3>
@@ -1761,7 +1761,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-w</code>, <code>--wait-complete</code></td><td>Wait for compaction to complete</td><td>false</td></tr>
+<tr><td><code>-w</code>, <code>--wait-complete</code></td><td>等待操作完成</td><td>false</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="create-partitioned-topic"></a><a href="#create-partitioned-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>create-partitioned-topic</code></h3>
@@ -1782,7 +1782,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-p</code>, <code>--partitions</code></td><td>The number of partitions for the topic</td><td>0</td></tr>
+<tr><td><code>-p</code>, <code>--partitions</code></td><td>主题的分区数</td><td>0</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="create-missed-partitions"></a><a href="#create-missed-partitions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>create-missed-partitions</code></h3>
@@ -1823,7 +1823,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-p</code>, <code>--partitions</code></td><td>The number of partitions for the topic</td><td>0</td></tr>
+<tr><td><code>-p</code>, <code>--partitions</code></td><td>主题的分区数</td><td>0</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="list-partitioned-topics"></a><a href="#list-partitioned-topics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>list-partitioned-topics</code></h3>
@@ -1837,7 +1837,7 @@
 <pre><code class="hljs">$ pulsar-admin topics <span class="hljs-built_in">list</span> tenant/cluster/<span class="hljs-keyword">namespace</span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="terminate"></a><a href="#terminate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>terminate</code></h3>
-<p>Terminate a persistent topic (disallow further messages from being published on the topic)</p>
+<p>终止一个持久化的主题 (不允许再在该主题上发布更多消息)</p>
 <p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics terminate persistent://tenant/namespace/topic
 </code></pre>
@@ -1857,8 +1857,8 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--actions</code></td><td>Actions to be granted (<code>produce</code> or <code>consume</code>)</td><td></td></tr>
-<tr><td><code>--role</code></td><td>The client role to which to grant the permissions</td><td></td></tr>
+<tr><td><code>--actions</code></td><td>要授权的操作(<code>produce</code> 或 <code>consume</code>)</td><td></td></tr>
+<tr><td><code>--role</code></td><td>要授予权限的客户角色</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="revoke-permission-1"></a><a href="#revoke-permission-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>revoke-permission</code></h3>
@@ -1898,7 +1898,7 @@
 </thead>
 <tbody>
 <tr><td><code>-m</code>, <code>--messageId</code></td><td>messageId where to create the subscription. It can be either 'latest', 'earliest' or (ledgerId:entryId)</td><td>latest</td></tr>
-<tr><td><code>-s</code>, <code>--subscription</code></td><td>Subscription to reset position on</td><td></td></tr>
+<tr><td><code>-s</code>, <code>--subscription</code></td><td>设置订阅的名称，在该订阅上重置订阅位置</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="subscriptions"></a><a href="#subscriptions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>subscriptions</code></h3>
@@ -1917,7 +1917,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-s</code>, <code>--subscription</code></td><td>The subscription to delete</td><td></td></tr>
+<tr><td><code>-s</code>, <code>--subscription</code></td><td>要删除的订阅</td><td></td></tr>
 <tr><td><code>-f</code>, <code>--force</code></td><td>断开和关闭所有消费者并强制删除订阅</td><td>false</td></tr>
 </tbody>
 </table>
@@ -1951,7 +1951,7 @@ The unit of <code>storageSize</code> and <code>averageMsgSize</code> is Byte.</p
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--per-partition</code></td><td>Get per-partition stats</td><td>false</td></tr>
+<tr><td><code>--per-partition</code></td><td>获取每个分区的统计数据</td><td>false</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="partitioned-stats-internal"></a><a href="#partitioned-stats-internal" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>partitioned-stats-internal</code></h3>
@@ -1970,8 +1970,8 @@ The unit of <code>storageSize</code> and <code>averageMsgSize</code> is Byte.</p
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-n</code>, <code>--count</code></td><td>The number of messages to skip</td><td>0</td></tr>
-<tr><td><code>-s</code>, <code>--subscription</code></td><td>The subscription on which to skip messages</td><td></td></tr>
+<tr><td><code>-n</code>, <code>--count</code></td><td>设置要跳过的消息数量</td><td>0</td></tr>
+<tr><td><code>-s</code>, <code>--subscription</code></td><td>设置订阅的名称，在该订阅上跳过消息</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="clear-backlog-1"></a><a href="#clear-backlog-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>clear-backlog</code></h3>
@@ -1985,7 +1985,7 @@ The unit of <code>storageSize</code> and <code>averageMsgSize</code> is Byte.</p
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-s</code>, <code>--subscription</code></td><td>The subscription to clear</td><td></td></tr>
+<tr><td><code>-s</code>, <code>--subscription</code></td><td>要清除数据的订阅</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="expire-messages"></a><a href="#expire-messages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>expire-messages</code></h3>
@@ -1999,8 +1999,8 @@ The unit of <code>storageSize</code> and <code>averageMsgSize</code> is Byte.</p
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-t</code>, <code>--expireTime</code></td><td>Expire messages older than the time (in seconds)</td><td>0</td></tr>
-<tr><td><code>-s</code>, <code>--subscription</code></td><td>The subscription to skip messages on</td><td></td></tr>
+<tr><td><code>-t</code>, <code>--expireTime</code></td><td>过期消息超过时间(秒)</td><td>0</td></tr>
+<tr><td><code>-s</code>, <code>--subscription</code></td><td>设置订阅的名称，在该订阅上跳过消息</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="expire-messages-all-subscriptions"></a><a href="#expire-messages-all-subscriptions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>expire-messages-all-subscriptions</code></h3>
@@ -2014,7 +2014,7 @@ The unit of <code>storageSize</code> and <code>averageMsgSize</code> is Byte.</p
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-t</code>, <code>--expireTime</code></td><td>Expire messages older than the time (in seconds)</td><td>0</td></tr>
+<tr><td><code>-t</code>, <code>--expireTime</code></td><td>过期消息超过时间(秒)</td><td>0</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="peek-messages"></a><a href="#peek-messages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>peek-messages</code></h3>
@@ -2028,8 +2028,8 @@ The unit of <code>storageSize</code> and <code>averageMsgSize</code> is Byte.</p
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-n</code>, <code>--count</code></td><td>The number of messages</td><td>0</td></tr>
-<tr><td><code>-s</code>, <code>--subscription</code></td><td>Subscription to get messages from</td><td></td></tr>
+<tr><td><code>-n</code>, <code>--count</code></td><td>消息数量</td><td>0</td></tr>
+<tr><td><code>-s</code>, <code>--subscription</code></td><td>订阅的名称，从该订阅获取消息</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="reset-cursor"></a><a href="#reset-cursor" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>reset-cursor</code></h3>
@@ -2043,7 +2043,7 @@ The unit of <code>storageSize</code> and <code>averageMsgSize</code> is Byte.</p
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-s</code>, <code>--subscription</code></td><td>Subscription to reset position on</td><td></td></tr>
+<tr><td><code>-s</code>, <code>--subscription</code></td><td>设置订阅的名称，在该订阅上重置订阅位置</td><td></td></tr>
 <tr><td><code>-t</code>, <code>--time</code></td><td>The time in minutes to reset back to (or minutes, hours, days, weeks, etc.). Examples: <code>100m</code>, <code>3h</code>, <code>2d</code>, <code>5w</code>.</td><td></td></tr>
 <tr><td><code>-m</code>, <code>--messageId</code></td><td>The messageId to reset back to (ledgerId:entryId).</td><td></td></tr>
 </tbody>
@@ -2102,7 +2102,7 @@ The unit of <code>storageSize</code> and <code>averageMsgSize</code> is Byte.</p
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-r</code>, <code>--admin-roles</code></td><td>Comma-separated admin roles</td><td></td></tr>
+<tr><td><code>-r</code>, <code>--admin-roles</code></td><td>逗号分隔的管理员角色</td><td></td></tr>
 <tr><td><code>-c</code>, <code>--allowed-clusters</code></td><td>Comma-separated allowed clusters</td><td></td></tr>
 </tbody>
 </table>
@@ -2117,7 +2117,7 @@ The unit of <code>storageSize</code> and <code>averageMsgSize</code> is Byte.</p
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-r</code>, <code>--admin-roles</code></td><td>Comma-separated admin roles</td><td></td></tr>
+<tr><td><code>-r</code>, <code>--admin-roles</code></td><td>逗号分隔的管理员角色</td><td></td></tr>
 <tr><td><code>-c</code>, <code>--allowed-clusters</code></td><td>Comma-separated allowed clusters</td><td></td></tr>
 </tbody>
 </table>

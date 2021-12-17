@@ -287,7 +287,7 @@
 <tr><td><code>--logTopic</code></td><td>The topic to which logs from this function are published</td><td></td></tr>
 <tr><td><code>--jar</code></td><td>A path to the JAR file for the function (if the function is written in Java)</td><td></td></tr>
 <tr><td><code>--name</code></td><td>函数的名称</td><td>The value specified by --className</td></tr>
-<tr><td><code>--namespace</code></td><td>The function’s namespace</td><td></td></tr>
+<tr><td><code>--namespace</code></td><td>Function 的命名空间</td><td></td></tr>
 <tr><td><code>--output</code></td><td>The name of the topic to which the function publishes its output (if any)</td><td></td></tr>
 <tr><td><code>--outputSerdeClassName</code></td><td>The SerDe class used for the function’s output</td><td></td></tr>
 <tr><td><code>--parallelism</code></td><td>Function 的并行化参数，也就是要运行 function 实例的个数</td><td>1</td></tr>
@@ -321,7 +321,7 @@
 <tr><td><code>--logTopic</code></td><td>The topic to which logs from this function are published</td><td></td></tr>
 <tr><td><code>--jar</code></td><td>A path to the JAR file for the function (if the function is written in Java)</td><td></td></tr>
 <tr><td><code>--name</code></td><td>函数的名称</td><td>The value specified by --className</td></tr>
-<tr><td><code>--namespace</code></td><td>The function’s namespace</td><td></td></tr>
+<tr><td><code>--namespace</code></td><td>Function 的命名空间</td><td></td></tr>
 <tr><td><code>--output</code></td><td>The name of the topic to which the function publishes its output (if any)</td><td></td></tr>
 <tr><td><code>--outputSerdeClassName</code></td><td>The SerDe class used for the function’s output</td><td></td></tr>
 <tr><td><code>--parallelism</code></td><td>Function 的并行化参数，也就是要运行 function 实例的个数</td><td>1</td></tr>
@@ -367,7 +367,7 @@
 <tr><td><code>--logTopic</code></td><td>The topic to which logs from this function are published</td><td></td></tr>
 <tr><td><code>--jar</code></td><td>A path to the JAR file for the function (if the function is written in Java)</td><td></td></tr>
 <tr><td><code>--name</code></td><td>函数的名称</td><td>The value specified by --className</td></tr>
-<tr><td><code>--namespace</code></td><td>The function’s namespace</td><td></td></tr>
+<tr><td><code>--namespace</code></td><td>Function 的命名空间</td><td></td></tr>
 <tr><td><code>--output</code></td><td>The name of the topic to which the function publishes its output (if any)</td><td></td></tr>
 <tr><td><code>--outputSerdeClassName</code></td><td>The SerDe class used for the function’s output</td><td></td></tr>
 <tr><td><code>--parallelism</code></td><td>Function 的并行化参数，也就是要运行 function 实例的个数</td><td>1</td></tr>
@@ -436,7 +436,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-k</code>, <code>--key</code></td><td>The key for the state you want to fetch</td><td></td></tr>
+<tr><td><code>-k</code>, <code>--key</code></td><td>想要获取的状态对应的关键字</td><td></td></tr>
 <tr><td><code>--name</code></td><td>The name of the function whose state you want to query</td><td></td></tr>
 <tr><td><code>--namespace</code></td><td>The namespace of the function whose state you want to query</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The tenant of the function whose state you want to query</td><td></td></tr>
@@ -498,7 +498,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-b</code> , <code>--bundles</code></td><td>The number of bundles to activate</td><td>0</td></tr>
+<tr><td><code>-b</code> , <code>--bundles</code></td><td>要激活的 bundle 数量</td><td>0</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="delete-2"></a><a href="#delete-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>delete</code></h3>
@@ -517,8 +517,8 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--enable</code>, <code>-e</code></td><td>Enable message deduplication on the specified namespace</td><td>false</td></tr>
-<tr><td><code>--disable</code>, <code>-d</code></td><td>Disable message deduplication on the specified namespace</td><td>false</td></tr>
+<tr><td><code>--enable</code>, <code>-e</code></td><td>在指定的命名空间上启用删除重复消息</td><td>false</td></tr>
+<tr><td><code>--disable</code>, <code>-d</code></td><td>在指定的命名空间上禁用删除重复消息</td><td>false</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="permissions"></a><a href="#permissions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>permissions</code></h3>
@@ -537,8 +537,8 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--actions</code></td><td>Actions to be granted (<code>produce</code> or <code>consume</code>)</td><td></td></tr>
-<tr><td><code>--role</code></td><td>The client role to which to grant the permissions</td><td></td></tr>
+<tr><td><code>--actions</code></td><td>要授权的操作(<code>produce</code> 或 <code>consume</code>)</td><td></td></tr>
+<tr><td><code>--role</code></td><td>要授予权限的客户角色</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="revoke-permission"></a><a href="#revoke-permission" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>revoke-permission</code></h3>
@@ -552,7 +552,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--role</code></td><td>The client role to which to grant the permissions</td><td></td></tr>
+<tr><td><code>--role</code></td><td>要授予权限的客户角色</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="set-clusters"></a><a href="#set-clusters" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set-clusters</code></h3>
@@ -566,7 +566,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-c</code>, <code>--clusters</code></td><td>Replication clusters ID list (comma-separated values)</td><td></td></tr>
+<tr><td><code>-c</code>, <code>--clusters</code></td><td>Replication 集群的 ID 列表（逗号分支的值）</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-clusters"></a><a href="#get-clusters" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-clusters</code></h3>
@@ -590,8 +590,8 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-l</code>, <code>--limit</code></td><td>The backlog size limit (for example <code>10M</code> or <code>16G</code>)</td><td></td></tr>
-<tr><td><code>-p</code>, <code>--policy</code></td><td>The retention policy to enforce when the limit is reached. The valid options are: <code>producer_request_hold</code>, <code>producer_exception</code> or <code>consumer_backlog_eviction</code></td><td></td></tr>
+<tr><td><code>-l</code>, <code>--limit</code></td><td>积压的大小限制 (例如，<code>10M</code> 或 <code>16G</code>)</td><td></td></tr>
+<tr><td><code>-p</code>, <code>--policy</code></td><td>达到上限时要强制执行的保留策略。有效选项是： <code>producer_request_hold</code>, <code>producer_exception</code> 或 <code>consumer_backlog_eviction</code></td><td></td></tr>
 </tbody>
 </table>
 <p>示例</p>
@@ -622,8 +622,8 @@
 <tbody>
 <tr><td><code>-a</code>, <code>--bookkeeper-ack-quorum</code></td><td>The number of acks (guaranteed copies) to wait for each entry</td><td>0</td></tr>
 <tr><td><code>-e</code>, <code>--bookkeeper-ensemble</code></td><td>The number of bookies to use for a topic</td><td>0</td></tr>
-<tr><td><code>-w</code>, <code>--bookkeeper-write-quorum</code></td><td>How many writes to make of each entry</td><td>0</td></tr>
-<tr><td><code>-r</code>, <code>--ml-mark-delete-max-rate</code></td><td>Throttling rate of mark-delete operation (0 means no throttle)</td><td></td></tr>
+<tr><td><code>-w</code>, <code>--bookkeeper-write-quorum</code></td><td>每个 entry 要写入多少次</td><td>0</td></tr>
+<tr><td><code>-r</code>, <code>--ml-mark-delete-max-rate</code></td><td>标记删除操作的限流频率(0表示不限制)</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-message-ttl"></a><a href="#get-message-ttl" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-message-ttl</code></h3>
@@ -642,7 +642,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-ttl</code>, <code>--messageTTL</code></td><td>Message TTL in seconds. When the value is set to <code>0</code>, TTL is disabled. TTL is disabled by default.</td><td>0</td></tr>
+<tr><td><code>-ttl</code>, <code>--messageTTL</code></td><td>消息 TTL，以秒为单位。当值设置为 <code>0</code>时，TTL 被禁用。默认情况下 TTL 被禁用。</td><td>0</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-retention"></a><a href="#get-retention" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-retention</code></h3>
@@ -662,7 +662,7 @@
 </thead>
 <tbody>
 <tr><td><code>-s</code>, <code>--size</code></td><td>The retention size limits (for example 10M, 16G or 3T). 0 means no retention and -1 means infinite size retention</td><td></td></tr>
-<tr><td><code>-t</code>, <code>--time</code></td><td>The retention time in minutes, hours, days, or weeks. Examples: 100m, 13h, 2d, 5w. 0 means no retention and -1 means infinite time retention</td><td></td></tr>
+<tr><td><code>-t</code>, <code>--time</code></td><td>保留时间以分钟、小时、天数或周数表示。例如：100m, 13h, 2d, 5w。0 表示不保留；-1 表示无限时间保留</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="unload"></a><a href="#unload" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>unload</code></h3>
@@ -691,8 +691,8 @@
 </thead>
 <tbody>
 <tr><td><code>-b</code>, <code>--bundle</code></td><td></td><td></td></tr>
-<tr><td><code>-f</code>, <code>--force</code></td><td>Whether to force a clear backlog without prompt</td><td>false</td></tr>
-<tr><td><code>-s</code>, <code>--sub</code></td><td>The subscription name</td><td></td></tr>
+<tr><td><code>-f</code>, <code>--force</code></td><td>是否在没有提示的情况下强制清除积压数据</td><td>false</td></tr>
+<tr><td><code>-s</code>, <code>--sub</code></td><td>订阅名称</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="unsubscribe"></a><a href="#unsubscribe" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>unsubscribe</code></h3>
@@ -707,7 +707,7 @@
 </thead>
 <tbody>
 <tr><td><code>-b</code>, <code>--bundle</code></td><td></td><td></td></tr>
-<tr><td><code>-s</code>, <code>--sub</code></td><td>The subscription name</td><td></td></tr>
+<tr><td><code>-s</code>, <code>--sub</code></td><td>订阅名称</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-compaction-threshold"></a><a href="#get-compaction-threshold" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-compaction-threshold</code></h3>
@@ -726,7 +726,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-t</code>, <code>--threshold</code></td><td>Maximum number of bytes in a topic backlog before compaction is triggered (eg: 10M, 16G, 3T). 0 disables automatic compaction</td><td>0</td></tr>
+<tr><td><code>-t</code>, <code>--threshold</code></td><td>触发压缩前的主题中可积压的最大字节数 (例如：10M, 16G, 3T)。0 标识禁用自动编译功能</td><td>0</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-offload-threshold"></a><a href="#get-offload-threshold" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-offload-threshold</code></h3>
@@ -740,7 +740,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-s</code>, <code>--size</code></td><td>Maximum number of bytes stored in the pulsar cluster for a topic before data will start being automatically offloaded to longterm storage (eg: 10M, 16G, 3T, 100). Negative values disable automatic offload. 0 triggers offloading as soon as possible.</td><td>-1</td></tr>
+<tr><td><code>-s</code>, <code>--size</code></td><td>在数据开始自动卸载到持久化存储之前存储在 Pulsar 集群中的最大字节数，例如 10M。 负值标识禁用自动卸载。 0 值会触发尽快卸载。</td><td>-1</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="ns-isolation-policy"></a><a href="#ns-isolation-policy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>ns-isolation-policy</code></h2>
@@ -760,11 +760,11 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--auto-failover-policy-params</code></td><td>Comma-separated name=value auto failover policy parameters</td><td>[]</td></tr>
-<tr><td><code>--auto-failover-policy-type</code></td><td>Auto failover policy type name. Currently available options: min_available.</td><td>[]</td></tr>
-<tr><td><code>--namespaces</code></td><td>Comma-separated namespaces regex list</td><td>[]</td></tr>
-<tr><td><code>--primary</code></td><td>Comma-separated primary broker regex list</td><td>[]</td></tr>
-<tr><td><code>--secondary</code></td><td>Comma-separated secondary broker regex list</td><td>[]</td></tr>
+<tr><td><code>--auto-failover-policy-params</code></td><td>逗号分隔的 name=value 形式，用于自动灾备策略的参数</td><td>[]</td></tr>
+<tr><td><code>--auto-failover-policy-type</code></td><td>自动灾备策略的类型名称。当前可用选项：min_available。</td><td>[]</td></tr>
+<tr><td><code>--namespaces</code></td><td>逗号分隔的命名空间正则表达式列表</td><td>[]</td></tr>
+<tr><td><code>--primary</code></td><td>逗号分隔的主 broker 正则表达式列表</td><td>[]</td></tr>
+<tr><td><code>--secondary</code></td><td>逗号分隔的备用 broker 正则表达式列表</td><td>[]</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-2"></a><a href="#get-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get</code></h3>
@@ -957,7 +957,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-w</code>, <code>--wait-complete</code></td><td>Wait for compaction to complete</td><td>false</td></tr>
+<tr><td><code>-w</code>, <code>--wait-complete</code></td><td>等待操作完成</td><td>false</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="offload"></a><a href="#offload" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>offload</code></h3>
@@ -971,7 +971,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-s</code>, <code>--size-threshold</code></td><td>The maximum amount of data to keep in BookKeeper for the specific topic</td><td></td></tr>
+<tr><td><code>-s</code>, <code>--size-threshold</code></td><td>针对特定 topic，设置在 Bookeeper 中保存的最大数据量</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="offload-status"></a><a href="#offload-status" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>offload-status</code></h3>
@@ -985,7 +985,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-w</code>, <code>--wait-complete</code></td><td>Wait for compaction to complete</td><td>false</td></tr>
+<tr><td><code>-w</code>, <code>--wait-complete</code></td><td>等待操作完成</td><td>false</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="create-partitioned-topic"></a><a href="#create-partitioned-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>create-partitioned-topic</code></h3>
@@ -999,7 +999,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-p</code>, <code>--partitions</code></td><td>The number of partitions for the topic</td><td>0</td></tr>
+<tr><td><code>-p</code>, <code>--partitions</code></td><td>主题的分区数</td><td>0</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="delete-partitioned-topic"></a><a href="#delete-partitioned-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>delete-partitioned-topic</code></h3>
@@ -1023,7 +1023,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-p</code>, <code>--partitions</code></td><td>The number of partitions for the topic</td><td>0</td></tr>
+<tr><td><code>-p</code>, <code>--partitions</code></td><td>主题的分区数</td><td>0</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="list-5"></a><a href="#list-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>list</code></h3>
@@ -1046,7 +1046,7 @@
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="terminate"></a><a href="#terminate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>terminate</code></h3>
-<p>Terminate a persistent topic (disallow further messages from being published on the topic)</p>
+<p>终止一个持久化的主题 (不允许再在该主题上发布更多消息)</p>
 <p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics terminate persistent://tenant/namespace/topic
 </code></pre>
@@ -1066,8 +1066,8 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--actions</code></td><td>Actions to be granted (<code>produce</code> or <code>consume</code>)</td><td></td></tr>
-<tr><td><code>--role</code></td><td>The client role to which to grant the permissions</td><td></td></tr>
+<tr><td><code>--actions</code></td><td>要授权的操作(<code>produce</code> 或 <code>consume</code>)</td><td></td></tr>
+<tr><td><code>--role</code></td><td>要授予权限的客户角色</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="revoke-permission-1"></a><a href="#revoke-permission-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>revoke-permission</code></h3>
@@ -1111,7 +1111,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-s</code>, <code>--subscription</code></td><td>The subscription to delete</td><td></td></tr>
+<tr><td><code>-s</code>, <code>--subscription</code></td><td>要删除的订阅</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="stats"></a><a href="#stats" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>stats</code></h3>
@@ -1140,7 +1140,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--per-partition</code></td><td>Get per-partition stats</td><td>false</td></tr>
+<tr><td><code>--per-partition</code></td><td>获取每个分区的统计数据</td><td>false</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="skip"></a><a href="#skip" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>skip</code></h3>
@@ -1154,8 +1154,8 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-n</code>, <code>--count</code></td><td>The number of messages to skip</td><td>0</td></tr>
-<tr><td><code>-s</code>, <code>--subscription</code></td><td>The subscription on which to skip messages</td><td></td></tr>
+<tr><td><code>-n</code>, <code>--count</code></td><td>设置要跳过的消息数量</td><td>0</td></tr>
+<tr><td><code>-s</code>, <code>--subscription</code></td><td>设置订阅的名称，在该订阅上跳过消息</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="skip-all"></a><a href="#skip-all" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>skip-all</code></h3>
@@ -1169,7 +1169,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-s</code>, <code>--subscription</code></td><td>The subscription to clear</td><td></td></tr>
+<tr><td><code>-s</code>, <code>--subscription</code></td><td>要清除数据的订阅</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="expire-messages"></a><a href="#expire-messages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>expire-messages</code></h3>
@@ -1183,8 +1183,8 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-t</code>, <code>--expireTime</code></td><td>Expire messages older than the time (in seconds)</td><td>0</td></tr>
-<tr><td><code>-s</code>, <code>--subscription</code></td><td>The subscription to skip messages on</td><td></td></tr>
+<tr><td><code>-t</code>, <code>--expireTime</code></td><td>过期消息超过时间(秒)</td><td>0</td></tr>
+<tr><td><code>-s</code>, <code>--subscription</code></td><td>设置订阅的名称，在该订阅上跳过消息</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="expire-messages-all-subscriptions"></a><a href="#expire-messages-all-subscriptions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>expire-messages-all-subscriptions</code></h3>
@@ -1198,7 +1198,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-t</code>, <code>--expireTime</code></td><td>Expire messages older than the time (in seconds)</td><td>0</td></tr>
+<tr><td><code>-t</code>, <code>--expireTime</code></td><td>过期消息超过时间(秒)</td><td>0</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="peek-messages"></a><a href="#peek-messages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>peek-messages</code></h3>
@@ -1212,8 +1212,8 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-n</code>, <code>--count</code></td><td>The number of messages</td><td>0</td></tr>
-<tr><td><code>-s</code>, <code>--subscription</code></td><td>Subscription to get messages from</td><td></td></tr>
+<tr><td><code>-n</code>, <code>--count</code></td><td>消息数量</td><td>0</td></tr>
+<tr><td><code>-s</code>, <code>--subscription</code></td><td>订阅的名称，从该订阅获取消息</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="reset-cursor"></a><a href="#reset-cursor" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>reset-cursor</code></h3>
@@ -1227,7 +1227,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-s</code>, <code>--subscription</code></td><td>Subscription to reset position on</td><td></td></tr>
+<tr><td><code>-s</code>, <code>--subscription</code></td><td>设置订阅的名称，在该订阅上重置订阅位置</td><td></td></tr>
 <tr><td><code>-t</code>, <code>--time</code></td><td>The time, in minutes, to reset back to (or minutes, hours, days, weeks, etc.). Examples: <code>100m</code>, <code>3h</code>, <code>2d</code>, <code>5w</code>.</td><td></td></tr>
 </tbody>
 </table>
@@ -1258,7 +1258,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-r</code>, <code>--admin-roles</code></td><td>Comma-separated admin roles</td><td></td></tr>
+<tr><td><code>-r</code>, <code>--admin-roles</code></td><td>逗号分隔的管理员角色</td><td></td></tr>
 <tr><td><code>-c</code>, <code>--allowed-clusters</code></td><td>Comma-separated allowed clusters</td><td></td></tr>
 </tbody>
 </table>
@@ -1273,7 +1273,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-r</code>, <code>--admin-roles</code></td><td>Comma-separated admin roles</td><td></td></tr>
+<tr><td><code>-r</code>, <code>--admin-roles</code></td><td>逗号分隔的管理员角色</td><td></td></tr>
 <tr><td><code>-c</code>, <code>--allowed-clusters</code></td><td>Comma-separated allowed clusters</td><td></td></tr>
 </tbody>
 </table>
