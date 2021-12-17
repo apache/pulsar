@@ -75,7 +75,7 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
             this.currentPublishMsgCount.reset();
             this.currentPublishByteCount.reset();
             this.publishRateExceeded = false;
-            lastExceededNano = 0;
+            this.lastExceededNano = 0;
             return true;
         }
         return false;
