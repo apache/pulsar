@@ -262,29 +262,38 @@ public abstract class NamespacesBase extends AdminResource {
 
         // remove from owned namespace map and ephemeral node from ZK
         final List<CompletableFuture<Void>> futures = Lists.newArrayList();
-        try {
-            // remove system topics first.
-            if (!topics.isEmpty()) {
-                for (String topic : topics) {
-                    pulsar().getBrokerService().getTopicIfExists(topic).whenComplete((topicOptional, ex) -> {
-                        topicOptional.ifPresent(systemTopic -> futures.add(systemTopic.deleteForcefully()));
+        // remove system topics first.
+        if (!topics.isEmpty()) {
+            for (String topic : topics) {
+                pulsar().getBrokerService().getTopicIfExists(topic).whenComplete((topicOptional, ex) -> {
+                    topicOptional.ifPresent(systemTopic -> {
+                        futures.add(systemTopic.deleteForcefully());
                     });
-                }
+                });
             }
-            NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
-                    .getBundles(namespaceName);
-            for (NamespaceBundle bundle : bundles.getBundles()) {
-                // check if the bundle is owned by any broker, if not then we do not need to delete the bundle
-                if (pulsar().getNamespaceService().getOwner(bundle).isPresent()) {
-                    futures.add(pulsar().getAdminClient().namespaces()
-                            .deleteNamespaceBundleAsync(namespaceName.toString(), bundle.getBundleRange()));
+        }
+        FutureUtil.waitForAll(futures).thenAccept(r -> {
+            futures.clear();
+            try {
+                NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
+                        .getBundles(namespaceName);
+                for (NamespaceBundle bundle : bundles.getBundles()) {
+                    // check if the bundle is owned by any broker, if not then we do not need to delete the bundle
+                    if (pulsar().getNamespaceService().getOwner(bundle).isPresent()) {
+                        futures.add(pulsar().getAdminClient().namespaces()
+                                .deleteNamespaceBundleAsync(namespaceName.toString(), bundle.getBundleRange()));
+                    }
                 }
+            } catch (Exception e) {
+                log.error("[{}] Failed to remove owned namespace {}", clientAppId(), namespaceName, e);
+                asyncResponse.resume(new RestException(e));
+                return;
             }
-        } catch (Exception e) {
+        }).exceptionally(e -> {
             log.error("[{}] Failed to remove owned namespace {}", clientAppId(), namespaceName, e);
             asyncResponse.resume(new RestException(e));
-            return;
-        }
+            return null;
+        });
 
         FutureUtil.waitForAll(futures).handle((result, exception) -> {
             if (exception != null) {

@@ -65,6 +65,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     private static final String NAMESPACE1 = "system-topic/namespace-1";
     private static final String NAMESPACE2 = "system-topic/namespace-2";
     private static final String NAMESPACE3 = "system-topic/namespace-3";
+    private static final String NAMESPACE4 = "system-topic/namespace-4";
 
     private static final TopicName TOPIC1 = TopicName.get("persistent", NamespaceName.get(NAMESPACE1), "topic-1");
     private static final TopicName TOPIC2 = TopicName.get("persistent", NamespaceName.get(NAMESPACE1), "topic-2");
@@ -72,6 +73,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     private static final TopicName TOPIC4 = TopicName.get("persistent", NamespaceName.get(NAMESPACE2), "topic-2");
     private static final TopicName TOPIC5 = TopicName.get("persistent", NamespaceName.get(NAMESPACE3), "topic-1");
     private static final TopicName TOPIC6 = TopicName.get("persistent", NamespaceName.get(NAMESPACE3), "topic-2");
+    private static final TopicName TOPIC7 = TopicName.get("persistent", NamespaceName.get(NAMESPACE4), "topic-7");
 
     private SystemTopicBasedTopicPoliciesService systemTopicBasedTopicPoliciesService;
 
@@ -279,7 +281,6 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     }
 
 
-
     private void prepareData() throws PulsarAdminException {
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         admin.tenants().createTenant("system-topic",
@@ -287,12 +288,14 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         admin.namespaces().createNamespace(NAMESPACE1);
         admin.namespaces().createNamespace(NAMESPACE2);
         admin.namespaces().createNamespace(NAMESPACE3);
+        admin.namespaces().createNamespace(NAMESPACE4);
         admin.lookups().lookupTopic(TOPIC1.toString());
         admin.lookups().lookupTopic(TOPIC2.toString());
         admin.lookups().lookupTopic(TOPIC3.toString());
         admin.lookups().lookupTopic(TOPIC4.toString());
         admin.lookups().lookupTopic(TOPIC5.toString());
         admin.lookups().lookupTopic(TOPIC6.toString());
+        admin.topics().createNonPartitionedTopic(TOPIC7.toString());
         systemTopicBasedTopicPoliciesService = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
     }
 
@@ -371,6 +374,28 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
             if (topicPolicies.isPresent()) {
                 Assert.assertEquals(topicPolicies.get(), initPolicy);
             }
+        });
+    }
+
+    @Test
+    public void testDeleteNamespaceWithSystemTopicDeleted() throws Exception {
+        TopicPolicies initPolicy = TopicPolicies.builder()
+                .maxConsumerPerTopic(10)
+                .build();
+        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC7, initPolicy).get();
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertTrue(systemTopicBasedTopicPoliciesService
+                        .getPoliciesCacheInit(TOPIC7.getNamespaceObject())));
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertNotNull(systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC7));
+            Assert.assertEquals(systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC7).getMaxConsumerPerTopic().intValue(), 10);
+        });
+
+        admin.topics().delete(TOPIC7.getPartitionedTopicName());
+        admin.namespaces().deleteNamespace(NAMESPACE4);
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertFalse(admin.namespaces().getNamespaces("system-topic").contains(NAMESPACE4));
+            Assert.assertNull(systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC7));
         });
     }
 }
