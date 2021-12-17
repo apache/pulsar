@@ -112,6 +112,12 @@ public class FileSourceConfig implements Serializable {
      */
     private Integer numWorkers = 1;
 
+    /**
+     * If set, do not delete but only rename file that has been processed.
+     * This config only work when 'keepFile' property is false.
+     */
+    private String processedFileSuffix;
+
     public static FileSourceConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), FileSourceConfig.class);
