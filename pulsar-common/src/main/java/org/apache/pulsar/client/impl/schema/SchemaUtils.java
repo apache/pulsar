@@ -207,6 +207,7 @@ public final class SchemaUtils {
     public static String jsonifySchemaInfo(SchemaInfo schemaInfo) {
         GsonBuilder gsonBuilder = new GsonBuilder()
             .setPrettyPrinting()
+            .serializeNulls()
             .registerTypeHierarchyAdapter(byte[].class, new ByteArrayToStringAdapter(schemaInfo))
             .registerTypeHierarchyAdapter(Map.class, SCHEMA_PROPERTIES_SERIALIZER);
 
