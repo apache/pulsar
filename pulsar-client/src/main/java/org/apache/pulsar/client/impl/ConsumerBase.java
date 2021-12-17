@@ -49,7 +49,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
-import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ConsumerName;
@@ -491,19 +490,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         if (null != txn) {
             checkArgument(txn instanceof TransactionImpl);
             txnImpl = (TransactionImpl) txn;
-           if (txnImpl.getState() != TransactionImpl.State.OPEN) {
-               CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-               if (txnImpl.getState() == TransactionImpl.State.TIMEOUT) {
-                   completableFuture
-                           .completeExceptionally(new TransactionCoordinatorClientException
-                                   .TransactionTimeoutException(txn.getTxnID().toString()));
-               } else {
-                   completableFuture
-                           .completeExceptionally(new TransactionCoordinatorClientException
-                                   .InvalidTxnStatusException(txn.getTxnID().toString(),
-                                   ((TransactionImpl) txn).getState().name(), TransactionImpl.State.OPEN.name()));
-               }
-               return completableFuture;
+           if (txnImpl.checkIfOpen().isCompletedExceptionally()) {
+               return txnImpl.checkIfOpen();
            }
         }
         return doAcknowledgeWithTxn(messageId, AckType.Individual, Collections.emptyMap(), txnImpl);

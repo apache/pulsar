@@ -234,7 +234,7 @@ public class TransactionImpl implements Transaction , TimerTask {
         return new TxnID(txnIdMostBits, txnIdLeastBits);
     }
 
-    private CompletableFuture<Void> checkIfOpen() {
+    public <T> CompletableFuture<T> checkIfOpen() {
         if (state == State.OPEN) {
             return CompletableFuture.completedFuture(null);
         } else {
