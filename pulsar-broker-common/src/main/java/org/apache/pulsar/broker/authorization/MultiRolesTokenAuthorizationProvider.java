@@ -105,7 +105,15 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
         if (token == null)
             return Collections.emptyList();
 
+        // we assume this is a JWT, however, it may not necessarily be
+        // instead, if a user is using chained authentication, they might have different types
+        // of tokens
+        // We handle this and just assume it an empty list
         String[] splitToken = token.split("\\.");
+        if (splitToken.length < 2) {
+            log.warn("Unable to extract additional roles from JWT token");
+            return Collections.emptyList();
+        }
         String unsignedToken = splitToken[0] + "." + splitToken[1] + ".";
 
         Jwt<?, Claims> jwt = parser.parseClaimsJwt(unsignedToken);
