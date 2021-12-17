@@ -995,7 +995,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             Assert.fail();
         } catch (Exception e) {
             Assert.assertTrue(e.getCause().getCause() instanceof TransactionCoordinatorClientException
-                    .TransactionTimeoutException);
+                    .InvalidTxnStatusException);
         }
         try {
             Message<String> message = consumer.receive();
@@ -1003,7 +1003,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             Assert.fail();
         } catch (Exception e) {
             Assert.assertTrue(e.getCause() instanceof TransactionCoordinatorClientException
-                    .TransactionTimeoutException);
+                    .InvalidTxnStatusException);
         }
     }
 }
