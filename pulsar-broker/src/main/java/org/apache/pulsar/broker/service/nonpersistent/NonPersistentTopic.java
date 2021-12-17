@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
@@ -57,6 +58,7 @@ import org.apache.pulsar.broker.service.StreamingStats;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.SubscriptionOption;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.TopicPolicyListener;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
@@ -72,6 +74,7 @@ import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorS
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublisherStats;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPublisherStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentReplicatorStatsImpl;
@@ -88,7 +91,7 @@ import org.apache.pulsar.utils.StatsOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class NonPersistentTopic extends AbstractTopic implements Topic {
+public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPolicyListener<TopicPolicies> {
 
     // Subscriptions to this topic
     private final ConcurrentOpenHashMap<String, NonPersistentSubscription> subscriptions;
@@ -139,6 +142,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         this.subscriptions = new ConcurrentOpenHashMap<>(16, 1);
         this.replicators = new ConcurrentOpenHashMap<>(16, 1);
         this.isFenced = false;
+        registerTopicPolicyListener();
     }
 
     public CompletableFuture<Void> initialize() {
@@ -423,6 +427,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                             // deadlock. so, execute it in different thread
                             brokerService.executor().execute(() -> {
                                 brokerService.removeTopicFromCache(topic);
+                                unregisterTopicPolicyListener();
                                 log.info("[{}] Topic deleted", topic);
                                 deleteFuture.complete(null);
                             });
@@ -493,6 +498,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
             // so, execute it in different thread
             brokerService.executor().execute(() -> {
                 brokerService.removeTopicFromCache(topic);
+                unregisterTopicPolicyListener();
                 closeFuture.complete(null);
             });
         }).exceptionally(exception -> {
@@ -802,8 +808,21 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     }
 
     @Override
-    public NonPersistentTopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
+    public NonPersistentTopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
+                                                boolean getEarliestTimeInBacklog) {
+        try {
+            return asyncGetStats(getPreciseBacklog, subscriptionBacklogSize, getPreciseBacklog).get();
+        } catch (InterruptedException | ExecutionException e) {
+            log.error("[{}] Fail to get stats", topic, e);
+            return null;
+        }
+    }
 
+    @Override
+    public CompletableFuture<NonPersistentTopicStatsImpl> asyncGetStats(boolean getPreciseBacklog,
+                                                                        boolean subscriptionBacklogSize,
+                                                                        boolean getEarliestTimeInBacklog) {
+        CompletableFuture<NonPersistentTopicStatsImpl> future = new CompletableFuture<>();
         NonPersistentTopicStatsImpl stats = new NonPersistentTopicStatsImpl();
 
         ObjectObjectHashMap<String, PublisherStatsImpl> remotePublishersStats = new ObjectObjectHashMap<>();
@@ -856,7 +875,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         });
 
         stats.topicEpoch = topicEpoch.orElse(null);
-        return stats;
+        future.complete(stats);
+        return future;
     }
 
     @Override
@@ -1003,6 +1023,14 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         subscriptions.forEach((subName, sub) -> sub.getConsumers().forEach(Consumer::checkPermissions));
 
         return checkReplicationAndRetryOnFailure();
+    }
+
+    @Override
+    public void onUpdate(TopicPolicies data) {
+        if (data == null) {
+            return;
+        }
+        updateTopicPolicy(data);
     }
 
     /**

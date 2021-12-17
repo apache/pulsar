@@ -63,30 +63,27 @@ For machines running a bookie and a Pulsar broker, more powerful machines are re
 * Fast CPUs and 10Gbps [NIC](https://en.wikipedia.org/wiki/Network_interface_controller) (for Pulsar brokers)
 * Small and fast [solid-state drives](https://en.wikipedia.org/wiki/Solid-state_drive) (SSDs) or [hard disk drives](https://en.wikipedia.org/wiki/Hard_disk_drive) (HDDs) with a [RAID](https://en.wikipedia.org/wiki/RAID) controller and a battery-backed write cache (for BookKeeper bookies)
 
+#### Hardware recommendations
+
 To start a Pulsar instance, below are the minimum and the recommended hardware settings.
 
-1. The minimum hardware settings (250 Pulsar topics)
-  - Broker
-    - CPU: 0.2
-    - Memory: 256MB
-  - Bookie
-    - CPU: 0.2
-    - Memory: 256MB
-    - Storage: 
-      - Journal: 8GB, PD-SSD
-      - Ledger: 16GB, PD-STANDARD
+A cluster consists of 3 broker nodes, 3 bookie nodes, and 3 ZooKeeper nodes. The following recommendation is suitable for one node.
 
-2. The recommended hardware settings (1000 Pulsar topics)
+- The minimum hardware settings (**250 Pulsar topics**)
+   
+   Component | CPU|Memory|Storage|Throughput |Rate
+   |---|---|---|---|---|---
+   Broker|0.2|256 MB|/|Write throughput: 3 MB/s<br><br />Read throughput: 6 MB/s<br><br />|Write rate: 350 entries/s<br><br />Read rate: 650 entries/s
+   Bookie|0.2|256 MB|Journal: 8 GB<br><br />PD-SSDLedger: 16 GB, PD-STANDARD|Write throughput: 2 MB/s<br><br />Read throughput: 2 MB/s<br><br />|Write rate: 200 entries/s<br><br />Read rate: 200 entries/s
+   ZooKeeper|0.05|256 MB|Log: 8 GB, PD-SSD<br><br />Data: 2 GB, PD-STANDARD|/|/
 
-  - Broker
-    - CPU: 8
-    - Memory: 8GB
-  - Bookie
-    - CPU: 4
-    - Memory: 8GB
-    - Storage: 
-      - Journal: 256GB, PD-SSD
-      - Ledger: 2TB, PD-STANDARD
+- The recommended hardware settings (**1000 Pulsar topics**)
+
+   Component | CPU|Memory|Storage|Throughput |Rate
+   |---|---|---|---|---|---
+   Broker|8|8 GB|/|Write throughput: 100 MB/s<br><br />Read throughput: 200 MB/s<br><br />|Write rate: 10,000 entries/s<br><br />Read rate: 20,000 entries/s
+   Bookie|4|8GB|Journal: 256 GB<br><br />PD-SSDLedger: 2 TB, PD-STANDARD|Write throughput: 75 MB/s<br><br />Read throughput: 75 MB/s<br><br />|Write rate: 7,500 entries/s<br><br />Read rate: 7,500 entries/s
+   ZooKeeper|1|2 GB|Log: 64 GB, PD-SSD<br><br />Data: 256 GB, PD-STANDARD|/|/
 
 ## Install the Pulsar binary package
 

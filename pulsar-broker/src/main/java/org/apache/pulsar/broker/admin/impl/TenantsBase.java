@@ -265,6 +265,12 @@ public class TenantsBase extends PulsarWebResource {
                             .clearTenantPersistence(tenant))
                     .thenCompose(ignore -> pulsar().getPulsarResources().getNamespaceResources()
                             .deleteTenantAsync(tenant))
+                    .thenCompose(ignore -> pulsar().getPulsarResources().getNamespaceResources()
+                            .getPartitionedTopicResources().clearPartitionedTopicTenantAsync(tenant))
+                    .thenCompose(ignore -> pulsar().getPulsarResources().getLocalPolicies()
+                            .deleteLocalPoliciesTenantAsync(tenant))
+                    .thenCompose(ignore -> pulsar().getPulsarResources().getNamespaceResources()
+                            .deleteBundleDataTenantAsync(tenant))
                     .whenComplete((ignore, ex) -> {
                         if (ex != null) {
                             log.error("[{}] Failed to delete tenant {}", clientAppId(), tenant, ex);

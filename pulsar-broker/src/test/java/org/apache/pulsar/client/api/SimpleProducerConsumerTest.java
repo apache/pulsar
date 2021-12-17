@@ -4112,8 +4112,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                     .topic(topic).subscriptionName("sub").subscribe();
             fail("should fail");
         } catch (Exception e) {
-            String retryTopic = topic + "-sub-RETRY";
-            assertTrue(e.getMessage().contains("Topic " + retryTopic + " does not exist"));
+            assertTrue(e instanceof PulsarClientException.NotFoundException);
         } finally {
             conf.setAllowAutoTopicCreation(true);
         }

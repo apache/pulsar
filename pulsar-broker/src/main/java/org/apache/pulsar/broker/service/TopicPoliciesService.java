@@ -26,6 +26,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCach
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.BackoffBuilder;
 import org.apache.pulsar.client.util.RetryUtil;
+import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
@@ -34,6 +35,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 /**
  * Topic policies service.
  */
+@InterfaceStability.Evolving
 public interface TopicPoliciesService {
 
     TopicPoliciesService DISABLED = new TopicPoliciesServiceDisabled();
@@ -62,14 +64,29 @@ public interface TopicPoliciesService {
     TopicPolicies getTopicPolicies(TopicName topicName) throws TopicPoliciesCacheNotInitException;
 
     /**
+     * Get policies from current cache.
+     * @param topicName topic name
+     * @return the topic policies
+     */
+    TopicPolicies getTopicPoliciesIfExists(TopicName topicName);
+
+    /**
+     * Get global policies for a topic async.
+     * @param topicName topic name
+     * @return future of the topic policies
+     */
+    TopicPolicies getTopicPolicies(TopicName topicName, boolean isGlobal) throws TopicPoliciesCacheNotInitException;
+
+    /**
      * When getting TopicPolicies, if the initialization has not been completed,
      * we will go back off and try again until time out.
      * @param topicName topic name
      * @param backoff back off policy
+     * @param isGlobal is global policies
      * @return CompletableFuture<Optional<TopicPolicies>>
      */
     default CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsyncWithRetry(TopicName topicName,
-              final Backoff backoff, ScheduledExecutorService scheduledExecutorService) {
+              final Backoff backoff, ScheduledExecutorService scheduledExecutorService, boolean isGlobal) {
         CompletableFuture<Optional<TopicPolicies>> response = new CompletableFuture<>();
         Backoff usedBackoff = backoff == null ? new BackoffBuilder()
                 .setInitialTime(500, TimeUnit.MILLISECONDS)
@@ -79,7 +96,7 @@ public interface TopicPoliciesService {
         try {
             RetryUtil.retryAsynchronously(() -> {
                 try {
-                    return Optional.ofNullable(getTopicPolicies(topicName));
+                    return Optional.ofNullable(getTopicPolicies(topicName, isGlobal));
                 } catch (BrokerServiceException.TopicPoliciesCacheNotInitException exception) {
                     throw new RuntimeException(exception);
                 }
@@ -120,14 +137,6 @@ public interface TopicPoliciesService {
 
     void unregisterListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener);
 
-    /**
-     * clean cache and listeners in TopicPolicies and so on.
-     * @param topicName
-     */
-    default void clean(TopicName topicName) {
-        throw new UnsupportedOperationException("Clean is not supported by default");
-    }
-
     class TopicPoliciesServiceDisabled implements TopicPoliciesService {
 
         @Override
@@ -142,6 +151,17 @@ public interface TopicPoliciesService {
 
         @Override
         public TopicPolicies getTopicPolicies(TopicName topicName) throws TopicPoliciesCacheNotInitException {
+            return null;
+        }
+
+        @Override
+        public TopicPolicies getTopicPolicies(TopicName topicName, boolean isGlobal)
+                throws TopicPoliciesCacheNotInitException {
+            return null;
+        }
+
+        @Override
+        public TopicPolicies getTopicPoliciesIfExists(TopicName topicName) {
             return null;
         }
 
@@ -174,11 +194,6 @@ public interface TopicPoliciesService {
 
         @Override
         public void unregisterListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
-            //No-op
-        }
-
-        @Override
-        public void clean(TopicName topicName) {
             //No-op
         }
     }

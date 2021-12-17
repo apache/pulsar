@@ -28,11 +28,11 @@ To better demonstrate how to debug Pulsar connectors, here takes a Mongo sink co
 4. Configure the Mongo sink with the `mongo-sink-config.yaml` file.
     ```bash
     configs:
-    mongoUri: "mongodb://pulsar-mongo:27017"
-    database: "pulsar"
-    collection: "messages"
-    batchSize: 2
-    batchTimeMs: 500
+      mongoUri: "mongodb://pulsar-mongo:27017"
+      database: "pulsar"
+      collection: "messages"
+      batchSize: 2
+      batchTimeMs: 500
     ```
     ```bash
     docker cp mongo-sink-config.yaml pulsar-mongo-standalone:/pulsar/
@@ -44,12 +44,12 @@ To better demonstrate how to debug Pulsar connectors, here takes a Mongo sink co
     ```
 ## Debug in localrun mode
 Start the Mongo sink in localrun mode using the `localrun` command.
-> #### Tip
+> **Tip**
 > 
 > For more information about the `localrun` command, see [`localrun`](reference-connector-admin.md/#localrun-1).
 ```bash
 ./bin/pulsar-admin sinks localrun \
---archive pulsar-io-mongo-2.4.0.nar \ 
+--archive connectors/pulsar-io-mongo-{{pulsar:version}}.nar \ 
 --tenant public --namespace default \
 --inputs test-mongo \
 --name pulsar-mongo-sink \
@@ -76,7 +76,7 @@ To clearly explain the log information, here breaks down the large block of info
     ```
     08:21:54.132 [main] INFO  org.apache.pulsar.common.nar.NarClassLoader - Created class loader with paths: [file:/tmp/pulsar-nar/pulsar-io-mongo-2.4.0.nar-unpacked/, file:/tmp/pulsar-nar/pulsar-io-mongo-2.4.0.nar-unpacked/META-INF/bundled-dependencies/,
     ```
-    > #### Tip
+    > **Tip**
     >
     > If `class cannot be found` exception is thrown, check whether the nar file is decompressed in the folder `file:/tmp/pulsar-nar/pulsar-io-mongo-2.4.0.nar-unpacked/META-INF/bundled-dependencies/` or not.
 * This piece of log information illustrates the basic information about the Mongo sink connector, such as tenant, namespace, name, parallelism, resources, and so on, which can be used to **check whether the Mongo sink connector is configured correctly or not**.
@@ -219,7 +219,7 @@ Use the `get` command to get the basic information about the Mongo sink connecto
   "autoAck": true
 }
 ```
-> #### Tip
+> **Tip**
 > 
 > For more information about the `get` command, see [`get`](reference-connector-admin.md/#get-1).
 ### `status`
@@ -250,7 +250,7 @@ Use the `status` command to get the current status about the Mongo sink connecto
 } ]
 }
 ```
-> #### Tip
+> **Tip**
 > 
 > For more information about the `status` command, see [`status`](reference-connector-admin.md/#stauts-1).
 > 
@@ -302,7 +302,7 @@ Use the `topics stats` command to get the stats for a topic and its connected pr
   "deduplicationStatus" : "Disabled"
 }
 ```
-> #### Tip
+> **Tip**
 > 
 > For more information about the `topic stats` command, see [`topic stats`](http://pulsar.apache.org/docs/en/pulsar-admin/#stats-1).
 ## Checklist

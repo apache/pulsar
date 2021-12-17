@@ -21,11 +21,15 @@ package org.apache.pulsar.io.kafka;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.config.SaslConfigs;
+import org.apache.kafka.common.config.SslConfigs;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -35,6 +39,8 @@ import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.time.Duration;
 import java.util.Objects;
 import java.util.Collections;
 import java.util.Map;
@@ -83,6 +89,27 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
             props.putAll(kafkaSourceConfig.getConsumerConfigProperties());
         }
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaSourceConfig.getBootstrapServers());
+        if (StringUtils.isNotEmpty(kafkaSourceConfig.getSecurityProtocol())) {
+            props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, kafkaSourceConfig.getSecurityProtocol());
+        }
+        if (StringUtils.isNotEmpty(kafkaSourceConfig.getSaslMechanism())) {
+            props.put(SaslConfigs.SASL_MECHANISM, kafkaSourceConfig.getSaslMechanism());
+        }
+        if (StringUtils.isNotEmpty(kafkaSourceConfig.getSaslJaasConfig())) {
+            props.put(SaslConfigs.SASL_JAAS_CONFIG, kafkaSourceConfig.getSaslJaasConfig());
+        }
+        if (StringUtils.isNotEmpty(kafkaSourceConfig.getSslEnabledProtocols())) {
+            props.put(SslConfigs.SSL_ENABLED_PROTOCOLS_CONFIG, kafkaSourceConfig.getSslEnabledProtocols());
+        }
+        if (StringUtils.isNotEmpty(kafkaSourceConfig.getSslEndpointIdentificationAlgorithm())) {
+            props.put(SslConfigs.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG, kafkaSourceConfig.getSslEndpointIdentificationAlgorithm());
+        }
+        if (StringUtils.isNotEmpty(kafkaSourceConfig.getSslTruststoreLocation())) {
+            props.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, kafkaSourceConfig.getSslTruststoreLocation());
+        }
+        if (StringUtils.isNotEmpty(kafkaSourceConfig.getSslTruststorePassword())) {
+            props.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, kafkaSourceConfig.getSslTruststorePassword());
+        }
         props.put(ConsumerConfig.GROUP_ID_CONFIG, kafkaSourceConfig.getGroupId());
         props.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, String.valueOf(kafkaSourceConfig.getFetchMinBytes()));
         props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, String.valueOf(kafkaSourceConfig.getAutoCommitIntervalMs()));
@@ -127,7 +154,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
             consumer.subscribe(Collections.singletonList(kafkaSourceConfig.getTopic()));
             LOG.info("Kafka source started.");
             while (running) {
-                ConsumerRecords<Object, Object> consumerRecords = consumer.poll(1000);
+                ConsumerRecords<Object, Object> consumerRecords = consumer.poll(Duration.ofSeconds(1L));
                 CompletableFuture<?>[] futures = new CompletableFuture<?>[consumerRecords.count()];
                 int index = 0;
                 for (ConsumerRecord<Object, Object> consumerRecord : consumerRecords) {

@@ -29,6 +29,7 @@ import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -346,6 +347,67 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
                 String.format("numReceivedMessages1 (%d) should be less than %d", numReceivedMessages1, numMessages));
         assertTrue(numReceivedMessages2 < numMessages,
                 String.format("numReceivedMessages2 (%d) should be less than %d", numReceivedMessages2, numMessages));
+    }
+
+    @Test
+    public void testGetReplicatedSubscriptionStatus() throws Exception {
+        final String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
+        final String topicName1 = "persistent://" + namespace + "/tp-no-part";
+        final String topicName2 = "persistent://" + namespace + "/tp-with-part";
+        final String subName1 = "sub1";
+        final String subName2 = "sub2";
+
+        admin1.namespaces().createNamespace(namespace);
+        admin1.topics().createNonPartitionedTopic(topicName1);
+        admin1.topics().createPartitionedTopic(topicName2, 3);
+
+        @Cleanup final PulsarClient client = PulsarClient.builder().serviceUrl(url1.toString())
+                .statsInterval(0, TimeUnit.SECONDS).build();
+
+        // Create subscription on non-partitioned topic
+        createReplicatedSubscription(client, topicName1, subName1, true);
+        Awaitility.await().untilAsserted(() -> {
+            Map<String, Boolean> status = admin1.topics().getReplicatedSubscriptionStatus(topicName1, subName1);
+            assertTrue(status.get(topicName1));
+        });
+        // Disable replicated subscription on non-partitioned topic
+        admin1.topics().setReplicatedSubscriptionStatus(topicName1, subName1, false);
+        Awaitility.await().untilAsserted(() -> {
+            Map<String, Boolean> status = admin1.topics().getReplicatedSubscriptionStatus(topicName1, subName1);
+            assertFalse(status.get(topicName1));
+        });
+
+        // Create subscription on partitioned topic
+        createReplicatedSubscription(client, topicName2, subName2, true);
+        Awaitility.await().untilAsserted(() -> {
+            Map<String, Boolean> status = admin1.topics().getReplicatedSubscriptionStatus(topicName2, subName2);
+            assertEquals(status.size(), 3);
+            for (int i = 0; i < 3; i++) {
+                assertTrue(status.get(topicName2 + "-partition-" + i));
+            }
+        });
+        // Disable replicated subscription on partitioned topic
+        admin1.topics().setReplicatedSubscriptionStatus(topicName2, subName2, false);
+        Awaitility.await().untilAsserted(() -> {
+            Map<String, Boolean> status = admin1.topics().getReplicatedSubscriptionStatus(topicName2, subName2);
+            assertEquals(status.size(), 3);
+            for (int i = 0; i < 3; i++) {
+                assertFalse(status.get(topicName2 + "-partition-" + i));
+            }
+        });
+        // Enable replicated subscription on partition-2
+        admin1.topics().setReplicatedSubscriptionStatus(topicName2 + "-partition-2", subName2, true);
+        Awaitility.await().untilAsserted(() -> {
+            Map<String, Boolean> status = admin1.topics().getReplicatedSubscriptionStatus(topicName2, subName2);
+            assertEquals(status.size(), 3);
+            for (int i = 0; i < 3; i++) {
+                if (i == 2) {
+                    assertTrue(status.get(topicName2 + "-partition-" + i));
+                } else {
+                    assertFalse(status.get(topicName2 + "-partition-" + i));
+                }
+            }
+        });
     }
 
     @Test(timeOut = 30000)

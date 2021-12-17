@@ -1175,13 +1175,16 @@ public class CmdNamespaces extends CmdBase {
         private String policyStr;
 
         @Parameter(names = {"-t", "--type"}, description = "Backlog quota type to set. Valid options are: " +
-                "destination_storage, message_age")
+                "destination_storage and message_age. " + 
+                "destination_storage limits backlog by size (in bytes). " +
+                "message_age limits backlog by time, that is, message timestamp (broker or publish timestamp). " +
+                "You can set size or time to control the backlog, or combine them together to control the backlog. ")
         private String backlogQuotaTypeStr = BacklogQuota.BacklogQuotaType.destination_storage.name();
 
         @Override
         void run() throws PulsarAdminException {
             BacklogQuota.RetentionPolicy policy;
-            long limit;
+            long limit = validateSizeString(limitStr);
             BacklogQuota.BacklogQuotaType backlogQuotaType;
 
             try {
@@ -1189,13 +1192,6 @@ public class CmdNamespaces extends CmdBase {
             } catch (IllegalArgumentException e) {
                 throw new ParameterException(String.format("Invalid retention policy type '%s'. Valid options are: %s",
                         policyStr, Arrays.toString(BacklogQuota.RetentionPolicy.values())));
-            }
-
-            try {
-                limit = validateSizeString(limitStr);
-            } catch (IllegalArgumentException e) {
-                throw new ParameterException(String.format("Invalid retention policy type '%s'. Valid formats are: %s",
-                        limitStr, "(4096, 100K, 10M, 16G, 2T)"));
             }
 
             try {
@@ -1808,12 +1804,13 @@ public class CmdNamespaces extends CmdBase {
                    description = "Maximum number of bytes in a topic backlog before compaction is triggered "
                                  + "(eg: 10M, 16G, 3T). 0 disables automatic compaction",
                    required = true)
-        private String threshold = "0";
+        private String thresholdStr = "0";
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            getAdmin().namespaces().setCompactionThreshold(namespace, validateSizeString(threshold));
+            long threshold = validateSizeString(thresholdStr);
+            getAdmin().namespaces().setCompactionThreshold(namespace, threshold);
         }
     }
 
@@ -1841,12 +1838,13 @@ public class CmdNamespaces extends CmdBase {
                                  + " Negative values disable automatic offload."
                                  + " 0 triggers offloading as soon as possible.",
                    required = true)
-        private String threshold = "-1";
+        private String thresholdStr = "-1";
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            getAdmin().namespaces().setOffloadThreshold(namespace, validateSizeString(threshold));
+            long threshold = validateSizeString(thresholdStr);
+            getAdmin().namespaces().setOffloadThreshold(namespace, threshold);
         }
     }
 
@@ -2204,7 +2202,7 @@ public class CmdNamespaces extends CmdBase {
                 long maxBlockSize = validateSizeString(maxBlockSizeStr);
                 if (positiveCheck("MaxBlockSize", maxBlockSize)
                         && maxValueCheck("MaxBlockSize", maxBlockSize, Integer.MAX_VALUE)) {
-                    maxBlockSizeInBytes = new Long(maxBlockSize).intValue();
+                    maxBlockSizeInBytes = Long.valueOf(maxBlockSize).intValue();
                 }
             }
 
@@ -2213,7 +2211,7 @@ public class CmdNamespaces extends CmdBase {
                 long readBufferSize = validateSizeString(readBufferSizeStr);
                 if (positiveCheck("ReadBufferSize", readBufferSize)
                         && maxValueCheck("ReadBufferSize", readBufferSize, Integer.MAX_VALUE)) {
-                    readBufferSizeInBytes = new Long(readBufferSize).intValue();
+                    readBufferSizeInBytes = Long.valueOf(readBufferSize).intValue();
                 }
             }
 

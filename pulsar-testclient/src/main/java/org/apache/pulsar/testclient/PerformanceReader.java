@@ -199,7 +199,7 @@ public class PerformanceReader {
                 arguments.authParams = prop.getProperty("authParams", null);
             }
 
-            if (arguments.useTls == false) {
+            if (!arguments.useTls) {
                 arguments.useTls = Boolean.parseBoolean(prop.getProperty("useTls"));
             }
 
@@ -231,7 +231,6 @@ public class PerformanceReader {
             }
             if (arguments.numMessages > 0 && totalMessagesReceived.sum() >= arguments.numMessages) {
                 log.info("------------- DONE (reached the maximum number: [{}] of consumption) --------------", arguments.numMessages);
-                printAggregatedStats();
                 PerfClientUtils.exit(0);
             }
             messagesReceived.increment();

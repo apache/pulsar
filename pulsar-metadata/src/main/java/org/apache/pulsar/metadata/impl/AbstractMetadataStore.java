@@ -31,9 +31,9 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -60,7 +60,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     private final CopyOnWriteArrayList<Consumer<Notification>> listeners = new CopyOnWriteArrayList<>();
     private final CopyOnWriteArrayList<Consumer<SessionEvent>> sessionListeners = new CopyOnWriteArrayList<>();
-    private final ExecutorService executor;
+    protected final ScheduledExecutorService executor;
     private final AsyncLoadingCache<String, List<String>> childrenCache;
     private final AsyncLoadingCache<String, Boolean> existsCache;
     private final CopyOnWriteArrayList<MetadataCacheImpl<?>> metadataCaches = new CopyOnWriteArrayList<>();
@@ -76,7 +76,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     protected AbstractMetadataStore() {
         this.executor = Executors
-                .newSingleThreadExecutor(new DefaultThreadFactory("metadata-store"));
+                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("metadata-store"));
         registerListener(this);
 
         this.childrenCache = Caffeine.newBuilder()
@@ -312,7 +312,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     }
 
     /**
-     * Run the task in the executor thread and fail the future if the executor is shutting down
+     * Run the task in the executor thread and fail the future if the executor is shutting down.
      */
     protected void execute(Runnable task, CompletableFuture<?> future) {
         try {
@@ -343,5 +343,13 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                 || StringUtils.isNotBlank(path)
                 && path.startsWith("/")
                 && !path.endsWith("/");
+    }
+
+    protected void notifyParentChildrenChanged(String path) {
+        String parent = parent(path);
+        while (parent != null) {
+            receivedNotification(new Notification(NotificationType.ChildrenChanged, parent));
+            parent = parent(parent);
+        }
     }
 }

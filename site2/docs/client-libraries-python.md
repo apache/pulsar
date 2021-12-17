@@ -27,13 +27,13 @@ If you install the client libraries on Linux to support services like Pulsar fun
 
 ```shell
 # avro serialization
-$ pip install pulsar-client=='{{pulsar:version_number}}[avro]'
+$ pip install pulsar-client[avro]=='{{pulsar:version_number}}'
 
 # functions runtime
-$ pip install pulsar-client=='{{pulsar:version_number}}[functions]'
+$ pip install pulsar-client[functions]=='{{pulsar:version_number}}'
 
 # all optional components
-$ pip install pulsar-client=='{{pulsar:version_number}}[all]'
+$ pip install pulsar-client[all]=='{{pulsar:version_number}}'
 ```
 
 Installation via PyPi is available for the following Python versions:
@@ -409,7 +409,7 @@ You can load a schema definition from file by using [`avro.schema`]((http://avro
 
 If you use the "JSON definition" method to declare an `AvroSchema`, pay attention to the following points:
 
-- You need to use [Python dict](https://developers.google.com/edu/python/dict-files) to produce and consume messages, which is different from using the "Record" way.
+- You need to use [Python dict](https://developers.google.com/edu/python/dict-files) to produce and consume messages, which is different from using the "Record" method.
 
 - When generating an `AvroSchema` object, set `_record_cls` parameter to `None`.
 

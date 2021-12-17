@@ -29,6 +29,7 @@ import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import lombok.Cleanup;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
@@ -40,10 +41,9 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
-import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,9 +94,9 @@ public class CompactorTool {
         }
 
 
-        if (isBlank(brokerConfig.getZookeeperServers())) {
+        if (isBlank(brokerConfig.getMetadataStoreUrl())) {
             throw new IllegalArgumentException(
-                    String.format("Need to specify `zookeeperServers` in configuration file \n"
+                    String.format("Need to specify `metadataStoreUrl` or `zookeeperServers` in configuration file \n"
                                     + "or specify configuration file path from command line.\n"
                                     + "now configuration file path is=[%s]\n",
                             arguments.brokerConfigFile)
@@ -123,32 +123,35 @@ public class CompactorTool {
             clientBuilder.serviceUrl(internalListener.getBrokerServiceUrl().toString());
         }
 
+        @Cleanup(value = "shutdownNow")
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
 
+        @Cleanup(value = "shutdownNow")
         OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().build();
-        ZooKeeperClientFactory zkClientFactory = new ZookeeperBkClientFactoryImpl(executor);
 
-        ZooKeeper zk = zkClientFactory.create(brokerConfig.getZookeeperServers(),
-                ZooKeeperClientFactory.SessionType.ReadWrite,
-                (int) brokerConfig.getZooKeeperSessionTimeoutMillis()).get();
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(brokerConfig.getMetadataStoreUrl(),
+                MetadataStoreConfig.builder()
+                        .sessionTimeoutMillis((int) brokerConfig.getZooKeeperSessionTimeoutMillis())
+                        .build());
+
+        @Cleanup
         BookKeeperClientFactory bkClientFactory = new BookKeeperClientFactoryImpl();
 
+        @Cleanup(value = "shutdownGracefully")
         EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(1, false,
                 new DefaultThreadFactory("compactor-io"));
-        BookKeeper bk = bkClientFactory.create(brokerConfig, zk, eventLoopGroup, Optional.empty(), null);
-        try (PulsarClient pulsar = clientBuilder.build()) {
-            Compactor compactor = new TwoPhaseCompactor(brokerConfig, pulsar, bk, scheduler);
-            long ledgerId = compactor.compact(arguments.topic).get();
-            log.info("Compaction of topic {} complete. Compacted to ledger {}", arguments.topic, ledgerId);
-        } finally {
-            bk.close();
-            bkClientFactory.close();
-            zk.close();
-            scheduler.shutdownNow();
-            executor.shutdown();
-            eventLoopGroup.shutdownGracefully();
-        }
+
+        @Cleanup
+        BookKeeper bk = bkClientFactory.create(brokerConfig, store, eventLoopGroup, Optional.empty(), null);
+
+        @Cleanup
+        PulsarClient pulsar = clientBuilder.build();
+
+        Compactor compactor = new TwoPhaseCompactor(brokerConfig, pulsar, bk, scheduler);
+        long ledgerId = compactor.compact(arguments.topic).get();
+        log.info("Compaction of topic {} complete. Compacted to ledger {}", arguments.topic, ledgerId);
     }
 
     private static final Logger log = LoggerFactory.getLogger(CompactorTool.class);

@@ -19,7 +19,6 @@
 package org.apache.pulsar.testclient;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-import static org.apache.pulsar.testclient.utils.PerformanceUtils.buildTransaction;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
@@ -45,7 +44,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 import org.HdrHistogram.Histogram;
@@ -284,7 +282,7 @@ public class PerformanceTransaction {
         ExecutorService executorService = new ThreadPoolExecutor(arguments.numTestThreads,
                 arguments.numTestThreads,
                 0L, TimeUnit.MILLISECONDS,
-                new LinkedBlockingQueue<Runnable>());
+                new LinkedBlockingQueue<>());
 
 
         long startTime = System.nanoTime();
@@ -311,16 +309,23 @@ public class PerformanceTransaction {
                     //A thread may perform tasks of multiple transactions in a traversing manner.
                     List<Producer<byte[]>> producers = null;
                     List<List<Consumer<byte[]>>> consumers = null;
+                    AtomicReference<Transaction> atomicReference = null;
                     try {
                         producers = buildProducers(client, arguments);
                         consumers = buildConsumer(client, arguments);
+                        if (!arguments.isDisableTransaction) {
+                            atomicReference = new AtomicReference<>(client.newTransaction()
+                                    .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS)
+                                    .build()
+                                    .get());
+                        } else {
+                            atomicReference = new AtomicReference<>(null);
+                        }
                     } catch (Exception e) {
                         log.error("Failed to build Producer/Consumer with exception : ", e);
                         executorService.shutdownNow();
                         PerfClientUtils.exit(-1);
                     }
-                    AtomicReference<Transaction> atomicReference = buildTransaction(client,
-                            !arguments.isDisableTransaction, arguments.transactionTimeout);
                     //The while loop has no break, and finally ends the execution through the shutdownNow of
                     //the executorService
                     while (true) {
@@ -351,7 +356,7 @@ public class PerformanceTransaction {
                         for (List<Consumer<byte[]>> subscriptions : consumers) {
                                 for (Consumer<byte[]> consumer : subscriptions) {
                                     for (int j = 0; j < arguments.numMessagesReceivedPerTransaction; j++) {
-                                        Message message = null;
+                                        Message<byte[]> message = null;
                                         try {
                                             message = consumer.receive();
                                         } catch (PulsarClientException e) {
@@ -533,8 +538,8 @@ public class PerformanceTransaction {
                     ? "Throughput transaction: {} transaction executes --- {} transaction/s"
                     : "Throughput task: {} task executes --- {} task/s";
             log.info(
-                    txnOrTaskLog + "  ---send Latency: mean: {} ms - med: {} "
-                            + "- 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}" + "---ack Latency: "
+                    txnOrTaskLog + "  --- send Latency: mean: {} ms - med: {} "
+                            + "- 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}" + " --- ack Latency: "
                             + "mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
                     intFormat.format(total),
                     dec.format(rate),
@@ -582,8 +587,8 @@ public class PerformanceTransaction {
                 "Aggregated throughput stats --- {} transaction executed --- {} transaction/s "
                         + " --- {} transaction open successfully --- {} transaction open failed"
                         + " --- {} transaction end successfully --- {} transaction end failed"
-                        + "--- {} message ack failed --- {} message send failed"
-                        + "--- {} message ack success --- {} message send success ",
+                        + " --- {} message ack failed --- {} message send failed"
+                        + " --- {} message ack success --- {} message send success ",
                 total,
                 dec.format(rate),
                 numTransactionOpenSuccess,
@@ -606,9 +611,9 @@ public class PerformanceTransaction {
         long numMessageSendFailed = numMessagesSendFailed.sum();
         long numMessageSendSuccess = numMessagesSendSuccess.sum();
         log.info(
-                "Aggregated throughput stats --- {} task executed --- {} task/s "
-                        + "--- {} message ack failed --- {} message send failed"
-                        + "--- {} message ack success --- {} message send success ",
+                "Aggregated throughput stats --- {} task executed --- {} task/s"
+                        + " --- {} message ack failed --- {} message send failed"
+                        + " --- {} message ack success --- {} message send success",
                 total,
                 totalFormat.format(rate),
                 numMessageAckFailed,
@@ -690,9 +695,7 @@ public class PerformanceTransaction {
                 .sendTimeout(0, TimeUnit.SECONDS);
 
         final List<Future<Producer<byte[]>>> producerFutures = Lists.newArrayList();
-        Iterator<String> produceTopicsIterator = arguments.producerTopic.iterator();
-        while(produceTopicsIterator.hasNext()){
-            String topic = produceTopicsIterator.next();
+        for (String topic : arguments.producerTopic) {
             log.info("Create producer for topic {}", topic);
             producerFutures.add(producerBuilder.clone().topic(topic).createAsync());
         }

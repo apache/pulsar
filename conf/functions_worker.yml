@@ -126,6 +126,10 @@ functionRuntimeFactoryConfigs:
     # change the extra dependencies location:
     extraFunctionDependenciesDir:
 
+#### Additional JVM tuning (only process and Kubernetes runtime) ####
+#   This arguments will be added to the command line execution of 'java'
+#additionalJavaRuntimeArguments: ['-XX:+ExitOnOutOfMemoryError']
+
 #### Thread Runtime ####
 # Pulsar function instances are run as threads
 
@@ -211,6 +215,9 @@ functionRuntimeFactoryConfigs:
 #    narExtractionDirectory:
 #    # The classpath where function instance files stored
 #    functionInstanceClassPath:
+#    # Upload the builtin sources/sinks to BookKeeper.
+#    # True by default.
+#    uploadBuiltinSinksSources: true
 #    # the directory for dropping extra function dependencies
 #    # if it is not an absolute path, it is relative to `pulsarRootDir`
 #    extraFunctionDependenciesDir:
