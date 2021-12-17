@@ -22,6 +22,7 @@ package org.apache.pulsar.broker.service;
 import com.google.common.collect.ImmutableList;
 import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -205,6 +206,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                         .getDeletedBatchIndexesAsLongArray(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
                 if (ackSet != null) {
                     indexesAcks.setIndexesAcks(i, Pair.of(batchSize, ackSet));
+                    totalMessages -= (batchSize - BitSet.valueOf(ackSet).cardinality());
                 } else {
                     indexesAcks.setIndexesAcks(i, null);
                 }
