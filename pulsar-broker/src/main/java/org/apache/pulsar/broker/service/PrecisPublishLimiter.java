@@ -133,6 +133,11 @@ public class PrecisPublishLimiter implements PublishRateLimiter {
     }
 
     @Override
+    public long lastPublishRateExceededNano() {
+        return 0;
+    }
+
+    @Override
     public void close() throws Exception {
         rateLimitFunction.apply();
         replaceLimiters(null);

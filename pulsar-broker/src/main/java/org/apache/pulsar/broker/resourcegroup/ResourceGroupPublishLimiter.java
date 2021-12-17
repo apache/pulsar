@@ -136,6 +136,11 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
             && (publishRateLimiterOnByte == null || publishRateLimiterOnByte.tryAcquire(bytes));
     }
 
+    @Override
+    public long lastPublishRateExceededNano() {
+        return 0;
+    }
+
     public void registerRateLimitFunction(String name, RateLimitFunction func) {
         rateLimitFunctionMap.put(name, func);
     }

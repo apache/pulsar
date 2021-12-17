@@ -634,6 +634,15 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             .quantile(1.0)
             .register();
 
+    private static final Summary PUBLISH_RATE_EXCEEDED_LATENCY =
+            Summary.build("pulsar_broker_publish_rate_exceeded_latency", "-")
+            .quantile(0.0)
+            .quantile(0.50)
+            .quantile(0.99)
+            .quantile(0.999)
+            .quantile(1.0)
+            .register();
+
     @Override
     public void checkTopicPublishThrottlingRate() {
         this.topicPublishRateLimiter.checkPublishRate();
@@ -653,8 +662,16 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     @Override
     public void resetTopicPublishCountAndEnableReadIfRequired() {
         // broker rate not exceeded. and completed topic limiter reset.
-        if (!getBrokerPublishRateLimiter().isPublishRateExceeded() && topicPublishRateLimiter.resetPublishCount()) {
-            enableProducerReadForPublishRateLimiting();
+        if (!getBrokerPublishRateLimiter().isPublishRateExceeded()) {
+            long lastPublishRateExceededNano = topicPublishRateLimiter.lastPublishRateExceededNano();
+            if (topicPublishRateLimiter.resetPublishCount()){
+                enableProducerReadForPublishRateLimiting();
+                // Collect broker publish rate exceeded time.
+                if(lastPublishRateExceededNano != 0) {
+                    PUBLISH_RATE_EXCEEDED_LATENCY.observe(System.nanoTime() - lastPublishRateExceededNano,
+                            TimeUnit.NANOSECONDS);
+                }
+            }
         }
     }
 

@@ -63,6 +63,11 @@ public class PublishRateLimiterDisable implements PublishRateLimiter {
     }
 
     @Override
+    public long lastPublishRateExceededNano() {
+        return 0;
+    }
+
+    @Override
     public void close() throws Exception {
         // No-op
     }

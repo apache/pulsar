@@ -71,4 +71,10 @@ public interface PublishRateLimiter extends AutoCloseable {
      * @param bytes
      */
     boolean tryAcquire(int numbers, long bytes);
+
+    /**
+     * get last publish rate exceeded time.
+     *
+     */
+    long lastPublishRateExceededNano();
 }

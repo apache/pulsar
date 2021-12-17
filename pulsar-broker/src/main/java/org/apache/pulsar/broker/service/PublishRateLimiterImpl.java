@@ -25,6 +25,7 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 public class PublishRateLimiterImpl implements PublishRateLimiter {
     protected volatile int publishMaxMessageRate = 0;
     protected volatile long publishMaxByteRate = 0;
+    protected volatile long lastExceededNano = 0;
     protected volatile boolean publishThrottlingEnabled = false;
     protected volatile boolean publishRateExceeded = false;
     protected volatile LongAdder currentPublishMsgCount = new LongAdder();
@@ -44,6 +45,7 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
             if (this.publishMaxByteRate > 0) {
                 long currentPublishByteRate = this.currentPublishByteCount.sum();
                 if (currentPublishByteRate > this.publishMaxByteRate) {
+                    lastExceededNano = System.nanoTime();
                     publishRateExceeded = true;
                     return;
                 }
@@ -52,6 +54,7 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
             if (this.publishMaxMessageRate > 0) {
                 long currentPublishMsgRate = this.currentPublishMsgCount.sum();
                 if (currentPublishMsgRate > this.publishMaxMessageRate) {
+                    lastExceededNano = System.nanoTime();
                     publishRateExceeded = true;
                 }
             }
@@ -72,6 +75,7 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
             this.currentPublishMsgCount.reset();
             this.currentPublishByteCount.reset();
             this.publishRateExceeded = false;
+            lastExceededNano = 0;
             return true;
         }
         return false;
@@ -107,6 +111,11 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
     @Override
     public boolean tryAcquire(int numbers, long bytes) {
         return false;
+    }
+
+    @Override
+    public long lastPublishRateExceededNano() {
+        return lastExceededNano;
     }
 
     @Override
