@@ -394,7 +394,7 @@ public class MLPendingAckStore implements PendingAckStore {
                     || exception instanceof ManagedLedgerException.ManagedLedgerFencedException) {
                 isReadable = false;
             }
-            log.error("MLPendingAckStore stat reply fail!", exception);
+            log.error("MLPendingAckStore of topic [{}] stat reply fail!", managedLedger.getName(), exception);
             outstandingReadsRequests.decrementAndGet();
         }
 
