@@ -104,7 +104,8 @@ public class TransactionImpl implements Transaction , TimerTask {
 
     // register the topics that will be modified by this transaction
     public CompletableFuture<Void> registerProducedTopic(String topic) {
-        return checkIfOpen().thenCompose(value -> {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        if (checkIfOpen(completableFuture)) {
             synchronized (TransactionImpl.this) {
                 // we need to issue the request to TC to register the produced topic
                 return registerPartitionMap.compute(topic, (key, future) -> {
@@ -117,7 +118,9 @@ public class TransactionImpl implements Transaction , TimerTask {
                     }
                 });
             }
-        });
+        } else {
+            return completableFuture;
+        }
     }
 
     public synchronized void registerSendOp(CompletableFuture<MessageId> sendFuture) {
@@ -126,7 +129,8 @@ public class TransactionImpl implements Transaction , TimerTask {
 
     // register the topics that will be modified by this transaction
     public CompletableFuture<Void> registerAckedTopic(String topic, String subscription) {
-        return checkIfOpen().thenCompose(value -> {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        if (checkIfOpen(completableFuture)) {
             synchronized (TransactionImpl.this) {
                 // we need to issue the request to TC to register the acked topic
                 return registerSubscriptionMap.compute(Pair.of(topic, subscription), (key, future) -> {
@@ -139,7 +143,9 @@ public class TransactionImpl implements Transaction , TimerTask {
                     }
                 });
             }
-        });
+        } else {
+            return completableFuture;
+        }
     }
 
     public synchronized void registerAckOp(CompletableFuture<Void> ackFuture) {
@@ -155,7 +161,8 @@ public class TransactionImpl implements Transaction , TimerTask {
 
     @Override
     public CompletableFuture<Void> commit() {
-        return checkIfOpen().thenCompose((value) -> {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        if (checkIfOpen(completableFuture)) {
             CompletableFuture<Void> commitFuture = new CompletableFuture<>();
             if (STATE_UPDATE.compareAndSet(this, State.OPEN, State.COMMITTING)) {
                 allOpComplete().whenComplete((v, e) -> {
@@ -183,12 +190,15 @@ public class TransactionImpl implements Transaction , TimerTask {
                         + state.name() + ", expect " + State.OPEN + " state!"));
             }
             return commitFuture;
-        });
+        } else {
+            return completableFuture;
+        }
     }
 
     @Override
     public CompletableFuture<Void> abort() {
-        return checkIfOpen().thenCompose(value -> {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        if (checkIfOpen(completableFuture)) {
             CompletableFuture<Void> abortFuture = new CompletableFuture<>();
             if (STATE_UPDATE.compareAndSet(this, State.OPEN, State.ABORTING)) {
                 allOpComplete().whenComplete((v, e) -> {
@@ -226,7 +236,9 @@ public class TransactionImpl implements Transaction , TimerTask {
             }
 
             return abortFuture;
-        });
+        } else {
+            return completableFuture;
+        }
     }
 
     @Override
@@ -234,13 +246,14 @@ public class TransactionImpl implements Transaction , TimerTask {
         return new TxnID(txnIdMostBits, txnIdLeastBits);
     }
 
-    public <T> CompletableFuture<T> checkIfOpen() {
+    public <T> boolean checkIfOpen(CompletableFuture<T> completableFuture) {
         if (state == State.OPEN) {
-            return CompletableFuture.completedFuture(null);
+            return true;
         } else {
-            return FutureUtil.failedFuture(new InvalidTxnStatusException("[" + txnIdMostBits + ":"
-                    + txnIdLeastBits + "] with unexpected state : "
-                    + state.name() + ", expect " + State.OPEN + " state!"));
+            completableFuture
+                    .completeExceptionally(new InvalidTxnStatusException(
+                            new TxnID(txnIdMostBits, txnIdLeastBits).toString(), state.name(), State.OPEN.name()));
+            return false;
         }
     }
 

@@ -192,8 +192,9 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
 
     @Override
     CompletableFuture<MessageId> internalSendWithTxnAsync(Message<?> message, Transaction txn) {
-        if (txn != null && ((TransactionImpl)txn).checkIfOpen().isCompletedExceptionally()) {
-            return ((TransactionImpl)txn).checkIfOpen();
+        CompletableFuture<MessageId> completableFuture = new CompletableFuture<>();
+        if (txn != null && !((TransactionImpl)txn).checkIfOpen(completableFuture)) {
+            return completableFuture;
         }
         int partition = routerPolicy.choosePartition(message, topicMetadata);
         checkArgument(partition >= 0 && partition < topicMetadata.numPartitions(),

@@ -490,8 +490,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         if (null != txn) {
             checkArgument(txn instanceof TransactionImpl);
             txnImpl = (TransactionImpl) txn;
-           if (txnImpl.checkIfOpen().isCompletedExceptionally()) {
-               return txnImpl.checkIfOpen();
+            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+           if (!txnImpl.checkIfOpen(completableFuture)) {
+               return completableFuture;
            }
         }
         return doAcknowledgeWithTxn(messageId, AckType.Individual, Collections.emptyMap(), txnImpl);
