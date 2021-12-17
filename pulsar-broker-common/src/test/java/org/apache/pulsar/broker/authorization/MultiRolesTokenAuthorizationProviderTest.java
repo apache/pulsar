@@ -96,4 +96,31 @@ public class MultiRolesTokenAuthorizationProviderTest {
 
         Assert.assertFalse(provider.authorize(ads, role -> CompletableFuture.completedFuture(false)).get());
     }
+
+    @Test
+    public void testMultiRolesNotFailNonJWT() throws Exception {
+        String token = "a-static-token";
+
+        MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
+
+        AuthenticationDataSource ads = new AuthenticationDataSource() {
+            @Override
+            public boolean hasDataFromHttp() {
+                return true;
+            }
+
+            @Override
+            public String getHttpHeader(String name) {
+                if (name.equals("Authorization")) {
+                    return "Bearer " + token;
+                } else {
+                    throw new IllegalArgumentException("Wrong HTTP header");
+                }
+            }
+        };
+
+        Assert.assertFalse(provider.authorize(ads, role -> {
+            return CompletableFuture.completedFuture(false);
+        }).get());
+    }
 }
