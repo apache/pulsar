@@ -215,6 +215,9 @@ functionRuntimeFactoryConfigs:
 #    narExtractionDirectory:
 #    # The classpath where function instance files stored
 #    functionInstanceClassPath:
+#    # Upload the builtin sources/sinks to BookKeeper.
+#    # True by default.
+#    uploadBuiltinSinksSources: true
 #    # the directory for dropping extra function dependencies
 #    # if it is not an absolute path, it is relative to `pulsarRootDir`
 #    extraFunctionDependenciesDir:

@@ -675,7 +675,8 @@ public class Namespaces extends NamespacesBase {
     @GET
     @Path("/{property}/{cluster}/{namespace}/publishRate")
     @ApiOperation(hidden = true,
-            value = "Get publish-rate configured for the namespace, -1 represents not configured yet")
+            value = "Get publish-rate configured for the namespace, null means publish-rate not configured, "
+                    + "-1 means msg-publish-rate or byte-publish-rate not configured in publish-rate yet")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist")})
     public PublishRate getPublishRate(@PathParam("property") String property, @PathParam("cluster") String cluster,
@@ -697,7 +698,8 @@ public class Namespaces extends NamespacesBase {
     @GET
     @Path("/{property}/{cluster}/{namespace}/dispatchRate")
     @ApiOperation(hidden = true,
-            value = "Get dispatch-rate configured for the namespace, -1 represents not configured yet")
+            value = "Get dispatch-rate configured for the namespace, null means dispatch-rate not configured, "
+                    + "-1 means msg-dispatch-rate or byte-dispatch-rate not configured in dispatch-rate yet")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist")})
     public DispatchRate getDispatchRate(@PathParam("property") String property, @PathParam("cluster") String cluster,
@@ -720,8 +722,9 @@ public class Namespaces extends NamespacesBase {
 
     @GET
     @Path("/{property}/{cluster}/{namespace}/subscriptionDispatchRate")
-    @ApiOperation(value =
-            "Get Subscription dispatch-rate configured for the namespace, -1 represents not configured yet")
+    @ApiOperation(value = "Get subscription dispatch-rate configured for the namespace, null means subscription "
+            + "dispatch-rate not configured, -1 means msg-dispatch-rate or byte-dispatch-rate not configured "
+            + "in dispatch-rate yet")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist")})
     public DispatchRate getSubscriptionDispatchRate(@PathParam("property") String property,
@@ -746,7 +749,9 @@ public class Namespaces extends NamespacesBase {
 
     @GET
     @Path("/{tenant}/{cluster}/{namespace}/replicatorDispatchRate")
-    @ApiOperation(value = "Get replicator dispatch-rate configured for the namespace, -1 represents not configured yet")
+    @ApiOperation(value = "Get replicator dispatch-rate configured for the namespace, null means replicator "
+            + "dispatch-rate not configured, -1 means msg-dispatch-rate or byte-dispatch-rate not configured "
+            + "in dispatch-rate yet")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
         @ApiResponse(code = 404, message = "Namespace does not exist") })
     public DispatchRate getReplicatorDispatchRate(@PathParam("tenant") String tenant,

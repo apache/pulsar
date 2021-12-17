@@ -39,6 +39,8 @@
     <!-- suppress most all checks expect below-->
     <suppress checks="^(?!.*UnusedImports).*$" files=".*[\\/]src[\\/]test[\\/].*"/>
 
+    <suppress checks="IllegalImport" files="ProxyServiceStarter.java"/>
+
     <!-- suppress all checks in the copied code -->
     <suppress checks=".*" files=".+[\\/]com[\\/]scurrilous[\\/]circe[\\/].+\.java"/>
 

@@ -19,15 +19,19 @@
 package org.apache.pulsar.proxy.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.haproxy.HAProxyMessage;
+import io.netty.handler.ssl.SslHandler;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.FutureListener;
 import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
-
 import java.util.function.Supplier;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
-
-import io.netty.handler.codec.haproxy.HAProxyMessage;
+import lombok.Getter;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
@@ -40,29 +44,21 @@ import org.apache.pulsar.client.impl.PulsarChannelInitializer;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.AuthData;
-import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.api.proto.CommandAuthResponse;
 import org.apache.pulsar.common.api.proto.CommandConnect;
+import org.apache.pulsar.common.api.proto.CommandGetSchema;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandLookupTopic;
-import org.apache.pulsar.common.api.proto.CommandGetSchema;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.ServerError;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.ssl.SslHandler;
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.FutureListener;
-import lombok.Getter;
-
 /**
- * Handles incoming discovery request from client and sends appropriate response back to client
+ * Handles incoming discovery request from client and sends appropriate response back to client.
  *
  */
 public class ProxyConnection extends PulsarHandler implements FutureListener<Void> {
@@ -125,10 +121,10 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     @Override
     public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
         super.channelRegistered(ctx);
-        ProxyService.activeConnections.inc();
-        if (ProxyService.activeConnections.get() > service.getConfiguration().getMaxConcurrentInboundConnections()) {
+        ProxyService.ACTIVE_CONNECTIONS.inc();
+        if (ProxyService.ACTIVE_CONNECTIONS.get() > service.getConfiguration().getMaxConcurrentInboundConnections()) {
             ctx.close();
-            ProxyService.rejectedConnections.inc();
+            ProxyService.REJECTED_CONNECTIONS.inc();
             return;
         }
     }
@@ -136,13 +132,13 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     @Override
     public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
         super.channelUnregistered(ctx);
-        ProxyService.activeConnections.dec();
+        ProxyService.ACTIVE_CONNECTIONS.dec();
     }
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
-        ProxyService.newConnections.inc();
+        ProxyService.NEW_CONNECTIONS.inc();
         service.getClientCnxs().add(this);
         LOG.info("[{}] New connection opened", remoteAddress);
     }
@@ -195,11 +191,11 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         case ProxyConnectionToBroker:
             // Pass the buffer to the outbound connection and schedule next read
             // only if we can write on the connection
-            ProxyService.opsCounter.inc();
+            ProxyService.OPS_COUNTER.inc();
             if (msg instanceof ByteBuf) {
                 int bytes = ((ByteBuf) msg).readableBytes();
                 directProxyHandler.getInboundChannelRequestsRate().recordEvent(bytes);
-                ProxyService.bytesCounter.inc(bytes);
+                ProxyService.BYTES_COUNTER.inc(bytes);
             }
             directProxyHandler.outboundChannel.writeAndFlush(msg).addListener(this);
             break;
@@ -400,7 +396,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     }
 
     /**
-     * handles discovery request from client ands sends next active broker address
+     * handles discovery request from client ands sends next active broker address.
      */
     @Override
     protected void handleLookup(CommandLookupTopic lookup) {
