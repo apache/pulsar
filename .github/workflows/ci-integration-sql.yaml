@@ -22,6 +22,7 @@ on:
   pull_request:
     branches:
       - master
+      - branch-*
   push:
     branches:
       - branch-*
@@ -86,7 +87,7 @@ jobs:
 
       - name: build artifacts and docker pulsar latest test image
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -f tests/docker-images/pom.xml install -am -Pdocker -DskipTests
+        run: mvn -B -f tests/docker-images/pom.xml install -am -Pdocker -DskipTests -Ddocker.nocache=true
 
       - name: run integration tests
         if: steps.docs.outputs.changed_only == 'no'

@@ -93,6 +93,7 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
+import org.testng.annotations.Ignore;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -1556,7 +1557,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(topic);
     }
 
-    @Test(timeOut = 30000)
+//    @Test(timeOut = 30000)
     public void testMaxSubPerTopicApi() throws Exception {
         final String myNamespace = "prop-xyz/ns" + UUID.randomUUID();
         admin.namespaces().createNamespace(myNamespace, Sets.newHashSet("test"));

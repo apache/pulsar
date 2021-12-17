@@ -42,6 +42,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Ignore;
 import org.testng.annotations.Test;
 
 import static org.testng.Assert.assertFalse;
@@ -84,7 +85,7 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
         return result != null && !result.schema.isDeleted();
     }
 
-    @Test
+//    @Test
     public void testGCWillDeleteSchema() throws Exception {
         // 1. Simple successful GC
         String topicName = "non-persistent://prop/ns-abc/topic-1";

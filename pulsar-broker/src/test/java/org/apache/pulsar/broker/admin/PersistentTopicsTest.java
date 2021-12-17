@@ -609,7 +609,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
     }
 
-    @Test
+//    @Test
     public void testPeekWithSubscriptionNameNotExist() throws Exception {
         final String topicName = "testTopic";
         final String topic = TopicName.get(

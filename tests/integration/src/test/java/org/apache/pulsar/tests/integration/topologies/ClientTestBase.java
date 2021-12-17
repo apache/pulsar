@@ -63,6 +63,7 @@ public class ClientTestBase {
         @Cleanup
         Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subName).subscribe();
         Message<String> message = consumer2.receive(1, TimeUnit.SECONDS);
+        consumer2.close();
         assertEquals(message.getMessageId(), lastMsg.getMessageId());
 
         admin.topics().resetCursorAsync(topicName, subName, lastMsg.getMessageId()).get(3, TimeUnit.SECONDS);

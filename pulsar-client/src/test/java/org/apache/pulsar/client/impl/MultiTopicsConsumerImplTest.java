@@ -36,6 +36,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.awaitility.Awaitility;
 import org.junit.After;
 import org.junit.Before;
 import org.testng.annotations.AfterMethod;
@@ -197,12 +198,9 @@ public class MultiTopicsConsumerImplTest {
         // assert that we don't start in closed, then we move to closed and get an exception
         // indicating that closeAsync was called
         assertEquals(impl.getState(), HandlerState.State.Uninitialized);
-        try {
-            completeFuture.get(2, TimeUnit.SECONDS);
-        } catch (Throwable ignore) {
-            // just ignore the exception
-        }
-        assertTrue(completeFuture.isCompletedExceptionally());
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(completeFuture.isCompletedExceptionally());
+        });
         assertEquals(impl.getConsumers().size(), 0);
         assertEquals(impl.getState(), HandlerState.State.Closed);
         verify(clientMock, times(1)).cleanupConsumer(any());

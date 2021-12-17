@@ -51,6 +51,7 @@ import static org.testng.Assert.fail;
  * State related test cases.
  */
 @Slf4j
+@Test(enabled = false)
 public class PulsarStateTest extends PulsarStandaloneTestSuite {
 
     public static final String WORDCOUNT_PYTHON_CLASS =

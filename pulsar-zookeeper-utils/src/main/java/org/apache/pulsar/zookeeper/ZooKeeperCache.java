@@ -496,7 +496,8 @@ public abstract class ZooKeeperCache implements Watcher {
     public <T> T getDataIfPresent(String path) {
         CompletableFuture<Pair<Entry<Object, Stat>, Long>> f = dataCache.getIfPresent(path);
         if (f != null && f.isDone() && !f.isCompletedExceptionally()) {
-            return (T) f.join().getLeft().getKey();
+            Pair<Entry<Object, Stat>, Long> entryPair = f.join();
+            return entryPair != null ? (T) entryPair.getLeft().getKey() : null;
         } else {
             return null;
         }

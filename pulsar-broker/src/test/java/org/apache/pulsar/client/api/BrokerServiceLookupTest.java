@@ -136,7 +136,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+//    @Test
     public void testMultipleBrokerLookup() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -297,7 +297,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+//    @Test
     public void testPartitionTopicLookup() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -815,7 +815,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 5000)
+//    @Test(timeOut = 5000)
     public void testSplitUnloadLookupTest() throws Exception {
 
         log.info("-- Starting {} test --", methodName);
@@ -916,7 +916,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 10000)
+//    @Test(timeOut = 10000)
     public void testModularLoadManagerSplitBundle() throws Exception {
 
         log.info("-- Starting {} test --", methodName);
@@ -1031,7 +1031,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 10000)
+//    @Test(timeOut = 10000)
     public void testPartitionedMetadataWithDeprecatedVersion() throws Exception {
 
         final String cluster = "use2";

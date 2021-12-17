@@ -182,7 +182,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         }
     }
 
-    @Test
+//    @Test
     public void testSeekForBatchMessageAndSpecifiedBatchIndex() throws Exception {
         final String topicName = "persistent://prop/use/ns-abcd/testSeekForBatch";
         String subscriptionName = "my-subscription-batch";

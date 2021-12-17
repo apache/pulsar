@@ -348,7 +348,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
     }
 
     // For https://github.com/apache/pulsar/issues/2880
-    @Test
+//    @Test
     public void testDeleteNamespace() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             log.info("Creating tenant");

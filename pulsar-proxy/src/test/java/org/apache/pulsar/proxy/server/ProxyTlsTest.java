@@ -21,7 +21,9 @@ package org.apache.pulsar.proxy.server;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.mockito.Mockito.doReturn;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -89,7 +91,7 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
         }
-
+        producer.close();
         client.close();
     }
 
@@ -99,14 +101,18 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
                 .serviceUrl(proxyService.getServiceUrlTls())
                 .allowTlsInsecureConnection(false).tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).build();
         TenantInfo tenantInfo = createDefaultTenantInfo();
-        admin.tenants().createTenant("sample", tenantInfo);
-        admin.topics().createPartitionedTopic("persistent://sample/test/local/partitioned-topic", 2);
+        List<String> tenants = admin.tenants().getTenants();
+        if(!tenants.contains("sample")) {
+            admin.tenants().createTenant("sample", tenantInfo);
+        }
+        String topic = "persistent://sample/test/local/" + UUID.randomUUID().toString();
+        admin.topics().createPartitionedTopic(topic, 2);
 
-        Producer<byte[]> producer = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/partitioned-topic")
+        Producer<byte[]> producer = client.newProducer(Schema.BYTES).topic(topic)
                 .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
 
         // Create a consumer directly attached to broker
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://sample/test/local/partitioned-topic")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("my-sub").subscribe();
 
         for (int i = 0; i < 10; i++) {

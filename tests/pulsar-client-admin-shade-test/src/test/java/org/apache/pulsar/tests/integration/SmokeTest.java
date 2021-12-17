@@ -37,6 +37,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+@Test(enabled=false)
 public class SmokeTest {
 
     private PulsarContainer pulsarContainer;
