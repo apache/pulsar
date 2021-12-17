@@ -942,6 +942,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     private void testMaxConsumersFailover() throws Exception {
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        topic.initialize().join();
+        assertEquals((int) topic.getHierarchyTopicPolicies().getMaxConsumerPerTopic().get(), 3);
         PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
         PersistentSubscription sub2 = new PersistentSubscription(topic, "sub-2", cursorMock, false);
 
@@ -1034,6 +1036,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         when(pulsar.getPulsarResources().getNamespaceResources()
                 .getPoliciesIfCached(TopicName.get(successTopicName).getNamespaceObject()))
                 .thenReturn(Optional.of(policies));
+        when(pulsar.getPulsarResources().getNamespaceResources()
+                .getPoliciesAsync(TopicName.get(successTopicName).getNamespaceObject()))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(policies)));
         testMaxConsumersFailover();
     }
 
