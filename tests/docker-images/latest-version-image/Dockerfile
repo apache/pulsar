@@ -21,6 +21,7 @@
 
 FROM apachepulsar/pulsar:latest as pulsar-function-go
 
+# Use root for builder
 USER root
 
 RUN rm -rf /var/lib/apt/lists/* && apt-get update
@@ -54,6 +55,12 @@ FROM apachepulsar/pulsar-all:latest as pulsar-all
 ###### Main image build
 ########################################
 FROM apachepulsar/pulsar:latest
+
+# Switch to run as the root user to simplify building container and then running
+# supervisord. Each of the pulsar components are spawned by supervisord and their
+# process configuration files specify that the process will be run with UID 10000.
+# However, any processes exec'ing into the containers will run as root, by default.
+USER root
 
 RUN rm -rf /var/lib/apt/lists/* && apt update
 
