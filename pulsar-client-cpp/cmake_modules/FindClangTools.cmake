@@ -30,7 +30,7 @@
 #  CLANG_FORMAT_BIN, The path to the clang format binary
 #  CLANG_TIDY_FOUND, Whether clang format was found
 
-list(APPEND CLANG_SEARCH_PATHS ${ClangTools_PATH} $ENV{CLANG_TOOLS_PATH} /usr/local/bin /usr/bin)
+list(APPEND CLANG_SEARCH_PATHS ${ClangTools_PATH} $ENV{CLANG_TOOLS_PATH} /usr/local/bin /usr/bin /opt/homebrew/bin)
 if (WIN32)
        list(APPEND CLANG_SEARCH_PATHS "C:/Program Files/LLVM/bin" "C:/Program Files (x86)/LLVM/bin")
 endif()

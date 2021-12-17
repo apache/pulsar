@@ -16,33 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.docker;
-
-import static org.testng.Assert.assertTrue;
-import lombok.Data;
-
-/**
- * Represents the result of executing a command.
- */
-@Data(staticConstructor = "of")
-public class ContainerExecResult {
-
-    private final long exitCode;
-    private final String stdout;
-    private final String stderr;
-
-    public void assertNoOutput() {
-        assertNoStdout();
-        assertNoStderr();
-    }
-
-    public void assertNoStdout() {
-        assertTrue(stdout.isEmpty(),
-                "stdout should be empty, but was '" + stdout + "'");
-    }
-
-    public void assertNoStderr() {
-        assertTrue(stderr.isEmpty(),
-                "stderr should be empty, but was '" + stderr + "'");
-    }
-}
+package org.apache.pulsar.proxy.extensions;

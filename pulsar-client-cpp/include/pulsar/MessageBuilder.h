@@ -20,9 +20,11 @@
 #define MESSAGE_BUILDER_H
 
 #include <chrono>
+#include <string>
 #include <vector>
+
+#include <pulsar/Message.h>
 #include <pulsar/defines.h>
-#include "Message.h"
 
 namespace pulsar {
 class PulsarWrapper;
@@ -39,17 +41,24 @@ class PULSAR_PUBLIC MessageBuilder {
     Message build();
 
     /**
-     * Set content of the message. The message contents will be managed by the system.
+     * Set content of the message. The given data is copied into message.
      */
     MessageBuilder& setContent(const void* data, size_t size);
 
     /**
      * Set the content of the message
      *
-     * @param data the content of the message
+     * @param data the content of the message.
      * @see setContent(const void*, size_t)
      */
     MessageBuilder& setContent(const std::string& data);
+
+    /**
+     * Set the content of the message
+     *
+     * @param data the content of the message. The given data is moved into message.
+     */
+    MessageBuilder& setContent(std::string&& data);
 
     /**
      * Set content of the message to a buffer already allocated by the caller. No copies of
@@ -110,8 +119,8 @@ class PULSAR_PUBLIC MessageBuilder {
      * <li><code>sequenceId >= 0</code>
      * <li>Sequence id for a message needs to be greater than sequence id for earlier messages:
      * <code>sequenceId(N+1) > sequenceId(N)</code>
-     * <li>It's not necessary for sequence ids to be consecutive. There can be holes between messages. Eg. the
-     * <code>sequenceId</code> could represent an offset or a cumulative size.
+     * <li>It's not necessary for sequence ids to be consecutive. There can be holes between
+     * messages. Eg. the <code>sequenceId</code> could represent an offset or a cumulative size.
      * </ol>
      *
      * @param sequenceId
