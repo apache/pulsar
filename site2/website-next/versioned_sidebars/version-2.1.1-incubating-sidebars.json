@@ -101,6 +101,92 @@
           "id": "version-2.1.1-incubating/functions-metrics"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar IO",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/io-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/io-quickstart"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/io-managing"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/io-connectors"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/io-develop"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Deployment",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/deploy-aws"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/deploy-kubernetes"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/deploy-bare-metal"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/deploy-bare-metal-multi-cluster"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/deploy-dcos"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/deploy-monitoring"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Administration",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/administration-zk-bk"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/administration-geo"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/administration-dashboard"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/administration-stats"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/administration-load-distribution"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/administration-proxy"
+        }
+      ]
     }
   ]
 }
