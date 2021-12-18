@@ -147,13 +147,13 @@
 <h2><a class="anchor" aria-hidden="true" id="在-dcos-上运行简单的-pulsar-消费者和生产者"></a><a href="#在-dcos-上运行简单的-pulsar-消费者和生产者" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>在 DC/OS 上运行简单的 Pulsar 消费者和生产者</h2>
 <p>现在已经完全部署好了 Pulsar 集群，接下来就可以运行一个简单的消费者和生产者来展示 DC/OS 上 Pulsar 的运作。</p>
 <h3><a class="anchor" aria-hidden="true" id="下载并准备-pulsar-java-教程"></a><a href="#下载并准备-pulsar-java-教程" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>下载并准备 Pulsar Java 教程</h3>
-<p>可以使用 git clone 下载 <a href="https://github.com/streamlio/pulsar-java-tutorial">Pulsar Java tutorial</a> 仓库。 This repo contains a simple Pulsar consumer and producer (you can find more information in the <code>README</code> file in this repo).</p>
+<p>可以使用 git clone 下载 <a href="https://github.com/streamlio/pulsar-java-tutorial">Pulsar Java tutorial</a> 仓库。 该 repo 包含了简单的 Pulsar 消费者和生产者（在此 repo 的 <code>README</code> 文件中找到更多的信息）。</p>
 <pre><code class="hljs css language-bash">$ git <span class="hljs-built_in">clone</span> https://github.com/streamlio/pulsar-java-tutorial
 </code></pre>
-<p>Change the <code>SERVICE_URL</code> from <code>pulsar://localhost:6650</code> to <code>pulsar://a1.dcos:6650</code> in both <a href="https://github.com/streamlio/pulsar-java-tutorial/blob/master/src/main/java/tutorial/ConsumerTutorial.java"><code>ConsumerTutorial.java</code></a> file and <a href="https://github.com/streamlio/pulsar-java-tutorial/blob/master/src/main/java/tutorial/ProducerTutorial.java"><code>ProducerTutorial.java</code></a> file.</p>
-<p><code>pulsar://a1.dcos:6650</code> 端点用于 broker 服务。 通过从 DC/OS GUI 中获取每个 broker 实例的端点详细信息。 <code>a1.dcos</code> is a DC/OS client agent that runs a broker, and you can replace it with the client agent IP address.</p>
-<p>Now, you can change the message number from 10 to 10000000 in the main method in <a href="https://github.com/streamlio/pulsar-java-tutorial/blob/master/src/main/java/tutorial/ProducerTutorial.java"><code>ProducerTutorial.java</code></a> file to produce more messages.</p>
-<p>Then, you can compile the project code using the command below:</p>
+<p>将文件<a href="https://github.com/streamlio/pulsar-java-tutorial/blob/master/src/main/java/tutorial/ConsumerTutorial.java"><code>ConsumerTutorial.java</code></a>和文件<a href="https://github.com/streamlio/pulsar-java-tutorial/blob/master/src/main/java/tutorial/ProducerTutorial.java"><code>ProducerTutorial.java</code></a>的 <code>SERVICE_URL</code>从<code>pulsar://localhost:6650</code>修改为<code>pulsar://a1.dcos:6650</code>。</p>
+<p><code>pulsar://a1.dcos:6650</code> 端点用于 broker 服务。 通过从 DC/OS GUI 中获取每个 broker 实例的端点详细信息。 <code>a1.dcos</code> 是作为运行Broker的 DC/OS 客户端代理，您可以将其替换为客户端代理IP地址。</p>
+<p>现在，您可以在<a href="https://github.com/streamlio/pulsar-java-tutorial/blob/master/src/main/java/tutorial/ProducerTutorial.java"><code>ProducerTutorial.java</code></a>文件中的 main 方法中将消息编号从 10 更改为 10000000 以生成更多消息。</p>
+<p>然后，您可以使用下面的命令编译项目代码：</p>
 <pre><code class="hljs css language-bash">$ mvn clean package
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="运行消费者和生产者"></a><a href="#运行消费者和生产者" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>运行消费者和生产者</h3>
@@ -163,18 +163,18 @@
 <p>运行此命令来运行生产者：</p>
 <pre><code class="hljs css language-bash">$ mvn <span class="hljs-built_in">exec</span>:java -Dexec.mainClass=<span class="hljs-string">"tutorial.ProducerTutorial"</span>
 </code></pre>
-<p>You see that the producer is producing messages and the consumer is consuming messages through the DC/OS GUI.</p>
+<p>您可以通过 DC/OS GUI 来查看生产者生产消息和消费者消费消息。</p>
 <p><img src="/docs/assets/dcos_producer.png" alt="DC/OS pulsar producer"></p>
 <p><img src="/docs/assets/dcos_consumer.png" alt="DC/OS pulsar consumer"></p>
 <h3><a class="anchor" aria-hidden="true" id="查看-grafana-metric-输出"></a><a href="#查看-grafana-metric-输出" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>查看 Grafana metric 输出</h3>
-<p>While the producer and consumer are running, you can access the running metrics from Grafana.</p>
+<p>当生产者和消费者运行时，可以从 Grafana 中访问运行 metrics 信息。</p>
 <p><img src="/docs/assets/dcos_metrics.png" alt="DC/OS pulsar dashboard"></p>
 <h2><a class="anchor" aria-hidden="true" id="卸载-pulsar"></a><a href="#卸载-pulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>卸载 Pulsar</h2>
-<p>You can shut down and uninstall the <code>pulsar</code> application from DC/OS at any time in one of the following two ways:</p>
+<p>通过以下两种方式可以随时从 DC/OS 停止和卸载 <code>pulsar</code> 应用程序。</p>
 <ol>
-<li><p>Click the three dots at the right end of Pulsar group and choose <strong>Delete</strong> on the DC/OS GUI.</p>
+<li><p>点击Pulsar组右端的三点并选择在 DC/OS GUI 上 <strong>删除</strong>。</p>
 <p><img src="/docs/assets/dcos_uninstall.png" alt="DC/OS pulsar uninstall"></p></li>
-<li><p>Use the command below.</p>
+<li><p>运行下面的命令：</p>
 <pre><code class="hljs css language-bash">$ dcos marathon group remove /pulsar
 </code></pre></li>
 </ol>
