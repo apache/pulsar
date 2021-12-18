@@ -254,7 +254,8 @@ public class Consumer {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}-{}] Added {}:{} ledger entry with batchSize of {} to pendingAcks in"
                                         + " broker.service.Consumer for consumerId: {}",
-                                topicName, subscription, entry.getLedgerId(), entry.getEntryId(), batchSize, consumerId);
+                                topicName, subscription, entry.getLedgerId(), entry.getEntryId(), batchSize,
+                                consumerId);
                     }
                 }
             }
