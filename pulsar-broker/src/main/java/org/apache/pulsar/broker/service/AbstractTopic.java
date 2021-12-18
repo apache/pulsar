@@ -667,7 +667,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             if (topicPublishRateLimiter.resetPublishCount()){
                 enableProducerReadForPublishRateLimiting();
                 // Collect broker publish rate exceeded time.
-                if(lastPublishRateExceededNano != 0) {
+                if (lastPublishRateExceededNano != 0) {
                     PUBLISH_RATE_EXCEEDED_LATENCY.observe(System.nanoTime() - lastPublishRateExceededNano,
                             TimeUnit.NANOSECONDS);
                 }
