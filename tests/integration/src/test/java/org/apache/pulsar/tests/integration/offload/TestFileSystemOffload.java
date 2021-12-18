@@ -52,6 +52,8 @@ public class TestFileSystemOffload extends TestBaseOffload {
         result.put("managedLedgerMinLedgerRolloverTimeMinutes", "0");
         result.put("managedLedgerOffloadDriver", "filesystem");
         result.put("fileSystemURI", "file:///");
+        // Must write to a writable directory in our test docker image.
+        result.put("hadoop.tmp.dir", "/pulsar/data");
 
         return result;
     }
