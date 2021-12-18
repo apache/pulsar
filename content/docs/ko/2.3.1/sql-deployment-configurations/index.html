@@ -159,9 +159,7 @@ Options:
 
 </code></pre>
 <p>Also, modify <code>pulsar.broker-service-url</code> and <code>pulsar.zookeeper-uri</code> configs in <code>${project.root}/conf/presto/catalog/pulsar.properties</code> accordingly</p>
-<p>You can also start the worker by just running:</p>
-<pre><code class="hljs">$ ./bin/pulsar sql-worker run
-</code></pre>
+<p>You can also start the worker by just running: <code>$ ./bin/pulsar sql-worker run</code></p>
 <p>You can check the status of your cluster from the SQL CLI. To start the SQL CLI:</p>
 <pre><code class="hljs css language-bash">$ ./bin/pulsar sql --server &lt;coordinate_url&gt;
 

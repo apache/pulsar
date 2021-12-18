@@ -159,9 +159,7 @@ Options:
 
 </code></pre>
 <p>另外，修改 <code>pulsar.broker-service-url</code> and <code>pulsar.zookeeper-uri</code> 配置在 <code>${project.root}/conf/presto/catalog/pulsar.properties</code> 于是</p>
-<p>您也可以通过运行下面的命令来启动worker：</p>
-<pre><code class="hljs">$ ./bin/pulsar sql-worker run
-</code></pre>
+<p>您也可以通过运行下面的命令来启动worker： <code>$ ./bin/pulsar sql-worker run</code></p>
 <p>你可以用SQL CLI检查集群状态。启动SQL CLI：</p>
 <pre><code class="hljs css language-bash">$ ./bin/pulsar sql --server &lt;coordinate_url&gt;
 

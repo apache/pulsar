@@ -155,7 +155,7 @@ extends <a href="../../../../../../org/apache/pulsar/client/api/transaction/Tran
 <!--   -->
 </a>
 <h3>Nested classes/interfaces inherited from class&nbsp;org.apache.pulsar.client.api.transaction.<a href="../../../../../../org/apache/pulsar/client/api/transaction/TransactionCoordinatorClientException.html" title="class in org.apache.pulsar.client.api.transaction">TransactionCoordinatorClientException</a></h3>
-<code><a href="../../../../../../org/apache/pulsar/client/api/transaction/TransactionCoordinatorClientException.CoordinatorClientStateException.html" title="class in org.apache.pulsar.client.api.transaction">TransactionCoordinatorClientException.CoordinatorClientStateException</a>, <a href="../../../../../../org/apache/pulsar/client/api/transaction/TransactionCoordinatorClientException.CoordinatorNotFoundException.html" title="class in org.apache.pulsar.client.api.transaction">TransactionCoordinatorClientException.CoordinatorNotFoundException</a>, <a href="../../../../../../org/apache/pulsar/client/api/transaction/TransactionCoordinatorClientException.InvalidTxnStatusException.html" title="class in org.apache.pulsar.client.api.transaction">TransactionCoordinatorClientException.InvalidTxnStatusException</a>, <a href="../../../../../../org/apache/pulsar/client/api/transaction/TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException.html" title="class in org.apache.pulsar.client.api.transaction">TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException</a>, <a href="../../../../../../org/apache/pulsar/client/api/transaction/TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException.html" title="class in org.apache.pulsar.client.api.transaction">TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException</a>, <a href="../../../../../../org/apache/pulsar/client/api/transaction/TransactionCoordinatorClientException.TransactionNotFoundException.html" title="class in org.apache.pulsar.client.api.transaction">TransactionCoordinatorClientException.TransactionNotFoundException</a></code></li>
+<code><a href="../../../../../../org/apache/pulsar/client/api/transaction/TransactionCoordinatorClientException.CoordinatorClientStateException.html" title="class in org.apache.pulsar.client.api.transaction">TransactionCoordinatorClientException.CoordinatorClientStateException</a>, <a href="../../../../../../org/apache/pulsar/client/api/transaction/TransactionCoordinatorClientException.CoordinatorNotFoundException.html" title="class in org.apache.pulsar.client.api.transaction">TransactionCoordinatorClientException.CoordinatorNotFoundException</a>, <a href="../../../../../../org/apache/pulsar/client/api/transaction/TransactionCoordinatorClientException.InvalidTxnStatusException.html" title="class in org.apache.pulsar.client.api.transaction">TransactionCoordinatorClientException.InvalidTxnStatusException</a>, <a href="../../../../../../org/apache/pulsar/client/api/transaction/TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException.html" title="class in org.apache.pulsar.client.api.transaction">TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException</a>, <a href="../../../../../../org/apache/pulsar/client/api/transaction/TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException.html" title="class in org.apache.pulsar.client.api.transaction">TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException</a>, <a href="../../../../../../org/apache/pulsar/client/api/transaction/TransactionCoordinatorClientException.TransactionNotFoundException.html" title="class in org.apache.pulsar.client.api.transaction">TransactionCoordinatorClientException.TransactionNotFoundException</a>, <a href="../../../../../../org/apache/pulsar/client/api/transaction/TransactionCoordinatorClientException.TransactionTimeotException.html" title="class in org.apache.pulsar.client.api.transaction">TransactionCoordinatorClientException.TransactionTimeotException</a></code></li>
 </ul>
 </li>
 </ul>
@@ -172,6 +172,11 @@ extends <a href="../../../../../../org/apache/pulsar/client/api/transaction/Tran
 </tr>
 <tr class="altColor">
 <td class="colOne"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/api/transaction/TransactionCoordinatorClientException.InvalidTxnStatusException.html#InvalidTxnStatusException-java.lang.String-">InvalidTxnStatusException</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;message)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colOne"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/api/transaction/TransactionCoordinatorClientException.InvalidTxnStatusException.html#InvalidTxnStatusException-java.lang.String-java.lang.String-java.lang.String-">InvalidTxnStatusException</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;txnId,
+                         <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;actualState,
+                         <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;expectState)</code>&nbsp;</td>
 </tr>
 </table>
 </li>
@@ -220,10 +225,21 @@ extends <a href="../../../../../../org/apache/pulsar/client/api/transaction/Tran
 <a name="InvalidTxnStatusException-java.lang.String-">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>InvalidTxnStatusException</h4>
 <pre>public&nbsp;InvalidTxnStatusException(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;message)</pre>
+</li>
+</ul>
+<a name="InvalidTxnStatusException-java.lang.String-java.lang.String-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>InvalidTxnStatusException</h4>
+<pre>public&nbsp;InvalidTxnStatusException(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;txnId,
+                                 <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;actualState,
+                                 <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;expectState)</pre>
 </li>
 </ul>
 </li>
