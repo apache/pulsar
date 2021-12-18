@@ -214,6 +214,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         assertEquals(tenantAdmin.namespaces().getPublishRate(namespace), publishRate);
         tenantAdmin.namespaces().removePublishRate(namespace);
         assertNull(tenantAdmin.namespaces().getPublishRate(namespace));
+        assertNull(superAdmin.namespaces().getBookieAffinityGroup(namespace));
 
         // test for `topic-dispatch-rate`
         DispatchRate dispatchRate = DispatchRate.builder()
