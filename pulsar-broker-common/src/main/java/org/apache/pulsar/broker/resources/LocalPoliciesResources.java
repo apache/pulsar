@@ -29,6 +29,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.CacheGetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.zookeeper.KeeperException;
 
 public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
 
@@ -84,7 +85,17 @@ public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
 
     public CompletableFuture<Void> deleteLocalPoliciesTenantAsync(String tenant) {
         final String localPoliciesPath = joinPath(LOCAL_POLICIES_ROOT, tenant);
-        return deleteIgnoreNotFoundAsync(localPoliciesPath);
+        CompletableFuture<Void> future = new CompletableFuture<Void>();
+        deleteAsync(localPoliciesPath).whenComplete((ignore, ex) -> {
+            if (ex != null && ex.getCause().getCause() instanceof KeeperException) {
+                future.complete(null);
+            } else if (ex != null) {
+                future.completeExceptionally(ex);
+            } else {
+                future.complete(null);
+            }
+        });
+        return future;
     }
 
     public static boolean isLocalPoliciesPath(String path) {
