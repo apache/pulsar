@@ -39,6 +39,7 @@ COPY scripts/install-pulsar-client.sh /pulsar/bin
 RUN chmod -R g+w /pulsar/conf
 RUN mkdir /pulsar/data && chmod -R g+w /pulsar/data
 RUN mkdir /pulsar/logs && chmod -R g+w /pulsar/logs
+RUN mkdir /pulsar/download && chmod -R g+w /pulsar/download
 
 ### Create 2nd stage from Ubuntu image
 ### and add OpenJDK and Python dependencies (for Pulsar functions)
