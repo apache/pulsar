@@ -258,7 +258,7 @@
 
 ### Pulsar Admin
 - Print topic internal info as formatted json [#12709](https://github.com/apache/pulsar/pull/12709)
-- PulsarAdmin: Fix last exit code storage [#12581](https://github.com/apache/pulsar/pull/12581)
+- Fix last exit code storage [#12581](https://github.com/apache/pulsar/pull/12581)
 - Failed update partition of topic [#11683](https://github.com/apache/pulsar/pull/11683)
 - Perfect judgment conditions of pulsar-admin [#12315](https://github.com/apache/pulsar/pull/12315)
 - Fix log level config for pulsar-admin, pulsar-client and pulsar-perf [#12915](https://github.com/apache/pulsar/pull/12915)
