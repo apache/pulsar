@@ -37,6 +37,9 @@ COPY scripts/install-pulsar-client.sh /pulsar/bin
 # the final image needs to give the root group sufficient permission.
 # The file permissions are preserved when copying files from this builder image to the target image.
 RUN chmod -R g+w /pulsar/conf
+# Presto writes logs to this directory (at least during tests), so we need to give the process permission
+# to create those log directories. This should be removed when presto is removed.
+RUN chmod g+w /pulsar/lib/presto
 
 ### Create 2nd stage from Ubuntu image
 ### and add OpenJDK and Python dependencies (for Pulsar functions)
