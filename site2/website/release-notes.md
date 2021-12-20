@@ -256,7 +256,7 @@
 - ConcurrentHashMap should be used for caching producers [#11820](https://github.com/apache/pulsar/pull/11820)
 - Support KEY_BASED batch builder for Java based functions and sources [#11706](https://github.com/apache/pulsar/pull/11706)
 
-### Pulsar-Admin
+### Pulsar Admin
 - Print topic internal info as formatted json [#12709](https://github.com/apache/pulsar/pull/12709)
 - PulsarAdmin: Fix last exit code storage [#12581](https://github.com/apache/pulsar/pull/12581)
 - Failed update partition of topic [#11683](https://github.com/apache/pulsar/pull/11683)
