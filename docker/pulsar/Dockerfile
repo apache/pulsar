@@ -37,9 +37,6 @@ COPY scripts/install-pulsar-client.sh /pulsar/bin
 # the final image needs to give the root group sufficient permission.
 # The file permissions are preserved when copying files from this builder image to the target image.
 RUN chmod -R g+w /pulsar/conf
-RUN mkdir /pulsar/data && chmod -R g+w /pulsar/data
-RUN mkdir /pulsar/logs && chmod -R g+w /pulsar/logs
-RUN mkdir /pulsar/download && chmod -R g+w /pulsar/download
 
 ### Create 2nd stage from Ubuntu image
 ### and add OpenJDK and Python dependencies (for Pulsar functions)
@@ -62,6 +59,14 @@ RUN sed -i "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://mirr
      && rm -rf /var/lib/apt/lists/*
 
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 10
+
+# Pulsar currently writes to the below directories, assuming the default configuration.
+# Note that number 4 is the reason that pulsar components need write access to the /pulsar directory.
+# 1. /pulsar/data - both bookkeepers and zookeepers use this directory
+# 2. /pulsar/logs - function workers write to this directory and pulsar-admin initializes this directory
+# 3. /pulsar/download - functions write to this directory
+# 4. /pulsar - hadoop writes to this directory
+RUN mkdir /pulsar && chmod g+w /pulsar
 
 ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64
 RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/java-11-openjdk-amd64/conf/security/java.security
