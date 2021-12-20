@@ -210,7 +210,7 @@
 - Fix NPE ZkBookieRackAffinityMapping [#11947](https://github.com/apache/pulsar/pull/11947)
 - Avoid to infinitely split bundle [#11937](https://github.com/apache/pulsar/pull/11937)
 - Improved logic for pausing replicated subscription snapshots when no traffic [#11922](https://github.com/apache/pulsar/pull/11922)
-- Fixed ZKSessionTest.testReacquireLocksAfterSessionLost [#11886](https://github.com/apache/pulsar/pull/11886)
+- Fix ZKSessionTest.testReacquireLocksAfterSessionLost [#11886](https://github.com/apache/pulsar/pull/11886)
 - Schema compatibility strategy in broker level. [#11856](https://github.com/apache/pulsar/pull/11856)
 - Use TestRetrySupport for BaseMetadataStoreTests to cleanup state between retries [#11771](https://github.com/apache/pulsar/pull/11771)
 - Remove replace_maven-wagon-http-version.sh script [#11718](https://github.com/apache/pulsar/pull/11718)
@@ -228,7 +228,7 @@
 - Fix libcurl miss auth header when broker return 307 [#13112](https://github.com/apache/pulsar/pull/13112)
 - Define and expose PULSAR_VERSION macro [#12769](https://github.com/apache/pulsar/pull/12769)
 - Fix request timeout for GetLastMessageId doesn't work [#12586](https://github.com/apache/pulsar/pull/12586)
-- Fixed connection read error logging [#12492](https://github.com/apache/pulsar/pull/12492)
+- Fix connection read error logging [#12492](https://github.com/apache/pulsar/pull/12492)
 - Delay ClientCredentialFlow::initialize to the first authenticate call [#12372](https://github.com/apache/pulsar/pull/12372)
 - Use URL encoded content type for OAuth 2.0 authentication [#12341](https://github.com/apache/pulsar/pull/12341)
 - Handle OAuth 2.0 exceptional cases gracefully [#12335](https://github.com/apache/pulsar/pull/12335)
@@ -247,7 +247,7 @@
 - Enable protobuf-native schema support for function [#11868](https://github.com/apache/pulsar/pull/11868)
 - Pass `SubscriptionPosition` from `FunctionDetails` to `FunctionConfig` / `SinkConfig` [#11831](https://github.com/apache/pulsar/pull/11831)
 - Reorganize the context hierarchy for functions [#10631](https://github.com/apache/pulsar/pull/10631)
-- Remove the deprecated api usage in hdfs [#12080](https://github.com/apache/pulsar/pull/12080)
+- Remove the deprecated API usage in HDFS [#12080](https://github.com/apache/pulsar/pull/12080)
 - Stop OffsetStore when stopping the connector [#12457](https://github.com/apache/pulsar/pull/12457)
 - Support set subscription position [#11990](https://github.com/apache/pulsar/pull/11990)
 - Sync to the latest function proto [#11853](https://github.com/apache/pulsar/pull/11853)
@@ -257,7 +257,7 @@
 - Support KEY_BASED batch builder for Java based functions and sources [#11706](https://github.com/apache/pulsar/pull/11706)
 
 ### Pulsar Admin
-- Print topic internal info as formatted json [#12709](https://github.com/apache/pulsar/pull/12709)
+- Print topic internal info as formatted JSON [#12709](https://github.com/apache/pulsar/pull/12709)
 - Fix last exit code storage [#12581](https://github.com/apache/pulsar/pull/12581)
 - Fix the issue of failing to update partitions of topics [#11683](https://github.com/apache/pulsar/pull/11683)
 - Perfect judgment conditions of pulsar-admin [#12315](https://github.com/apache/pulsar/pull/12315)
@@ -340,11 +340,11 @@
 
 ### Proxy
 - Reduced severity of log "refreshing key manager" in KeyManagerProxy [#12594](https://github.com/apache/pulsar/pull/12594)
-- Set default http proxy request timeout [#11971](https://github.com/apache/pulsar/pull/11971)
+- Set default HTTP proxy request timeout [#11971](https://github.com/apache/pulsar/pull/11971)
 - Set default httpProxyTimeout to 5 minutes [#12299](https://github.com/apache/pulsar/pull/12299)
 - Fix Pulsar Proxy to re-use authentication instance [#12245](https://github.com/apache/pulsar/pull/12245)
-- Fixed NPE in ProxyConnection with no auth data [#12111](https://github.com/apache/pulsar/pull/12111)
-- Fixed ProxyConnection to check for existence of auth_data field [#12057](https://github.com/apache/pulsar/pull/12057)
+- Fix NPE in ProxyConnection with no auth data [#12111](https://github.com/apache/pulsar/pull/12111)
+- Fix ProxyConnection to check for existence of auth_data field [#12057](https://github.com/apache/pulsar/pull/12057)
 
 ### 2.8.1
 #### 2021-09-10
