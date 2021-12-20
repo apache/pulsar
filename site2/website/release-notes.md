@@ -116,7 +116,7 @@
 ### Broker
 - Fix and improve topic ownership assignment [#13069](https://github.com/apache/pulsar/pull/13069)
 - Fix LeaderElectionService.getCurrentLeader and add support for empheralOwner in MockZooKeeper [#13066](https://github.com/apache/pulsar/pull/13066)
-- Do not reuse the Failed OpAddEntry object which lead bundle unloading timeout. [#12993](https://github.com/apache/pulsar/pull/12993)
+- Do not reuse the Failed OpAddEntry object which leads to the bundle unloading timeout. [#12993](https://github.com/apache/pulsar/pull/12993)
 - Remove readerCaches and close reader when exception occurs in SystemTopicBasedTopicPoliciesService [#12873](https://github.com/apache/pulsar/pull/12873)
 - Fix TopicPoliciesCacheNotInitException issue. [#12773](https://github.com/apache/pulsar/pull/12773)
 - Support UNSUBSCRIBE namespace op after enable auth [#12742](https://github.com/apache/pulsar/pull/12742)
