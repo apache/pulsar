@@ -166,7 +166,7 @@
 - Evaluate the current protocol version once [#13045](https://github.com/apache/pulsar/pull/13045)
 - Revert "Set default root log level to debug" and make PULSAR_LOG_ROOT_LEVEL default to PULSAR_LOG_LEVEL [#12941](https://github.com/apache/pulsar/pull/12941)
 - Catch exceptions in scheduled tasks to prevent unintended cancellation [#12853](https://github.com/apache/pulsar/pull/12853)
-- Fix producer getting incorrectly removed from topic's produc… [#12846](https://github.com/apache/pulsar/pull/12846)
+- Fix producer getting incorrectly removed from topic's `producers` map [#12846](https://github.com/apache/pulsar/pull/12846)
 - Synchronize updates to the inactiveProducers map in MessageD… [#12820](https://github.com/apache/pulsar/pull/12820)
 - Close connection after receiving unexpected SendCommand [#12780](https://github.com/apache/pulsar/pull/12780)
 - Fix namespace policy override ignored when creating subscription [#12699](https://github.com/apache/pulsar/pull/12699)
