@@ -89,6 +89,13 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
                 .subscribe();
 
         @Cleanup
+        Consumer<String> keySharedConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("key-shared-sub")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
                 .create();
@@ -102,13 +109,18 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
 
         producer.flush();
 
-        // Failover consumer will receive the messages immediately while
+        // Failover and Key_Shared consumer will receive the messages immediately while
         // the shared consumer will get them after the delay
         Message<String> msg = sharedConsumer.receive(100, TimeUnit.MILLISECONDS);
         assertNull(msg);
 
         for (int i = 0; i < 10; i++) {
             msg = failoverConsumer.receive(100, TimeUnit.MILLISECONDS);
+            assertEquals(msg.getValue(), "msg-" + i);
+        }
+
+        for (int i = 0; i < 10; i++) {
+            msg = keySharedConsumer.receive(100, TimeUnit.MILLISECONDS);
             assertEquals(msg.getValue(), "msg-" + i);
         }
 
