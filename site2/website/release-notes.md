@@ -330,7 +330,7 @@
 
 ### Unit Test
 - Broker resource group test optimize fail msg [#12438](https://github.com/apache/pulsar/pull/12438)
-- Fix windows test path probleam [#12398](https://github.com/apache/pulsar/pull/12398)
+- Fix windows test path problem [#12398](https://github.com/apache/pulsar/pull/12398)
 - Make AuthenticationTokenTest to run on windows [#12329](https://github.com/apache/pulsar/pull/12329)
 - Use correct line separator instead of \n [#12143](https://github.com/apache/pulsar/pull/12143)
 
