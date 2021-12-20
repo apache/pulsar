@@ -151,7 +151,7 @@
 - Future completed twice in the method of  impl.MLPendingAckStore#closeAsync [#12362](https://github.com/apache/pulsar/pull/12362)
 - Fix the race of delete subscription and delete topic [#12240](https://github.com/apache/pulsar/pull/12240)
 - Disable stats recorder for built-in PulsarClient [#12217](https://github.com/apache/pulsar/pull/12217)
-- Fix delete authentication policies when delete topic. [#12215](https://github.com/apache/pulsar/pull/12215)
+- Fix delete authentication policies when deleting topics. [#12215](https://github.com/apache/pulsar/pull/12215)
 - Optimize the memory usage of Cache Eviction [#12045](https://github.com/apache/pulsar/pull/12045)
 - Avoid adding duplicated BrokerEntryMetadata [#12018](https://github.com/apache/pulsar/pull/12018)
 - Fix update ledger list to znode version mismatch failed, ledger not delete [#12015](https://github.com/apache/pulsar/pull/12015)
