@@ -19,7 +19,6 @@
 package org.apache.pulsar.testclient;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-import static org.apache.pulsar.testclient.utils.PerformanceUtils.buildTransaction;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
@@ -283,7 +282,7 @@ public class PerformanceTransaction {
         ExecutorService executorService = new ThreadPoolExecutor(arguments.numTestThreads,
                 arguments.numTestThreads,
                 0L, TimeUnit.MILLISECONDS,
-                new LinkedBlockingQueue<Runnable>());
+                new LinkedBlockingQueue<>());
 
 
         long startTime = System.nanoTime();
@@ -310,16 +309,23 @@ public class PerformanceTransaction {
                     //A thread may perform tasks of multiple transactions in a traversing manner.
                     List<Producer<byte[]>> producers = null;
                     List<List<Consumer<byte[]>>> consumers = null;
+                    AtomicReference<Transaction> atomicReference = null;
                     try {
                         producers = buildProducers(client, arguments);
                         consumers = buildConsumer(client, arguments);
+                        if (!arguments.isDisableTransaction) {
+                            atomicReference = new AtomicReference<>(client.newTransaction()
+                                    .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS)
+                                    .build()
+                                    .get());
+                        } else {
+                            atomicReference = new AtomicReference<>(null);
+                        }
                     } catch (Exception e) {
                         log.error("Failed to build Producer/Consumer with exception : ", e);
                         executorService.shutdownNow();
                         PerfClientUtils.exit(-1);
                     }
-                    AtomicReference<Transaction> atomicReference = buildTransaction(client,
-                            !arguments.isDisableTransaction, arguments.transactionTimeout);
                     //The while loop has no break, and finally ends the execution through the shutdownNow of
                     //the executorService
                     while (true) {
@@ -350,7 +356,7 @@ public class PerformanceTransaction {
                         for (List<Consumer<byte[]>> subscriptions : consumers) {
                                 for (Consumer<byte[]> consumer : subscriptions) {
                                     for (int j = 0; j < arguments.numMessagesReceivedPerTransaction; j++) {
-                                        Message message = null;
+                                        Message<byte[]> message = null;
                                         try {
                                             message = consumer.receive();
                                         } catch (PulsarClientException e) {
@@ -689,9 +695,7 @@ public class PerformanceTransaction {
                 .sendTimeout(0, TimeUnit.SECONDS);
 
         final List<Future<Producer<byte[]>>> producerFutures = Lists.newArrayList();
-        Iterator<String> produceTopicsIterator = arguments.producerTopic.iterator();
-        while(produceTopicsIterator.hasNext()){
-            String topic = produceTopicsIterator.next();
+        for (String topic : arguments.producerTopic) {
             log.info("Create producer for topic {}", topic);
             producerFutures.add(producerBuilder.clone().topic(topic).createAsync());
         }
