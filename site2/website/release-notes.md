@@ -198,7 +198,7 @@
 - Allow to config pulsar client allocator out of memory policy [#12200](https://github.com/apache/pulsar/pull/12200)
 - Remove redundant parameters [#12188](https://github.com/apache/pulsar/pull/12188)
 - Fix incorrect logger numbers in tests [#12168](https://github.com/apache/pulsar/pull/12168)
-- Return the last position of the compacted data while the original data been deleted [#12161](https://github.com/apache/pulsar/pull/12161)
+- Return the last position of the compacted data while the original data has been deleted [#12161](https://github.com/apache/pulsar/pull/12161)
 - Improve exceptions thrown when handling the schema resource [#12155](https://github.com/apache/pulsar/pull/12155)
 - Fix prefix setting in JWT authn and avoid multi calls for the getProperty [#12132](https://github.com/apache/pulsar/pull/12132)
 - Fixed used after recycle issue in OpAddEntry [#12103](https://github.com/apache/pulsar/pull/12103)
