@@ -280,7 +280,7 @@ We welcome contributions from the open source community, kindly make sure your c
 
 ### Install `clang-format` on macOS
 
-Since the homebrew-core doesn't have `clang-format@5`, here is a tap to install `clang-format@5` in your macOS.
+`homebrew-core` does not have `clang-format@5`. You can install `clang-format@5` on your macOS using the tap below.
 ```shell
 # Step 1: Add tap
 brew tap demogorgon314/clang-format
