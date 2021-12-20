@@ -193,7 +193,7 @@
 - Fix TTL expiry does not take effect [#12266](https://github.com/apache/pulsar/pull/12266)
 - The loadbalancer should avoid offload the heartbeat namespace [#12252](https://github.com/apache/pulsar/pull/12252)
 - Fix typo of the returned last message ID when the last message ID is from compacted ledger [#12237](https://github.com/apache/pulsar/pull/12237)
-- Add support for splitting topic and partition label in Prometheus [#12225](https://github.com/apache/pulsar/pull/12225)
+- Add support for splitting topics and partition labels in Prometheus [#12225](https://github.com/apache/pulsar/pull/12225)
 - Fix lost message issues 12221 [#12223](https://github.com/apache/pulsar/pull/12223)
 - Allow to config pulsar client allocator out of memory policy [#12200](https://github.com/apache/pulsar/pull/12200)
 - Remove redundant parameters [#12188](https://github.com/apache/pulsar/pull/12188)
