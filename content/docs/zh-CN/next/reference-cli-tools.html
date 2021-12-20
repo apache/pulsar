@@ -88,7 +88,7 @@
 <blockquote>
 <p><strong>重要</strong></p>
 <ul>
-<li>This page only shows <strong>some frequently used commands</strong>. For the latest information about <code>pulsar</code>, <code>pulsar-client</code>, and <code>pulsar-perf</code>, including commands, flags, descriptions, and more information, see <a href="https://pulsar.apache.org/tools/">Pulsar tools</a>.</li>
+<li>本页只展示一些常用的命令。 有关 pulsar、pulsar-client 和 pulsar-perf 的最新信息，包括命令、标志、描述和更多信息，请参阅 Pulsar 工具。</li>
 <li>你可以使用 <code>--help</code> 或 <code>-h</code> 参数来获取任意命令行工具的帮助文档。如下列示例：</li>
 </ul>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar broker --<span class="hljs-built_in">help</span></span>
@@ -100,7 +100,7 @@
 <p>用法：</p>
 <pre><code class="hljs css language-bash">$ pulsar <span class="hljs-built_in">command</span>
 </code></pre>
-<p>Commands: * <code>bookie</code> * <code>broker</code> * <code>compact-topic</code> * <code>configuration-store</code> * <code>initialize-cluster-metadata</code> * <code>proxy</code> * <code>standalone</code> * <code>websocket</code> * <code>zookeeper</code> * <code>zookeeper-shell</code> * <code>autorecovery</code></p>
+<p>命令： * <code>bookie</code> * <code>broker</code> * <code>compact-topic</code> * <code>configuration-store</code> * <code>initialize-cluster-metadata</code> * <code>proxy</code> * <code>standalone</code> * <code>websocket</code> * <code>zookeeper</code> * <code>zookeeper-shell</code> * <code>autorecovery</code></p>
 <p>例子：</p>
 <pre><code class="hljs css language-bash">$ PULSAR_BROKER_CONF=/path/to/broker.conf pulsar broker
 </code></pre>
@@ -121,7 +121,7 @@
 <tr><td><code>PULSAR_EXTRA_CLASSPATH</code></td><td>Pulsar classpath 的额外路径</td><td></td></tr>
 <tr><td><code>PULSAR_PID_DIR</code></td><td>存储 Pulsar 服务器 PID 文件的文件夹</td><td></td></tr>
 <tr><td><code>PULSAR_STOP_TIMEOUT</code></td><td>如果停止 Bookie 服务器失败，在强制杀死 Bookie 服务器实例之前的等待时间。</td><td></td></tr>
-<tr><td><code>PULSAR_GC_LOG</code></td><td>Gc options to be passed to the jvm</td><td></td></tr>
+<tr><td><code>PULSAR_GC_LOG</code></td><td>传递给 jvm 的 Gc 选项</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="bookie"></a><a href="#bookie" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>bookie</code></h3>
@@ -288,8 +288,9 @@
 <tr><td><code>-server</code></td><td>配置 zk 地址，比如 <code>127.0.0.1:2181</code></td><td></td></tr>
 </tbody>
 </table>
-<h3><a class="anchor" aria-hidden="true" id="autorecovery"></a><a href="#autorecovery" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>autorecovery</code></h3>
-<p>Runs an auto-recovery service.</p>
+<h3><a class="anchor" aria-hidden="true" id="自动恢复"></a><a href="#自动恢复" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>`自动恢复</h3>
+<p>`</p>
+<p>运行自动恢复服务</p>
 <p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar autorecovery options
 </code></pre>
@@ -299,7 +300,7 @@
 <tr><th>参数</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-c</code>, <code>--conf</code></td><td>Configuration for the autorecovery</td><td>N/A</td></tr>
+<tr><td><code>-c</code>, <code>--conf</code></td><td>自动恢复配置</td><td>N/A</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="pulsar-client"></a><a href="#pulsar-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>pulsar-client</code></h2>
@@ -339,11 +340,11 @@
 <tr><td><code>-m</code>, <code>--messages</code></td><td>将要发送的消息字符串，以逗号分隔；必须指定 -m 或 -f</td><td>[]</td></tr>
 <tr><td><code>-n</code>, <code>--num-produce</code></td><td>发送单条或多条消息的次数；消息/文件 * 生产次数 应小于 1000</td><td>1</td></tr>
 <tr><td><code>-r</code>, <code>--rate</code></td><td>生产消息的频率（单位是消息/秒），值为 0 表示尽可能快地生产消息</td><td>0.0</td></tr>
-<tr><td><code>-db</code>, <code>--disable-batching</code></td><td>Disable batch sending of messages</td><td>false</td></tr>
+<tr><td><code>-db</code>, <code>--disable-batching</code></td><td>禁用批量发送消息</td><td>false</td></tr>
 <tr><td><code>-c</code>, <code>--chunking</code></td><td>如果消息超过允许的最大大小，则将消息分割并分块发布。</td><td>false</td></tr>
 <tr><td><code>-s</code>, <code>--separator</code></td><td>用于分割消息字符的字符串。</td><td>&quot;,&quot;</td></tr>
 <tr><td><code>-k</code>, <code>--key</code></td><td>要添加的消息键（Message Key）</td><td>key=value string, like k1=v1,k2=v2.</td></tr>
-<tr><td><code>-p</code>, <code>--properties</code></td><td>Properties to add. If you want to add multiple properties, use the comma as the separator, e.g. <code>k1=v1,k2=v2</code>.</td><td></td></tr>
+<tr><td><code>-p</code>, <code>--properties</code></td><td>添加属性。 如果要添加多个属性，使用逗号作为分隔符，例如k1=v1,k2=v2</td><td></td></tr>
 <tr><td><code>-ekn</code>, <code>--encryption-key-name</code></td><td>The public key name to encrypt payload.</td><td></td></tr>
 <tr><td><code>-ekv</code>, <code>--encryption-key-value</code></td><td>The URI of public key to encrypt payload. For example, <code>file:///path/to/public.key</code> or <code>data:application/x-pem-file;base64,*****</code>.</td><td></td></tr>
 </tbody>
@@ -423,7 +424,7 @@
 <tr><td><code>PULSAR_CLIENT_CONF</code></td><td>客户端的配置文件</td><td>conf/client.conf</td></tr>
 <tr><td><code>PULSAR_EXTRA_OPTS</code></td><td>传递给 JVM 的额外选项</td><td></td></tr>
 <tr><td><code>PULSAR_EXTRA_CLASSPATH</code></td><td>Pulsar classpath 的额外路径</td><td></td></tr>
-<tr><td><code>PULSAR_GC_LOG</code></td><td>Gc options to be passed to the jvm</td><td></td></tr>
+<tr><td><code>PULSAR_GC_LOG</code></td><td>传递给 jvm 的 Gc 选项</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="consume-1"></a><a href="#consume-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>consume</code></h3>
@@ -686,10 +687,11 @@
 <tr><td>ENTRY_FORMATTER_CLASS</td><td>The Java class used to format entries</td><td></td></tr>
 <tr><td>BOOKIE_PID_DIR</td><td>Folder where the BookKeeper server PID file should be stored</td><td></td></tr>
 <tr><td>BOOKIE_STOP_TIMEOUT</td><td>如果停止 Bookie 服务器失败，在强制杀死 Bookie 服务器实例之前的等待时间。</td><td></td></tr>
-<tr><td>BOOKIE_GC_LOG</td><td>Gc options to be passed to the jvm</td><td></td></tr>
+<tr><td>BOOKIE_GC_LOG</td><td>传递给 jvm 的 Gc 选项</td><td></td></tr>
 </tbody>
 </table>
-<h3><a class="anchor" aria-hidden="true" id="autorecovery-1"></a><a href="#autorecovery-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>autorecovery</code></h3>
+<h3><a class="anchor" aria-hidden="true" id="自动恢复-1"></a><a href="#自动恢复-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>`自动恢复</h3>
+<p>`</p>
 <p>Runs an auto-recovery service</p>
 <p>用法</p>
 <pre><code class="hljs css language-bash">$ bookkeeper autorecovery options
@@ -769,7 +771,7 @@ $ broker-tool <span class="hljs-built_in">command</span> --<span class="hljs-bui
 <tr><td><code>-h</code>, <code>--help</code></td><td>显示帮助信息</td><td></td></tr>
 </tbody>
 </table>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/reference-terminology"><span class="arrow-prev">← </span><span>术语</span></a><a class="docs-next button" href="/docs/zh-CN/next/reference-configuration"><span>Pulsar configuration</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#pulsar"><code>pulsar</code></a><ul class="toc-headings"><li><a href="#bookie"><code>bookie</code></a></li><li><a href="#broker"><code>broker</code></a></li><li><a href="#compact-topic"><code>compact-topic</code></a></li><li><a href="#configuration-store"><code>configuration-store</code></a></li><li><a href="#initialize-cluster-metadata"><code>initialize-cluster-metadata</code></a></li><li><a href="#proxy"><code>proxy</code></a></li><li><a href="#standalone"><code>standalone</code></a></li><li><a href="#websocket"><code>websocket</code></a></li><li><a href="#zookeeper"><code>zookeeper</code></a></li><li><a href="#zookeeper-shell"><code>zookeeper-shell</code></a></li><li><a href="#autorecovery"><code>autorecovery</code></a></li></ul></li><li><a href="#pulsar-client"><code>pulsar-client</code></a><ul class="toc-headings"><li><a href="#produce"><code>produce</code></a></li><li><a href="#consume"><code>consume</code></a></li></ul></li><li><a href="#pulsar-daemon"><code>pulsar-daemon</code></a><ul class="toc-headings"><li><a href="#start"><code>start</code></a></li><li><a href="#stop"><code>stop</code></a></li><li><a href="#restart"><code>restart</code></a></li></ul></li><li><a href="#pulsar-perf"><code>pulsar-perf</code></a><ul class="toc-headings"><li><a href="#consume-1"><code>consume</code></a></li><li><a href="#produce-1"><code>produce</code></a></li><li><a href="#read"><code>read</code></a></li><li><a href="#websocket-producer"><code>websocket-producer</code></a></li><li><a href="#managed-ledger"><code>managed-ledger</code></a></li><li><a href="#monitor-brokers"><code>monitor-brokers</code></a></li><li><a href="#simulation-client"><code>simulation-client</code></a></li><li><a href="#simulation-controller"><code>simulation-controller</code></a></li><li><a href="#help"><code>help</code></a></li></ul></li><li><a href="#bookkeeper"><code>bookkeeper</code></a><ul class="toc-headings"><li><a href="#autorecovery-1"><code>autorecovery</code></a></li><li><a href="#bookie-1"><code>bookie</code></a></li><li><a href="#localbookie"><code>localbookie</code></a></li><li><a href="#upgrade"><code>upgrade</code></a></li><li><a href="#shell"><code>shell</code></a></li></ul></li><li><a href="#broker-tool"><code>broker-tool</code></a><ul class="toc-headings"><li><a href="#load-report"><code>load-report</code></a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/reference-terminology"><span class="arrow-prev">← </span><span>术语</span></a><a class="docs-next button" href="/docs/zh-CN/next/reference-configuration"><span>Pulsar configuration</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#pulsar"><code>pulsar</code></a><ul class="toc-headings"><li><a href="#bookie"><code>bookie</code></a></li><li><a href="#broker"><code>broker</code></a></li><li><a href="#compact-topic"><code>compact-topic</code></a></li><li><a href="#configuration-store"><code>configuration-store</code></a></li><li><a href="#initialize-cluster-metadata"><code>initialize-cluster-metadata</code></a></li><li><a href="#proxy"><code>proxy</code></a></li><li><a href="#standalone"><code>standalone</code></a></li><li><a href="#websocket"><code>websocket</code></a></li><li><a href="#zookeeper"><code>zookeeper</code></a></li><li><a href="#zookeeper-shell"><code>zookeeper-shell</code></a></li><li><a href="#自动恢复">`自动恢复</a></li></ul></li><li><a href="#pulsar-client"><code>pulsar-client</code></a><ul class="toc-headings"><li><a href="#produce"><code>produce</code></a></li><li><a href="#consume"><code>consume</code></a></li></ul></li><li><a href="#pulsar-daemon"><code>pulsar-daemon</code></a><ul class="toc-headings"><li><a href="#start"><code>start</code></a></li><li><a href="#stop"><code>stop</code></a></li><li><a href="#restart"><code>restart</code></a></li></ul></li><li><a href="#pulsar-perf"><code>pulsar-perf</code></a><ul class="toc-headings"><li><a href="#consume-1"><code>consume</code></a></li><li><a href="#produce-1"><code>produce</code></a></li><li><a href="#read"><code>read</code></a></li><li><a href="#websocket-producer"><code>websocket-producer</code></a></li><li><a href="#managed-ledger"><code>managed-ledger</code></a></li><li><a href="#monitor-brokers"><code>monitor-brokers</code></a></li><li><a href="#simulation-client"><code>simulation-client</code></a></li><li><a href="#simulation-controller"><code>simulation-controller</code></a></li><li><a href="#help"><code>help</code></a></li></ul></li><li><a href="#bookkeeper"><code>bookkeeper</code></a><ul class="toc-headings"><li><a href="#自动恢复-1">`自动恢复</a></li><li><a href="#bookie-1"><code>bookie</code></a></li><li><a href="#localbookie"><code>localbookie</code></a></li><li><a href="#upgrade"><code>upgrade</code></a></li><li><a href="#shell"><code>shell</code></a></li></ul></li><li><a href="#broker-tool"><code>broker-tool</code></a><ul class="toc-headings"><li><a href="#load-report"><code>load-report</code></a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
