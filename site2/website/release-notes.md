@@ -233,7 +233,7 @@
 - Use URL encoded content type for OAuth 2.0 authentication [#12341](https://github.com/apache/pulsar/pull/12341)
 - Handle OAuth 2.0 exceptional cases gracefully [#12335](https://github.com/apache/pulsar/pull/12335)
 - Support configuring optional scope field for OAuth2 authentication [#12305](https://github.com/apache/pulsar/pull/12305)
-- Fixed attempting to connect to multiple IP addresses [#11958](https://github.com/apache/pulsar/pull/11958)
+- Fix the issue of attempting to connect to multiple IP addresses [#11958](https://github.com/apache/pulsar/pull/11958)
 - Handle error when shutting down client after forks [#11954](https://github.com/apache/pulsar/pull/11954)
 - Move all C symbols into C++ pulsar namespace [#11919](https://github.com/apache/pulsar/pull/11919)
 - Make some cleanup methods thread safe [#11762](https://github.com/apache/pulsar/pull/11762)
