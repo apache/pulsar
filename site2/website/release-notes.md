@@ -2,10 +2,10 @@
 ## Apache Pulsar Release Notes
 
 ### 2.9.1
-#### 2021-12-??
+#### 2021-12-20
 
 Apache Pulsar 2.9.1 is a bugfix release, that includes library upgrades for important security issues (like Apache Log4j2).
-It also includes fixes for some breaking changes introduces in 2.9.0.
+It also includes fixes for some breaking changes introduced in 2.9.0.
 
 ### Library updates:
 - Bump log4j to 2.16.0 [#13277](https://github.com/apache/pulsar/pull/13277)
@@ -14,25 +14,25 @@ It also includes fixes for some breaking changes introduces in 2.9.0.
 
 #### Java Client
 - Fixed a data race on the Producer to get a Connection [#13176](https://github.com/apache/pulsar/pull/13176)
-- Producer: Send CloseProducer on timeout [#13161](https://github.com/apache/pulsar/pull/13161)
-- Use epoch to version Producer's cnx to prevent early delivery of messages [#12779](https://github.com/apache/pulsar/pull/12779)
+- Fixed Producer: Send CloseProducer on timeout [#13161](https://github.com/apache/pulsar/pull/13161)
+- Fixed Producer: Use epoch to version Producer's cnx to prevent early delivery of messages [#12779](https://github.com/apache/pulsar/pull/12779)
 - Removed a data race in MultiTopicsConsumerImpl to ensure correct message order [#12456](https://github.com/apache/pulsar/pull/12456)
-- Fix consume message order issue when use listener [#13023](https://github.com/apache/pulsar/pull/13023)
-- Make Audience Field Optional in OAuth2 Client Credentials [#11988](https://github.com/apache/pulsar/pull/11988)
+- Fixed message order in Consumer issue when use listener [#13023](https://github.com/apache/pulsar/pull/13023)
+- Audience Field Optional is now optional in OAuth2 Client Credentials [#11988](https://github.com/apache/pulsar/pull/11988)
 
 #### Broker
-- Fix LeaderElectionService.getCurrentLeader and add support for empheralOwner in MockZooKeeper [#13066](https://github.com/apache/pulsar/pull/13066)
+- Fixed LeaderElectionService.getCurrentLeader and added support for ephemeralOwner in MockZooKeeper [#13066](https://github.com/apache/pulsar/pull/13066)
 - Removed tenant permission verification when list partitioned-topic [#13138](https://github.com/apache/pulsar/pull/13138)
 - Fixed and improve topic ownership assignment [#13069](https://github.com/apache/pulsar/pull/13069)
 - Fixed consume message order issue when use listener.[#13023](https://github.com/apache/pulsar/pull/13023)
-- Do not reuse the Failed OpAddEntry object which lead bundle unloading timeout.[#12993](https://github.com/apache/pulsar/pull/12993)
-- REST API: Fix incompatibility of BacklogQuota [#13291](https://github.com/apache/pulsar/pull/13291)
+- Fixed ManagedLedger: Do not reuse the Failed OpAddEntry object which lead bundle unloading timeout.[#12993](https://github.com/apache/pulsar/pull/12993)
+- Fixed incompatibility of BacklogQuota in the REST API [#13291](https://github.com/apache/pulsar/pull/13291)
 - Fixed unordered consuming case in Key_Shared subscription.[#12890](https://github.com/apache/pulsar/pull/12890)
 - Fixed the incorrect total size when BrokerEntryMetadata is enabled[#12714](https://github.com/apache/pulsar/pull/12714)
-- Revert new AuthorizationProvider method [#13133](https://github.com/apache/pulsar/pull/13133)
+- Reverted new AuthorizationProvider method [#13133](https://github.com/apache/pulsar/pull/13133)
 
 #### Pulsar Functions
-- Fix classloader leaks [#12973](https://github.com/apache/pulsar/pull/12973)
+- Fixed classloader leaks [#12973](https://github.com/apache/pulsar/pull/12973)
 - Fixed Kubernetes Pulsar Functions containers not exposing metrics port for scraping [#12065](https://github.com/apache/pulsar/pull/12065)
 
 ### 2.9.0
