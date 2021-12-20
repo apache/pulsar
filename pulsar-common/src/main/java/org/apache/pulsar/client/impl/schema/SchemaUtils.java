@@ -211,7 +211,7 @@ public final class SchemaUtils {
             .registerTypeHierarchyAdapter(byte[].class, new ByteArrayToStringAdapter(schemaInfo))
             .registerTypeHierarchyAdapter(Map.class, SCHEMA_PROPERTIES_SERIALIZER);
 
-        return gsonBuilder.create().toJson(schemaInfo);
+        return gsonBuilder.create().toJson(JsonParser.parseString(new String(schemaInfo.getSchema())));
     }
 
     /**

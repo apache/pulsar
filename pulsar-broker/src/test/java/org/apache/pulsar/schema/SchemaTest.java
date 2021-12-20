@@ -29,6 +29,8 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
 
+import com.beust.jcommander.internal.Nullable;
+import lombok.NoArgsConstructor;
 import org.apache.avro.Schema.Parser;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -1111,6 +1113,37 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
             default:
                 // nothing to do
         }
+    }
+
+    @Test
+    public void testSchemaNullableField() throws Exception{
+        final String tenant = PUBLIC_TENANT;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topicName = "test-bytes-schema";
+
+        final String topic = TopicName.get(
+                TopicDomain.persistent.value(),
+                tenant,
+                namespace,
+                topicName).toString();
+
+        admin.namespaces().createNamespace(
+                tenant + "/" + namespace,
+                Sets.newHashSet(CLUSTER_NAME));
+
+        admin.topics().createPartitionedTopic(topic, 2);
+        pulsarClient.newProducer(Schema.AVRO(Student.class))
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+
+        Assert.assertTrue(admin.schemas().getSchemaInfo(topic).toString().contains("\"default\": null"));
+    }
+
+    @NoArgsConstructor
+    public static class Student {
+        @Nullable
+        private String name;
     }
 
 }
