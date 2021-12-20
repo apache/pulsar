@@ -60,7 +60,7 @@ class LongHierarchicalLedgerRangeIterator implements LedgerManager.LedgerRangeIt
             return store.getChildren(path).get();
         } catch (ExecutionException e) {
             if (log.isDebugEnabled()) {
-                log.debug("Failed to ", path);
+                log.debug("Failed to get children at {}", path);
             }
             throw new IOException(e);
         } catch (InterruptedException ie) {

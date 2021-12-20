@@ -293,6 +293,110 @@
           "id": "version-2.1.1-incubating/admin-api-schemas"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Adaptors",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/adaptors-kafka"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/adaptors-spark"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/adaptors-storm"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Cookbooks",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/cookbooks-tiered-storage"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/cookbooks-compaction"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/cookbooks-deduplication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/cookbooks-non-persistent"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/cookbooks-partitioned"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/cookbooks-retention-expiry"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/cookbooks-encryption"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/cookbooks-message-queue"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Development",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/develop-tools"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/develop-binary-protocol"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/develop-schema"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/develop-load-manager"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/develop-cpp"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Reference",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/reference-terminology"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/reference-cli-tools"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/pulsar-admin"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/reference-configuration"
+        }
+      ]
     }
   ]
 }

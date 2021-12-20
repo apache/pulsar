@@ -94,6 +94,7 @@ public class PulsarClientImpl implements PulsarClient {
     protected final ClientConfigurationData conf;
     private LookupService lookup;
     private final ConnectionPool cnxPool;
+    @Getter
     private final Timer timer;
     private boolean needStopTimer;
     private final ExecutorProvider externalExecutorProvider;
