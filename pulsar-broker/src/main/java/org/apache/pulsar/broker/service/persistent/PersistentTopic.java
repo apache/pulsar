@@ -86,7 +86,6 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyExcep
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
-import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionNotFoundException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
@@ -1377,82 +1376,43 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             log.debug("[{}] Checking replication status", name);
         }
 
-        CompletableFuture<List<String>> replicationClustersFuture = getReplicationClusters(name);
+        List<String> configuredClusters = topicPolicies.getReplicationClusters().get();
+        int newMessageTTLinSeconds = topicPolicies.getMessageTTLInSeconds().get();
 
-        return CompletableFuture.allOf(replicationClustersFuture)
-                .thenCompose(__ -> {
-                    List<String> configuredClusters = replicationClustersFuture.join();
-                    int newMessageTTLinSeconds = topicPolicies.getMessageTTLInSeconds().get();
+        String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
 
-                    String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
-
-                    // if local cluster is removed from global namespace cluster-list : then delete topic forcefully
-                    // because pulsar doesn't serve global topic without local repl-cluster configured.
-                    if (TopicName.get(topic).isGlobal() && !configuredClusters.contains(localCluster)) {
-                        log.info("Deleting topic [{}] because local cluster is not part of "
-                                + " global namespace repl list {}", topic, configuredClusters);
-                        return deleteForcefully();
-                    }
-
-                    List<CompletableFuture<Void>> futures = Lists.newArrayList();
-
-                    // Check for missing replicators
-                    for (String cluster : configuredClusters) {
-                        if (cluster.equals(localCluster)) {
-                            continue;
-                        }
-
-                        if (!replicators.containsKey(cluster)) {
-                            futures.add(startReplicator(cluster));
-                        }
-                    }
-
-                    // Check for replicators to be stopped
-                    replicators.forEach((cluster, replicator) -> {
-                        // Update message TTL
-                        ((PersistentReplicator) replicator).updateMessageTTL(newMessageTTLinSeconds);
-
-                        if (!cluster.equals(localCluster)) {
-                            if (!configuredClusters.contains(cluster)) {
-                                futures.add(removeReplicator(cluster));
-                            }
-                        }
-
-                    });
-
-                    return FutureUtil.waitForAll(futures);
-                });
-    }
-
-    @VisibleForTesting
-    public CompletableFuture<List<String>> getReplicationClusters(TopicName topicName) {
-        CompletableFuture<Optional<TopicPolicies>> future = new CompletableFuture<>();
-        if (isSystemTopic()) {
-            //Topic Policies System Topic have to skip the topic policy.
-            future.complete(Optional.empty());
-        } else {
-            future = brokerService.pulsar().getTopicPoliciesService()
-                    .getTopicPoliciesAsyncWithRetry(topicName, null, brokerService.pulsar().getExecutor(), false);
+        // if local cluster is removed from global namespace cluster-list : then delete topic forcefully
+        // because pulsar doesn't serve global topic without local repl-cluster configured.
+        if (TopicName.get(topic).isGlobal() && !configuredClusters.contains(localCluster)) {
+            log.info("Deleting topic [{}] because local cluster is not part of "
+                    + " global namespace repl list {}", topic, configuredClusters);
+            return deleteForcefully();
         }
-        return future.thenCompose(topicPolicies -> {
-                    if (!topicPolicies.isPresent() || topicPolicies.get().getReplicationClusters() == null) {
-                        return brokerService.pulsar().getPulsarResources()
-                                .getNamespaceResources()
-                                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
-                                .thenCompose(optPolicies -> {
-                                    if (!optPolicies.isPresent()) {
-                                        return FutureUtil.failedFuture(
-                                                new ServerMetadataException(
-                                                        new MetadataStoreException.NotFoundException()));
-                                    }
 
-                                    return CompletableFuture.completedFuture(
-                                            Lists.newArrayList(optPolicies.get().replication_clusters));
-                                });
-                    } else {
-                        return CompletableFuture.completedFuture(topicPolicies.get().getReplicationClusters());
-                    }
-                });
+        List<CompletableFuture<Void>> futures = Lists.newArrayList();
+
+        // Check for missing replicators
+        for (String cluster : configuredClusters) {
+            if (cluster.equals(localCluster)) {
+                continue;
+            }
+            if (!replicators.containsKey(cluster)) {
+                futures.add(startReplicator(cluster));
+            }
+        }
+
+        // Check for replicators to be stopped
+        replicators.forEach((cluster, replicator) -> {
+            // Update message TTL
+            ((PersistentReplicator) replicator).updateMessageTTL(newMessageTTLinSeconds);
+            if (!cluster.equals(localCluster)) {
+                if (!configuredClusters.contains(cluster)) {
+                    futures.add(removeReplicator(cluster));
+                }
+            }
+        });
+
+        return FutureUtil.waitForAll(futures);
     }
 
     @Override
