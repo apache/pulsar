@@ -143,7 +143,7 @@
 - Add OpAddEntry to pendingAddEntries after the state check [#12570](https://github.com/apache/pulsar/pull/12570)
 - Cancel scheduled tasks when deleting ManagedLedgerImpl [#12565](https://github.com/apache/pulsar/pull/12565)
 - Add git branch information for PulsarVersion [#12541](https://github.com/apache/pulsar/pull/12541)
-- Websocket should pass the encryption context to the consumers [#12539](https://github.com/apache/pulsar/pull/12539)
+- Websocket should pass the encryption context to consumers [#12539](https://github.com/apache/pulsar/pull/12539)
 - The count of topics on the bundle is less than 2，skip split [#12527](https://github.com/apache/pulsar/pull/12527)
 - Fix the reader skips compacted data which original ledger been removed [#12522](https://github.com/apache/pulsar/pull/12522)
 - Fix `messageDedup` delete inactive producer name [#12493](https://github.com/apache/pulsar/pull/12493)
