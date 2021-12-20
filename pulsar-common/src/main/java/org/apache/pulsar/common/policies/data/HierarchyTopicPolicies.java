@@ -39,6 +39,7 @@ public class HierarchyTopicPolicies {
     final Map<BacklogQuotaType, PolicyHierarchyValue<BacklogQuota>> backLogQuotaMap;
     final PolicyHierarchyValue<Integer> topicMaxMessageSize;
     final PolicyHierarchyValue<Integer> messageTTLInSeconds;
+    final PolicyHierarchyValue<Integer> maxConsumerPerTopic;
 
     public HierarchyTopicPolicies() {
         deduplicationEnabled = new PolicyHierarchyValue<>();
@@ -46,6 +47,7 @@ public class HierarchyTopicPolicies {
         subscriptionTypesEnabled = new PolicyHierarchyValue<>();
         maxSubscriptionsPerTopic = new PolicyHierarchyValue<>();
         maxProducersPerTopic = new PolicyHierarchyValue<>();
+        maxConsumerPerTopic = new PolicyHierarchyValue<>();
         backLogQuotaMap = new ImmutableMap.Builder<BacklogQuotaType, PolicyHierarchyValue<BacklogQuota>>()
                 .put(BacklogQuotaType.destination_storage, new PolicyHierarchyValue<>())
                 .put(BacklogQuotaType.message_age, new PolicyHierarchyValue<>())
