@@ -164,7 +164,7 @@
 - Add maven.restlet.org repository [#13248](https://github.com/apache/pulsar/pull/13248)
 - Fix and improve topic ownership assignment (#13069) [#13117](https://github.com/apache/pulsar/pull/13117)
 - Evaluate the current protocol version once [#13045](https://github.com/apache/pulsar/pull/13045)
-- Revert "Set default root log level to debug" and make PULSAR_LOG_ROOT_LEVEL to default to PULSAR_LOG_LEVEL [#12941](https://github.com/apache/pulsar/pull/12941)
+- Revert "Set default root log level to debug" and make PULSAR_LOG_ROOT_LEVEL default to PULSAR_LOG_LEVEL [#12941](https://github.com/apache/pulsar/pull/12941)
 - Catch exceptions in scheduled tasks to prevent unintended cancellation [#12853](https://github.com/apache/pulsar/pull/12853)
 - Fix producer getting incorrectly removed from topic's produc… [#12846](https://github.com/apache/pulsar/pull/12846)
 - Synchronize updates to the inactiveProducers map in MessageD… [#12820](https://github.com/apache/pulsar/pull/12820)
