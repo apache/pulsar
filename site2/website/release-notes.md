@@ -156,7 +156,7 @@
 - Avoid adding duplicated BrokerEntryMetadata [#12018](https://github.com/apache/pulsar/pull/12018)
 - Fix update ledger list to znode version mismatch failed, ledger not delete [#12015](https://github.com/apache/pulsar/pull/12015)
 - Fix messages in TopicPolicies will never be cleaned up [#11928](https://github.com/apache/pulsar/pull/11928)
-- Fix returned wrong hash ranges for the consumer with same consumer name [#12212](https://github.com/apache/pulsar/pull/12212)
+- Fix returned wrong hash ranges for the consumer with the same consumer name [#12212](https://github.com/apache/pulsar/pull/12212)
 - Add Key_Shared metadata to topic stats [#11839](https://github.com/apache/pulsar/pull/11839)
 - Fix build from submodules (broker, transaction coordinator) [#11795](https://github.com/apache/pulsar/pull/11795)
 - Add method to clear up transaction buffer snapshot [#11934](https://github.com/apache/pulsar/pull/11934)
