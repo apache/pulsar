@@ -138,7 +138,7 @@
 - Allow `GetTopicsOfNamespace` op with `consume` permission [#12600](https://github.com/apache/pulsar/pull/12600)
 - Allow configuring schema compatibility policy for system topics [#12598](https://github.com/apache/pulsar/pull/12598)
 - Cleanup already deleted namespace topics. [#12597](https://github.com/apache/pulsar/pull/12597)
-- Fix additional servlets nar might extract to null directory [#12585](https://github.com/apache/pulsar/pull/12585)
+- Fix additional servlets NAR might extract to null directory [#12585](https://github.com/apache/pulsar/pull/12585)
 - Fix log typo in NamespaceService#checkHeartbeatNamespace  [#12582](https://github.com/apache/pulsar/pull/12582)
 - Add OpAddEntry to pendingAddEntries after the state check [#12570](https://github.com/apache/pulsar/pull/12570)
 - Cancel scheduled tasks when deleting ManagedLedgerImpl [#12565](https://github.com/apache/pulsar/pull/12565)
