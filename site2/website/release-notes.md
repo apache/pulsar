@@ -238,7 +238,7 @@
 - Move all C symbols into C++ pulsar namespace [#11919](https://github.com/apache/pulsar/pull/11919)
 - Make some cleanup methods thread safe [#11762](https://github.com/apache/pulsar/pull/11762)
 - Turn on more compiler warnings and enforce warnings as errors [#11668](https://github.com/apache/pulsar/pull/11668)
-- Fixing use-after-free and constructor bugs in UnAckedMessageTrackerEnabled [#11630](https://github.com/apache/pulsar/pull/11630)
+- Fix use-after-free and constructor bugs in UnAckedMessageTrackerEnabled [#11630](https://github.com/apache/pulsar/pull/11630)
 - Allow partitioned producers to start lazily [#11570](https://github.com/apache/pulsar/pull/11570)
 
 ### Functions
