@@ -263,7 +263,7 @@
 - Perfect judgment conditions of pulsar-admin [#12315](https://github.com/apache/pulsar/pull/12315)
 - Fix log level config for pulsar-admin, pulsar-client and pulsar-perf [#12915](https://github.com/apache/pulsar/pull/12915)
 - Modify exception of set-properties for namespace [#12436](https://github.com/apache/pulsar/pull/12436)
-- Get schema validation enforce add applied. [#12349](https://github.com/apache/pulsar/pull/12349)
+- Get schema validation enforce add applied [#12349](https://github.com/apache/pulsar/pull/12349)
 
 ### Tiered Storage
 - Add retry to tolerate the offload index file read failure [#12452](https://github.com/apache/pulsar/pull/12452)
