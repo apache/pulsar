@@ -283,7 +283,7 @@
 ### Java Client
 - Remove the uncorrected `VisableTesting` annotation in pulsar-client [#11784](https://github.com/apache/pulsar/pull/11784)
 - Fix packages tool parameter desc [#11809](https://github.com/apache/pulsar/pull/11809)
-- Add a optional params scope for pulsar oauth2 client [#11931](https://github.com/apache/pulsar/pull/11931)
+- Add an optional params scope for pulsar oauth2 client [#11931](https://github.com/apache/pulsar/pull/11931)
 - Fix producer data race to get cnx [#13176](https://github.com/apache/pulsar/pull/13176)
 - Send CloseProducer on timeout [#13161](https://github.com/apache/pulsar/pull/13161)
 - Let producer reconnect for state RegisteringSchema [#12781](https://github.com/apache/pulsar/pull/12781)
