@@ -190,7 +190,7 @@
 - Fix NPE when removing cursor [#12297](https://github.com/apache/pulsar/pull/12297)
 - Print log when configuration is failed to load [#12280](https://github.com/apache/pulsar/pull/12280)
 - Fix incorrect returned last message ID while the `lastConfirmedEntry` with negative entry ID [#12277](https://github.com/apache/pulsar/pull/12277)
-- Fix ttl expiry does not take effect [#12266](https://github.com/apache/pulsar/pull/12266)
+- Fix TTL expiry does not take effect [#12266](https://github.com/apache/pulsar/pull/12266)
 - The loadbalancer should avoid offload the heartbeat namespace [#12252](https://github.com/apache/pulsar/pull/12252)
 - Fix typo of the returned last message ID when the last message ID is from compacted ledger [#12237](https://github.com/apache/pulsar/pull/12237)
 - Add support for splitting topic and partition label in Prometheus [#12225](https://github.com/apache/pulsar/pull/12225)
