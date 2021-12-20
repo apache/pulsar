@@ -205,7 +205,7 @@
 - Bugfix: Fix rackaware placement policy init error [#12097](https://github.com/apache/pulsar/pull/12097)
 - Fix wrong key-hash selector used for new consumers after all the previous consumers disconnected [#12035](https://github.com/apache/pulsar/pull/12035)
 - Fix cherry-pick issue on branch-2.8 [#11982](https://github.com/apache/pulsar/pull/11982)
-- Remove unused variable and unneccessary box in NamespaceBundleFactory [#11975](https://github.com/apache/pulsar/pull/11975)
+- Remove unused variable and unnecessary box in NamespaceBundleFactory [#11975](https://github.com/apache/pulsar/pull/11975)
 - Print position info when can't find next valid position. [#11969](https://github.com/apache/pulsar/pull/11969)
 - Fix NPE ZkBookieRackAffinityMapping [#11947](https://github.com/apache/pulsar/pull/11947)
 - Avoid to infinitely split bundle [#11937](https://github.com/apache/pulsar/pull/11937)
