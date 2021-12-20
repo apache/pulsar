@@ -83,6 +83,8 @@ class ProducerImpl : public HandlerBase,
 
     int32_t partition() const noexcept { return partition_; }
 
+    static int getNumOfChunks(uint32_t size, uint32_t maxMessageSize);
+
    protected:
     ProducerStatsBasePtr producerStatsBasePtr_;
 
@@ -125,11 +127,33 @@ class ProducerImpl : public HandlerBase,
     bool encryptMessage(proto::MessageMetadata& metadata, SharedBuffer& payload,
                         SharedBuffer& encryptedPayload);
 
+    /**
+     * Reserve a spot in the messages queue before acquiring the ProducerImpl mutex. When the queue is full,
+     * this call will block until a spot is available if blockIfQueueIsFull is true. Otherwise, it will return
+     * ResultProducerQueueIsFull immediately.
+     *
+     * It also checks whether the memory could reach the limit after `payloadSize` is added. If so, this call
+     * will block until enough memory could be retained.
+     */
     Result canEnqueueRequest(uint32_t payloadSize);
+
+    /**
+     * It calls the previous overloaded method. If the result is not ResultOk, `cb` will be completed with
+     * `result` and `messageId` and `batchMessageAndSend` will be called to send all pending messages.
+     */
+    bool canEnqueueRequest(uint32_t payloadSize, const MessageId& messageId, const SendCallback& cb);
+
+    void serializeAndSendMessage(const Message& msg, SharedBuffer& payload, uint64_t sequenceId,
+                                 const std::string& uuid, int chunkId, int totalChunks, int readStartIndex,
+                                 int chunkMaxSizeInBytes, SharedBuffer& compressedPayload, bool compressed,
+                                 int compressedPayloadSize, int uncompressedSize, SendCallback cb);
+
     void releaseSemaphore(uint32_t payloadSize);
     void releaseSemaphoreForSendOp(const OpSendMsg& op);
 
     void cancelTimers();
+
+    bool canAddToBatch(const Message& msg) const;
 
     typedef std::unique_lock<std::mutex> Lock;
 
@@ -169,6 +193,7 @@ class ProducerImpl : public HandlerBase,
     uint32_t dataKeyGenIntervalSec_;
 
     MemoryLimitController& memoryLimitController_;
+    const bool chunkingEnabled_;
 };
 
 struct ProducerImplCmp {
