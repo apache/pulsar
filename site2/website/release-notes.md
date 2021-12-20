@@ -201,7 +201,7 @@
 - Return the last position of the compacted data while the original data has been deleted [#12161](https://github.com/apache/pulsar/pull/12161)
 - Improve exceptions thrown when handling the schema resource [#12155](https://github.com/apache/pulsar/pull/12155)
 - Fix prefix setting in JWT authn and avoid multi calls for the getProperty [#12132](https://github.com/apache/pulsar/pull/12132)
-- Fixed used after recycle issue in OpAddEntry [#12103](https://github.com/apache/pulsar/pull/12103)
+- Fix used after recycle issue in OpAddEntry [#12103](https://github.com/apache/pulsar/pull/12103)
 - Bugfix: Fix rackaware placement policy init error [#12097](https://github.com/apache/pulsar/pull/12097)
 - Fix wrong key-hash selector used for new consumers after all the previous consumers disconnected [#12035](https://github.com/apache/pulsar/pull/12035)
 - Fix cherry-pick issue on branch-2.8 [#11982](https://github.com/apache/pulsar/pull/11982)
