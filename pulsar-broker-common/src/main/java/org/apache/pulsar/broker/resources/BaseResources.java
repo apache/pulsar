@@ -152,7 +152,7 @@ public class BaseResources<T> {
         return cache.delete(path);
     }
 
-    protected CompletableFuture<Void> deleteIgnoreNotFoundAsync(String path) {
+    protected CompletableFuture<Void> deleteIfExistsAsync(String path) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         cache.delete(path).whenComplete((ignore, ex) -> {
             if (ex != null && ex.getCause() instanceof MetadataStoreException.NotFoundException) {

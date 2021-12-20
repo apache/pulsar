@@ -134,13 +134,13 @@ public class NamespaceResources extends BaseResources<Policies> {
     // clear resource of `/namespace/{namespaceName}` for zk-node
     public CompletableFuture<Void> deleteNamespaceAsync(NamespaceName ns) {
         final String namespacePath = joinPath(NAMESPACE_BASE_PATH, ns.toString());
-        return deleteIgnoreNotFoundAsync(namespacePath);
+        return deleteIfExistsAsync(namespacePath);
     }
 
     // clear resource of `/namespace/{tenant}` for zk-node
     public CompletableFuture<Void> deleteTenantAsync(String tenant) {
         final String tenantPath = joinPath(NAMESPACE_BASE_PATH, tenant);
-        return deleteIgnoreNotFoundAsync(tenantPath);
+        return deleteIfExistsAsync(tenantPath);
     }
 
     public static NamespaceName namespaceFromPath(String path) {
@@ -243,7 +243,7 @@ public class NamespaceResources extends BaseResources<Policies> {
 
         public CompletableFuture<Void> clearPartitionedTopicTenantAsync(String tenant) {
             final String partitionedTopicPath = joinPath(PARTITIONED_TOPIC_PATH, tenant);
-            return deleteIgnoreNotFoundAsync(partitionedTopicPath);
+            return deleteIfExistsAsync(partitionedTopicPath);
         }
     }
 
