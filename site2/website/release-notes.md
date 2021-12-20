@@ -268,7 +268,7 @@
 ### Tiered Storage
 - Add retry to tolerate the offload index file read failure [#12452](https://github.com/apache/pulsar/pull/12452)
 - Fix the read performance issue in the offload readAsync [#12443](https://github.com/apache/pulsar/pull/12443)
-- Fix FileSystemManagedLedgerOffloader can not cleanup outdated ledger [#12309](https://github.com/apache/pulsar/pull/12309)
+- Fix FileSystemManagedLedgerOffloader can not clean up outdated ledger [#12309](https://github.com/apache/pulsar/pull/12309)
 - Fix the potential race condition in the BlobStore readhandler [#12123](https://github.com/apache/pulsar/pull/12123)
 
 ### Pulsar SQL
