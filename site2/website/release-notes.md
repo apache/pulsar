@@ -125,7 +125,7 @@
 - Fix the incorrect total size when BrokerEntryMetadata is enabled [#12714](https://github.com/apache/pulsar/pull/12714)
 - Fix lost compaction data due to compaction properties missed during reset-cursor [#12698](https://github.com/apache/pulsar/pull/12698)
 - Fix TestRunMain test [#12675](https://github.com/apache/pulsar/pull/12675)
-- Support GET_METADATA topic op after enable auth [#12656](https://github.com/apache/pulsar/pull/12656)
+- Support GET_METADATA topic op after enabling auth [#12656](https://github.com/apache/pulsar/pull/12656)
 - Fix false positive ownership check in OwnershipCache#checkOwnership [#12650](https://github.com/apache/pulsar/pull/12650)
 - Optimize exception information for schemas [#12647](https://github.com/apache/pulsar/pull/12647)
 - Add @Test annotation to test methods [#12640](https://github.com/apache/pulsar/pull/12640)
