@@ -49,6 +49,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -56,6 +57,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
@@ -502,8 +504,59 @@ public class TransactionTest extends TransactionTestBase {
     }
 
     @Test
-    public void testEndTCRecoveringWhenManagerLedgerDisReadable() throws Exception{
+    public void testEndTBRecoveringWhenManagerLedgerDisReadable() throws Exception{
         String topic = NAMESPACE1 + "/testEndTBRecoveringWhenManagerLedgerDisReadable";
+        admin.topics().createNonPartitionedTopic(topic);
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .producerName("test")
+                .enableBatching(false)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .topic(topic)
+                .create();
+        Transaction txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
+
+        producer.newMessage(txn).value("test").send();
+
+        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
+                .getTopic("persistent://" + topic, false).get().get();
+        persistentTopic.getManagedLedger().getConfig().setAutoSkipNonRecoverableData(true);
+
+        ManagedCursor managedCursor = mock(ManagedCursor.class);
+        doReturn("transaction-buffer-sub").when(managedCursor).getName();
+        doReturn(true).when(managedCursor).hasMoreEntries();
+        doAnswer(invocation -> {
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(1);
+            callback.readEntriesFailed(new ManagedLedgerException.NonRecoverableLedgerException("No ledger exist"),
+                    null);
+            return null;
+        }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), any());
+        Class<ManagedLedgerImpl> managedLedgerClass = ManagedLedgerImpl.class;
+        Field field = managedLedgerClass.getDeclaredField("cursors");
+        field.setAccessible(true);
+        ManagedCursorContainer managedCursors = (ManagedCursorContainer) field.get(persistentTopic.getManagedLedger());
+        managedCursors.removeCursor("transaction-buffer-sub");
+        managedCursors.add(managedCursor);
+
+        TransactionBuffer buffer1 = new TopicTransactionBuffer(persistentTopic);
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
+                assertEquals(buffer1.getStats().state, "Ready"));
+
+        doAnswer(invocation -> {
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(1);
+            callback.readEntriesFailed(new ManagedLedgerException.ManagedLedgerFencedException(), null);
+            return null;
+        }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), any());
+
+        TransactionBuffer buffer2 = new TopicTransactionBuffer(persistentTopic);
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
+                assertEquals(buffer2.getStats().state, "Ready"));
+    }
+
+    @Test
+    public void testEndTCRecoveringWhenManagerLedgerDisReadable() throws Exception{
+        String topic = NAMESPACE1 + "/testEndTCRecoveringWhenManagerLedgerDisReadable";
         admin.topics().createNonPartitionedTopic(topic);
 
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()

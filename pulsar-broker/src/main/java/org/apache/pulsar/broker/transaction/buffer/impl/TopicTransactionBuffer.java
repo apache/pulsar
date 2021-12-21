@@ -582,8 +582,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 FillEntryQueueCallback fillEntryQueueCallback = new FillEntryQueueCallback(entryQueue, managedCursor,
                         TopicTransactionBufferRecover.this);
                 if (lastConfirmedEntry.getEntryId() != -1) {
-                    while (lastConfirmedEntry.compareTo(currentLoadPosition) > 0) {
-                        fillEntryQueueCallback.fillQueue();
+                    while (lastConfirmedEntry.compareTo(currentLoadPosition) > 0
+                            && fillEntryQueueCallback.fillQueue()) {
                         Entry entry = entryQueue.poll();
                         if (entry != null) {
                             try {
@@ -641,19 +641,22 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
         private final TopicTransactionBufferRecover recover;
 
+        private volatile boolean isReadable = true;
+
         private FillEntryQueueCallback(SpscArrayQueue<Entry> entryQueue, ManagedCursor cursor,
                                        TopicTransactionBufferRecover recover) {
             this.entryQueue = entryQueue;
             this.cursor = cursor;
             this.recover = recover;
         }
-        void fillQueue() {
+        boolean fillQueue() {
             if (entryQueue.size() < entryQueue.capacity() && outstandingReadsRequests.get() == 0) {
                 if (cursor.hasMoreEntries()) {
                     outstandingReadsRequests.incrementAndGet();
                     cursor.asyncReadEntries(100, this, System.nanoTime(), PositionImpl.latest);
                 }
             }
+            return isReadable;
         }
 
         @Override
@@ -673,6 +676,11 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
         @Override
         public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+            if (recover.topic.getManagedLedger().getConfig().isAutoSkipNonRecoverableData()
+                    && exception instanceof ManagedLedgerException.NonRecoverableLedgerException
+                    || exception instanceof ManagedLedgerException.ManagedLedgerFencedException) {
+                isReadable = false;
+            }
             recover.callBackException(exception);
             outstandingReadsRequests.decrementAndGet();
         }
