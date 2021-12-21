@@ -185,9 +185,7 @@ public class KeyStoreSSLContext {
 
     private SSLEngine configureSSLEngine(SSLEngine sslEngine) {
         sslEngine.setEnabledProtocols(protocols.toArray(new String[0]));
-        if (this.ciphers == null) {
-            sslEngine.setEnabledCipherSuites(sslEngine.getSupportedCipherSuites());
-        } else {
+        if (this.ciphers != null) {
             sslEngine.setEnabledCipherSuites(this.ciphers.toArray(new String[0]));
         }
 
