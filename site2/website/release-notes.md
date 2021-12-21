@@ -339,7 +339,7 @@
 - UseV2WireProtocol for bookkeeper autorecovery [#12311](https://github.com/apache/pulsar/pull/12311)
 
 ### Proxy
-- Reduced severity of log "refreshing key manager" in KeyManagerProxy [#12594](https://github.com/apache/pulsar/pull/12594)
+- Reduce the severity of log "refreshing key manager" in KeyManagerProxy [#12594](https://github.com/apache/pulsar/pull/12594)
 - Set default HTTP proxy request timeout [#11971](https://github.com/apache/pulsar/pull/11971)
 - Set default httpProxyTimeout to 5 minutes [#12299](https://github.com/apache/pulsar/pull/12299)
 - Fix Pulsar Proxy to re-use authentication instance [#12245](https://github.com/apache/pulsar/pull/12245)
