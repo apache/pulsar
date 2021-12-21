@@ -785,8 +785,7 @@ For more context about this issue, see [[Pulsar Functions and IO] Cannot upgrade
 - Fix the batch index ack persistent issue. [#9504](https://github.com/apache/pulsar/pull/9504)
 - Fix the partition number not equals expected error [#9446](https://github.com/apache/pulsar/pull/9446)
 - Fix the closed ledger did not delete after expired [#9136](https://github.com/apache/pulsar/pull/9136)
-- Fix testBrokerSelectionForAntiAffinityGroup by increasing
-  OverloadedThreshold [#9393](https://github.com/apache/pulsar/pull/9393)
+- Fix testBrokerSelectionForAntiAffinityGroup by increasing OverloadedThreshold [#9393](https://github.com/apache/pulsar/pull/9393)
 
 ### Tiered storage
 - [tiered-storage] Allow AWS credentials to be refreshed [#9387](https://github.com/apache/pulsar/pull/9387)
