@@ -121,7 +121,7 @@
 - Fix TopicPoliciesCacheNotInitException issue. [#12773](https://github.com/apache/pulsar/pull/12773)
 - Support UNSUBSCRIBE namespace op after enabling auth [#12742](https://github.com/apache/pulsar/pull/12742)
 - Fix race condition in PersistentTopic#addReplicationCluster [#12729](https://github.com/apache/pulsar/pull/12729)
-- Even if always compatible is set, Consumers cannot be created [#12721](https://github.com/apache/pulsar/pull/12721)
+- Even if always compatible is set, consumers cannot be created [#12721](https://github.com/apache/pulsar/pull/12721)
 - Fix the incorrect total size when BrokerEntryMetadata is enabled [#12714](https://github.com/apache/pulsar/pull/12714)
 - Fix lost compaction data due to compaction properties missed during reset-cursor [#12698](https://github.com/apache/pulsar/pull/12698)
 - Fix TestRunMain test [#12675](https://github.com/apache/pulsar/pull/12675)
