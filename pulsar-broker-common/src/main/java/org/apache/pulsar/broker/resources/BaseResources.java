@@ -153,17 +153,22 @@ public class BaseResources<T> {
     }
 
     protected CompletableFuture<Void> deleteIfExistsAsync(String path) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        cache.delete(path).whenComplete((ignore, ex) -> {
-            if (ex != null && ex.getCause() instanceof MetadataStoreException.NotFoundException) {
-                future.complete(null);
-            } else if (ex != null) {
-                future.completeExceptionally(ex);
-            } else {
-                future.complete(null);
+        return cache.exists(path).thenCompose(exists -> {
+            if (!exists) {
+                return CompletableFuture.completedFuture(null);
             }
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            cache.delete(path).whenComplete((ignore, ex) -> {
+                if (ex != null && ex.getCause() instanceof MetadataStoreException.NotFoundException) {
+                    future.complete(null);
+                } else if (ex != null) {
+                    future.completeExceptionally(ex);
+                } else {
+                    future.complete(null);
+                }
+            });
+            return future;
         });
-        return future;
     }
 
     protected boolean exists(String path) throws MetadataStoreException {
