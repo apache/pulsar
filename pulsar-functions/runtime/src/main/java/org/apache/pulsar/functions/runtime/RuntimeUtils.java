@@ -173,6 +173,9 @@ public class RuntimeUtils {
         if (instanceConfig.getFunctionDetails().getProcessingGuarantees() != null) {
             goInstanceConfig.setProcessingGuarantees(instanceConfig.getFunctionDetails().getProcessingGuaranteesValue());
         }
+        if (instanceConfig.getFunctionDetails().getRuntime() != null) {
+            goInstanceConfig.setRuntime(instanceConfig.getFunctionDetails().getRuntimeValue());
+        }
         if (instanceConfig.getFunctionDetails().getSecretsMap() != null) {
             goInstanceConfig.setSecretsMap(instanceConfig.getFunctionDetails().getSecretsMap());
         }

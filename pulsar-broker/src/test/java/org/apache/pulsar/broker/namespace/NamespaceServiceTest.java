@@ -66,7 +66,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.impl.BundlesDataImpl.BundlesDataImplBuilder;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.GetResult;
@@ -537,6 +536,14 @@ public class NamespaceServiceTest extends BrokerTestBase {
         for (NamespaceBundle bundle : namespaceService.getNamespaceBundleFactory().getBundles(nsname).getBundles()) {
             assertNotEquals(bundle.getBundleRange(), maxBundle);
         }
+    }
+
+    @Test
+    public void testHeartbeatNamespaceMatch() throws Exception {
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), conf);
+        NamespaceBundle namespaceBundle = pulsar.getNamespaceService().getNamespaceBundleFactory().getFullBundle(namespaceName);
+        assertTrue(NamespaceService.isSystemServiceNamespace(
+                        NamespaceBundle.getBundleNamespace(namespaceBundle.toString())));
     }
 
     @SuppressWarnings("unchecked")

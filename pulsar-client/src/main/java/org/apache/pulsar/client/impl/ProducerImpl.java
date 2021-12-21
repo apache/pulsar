@@ -371,6 +371,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (txn == null) {
             return internalSendAsync(message);
         } else {
+            CompletableFuture<MessageId> completableFuture = new CompletableFuture<>();
+            if (!((TransactionImpl)txn).checkIfOpen(completableFuture)) {
+               return completableFuture;
+            }
             return ((TransactionImpl) txn).registerProducedTopic(topic)
                         .thenCompose(ignored -> internalSendAsync(message));
         }
@@ -463,7 +467,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     sequenceId = msgMetadata.getSequenceId();
                 }
                 String uuid = totalChunks > 1 ? String.format("%s-%d", producerName, sequenceId) : null;
+                byte[] schemaVersion = totalChunks > 1 && msg.getMessageBuilder().hasSchemaVersion() ?
+                        msg.getMessageBuilder().getSchemaVersion() : null;
                 for (int chunkId = 0; chunkId < totalChunks; chunkId++) {
+                    // Need to reset the schemaVersion, because the schemaVersion is based on a ByteBuf object in
+                    // `MessageMetadata`, if we want to re-serialize the `SEND` command using a same `MessageMetadata`,
+                    // we need to reset the ByteBuf of the schemaVersion in `MessageMetadata`, I think we need to
+                    // reset `ByteBuf` objects in `MessageMetadata` after call the method `MessageMetadata#writeTo()`.
+                    if (chunkId > 0 && schemaVersion != null) {
+                        msg.getMessageBuilder().setSchemaVersion(schemaVersion);
+                    }
                     serializeAndSendMessage(msg, payload, sequenceId, uuid, chunkId, totalChunks,
                             readStartIndex, ClientCnx.getMaxMessageSize(), compressedPayload, compressed,
                             compressedPayload.readableBytes(), uncompressedSize, callback);

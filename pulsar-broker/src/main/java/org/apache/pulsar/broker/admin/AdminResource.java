@@ -35,6 +35,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
@@ -61,6 +62,7 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 
@@ -770,6 +772,12 @@ public abstract class AdminResource extends PulsarWebResource {
         if (o == null) {
             throw new RestException(Status.BAD_REQUEST, errorMessage);
         }
+    }
+
+    protected boolean isManagedLedgerNotFoundException(Exception e) {
+        Throwable cause = e.getCause();
+        return cause instanceof ManagedLedgerException.MetadataNotFoundException
+                || cause instanceof MetadataStoreException.NotFoundException;
     }
 
     protected void checkArgument(boolean b, String errorMessage) {
