@@ -21,10 +21,15 @@ package org.apache.pulsar.broker.service;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import java.util.UUID;
+import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -58,38 +63,34 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
     }
 
     @Test
-    public void testReplicatorTopicPolicies() throws Exception {
-        final String cluster1 = pulsar1.getConfig().getClusterName();
-        final String cluster2 = pulsar2.getConfig().getClusterName();
-        final String cluster3 = pulsar3.getConfig().getClusterName();
+    public void testReplicateQuotaTopicPolicies() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+        init(namespace, topic);
+        // set BacklogQuota
+        BacklogQuotaImpl backlogQuota = new BacklogQuotaImpl();
+        backlogQuota.setLimitSize(1);
+        backlogQuota.setLimitTime(2);
+        admin1.topicPolicies(true).setBacklogQuota(topic, backlogQuota);
 
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(admin2.topicPolicies(true).getBacklogQuotaMap(topic).containsValue(backlogQuota)));
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(admin3.topicPolicies(true).getBacklogQuotaMap(topic).containsValue(backlogQuota)));
+        //remove BacklogQuota
+        admin1.topicPolicies(true).removeBacklogQuota(topic);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true).getBacklogQuotaMap(topic).size(), 0));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true).getBacklogQuotaMap(topic).size(), 0));
+    }
+
+    @Test
+    public void testReplicatorTopicPolicies() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();
 
-        admin1.namespaces().createNamespace(namespace, Sets.newHashSet(cluster1, cluster2, cluster3));
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
-        // Create partitioned-topic from R1
-        admin1.topics().createPartitionedTopic(persistentTopicName, 3);
-        // List partitioned topics from R2
-        Awaitility.await().untilAsserted(() -> assertNotNull(admin2.topics().getPartitionedTopicList(namespace)));
-        Awaitility.await().untilAsserted(() -> assertEquals(
-                admin2.topics().getPartitionedTopicList(namespace).get(0), persistentTopicName));
-        assertEquals(admin1.topics().getList(namespace).size(), 3);
-        // List partitioned topics from R3
-        Awaitility.await().untilAsserted(() -> assertNotNull(admin3.topics().getPartitionedTopicList(namespace)));
-        Awaitility.await().untilAsserted(() -> assertEquals(
-                admin3.topics().getPartitionedTopicList(namespace).get(0), persistentTopicName));
-
-        pulsar1.getClient().newProducer().topic(persistentTopicName).create().close();
-        pulsar2.getClient().newProducer().topic(persistentTopicName).create().close();
-        pulsar3.getClient().newProducer().topic(persistentTopicName).create().close();
-
-        //init topic policies server
-        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
-            assertNull(pulsar1.getTopicPoliciesService().getTopicPolicies(TopicName.get(persistentTopicName)));
-            assertNull(pulsar2.getTopicPoliciesService().getTopicPolicies(TopicName.get(persistentTopicName)));
-            assertNull(pulsar3.getTopicPoliciesService().getTopicPolicies(TopicName.get(persistentTopicName)));
-        });
+        init(namespace, persistentTopicName);
         // set retention
         RetentionPolicies retentionPolicies = new RetentionPolicies(1, 1);
         admin1.topicPolicies(true).setRetention(persistentTopicName, retentionPolicies);
@@ -110,6 +111,38 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin2.topicPolicies(true).getRetention(persistentTopicName)));
         Awaitility.await().untilAsserted(() ->
                 assertNull(admin3.topicPolicies(true).getRetention(persistentTopicName)));
+    }
+
+    private void init(String namespace, String topic)
+            throws PulsarAdminException, PulsarClientException, PulsarServerException {
+        final String cluster2 = pulsar2.getConfig().getClusterName();
+        final String cluster1 = pulsar1.getConfig().getClusterName();
+        final String cluster3 = pulsar3.getConfig().getClusterName();
+
+        admin1.namespaces().createNamespace(namespace, Sets.newHashSet(cluster1, cluster2, cluster3));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
+        // Create partitioned-topic from R1
+        admin1.topics().createPartitionedTopic(topic, 3);
+        // List partitioned topics from R2
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin2.topics().getPartitionedTopicList(namespace)));
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                admin2.topics().getPartitionedTopicList(namespace).get(0), topic));
+        assertEquals(admin1.topics().getList(namespace).size(), 3);
+        // List partitioned topics from R3
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin3.topics().getPartitionedTopicList(namespace)));
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                admin3.topics().getPartitionedTopicList(namespace).get(0), topic));
+
+        pulsar1.getClient().newProducer().topic(topic).create().close();
+        pulsar2.getClient().newProducer().topic(topic).create().close();
+        pulsar3.getClient().newProducer().topic(topic).create().close();
+
+        //init topic policies server
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            assertNull(pulsar1.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)));
+            assertNull(pulsar2.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)));
+            assertNull(pulsar3.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)));
+        });
     }
 
 }
