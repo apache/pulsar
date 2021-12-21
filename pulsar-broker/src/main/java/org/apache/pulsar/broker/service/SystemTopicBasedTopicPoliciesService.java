@@ -205,6 +205,20 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     @Override
+    public CompletableFuture<Void> removeTopicPoliciesCache(TopicName topicName) {
+        NamespaceName namespace = topicName.getNamespaceObject();
+        CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
+                readerCaches.remove(namespace);
+        if (readerCompletableFuture != null) {
+            readerCompletableFuture.thenAccept(SystemTopicClient.Reader::closeAsync);
+            ownedBundlesCountPerNamespace.remove(namespace);
+            policyCacheInitMap.remove(namespace);
+            policiesCache.entrySet().removeIf(entry -> entry.getKey().getNamespaceObject().equals(namespace));
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
     public TopicPolicies getTopicPoliciesIfExists(TopicName topicName) {
         return policiesCache.get(TopicName.get(topicName.getPartitionedTopicName()));
     }

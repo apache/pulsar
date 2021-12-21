@@ -267,7 +267,9 @@ public abstract class NamespacesBase extends AdminResource {
             for (String topic : topics) {
                 pulsar().getBrokerService().getTopicIfExists(topic).whenComplete((topicOptional, ex) -> {
                     topicOptional.ifPresent(systemTopic -> {
-                        futures.add(systemTopic.deleteForcefully());
+                        futures.add(pulsar().getTopicPoliciesService()
+                                .removeTopicPoliciesCache(TopicName.get(topic))
+                                .thenAccept(__ -> systemTopic.deleteForcefully()));
                     });
                 });
             }
