@@ -25,6 +25,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -647,6 +648,54 @@ public class TopicsImpl extends BaseResource implements Topics {
                         @Override
                         public void completed(MessageIdImpl messageId) {
                             future.complete(messageId);
+                        }
+
+                        @Override
+                        public void failed(Throwable throwable) {
+                            log.warn("[{}] Failed to perform http post request: {}", path.getUri(),
+                                    throwable.getMessage());
+                            future.completeExceptionally(getApiException(throwable.getCause()));
+                        }
+                    });
+        } catch (PulsarAdminException cae) {
+            future.completeExceptionally(cae);
+        }
+
+        return future;
+    }
+
+    @Override
+    public Map<Integer, MessageId> terminatePartitionedTopic(String topic) throws PulsarAdminException {
+        try {
+            return terminatePartitionedTopicAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Map<Integer, MessageId>> terminatePartitionedTopicAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+
+        final CompletableFuture<Map<Integer, MessageId>> future = new CompletableFuture<>();
+        try {
+            final WebTarget path = topicPath(tn, "terminate", "partitions");
+
+            request(path).async().post(Entity.entity("", MediaType.APPLICATION_JSON),
+                    new InvocationCallback<Map<Integer, MessageIdImpl>>() {
+
+                        @Override
+                        public void completed(Map<Integer, MessageIdImpl> messageId) {
+                            Map<Integer, MessageId> messageIdImpl = new HashMap<>();
+                            for (Map.Entry<Integer, MessageIdImpl> entry: messageId.entrySet()) {
+                                messageIdImpl.put(entry.getKey(), entry.getValue());
+                            }
+                            future.complete(messageIdImpl);
                         }
 
                         @Override
