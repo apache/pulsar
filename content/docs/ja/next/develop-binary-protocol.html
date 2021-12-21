@@ -135,6 +135,12 @@
 <tr><td style="text-align:left"><code>index</code></td><td style="text-align:left">Optional</td><td style="text-align:left">The index of the message. It is assigned by the broker.</td></tr>
 </tbody>
 </table>
+<p>If you want to use broker entry metadata for <strong>brokers</strong>, configure the <a href="/docs/ja/next/reference-configuration#broker"><code>brokerEntryMetadataInterceptors</code></a> parameter in the <code>broker.conf</code> file.</p>
+<p>If you want to use broker entry metadata for <strong>consumers</strong>:</p>
+<ol>
+<li><p>Use the client protocol version <a href="https://github.com/apache/pulsar/blob/ca37e67211feda4f7e0984e6414e707f1c1dfd07/pulsar-common/src/main/proto/PulsarApi.proto#L259">18 or later</a>.</p></li>
+<li><p>Configure the <a href="/docs/ja/next/reference-configuration#broker"><code>brokerEntryMetadataInterceptors</code></a> parameter and set the <a href="/docs/ja/next/reference-configuration#broker"><code>enableExposingBrokerEntryMetadataToClient</code></a> parameter to <code>true</code> in the <code>broker.conf</code> file.</p></li>
+</ol>
 <h2><a class="anchor" aria-hidden="true" id="message-metadata"></a><a href="#message-metadata" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Message metadata</h2>
 <p>Message metadata is stored alongside the application-specified payload as a serialized protobuf message. Metadata is created by the producer and passed without changes to the consumer.</p>
 <table>

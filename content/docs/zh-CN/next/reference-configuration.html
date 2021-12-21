@@ -235,158 +235,159 @@ Instead, you can set a subscription expiration time for each <strong>命名空�
 <p>If this value is <code>NONE</code> or invalid, the <code>managedLedgerInfo</code> is not compressed.</p>
 <p><strong>Note</strong> that after enabling this configuration, if you want to degrade a broker, you need to change the value to <code>NONE</code> and make sure all ledger metadata is saved without compression. | None | | additionalServlets | Additional servlet name.</p>
 <p>If you have multiple additional servlets, separate them by commas.</p>
-<p>For example, additionalServlet_1, additionalServlet_2 | N/A | | additionalServletDirectory | Location of broker additional servlet NAR directory | ./brokerAdditionalServlet |</p></p>
-<h2><a class="anchor" aria-hidden="true" id="client"></a><a href="#client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Client</h2>
-<p>You can use the <a href="/docs/zh-CN/next/reference-cli-tools#pulsar-client"><code>pulsar-client</code></a> CLI tool to publish messages to and consume messages from Pulsar topics. You can use this tool in place of a client library.</p>
-<p>TLS TrustStore 类型配置。</p>
+<p>For example, additionalServlet_1, additionalServlet_2 | N/A | | additionalServletDirectory | Location of broker additional servlet NAR directory | ./brokerAdditionalServlet | | brokerEntryMetadataInterceptors | Set broker entry metadata interceptors.</p>
+<p>Multiple interceptors should be separated by commas.</p>
+<p>Available values:</p>
 <ul>
-<li>JKS
-<ul>
-<li><p>PKCS12</td>
-</tr>
-</tbody> </table></p>
-<h2><a class="anchor" aria-hidden="true" id="log4j"></a><a href="#log4j" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Log4j</h2>
-<p>您可以在 <a href="https://github.com/apache/pulsar/blob/d557e0aa286866363bc6261dec87790c055db1b0/conf/log4j2.yaml#L155">log4j2.yaml</a> 文件中设置日志级别和配置。 以下日志配置参数是可用的：</p>
-<table>
-<thead>
-<tr><th>配置项</th><th>默认值</th></tr>
-</thead>
-<tbody>
-<tr><td>pulsar.root.logger</td><td>WARN,CONSOLE</td></tr>
-<tr><td>pulsar.log.dir</td><td>logs</td></tr>
-<tr><td>pulsar.log.file</td><td>pulsar.log</td></tr>
-<tr><td>log4j.rootLogger</td><td>${pulsar.root.logger}</td></tr>
-<tr><td>log4j.appender.CONSOLE</td><td>org.apache.log4j.ConsoleAppender</td></tr>
-<tr><td>log4j.appender.CONSOLE.Threshold</td><td>DEBUG</td></tr>
-<tr><td>log4j.appender.CONSOLE.layout</td><td>org.apache.log4j.PatternLayout</td></tr>
-<tr><td>log4j.appender.CONSOLE.layout.ConversionPattern</td><td>%d{ISO8601} - %-5p - [%t:%C{1}@%L] - %m%n</td></tr>
-<tr><td>log4j.appender.ROLLINGFILE</td><td>org.apache.log4j.DailyRollingFileAppender</td></tr>
-<tr><td>log4j.appender.ROLLINGFILE.Threshold</td><td>DEBUG</td></tr>
-<tr><td>log4j.appender.ROLLINGFILE.File</td><td>${pulsar.log.dir}/${pulsar.log.file}</td></tr>
-<tr><td>log4j.appender.ROLLINGFILE.layout</td><td>org.apache.log4j.PatternLayout</td></tr>
-<tr><td>log4j.appender.ROLLINGFILE.layout.ConversionPattern</td><td>%d{ISO8601} - %-5p [%t:%C{1}@%L] - %m%n</td></tr>
-<tr><td>log4j.appender.TRACEFILE</td><td>org.apache.log4j.FileAppender</td></tr>
-<tr><td>log4j.appender.TRACEFILE.Threshold</td><td>TRACE</td></tr>
-<tr><td>log4j.appender.TRACEFILE.File</td><td>pulsar-trace.log</td></tr>
-<tr><td>log4j.appender.TRACEFILE.layout</td><td>org.apache.log4j.PatternLayout</td></tr>
-<tr><td>log4j.appender.TRACEFILE.layout.ConversionPattern</td><td>%d{ISO8601} - %-5p [%t:%C{1}@%L][%x] - %m%n</td></tr>
-</tbody>
-</table>
-<blockquote>
-<p>注意：log4j2.appender 中的“topic”是可配置的。 - 如果你想要将所有日志追加到单个主题，请设置相同的主题名称。 - 如果你想要将日志追加到不同的主题，你可以设置不同的主题名称。</p>
-</blockquote>
-<h2><a class="anchor" aria-hidden="true" id="log4j-shell"></a><a href="#log4j-shell" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Log4j shell</h2>
-<table>
-<thead>
-<tr><th>配置项</th><th>默认值</th></tr>
-</thead>
-<tbody>
-<tr><td>bookkeeper.root.logger</td><td>ERROR,CONSOLE</td></tr>
-<tr><td>log4j.rootLogger</td><td>${bookkeeper.root.logger}</td></tr>
-<tr><td>log4j.appender.CONSOLE</td><td>org.apache.log4j.ConsoleAppender</td></tr>
-<tr><td>log4j.appender.CONSOLE.Threshold</td><td>DEBUG</td></tr>
-<tr><td>log4j.appender.CONSOLE.layout</td><td>org.apache.log4j.PatternLayout</td></tr>
-<tr><td>log4j.appender.CONSOLE.layout.ConversionPattern</td><td>%d{ABSOLUTE} %-5p %m%n</td></tr>
-<tr><td>log4j.logger.org.apache.zookeeper</td><td>ERROR</td></tr>
-<tr><td>log4j.logger.org.apache.bookkeeper</td><td>ERROR</td></tr>
-<tr><td>log4j.logger.org.apache.bookkeeper.bookie.BookieShell</td><td>INFO</td></tr>
-</tbody>
-</table>
-<h2><a class="anchor" aria-hidden="true" id="standalone"></a><a href="#standalone" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Standalone</h2>
-<p>TLS KeyStore type configuration in the broker.</p>
-<ul>
-<li>JKS
-<ul>
-<li><p>PKCS12</td>
-</tr>
-TLS TrustStore type configuration in the broker</p>
-<ul>
-<li>JKS
-<ul>
-<li><p>PKCS12</td>
-</tr>
-TLS TrustStore type configuration for the internal client to authenticate with Pulsar brokers.</p>
-<ul>
-<li>JKS
-<ul>
-<li><p>PKCS12</td>
-</tr>
-</tbody> </table></p>
-<h2><a class="anchor" aria-hidden="true" id="websocket"></a><a href="#websocket" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>WebSocket</h2>
-<table>
-<thead>
-<tr><th>配置项</th><th>说明</th><th>默认值</th></tr>
-</thead>
-<tbody>
-<tr><td>configurationStoreServers</td><td></td><td></td></tr>
-<tr><td>zooKeeperSessionTimeoutMillis</td><td></td><td>30000</td></tr>
-<tr><td>zooKeeperCacheExpirySeconds</td><td>ZooKeeper 缓存过期时间（秒）</td><td>300</td></tr>
-<tr><td>serviceUrl</td><td></td><td></td></tr>
-<tr><td>serviceUrlTls</td><td></td><td></td></tr>
-<tr><td>brokerServiceUrl</td><td></td><td></td></tr>
-<tr><td>brokerServiceUrlTls</td><td></td><td></td></tr>
-<tr><td>webServicePort</td><td></td><td>8080</td></tr>
-<tr><td>webServicePortTls</td><td></td><td>8443</td></tr>
-<tr><td>bindAddress</td><td></td><td>0.0.0.0</td></tr>
-<tr><td>clusterName</td><td></td><td></td></tr>
-<tr><td>authenticationEnabled</td><td></td><td>false</td></tr>
-<tr><td>authenticationProviders</td><td></td><td></td></tr>
-<tr><td>authorizationEnabled</td><td></td><td>false</td></tr>
-<tr><td>superUserRoles</td><td></td><td></td></tr>
-<tr><td>brokerClientAuthenticationPlugin</td><td></td><td></td></tr>
-<tr><td>brokerClientAuthenticationParameters</td><td></td><td></td></tr>
-<tr><td>tlsEnabled</td><td></td><td>false</td></tr>
-<tr><td>tlsAllowInsecureConnection</td><td></td><td>false</td></tr>
-<tr><td>tlsCertificateFilePath</td><td></td><td></td></tr>
-<tr><td>tlsKeyFilePath</td><td></td><td></td></tr>
-<tr><td>tlsTrustCertsFilePath</td><td></td><td></td></tr>
-</tbody>
-</table>
-<h2><a class="anchor" aria-hidden="true" id="pulsar-代理"></a><a href="#pulsar-代理" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar 代理</h2>
-<p>The <a href="/docs/zh-CN/next/concepts-architecture-overview#pulsar-proxy">Pulsar proxy</a> can be configured in the <code>conf/proxy.conf</code> file.</p>
-<p>Proxy log level</p>
-<p>- 0: Do not log any TCP channel information.
-- 1: Parse and log any TCP channel information and command information without message body.
-- 2: Parse and log channel information, command information and message body.</td>
-</tr>
-</tbody> </table>
-## ZooKeeper</p>
-<pre><code class="hljs">          ZooKeeper handles a broad range of essential configuration- and coordination-related tasks for Pulsar. The default configuration file for ZooKeeper is in the `conf/zookeeper.conf` file in your Pulsar installation. The following parameters are available:
-          
-          | 配置项                       | 说明                                                                                                                                                                                                                                                                                         | 默认值            |
-          | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------- |
-          | tickTime                  | tick 是 Zookeeper 基本的时间单位，以毫秒为单位。用于处理心跳和超时，tickTime 是单个tick的长度。                                                                                                                                                                                                                             | 2000           |
-          | initLimit                 | Zookeeper leader 服务器允许 follower 服务器成功连接和同步的最大时间。使用 tickTime 参数为时间刻度，以毫秒为单位。                                                                                                                                                                                                                | 10             |
-          | syncLimit                 | Zookeeper follower 服务器允许从其他 Zookeeper 服务器同步的最大耗时。使用 tickTime 参数为时间刻度，以毫秒为单位。                                                                                                                                                                                                               | 5              |
-          | dataDir                   | The location where ZooKeeper will store in-memory database snapshots as well as the transaction log of updates to the database.                                                                                                                                                            | data/zookeeper |
-          | clientPort                | The port on which the ZooKeeper server will listen for connections.                                                                                                                                                                                                                        | 2181           |
-          | admin.enableServer        | The port at which the admin listens.                                                                                                                                                                                                                                                       | true           |
-          | admin.serverPort          | The port at which the admin listens.                                                                                                                                                                                                                                                       | 9990           |
-          | autopurge.snapRetainCount | ZooKeeper 中自动清理决定了在 autopurge.purgeInterval 参数设定的时间间隔内，存储在 dataDir 中的数据库快照数（其他快照会被删除）。                                                                                                                                                                                                     | 3              |
-          | autopurge.purgeInterval   | The time interval, in hours, by which the ZooKeeper database purge task is triggered. Setting to a non-zero number will enable auto purge; setting to 0 will disable. Read this guide before enabling auto purge.                                                                          | 1              |
-          | forceSync                 | Requires updates to be synced to media of the transaction log before finishing processing the update. If this option is set to 'no', ZooKeeper will not require updates to be synced to the media. WARNING: it's not recommended to run a production ZK cluster with `forceSync` disabled. | 是              |
-          | maxClientCnxns            | 客户端连接的最大数量，如果你需要处理更多的 Zookeeper 客户端，就需要增加这个配置项的值。                                                                                                                                                                                                                                          | 60             |
-          
-          In addition to the parameters in the table above, configuring ZooKeeper for Pulsar involves adding a `server.N` line to the `conf/zookeeper.conf` file for each node in the ZooKeeper cluster, where `N` is the number of the ZooKeeper node. Here's an example for a three-node ZooKeeper cluster:
-          
-          ```properties
-          server.1=zk1.us-west.example.com:2888:3888
-          server.2=zk2.us-west.example.com:2888:3888
-          server.3=zk3.us-west.example.com:2888:3888
-          ```
-          
-          &gt; We strongly recommend consulting the [ZooKeeper Administrator's Guide](https://zookeeper.apache.org/doc/current/zookeeperAdmin.html) for a more thorough and comprehensive introduction to ZooKeeper configuration</code></pre></li>
-</ul></li>
-</ul></li>
-</ul></li>
-</ul></li>
-</ul></li>
-</ul></li>
-</ul></li>
+<li>org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor</li>
+<li>org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor</li>
 </ul></li>
 </ul></li>
 </ul>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/reference-cli-tools"><span class="arrow-prev">← </span><span>Pulsar 命令行工具</span></a><a class="docs-next button" href="/docs/zh-CN/next/reference-metrics"><span>Pulsar Metrics</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#bookkeeper">BookKeeper</a></li><li><a href="#broker">Broker</a></li><li><a href="#client">Client</a></li><li><a href="#log4j">Log4j</a></li><li><a href="#log4j-shell">Log4j shell</a></li><li><a href="#standalone">Standalone</a></li><li><a href="#websocket">WebSocket</a></li><li><a href="#pulsar-代理">Pulsar 代理</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+<pre><code class="hljs">    示例  
+    brokerEntryMetadataInterceptors=org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor, org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor|N/A | | enableExposingBrokerEntryMetadataToClient|Whether to expose broker entry metadata to client or not.  
+      
+    Available values:
+    - true
+    - false
+      
+    示例  
+    enableExposingBrokerEntryMetadataToClient=true | false |&lt;/p&gt; 
+    ## Client
+    
+    You can use the [`pulsar-client`](/docs/zh-CN/next/reference-cli-tools#pulsar-client) CLI tool to publish messages to and consume messages from Pulsar topics. You can use this tool in place of a client library.
+    
+    TLS TrustStore 类型配置。 
+    
+    - JKS 
+        - PKCS12&lt;/td&gt; 
+            &lt;/tr&gt; 
+            &lt;/tbody&gt; &lt;/table&gt; 
+            ## Log4j
+            
+            您可以在 [log4j2.yaml](https://github.com/apache/pulsar/blob/d557e0aa286866363bc6261dec87790c055db1b0/conf/log4j2.yaml#L155) 文件中设置日志级别和配置。 以下日志配置参数是可用的：
+            
+            | 配置项                                                 | 默认值                                             |
+            | --------------------------------------------------- | ----------------------------------------------- |
+            | pulsar.root.logger                                  | WARN,CONSOLE                                    |
+            | pulsar.log.dir                                      | logs                                            |
+            | pulsar.log.file                                     | pulsar.log                                      |
+            | log4j.rootLogger                                    | ${pulsar.root.logger}                           |
+            | log4j.appender.CONSOLE                              | org.apache.log4j.ConsoleAppender                |
+            | log4j.appender.CONSOLE.Threshold                    | DEBUG                                           |
+            | log4j.appender.CONSOLE.layout                       | org.apache.log4j.PatternLayout                  |
+            | log4j.appender.CONSOLE.layout.ConversionPattern     | %d{ISO8601} - %-5p - [%t:%C{1}@%L] - %m%n       |
+            | log4j.appender.ROLLINGFILE                          | org.apache.log4j.DailyRollingFileAppender       |
+            | log4j.appender.ROLLINGFILE.Threshold                | DEBUG                                           |
+            | log4j.appender.ROLLINGFILE.File                     | ${pulsar.log.dir}/${pulsar.log.file}            |
+            | log4j.appender.ROLLINGFILE.layout                   | org.apache.log4j.PatternLayout                  |
+            | log4j.appender.ROLLINGFILE.layout.ConversionPattern | %d{ISO8601} - %-5p [%t:%C{1}@%L] - %m%n         |
+            | log4j.appender.TRACEFILE                            | org.apache.log4j.FileAppender                   |
+            | log4j.appender.TRACEFILE.Threshold                  | TRACE                                           |
+            | log4j.appender.TRACEFILE.File                       | pulsar-trace.log                                |
+            | log4j.appender.TRACEFILE.layout                     | org.apache.log4j.PatternLayout                  |
+            | log4j.appender.TRACEFILE.layout.ConversionPattern   | %d{ISO8601} - %-5p \[%t:%C{1}@%L\]\[%x\] - %m%n |
+            
+            &gt; 注意：log4j2.appender 中的“topic”是可配置的。 - 如果你想要将所有日志追加到单个主题，请设置相同的主题名称。 - 如果你想要将日志追加到不同的主题，你可以设置不同的主题名称。
+            
+            ## Log4j shell
+            
+            | 配置项                                                   | 默认值                              |
+            | ----------------------------------------------------- | -------------------------------- |
+            | bookkeeper.root.logger                                | ERROR,CONSOLE                    |
+            | log4j.rootLogger                                      | ${bookkeeper.root.logger}        |
+            | log4j.appender.CONSOLE                                | org.apache.log4j.ConsoleAppender |
+            | log4j.appender.CONSOLE.Threshold                      | DEBUG                            |
+            | log4j.appender.CONSOLE.layout                         | org.apache.log4j.PatternLayout   |
+            | log4j.appender.CONSOLE.layout.ConversionPattern       | %d{ABSOLUTE} %-5p %m%n           |
+            | log4j.logger.org.apache.zookeeper                     | ERROR                            |
+            | log4j.logger.org.apache.bookkeeper                    | ERROR                            |
+            | log4j.logger.org.apache.bookkeeper.bookie.BookieShell | INFO                             |
+            
+            ## Standalone
+            
+            TLS KeyStore type configuration in the broker.
+            
+            - JKS 
+                - PKCS12&lt;/td&gt; 
+                    &lt;/tr&gt; 
+                    TLS TrustStore type configuration in the broker
+                    
+                    - JKS 
+                        - PKCS12&lt;/td&gt; 
+                            &lt;/tr&gt; 
+                            TLS TrustStore type configuration for the internal client to authenticate with Pulsar brokers. 
+                            
+                            - JKS 
+                                - PKCS12&lt;/td&gt; 
+                                    &lt;/tr&gt; 
+                                    &lt;/tbody&gt; &lt;/table&gt; 
+                                    ## WebSocket
+                                    
+                                    | 配置项                                  | 说明                  | 默认值     |
+                                    | ------------------------------------ | ------------------- | ------- |
+                                    | configurationStoreServers            |                     |         |
+                                    | zooKeeperSessionTimeoutMillis        |                     | 30000   |
+                                    | zooKeeperCacheExpirySeconds          | ZooKeeper 缓存过期时间（秒） | 300     |
+                                    | serviceUrl                           |                     |         |
+                                    | serviceUrlTls                        |                     |         |
+                                    | brokerServiceUrl                     |                     |         |
+                                    | brokerServiceUrlTls                  |                     |         |
+                                    | webServicePort                       |                     | 8080    |
+                                    | webServicePortTls                    |                     | 8443    |
+                                    | bindAddress                          |                     | 0.0.0.0 |
+                                    | clusterName                          |                     |         |
+                                    | authenticationEnabled                |                     | false   |
+                                    | authenticationProviders              |                     |         |
+                                    | authorizationEnabled                 |                     | false   |
+                                    | superUserRoles                       |                     |         |
+                                    | brokerClientAuthenticationPlugin     |                     |         |
+                                    | brokerClientAuthenticationParameters |                     |         |
+                                    | tlsEnabled                           |                     | false   |
+                                    | tlsAllowInsecureConnection           |                     | false   |
+                                    | tlsCertificateFilePath               |                     |         |
+                                    | tlsKeyFilePath                       |                     |         |
+                                    | tlsTrustCertsFilePath                |                     |         |
+                                    
+                                    ## Pulsar 代理
+                                    
+                                    The [Pulsar proxy](/docs/zh-CN/next/concepts-architecture-overview#pulsar-proxy) can be configured in the `conf/proxy.conf` file.
+                                    
+                                    Proxy log level 
+                                    
+                                    - 0: Do not log any TCP channel information. 
+                                        - 1: Parse and log any TCP channel information and command information without message body. 
+                                            - 2: Parse and log channel information, command information and message body.&lt;/td&gt; 
+                                                &lt;/tr&gt; 
+                                                &lt;/tbody&gt; &lt;/table&gt; 
+                                                ## ZooKeeper
+                                                
+                                                ZooKeeper handles a broad range of essential configuration- and coordination-related tasks for Pulsar. The default configuration file for ZooKeeper is in the `conf/zookeeper.conf` file in your Pulsar installation. The following parameters are available:
+                                                
+                                                | 配置项                       | 说明                                                                                                                                                                                                                                                                                         | 默认值            |
+                                                | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------- |
+                                                | tickTime                  | tick 是 Zookeeper 基本的时间单位，以毫秒为单位。用于处理心跳和超时，tickTime 是单个tick的长度。                                                                                                                                                                                                                             | 2000           |
+                                                | initLimit                 | Zookeeper leader 服务器允许 follower 服务器成功连接和同步的最大时间。使用 tickTime 参数为时间刻度，以毫秒为单位。                                                                                                                                                                                                                | 10             |
+                                                | syncLimit                 | Zookeeper follower 服务器允许从其他 Zookeeper 服务器同步的最大耗时。使用 tickTime 参数为时间刻度，以毫秒为单位。                                                                                                                                                                                                               | 5              |
+                                                | dataDir                   | The location where ZooKeeper will store in-memory database snapshots as well as the transaction log of updates to the database.                                                                                                                                                            | data/zookeeper |
+                                                | clientPort                | The port on which the ZooKeeper server will listen for connections.                                                                                                                                                                                                                        | 2181           |
+                                                | admin.enableServer        | The port at which the admin listens.                                                                                                                                                                                                                                                       | true           |
+                                                | admin.serverPort          | The port at which the admin listens.                                                                                                                                                                                                                                                       | 9990           |
+                                                | autopurge.snapRetainCount | ZooKeeper 中自动清理决定了在 autopurge.purgeInterval 参数设定的时间间隔内，存储在 dataDir 中的数据库快照数（其他快照会被删除）。                                                                                                                                                                                                     | 3              |
+                                                | autopurge.purgeInterval   | The time interval, in hours, by which the ZooKeeper database purge task is triggered. Setting to a non-zero number will enable auto purge; setting to 0 will disable. Read this guide before enabling auto purge.                                                                          | 1              |
+                                                | forceSync                 | Requires updates to be synced to media of the transaction log before finishing processing the update. If this option is set to 'no', ZooKeeper will not require updates to be synced to the media. WARNING: it's not recommended to run a production ZK cluster with `forceSync` disabled. | 是              |
+                                                | maxClientCnxns            | 客户端连接的最大数量，如果你需要处理更多的 Zookeeper 客户端，就需要增加这个配置项的值。                                                                                                                                                                                                                                          | 60             |
+                                                
+                                                In addition to the parameters in the table above, configuring ZooKeeper for Pulsar involves adding a `server.N` line to the `conf/zookeeper.conf` file for each node in the ZooKeeper cluster, where `N` is the number of the ZooKeeper node. Here's an example for a three-node ZooKeeper cluster:
+                                                
+                                                ```properties
+                                                server.1=zk1.us-west.example.com:2888:3888
+                                                server.2=zk2.us-west.example.com:2888:3888
+                                                server.3=zk3.us-west.example.com:2888:3888
+                                                ```
+                                                
+                                                &gt; We strongly recommend consulting the [ZooKeeper Administrator's Guide](https://zookeeper.apache.org/doc/current/zookeeperAdmin.html) for a more thorough and comprehensive introduction to ZooKeeper configuration</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/reference-cli-tools"><span class="arrow-prev">← </span><span>Pulsar 命令行工具</span></a><a class="docs-next button" href="/docs/zh-CN/next/reference-metrics"><span>Pulsar Metrics</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#bookkeeper">BookKeeper</a></li><li><a href="#broker">Broker</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
