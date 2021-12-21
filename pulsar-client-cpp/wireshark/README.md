@@ -3,46 +3,50 @@
 The Pulsar Wireshark dissector allows to automatically decode the Pulsar binary protocol
 and visualize useful debug information (linking requests with responses, latency stats, etc.)
 
-### Install Wireshark
+## Install Wireshark
 
-#### macOS
+Based on your operating system, run the following command.
 
-Recommend use this way to install Wireshark in macOS.
+- macOS
 
 ```bash
 brew install homebrew/cask/wireshark
 ```
 
-#### Ubuntu
+- Ubuntu
 
 ```bash
 sudo apt install wireshark
 ```
 
-### Install dependencies
+## Install dependencies
 
-Install Wireshark with the development headers, necessary in order to build the plugin.
+To build the Wireshark plugin, install Wireshark with the development headers
 
-**NOTE**: Please make sure the Wireshark application version is the same as the Wireshark Headers version.
+> **NOTE**
+> 
+> Make sure the Wireshark application version is the same as the Wireshark headers version.
 
-#### macOS
+- macOS
 
 ```shell
 $ brew install wireshark
 ```
 
-#### Ubuntu
+- Ubuntu
 
 ```shell
 $ sudo apt install wireshark-dev
 ```
 
-### Compile the dissector
+## Compile the dissector
 
-> If the compiler cannot find the wireshark headers,
-> please use `-DWIRESHARK_INCLUDE_PATH=<WIRESHARK_INCLUDE_PATH>` to manually add include path.
+> **Tip**
+> 
+> If the compiler cannot find the Wireshark headers, add the include path manually.
+> `-DWIRESHARK_INCLUDE_PATH=<WIRESHARK_INCLUDE_PATH>`
 
-Compile the dissector:
+Compile the dissector.
 
 ```shell
 cd pulsar-client-cpp
@@ -50,35 +54,36 @@ cmake -DBUILD_WIRESHARK=ON .
 make pulsar-dissector
 ```
 
-This will create the `pulsar-dissector.so` plugin library in Wireshark directory.
+This creates the `pulsar-dissector.so` plugin library in the Wireshark directory.
 
-### Install Wireshark dissector
+## Install Wireshark dissector
 
 Copy the dissector in the appropriate location so that Wireshark can find it at startup.
 
-#### Find the Personal Plugins Location
+### Find the Personal Plugins Location
 
-1. Open Wireshark
-2. Click About Wireshark
-3. Find Folders tab
+1. Open Wireshark.
+2. Click **About Wireshark**.
+3. Click **Folders** tab.
 
-You can see the Personal Plugins Location, which is important for the next step.
+You can see the location of personal plugins, which is important for the next step.
 
-#### Copy Wireshark dissector to appropriate location
+Example
 
-Example for Wireshark 3.6.0 on macOS (This Location should be the previous step got Personal Plugins Location):
-
-~/.local/lib/wireshark/plugins/3-6/
+Wireshark 3.6.0 on macOS
 
 ```shell
-cd ~/.local/lib/wireshark/plugins/3-6/
+~/.local/lib/wireshark/plugins/3-6/
+```
+
+### Copy Wireshark dissector to appropriate location
+
+```shell
 mkdir -p ~/.local/lib/wireshark/plugins/3-6/epan
 cd pulsar-client-cpp/wireshark
 cp pulsar-dissector.so ~/.local/lib/wireshark/plugins/3-6/epan
 ```
 
-#### Complete installation
+### Complete installation
 
-Reboot Wireshark, you should be able to see the pulsar-dissector in:
-
-View > Internals > Dissector Tables
+Reboot Wireshark. You can see the pulsar-dissector in **View > Internals > Dissector Tables**.
