@@ -178,7 +178,7 @@ void ClientImpl::handleCreateProducer(const Result result, const LookupDataResul
             producer = std::make_shared<PartitionedProducerImpl>(shared_from_this(), topicName,
                                                                  partitionMetadata->getPartitions(), conf);
         } else {
-            producer = std::make_shared<ProducerImpl>(shared_from_this(), topicName->toString(), conf);
+            producer = std::make_shared<ProducerImpl>(shared_from_this(), *topicName, conf);
         }
         producer->getProducerCreatedFuture().addListener(
             std::bind(&ClientImpl::handleProducerCreated, shared_from_this(), std::placeholders::_1,

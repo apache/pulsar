@@ -42,10 +42,10 @@ struct ProducerImpl::PendingCallbacks {
     }
 };
 
-ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const ProducerConfiguration& conf,
-                           int32_t partition)
+ProducerImpl::ProducerImpl(ClientImplPtr client, const TopicName& topicName,
+                           const ProducerConfiguration& conf, int32_t partition)
     : HandlerBase(
-          client, topic,
+          client, (partition < 0) ? topicName.toString() : topicName.getTopicPartitionName(partition),
           Backoff(milliseconds(100), seconds(60), milliseconds(std::max(100, conf.getSendTimeout() - 100)))),
       conf_(conf),
       semaphore_(),

@@ -47,12 +47,13 @@ class PulsarFriend;
 
 class Producer;
 class MemoryLimitController;
+class TopicName;
 
 class ProducerImpl : public HandlerBase,
                      public std::enable_shared_from_this<ProducerImpl>,
                      public ProducerImplBase {
    public:
-    ProducerImpl(ClientImplPtr client, const std::string& topic,
+    ProducerImpl(ClientImplPtr client, const TopicName& topic,
                  const ProducerConfiguration& producerConfiguration, int32_t partition = -1);
     ~ProducerImpl();
 
