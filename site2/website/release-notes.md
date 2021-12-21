@@ -40,7 +40,7 @@ It also includes fixes for some breaking changes introduced in 2.9.0.
 
 **IMPORTANT NOTICE**
 
-**IT IS NOT RECOMMENDED TO USE PULSAR 2.9.0 ON PRODUCT ENVIRONMENT** since it does not include the fixes for [Log4j2 vulnerability (CVE-2021-44228)](https://pulsar.apache.org/blog/2021/12/11/Log4j-CVE/) and the [bundle unloading timeout issue](https://github.com/apache/pulsar/pull/12993).
+**IT IS NOT RECOMMENDED TO USE PULSAR 2.9.0 ON PRODUCTION ENVIRONMENT** since it does not include the fixes for [Log4j2 vulnerability (CVE-2021-44228)](https://pulsar.apache.org/blog/2021/12/11/Log4j-CVE/) and the [bundle unloading timeout issue](https://github.com/apache/pulsar/pull/12993).
 
 ### News and noteworthy
 - PIP-45 Pluggable metadata interface introduced many changes about ZooKeeper metadata management: consistency, resilience, stability, tech debt reduction (less code duplication)
