@@ -805,6 +805,8 @@ For more context about this issue, see [[Pulsar Functions and IO] Cannot upgrade
 
 - Upgrade log4j to 2.17.0 - [CVE-2021-45105](https://pulsar.apache.org/blog/2021/12/11/Log4j-CVE/)
   . [#13392](https://github.com/apache/pulsar/pull/13392)
+- Upgrade commons-compress to 1.21 - CVE-2021-35515, CVE-2021-35516, CVE-2021-35517
+  and CVE-2021-36090. [#11345](https://github.com/apache/pulsar/pull/11345)
 
 #### Broker
 
@@ -880,7 +882,6 @@ For more context about this issue, see [[Pulsar Functions and IO] Cannot upgrade
 
 #### Dependency upgrade
 - Remove Boost::System runtime dependency. [#9498](https://github.com/apache/pulsar/pull/9498)
-- Upgrade commons-compress to 1.21. [#11345](https://github.com/apache/pulsar/pull/11345)
 - Upgrade Jetty to 9.4.43.v20210629. [#11660](https://github.com/apache/pulsar/pull/11660)
 - Add maven.restlet.org repository. [#13248](https://github.com/apache/pulsar/pull/13248)
 - Upgrade Zookeeper version to 3.5.9. [#12981](https://github.com/apache/pulsar/pull/12981)
