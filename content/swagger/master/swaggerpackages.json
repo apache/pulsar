@@ -420,11 +420,11 @@
             "$ref" : "#/definitions/X509Certificate"
           }
         },
-        "httpAuthType" : {
-          "type" : "string"
-        },
         "peerAddress" : {
           "$ref" : "#/definitions/SocketAddress"
+        },
+        "httpAuthType" : {
+          "type" : "string"
         },
         "commandData" : {
           "type" : "string"
@@ -501,10 +501,10 @@
           "type" : "integer",
           "format" : "int32"
         },
-        "done" : {
+        "cancelled" : {
           "type" : "boolean"
         },
-        "cancelled" : {
+        "done" : {
           "type" : "boolean"
         },
         "completedExceptionally" : {
@@ -519,10 +519,10 @@
           "type" : "integer",
           "format" : "int32"
         },
-        "done" : {
+        "cancelled" : {
           "type" : "boolean"
         },
-        "cancelled" : {
+        "done" : {
           "type" : "boolean"
         },
         "completedExceptionally" : {
@@ -610,11 +610,11 @@
         "attributes" : {
           "$ref" : "#/definitions/ContextAttributes"
         },
-        "locale" : {
-          "$ref" : "#/definitions/Locale"
-        },
         "timeZone" : {
           "$ref" : "#/definitions/TimeZone"
+        },
+        "locale" : {
+          "$ref" : "#/definitions/Locale"
         },
         "typeFactory" : {
           "$ref" : "#/definitions/TypeFactory"
@@ -642,11 +642,11 @@
     "DeserializationContext" : {
       "type" : "object",
       "properties" : {
-        "locale" : {
-          "$ref" : "#/definitions/Locale"
-        },
         "timeZone" : {
           "$ref" : "#/definitions/TimeZone"
+        },
+        "locale" : {
+          "$ref" : "#/definitions/Locale"
         },
         "config" : {
           "$ref" : "#/definitions/DeserializationConfig"
@@ -870,6 +870,10 @@
     "JsonLocation" : {
       "type" : "object",
       "properties" : {
+        "byteOffset" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
         "sourceRef" : {
           "type" : "object"
         },
@@ -882,10 +886,6 @@
           "format" : "int32"
         },
         "charOffset" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "byteOffset" : {
           "type" : "integer",
           "format" : "int64"
         }
@@ -1459,11 +1459,11 @@
         "attributes" : {
           "$ref" : "#/definitions/ContextAttributes"
         },
-        "locale" : {
-          "$ref" : "#/definitions/Locale"
-        },
         "timeZone" : {
           "$ref" : "#/definitions/TimeZone"
+        },
+        "locale" : {
+          "$ref" : "#/definitions/Locale"
         },
         "typeFactory" : {
           "$ref" : "#/definitions/TypeFactory"
@@ -1494,11 +1494,11 @@
     "SerializerProvider" : {
       "type" : "object",
       "properties" : {
-        "locale" : {
-          "$ref" : "#/definitions/Locale"
-        },
         "timeZone" : {
           "$ref" : "#/definitions/TimeZone"
+        },
+        "locale" : {
+          "$ref" : "#/definitions/Locale"
         },
         "config" : {
           "$ref" : "#/definitions/SerializationConfig"
@@ -1538,9 +1538,6 @@
     "TimeZone" : {
       "type" : "object",
       "properties" : {
-        "displayName" : {
-          "type" : "string"
-        },
         "dstsavings" : {
           "type" : "integer",
           "format" : "int32"
@@ -1550,6 +1547,9 @@
           "format" : "int32"
         },
         "id" : {
+          "type" : "string"
+        },
+        "displayName" : {
           "type" : "string"
         }
       }
@@ -1622,12 +1622,6 @@
         "issuerX500Principal" : {
           "$ref" : "#/definitions/X500Principal"
         },
-        "issuerDN" : {
-          "$ref" : "#/definitions/Principal"
-        },
-        "subjectDN" : {
-          "$ref" : "#/definitions/Principal"
-        },
         "extendedKeyUsage" : {
           "type" : "array",
           "items" : {
@@ -1691,9 +1685,11 @@
             }
           }
         },
-        "version" : {
-          "type" : "integer",
-          "format" : "int32"
+        "issuerDN" : {
+          "$ref" : "#/definitions/Principal"
+        },
+        "subjectDN" : {
+          "$ref" : "#/definitions/Principal"
         },
         "serialNumber" : {
           "type" : "integer"
@@ -1704,6 +1700,10 @@
             "type" : "string",
             "format" : "byte"
           }
+        },
+        "version" : {
+          "type" : "integer",
+          "format" : "int32"
         },
         "signature" : {
           "type" : "array",
