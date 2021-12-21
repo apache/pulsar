@@ -11,15 +11,15 @@ Pulsar was initially developed as a cloud-native distributed messaging system at
 
 Pulsar’s success depends on its community. As shown in the chart below, the growth of Pulsar’s GitHub stars accelerated after Pulsar became a top-level Apache Software Foundation project. 
 
-![](/uploads/images/star.png)
+![](https://i.imgur.com/kwxz2XT.png)
 
 The number of contributors overtime is another metric for measuring community engagement. The chart below shows that the number of Pulsar contributors accelerated when Pulsar became a top-level Apache project and the growth rate has continued into 2021. 
 
-![](/uploads/images/contri.png)
+![](https://i.imgur.com/TYy4CQg.png)
 
 [Pulsar surpassed Kafka in the number of monthly active contributors in early 2021](https://www.apiseven.com/en/contributor-graph?chart=contributorMonthlyActivity&repo=apache/pulsar,apache/kafka). This shows that the development and engagement of Pulsar has grown rapidly over the past few years. 
 
-![](/uploads/images/monthly.png)
+![](https://i.imgur.com/6AN3dtM.png)
 
 # Project Updates and Ecosystem Development
 
@@ -27,19 +27,19 @@ Recent Pulsar project updates have brought new capabilities to the project. Belo
 
 ## 1. Pulsar 2.8 - Unified Messaging and Streaming with Transactions
 
-[Pulsar 2.8](https://streamnative.io/blog/release/2021-06-15-apache-pulsar-launches-2-8-unified-messaging-and-streaming-with-transactions/)  (released in June 2021) introduced many major updates. The [Pulsar Transaction API](https://streamnative.io/en/blog/release/2021-06-14-exactly-once-semantics-with-transactions-in-pulsar/) was added to support atomicity across multiple topics and enable end-to-end exactly-once message delivery guarantee for streaming jobs. [Replicated subscriptions](https://pulsar-summit.org/event/north-america-2021/sessions/replicated-subscriptions-taking-geo-replication-to-the-next-level) was added to enhance Pulsar’s geo-replication. With this feature, a consumer can restart consuming from the failure point in a different cluster in case of failover. Read [this blog](https://streamnative.io/blog/release/2021-06-15-apache-pulsar-launches-2-8-unified-messaging-and-streaming-with-transactions/) to learn more about 2.8. 
+Pulsar 2.8 (released in June 2021) introduced many major updates. The Pulsar Transaction API was added to support atomicity across multiple topics and enable end-to-end exactly-once message delivery guarantee for streaming jobs. Replicated subscriptions was added to enhance Pulsar’s geo-replication. With this feature, a consumer can restart consuming from the failure point in a different cluster in case of failover. 
 
 ## 2. Function Mesh - Simplifying Complex Streaming Jobs in the Cloud
 
-[Function Mesh](https://streamnative.io/en/blog/release/2021-05-03-function-mesh-open-source/) is an ideal tool for those who are seeking cloud-native serverless streaming solutions. It is a Kubernetes operator that enables users to run Pulsar Functions and connectors natively on Kubernetes, unlocking the full power of Kubernetes’ application deployment, scaling, and management. Function Mesh is also a serverless framework used to orchestrate multiple Pulsar Functions and I/O connectors for complex streaming jobs in a simple way.
+Function Mesh is an ideal tool for those who are seeking cloud-native serverless streaming solutions. It is a Kubernetes operator that enables users to run Pulsar Functions and connectors natively on Kubernetes, unlocking the full power of Kubernetes’ application deployment, scaling, and management. Function Mesh is also a serverless framework used to orchestrate multiple Pulsar Functions and I/O connectors for complex streaming jobs in a simple way.
 
 ## 3. Pulsar Connectors - AWS SQS Connector, Cloud Storage Sink Connector, and More
 
-Pulsar connectors enable easy integration between Pulsar and external systems with added benefits. For instance, the [AWS SQS Connector](https://streamnative.io/en/blog/tech/2021-03-17-announcing-aws-sqs-connector-for-apache-pulsar/) enables secure integration between Pulsar and SQS without needing to write any code. And the [Cloud Storage Sink Connector](https://streamnative.io/en/blog/tech/2020-10-20-cloud-storage-sink-connector-251/) can export data by guaranteeing exactly-once delivery semantics to its consumers. It provides applications that export data from Pulsar, the benefits of fault tolerance, parallelism, elasticity, and much more. 
+Pulsar connectors enable easy integration between Pulsar and external systems with added benefits. For instance, the AWS SQS Connector enables secure integration between Pulsar and SQS without needing to write any code. And the Cloud Storage Sink Connector can export data by guaranteeing exactly-once delivery semantics to its consumers. It provides applications that export data from Pulsar, the benefits of fault tolerance, parallelism, elasticity, and much more. 
 
 ## 4. Protocol Handlers - Kaffa-on-Pulsar, MQTT-on-Pulsar, and More
 
-Protocol handlers, such as Kaffa-on-Pulsar (KoP) and MQTT-on-Pulsar, allow Pulsar to interact with applications built on other messaging platforms, lowering the barrier to Pulsar adoption. Learn about how KoP became production-ready since KoP 2.8 in [this blog](https://streamnative.io/blog/engineering/2021-12-01-offset-implementation-in-kafka-on-pulsar/). Read about how MoP enables MQTT applications to leverage Pulsar’s infinite event stream retention with BookKeeper and tiered storage in [this blog](https://streamnative.io/en/blog/tech/2020-09-28-announcing-mqtt-on-pulsar/).
+Protocol handlers, such as Kaffa-on-Pulsar (KoP) and MQTT-on-Pulsar, allow Pulsar to interact with applications built on other messaging platforms, lowering the barrier to Pulsar adoption. KoP became production-ready since KoP 2.8 and MoP enables MQTT applications to leverage Pulsar’s infinite event stream retention with BookKeeper and tiered storage.
 
 # What’s Next
 
@@ -53,7 +53,6 @@ The Pulsar community is planning more features for future Pulsar releases, inclu
 
 # Get Involved
 
-* Pulsar 2.8.1 was released in September 2021. [Download it now](https://pulsar.apache.org/en/download/) and try it out! Read [this blog](https://streamnative.io/blog/release/2021-09-23-pulsar-281) for more details.
+* Pulsar 2.8.1 was released in September 2021. [Download it now](https://pulsar.apache.org/en/download/) and try it out! 
 * Join the [Pulsar community on Slack](https://apache-pulsar.herokuapp.com/).
-* [Get your free copy](https://streamnative.io/download/manning-ebook-apache-pulsar-in-action) of Manning's *Apache Pulsar in Action* and [join the virtual book launch](https://streamnative.io/event/webinar-book-launch/) hosted by the author David Kjerrumgaard. 
-* Join the 2022 StreamNative Ambassador Program and work directly with Pulsar experts from StreamNative to co-host events, promote new project updates, and build the Pulsar user group in your city. Contact Us: ambassador@streamnative.io
+
