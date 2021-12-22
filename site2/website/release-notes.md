@@ -163,7 +163,7 @@
 - Fix data lost when using earliest position to subscribe to a topic [#11547](https://github.com/apache/pulsar/pull/11547)
 - Add test for auto-created partitioned system topic [#11545](https://github.com/apache/pulsar/pull/11545)
 - Replace orElse with orElseGet to avoid calling too many times. [#11542](https://github.com/apache/pulsar/pull/11542)
-- Fix the schema deletion when delete topic with delete schema [#11501](https://github.com/apache/pulsar/pull/11501)
+- Fix the schema deletion when deleting topic with delete schema [#11501](https://github.com/apache/pulsar/pull/11501)
 - Add metrics for writing or reading size of cursor [#11500](https://github.com/apache/pulsar/pull/11500)
 - Do not create system topic for heartbeat namespace [#11499](https://github.com/apache/pulsar/pull/11499)
 - Add additional servlet support to broker [#11498](https://github.com/apache/pulsar/pull/11498)
@@ -803,8 +803,7 @@ For more context about this issue, see [[Pulsar Functions and IO] Cannot upgrade
 
 #### Security
 
-- Upgrade log4j to 2.17.0 - [CVE-2021-45105](https://pulsar.apache.org/blog/2021/12/11/Log4j-CVE/)
-  . [#13392](https://github.com/apache/pulsar/pull/13392)
+- Upgrade log4j to 2.17.0 - [CVE-2021-45105](https://pulsar.apache.org/blog/2021/12/11/Log4j-CVE/). [#13392](https://github.com/apache/pulsar/pull/13392)
 - Upgrade commons-compress to 1.21 - CVE-2021-35515, CVE-2021-35516, CVE-2021-35517
   and CVE-2021-36090. [#11345](https://github.com/apache/pulsar/pull/11345)
 
@@ -818,8 +817,7 @@ For more context about this issue, see [[Pulsar Functions and IO] Cannot upgrade
   auth. [#11172](https://github.com/apache/pulsar/pull/11172)
 - Fix retention of keys in compaction. [#11287](https://github.com/apache/pulsar/pull/11287)
 - Fix using partitioned topic name to get Policy. [#11294](https://github.com/apache/pulsar/pull/11294)
-- Fix npe when unloading persistent partitioned topic. [#11310](https://github.com/apache/pulsar/pull/11310)
-- Close the replicator and replication client when delete cluster. [#11342](https://github.com/apache/pulsar/pull/11342)
+- Fix NPE when unloading persistent partitioned topic. [#11310](https://github.com/apache/pulsar/pull/11310)
 - Remove RateLimiter constructors and replace with builder usage. [#11599](https://github.com/apache/pulsar/pull/11599)
 - Add backoff for setting for getting topic policies. [#11574](https://github.com/apache/pulsar/pull/11574)
 - Fix decode compression managedLedgerInfo data. [#11569](https://github.com/apache/pulsar/pull/11569)
@@ -830,9 +828,9 @@ For more context about this issue, see [[Pulsar Functions and IO] Cannot upgrade
 - Do not create system topic for heartbeat namespace. [#11499](https://github.com/apache/pulsar/pull/11499)
 - Compress managed ledger info. [#11490](https://github.com/apache/pulsar/pull/11490)
 - Add backoff for setting for getting topic policies. [#11487](https://github.com/apache/pulsar/pull/11487)
-- Solving precise rate limiting does not takes effect. [#11446](https://github.com/apache/pulsar/pull/11446)
+- Solving precise rate limiting does not take effect. [#11446](https://github.com/apache/pulsar/pull/11446)
 - Fix replicated subscriptions direct memory leak. [#11396](https://github.com/apache/pulsar/pull/11396)
-- Close the replicator and replication client when delete cluster. [#11390](https://github.com/apache/pulsar/pull/11390)
+- Close the replicator and replication client when deleting cluster. [#11390](https://github.com/apache/pulsar/pull/11390)
 - Invalidate the read handle after all cursors consumed. [#11389](https://github.com/apache/pulsar/pull/11389)
 - Fix NPE when unloading persistent partitioned topic. [#11386](https://github.com/apache/pulsar/pull/11386)
 - Fix retention of keys in compaction. [#11384](https://github.com/apache/pulsar/pull/11384)
@@ -884,7 +882,7 @@ For more context about this issue, see [[Pulsar Functions and IO] Cannot upgrade
 - Remove Boost::System runtime dependency. [#9498](https://github.com/apache/pulsar/pull/9498)
 - Upgrade Jetty to 9.4.43.v20210629. [#11660](https://github.com/apache/pulsar/pull/11660)
 - Add maven.restlet.org repository. [#13248](https://github.com/apache/pulsar/pull/13248)
-- Upgrade Zookeeper version to 3.5.9. [#12981](https://github.com/apache/pulsar/pull/12981)
+- Upgrade ZooKeeper version to 3.5.9. [#12981](https://github.com/apache/pulsar/pull/12981)
 - Remove pulsar-dashboard from the publish process of images. [#12534](https://github.com/apache/pulsar/pull/12534)
 - Roll back to using Java 8 for docker images. [#12357](https://github.com/apache/pulsar/pull/12357)
 - Upgrade TestContainers to 1.15.1. [#9120](https://github.com/apache/pulsar/pull/9120)
@@ -898,15 +896,15 @@ For more context about this issue, see [[Pulsar Functions and IO] Cannot upgrade
   size. [#11455](https://github.com/apache/pulsar/pull/11455)
 - [Java] Add a optional params scope for pulsar oauth2 client. [#11931](https://github.com/apache/pulsar/pull/11931)
 - [Java] Fix seek at batchIndex level receive duplicated messages. [#11826](https://github.com/apache/pulsar/pull/11826)
-- [Java] Fixed race condition on multi-topic consumer. [#11764](https://github.com/apache/pulsar/pull/11764)
+- [Java] Fix race condition on multi-topic consumer. [#11764](https://github.com/apache/pulsar/pull/11764)
 - [Java] Remove consumer reference from PulsarClient on subscription
   failure. [#11758](https://github.com/apache/pulsar/pull/11758)
-- [Java] Fixed block forever bug in Consumer.batchReceive. [#11691](https://github.com/apache/pulsar/pull/11691)
+- [Java] Fix block forever bug in Consumer.batchReceive. [#11691](https://github.com/apache/pulsar/pull/11691)
 - [Java] Send CloseProducer on timeout. [#13161](https://github.com/apache/pulsar/pull/13161)
 - [Java] Remove invalid call to Thread.currentThread().interrupt()
   . [#12652](https://github.com/apache/pulsar/pull/12652)
 - [Python] Fix fields that are ignoring the required key argument. [#11508](https://github.com/apache/pulsar/pull/11508)
-- [C++] Removed usages of boost::regex. [#9533](https://github.com/apache/pulsar/pull/9533)
+- [C++] Remove usages of boost::regex. [#9533](https://github.com/apache/pulsar/pull/9533)
 - [C++] Use sendRequestWithId to add timeout to
   hasMessageAvailable. [#11600](https://github.com/apache/pulsar/pull/11600)
 - [Pulsar perf] Fix log level config for pulsar-admin, pulsar-client and
@@ -915,7 +913,7 @@ For more context about this issue, see [[Pulsar Functions and IO] Cannot upgrade
 #### Functions and Pulsar IO
 
 - Fix source stats exposing empty exceptions list. [#11478](https://github.com/apache/pulsar/pull/11478)
-- Fixes function api can not use authdata to check superuser. [#11418](https://github.com/apache/pulsar/pull/11418)
+- Fix function API can not use authdata to check superuser. [#11418](https://github.com/apache/pulsar/pull/11418)
 - Support setting KEY_BASED batch builder for Pulsar Sinks. [#11710](https://github.com/apache/pulsar/pull/11710)
 - Detect .nar files and prevent spammy logs on functions boot. [#12665](https://github.com/apache/pulsar/pull/12665)
 - Remove the deprecated api usage in hdfs. [#12080](https://github.com/apache/pulsar/pull/12080)
