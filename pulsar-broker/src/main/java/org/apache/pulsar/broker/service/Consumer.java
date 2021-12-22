@@ -389,12 +389,12 @@ public class Consumer {
     //this method is for individual ack not carry the transaction
     private CompletableFuture<Void> individualAckNormal(CommandAck ack, Map<String, Long> properties) {
         List<Position> positionsAcked = new ArrayList<>();
-        Consumer ackOwnerConsumer = this;
         for (int i = 0; i < ack.getMessageIdsCount(); i++) {
             MessageIdData msgId = ack.getMessageIdAt(i);
             PositionImpl position;
             long ackedCount = 1;
             long batchSize = getBatchSize(msgId);
+            Consumer ackOwnerConsumer = getAckOwnerConsumer(msgId.getLedgerId(), msgId.getEntryId());
             if (msgId.getAckSetsCount() > 0) {
                 long[] ackSets = new long[msgId.getAckSetsCount()];
                 for (int j = 0; j < msgId.getAckSetsCount(); j++) {
@@ -451,7 +451,6 @@ public class Consumer {
     private CompletableFuture<Void> individualAckWithTransaction(CommandAck ack) {
         // Individual ack
         List<MutablePair<PositionImpl, Integer>> positionsAcked = new ArrayList<>();
-        Consumer ackOwnerConsumer = this;
         if (!isTransactionEnabled()) {
             return FutureUtil.failedFuture(
                     new BrokerServiceException.NotAllowedException("Server don't support transaction ack!"));
@@ -462,6 +461,7 @@ public class Consumer {
             PositionImpl position;
             long ackedCount = 1;
             long batchSize = getBatchSize(msgId);
+            Consumer ackOwnerConsumer = getAckOwnerConsumer(msgId.getLedgerId(), msgId.getEntryId());;
             if (msgId.getAckSetsCount() > 0) {
                 long[] ackSets = new long[msgId.getAckSetsCount()];
                 for (int j = 0; j < msgId.getAckSetsCount(); j++) {
@@ -563,10 +563,12 @@ public class Consumer {
 
     private Consumer getAckOwnerConsumer(long ledgerId, long entryId) {
         Consumer ackOwnerConsumer = this;
-        for (Consumer consumer : subscription.getConsumers()) {
-            if (!consumer.equals(this) && consumer.getPendingAcks().containsKey(ledgerId, entryId)) {
-                ackOwnerConsumer = consumer;
-                break;
+        if (Subscription.isIndividualAckMode(subType)) {
+            for (Consumer consumer : subscription.getConsumers()) {
+                if (!consumer.equals(this) && consumer.getPendingAcks().containsKey(ledgerId, entryId)) {
+                    ackOwnerConsumer = consumer;
+                    break;
+                }
             }
         }
         return ackOwnerConsumer;
