@@ -532,7 +532,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @SuppressWarnings("unchecked")
     @Override
     protected CompletableFuture<Void> doReconsumeLater(Message<?> message, AckType ackType,
-                                                       Map<String, Long> properties,
+                                                       Map<String, String> customProperties,
                                                        long delayTime,
                                                        TimeUnit unit) {
         MessageId messageId = message.getMessageId();
@@ -582,6 +582,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 String originTopicNameStr = getOriginTopicNameStr(message);
                 SortedMap<String, String> propertiesMap
                         = getPropertiesMap(message, originMessageIdStr, originTopicNameStr);
+                if(customProperties != null) {
+                    propertiesMap.putAll(customProperties);
+                }
                 int reconsumetimes = 1;
                 if (propertiesMap.containsKey(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES)) {
                     reconsumetimes = Integer.parseInt(propertiesMap.get(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES));
@@ -599,7 +602,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                         .value(retryMessage.getData())
                                         .properties(propertiesMap);
                         typedMessageBuilderNew.sendAsync().thenAccept(msgId -> {
-                            doAcknowledge(finalMessageId, ackType, properties, null).thenAccept(v -> {
+                            doAcknowledge(finalMessageId, ackType, Collections.emptyMap(), null).thenAccept(v -> {
                                 result.complete(null);
                             }).exceptionally(ex -> {
                                 result.completeExceptionally(ex);
@@ -625,7 +628,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         typedMessageBuilderNew.key(message.getKey());
                     }
                     typedMessageBuilderNew.send();
-                    return doAcknowledge(messageId, ackType, properties, null);
+                    return doAcknowledge(messageId, ackType, Collections.emptyMap(), null);
                 }
             } catch (Exception e) {
                 log.error("Send to retry letter topic exception with topic: {}, messageId: {}", retryLetterProducer.getTopic(), messageId, e);
