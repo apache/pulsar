@@ -30,7 +30,7 @@ jobs:
     if: ${{ github.repository == 'apache/pulsar' }}
     name: Build and publish pulsar website
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     steps:
       - name: checkout
         uses: actions/checkout@v2
