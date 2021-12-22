@@ -389,13 +389,20 @@ public class Consumer {
     //this method is for individual ack not carry the transaction
     private CompletableFuture<Void> individualAckNormal(CommandAck ack, Map<String, Long> properties) {
         List<Position> positionsAcked = new ArrayList<>();
-
+        Consumer ackOwnerConsumer = this;
         for (int i = 0; i < ack.getMessageIdsCount(); i++) {
             MessageIdData msgId = ack.getMessageIdAt(i);
             PositionImpl position;
             long ackedCount = 1;
             if (Subscription.isIndividualAckMode(subType)) {
-                ackedCount = pendingAcks.get(msgId.getLedgerId(), msgId.getEntryId()).first;
+                LongPair longPair = pendingAcks.get(msgId.getLedgerId(), msgId.getEntryId());
+                // Consumer may ack the msg that not belongs to it.
+                if (longPair == null) {
+                    ackOwnerConsumer = getAckOwnerConsumer(msgId.getLedgerId(), msgId.getEntryId());
+                    ackedCount = ackOwnerConsumer.getPendingAcks().get(msgId.getLedgerId(), msgId.getEntryId()).first;
+                } else {
+                    ackedCount = longPair.first;
+                }
             }
             if (msgId.getAckSetsCount() > 0) {
                 long[] ackSets = new long[msgId.getAckSetsCount()];
@@ -421,7 +428,7 @@ public class Consumer {
                 }
             }
 
-            addAndGetUnAckedMsgs(this, -(int) ackedCount);
+            addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
             log.info("broker unackedMessages : {}", UNACKED_MESSAGES_UPDATER.get(this));
 
             positionsAcked.add(position);
@@ -453,7 +460,7 @@ public class Consumer {
     private CompletableFuture<Void> individualAckWithTransaction(CommandAck ack) {
         // Individual ack
         List<MutablePair<PositionImpl, Integer>> positionsAcked = new ArrayList<>();
-
+        Consumer ackOwnerConsumer = this;
         if (!isTransactionEnabled()) {
             return FutureUtil.failedFuture(
                     new BrokerServiceException.NotAllowedException("Server don't support transaction ack!"));
@@ -463,8 +470,13 @@ public class Consumer {
             MessageIdData msgId = ack.getMessageIdAt(i);
             PositionImpl position;
             long ackedCount = 1;
-            if (Subscription.isIndividualAckMode(subType)) {
-                ackedCount = pendingAcks.get(msgId.getLedgerId(), msgId.getEntryId()).first;
+            LongPair longPair = pendingAcks.get(msgId.getLedgerId(), msgId.getEntryId());
+            // Consumer may ack the msg that not belongs to it.
+            if (longPair == null) {
+                ackOwnerConsumer = getAckOwnerConsumer(msgId.getLedgerId(), msgId.getEntryId());
+                ackedCount = ackOwnerConsumer.getPendingAcks().get(msgId.getLedgerId(), msgId.getEntryId()).first;
+            } else {
+                ackedCount = longPair.first;
             }
             if (msgId.getAckSetsCount() > 0) {
                 long[] ackSets = new long[msgId.getAckSetsCount()];
@@ -489,7 +501,7 @@ public class Consumer {
                 positionsAcked.add(new MutablePair<>(position, 0));
             }
 
-            addAndGetUnAckedMsgs(this, -(int) ackedCount);
+            addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
 
             checkCanRemovePendingAcksAndHandle(position, msgId);
 
@@ -547,12 +559,26 @@ public class Consumer {
         }
     }
 
+    private Consumer getAckOwnerConsumer(long ledgerId, long entryId) {
+        Consumer ackOwnerConsumer = this;
+        for (Consumer consumer : subscription.getConsumers()) {
+            if (!consumer.equals(this) && consumer.getPendingAcks().containsKey(ledgerId, entryId)) {
+                ackOwnerConsumer = consumer;
+                break;
+            }
+        }
+        return ackOwnerConsumer;
+    }
+
     private boolean isDeletionAtBatchIndexLevelEnabled() {
         ServiceConfiguration configuration = subscription.getTopic().getBrokerService().getPulsar().getConfiguration();
         return configuration.isAcknowledgmentAtBatchIndexLevelEnabled();
     }
 
     private long[] getCursorAckSet(PositionImpl position) {
+        if (!(subscription instanceof PersistentSubscription)) {
+            return null;
+        }
         return (((PersistentSubscription) subscription).getCursor()).getDeletedBatchIndexesAsLongArray(position);
     }
 

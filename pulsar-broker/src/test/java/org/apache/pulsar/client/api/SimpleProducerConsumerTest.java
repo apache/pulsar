@@ -1879,6 +1879,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 }
             }
 
+            assertEquals(messages.size(), totalReceiveMessages); // consumer1
             assertEquals(messages.size(), maxUnackedMessages); // consumer1
 
             // (3) ack for all UnackedMessages from consumer2
@@ -1901,7 +1902,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                     break;
                 }
             }
-
+            log.warn("2 -- totalReceiveMessages : {}", totalReceiveMessages);
             for (int i = 0; i < totalProducedMsgs; i++) {
                 msg = consumer2.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 if (msg != null) {
@@ -1911,7 +1912,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                     break;
                 }
             }
-
+            log.warn("3 -- totalReceiveMessages : {}", totalReceiveMessages);
             // verify total-consumer messages = total-produce messages
             assertEquals(totalProducedMsgs, totalReceiveMessages);
             producer.close();
