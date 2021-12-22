@@ -70,7 +70,6 @@ public class JettySslContextFactoryWithAutoRefreshTest {
         connectors.add(connector);
         server.setConnectors(connectors.toArray(new ServerConnector[0]));
         server.start();
-        Thread.sleep(5000);
         // client connect
         HttpClientBuilder httpClientBuilder = HttpClients.custom();
         RegistryBuilder<ConnectionSocketFactory> registryBuilder = RegistryBuilder.create();
@@ -104,7 +103,6 @@ public class JettySslContextFactoryWithAutoRefreshTest {
         connectors.add(connector);
         server.setConnectors(connectors.toArray(new ServerConnector[0]));
         server.start();
-        Thread.sleep(5000);
         // client connect
         HttpClientBuilder httpClientBuilder = HttpClients.custom();
         RegistryBuilder<ConnectionSocketFactory> registryBuilder = RegistryBuilder.create();
