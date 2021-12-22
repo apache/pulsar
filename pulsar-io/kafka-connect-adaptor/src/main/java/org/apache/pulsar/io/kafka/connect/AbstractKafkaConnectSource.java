@@ -29,6 +29,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.connect.header.Header;
 import org.apache.kafka.connect.runtime.TaskConfig;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
@@ -213,9 +214,19 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
 
         KafkaSchemaWrappedSchema valueSchema;
 
+        Map<String, String> properties;
+
         AbstractKafkaSourceRecord(SourceRecord srcRecord) {
             this.destinationTopic = Optional.of("persistent://"+topicNamespace + "/" + srcRecord.topic());
             this.partitionIndex = Optional.ofNullable(srcRecord.kafkaPartition());
+            properties = new HashMap<>();
+            if (srcRecord.headers() != null) {
+                for (Header header : srcRecord.headers()) {
+                    if (header.value() != null) {
+                        properties.put(header.key(), header.value().toString());
+                    }
+                }
+            }
         }
 
         @Override
@@ -230,7 +241,7 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
 
         @Override
         public Map<String, String> getProperties() {
-            return PROPERTIES;
+            return properties;
         }
 
         public boolean isEmpty() {

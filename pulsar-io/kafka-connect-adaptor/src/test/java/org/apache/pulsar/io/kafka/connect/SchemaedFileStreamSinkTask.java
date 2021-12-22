@@ -77,7 +77,9 @@ public class SchemaedFileStreamSinkTask extends FileStreamSinkTask {
                         om.writeValueAsString(recOut),
                         record.kafkaOffset(),
                         record.timestamp(),
-                        record.timestampType());
+                        record.timestampType(),
+                        record.headers()
+                        );
                 out.add(toSink);
             } catch (Exception e) {
                 throw new RuntimeException(e);

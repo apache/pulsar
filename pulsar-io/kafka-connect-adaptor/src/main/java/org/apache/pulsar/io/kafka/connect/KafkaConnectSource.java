@@ -21,6 +21,7 @@ package org.apache.pulsar.io.kafka.connect;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.apache.kafka.connect.json.JsonConverterConfig;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.pulsar.client.api.Schema;
@@ -74,12 +75,21 @@ public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte
 
         KafkaSourceRecord(SourceRecord srcRecord) {
             super(srcRecord);
+            RecordHeaders headers = new RecordHeaders();
+            for ( Map.Entry<String,String> entry : properties.entrySet()) {
+                headers.add(entry.getKey(), entry.getValue().getBytes());
+            }
+
             byte[] keyBytes = keyConverter.fromConnectData(
-                    srcRecord.topic(), srcRecord.keySchema(), srcRecord.key());
+                    srcRecord.topic(), headers, srcRecord.keySchema(), srcRecord.key());
             this.key = keyBytes != null ? Optional.of(Base64.getEncoder().encodeToString(keyBytes)) : Optional.empty();
 
             byte[] valueBytes = valueConverter.fromConnectData(
-                    srcRecord.topic(), srcRecord.valueSchema(), srcRecord.value());
+                    srcRecord.topic(), headers, srcRecord.valueSchema(), srcRecord.value());
+
+            for ( org.apache.kafka.common.header.Header header: headers.toArray() ) {
+                properties.put(header.key(), new String(header.value()));
+            }
 
             this.value = new KeyValue<>(keyBytes, valueBytes);
 

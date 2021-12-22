@@ -30,6 +30,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.connect.connector.Task;
 import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.header.ConnectHeaders;
 import org.apache.kafka.connect.sink.SinkConnector;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
@@ -65,7 +66,8 @@ public class KafkaConnectSink implements Sink<GenericObject> {
     @VisibleForTesting
     PulsarKafkaSinkTaskContext taskContext;
     private SinkConnector connector;
-    private SinkTask task;
+    @VisibleForTesting
+    SinkTask task;
 
     private long maxBatchSize;
     private final AtomicLong currentBatchSize = new AtomicLong(0L);
@@ -259,6 +261,16 @@ public class KafkaConnectSink implements Sink<GenericObject> {
             value = KafkaConnectData.getKafkaConnectData(sourceRecord.getValue().getNativeObject(), valueSchema);
         }
 
+        ConnectHeaders headers = null;
+        if (sourceRecord.getProperties() != null ) {
+            headers = new ConnectHeaders();
+            for (Map.Entry<String,String> properties : sourceRecord.getProperties().entrySet()) {
+                if (properties.getValue() != null) {
+                    headers.addString( properties.getKey(), properties.getValue());
+                }
+            }
+        }
+
         long offset = sourceRecord.getRecordSequence()
                 .orElse(-1L);
         if (offset < 0) {
@@ -285,7 +297,8 @@ public class KafkaConnectSink implements Sink<GenericObject> {
                 value,
                 offset,
                 timestamp,
-                timestampType);
+                timestampType,
+                headers);
     }
 
     @VisibleForTesting
