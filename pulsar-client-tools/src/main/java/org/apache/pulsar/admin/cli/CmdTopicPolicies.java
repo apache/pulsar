@@ -19,13 +19,18 @@
 package org.apache.pulsar.admin.cli;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.TopicPolicies;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
@@ -34,10 +39,76 @@ public class CmdTopicPolicies extends CmdBase {
 
     public CmdTopicPolicies(Supplier<PulsarAdmin> admin) {
         super("topicPolicies", admin);
-
+        jcommander.addCommand("set-subscription-types-enabled", new SetSubscriptionTypesEnabled());
+        jcommander.addCommand("get-subscription-types-enabled", new GetSubscriptionTypesEnabled());
+        jcommander.addCommand("remove-subscription-types-enabled", new RemoveSubscriptionTypesEnabled());
         jcommander.addCommand("get-retention", new GetRetention());
         jcommander.addCommand("set-retention", new SetRetention());
         jcommander.addCommand("remove-retention", new RemoveRetention());
+    }
+
+    @Parameters(commandDescription = "Set subscription types enabled for a topic")
+    private class SetSubscriptionTypesEnabled extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--types", "-t"}, description = "Subscription types enabled list (comma separated values)."
+                + " Possible values: (Exclusive, Shared, Failover, Key_Shared).", required = true)
+        private List<String> subTypes;
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
+                + "If set to true, broker returned global topic policies", arity = 0)
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            Set<SubscriptionType> types = new HashSet<>();
+            subTypes.forEach(s -> {
+                SubscriptionType subType;
+                try {
+                    subType = SubscriptionType.valueOf(s);
+                } catch (IllegalArgumentException exception) {
+                    throw new ParameterException(String.format("Illegal subscription type %s. Possible values: %s.", s,
+                            Arrays.toString(SubscriptionType.values())));
+                }
+                types.add(subType);
+            });
+            getTopicPolicies(isGlobal).setSubscriptionTypesEnabled(persistentTopic, types);
+        }
+    }
+
+    @Parameters(commandDescription = "Get subscription types enabled for a topic")
+    private class GetSubscriptionTypesEnabled extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
+                + "If set to true, the policy will be replicate to other clusters asynchronously", arity = 0)
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(getTopicPolicies(isGlobal).getSubscriptionTypesEnabled(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove subscription types enabled for a topic")
+    private class RemoveSubscriptionTypesEnabled extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
+                + "If set to true, the removing operation will be replicate to other clusters asynchronously"
+                , arity = 0)
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopicPolicies(isGlobal).removeSubscriptionTypesEnabled(persistentTopic);
+        }
     }
 
     @Parameters(commandDescription = "Get the retention policy for a topic")

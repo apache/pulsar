@@ -196,10 +196,6 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("set-publish-rate", new SetPublishRate());
         jcommander.addCommand("remove-publish-rate", new RemovePublishRate());
 
-        jcommander.addCommand("set-subscription-types-enabled", new SetSubscriptionTypesEnabled());
-        jcommander.addCommand("get-subscription-types-enabled", new GetSubscriptionTypesEnabled());
-        jcommander.addCommand("remove-subscription-types-enabled", new RemoveSubscriptionTypesEnabled());
-
         //deprecated commands
         jcommander.addCommand("get-maxProducers", new GetMaxProducers());
         jcommander.addCommand("set-maxProducers", new SetMaxProducers());
@@ -267,6 +263,10 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("get-retention");
             cmdUsageFormatter.addDeprecatedCommand("set-retention");
             cmdUsageFormatter.addDeprecatedCommand("remove-retention");
+
+            cmdUsageFormatter.addDeprecatedCommand("set-subscription-types-enabled");
+            cmdUsageFormatter.addDeprecatedCommand("get-subscription-types-enabled");
+            cmdUsageFormatter.addDeprecatedCommand("remove-subscription-types-enabled");
         }
     }
 
@@ -1963,58 +1963,6 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             getTopics().setMaxUnackedMessagesOnSubscription(persistentTopic, maxNum);
-        }
-    }
-
-
-    @Parameters(commandDescription = "Set subscription types enabled for a topic")
-    private class SetSubscriptionTypesEnabled extends CliCommand {
-        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
-        private java.util.List<String> params;
-
-        @Parameter(names = {"--types", "-t"}, description = "Subscription types enabled list (comma separated values)."
-                + " Possible values: (Exclusive, Shared, Failover, Key_Shared).", required = true)
-        private List<String> subTypes;
-
-        @Override
-        void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(params);
-            Set<SubscriptionType> types = new HashSet<>();
-            subTypes.forEach(s -> {
-                SubscriptionType subType;
-                try {
-                    subType = SubscriptionType.valueOf(s);
-                } catch (IllegalArgumentException exception) {
-                    throw new ParameterException(String.format("Illegal subscription type %s. Possible values: %s.", s,
-                            Arrays.toString(SubscriptionType.values())));
-                }
-                types.add(subType);
-            });
-            getTopics().setSubscriptionTypesEnabled(persistentTopic, types);
-        }
-    }
-
-    @Parameters(commandDescription = "Get subscription types enabled for a topic")
-    private class GetSubscriptionTypesEnabled extends CliCommand {
-        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
-        private java.util.List<String> params;
-
-        @Override
-        void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(params);
-            print(getTopics().getSubscriptionTypesEnabled(persistentTopic));
-        }
-    }
-
-    @Parameters(commandDescription = "Remove subscription types enabled for a topic")
-    private class RemoveSubscriptionTypesEnabled extends CliCommand {
-        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
-        private java.util.List<String> params;
-
-        @Override
-        void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(params);
-            getTopics().removeSubscriptionTypesEnabled(persistentTopic);
         }
     }
 

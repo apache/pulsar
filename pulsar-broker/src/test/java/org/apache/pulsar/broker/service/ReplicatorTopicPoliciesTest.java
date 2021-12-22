@@ -22,7 +22,14 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import com.google.common.collect.Sets;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
+import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.awaitility.Awaitility;
@@ -110,6 +117,59 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin2.topicPolicies(true).getRetention(persistentTopicName)));
         Awaitility.await().untilAsserted(() ->
                 assertNull(admin3.topicPolicies(true).getRetention(persistentTopicName)));
+    }
+    @Test
+    public void testReplicateSubscriptionTypesPolicies() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+        init(namespace, topic);
+        Set<SubscriptionType> subscriptionTypes = new HashSet<>();
+        subscriptionTypes.add(SubscriptionType.Shared);
+        // set
+        admin1.topicPolicies(true).setSubscriptionTypesEnabled(topic, subscriptionTypes);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true).getSubscriptionTypesEnabled(topic), subscriptionTypes));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true).getSubscriptionTypesEnabled(topic), subscriptionTypes));
+        // remove
+        admin1.topicPolicies(true).removeSubscriptionTypesEnabled(topic);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true).getSubscriptionTypesEnabled(topic), Collections.emptySet()));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true).getSubscriptionTypesEnabled(topic), Collections.emptySet()));
+
+    }
+
+    private void init(String namespace, String topic)
+            throws PulsarAdminException, PulsarClientException, PulsarServerException {
+        final String cluster2 = pulsar2.getConfig().getClusterName();
+        final String cluster1 = pulsar1.getConfig().getClusterName();
+        final String cluster3 = pulsar3.getConfig().getClusterName();
+
+        admin1.namespaces().createNamespace(namespace, Sets.newHashSet(cluster1, cluster2, cluster3));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
+        // Create partitioned-topic from R1
+        admin1.topics().createPartitionedTopic(topic, 3);
+        // List partitioned topics from R2
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin2.topics().getPartitionedTopicList(namespace)));
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                admin2.topics().getPartitionedTopicList(namespace).get(0), topic));
+        assertEquals(admin1.topics().getList(namespace).size(), 3);
+        // List partitioned topics from R3
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin3.topics().getPartitionedTopicList(namespace)));
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                admin3.topics().getPartitionedTopicList(namespace).get(0), topic));
+
+        pulsar1.getClient().newProducer().topic(topic).create().close();
+        pulsar2.getClient().newProducer().topic(topic).create().close();
+        pulsar3.getClient().newProducer().topic(topic).create().close();
+
+        //init topic policies server
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            assertNull(pulsar1.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)));
+            assertNull(pulsar2.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)));
+            assertNull(pulsar3.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)));
+        });
     }
 
 }
