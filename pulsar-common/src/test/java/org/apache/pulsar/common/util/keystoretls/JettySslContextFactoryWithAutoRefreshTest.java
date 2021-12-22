@@ -42,7 +42,6 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.TrustManagerFactory;
 import java.io.FileInputStream;
-import java.net.ServerSocket;
 import java.security.KeyStore;
 import java.security.SecureRandom;
 import java.util.ArrayList;
@@ -65,8 +64,7 @@ public class JettySslContextFactoryWithAutoRefreshTest {
                 null, 600);
         factory.setHostnameVerifier((s, sslSession) -> true);
         ServerConnector connector = new ServerConnector(server, factory);
-        int unusedPort = getUnusedPort();
-        connector.setPort(unusedPort);
+        connector.setPort(0);
         connectors.add(connector);
         server.setConnectors(connectors.toArray(new ServerConnector[0]));
         server.start();
@@ -77,7 +75,7 @@ public class JettySslContextFactoryWithAutoRefreshTest {
         PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(registryBuilder.build());
         httpClientBuilder.setConnectionManager(cm);
         CloseableHttpClient httpClient = httpClientBuilder.build();
-        HttpGet httpGet = new HttpGet("https://localhost:" + unusedPort);
+        HttpGet httpGet = new HttpGet("https://localhost:" + connector.getLocalPort());
         httpClient.execute(httpGet);
     }
 
@@ -98,8 +96,7 @@ public class JettySslContextFactoryWithAutoRefreshTest {
                 }, 600);
         factory.setHostnameVerifier((s, sslSession) -> true);
         ServerConnector connector = new ServerConnector(server, factory);
-        int unusedPort = getUnusedPort();
-        connector.setPort(unusedPort);
+        connector.setPort(0);
         connectors.add(connector);
         server.setConnectors(connectors.toArray(new ServerConnector[0]));
         server.start();
@@ -111,7 +108,7 @@ public class JettySslContextFactoryWithAutoRefreshTest {
         PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(registryBuilder.build());
         httpClientBuilder.setConnectionManager(cm);
         CloseableHttpClient httpClient = httpClientBuilder.build();
-        HttpGet httpGet = new HttpGet("https://localhost:" + unusedPort);
+        HttpGet httpGet = new HttpGet("https://localhost:" + connector.getLocalPort());
         httpClient.execute(httpGet);
     }
 
@@ -136,8 +133,7 @@ public class JettySslContextFactoryWithAutoRefreshTest {
                 }, 600);
         factory.setHostnameVerifier((s, sslSession) -> true);
         ServerConnector connector = new ServerConnector(server, factory);
-        int unusedPort = getUnusedPort();
-        connector.setPort(unusedPort);
+        connector.setPort(0);
         connectors.add(connector);
         server.setConnectors(connectors.toArray(new ServerConnector[0]));
         server.start();
@@ -149,7 +145,7 @@ public class JettySslContextFactoryWithAutoRefreshTest {
         PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(registryBuilder.build());
         httpClientBuilder.setConnectionManager(cm);
         CloseableHttpClient httpClient = httpClientBuilder.build();
-        HttpGet httpGet = new HttpGet("https://localhost:" + unusedPort);
+        HttpGet httpGet = new HttpGet("https://localhost:" + connector.getLocalPort());
         httpClient.execute(httpGet);
     }
 
@@ -184,12 +180,6 @@ public class JettySslContextFactoryWithAutoRefreshTest {
         } catch (Exception e) {
             log.error("load ssl context error ", e);
             return null;
-        }
-    }
-
-    private static int getUnusedPort() throws Exception {
-        try (ServerSocket ss = new ServerSocket(0)) {
-            return ss.getLocalPort();
         }
     }
 
