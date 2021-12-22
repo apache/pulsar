@@ -36,8 +36,6 @@ struct OpSendMsg {
     boost::posix_time::ptime timeout_;
     uint32_t messagesCount_;
     uint64_t messagesSize_;
-    int totalChunks_ = 0;
-    int chunkId_ = -1;
 
     OpSendMsg() = default;
 
@@ -50,16 +48,6 @@ struct OpSendMsg {
           timeout_(TimeUtils::now() + milliseconds(sendTimeoutMs)),
           messagesCount_(messagesCount),
           messagesSize_(messagesSize) {}
-
-    OpSendMsg& setTotalChunks(int totalChunks) {
-        totalChunks_ = totalChunks;
-        return *this;
-    }
-
-    OpSendMsg& setChunkId(int chunkId) {
-        chunkId_ = chunkId;
-        return *this;
-    }
 };
 
 }  // namespace pulsar

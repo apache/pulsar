@@ -484,17 +484,9 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
                 return;
             }
 
-            OpSendMsg op{msg,
-                         cb,
-                         producerId_,
-                         static_cast<uint64_t>(sequenceId),
-                         conf_.getSendTimeout(),
-                         1,
-                         uncompressedSize};
-            if (sendChunks) {
-                op.setChunkId(chunkId).setTotalChunks(totalChunks);
-            }
-            sendMessage(op);
+            sendMessage(OpSendMsg{msg, (chunkId == totalChunks - 1) ? cb : nullptr, producerId_,
+                                  static_cast<uint64_t>(sequenceId), conf_.getSendTimeout(), 1,
+                                  uncompressedSize});
         }
     }
 }
@@ -859,8 +851,7 @@ bool ProducerImpl::ackReceived(uint64_t sequenceId, MessageId& rawMessageId) {
         pendingMessagesQueue_.pop_front();
 
         lock.unlock();
-        // If message is chunked, then call callback only on last chunk
-        if (op.totalChunks_ <= 1 || (op.chunkId_ == op.totalChunks_ - 1)) {
+        if (op.sendCallback_) {
             try {
                 op.sendCallback_(ResultOk, messageId);
             } catch (const std::exception& e) {
