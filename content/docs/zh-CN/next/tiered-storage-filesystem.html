@@ -132,12 +132,14 @@ ls offloaders
 <p>您可以在 <code>broker.conf</code> 或 <code>standalone.conf</code> 配置文件中配置 filesystem offloader 驱动程序。</p>
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-3609-tab-3610" class="nav-link active" data-group="group_3609" data-tab="tab-group-3609-content-3610">HDFS</div><div id="tab-group-3609-tab-3611" class="nav-link" data-group="group_3609" data-tab="tab-group-3609-content-3611">NFS</div></div><div class="tab-content"><div id="tab-group-3609-content-3610" class="tab-pane active" data-group="group_3609" tabindex="-1"><div><span><ul>
 <li><p>以下为<strong>必选</strong> 配置。</p>
-<p>参数| 描述| 示例值 |---|---|--- <code>managedLedgerOffloadDriver</code> | Offloader 驱动程序名称，不区分大小写。 | filesystem <code>fileSystemURI</code> | 连接地址，访问默认 Hadoop 分布式文件系统的 URI。 | <a href="hdfs://127.0.0.1:9000">hdfs://127.0.0.1:9000</a> <code>offloadersDirectory</code> | Hadoop 配置文件路径。 配置文件存储在 Hadoop 配置文件路径中。 它包含了一些 Hadoop 性能调整的配置。 | ../conf/filesystem_offload_core_site.xml</p></li>
+<p>参数| 描述| 示例值 |---|---|--- <code>managedLedgerOffloadDriver</code> | Offloader 驱动程序名称，不区分大小写。 | filesystem <code>fileSystemURI</code> | 连接地址，访问默认 Hadoop 分布式文件系统的 URI。 | <a href="hdfs://127.0.0.1:9000">hdfs://127.0.0.1:9000</a> <code>offloadersDirectory</code> | Offloader directory | offloaders <code>fileSystemProfilePath</code> | Hadoop profile path. 配置文件存储在 Hadoop 配置文件路径中。 它包含了一些 Hadoop 性能调整的配置。 | ../conf/filesystem_offload_core_site.xml</p></li>
+</ul>
+<ul>
 <li><p>以下为<strong>可选</strong> 配置。</p>
 <p>参数| 描述| 示例值 |---|---|--- <code>managedLedgerMinLedgerRolloverTimeMinutes</code>| topic 的 ledger 切换的最短时间。 <br><br><strong>注意</strong>: 不建议在生产环境中设置此参数。|2 <code>managedLedgerMaxEntriesPerLedger</code>|在触发滚动之前添加到 ledger 的最大条目数。<br><br><strong>注意</strong>: 不建议在生产环境中设置此参数。|5000</p></li>
 </ul>
 </span></div></div><div id="tab-group-3609-content-3611" class="tab-pane" data-group="group_3609" tabindex="-1"><div><span><ul>
-<li><p>以下为<strong>必选</strong> 配置。 参数| 描述| 示例值 |---|---|--- <code>managedLedgerOffloadDriver</code> | Offloader 驱动程序名称，不区分大小写。 | filesystem <code>offloadersDirectory</code> | Offloader 目录。 配置文件存储在 offloader 目录中。 它包含用于性能调整的各种设置。 | ../conf/filesystem_offload_core_site.xml</p></li>
+<li><p>以下为<strong>必选</strong> 配置。 参数| 描述| 示例值 |---|---|--- <code>managedLedgerOffloadDriver</code> | Offloader 驱动程序名称，不区分大小写。 | filesystem <code>offloadersDirectory</code> | Offloader directory | offloaders <code>fileSystemProfilePath</code> | NFS profile path. The configuration file is stored in the NFS profile path. 它包含用于性能调整的各种设置。 | ../conf/filesystem_offload_core_site.xml</p></li>
 <li><p>以下为<strong>可选</strong> 配置。</p>
 <p>参数| 描述| 示例值 |---|---|--- <code>managedLedgerMinLedgerRolloverTimeMinutes</code>| topic 的 ledger 切换的最短时间。 <br><br><strong>注意</strong>: 不建议在生产环境中设置此参数。|2 <code>managedLedgerMaxEntriesPerLedger</code>|在触发滚动之前添加到 ledger 的最大条目数。<br><br><strong>注意</strong>: 不建议在生产环境中设置此参数。|5000</p></li>
 </ul>

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Set up a standalone Pulsar locally · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="For local development and testing, you can run Pulsar in standalone mode on your machine. The standalone mode includes a Pulsar broker, the necessary ZooKeeper and BookKeeper components running inside of a single Java Virtual Machine (JVM) process."/><meta name="docsearch:version" content="2.8.1"/><meta name="docsearch:language" content="fr"/><meta property="og:title" content="Set up a standalone Pulsar locally · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="For local development and testing, you can run Pulsar in standalone mode on your machine. The standalone mode includes a Pulsar broker, the necessary ZooKeeper and BookKeeper components running inside of a single Java Virtual Machine (JVM) process."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Set up a standalone Pulsar locally · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="For local development and testing, you can run Pulsar in standalone mode on your machine. The standalone mode includes a Pulsar broker, the necessary ZooKeeper and BookKeeper components running inside of a single Java Virtual Machine (JVM) process."/><meta name="docsearch:version" content="2.9.1"/><meta name="docsearch:language" content="fr"/><meta property="og:title" content="Set up a standalone Pulsar locally · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="For local development and testing, you can run Pulsar in standalone mode on your machine. The standalone mode includes a Pulsar broker, the necessary ZooKeeper and BookKeeper components running inside of a single Java Virtual Machine (JVM) process."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/fr"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/fr/versions"><h3>2.8.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive siteNavItemActive"><a href="/docs/fr/standalone" target="_self">Docs</a></li><li class=""><a href="/fr/download" target="_self">Téléchargement</a></li><li class="siteNavGroupActive"><a href="/docs/fr/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">API REST</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Communauté</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>Français</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/standalone">English</a></li><li><a href="/docs/ja/standalone">日本語</a></li><li><a href="/docs/ko/standalone">한국어</a></li><li><a href="/docs/zh-CN/standalone">中文</a></li><li><a href="/docs/zh-TW/standalone">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Aidez à traduire</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/fr"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/fr/versions"><h3>2.9.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive siteNavItemActive"><a href="/docs/fr/standalone" target="_self">Docs</a></li><li class=""><a href="/fr/download" target="_self">Téléchargement</a></li><li class="siteNavGroupActive"><a href="/docs/fr/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">API REST</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Communauté</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>Français</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/standalone">English</a></li><li><a href="/docs/ja/standalone">日本語</a></li><li><a href="/docs/ko/standalone">한국어</a></li><li><a href="/docs/zh-CN/standalone">中文</a></li><li><a href="/docs/zh-TW/standalone">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Aidez à traduire</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -76,34 +76,34 @@
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/fr" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Set up a standalone Pulsar locally</h1></header><article><div><span><p>For local development and testing, you can run Pulsar in standalone mode on your machine. The standalone mode includes a Pulsar broker, the necessary ZooKeeper and BookKeeper components running inside of a single Java Virtual Machine (JVM) process.</p>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="pulsar-in-production"></a><a href="#pulsar-in-production" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar in production?</h4>
-<p>If you're looking to run a full production Pulsar installation, see the <a href="/docs/fr/deploy-bare-metal">Deploying a Pulsar instance</a> guide.</p>
+<p><strong>Pulsar in production?</strong>  <br>
+If you're looking to run a full production Pulsar installation, see the <a href="/docs/fr/deploy-bare-metal">Deploying a Pulsar instance</a> guide.</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="install-pulsar-standalone"></a><a href="#install-pulsar-standalone" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Install Pulsar standalone</h2>
-<p>This tutorial guides you through every step of the installation process.</p>
+<p>This tutorial guides you through every step of installing Pulsar locally.</p>
 <h3><a class="anchor" aria-hidden="true" id="system-requirements"></a><a href="#system-requirements" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>System requirements</h3>
 <p>Currently, Pulsar is available for 64-bit <strong>macOS</strong>, <strong>Linux</strong>, and <strong>Windows</strong>. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.</p>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip"></a><a href="#tip" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>By default, Pulsar allocates 2G JVM heap memory to start. It can be changed in <code>conf/pulsar_env.sh</code> file under <code>PULSAR_MEM</code>. This is extra options passed into JVM.</p>
+<p><strong>Tip</strong>  <br>
+By default, Pulsar allocates 2G JVM heap memory to start. It can be changed in <code>conf/pulsar_env.sh</code> file under <code>PULSAR_MEM</code>. This is extra options passed into JVM.</p>
 </blockquote>
 <blockquote>
-<p><strong>Note</strong></p>
-<p>Broker is only supported on 64-bit JVM.</p>
+<p><strong>Note</strong>  <br>
+Broker is only supported on 64-bit JVM.</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="install-pulsar-using-binary-release"></a><a href="#install-pulsar-using-binary-release" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Install Pulsar using binary release</h3>
 <p>To get started with Pulsar, download a binary tarball release in one of the following ways:</p>
 <ul>
-<li><p>download from the Apache mirror (<a href="https://archive.apache.org/dist/pulsar/pulsar-2.8.1/apache-pulsar-2.8.1-bin.tar.gz" download>Pulsar 2.8.1 binary release</a>)</p></li>
+<li><p>download from the Apache mirror (<a href="https://archive.apache.org/dist/pulsar/pulsar-2.9.1/apache-pulsar-2.9.1-bin.tar.gz" download>Pulsar 2.9.1 binary release</a>)</p></li>
 <li><p>download from the Pulsar <a href="/download">downloads page</a></p></li>
 <li><p>download from the Pulsar <a href="https://github.com/apache/pulsar/releases/latest">releases page</a></p></li>
 <li><p>use <a href="https://www.gnu.org/software/wget">wget</a>:</p>
-<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.8.1/apache-pulsar-2.8.1-bin.tar.gz</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.9.1/apache-pulsar-2.9.1-bin.tar.gz</span>
 </code></pre></li>
 </ul>
 <p>After you download the tarball, untar it and use the <code>cd</code> command to navigate to the resulting directory:</p>
-<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-2.8.1-bin.tar.gz
-$ <span class="hljs-built_in">cd</span> apache-pulsar-2.8.1
+<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-2.9.1-bin.tar.gz
+$ <span class="hljs-built_in">cd</span> apache-pulsar-2.9.1
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="what-your-package-contains"></a><a href="#what-your-package-contains" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>What your package contains</h4>
 <p>The Pulsar binary package initially contains the following directories:</p>
@@ -131,8 +131,8 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.8.1
 </tbody>
 </table>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip-1"></a><a href="#tip-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>If you want to use builtin connectors and tiered storage offloaders, you can install them according to the following instructions：</p>
+<p><strong>Tip</strong>  <br>
+If you want to use builtin connectors and tiered storage offloaders, you can install them according to the following instructions：</p>
 <ul>
 <li><a href="#install-builtin-connectors-optional">Install builtin connectors (optional)</a></li>
 <li><a href="#install-tiered-storage-offloaders-optional">Install tiered storage offloaders (optional)</a></li>
@@ -142,23 +142,23 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.8.1
 <h3><a class="anchor" aria-hidden="true" id="install-builtin-connectors-optional"></a><a href="#install-builtin-connectors-optional" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Install builtin connectors (optional)</h3>
 <p>Since <code>2.1.0-incubating</code> release, Pulsar releases a separate binary distribution, containing all the <code>builtin</code> connectors. To enable those <code>builtin</code> connectors, you can download the connectors tarball release in one of the following ways:</p>
 <ul>
-<li><p>download from the Apache mirror <a href="https://archive.apache.org/dist/pulsar/pulsar-2.8.1/connectors" download>Pulsar IO Connectors 2.8.1 release</a></p></li>
+<li><p>download from the Apache mirror <a href="https://archive.apache.org/dist/pulsar/pulsar-2.9.1/connectors" download>Pulsar IO Connectors 2.9.1 release</a></p></li>
 <li><p>download from the Pulsar <a href="/download">downloads page</a></p></li>
 <li><p>download from the Pulsar <a href="https://github.com/apache/pulsar/releases/latest">releases page</a></p></li>
 <li><p>use <a href="https://www.gnu.org/software/wget">wget</a>:</p>
-<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.8.1/connectors/{connector}-2.8.1.nar</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.9.1/connectors/{connector}-2.9.1.nar</span>
 </code></pre></li>
 </ul>
-<p>After you download the nar file, copy the file to the <code>connectors</code> directory in the pulsar directory. For example, if you download the <code>pulsar-io-aerospike-2.8.1.nar</code> connector file, enter the following commands:</p>
+<p>After you download the nar file, copy the file to the <code>connectors</code> directory in the pulsar directory. For example, if you download the <code>pulsar-io-aerospike-2.9.1.nar</code> connector file, enter the following commands:</p>
 <pre><code class="hljs css language-bash">$ mkdir connectors
-$ mv pulsar-io-aerospike-2.8.1.nar connectors
+$ mv pulsar-io-aerospike-2.9.1.nar connectors
 
 $ ls connectors
-pulsar-io-aerospike-2.8.1.nar
+pulsar-io-aerospike-2.9.1.nar
 ...
 </code></pre>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
+<p><strong>Note</strong></p>
 <ul>
 <li><p>If you are running Pulsar in a bare metal cluster, make sure <code>connectors</code> tarball is unzipped in every pulsar directory of the broker (or in every pulsar directory of function-worker if you are running a separate worker cluster for Pulsar Functions).</p></li>
 <li><p>If you are <a href="/docs/fr/standalone-docker">running Pulsar in Docker</a> or deploying Pulsar using a docker image (e.g. <a href="/docs/fr/deploy-kubernetes">K8S</a> or <a href="/docs/fr/deploy-dcos">DCOS</a>), you can use the <code>apachepulsar/pulsar-all</code> image instead of the <code>apachepulsar/pulsar</code> image. <code>apachepulsar/pulsar-all</code> image has already bundled <a href="/docs/fr/io-overview#working-with-connectors">all builtin connectors</a>.</p></li>
@@ -166,32 +166,34 @@ pulsar-io-aerospike-2.8.1.nar
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="install-tiered-storage-offloaders-optional"></a><a href="#install-tiered-storage-offloaders-optional" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Install tiered storage offloaders (optional)</h3>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip-2"></a><a href="#tip-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>Since <code>2.2.0</code> release, Pulsar releases a separate binary distribution, containing the tiered storage offloaders. To enable tiered storage feature, follow the instructions below; otherwise skip this section.</p>
+<p><strong>Tip</strong></p>
+<ul>
+<li>Since <code>2.2.0</code> release, Pulsar releases a separate binary distribution, containing the tiered storage offloaders. - To enable tiered storage feature, follow the instructions below; otherwise skip this section.</li>
+</ul>
 </blockquote>
 <p>To get started with <a href="/docs/fr/concepts-tiered-storage">tiered storage offloaders</a>, you need to download the offloaders tarball release on every broker node in one of the following ways:</p>
 <ul>
-<li><p>download from the Apache mirror <a href="https://archive.apache.org/dist/pulsar/pulsar-2.8.1/apache-pulsar-offloaders-2.8.1-bin.tar.gz" download>Pulsar Tiered Storage Offloaders 2.8.1 release</a></p></li>
+<li><p>download from the Apache mirror <a href="https://archive.apache.org/dist/pulsar/pulsar-2.9.1/apache-pulsar-offloaders-2.9.1-bin.tar.gz" download>Pulsar Tiered Storage Offloaders 2.9.1 release</a></p></li>
 <li><p>download from the Pulsar <a href="/download">downloads page</a></p></li>
 <li><p>download from the Pulsar <a href="https://github.com/apache/pulsar/releases/latest">releases page</a></p></li>
 <li><p>use <a href="https://www.gnu.org/software/wget">wget</a>:</p>
-<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.8.1/apache-pulsar-offloaders-2.8.1-bin.tar.gz</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.9.1/apache-pulsar-offloaders-2.9.1-bin.tar.gz</span>
 </code></pre></li>
 </ul>
 <p>After you download the tarball, untar the offloaders package and copy the offloaders as <code>offloaders</code> in the pulsar directory:</p>
-<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-offloaders-2.8.1-bin.tar.gz
+<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-offloaders-2.9.1-bin.tar.gz
 
-// you will find a directory named `apache-pulsar-offloaders-2.8.1` <span class="hljs-keyword">in</span> the pulsar directory
+// you will find a directory named `apache-pulsar-offloaders-2.9.1` <span class="hljs-keyword">in</span> the pulsar directory
 // <span class="hljs-keyword">then</span> copy the offloaders
 
-$ mv apache-pulsar-offloaders-2.8.1/offloaders offloaders
+$ mv apache-pulsar-offloaders-2.9.1/offloaders offloaders
 
 $ ls offloaders
-tiered-storage-jcloud-2.8.1.nar
+tiered-storage-jcloud-2.9.1.nar
 </code></pre>
 <p>For more information on how to configure tiered storage, see <a href="/docs/fr/cookbooks-tiered-storage">Tiered storage cookbook</a>.</p>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="note-1"></a><a href="#note-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
+<p><strong>Note</strong></p>
 <ul>
 <li><p>If you are running Pulsar in a bare metal cluster, make sure that <code>offloaders</code> tarball is unzipped in every broker's pulsar directory.</p></li>
 <li><p>If you are <a href="/docs/fr/standalone-docker">running Pulsar in Docker</a> or deploying Pulsar using a docker image (e.g. <a href="/docs/fr/deploy-kubernetes">K8S</a> or <a href="/docs/fr/deploy-dcos">DCOS</a>), you can use the <code>apachepulsar/pulsar-all</code> image instead of the <code>apachepulsar/pulsar</code> image. <code>apachepulsar/pulsar-all</code> image has already bundled tiered storage offloaders.</p></li>
@@ -202,12 +204,12 @@ tiered-storage-jcloud-2.8.1.nar
 <pre><code class="hljs css language-bash">$ bin/pulsar standalone
 </code></pre>
 <p>If you have started Pulsar successfully, you will see <code>INFO</code>-level log messages like this:</p>
-<pre><code class="hljs css language-bash">2017-06-01 14:46:29,192 - INFO  - [main:WebSocketService@95] - Configuration Store cache started
-2017-06-01 14:46:29,192 - INFO  - [main:AuthenticationService@61] - Authentication is disabled
-2017-06-01 14:46:29,192 - INFO  - [main:WebSocketService@108] - Pulsar WebSocket Service started
+<pre><code class="hljs css language-bash">21:59:29.327 [DLM-/stream/storage-OrderedScheduler-3-0] INFO  org.apache.bookkeeper.stream.storage.impl.sc.StorageContainerImpl - Successfully started storage container (0).
+21:59:34.576 [main] INFO  org.apache.pulsar.broker.authentication.AuthenticationService - Authentication is disabled
+21:59:34.576 [main] INFO  org.apache.pulsar.websocket.WebSocketService - Pulsar WebSocket Service started
 </code></pre>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip-3"></a><a href="#tip-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
+<p><strong>Tip</strong></p>
 <ul>
 <li><p>The service is running on your terminal, which is under your direct control. If you need to run other commands, open a new terminal window.<br>
 You can also run the service as a background process using the <code>pulsar-daemon start standalone</code> command. For more information, see <a href="https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon">pulsar-daemon</a>.</p></li>
@@ -222,24 +224,24 @@ You can also run the service as a background process using the <code>pulsar-daem
 <pre><code class="hljs css language-bash">$ bin/pulsar-client consume my-topic -s <span class="hljs-string">"first-subscription"</span>
 </code></pre>
 <p>If the message has been successfully consumed, you will see a confirmation like the following in the <code>pulsar-client</code> logs:</p>
-<pre><code class="hljs">09<span class="hljs-selector-pseudo">:56</span><span class="hljs-selector-pseudo">:55.566</span> <span class="hljs-selector-attr">[pulsar-client-io-1-1]</span> <span class="hljs-selector-tag">INFO</span>  <span class="hljs-selector-tag">org</span><span class="hljs-selector-class">.apache</span><span class="hljs-selector-class">.pulsar</span><span class="hljs-selector-class">.client</span><span class="hljs-selector-class">.impl</span><span class="hljs-selector-class">.MultiTopicsConsumerImpl</span> <span class="hljs-selector-tag">-</span> <span class="hljs-selector-attr">[TopicsConsumerFakeTopicNamee2df9]</span> <span class="hljs-selector-attr">[first-subscription]</span> <span class="hljs-selector-tag">Success</span> <span class="hljs-selector-tag">subscribe</span> <span class="hljs-selector-tag">new</span> <span class="hljs-selector-tag">topic</span> <span class="hljs-selector-tag">my-topic</span> <span class="hljs-selector-tag">in</span> <span class="hljs-selector-tag">topics</span> <span class="hljs-selector-tag">consumer</span>, <span class="hljs-selector-tag">partitions</span>: 4, <span class="hljs-selector-tag">allTopicPartitionsNumber</span>: 4
+<pre><code class="hljs">22<span class="hljs-selector-pseudo">:17</span><span class="hljs-selector-pseudo">:16.781</span> <span class="hljs-selector-attr">[main]</span> <span class="hljs-selector-tag">INFO</span>  <span class="hljs-selector-tag">org</span><span class="hljs-selector-class">.apache</span><span class="hljs-selector-class">.pulsar</span><span class="hljs-selector-class">.client</span><span class="hljs-selector-class">.cli</span><span class="hljs-selector-class">.PulsarClientTool</span> <span class="hljs-selector-tag">-</span> 1 <span class="hljs-selector-tag">messages</span> <span class="hljs-selector-tag">successfully</span> <span class="hljs-selector-tag">consumed</span>
 </code></pre>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip-4"></a><a href="#tip-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>As you have noticed that we do not explicitly create the <code>my-topic</code> topic, to which we consume the message. When you consume a message to a topic that does not yet exist, Pulsar creates that topic for you automatically. Producing a message to a topic that does not exist will automatically create that topic for you as well.</p>
+<p><strong>Tip</strong>  <br>
+As you have noticed that we do not explicitly create the <code>my-topic</code> topic, to which we consume the message. When you consume a message to a topic that does not yet exist, Pulsar creates that topic for you automatically. Producing a message to a topic that does not exist will automatically create that topic for you as well.</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="produce-a-message"></a><a href="#produce-a-message" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Produce a message</h3>
 <p>The following command produces a message saying <code>hello-pulsar</code> to the <code>my-topic</code> topic:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-client produce my-topic --messages <span class="hljs-string">"hello-pulsar"</span>
 </code></pre>
 <p>If the message has been successfully published to the topic, you will see a confirmation like the following in the <code>pulsar-client</code> logs:</p>
-<pre><code class="hljs">13<span class="hljs-selector-pseudo">:09</span><span class="hljs-selector-pseudo">:39.356</span> <span class="hljs-selector-attr">[main]</span> <span class="hljs-selector-tag">INFO</span>  <span class="hljs-selector-tag">org</span><span class="hljs-selector-class">.apache</span><span class="hljs-selector-class">.pulsar</span><span class="hljs-selector-class">.client</span><span class="hljs-selector-class">.cli</span><span class="hljs-selector-class">.PulsarClientTool</span> <span class="hljs-selector-tag">-</span> 1 <span class="hljs-selector-tag">messages</span> <span class="hljs-selector-tag">successfully</span> <span class="hljs-selector-tag">produced</span>
+<pre><code class="hljs">22<span class="hljs-selector-pseudo">:21</span><span class="hljs-selector-pseudo">:08.693</span> <span class="hljs-selector-attr">[main]</span> <span class="hljs-selector-tag">INFO</span>  <span class="hljs-selector-tag">org</span><span class="hljs-selector-class">.apache</span><span class="hljs-selector-class">.pulsar</span><span class="hljs-selector-class">.client</span><span class="hljs-selector-class">.cli</span><span class="hljs-selector-class">.PulsarClientTool</span> <span class="hljs-selector-tag">-</span> 1 <span class="hljs-selector-tag">messages</span> <span class="hljs-selector-tag">successfully</span> <span class="hljs-selector-tag">produced</span>
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="stop-pulsar-standalone"></a><a href="#stop-pulsar-standalone" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Stop Pulsar standalone</h2>
 <p>Press <code>Ctrl+C</code> to stop a local standalone Pulsar.</p>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip-5"></a><a href="#tip-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>If the service runs as a background process using the <code>pulsar-daemon start standalone</code> command, then use the <code>pulsar-daemon stop standalone</code>  command to stop the service.</p>
+<p><strong>Tip</strong>  <br>
+If the service runs as a background process using the <code>pulsar-daemon start standalone</code> command, then use the <code>pulsar-daemon stop standalone</code>  command to stop the service.</p>
 <p>For more information, see <a href="https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon">pulsar-daemon</a>.</p>
 </blockquote>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-next button" href="/docs/fr/standalone-docker"><span>Run Pulsar in Docker</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#install-pulsar-standalone">Install Pulsar standalone</a><ul class="toc-headings"><li><a href="#system-requirements">System requirements</a></li><li><a href="#install-pulsar-using-binary-release">Install Pulsar using binary release</a></li><li><a href="#install-builtin-connectors-optional">Install builtin connectors (optional)</a></li><li><a href="#install-tiered-storage-offloaders-optional">Install tiered storage offloaders (optional)</a></li></ul></li><li><a href="#start-pulsar-standalone">Start Pulsar standalone</a></li><li><a href="#use-pulsar-standalone">Use Pulsar standalone</a><ul class="toc-headings"><li><a href="#consume-a-message">Consume a message</a></li><li><a href="#produce-a-message">Produce a message</a></li></ul></li><li><a href="#stop-pulsar-standalone">Stop Pulsar standalone</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
@@ -295,6 +297,6 @@ You can also run the service as a background process using the <code>pulsar-daem
                 apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
                 indexName: 'apache_pulsar',
                 inputSelector: '#search_input_react',
-                algoliaOptions: {"facetFilters":["language:fr","version:2.8.1"]}
+                algoliaOptions: {"facetFilters":["language:fr","version:2.9.1"]}
               });
             </script></body></html>

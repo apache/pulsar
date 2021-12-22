@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Deploying a multi-cluster on bare metal · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&gt; ### 提示"/><meta name="docsearch:version" content="2.8.1"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Deploying a multi-cluster on bare metal · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="&gt; ### 提示"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Deploying a multi-cluster on bare metal · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&gt; **提示** "/><meta name="docsearch:version" content="2.9.1"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Deploying a multi-cluster on bare metal · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="&gt; **提示** "/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.8.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/deploy-bare-metal-multi-cluster">English</a></li><li><a href="/docs/ja/deploy-bare-metal-multi-cluster">日本語</a></li><li><a href="/docs/fr/deploy-bare-metal-multi-cluster">Français</a></li><li><a href="/docs/ko/deploy-bare-metal-multi-cluster">한국어</a></li><li><a href="/docs/zh-TW/deploy-bare-metal-multi-cluster">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.9.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/deploy-bare-metal-multi-cluster">English</a></li><li><a href="/docs/ja/deploy-bare-metal-multi-cluster">日本語</a></li><li><a href="/docs/fr/deploy-bare-metal-multi-cluster">Français</a></li><li><a href="/docs/ko/deploy-bare-metal-multi-cluster">한국어</a></li><li><a href="/docs/zh-TW/deploy-bare-metal-multi-cluster">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -75,27 +75,26 @@
               }
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Deploying a multi-cluster on bare metal</h1></header><article><div><span><blockquote>
-<h3><a class="anchor" aria-hidden="true" id="提示"></a><a href="#提示" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h3>
+<p><strong>提示</strong></p>
 <ol>
-<li><p>除了最极端的情况，对于绝大多数的用例来说，单机群安装的Pulsar就能够满足要求了。 如果是创业公司或单个团队想体验下Pulsar，我们推荐使用单集群。 有关单群集的部署说明，请参阅<a href="/docs/zh-CN/deploy-bare-metal">此处</a>。</p></li>
-<li><p>如果要在部署的 Pulsar 集群中使用所有内置的 <a href="/docs/zh-CN/io-overview">Pulsar IO</a>连接器。你必须先下载<code>apache-pulsar-io-connectors</code>安装包，然后将<code>apache-pulsar-io-connectors</code>安装到每台 broker 中 Pulsar 安装路径的<code>connectors</code>目录下。如果需要用独立的 function worker 运行<a href="/docs/zh-CN/functions-overview">Pulsar Functions</a>，则也需要将包安装在 worker 节点的对应目录。</p></li>
-<li><p>如果要在部署的集群使用<a href="/docs/zh-CN/concepts-tiered-storage">分层存储</a>特性，你必须先下载<code>apache-pulsar-offloaders</code>安装包，然后将<code>apache-pulsar-offloaders</code>安装到每台 broker 中 Pulsar 安装路径的</code>offloaders &lt;/1&gt;目录下。 了解该特性的详细配置，请参考<a href="/docs/zh-CN/cookbooks-tiered-storage">分层存储指南</a>。</p></li>
+<li><p>你可以在大多数情况下使用单集群 Pulsar 安装，例如实验 Pulsar 或在初创公司或单个团队中使用 Pulsar。 如果你需要运行多集群 Pulsar 实例，请参阅<a href="/docs/zh-CN/deploy-bare-metal-multi-cluster">指南</a>。</p></li>
+<li><p>如果你想使用所有内置的 <a href="/docs/zh-CN/io-overview">Pulsar IO</a> 连接器，你需要下载 <code>apache-pulsar-io-connectors</code> 包并安装 <code>apache-pulsar-io-connectors</code> 在每个 broker 节点或每个 function-worker 节点上的 pulsar 目录中的 <code>connectors</code> 目录下，如果你已经运行了一个独立的 function workers 集群 <a href="/docs/zh-CN/functions-overview">Pulsar Functions</a>。</p></li>
+<li><p>如果你想在 Pulsar 部署中使用 <a href="/docs/zh-CN/concepts-tiered-storage">分层存储</a> 功能，你需要下载 <code>apache-pulsar-offloaders</code> 包并安装 <code>apache-pulsar-offloaders</code> 在每个 broker 节点的 Pulsar 目录中的 <code>offloaders</code> 目录下。 有关如何配置此功能的更多详细信息，请参考<a href="/docs/zh-CN/cookbooks-tiered-storage">分层存储指南</a>。</p></li>
 </ol>
 </blockquote>
-<p>A Pulsar <em>instance</em> consists of multiple Pulsar clusters working in unison. 你可以跨数据中心或者跨地域部署集群，可以使用<a href="/docs/zh-CN/administration-geo">跨域复制</a>功能在集群间复制数据。 部署群的Pulsar 实例需要包含多集以下基本步骤：</p>
-<ul>
-<li>部署两个独立的<a href="#deploy-zookeeper">Zookeeper</a>集群；实例中每个集群都要有一个<a href="#deploy-local-zookeeper">本地</a>集群；一个负责实例范围任务信息存储的<a href="#configuration-store">配置存储</a>集群。</li>
-<li>初始化每个集群的<a href="#cluster-metadata-initialization">集群元数据</a>。</li>
-<li>在每个Pulsar 集群部署一个<a href="#deploy-bookkeeper">Bookeeper 集群</a>。</li>
-<li>在每个Pulsar 集群部署<a href="#deploy-brokers">broker</a>。</li>
-</ul>
-<p>如果你想部署单个Pulsar 集群的实例，请看<a href="/docs/zh-CN/standalone#start-the-cluster">集群和broker</a>。</p>
+<p>一个 Pulsar 实例由多个协同工作的 Pulsar 集群组成 可以规划跨数据中心或跨地理区域分布的集群，并使用<a href="/docs/zh-CN/administration-geo"> geo-replication </a>.在集群之间实现数据复制同步。 部署多集群 Pulsar 实例包括以下步骤：</p>
+<ol>
+<li>部署两个单独的仲裁 ZooKeeper 集群：一个作为所有集群的本地仲裁服务，一个作为存储配置仲裁及实例范围的任务信息</li>
+<li>为每个集群初始化集群元数据</li>
+<li>为每个 Pulsar 集群中部署 BookKeeper 集群</li>
+<li>在每个 Pulsar 集群中部署 broker服务</li>
+</ol>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="在本地或kubernetes容器-运行pulsar"></a><a href="#在本地或kubernetes容器-运行pulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>在本地或Kubernetes容器 运行Pulsar？</h4>
-<p>本指南向您展示了如何在非Kubernetes中部署生产环境的 Pulsar 集群。 如果你想在单台机器部署单机的 Pulsar 集群，可以参考<a href="/docs/zh-CN/standalone">本地集群部署</a>指南。 如果你想在<a href="https://kubernetes.io">Kubernetes</a>运行 Pulsar，可以参考 <a href="/docs/zh-CN/deploy-kubernetes">Kubernetes 部署 Pulsar</a> 指南，指南包含了如何在 <a href="deploy-kubernetes#pulsar-on-google-kubernetes-engine">Google Kubernetes Engine</a> 和 <a href="deploy-kubernetes#pulsar-on-amazon-web-services">Amazon Web Services</a> 的 Kubernetes 环境运行Pulsar。</p>
+<p>本指南向您展示了如何在非Kubernetes中部署生产环境的 Pulsar 集群。 如果你想在单台机器部署单机的 Pulsar 集群，可以参考<a href="/docs/zh-CN/standalone">本地集群部署</a>指南。 如果想在<a href="https://kubernetes.io">Kubernetes容器</a>运行Pulsar ， 查看 <a href="/docs/zh-CN/deploy-kubernetes"> Pulsar on Kubernetes </a> 指引, 指引包含了Pulsar运行在Kubernetes容器 ，运行在 Google Kubernetes Engine 以及在 Amazon Web Services</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="系统配置要求"></a><a href="#系统配置要求" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>系统配置要求</h2>
-<p>Currently, Pulsar is available for 64-bit *<em>macOS</em>, <strong>Linux</strong>, and <strong>Windows</strong>. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.</p>
+<p>Currently, Pulsar is available for 64-bit <strong>macOS</strong>, <strong>Linux</strong>, and <strong>Windows</strong>. You need to install 64-bit JRE/JDK 8 or later versions.</p>
 <blockquote>
 <p><strong>Note</strong></p>
 <p>Broker 仅支持运行在 64 位 JVM。</p>
@@ -105,19 +104,18 @@
 <ul>
 <li><p>通过单击下面的链接并从 Apache 镜像下载该版本:</p>
 <ul>
-<li><a href="https://archive.apache.org/dist/pulsar/pulsar-2.8.1/apache-pulsar-2.8.1-bin.tar.gz" download>Pulsar 2.8.1 binary release</a></li>
+<li><a href="https://archive.apache.org/dist/pulsar/pulsar-2.9.1/apache-pulsar-2.9.1-bin.tar.gz" download>Pulsar 2.9.1 binary release</a></li>
 </ul></li>
 <li><p>Pulsar <a href="/download">下载页面</a></p></li>
 <li><p>Pulsar <a href="https://github.com/apache/pulsar/releases/latest">发布页面</a></p></li>
 <li><p>使用 <a href="https://www.gnu.org/software/wget">wget</a>：</p>
-<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget <span class="hljs-string">'https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&amp;filename=pulsar/pulsar-2.8.1/apache-pulsar-2.8.1-bin.tar.gz'</span> -O apache-pulsar-2.8.1-bin.tar.gz</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget <span class="hljs-string">'https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&amp;filename=pulsar/pulsar-2.9.1/apache-pulsar-2.9.1-bin.tar.gz'</span> -O apache-pulsar-2.9.1-bin.tar.gz</span>
 </code></pre></li>
 </ul>
 <p>包下载完成后，解压并<code>进入</code>到解压后的目录:</p>
-<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-2.8.1-bin.tar.gz
-$ <span class="hljs-built_in">cd</span> apache-pulsar-2.8.1
+<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-2.9.1-bin.tar.gz
+$ <span class="hljs-built_in">cd</span> apache-pulsar-2.9.1
 </code></pre>
-<h2><a class="anchor" aria-hidden="true" id="软件包包含的内容"></a><a href="#软件包包含的内容" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>软件包包含的内容:</h2>
 <p>Pulsar 二进制包包含下列目录:</p>
 <table>
 <thead>
@@ -145,13 +143,13 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.8.1
 <h2><a class="anchor" aria-hidden="true" id="deploy-zookeeper"></a><a href="#deploy-zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Deploy ZooKeeper</h2>
 <p>每个 Pulsar 实例需要两个独立的 ZooKeeper 集群。</p>
 <ul>
-<li><a href="#deploy-local-zookeeper">本地 ZooKeeper</a>负责集群级别的操作，提供集群的配置管理和协调。 每个 Pulsar 集群都需要一个专用的 ZooKeeper 集群。</li>
-<li><a href="#deploy-the-configuration-store">配置集群</a>负责实例级别的操作，提供整个系统的配置管理(跨集群)。 配置集群可以部署在独立的机器集群，也可以和本地 Zookeeper 集群部署在同一批机器。</li>
+<li>Local ZooKeeper operates at the cluster level and provides cluster-specific configuration management and coordination. Each Pulsar cluster needs a dedicated ZooKeeper cluster.</li>
+<li>Configuration Store operates at the instance level and provides configuration management for the entire system (and thus across clusters). 配置集群可以部署在独立的机器集群，也可以和本地 Zookeeper 集群部署在同一批机器。</li>
 </ul>
-<p>The configuration store quorum can be provided by an independent cluster of machines or by the same machines used by local ZooKeeper.</p>
+<p>可以使用独立的集群机器或者相同机器来部署 ZooKeeper服务，用以提供配置存储仲裁。</p>
 <h3><a class="anchor" aria-hidden="true" id="部署本地zookeeper"></a><a href="#部署本地zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署本地Zookeeper</h3>
 <p>ZooKeeper 负责管理与 Pulsar 协调和配置相关的各种基本任务。</p>
-<p>You need to stand up one local ZooKeeper cluster <em>per Pulsar cluster</em> for deploying a Pulsar instance.</p>
+<p>需要为每个 Pulsar 集群建立一个本地 ZooKeeper 集群来部署 Pulsar 实例。</p>
 <p>首先，将所有 ZooKeeper 服务器添加到 <a href="/docs/zh-CN/reference-configuration#zookeeper"><code>conf/zookeeper.conf</code></a> 指定的 quorum 配置中。 在配置文件中为每个集群节点添加一个 <code>server.N</code> 行，其中 <code>N</code> 是 ZooKeeper 节点的编号。 以下是一个三节点集群的示例：</p>
 <pre><code class="hljs css language-properties"><span class="hljs-meta">server.1</span>=<span class="hljs-string">zk1.us-west.example.com:2888:3888</span>
 <span class="hljs-meta">server.2</span>=<span class="hljs-string">zk2.us-west.example.com:2888:3888</span>
@@ -159,6 +157,7 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.8.1
 </code></pre>
 <p>你必须在每个节点的<code>myid</code>文件里面，为集群配置唯一的ID。默认情况下，这个文件在每台机器的<code>data/zookeeper</code>目录里面(你可以通过修改<a href="/docs/zh-CN/reference-configuration#zookeeper-dataDir"><code>dataDir</code></a>配置项修改这个路径)。</p>
 <blockquote>
+<p><strong>提示</strong></p>
 <p>参考<a href="https://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html#sc_zkMulitServerSetup">多集群安装指南</a>的Zookeeper 文档了解更多关于<code>myid</code>或者其他部分的详细信息。</p>
 </blockquote>
 <p>On a ZooKeeper server at <code>zk1.us-west.example.com</code>, for example, you could set the <code>myid</code> value like this:</p>
@@ -170,11 +169,11 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.8.1
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-daemon start zookeeper</span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="部署配置存储集群"></a><a href="#部署配置存储集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署配置存储集群</h3>
-<p>The ZooKeeper cluster that is configured and started up in the section above is a <em>local</em> ZooKeeper cluster that you can use to manage a single Pulsar cluster. 但是，除了本地集群之外，一个完整的 Pulsar 实例还需要 configuration store来处理一些实例级配置和协调任务。</p>
-<p>如果是部署一个<a href="#single-cluster-pulsar-instance">单集群</a>实例，你不需要另外部署存储配置的 Zookeeper 集群。 然而，如果你是部署<a href="#multi-cluster-pulsar-instance">多集群</a>的实例，你必须单独部署 Zookeeper 集群来存储配置任务信息。</p>
+<p>在上一章节中讲的配置和启动的 ZooKeeper 集群是一个本地 ZooKeeper 集群，可以使用它来管理单个 Pulsar 集群。 但是，除了本地集群之外，一个完整的 Pulsar 实例还需要 configuration store来处理一些实例级配置和协调任务。</p>
+<p>如果部署单集群实例，则配置存储不需要使用单独的集群。 但是，如果部署一个多集群实例，应该为配置任务建立一个单独的 ZooKeeper 集群。</p>
 <h4><a class="anchor" aria-hidden="true" id="单集群-pulsar-实例"></a><a href="#单集群-pulsar-实例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>单集群 Pulsar 实例</h4>
 <p>如果你的 Pulsar 实例只包含一个集群，你可以在同一批机器上部署本地 Zookeeper 集群和配置存储 Zookeeper 集群，此时这两个集群的 TCP 端口信息需要不一样。</p>
-<p>要在单个集群实例中部署配置存储的 Zookeeper 集群。步骤跟部署<a href="#local-zookeeper">本地 Zookeeper</a>一样，将同一批机器(跟本地集群一样的机器列表)信息添加到配置文件<a href="/docs/zh-CN/reference-configuration#configuration-store"><code>conf/global_zookeeper.conf</code></a>中，但是必须确保使用不同的端口(Zookeeper 默认使用2181端口)。 以下是一个使用 2184 端口的三节点ZooKeeper 集群的示例：</p>
+<p>要在单集群实例中部署 ZooKeeper 配置存储，添加与本地仲裁相同的 ZooKeeper 服务器。 用配置文件 <a href="/docs/zh-CN/reference-configuration#configuration-store"><code>conf/global_zookeeper.conf</code></a> 对本地 <a href="#local-zookeeper">ZooKeeper</a>使相同的方法, 但是需要注意使用不同的端口 (2181是 ZooKeeper默认的端口). 以下是一个使用 2184 端口的三节点ZooKeeper 集群的示例：</p>
 <pre><code class="hljs css language-properties"><span class="hljs-attr">clientPort</span>=<span class="hljs-string">2184</span>
 <span class="hljs-meta">server.1</span>=<span class="hljs-string">zk1.us-west.example.com:2185:2186</span>
 <span class="hljs-meta">server.2</span>=<span class="hljs-string">zk2.us-west.example.com:2185:2186</span>
@@ -183,12 +182,12 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.8.1
 <p>跟之前一样，在 <code>data/global-zoocheper/myid</code> 文件为每个服务器创建 <code>myid</code> 。</p>
 <h4><a class="anchor" aria-hidden="true" id="多集群-pulsar-实例"></a><a href="#多集群-pulsar-实例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>多集群 Pulsar 实例</h4>
 <p>当你部署一个全球性的Pulsar实例时，集群分布在不同的地理区域。配置存储必须是一个高可用和强一致的元数据存储服务，必须能够容忍整个区域的故障和分区。</p>
-<p>这里的关键是确保 ZK quorum 节点必须分布在至少 3 个区域，其他区域以观察员身份运行。</p>
-<p>强调一下，因为配置存储服务负载会很低，所以可以和本地 Zookeeper 集群部署在同一批主机上。</p>
-<p>例如，假设一个 Pulsar 实例有如下集群： <code>us-west</code>,<code>us-east</code>,<code>us-central</code>,<code>eu-central</code>,<code>ap-south</code>. 也假定每个群集都有自己的本地ZK服务器，其名称如下：</p>
+<p>这里关键是确保 ZK quorum 成员至少分布在 3 个区域，其他区域作为观察者运行。</p>
+<p>强调一下，配置存储集群的服务器的负载预计会非常低，所以你能够和本地的 ZooKeeper quorum 共用同一批机器。</p>
+<p>例如，假设一个 Pulsar 实例具有以下集群 us-west、us-east、us-central、eu-central、ap-south。 也假定每个群集都有自己的本地ZK服务器，其名称如下：</p>
 <pre><code class="hljs">zk[<span class="hljs-number">1</span><span class="hljs-number">-3</span>].${CLUSTER}.example.com
 </code></pre>
-<p>在这种情况下，可以从几个集群中选择投票节点，让其他所有节点成为 ZK 观察者节点。 例如，要形成7个服务器组成的投票节点，您可以从 <code>us-west</code>中挑选3个服务器，从 <code>us-central</code> 和<code>us-east</code>分别挑选两个。</p>
+<p>在这种情况下，如果想从几个集群中挑选仲裁参与者并让所有其他人成为 ZK 观察者。 例如，要形成7个服务器组成的投票节点，您可以从 <code>us-west</code>中挑选3个服务器，从 <code>us-central</code> 和<code>us-east</code>分别挑选两个。</p>
 <p>这个方法保证即使其中一个区域无法连接，数据也可以写入配置存储服务。</p>
 <p>所有服务器中的 ZK 配置如下：</p>
 <pre><code class="hljs css language-properties"><span class="hljs-attr">clientPort</span>=<span class="hljs-string">2184</span>
@@ -216,7 +215,7 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.8.1
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-daemon start configuration-store</span>
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="初始化集群元数据"></a><a href="#初始化集群元数据" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>初始化集群元数据</h2>
-<p>一旦实例的每个 Pulsar 集群的本地 Zookeeper 集群和全局的配置存储 Zookeeper 集群都部署完成， 你需要在实例中为每个集群写入一些元数据。 <strong>you only needs to write these metadata once</strong>.</p>
+<p>一旦实例的每个 Pulsar 集群的本地 Zookeeper 集群和全局的配置存储 Zookeeper 集群都部署完成， 你需要在实例中为每个集群写入一些元数据。 <strong>you only need to write these metadata once</strong>.</p>
 <p>You can initialize this metadata using the <a href="/docs/zh-CN/reference-cli-tools#pulsar-initialize-cluster-metadata"><code>initialize-cluster-metadata</code></a> command of the <a href="/docs/zh-CN/reference-cli-tools#pulsar"><code>pulsar</code></a> CLI tool. 如下所示：</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar initialize-cluster-metadata \</span>
   --cluster us-west \
@@ -239,7 +238,7 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.8.1
 <p>Make sure to run <code>initialize-cluster-metadata</code> for each cluster in your instance.</p>
 <h2><a class="anchor" aria-hidden="true" id="部署-bookkeeper"></a><a href="#部署-bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署 Bookkeeper</h2>
 <p>BookKeeper provides <a href="/docs/zh-CN/concepts-architecture-overview#persistent-storage">persistent message storage</a> for Pulsar.</p>
-<p>Each Pulsar broker needs to have its own cluster of bookies. The BookKeeper cluster shares a local ZooKeeper quorum with the Pulsar cluster.</p>
+<p>Each Pulsar broker needs its own cluster of bookies. The BookKeeper cluster shares a local ZooKeeper quorum with the Pulsar cluster.</p>
 <h3><a class="anchor" aria-hidden="true" id="配置-bookies"></a><a href="#配置-bookies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置 bookies</h3>
 <p>你能够通过配置文件<a href="/docs/zh-CN/reference-configuration#bookkeeper"><code>conf/bookkeeper.conf</code></a>去配置 BookKeeper bookies。 配置 bookies 最重要的一步，是要确保<a href="/docs/zh-CN/reference-configuration#bookkeeper-zkServers"><code>zkServers</code></a>设置为 Pulsar 集群的的本地 Zookeeper 集群的连接信息。</p>
 <h3><a class="anchor" aria-hidden="true" id="启动-bookie"></a><a href="#启动-bookie" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启动 bookie。</h3>
@@ -248,7 +247,7 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.8.1
 <pre><code class="hljs css language-bash">$ bin/pulsar-daemon start bookie
 </code></pre>
 <p>你可以通过运行<a href="/docs/zh-CN/reference-cli-tools#bookkeeper-shell">BookKeeper shell</a>上的<code>bookiesanity</code>命令验证 bookie 是否正常工作：</p>
-<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/bookkeeper shell bookiesanity</span>
+<pre><code class="hljs css language-bash">$ bin/bookkeeper shell bookiesanity
 </code></pre>
 <p>这个命令会在本地的 bookie 创建一个临时的 BookKeeper ledger，往里面写一些条目，然后读取它，最后删除这个 ledger。</p>
 <p>启动了所有的 bookie 后，你能够在任意一台bookie上，使用<a href="/docs/zh-CN/reference-cli-tools#shell">BookKeeper shell</a>的<code>simpletest</code>命令，去校验集群内所有的 bookie 是否都已经启动。</p>
@@ -261,7 +260,7 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.8.1
 </ul>
 <p>Message entries written to bookies are always synced to disk before returning an acknowledgement to the Pulsar broker. To ensure low write latency, BookKeeper is designed to use multiple devices:</p>
 <ul>
-<li>A <strong>journal</strong> to ensure durability. 对于连续写入来说 ，在 bookie 机器上必须有快速的<a href="https://linux.die.net/man/2/fsync">fsync</a>操作， 通常，小而快速的<a href="https://en.wikipedia.org/wiki/Solid-state_drive">固态硬盘</a>(SSDs)就足够，或者带有<a href="https://en.wikipedia.org/wiki/RAID">RAID</a>控制器和电池支持写入缓存的<a href="https://en.wikipedia.org/wiki/Hard_disk_drive">硬盘驱动器</a>(HDDs)。 这两种方案 fsync 延时大约为0.4ms。</li>
+<li>A <strong>journal</strong> to ensure durability. 对于连续写入来说 ，在 bookie 机器上必须有快速的<a href="https://linux.die.net/man/2/fsync">fsync</a>操作， 通常情况下，使用容量小并且读写快速的<a href="https://en.wikipedia.org/wiki/Solid-state_drive">固态硬盘(SSD)</a>设备就足够了，也可以是带有<a href="https://en.wikipedia.org/wiki/RAID">RAID</a>控制器和电池支持写入缓存的<a href="https://en.wikipedia.org/wiki/Hard_disk_drive">机械硬盘(HDD)</a>。 这两种方案 fsync 延时大约为0.4ms。</li>
 <li>A <strong>ledger storage device</strong> is where data is stored until all consumers acknowledge the message. 写入操作是在后台运行的，所以写入的 I/O 性能不是一个大问题。 大部分的读取操作是连续的。backlog 只有在没有消费者的情况下，才会被删除。 要存储大量的数据，典型的配置是多块 HDD 硬盘和 一个RAID 控制器构建硬盘阵列。</li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="部署-broker"></a><a href="#部署-broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署 broker</h2>
@@ -301,24 +300,11 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.8.1
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar broker</span>
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="服务发现"></a><a href="#服务发现" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>服务发现</h2>
-<p><a href="/docs/zh-CN/client-libraries">客户端</a> 需要能够使用单个 URL 与整个 Pulsar 实例进行通信。 Pulsar provides a built-in service discovery mechanism that you can set up using the instructions <a href="#service-discovery-setup">immediately below</a>.</p>
-<p>你可以使用你自己的服务发现系统。 If you use your own system, you only need to satisfy just one requirement: when a client performs an HTTP request to an <a href="/docs/zh-CN/reference-configuration">endpoint</a> for a Pulsar cluster, such as <code>http://pulsar.us-west.example.com:8080</code>, the client needs to be redirected to <em>some</em> active broker in the desired cluster, whether via DNS, an HTTP or IP redirect, or some other means.</p>
+<p><a href="/docs/zh-CN/client-libraries">Clients</a> 连接 Pulsar brokers 需要使用一个URL与整个集群进行通信</p>
+<p>可以使用自己的服务发现系统。 如果使用自己的系统，则只需满足一个要求：当客户端向 Pulsar 集群的 <a href="/docs/zh-CN/reference-configuration">端点</a>，例如  <code>http://pulsar.us-west.example.com:8080</code>，执行 HTTP 请求时，客户端需要重定向到所需集群中一些活跃的代理，无论是通过 DNS、HTTP 或 IP 重定向，或者其他方式。</p>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="service-discovery-already-provided-by-many-scheduling-systems"></a><a href="#service-discovery-already-provided-by-many-scheduling-systems" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Service discovery already provided by many scheduling systems</h4>
-<p>Many large-scale deployment systems, such as <a href="deploy-kubernetes">Kubernetes</a>, have service discovery systems built in. 如果你在这样的系统上运行 Pulsar，你可能不需要自己构建服务发现系统。</p>
+<p><strong>Service discovery already provided by many scheduling systems</strong> Many large-scale deployment systems, such as <a href="deploy-kubernetes">Kubernetes</a>, have service discovery systems built in. 如果你在这样的系统上运行 Pulsar，你可能不需要自己构建服务发现系统。</p>
 </blockquote>
-<h3><a class="anchor" aria-hidden="true" id="service-discovery-setup"></a><a href="#service-discovery-setup" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Service discovery setup</h3>
-<p>Pulsar 自带的服务发现策略维护了一个活跃 broker 的列表，该列表保存在Zookeeper中，并支持通过 HTTP 和<a href="/docs/zh-CN/develop-binary-protocol">二进制协议</a>去查询。</p>
-<p>若需要启用 Pulsar 内置的服务发现系统，你必须修改配置文件<a href="/docs/zh-CN/reference-configuration#service-discovery"><code>conf/discovery.conf</code></a>里面的一些参数。 通过配置项<a href="/docs/zh-CN/reference-configuration#service-discovery-zookeeperServers"><code>zookeeperServers</code></a>配置本地 Zookeeper 集群的连接字符串，通过<a href="/docs/zh-CN/reference-configuration#service-discovery-configurationStoreServers"><code>configurationStoreServers</code></a>配置<a href="/docs/zh-CN/reference-terminology#configuration-store">配置存储</a>集群的连接信息。</p>
-<pre><code class="hljs css language-properties"><span class="hljs-comment"># Zookeeper quorum connection string</span>
-<span class="hljs-attr">zookeeperServers</span>=<span class="hljs-string">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
-<span class="hljs-comment">
-# Global configuration store connection string</span>
-<span class="hljs-attr">configurationStoreServers</span>=<span class="hljs-string">zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184</span>
-</code></pre>
-<p>To start the discovery service:</p>
-<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-daemon start discovery</span>
-</code></pre>
 <h2><a class="anchor" aria-hidden="true" id="admin-客户端和验证"></a><a href="#admin-客户端和验证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin 客户端和验证</h2>
 <p>At this point your Pulsar instance should be ready to use. You can now configure client machines that can serve as <a href="/docs/zh-CN/admin-api-overview">administrative clients</a> for each cluster. You can use the <a href="/docs/zh-CN/reference-configuration#client"><code>conf/client.conf</code></a> configuration file to configure admin clients.</p>
 <p>The most important thing is that you point the <a href="/docs/zh-CN/reference-configuration#client-serviceUrl"><code>serviceUrl</code></a> parameter to the correct service URL for the cluster:</p>
@@ -351,7 +337,7 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.8.1
 <p>To report the topic stats:</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin topics stats persistent://<span class="hljs-built_in">test</span>-tenant/ns1/my-topic</span>
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/deploy-bare-metal"><span class="arrow-prev">← </span><span>裸机</span></a><a class="docs-next button" href="/docs/zh-CN/deploy-dcos"><span>DC/OS</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#系统配置要求">系统配置要求</a></li><li><a href="#安装pulsar">安装Pulsar</a></li><li><a href="#软件包包含的内容">软件包包含的内容:</a></li><li><a href="#deploy-zookeeper">Deploy ZooKeeper</a><ul class="toc-headings"><li><a href="#部署本地zookeeper">部署本地Zookeeper</a></li><li><a href="#部署配置存储集群">部署配置存储集群</a></li></ul></li><li><a href="#初始化集群元数据">初始化集群元数据</a></li><li><a href="#部署-bookkeeper">部署 Bookkeeper</a><ul class="toc-headings"><li><a href="#配置-bookies">配置 bookies</a></li><li><a href="#启动-bookie">启动 bookie。</a></li></ul></li><li><a href="#部署-broker">部署 broker</a><ul class="toc-headings"><li><a href="#broker-configuration">Broker configuration</a></li><li><a href="#broker-hardware">Broker hardware</a></li><li><a href="#启动-broker">启动 broker</a></li></ul></li><li><a href="#服务发现">服务发现</a><ul class="toc-headings"><li><a href="#service-discovery-setup">Service discovery setup</a></li></ul></li><li><a href="#admin-客户端和验证">Admin 客户端和验证</a></li><li><a href="#创建新租户">创建新租户</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/deploy-bare-metal"><span class="arrow-prev">← </span><span>裸机</span></a><a class="docs-next button" href="/docs/zh-CN/deploy-dcos"><span>DC/OS</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#系统配置要求">系统配置要求</a></li><li><a href="#安装pulsar">安装Pulsar</a></li><li><a href="#deploy-zookeeper">Deploy ZooKeeper</a><ul class="toc-headings"><li><a href="#部署本地zookeeper">部署本地Zookeeper</a></li><li><a href="#部署配置存储集群">部署配置存储集群</a></li></ul></li><li><a href="#初始化集群元数据">初始化集群元数据</a></li><li><a href="#部署-bookkeeper">部署 Bookkeeper</a><ul class="toc-headings"><li><a href="#配置-bookies">配置 bookies</a></li><li><a href="#启动-bookie">启动 bookie。</a></li></ul></li><li><a href="#部署-broker">部署 broker</a><ul class="toc-headings"><li><a href="#broker-configuration">Broker configuration</a></li><li><a href="#broker-hardware">Broker hardware</a></li><li><a href="#启动-broker">启动 broker</a></li></ul></li><li><a href="#服务发现">服务发现</a></li><li><a href="#admin-客户端和验证">Admin 客户端和验证</a></li><li><a href="#创建新租户">创建新租户</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
@@ -404,6 +390,6 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.8.1
                 apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
                 indexName: 'apache_pulsar',
                 inputSelector: '#search_input_react',
-                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.8.1"]}
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.9.1"]}
               });
             </script></body></html>

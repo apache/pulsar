@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="ja"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Debezium source connector · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="The Debezium source connector pulls messages from MySQL or PostgreSQL and persists the messages to Pulsar topics."/><meta name="docsearch:version" content="2.8.1"/><meta name="docsearch:language" content="ja"/><meta property="og:title" content="Debezium source connector · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="The Debezium source connector pulls messages from MySQL or PostgreSQL and persists the messages to Pulsar topics."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="ja"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Debezium source connector · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="The Debezium source connector pulls messages from MySQL or PostgreSQL and persists the messages to Pulsar topics."/><meta name="docsearch:version" content="2.9.1"/><meta name="docsearch:language" content="ja"/><meta property="og:title" content="Debezium source connector · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="The Debezium source connector pulls messages from MySQL or PostgreSQL and persists the messages to Pulsar topics."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/ja"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/ja/versions"><h3>2.8.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/ja/standalone" target="_self">Docs</a></li><li class=""><a href="/ja/download" target="_self">Download</a></li><li class=""><a href="/docs/ja/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>日本語</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/io-debezium-source">English</a></li><li><a href="/docs/fr/io-debezium-source">Français</a></li><li><a href="/docs/ko/io-debezium-source">한국어</a></li><li><a href="/docs/zh-CN/io-debezium-source">中文</a></li><li><a href="/docs/zh-TW/io-debezium-source">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/ja"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/ja/versions"><h3>2.9.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class=""><a href="/docs/ja/standalone" target="_self">Docs</a></li><li class=""><a href="/ja/download" target="_self">Download</a></li><li class=""><a href="/docs/ja/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>日本語</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/io-debezium-source">English</a></li><li><a href="/docs/fr/io-debezium-source">Français</a></li><li><a href="/docs/ko/io-debezium-source">한국어</a></li><li><a href="/docs/zh-CN/io-debezium-source">中文</a></li><li><a href="/docs/zh-TW/io-debezium-source">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -39,7 +39,6 @@
 <tr><td><code>database.history</code></td><td>true</td><td>null</td><td>The name of the database history class.</td></tr>
 <tr><td><code>database.history.pulsar.topic</code></td><td>true</td><td>null</td><td>The name of the database history topic where the connector writes and recovers DDL statements. <br/><br/><strong>Note: this topic is for internal use only and should not be used by consumers.</strong></td></tr>
 <tr><td><code>database.history.pulsar.service.url</code></td><td>true</td><td>null</td><td>Pulsar cluster service URL for history topic.</td></tr>
-<tr><td><code>pulsar.service.url</code></td><td>true</td><td>null</td><td>Pulsar cluster service URL.</td></tr>
 <tr><td><code>offset.storage.topic</code></td><td>true</td><td>null</td><td>Record the last committed offsets that the connector successfully completes.</td></tr>
 <tr><td><code>json-with-envelope</code></td><td>false</td><td>false</td><td>Present the message only consist of payload.</td></tr>
 </tbody>
@@ -86,7 +85,6 @@
     <span class="hljs-attr">"database.history.pulsar.service.url"</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>,
     <span class="hljs-attr">"key.converter"</span>: <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>,
     <span class="hljs-attr">"value.converter"</span>: <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>,
-    <span class="hljs-attr">"pulsar.service.url"</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>,
     <span class="hljs-attr">"offset.storage.topic"</span>: <span class="hljs-string">"offset-topic"</span>
 }
 </code></pre></li>
@@ -96,7 +94,7 @@
 <span class="hljs-attr">namespace:</span> <span class="hljs-string">"default"</span>
 <span class="hljs-attr">name:</span> <span class="hljs-string">"debezium-mysql-source"</span>
 <span class="hljs-attr">topicName:</span> <span class="hljs-string">"debezium-mysql-topic"</span>
-<span class="hljs-attr">archive:</span> <span class="hljs-string">"connectors/pulsar-io-debezium-mysql-<span class="hljs-template-variable">2.8.1</span>.nar"</span>
+<span class="hljs-attr">archive:</span> <span class="hljs-string">"connectors/pulsar-io-debezium-mysql-<span class="hljs-template-variable">2.9.1</span>.nar"</span>
 <span class="hljs-attr">parallelism:</span> <span class="hljs-number">1</span>
 
 <span class="hljs-attr">configs:</span>
@@ -116,9 +114,6 @@
     <span class="hljs-comment">## KEY_CONVERTER_CLASS_CONFIG, VALUE_CONVERTER_CLASS_CONFIG</span>
     <span class="hljs-attr">key.converter:</span> <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>
     <span class="hljs-attr">value.converter:</span> <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>
-
-    <span class="hljs-comment">## PULSAR_SERVICE_URL_CONFIG</span>
-    <span class="hljs-attr">pulsar.service.url:</span> <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
 
     <span class="hljs-comment">## OFFSET_STORAGE_TOPIC_CONFIG</span>
     <span class="hljs-attr">offset.storage.topic:</span> <span class="hljs-string">"offset-topic"</span>
@@ -141,9 +136,9 @@
 <li><p>Start the Pulsar Debezium connector in local run mode using one of the following methods.</p>
 <ul>
 <li><p>Use the <strong>JSON</strong> configuration file as shown previously.</p>
-<p>Make sure the nar file is available at <code>connectors/pulsar-io-debezium-mysql-2.8.1.nar</code>.</p>
+<p>Make sure the nar file is available at <code>connectors/pulsar-io-debezium-mysql-2.9.1.nar</code>.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">source</span> localrun \
---archive connectors/pulsar-io-debezium-mysql-2.8.1.nar \
+--archive connectors/pulsar-io-debezium-mysql-2.9.1.nar \
 --name debezium-mysql-source --destination-topic-name debezium-mysql-topic \
 --tenant public \
 --namespace default \
@@ -190,7 +185,7 @@ mysql&gt; <span class="hljs-keyword">UPDATE</span> products <span class="hljs-ke
     <span class="hljs-attr">"plugin.name"</span>: <span class="hljs-string">"pgoutput"</span>,
     <span class="hljs-attr">"schema.whitelist"</span>: <span class="hljs-string">"public"</span>,
     <span class="hljs-attr">"table.whitelist"</span>: <span class="hljs-string">"public.users"</span>,
-    <span class="hljs-attr">"pulsar.service.url"</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
+    <span class="hljs-attr">"database.history.pulsar.service.url"</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
 }
 </code></pre></li>
 <li><p>YAML</p>
@@ -199,7 +194,7 @@ mysql&gt; <span class="hljs-keyword">UPDATE</span> products <span class="hljs-ke
 <span class="hljs-attr">namespace:</span> <span class="hljs-string">"default"</span>
 <span class="hljs-attr">name:</span> <span class="hljs-string">"debezium-postgres-source"</span>
 <span class="hljs-attr">topicName:</span> <span class="hljs-string">"debezium-postgres-topic"</span>
-<span class="hljs-attr">archive:</span> <span class="hljs-string">"connectors/pulsar-io-debezium-postgres-<span class="hljs-template-variable">2.8.1</span>.nar"</span>
+<span class="hljs-attr">archive:</span> <span class="hljs-string">"connectors/pulsar-io-debezium-postgres-<span class="hljs-template-variable">2.9.1</span>.nar"</span>
 <span class="hljs-attr">parallelism:</span> <span class="hljs-number">1</span>
 
 <span class="hljs-attr">configs:</span>
@@ -216,7 +211,7 @@ mysql&gt; <span class="hljs-keyword">UPDATE</span> products <span class="hljs-ke
     <span class="hljs-attr">table.whitelist:</span> <span class="hljs-string">"public.users"</span>
 
     <span class="hljs-comment">## PULSAR_SERVICE_URL_CONFIG</span>
-    <span class="hljs-attr">pulsar.service.url:</span> <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
+    <span class="hljs-attr">database.history.pulsar.service.url:</span> <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
 </code></pre></li>
 </ul>
 <p>Notice that <code>pgoutput</code> is a standard plugin of Postgres introduced in version 10 - <a href="https://www.postgresql.org/docs/10/logical-replication-architecture.html">see Postgres architecture docu</a>. You don't need to install anything, just make sure the WAL level is set to <code>logical</code> (see docker command below and <a href="https://www.postgresql.org/docs/current/runtime-config-wal.html">Postgres docu</a>).</p>
@@ -236,9 +231,9 @@ postgres:13.3 -c wal_level=logical
 <li><p>Start the Pulsar Debezium connector in local run mode using one of the following methods.</p>
 <ul>
 <li><p>Use the <strong>JSON</strong> configuration file as shown previously.</p>
-<p>Make sure the nar file is available at <code>connectors/pulsar-io-debezium-postgres-2.8.1.nar</code>.</p>
+<p>Make sure the nar file is available at <code>connectors/pulsar-io-debezium-postgres-2.9.1.nar</code>.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">source</span> localrun \
---archive connectors/pulsar-io-debezium-postgres-2.8.1.nar \
+--archive connectors/pulsar-io-debezium-postgres-2.9.1.nar \
 --name debezium-postgres-source \
 --destination-topic-name debezium-postgres-topic \
 --tenant public \
@@ -301,7 +296,7 @@ UPDATE 1
     <span class="hljs-attr">"mongodb.password"</span>: <span class="hljs-string">"dbz"</span>,
     <span class="hljs-attr">"mongodb.task.id"</span>: <span class="hljs-string">"1"</span>,
     <span class="hljs-attr">"database.whitelist"</span>: <span class="hljs-string">"inventory"</span>,
-    <span class="hljs-attr">"pulsar.service.url"</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
+    <span class="hljs-attr">"database.history.pulsar.service.url"</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
 }
 </code></pre></li>
 <li><p>YAML</p>
@@ -310,7 +305,7 @@ UPDATE 1
 <span class="hljs-attr">namespace:</span> <span class="hljs-string">"default"</span>
 <span class="hljs-attr">name:</span> <span class="hljs-string">"debezium-mongodb-source"</span>
 <span class="hljs-attr">topicName:</span> <span class="hljs-string">"debezium-mongodb-topic"</span>
-<span class="hljs-attr">archive:</span> <span class="hljs-string">"connectors/pulsar-io-debezium-mongodb-<span class="hljs-template-variable">2.8.1</span>.nar"</span>
+<span class="hljs-attr">archive:</span> <span class="hljs-string">"connectors/pulsar-io-debezium-mongodb-<span class="hljs-template-variable">2.9.1</span>.nar"</span>
 <span class="hljs-attr">parallelism:</span> <span class="hljs-number">1</span>
 
 <span class="hljs-attr">configs:</span>
@@ -322,9 +317,7 @@ UPDATE 1
     <span class="hljs-attr">mongodb.password:</span> <span class="hljs-string">"dbz"</span><span class="hljs-string">,</span>
     <span class="hljs-attr">mongodb.task.id:</span> <span class="hljs-string">"1"</span><span class="hljs-string">,</span>
     <span class="hljs-attr">database.whitelist:</span> <span class="hljs-string">"inventory"</span><span class="hljs-string">,</span>
-
-    <span class="hljs-comment">## PULSAR_SERVICE_URL_CONFIG</span>
-    <span class="hljs-attr">pulsar.service.url:</span> <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
+    <span class="hljs-attr">database.history.pulsar.service.url:</span> <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
 </code></pre></li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="使い方-2"></a><a href="#使い方-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>使い方</h3>
@@ -346,14 +339,14 @@ $ docker run -d -it --rm --name pulsar-mongodb -e MONGODB_USER=mongodb -e MONGOD
 <li><p>Start the Pulsar Debezium connector in local run mode using one of the following methods.</p>
 <ul>
 <li><p>Use the <strong>JSON</strong> configuration file as shown previously.</p>
-<p>Make sure the nar file is available at <code>connectors/pulsar-io-mongodb-2.8.1.nar</code>.</p>
+<p>Make sure the nar file is available at <code>connectors/pulsar-io-mongodb-2.9.1.nar</code>.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">source</span> localrun \
---archive connectors/pulsar-io-debezium-mongodb-2.8.1.nar \
+--archive connectors/pulsar-io-debezium-mongodb-2.9.1.nar \
 --name debezium-mongodb-source \
 --destination-topic-name debezium-mongodb-topic \
 --tenant public \
 --namespace default \
---<span class="hljs-built_in">source</span>-config <span class="hljs-string">'{"mongodb.hosts": "rs0/mongodb:27017","mongodb.name": "dbserver1","mongodb.user": "debezium","mongodb.password": "dbz","mongodb.task.id": "1","database.whitelist": "inventory","pulsar.service.url": "pulsar://127.0.0.1:6650"}'</span>
+--<span class="hljs-built_in">source</span>-config <span class="hljs-string">'{"mongodb.hosts": "rs0/mongodb:27017","mongodb.name": "dbserver1","mongodb.user": "debezium","mongodb.password": "dbz","mongodb.task.id": "1","database.whitelist": "inventory","database.history.pulsar.service.url": "pulsar://127.0.0.1:6650"}'</span>
 </code></pre></li>
 <li><p>Use the <strong>YAML</strong> configuration file as shown previously.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">source</span> localrun  \
@@ -375,6 +368,128 @@ db.products.update({<span class="hljs-string">"_id"</span>:NumberLong(104)},{<sp
 {<span class="hljs-string">"schema"</span>:{<span class="hljs-string">"type"</span>:<span class="hljs-string">"struct"</span>,<span class="hljs-string">"fields"</span>:[{<span class="hljs-string">"type"</span>:<span class="hljs-string">"string"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">false</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"id"</span>}],<span class="hljs-string">"optional"</span>:<span class="hljs-literal">false</span>,<span class="hljs-string">"name"</span>:<span class="hljs-string">"dbserver1.inventory.products.Key"</span>},<span class="hljs-string">"payload"</span>:{<span class="hljs-string">"id"</span>:<span class="hljs-string">"104"</span>}}, value = {<span class="hljs-string">"schema"</span>:{<span class="hljs-string">"type"</span>:<span class="hljs-string">"struct"</span>,<span class="hljs-string">"fields"</span>:[{<span class="hljs-string">"type"</span>:<span class="hljs-string">"string"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">true</span>,<span class="hljs-string">"name"</span>:<span class="hljs-string">"io.debezium.data.Json"</span>,<span class="hljs-string">"version"</span>:1,<span class="hljs-string">"field"</span>:<span class="hljs-string">"after"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"string"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">true</span>,<span class="hljs-string">"name"</span>:<span class="hljs-string">"io.debezium.data.Json"</span>,<span class="hljs-string">"version"</span>:1,<span class="hljs-string">"field"</span>:<span class="hljs-string">"patch"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"struct"</span>,<span class="hljs-string">"fields"</span>:[{<span class="hljs-string">"type"</span>:<span class="hljs-string">"string"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">false</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"version"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"string"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">false</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"connector"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"string"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">false</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"name"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"int64"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">false</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"ts_ms"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"string"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">true</span>,<span class="hljs-string">"name"</span>:<span class="hljs-string">"io.debezium.data.Enum"</span>,<span class="hljs-string">"version"</span>:1,<span class="hljs-string">"parameters"</span>:{<span class="hljs-string">"allowed"</span>:<span class="hljs-string">"true,last,false"</span>},<span class="hljs-string">"default"</span>:<span class="hljs-string">"false"</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"snapshot"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"string"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">false</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"db"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"string"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">false</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"rs"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"string"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">false</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"collection"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"int32"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">false</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"ord"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"int64"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">true</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"h"</span>}],<span class="hljs-string">"optional"</span>:<span class="hljs-literal">false</span>,<span class="hljs-string">"name"</span>:<span class="hljs-string">"io.debezium.connector.mongo.Source"</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"source"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"string"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">true</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"op"</span>},{<span class="hljs-string">"type"</span>:<span class="hljs-string">"int64"</span>,<span class="hljs-string">"optional"</span>:<span class="hljs-literal">true</span>,<span class="hljs-string">"field"</span>:<span class="hljs-string">"ts_ms"</span>}],<span class="hljs-string">"optional"</span>:<span class="hljs-literal">false</span>,<span class="hljs-string">"name"</span>:<span class="hljs-string">"dbserver1.inventory.products.Envelope"</span>},<span class="hljs-string">"payload"</span>:{<span class="hljs-string">"after"</span>:<span class="hljs-string">"{\"_id\": {\"<span class="hljs-variable">$numberLong</span>\": \"104\"},\"name\": \"hammer\",\"description\": \"12oz carpenter's hammer\",\"weight\": 1.25,\"quantity\": 4}"</span>,<span class="hljs-string">"patch"</span>:null,<span class="hljs-string">"source"</span>:{<span class="hljs-string">"version"</span>:<span class="hljs-string">"0.10.0.Final"</span>,<span class="hljs-string">"connector"</span>:<span class="hljs-string">"mongodb"</span>,<span class="hljs-string">"name"</span>:<span class="hljs-string">"dbserver1"</span>,<span class="hljs-string">"ts_ms"</span>:1573541905000,<span class="hljs-string">"snapshot"</span>:<span class="hljs-string">"true"</span>,<span class="hljs-string">"db"</span>:<span class="hljs-string">"inventory"</span>,<span class="hljs-string">"rs"</span>:<span class="hljs-string">"rs0"</span>,<span class="hljs-string">"collection"</span>:<span class="hljs-string">"products"</span>,<span class="hljs-string">"ord"</span>:1,<span class="hljs-string">"h"</span>:4983083486544392763},<span class="hljs-string">"op"</span>:<span class="hljs-string">"r"</span>,<span class="hljs-string">"ts_ms"</span>:1573541909761}}.
 </code></pre></li>
 </ol>
+<h2><a class="anchor" aria-hidden="true" id="example-of-oracle"></a><a href="#example-of-oracle" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example of Oracle</h2>
+<h3><a class="anchor" aria-hidden="true" id="packaging"></a><a href="#packaging" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Packaging</h3>
+<p>Oracle connector does not include Oracle JDBC driver and you need to package it with the connector. Major reasons for not including the drivers are the variety of versions and Oracle licensing. It is recommended to use the driver provided with your Oracle DB installation, or you can <a href="https://www.oracle.com/database/technologies/appdev/jdbc.html">download</a> one. Integration test have an <a href="https://github.com/apache/pulsar/blob/e2bc52d40450fa00af258c4432a5b71d50a5c6e0/tests/docker-images/latest-version-image/Dockerfile#L110-L122">example</a> of packaging the driver into the connector nar file.</p>
+<h3><a class="anchor" aria-hidden="true" id="configuration-3"></a><a href="#configuration-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h3>
+<p>Debezium <a href="https://debezium.io/documentation/reference/1.5/connectors/oracle.html#oracle-overview">requires</a> Oracle DB with LogMiner or XStream API enabled. Supported options and steps for enabling them vary from version to version of Oracle DB. Steps outlined in the <a href="https://debezium.io/documentation/reference/1.5/connectors/oracle.html#oracle-overview">documentation</a> and used in the <a href="https://github.com/apache/pulsar/blob/master/tests/integration/src/test/java/org/apache/pulsar/tests/integration/io/sources/debezium/DebeziumOracleDbSourceTester.java">integration test</a> may or may not work for the version and edition of Oracle DB you are using. Please refer to the <a href="https://docs.oracle.com/en/database/oracle/oracle-database/">documentation for Oracle DB</a> as needed.</p>
+<p>Similarly to other connectors, you can use JSON or YAMl to configure the connector. Using yaml as an example, you can create a debezium-oracle-source-config.yaml file like:</p>
+<ul>
+<li>JSON</li>
+</ul>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"database.hostname"</span>: <span class="hljs-string">"localhost"</span>,
+  <span class="hljs-attr">"database.port"</span>: <span class="hljs-string">"1521"</span>,
+  <span class="hljs-attr">"database.user"</span>: <span class="hljs-string">"dbzuser"</span>,
+  <span class="hljs-attr">"database.password"</span>: <span class="hljs-string">"dbz"</span>,
+  <span class="hljs-attr">"database.dbname"</span>: <span class="hljs-string">"XE"</span>,
+  <span class="hljs-attr">"database.server.name"</span>: <span class="hljs-string">"XE"</span>,
+  <span class="hljs-attr">"schema.exclude.list"</span>: <span class="hljs-string">"system,dbzuser"</span>,
+  <span class="hljs-attr">"snapshot.mode"</span>: <span class="hljs-string">"initial"</span>,
+  <span class="hljs-attr">"topic.namespace"</span>: <span class="hljs-string">"public/default"</span>,
+  <span class="hljs-attr">"task.class"</span>: <span class="hljs-string">"io.debezium.connector.oracle.OracleConnectorTask"</span>,
+  <span class="hljs-attr">"value.converter"</span>: <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>,
+  <span class="hljs-attr">"key.converter"</span>: <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>,
+  <span class="hljs-attr">"typeClassName"</span>: <span class="hljs-string">"org.apache.pulsar.common.schema.KeyValue"</span>,
+  <span class="hljs-attr">"database.history"</span>: <span class="hljs-string">"org.apache.pulsar.io.debezium.PulsarDatabaseHistory"</span>,
+  <span class="hljs-attr">"database.tcpKeepAlive"</span>: <span class="hljs-string">"true"</span>,
+  <span class="hljs-attr">"decimal.handling.mode"</span>: <span class="hljs-string">"double"</span>,
+  <span class="hljs-attr">"database.history.pulsar.topic"</span>: <span class="hljs-string">"debezium-oracle-source-history-topic"</span>,
+  <span class="hljs-attr">"database.history.pulsar.service.url"</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
+}
+</code></pre>
+<ul>
+<li>YAML</li>
+</ul>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">tenant:</span> <span class="hljs-string">"public"</span>
+<span class="hljs-attr">namespace:</span> <span class="hljs-string">"default"</span>
+<span class="hljs-attr">name:</span> <span class="hljs-string">"debezium-oracle-source"</span>
+<span class="hljs-attr">topicName:</span> <span class="hljs-string">"debezium-oracle-topic"</span>
+<span class="hljs-attr">parallelism:</span> <span class="hljs-number">1</span>
+
+<span class="hljs-attr">className:</span> <span class="hljs-string">"org.apache.pulsar.io.debezium.oracle.DebeziumOracleSource"</span>
+<span class="hljs-attr">database.dbname:</span> <span class="hljs-string">"XE"</span>
+
+<span class="hljs-attr">configs:</span>
+    <span class="hljs-attr">database.hostname:</span> <span class="hljs-string">"localhost"</span>
+    <span class="hljs-attr">database.port:</span> <span class="hljs-string">"1521"</span>
+    <span class="hljs-attr">database.user:</span> <span class="hljs-string">"dbzuser"</span>
+    <span class="hljs-attr">database.password:</span> <span class="hljs-string">"dbz"</span>
+    <span class="hljs-attr">database.dbname:</span> <span class="hljs-string">"XE"</span>
+    <span class="hljs-attr">database.server.name:</span> <span class="hljs-string">"XE"</span>
+    <span class="hljs-attr">schema.exclude.list:</span> <span class="hljs-string">"system,dbzuser"</span>
+    <span class="hljs-attr">snapshot.mode:</span> <span class="hljs-string">"initial"</span>
+    <span class="hljs-attr">topic.namespace:</span> <span class="hljs-string">"public/default"</span>
+    <span class="hljs-attr">task.class:</span> <span class="hljs-string">"io.debezium.connector.oracle.OracleConnectorTask"</span>
+    <span class="hljs-attr">value.converter:</span> <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>
+    <span class="hljs-attr">key.converter:</span> <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>
+    <span class="hljs-attr">typeClassName:</span> <span class="hljs-string">"org.apache.pulsar.common.schema.KeyValue"</span>
+    <span class="hljs-attr">database.history:</span> <span class="hljs-string">"org.apache.pulsar.io.debezium.PulsarDatabaseHistory"</span>
+    <span class="hljs-attr">database.tcpKeepAlive:</span> <span class="hljs-string">"true"</span>
+    <span class="hljs-attr">decimal.handling.mode:</span> <span class="hljs-string">"double"</span>
+    <span class="hljs-attr">database.history.pulsar.topic:</span> <span class="hljs-string">"debezium-oracle-source-history-topic"</span>
+    <span class="hljs-attr">database.history.pulsar.service.url:</span> <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
+</code></pre>
+<p>For the full list of configuration properties supported by Debezium, see <a href="https://debezium.io/documentation/reference/1.5/connectors/oracle.html#oracle-connector-properties">Debezium Connector for Oracle</a>.</p>
+<h2><a class="anchor" aria-hidden="true" id="example-of-microsoft-sql"></a><a href="#example-of-microsoft-sql" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example of Microsoft SQL</h2>
+<h3><a class="anchor" aria-hidden="true" id="configuration-4"></a><a href="#configuration-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h3>
+<p>Debezium <a href="https://debezium.io/documentation/reference/1.5/connectors/sqlserver.html#sqlserver-overview">requires</a> SQL Server with CDC enabled. Steps outlined in the <a href="https://debezium.io/documentation/reference/1.5/connectors/sqlserver.html#setting-up-sqlserver">documentation</a> and used in the <a href="https://github.com/apache/pulsar/blob/master/tests/integration/src/test/java/org/apache/pulsar/tests/integration/src/test/java/org/apache/pulsar/tests/integration/io/sources/debezium/DebeziumMsSqlSourceTester.java">integration test</a>. For more information, see <a href="https://docs.microsoft.com/en-us/sql/relational-databases/track-changes/enable-and-disable-change-data-capture-sql-server">Enable and disable change data capture in Microsoft SQL Server</a>.</p>
+<p>Similarly to other connectors, you can use JSON or YAMl to configure the connector.</p>
+<ul>
+<li>JSON</li>
+</ul>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"database.hostname"</span>: <span class="hljs-string">"localhost"</span>,
+  <span class="hljs-attr">"database.port"</span>: <span class="hljs-string">"1433"</span>,
+  <span class="hljs-attr">"database.user"</span>: <span class="hljs-string">"sa"</span>,
+  <span class="hljs-attr">"database.password"</span>: <span class="hljs-string">"MyP@ssw0rd!"</span>,
+  <span class="hljs-attr">"database.dbname"</span>: <span class="hljs-string">"MyTestDB"</span>,
+  <span class="hljs-attr">"database.server.name"</span>: <span class="hljs-string">"mssql"</span>,
+  <span class="hljs-attr">"snapshot.mode"</span>: <span class="hljs-string">"schema_only"</span>,
+  <span class="hljs-attr">"topic.namespace"</span>: <span class="hljs-string">"public/default"</span>,
+  <span class="hljs-attr">"task.class"</span>: <span class="hljs-string">"io.debezium.connector.sqlserver.SqlServerConnectorTask"</span>,
+  <span class="hljs-attr">"value.converter"</span>: <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>,
+  <span class="hljs-attr">"key.converter"</span>: <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>,
+  <span class="hljs-attr">"typeClassName"</span>: <span class="hljs-string">"org.apache.pulsar.common.schema.KeyValue"</span>,
+  <span class="hljs-attr">"database.history"</span>: <span class="hljs-string">"org.apache.pulsar.io.debezium.PulsarDatabaseHistory"</span>,
+  <span class="hljs-attr">"database.tcpKeepAlive"</span>: <span class="hljs-string">"true"</span>,
+  <span class="hljs-attr">"decimal.handling.mode"</span>: <span class="hljs-string">"double"</span>,
+  <span class="hljs-attr">"database.history.pulsar.topic"</span>: <span class="hljs-string">"debezium-mssql-source-history-topic"</span>,
+  <span class="hljs-attr">"database.history.pulsar.service.url"</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
+}
+</code></pre>
+<ul>
+<li>YAML</li>
+</ul>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">tenant:</span> <span class="hljs-string">"public"</span>
+<span class="hljs-attr">namespace:</span> <span class="hljs-string">"default"</span>
+<span class="hljs-attr">name:</span> <span class="hljs-string">"debezium-mssql-source"</span>
+<span class="hljs-attr">topicName:</span> <span class="hljs-string">"debezium-mssql-topic"</span>
+<span class="hljs-attr">parallelism:</span> <span class="hljs-number">1</span>
+
+<span class="hljs-attr">className:</span> <span class="hljs-string">"org.apache.pulsar.io.debezium.mssql.DebeziumMsSqlSource"</span>
+<span class="hljs-attr">database.dbname:</span> <span class="hljs-string">"mssql"</span>
+
+<span class="hljs-attr">configs:</span>
+    <span class="hljs-attr">database.hostname:</span> <span class="hljs-string">"localhost"</span>
+    <span class="hljs-attr">database.port:</span> <span class="hljs-string">"1433"</span>
+    <span class="hljs-attr">database.user:</span> <span class="hljs-string">"sa"</span>
+    <span class="hljs-attr">database.password:</span> <span class="hljs-string">"MyP@ssw0rd!"</span>
+    <span class="hljs-attr">database.dbname:</span> <span class="hljs-string">"MyTestDB"</span>
+    <span class="hljs-attr">database.server.name:</span> <span class="hljs-string">"mssql"</span>
+    <span class="hljs-attr">snapshot.mode:</span> <span class="hljs-string">"schema_only"</span>
+    <span class="hljs-attr">topic.namespace:</span> <span class="hljs-string">"public/default"</span>
+    <span class="hljs-attr">task.class:</span> <span class="hljs-string">"io.debezium.connector.sqlserver.SqlServerConnectorTask"</span>
+    <span class="hljs-attr">value.converter:</span> <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>
+    <span class="hljs-attr">key.converter:</span> <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>
+    <span class="hljs-attr">typeClassName:</span> <span class="hljs-string">"org.apache.pulsar.common.schema.KeyValue"</span>
+    <span class="hljs-attr">database.history:</span> <span class="hljs-string">"org.apache.pulsar.io.debezium.PulsarDatabaseHistory"</span>
+    <span class="hljs-attr">database.tcpKeepAlive:</span> <span class="hljs-string">"true"</span>
+    <span class="hljs-attr">decimal.handling.mode:</span> <span class="hljs-string">"double"</span>
+    <span class="hljs-attr">database.history.pulsar.topic:</span> <span class="hljs-string">"debezium-mssql-source-history-topic"</span>
+    <span class="hljs-attr">database.history.pulsar.service.url:</span> <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
+</code></pre>
+<p>For the full list of configuration properties supported by Debezium, see <a href="https://debezium.io/documentation/reference/1.5/connectors/sqlserver.html#sqlserver-connector-properties">Debezium Connector for MS SQL</a>.</p>
 <h2><a class="anchor" aria-hidden="true" id="faq"></a><a href="#faq" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>FAQ</h2>
 <h3><a class="anchor" aria-hidden="true" id="debezium-postgres-connector-will-hang-when-create-snap"></a><a href="#debezium-postgres-connector-will-hang-when-create-snap" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Debezium postgres connector will hang when create snap</h3>
 <pre><code class="hljs css language-$xslt">#<span class="hljs-number">18</span> prio=<span class="hljs-number">5</span> os_prio=<span class="hljs-number">31</span> tid=<span class="hljs-number">0</span>x00007fd83096f800 nid=<span class="hljs-number">0</span>xa403 waiting on condition [<span class="hljs-number">0</span>x000070000f534000]
@@ -411,7 +526,7 @@ db.products.update({<span class="hljs-string">"_id"</span>:NumberLong(104)},{<sp
 <p>If you encounter the above problems in synchronizing data, please refer to <a href="https://github.com/apache/pulsar/issues/4075">this</a> and add the following configuration to the configuration file:</p>
 <pre><code class="hljs css language-$xslt"><span class="hljs-built_in">max</span>.<span class="hljs-built_in">queue</span>.<span class="hljs-built_in">size</span>=
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#converter-options">Converter Options</a></li><li><a href="#mongodb-configuration">MongoDB Configuration</a></li></ul></li><li><a href="#example-of-mysql">Example of MySQL</a><ul class="toc-headings"><li><a href="#configuration-1">Configuration</a></li><li><a href="#使い方">使い方</a></li></ul></li><li><a href="#example-of-postgresql">Example of PostgreSQL</a><ul class="toc-headings"><li><a href="#configuration-2">Configuration</a></li><li><a href="#使い方-1">使い方</a></li></ul></li><li><a href="#example-of-mongodb">Example of MongoDB</a><ul class="toc-headings"><li><a href="#使い方-2">使い方</a></li></ul></li><li><a href="#faq">FAQ</a><ul class="toc-headings"><li><a href="#debezium-postgres-connector-will-hang-when-create-snap">Debezium postgres connector will hang when create snap</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#converter-options">Converter Options</a></li><li><a href="#mongodb-configuration">MongoDB Configuration</a></li></ul></li><li><a href="#example-of-mysql">Example of MySQL</a><ul class="toc-headings"><li><a href="#configuration-1">Configuration</a></li><li><a href="#使い方">使い方</a></li></ul></li><li><a href="#example-of-postgresql">Example of PostgreSQL</a><ul class="toc-headings"><li><a href="#configuration-2">Configuration</a></li><li><a href="#使い方-1">使い方</a></li></ul></li><li><a href="#example-of-mongodb">Example of MongoDB</a><ul class="toc-headings"><li><a href="#使い方-2">使い方</a></li></ul></li><li><a href="#example-of-oracle">Example of Oracle</a><ul class="toc-headings"><li><a href="#packaging">Packaging</a></li><li><a href="#configuration-3">Configuration</a></li></ul></li><li><a href="#example-of-microsoft-sql">Example of Microsoft SQL</a><ul class="toc-headings"><li><a href="#configuration-4">Configuration</a></li></ul></li><li><a href="#faq">FAQ</a><ul class="toc-headings"><li><a href="#debezium-postgres-connector-will-hang-when-create-snap">Debezium postgres connector will hang when create snap</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
@@ -464,6 +579,6 @@ db.products.update({<span class="hljs-string">"_id"</span>:NumberLong(104)},{<sp
                 apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
                 indexName: 'apache_pulsar',
                 inputSelector: '#search_input_react',
-                algoliaOptions: {"facetFilters":["language:ja","version:2.8.1"]}
+                algoliaOptions: {"facetFilters":["language:ja","version:2.9.1"]}
               });
             </script></body></html>
