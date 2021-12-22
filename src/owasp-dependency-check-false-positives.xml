@@ -33,6 +33,11 @@
     <cpe>cpe:/a:apache:zookeeper</cpe>
   </suppress>
   <suppress>
+    <notes>pulsar-package-bookkeeper-storage gets mixed with bookkeeper.</notes>
+    <gav regex="true">org\.apache\.pulsar:.*</gav>
+    <cpe>cpe:/a:apache:bookkeeper</cpe>
+  </suppress>
+  <suppress>
     <notes>kubernetes client doesn't contain CVE-2020-8554</notes>
     <gav regex="true">io\.kubernetes:.*</gav>
     <cve>CVE-2020-8554</cve>
