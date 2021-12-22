@@ -470,13 +470,15 @@ public class Consumer {
             MessageIdData msgId = ack.getMessageIdAt(i);
             PositionImpl position;
             long ackedCount = 1;
-            LongPair longPair = pendingAcks.get(msgId.getLedgerId(), msgId.getEntryId());
-            // Consumer may ack the msg that not belongs to it.
-            if (longPair == null) {
-                ackOwnerConsumer = getAckOwnerConsumer(msgId.getLedgerId(), msgId.getEntryId());
-                ackedCount = ackOwnerConsumer.getPendingAcks().get(msgId.getLedgerId(), msgId.getEntryId()).first;
-            } else {
-                ackedCount = longPair.first;
+            if (Subscription.isIndividualAckMode(subType)) {
+                LongPair longPair = pendingAcks.get(msgId.getLedgerId(), msgId.getEntryId());
+                // Consumer may ack the msg that not belongs to it.
+                if (longPair == null) {
+                    ackOwnerConsumer = getAckOwnerConsumer(msgId.getLedgerId(), msgId.getEntryId());
+                    ackedCount = ackOwnerConsumer.getPendingAcks().get(msgId.getLedgerId(), msgId.getEntryId()).first;
+                } else {
+                    ackedCount = longPair.first;
+                }
             }
             if (msgId.getAckSetsCount() > 0) {
                 long[] ackSets = new long[msgId.getAckSetsCount()];
