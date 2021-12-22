@@ -267,6 +267,10 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("get-retention");
             cmdUsageFormatter.addDeprecatedCommand("set-retention");
             cmdUsageFormatter.addDeprecatedCommand("remove-retention");
+
+            cmdUsageFormatter.addDeprecatedCommand("get-persistence");
+            cmdUsageFormatter.addDeprecatedCommand("set-persistence");
+            cmdUsageFormatter.addDeprecatedCommand("remove-persistence");
         }
     }
 

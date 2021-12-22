@@ -26,6 +26,7 @@ import java.util.function.Supplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.TopicPolicies;
+import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
@@ -38,6 +39,10 @@ public class CmdTopicPolicies extends CmdBase {
         jcommander.addCommand("get-retention", new GetRetention());
         jcommander.addCommand("set-retention", new SetRetention());
         jcommander.addCommand("remove-retention", new RemoveRetention());
+
+        jcommander.addCommand("get-persistence", new GetPersistence());
+        jcommander.addCommand("set-persistence", new SetPersistence());
+        jcommander.addCommand("remove-persistence", new RemovePersistence());
     }
 
     @Parameters(commandDescription = "Get the retention policy for a topic")
@@ -115,6 +120,72 @@ public class CmdTopicPolicies extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             getTopicPolicies(isGlobal).removeRetention(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Get the persistence policies for a topic")
+    private class GetPersistence extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
+                + "If set to true, broker returned global topic policies", arity = 0)
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(getTopicPolicies(isGlobal).getPersistence(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Set the persistence policies for a topic")
+    private class SetPersistence extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-e",
+                "--bookkeeper-ensemble" }, description = "Number of bookies to use for a topic", required = true)
+        private int bookkeeperEnsemble;
+
+        @Parameter(names = { "-w",
+                "--bookkeeper-write-quorum" }, description = "How many writes to make of each entry", required = true)
+        private int bookkeeperWriteQuorum;
+
+        @Parameter(names = { "-a",
+                "--bookkeeper-ack-quorum" }, description = "Number of acks (guaranteed copies) to wait for each entry", required = true)
+        private int bookkeeperAckQuorum;
+
+        @Parameter(names = { "-r",
+                "--ml-mark-delete-max-rate" }, description = "Throttling rate of mark-delete operation (0 means no throttle)", required = true)
+        private double managedLedgerMaxMarkDeleteRate;
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
+                + "If set to true, the policy will be replicate to other clusters asynchronously", arity = 0)
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopicPolicies(isGlobal).setPersistence(persistentTopic, new PersistencePolicies(bookkeeperEnsemble,
+                    bookkeeperWriteQuorum, bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove the persistence policy for a topic")
+    private class RemovePersistence extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to remove this policy globally. "
+                + "If set to true, the removing operation will be replicate to other clusters asynchronously"
+                , arity = 0)
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopicPolicies(isGlobal).removePersistence(persistentTopic);
         }
     }
 
