@@ -94,13 +94,13 @@ class SharedBuffer {
     /**
      * Return a shared buffer that include a portion of current buffer. No memory is copied
      */
-    SharedBuffer slice(uint32_t offset) {
+    SharedBuffer slice(uint32_t offset) const {
         SharedBuffer buf(*this);
         buf.consume(offset);
         return buf;
     }
 
-    SharedBuffer slice(uint32_t offset, uint32_t length) {
+    SharedBuffer slice(uint32_t offset, uint32_t length) const {
         SharedBuffer buf(*this);
         buf.consume(offset);
         assert(buf.readableBytes() >= length);

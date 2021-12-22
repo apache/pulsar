@@ -118,8 +118,6 @@ class ProducerImpl : public HandlerBase,
     void handleCreateProducer(const ClientConnectionPtr& cnx, Result result,
                               const ResponseData& responseData);
 
-    void statsCallBackHandler(Result, const MessageId&, SendCallback, boost::posix_time::ptime);
-
     void handleClose(Result result, ResultCallback callback, ProducerImplPtr producer);
 
     void resendMessages(ClientConnectionPtr cnx);
@@ -139,21 +137,18 @@ class ProducerImpl : public HandlerBase,
     Result canEnqueueRequest(uint32_t payloadSize);
 
     /**
-     * It calls the previous overloaded method. If the result is not ResultOk, `cb` will be completed with
-     * `result` and `messageId` and `batchMessageAndSend` will be called to send all pending messages.
+     * It calls the previous overloaded method. If the result is not ResultOk, `batchMessageAndSend` will be
+     * called to send all pending messages. Then `callback` will be completed with `result` and a default
+     * MessageId.
      */
-    bool canEnqueueRequest(uint32_t payloadSize, const MessageId& messageId, const SendCallback& cb);
-
-    void serializeAndSendMessage(const Message& msg, SharedBuffer& payload, uint64_t sequenceId,
-                                 const std::string& uuid, int chunkId, int totalChunks, int readStartIndex,
-                                 int chunkMaxSizeInBytes, SharedBuffer& compressedPayload, bool compressed,
-                                 int compressedPayloadSize, int uncompressedSize, SendCallback cb);
+    bool canEnqueueRequest(const SendCallback& callback, uint32_t size);
 
     void releaseSemaphore(uint32_t payloadSize);
     void releaseSemaphoreForSendOp(const OpSendMsg& op);
 
     void cancelTimers();
 
+    bool isValidProducerState(const SendCallback& callback);
     bool canAddToBatch(const Message& msg) const;
 
     typedef std::unique_lock<std::mutex> Lock;
@@ -163,7 +158,7 @@ class ProducerImpl : public HandlerBase,
     std::unique_ptr<Semaphore> semaphore_;
     MessageQueue pendingMessagesQueue_;
 
-    int32_t partition_;  // -1 if topic is non-partitioned
+    const int32_t partition_;  // -1 if topic is non-partitioned
     std::string producerName_;
     bool userProvidedProducerName_;
     std::string producerStr_;
