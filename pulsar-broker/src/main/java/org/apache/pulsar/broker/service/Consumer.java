@@ -394,23 +394,14 @@ public class Consumer {
             MessageIdData msgId = ack.getMessageIdAt(i);
             PositionImpl position;
             long ackedCount = 1;
-            if (Subscription.isIndividualAckMode(subType)) {
-                LongPair longPair = pendingAcks.get(msgId.getLedgerId(), msgId.getEntryId());
-                // Consumer may ack the msg that not belongs to it.
-                if (longPair == null) {
-                    ackOwnerConsumer = getAckOwnerConsumer(msgId.getLedgerId(), msgId.getEntryId());
-                    ackedCount = ackOwnerConsumer.getPendingAcks().get(msgId.getLedgerId(), msgId.getEntryId()).first;
-                } else {
-                    ackedCount = longPair.first;
-                }
-            }
+            long batchSize = getBatchSize(msgId);
             if (msgId.getAckSetsCount() > 0) {
                 long[] ackSets = new long[msgId.getAckSetsCount()];
                 for (int j = 0; j < msgId.getAckSetsCount(); j++) {
                     ackSets[j] = msgId.getAckSetAt(j);
                 }
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), ackSets);
-                ackedCount = getAckedCount(position, ackedCount, ackSets);
+                ackedCount = getAckedCount(position, batchSize, ackSets);
                 if (isTransactionEnabled()) {
                     //sync the batch position bit set point, in order to delete the position in pending acks
                     if (Subscription.isIndividualAckMode(subType)) {
@@ -423,7 +414,7 @@ public class Consumer {
                 if (isDeletionAtBatchIndexLevelEnabled()) {
                     long[] cursorAckSet = getCursorAckSet(position);
                     if (cursorAckSet != null) {
-                        ackedCount -= BitSet.valueOf(cursorAckSet).cardinality();
+                        ackedCount = batchSize - BitSet.valueOf(cursorAckSet).cardinality();
                     }
                 }
             }
@@ -470,29 +461,20 @@ public class Consumer {
             MessageIdData msgId = ack.getMessageIdAt(i);
             PositionImpl position;
             long ackedCount = 1;
-            if (Subscription.isIndividualAckMode(subType)) {
-                LongPair longPair = pendingAcks.get(msgId.getLedgerId(), msgId.getEntryId());
-                // Consumer may ack the msg that not belongs to it.
-                if (longPair == null) {
-                    ackOwnerConsumer = getAckOwnerConsumer(msgId.getLedgerId(), msgId.getEntryId());
-                    ackedCount = ackOwnerConsumer.getPendingAcks().get(msgId.getLedgerId(), msgId.getEntryId()).first;
-                } else {
-                    ackedCount = longPair.first;
-                }
-            }
+            long batchSize = getBatchSize(msgId);
             if (msgId.getAckSetsCount() > 0) {
                 long[] ackSets = new long[msgId.getAckSetsCount()];
                 for (int j = 0; j < msgId.getAckSetsCount(); j++) {
                     ackSets[j] = msgId.getAckSetAt(j);
                 }
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), ackSets);
-                ackedCount = getAckedCount(position, ackedCount, ackSets);
+                ackedCount = getAckedCount(position, batchSize, ackSets);
             } else {
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
                 if (isDeletionAtBatchIndexLevelEnabled()) {
                     long[] cursorAckSet = getCursorAckSet(position);
                     if (cursorAckSet != null) {
-                        ackedCount -= BitSet.valueOf(cursorAckSet).cardinality();
+                        ackedCount = batchSize - BitSet.valueOf(cursorAckSet).cardinality();
                     }
                 }
             }
@@ -524,6 +506,24 @@ public class Consumer {
                     }));
         }
         return completableFuture;
+    }
+
+    private long getBatchSize(MessageIdData msgId) {
+        long batchSize = 1;
+        if (Subscription.isIndividualAckMode(subType)) {
+            LongPair longPair = pendingAcks.get(msgId.getLedgerId(), msgId.getEntryId());
+            // Consumer may ack the msg that not belongs to it.
+            if (longPair == null) {
+                Consumer ackOwnerConsumer = getAckOwnerConsumer(msgId.getLedgerId(), msgId.getEntryId());
+                longPair = ackOwnerConsumer.getPendingAcks().get(msgId.getLedgerId(), msgId.getEntryId());
+                if (longPair != null) {
+                    batchSize = longPair.first;
+                }
+            } else {
+                batchSize = longPair.first;
+            }
+        }
+        return batchSize;
     }
 
     private long getAckedCount(PositionImpl position, long batchSize, long[] ackSets) {
