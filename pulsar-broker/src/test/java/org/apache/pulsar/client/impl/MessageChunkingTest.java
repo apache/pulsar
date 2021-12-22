@@ -396,7 +396,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         assertTrue(producer instanceof ProducerImpl);
         Semaphore semaphore = ((ProducerImpl<byte[]>) producer).getSemaphore().orElse(null);
         assertNotNull(semaphore);
-        assertEquals(semaphore.availablePermits(), 10);
+        assertEquals(semaphore.availablePermits(), maxPendingMessages);
         producer.send(createMessagePayload(1).getBytes());
         try {
             producer.send(createMessagePayload(100).getBytes(StandardCharsets.UTF_8));
