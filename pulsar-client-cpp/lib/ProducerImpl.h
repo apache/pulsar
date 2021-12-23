@@ -126,6 +126,8 @@ class ProducerImpl : public HandlerBase,
     bool encryptMessage(proto::MessageMetadata& metadata, SharedBuffer& payload,
                         SharedBuffer& encryptedPayload);
 
+    void sendAsyncWithStatsUpdate(const Message& msg, const SendCallback& callback);
+
     /**
      * Reserve a spot in the messages queue before acquiring the ProducerImpl mutex. When the queue is full,
      * this call will block until a spot is available if blockIfQueueIsFull is true. Otherwise, it will return
@@ -141,7 +143,7 @@ class ProducerImpl : public HandlerBase,
 
     void cancelTimers();
 
-    bool isValidProducerState(const SendCallback& callback);
+    bool isValidProducerState(const SendCallback& callback) const;
     bool canAddToBatch(const Message& msg) const;
 
     typedef std::unique_lock<std::mutex> Lock;

@@ -351,7 +351,7 @@ void ProducerImpl::triggerFlush() {
     }
 }
 
-bool ProducerImpl::isValidProducerState(const SendCallback& callback) {
+bool ProducerImpl::isValidProducerState(const SendCallback& callback) const {
     Lock lock(mutex_);
     const auto state = state_;
     lock.unlock();
@@ -384,6 +384,17 @@ static SharedBuffer applyCompression(const SharedBuffer& uncompressedPayload,
 }
 
 void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
+    producerStatsBasePtr_->messageSent(msg);
+
+    const auto now = boost::posix_time::microsec_clock::universal_time();
+    auto self = shared_from_this();
+    sendAsyncWithStatsUpdate(msg, [this, self, now, callback](Result result, const MessageId& messageId) {
+        producerStatsBasePtr_->messageReceived(result, now);
+        callback(result, messageId);
+    });
+}
+
+void ProducerImpl::sendAsyncWithStatsUpdate(const Message& msg, const SendCallback& callback) {
     if (!isValidProducerState(callback)) {
         return;
     }
@@ -407,7 +418,7 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
 
     // We have already reserved a spot, so if we need to early return for failed result, we should release the
     // semaphore and memory first.
-    auto handleFailedResult = [this, uncompressedSize, callback](Result result) {
+    const auto handleFailedResult = [this, uncompressedSize, callback](Result result) {
         releaseSemaphore(uncompressedSize);  // it releases the memory as well
         callback(result, {});
     };
@@ -443,7 +454,7 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
     }
 
     Lock lock(mutex_);
-    long sequenceId;
+    uint64_t sequenceId;
     if (!msgMetadata.has_sequence_id()) {
         sequenceId = msgSequenceGenerator_++;
     } else {
@@ -451,22 +462,13 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
     }
     setMessageMetadata(msg, sequenceId, uncompressedSize);
 
-    producerStatsBasePtr_->messageSent(msg);
-    auto self = shared_from_this();
-    const auto now = boost::posix_time::microsec_clock::universal_time();
-    SendCallback callbackWithStatsUpdate = [this, self, now, callback](Result result,
-                                                                       const MessageId& messageId) {
-        producerStatsBasePtr_->messageReceived(result, now);
-        callback(result, messageId);
-    };
-
     if (canAddToBatch(msg)) {
         // Batching is enabled and the message is not delayed
         if (!batchMessageContainer_->hasEnoughSpace(msg)) {
             batchMessageAndSend().complete();
         }
         bool isFirstMessage = batchMessageContainer_->isFirstMessageToAdd(msg);
-        bool isFull = batchMessageContainer_->add(msg, callbackWithStatsUpdate);
+        bool isFull = batchMessageContainer_->add(msg, callback);
         if (isFirstMessage) {
             batchTimer_->expires_from_now(
                 boost::posix_time::milliseconds(conf_.getBatchingMaxPublishDelayMs()));
@@ -498,14 +500,12 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
 
             SharedBuffer encryptedPayload;
             if (!encryptMessage(msgMetadata, chunkedPayload, encryptedPayload)) {
-                releaseSemaphore(uncompressedSize);
-                callbackWithStatsUpdate(ResultCryptoError, {});
+                handleFailedResult(ResultCryptoError);
                 return;
             }
 
-            sendMessage(OpSendMsg{msg, (chunkId == totalChunks - 1) ? callbackWithStatsUpdate : nullptr,
-                                  producerId_, static_cast<uint64_t>(sequenceId), conf_.getSendTimeout(), 1,
-                                  uncompressedSize});
+            sendMessage(OpSendMsg{msg, (chunkId == totalChunks - 1) ? callback : nullptr, producerId_,
+                                  sequenceId, conf_.getSendTimeout(), 1, uncompressedSize});
         }
     }
 }
