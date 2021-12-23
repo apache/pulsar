@@ -360,7 +360,8 @@ bool ProducerImpl::isValidProducerState(const SendCallback& callback) const {
             // OK
         case HandlerBase::Pending:
             // We are OK to queue the messages on the client, it will be sent to the broker once we get the
-            // connectionPL
+            // connection
+            return true;
         case HandlerBase::Closing:
         case HandlerBase::Closed:
             callback(ResultAlreadyClosed, {});
