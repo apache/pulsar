@@ -399,6 +399,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         producer.send(createMessagePayload(1).getBytes());
         try {
             producer.send(createMessagePayload(100).getBytes(StandardCharsets.UTF_8));
+            fail("It should fail with ProducerQueueIsFullError");
         } catch (PulsarClientException e) {
             assertTrue(e instanceof PulsarClientException.ProducerQueueIsFullError);
             assertEquals(controller.currentUsage(), 0);
