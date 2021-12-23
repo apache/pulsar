@@ -13,7 +13,7 @@ Pulsar’s success depends on its community. As shown in the chart below, the gr
 
 ![](https://i.imgur.com/kwxz2XT.png)
 
-The number of contributors overtime is another metric for measuring community engagement. The chart below shows that the number of Pulsar contributors accelerated when Pulsar became a top-level Apache project and the growth rate has continued into 2021. 
+The number of contributors over time is another metric for measuring community engagement. The chart below shows that the number of Pulsar contributors accelerated when Pulsar became a top-level Apache project and the growth rate has continued into 2021. 
 
 ![](https://i.imgur.com/TYy4CQg.png)
 
@@ -29,17 +29,13 @@ Recent Pulsar project updates have brought new capabilities to the project. Belo
 
 Pulsar 2.8 (released in June 2021) introduced many major updates. The Pulsar Transaction API was added to support atomicity across multiple topics and enable end-to-end exactly-once message delivery guarantee for streaming jobs. Replicated subscriptions was added to enhance Pulsar’s geo-replication. With this feature, a consumer can restart consuming from the failure point in a different cluster in case of failover. 
 
-## 2. Function Mesh - Simplifying Complex Streaming Jobs in the Cloud
-
-Function Mesh is an ideal tool for those who are seeking cloud-native serverless streaming solutions. It is a Kubernetes operator that enables users to run Pulsar Functions and connectors natively on Kubernetes, unlocking the full power of Kubernetes’ application deployment, scaling, and management. Function Mesh is also a serverless framework used to orchestrate multiple Pulsar Functions and I/O connectors for complex streaming jobs in a simple way.
-
-## 3. Pulsar Connectors - AWS SQS Connector, Cloud Storage Sink Connector, and More
+## 2. Pulsar Connectors - AWS SQS Connector, Cloud Storage Sink Connector, and More
 
 Pulsar connectors enable easy integration between Pulsar and external systems with added benefits. For instance, the AWS SQS Connector enables secure integration between Pulsar and SQS without needing to write any code. And the Cloud Storage Sink Connector can export data by guaranteeing exactly-once delivery semantics to its consumers. It provides applications that export data from Pulsar, the benefits of fault tolerance, parallelism, elasticity, and much more. 
 
-## 4. Protocol Handlers - Kaffa-on-Pulsar, MQTT-on-Pulsar, and More
+## 3. Protocol Handlers 
 
-Protocol handlers, such as Kaffa-on-Pulsar (KoP) and MQTT-on-Pulsar, allow Pulsar to interact with applications built on other messaging platforms, lowering the barrier to Pulsar adoption. KoP became production-ready since KoP 2.8 and MoP enables MQTT applications to leverage Pulsar’s infinite event stream retention with BookKeeper and tiered storage.
+Protocol handlers, such as MQTT-on-Pulsar (MoP), allow Pulsar to interact with applications built on other messaging platforms, lowering the barrier to Pulsar adoption. MoP enables MQTT applications to leverage Pulsar’s infinite event stream retention with BookKeeper and tiered storage.
 
 # What’s Next
 
