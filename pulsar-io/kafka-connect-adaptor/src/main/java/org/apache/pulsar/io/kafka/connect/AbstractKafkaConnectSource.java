@@ -27,6 +27,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.runtime.TaskConfig;
@@ -47,12 +48,8 @@ import org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroConverter;
 import org.apache.pulsar.kafka.shade.io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient;
 import org.apache.pulsar.kafka.shade.io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.apache.pulsar.io.kafka.connect.PulsarKafkaWorkerConfig.TOPIC_NAMESPACE_CONFIG;
-
 /**
- * A pulsar source that runs
+ * A pulsar source that runs.
  */
 @Slf4j
 public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
@@ -73,7 +70,7 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
     @Getter
     public OffsetStorageWriter offsetWriter;
     // number of outstandingRecords that have been polled but not been acked
-    private AtomicInteger outstandingRecords = new AtomicInteger(0);
+    private final AtomicInteger outstandingRecords = new AtomicInteger(0);
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
@@ -85,19 +82,19 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
         });
 
         // get the source class name from config and create source task from reflection
-        sourceTask = ((Class<? extends SourceTask>) Class.forName(stringConfig.get(TaskConfig.TASK_CLASS_CONFIG)))
+        sourceTask = Class.forName(stringConfig.get(TaskConfig.TASK_CLASS_CONFIG))
                 .asSubclass(SourceTask.class)
                 .getDeclaredConstructor()
                 .newInstance();
 
-        topicNamespace = stringConfig.get(TOPIC_NAMESPACE_CONFIG);
+        topicNamespace = stringConfig.get(PulsarKafkaWorkerConfig.TOPIC_NAMESPACE_CONFIG);
 
         // initialize the key and value converter
-        keyConverter = ((Class<? extends Converter>) Class.forName(stringConfig.get(PulsarKafkaWorkerConfig.KEY_CONVERTER_CLASS_CONFIG)))
+        keyConverter = Class.forName(stringConfig.get(PulsarKafkaWorkerConfig.KEY_CONVERTER_CLASS_CONFIG))
                 .asSubclass(Converter.class)
                 .getDeclaredConstructor()
                 .newInstance();
-        valueConverter = ((Class<? extends Converter>) Class.forName(stringConfig.get(PulsarKafkaWorkerConfig.VALUE_CONVERTER_CLASS_CONFIG)))
+        valueConverter = Class.forName(stringConfig.get(PulsarKafkaWorkerConfig.VALUE_CONVERTER_CLASS_CONFIG))
                 .asSubclass(Converter.class)
                 .getDeclaredConstructor()
                 .newInstance();
@@ -188,10 +185,10 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
         }
     }
 
-    public abstract AbstractKafkaSourceRecord<T> processSourceRecord(final SourceRecord srcRecord);
+    public abstract AbstractKafkaSourceRecord<T> processSourceRecord(SourceRecord srcRecord);
 
-    private static Map<String, String> PROPERTIES = Collections.emptyMap();
-    private static Optional<Long> RECORD_SEQUENCE = Optional.empty();
+    private static final Map<String, String> PROPERTIES = Collections.emptyMap();
+    private static final Optional<Long> RECORD_SEQUENCE = Optional.empty();
 
     public abstract class AbstractKafkaSourceRecord<T> implements Record {
         @Getter
@@ -214,7 +211,7 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
         KafkaSchemaWrappedSchema valueSchema;
 
         AbstractKafkaSourceRecord(SourceRecord srcRecord) {
-            this.destinationTopic = Optional.of("persistent://"+topicNamespace + "/" + srcRecord.topic());
+            this.destinationTopic = Optional.of("persistent://" + topicNamespace + "/" + srcRecord.topic());
             this.partitionIndex = Optional.ofNullable(srcRecord.kafkaPartition());
         }
 

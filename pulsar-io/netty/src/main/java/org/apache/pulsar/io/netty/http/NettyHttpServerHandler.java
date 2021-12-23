@@ -36,15 +36,11 @@ import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.CharsetUtil;
-
 import java.io.Serializable;
 import java.util.Optional;
-
 import lombok.Data;
-
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.netty.NettySource;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

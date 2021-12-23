@@ -23,6 +23,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Message;
@@ -38,12 +44,6 @@ import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 
 @Connector(
         name = "elastic_search",
@@ -99,7 +99,8 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                         case IGNORE:
                             break;
                         case FAIL:
-                            elasticsearchClient.failed(new PulsarClientException.InvalidMessageException("Unexpected null message value"));
+                            elasticsearchClient.failed(
+                                    new PulsarClientException.InvalidMessageException("Unexpected null message value"));
                             throw elasticsearchClient.irrecoverableError.get();
                     }
                 } else {
@@ -156,7 +157,8 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                 KeyValueSchema<GenericObject, GenericObject> keyValueSchema = (KeyValueSchema) record.getSchema();
                 keySchema = keyValueSchema.getKeySchema();
                 valueSchema = keyValueSchema.getValueSchema();
-                KeyValue<GenericObject, GenericObject> keyValue = (KeyValue<GenericObject, GenericObject>) record.getValue().getNativeObject();
+                KeyValue<GenericObject, GenericObject> keyValue =
+                        (KeyValue<GenericObject, GenericObject>) record.getValue().getNativeObject();
                 key = keyValue.getKey();
                 value = keyValue.getValue();
             } else {
@@ -166,7 +168,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
             }
 
             String id = null;
-            if (elasticSearchConfig.isKeyIgnore() == false && key != null && keySchema != null) {
+            if (!elasticSearchConfig.isKeyIgnore() && key != null && keySchema != null) {
                 id = stringifyKey(keySchema, key);
             }
 
@@ -231,7 +233,8 @@ public class ElasticSearchSink implements Sink<GenericObject> {
             case AVRO:
                 return stringifyKey(extractJsonNode(schema, val));
             default:
-                throw new UnsupportedOperationException("Unsupported key schemaType=" + schema.getSchemaInfo().getType());
+                throw new UnsupportedOperationException("Unsupported key schemaType="
+                        + schema.getSchemaInfo().getType());
         }
     }
 
@@ -267,10 +270,11 @@ public class ElasticSearchSink implements Sink<GenericObject> {
         Iterator<JsonNode> it = node.iterator();
         while (it.hasNext()) {
             JsonNode child = it.next();
-            if (child.isNull())
+            if (child.isNull()) {
                 it.remove();
-            else
+            } else {
                 stripNullNodes(child);
+            }
         }
         return node;
     }
@@ -280,10 +284,12 @@ public class ElasticSearchSink implements Sink<GenericObject> {
             case JSON:
                 return (JsonNode) ((GenericRecord) val).getNativeObject();
             case AVRO:
-                org.apache.avro.generic.GenericRecord node = (org.apache.avro.generic.GenericRecord) ((GenericRecord) val).getNativeObject();
+                org.apache.avro.generic.GenericRecord node = (org.apache.avro.generic.GenericRecord)
+                        ((GenericRecord) val).getNativeObject();
                 return JsonConverter.toJson(node);
             default:
-                throw new UnsupportedOperationException("Unsupported value schemaType=" + schema.getSchemaInfo().getType());
+                throw new UnsupportedOperationException("Unsupported value schemaType="
+                        + schema.getSchemaInfo().getType());
         }
     }
 

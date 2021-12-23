@@ -48,23 +48,23 @@ public interface SourceContext extends BaseContext {
     String getOutputTopic();
 
     /**
-     * New output message using schema for serializing to the topic
+     * New output message using schema for serializing to the topic.
      *
      * @param topicName The name of the topic for output message
      * @param schema provide a way to convert between serialized data and domain objects
-     * @param <O>
+     * @param <T>
      * @return the message builder instance
      * @throws PulsarClientException
      */
-    <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException;
+    <T> TypedMessageBuilder<T> newOutputMessage(String topicName, Schema<T> schema) throws PulsarClientException;
 
     /**
      * Create a ConsumerBuilder with the schema.
      *
      * @param schema provide a way to convert between serialized data and domain objects
-     * @param <O>
+     * @param <T>
      * @return the consumer builder instance
      * @throws PulsarClientException
      */
-    <O> ConsumerBuilder<O> newConsumerBuilder(Schema<O> schema) throws PulsarClientException;
+    <T> ConsumerBuilder<T> newConsumerBuilder(Schema<T> schema) throws PulsarClientException;
 }
