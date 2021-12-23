@@ -45,6 +45,10 @@ public abstract class KeySharedPolicy {
         return new KeySharedPolicySticky();
     }
 
+    public static KeySharedPolicyCustom customHashRange() {
+        return new KeySharedPolicyCustom();
+    }
+
     public abstract void validate();
 
     /**
@@ -132,6 +136,21 @@ public abstract class KeySharedPolicy {
 
         KeySharedPolicyAutoSplit() {
             this.keySharedMode = KeySharedMode.AUTO_SPLIT;
+        }
+
+        @Override
+        public void validate() {
+            // do nothing here
+        }
+    }
+
+    /**
+     * Auto split hash range key shared policy.
+     */
+    public static class KeySharedPolicyCustom extends KeySharedPolicy {
+
+        KeySharedPolicyCustom() {
+            this.keySharedMode = KeySharedMode.CUSTOM;
         }
 
         @Override

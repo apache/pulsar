@@ -53,7 +53,9 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
             case STICKY:
                 this.selector = new HashRangeExclusiveStickyKeyConsumerSelector();
                 break;
-
+            case CUSTOM:
+                this.selector = createConsumerSelectorInstance(topic.getBrokerService().getPulsar().getConfiguration());
+                break;
             case AUTO_SPLIT:
             default:
                 ServiceConfiguration conf = topic.getBrokerService().getPulsar().getConfiguration();
@@ -77,7 +79,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
                 || selector instanceof HashRangeAutoSplitStickyKeyConsumerSelector) {
             keySharedMode = KeySharedMode.AUTO_SPLIT;
         } else {
-            keySharedMode = null;
+            keySharedMode = KeySharedMode.CUSTOM;
         }
         this.selector = selector;
     }

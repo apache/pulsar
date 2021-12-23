@@ -198,8 +198,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private PulsarCommandSender commandSender;
     private final ConnectionController connectionController;
 
-    private static final KeySharedMeta emptyKeySharedMeta = new KeySharedMeta()
-            .setKeySharedMode(KeySharedMode.AUTO_SPLIT);
+    private static final KeySharedMeta customKeySharedMeta = new KeySharedMeta()
+            .setKeySharedMode(KeySharedMode.CUSTOM);
 
     // Flag to manage throttling-publish-buffer by atomically enable/disable read-channel.
     private boolean autoReadDisabledPublishBufferLimiting = false;
@@ -948,7 +948,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final boolean forceTopicCreation = subscribe.isForceTopicCreation();
         final KeySharedMeta keySharedMeta = subscribe.hasKeySharedMeta()
               ? new KeySharedMeta().copyFrom(subscribe.getKeySharedMeta())
-              : emptyKeySharedMeta;
+              : customKeySharedMeta;
 
         CompletableFuture<Boolean> isAuthorizedFuture = isTopicOperationAllowed(
                 topicName,

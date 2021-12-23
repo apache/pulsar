@@ -2595,6 +2595,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private Set<String> additionalServlets = new TreeSet<>();
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "consumer selector strategy for Key shared subscription"
+    )
+    private String keySharedConsumerSelectorStrategy = "org.apache.pulsar.broker.service."
+            + "ConsistentHashingStickyKeyConsumerSelector";
+
     public String getMetadataStoreUrl() {
         if (StringUtils.isNotBlank(metadataStoreUrl)) {
             return metadataStoreUrl;

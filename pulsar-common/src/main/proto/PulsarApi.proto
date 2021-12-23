@@ -322,6 +322,7 @@ message AuthData {
 enum KeySharedMode {
     AUTO_SPLIT = 0;
     STICKY = 1;
+    CUSTOM = 2;
 }
 
 message KeySharedMeta {

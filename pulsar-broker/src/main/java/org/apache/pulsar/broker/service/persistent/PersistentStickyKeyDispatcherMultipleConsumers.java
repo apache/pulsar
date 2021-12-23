@@ -94,6 +94,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             this.selector = new HashRangeExclusiveStickyKeyConsumerSelector();
             break;
 
+        case CUSTOM:
+            this.selector = createConsumerSelectorInstance(conf);
+            break;
+
         default:
             throw new IllegalArgumentException("Invalid key-shared mode: " + keySharedMode);
         }

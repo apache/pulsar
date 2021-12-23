@@ -239,5 +239,24 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
 
     private static final Logger log = LoggerFactory.getLogger(PersistentStickyKeyDispatcherMultipleConsumers.class);
 
+    public StickyKeyConsumerSelector createConsumerSelectorInstance(ServiceConfiguration conf) {
+        try {
+            Class<?> consumerSelectorClass = Class.forName(conf.getKeySharedConsumerSelectorStrategy());
+            Object consumerSelectorClassInstance = consumerSelectorClass.getDeclaredConstructor().newInstance();
+            if (consumerSelectorClassInstance instanceof StickyKeyConsumerSelector) {
+                return (StickyKeyConsumerSelector) consumerSelectorClassInstance;
+            } else {
+                log.error("create key shared consumer selector strategy failed."
+                        + "using ConsistentHashingStickyKeyConsumerSelector instead.");
+                return new ConsistentHashingStickyKeyConsumerSelector(
+                        conf.getSubscriptionKeySharedConsistentHashingReplicaPoints());
+            }
+        } catch (Exception e) {
+            log.error("Error when trying to create key shared consumer selector strategy: ", e);
+        }
+        return new ConsistentHashingStickyKeyConsumerSelector(
+                conf.getSubscriptionKeySharedConsistentHashingReplicaPoints());
+    }
+
 
 }
