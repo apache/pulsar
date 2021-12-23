@@ -909,6 +909,34 @@ public class PulsarAdminToolTest {
                 new RetentionPolicies(10, 20));
         cmdTopics.run(split("remove-retention persistent://myprop/clust/ns1/ds1 -g"));
         verify(mockGlobalTopicsPolicies).removeRetention("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("get-backlog-quota persistent://myprop/clust/ns1/ds1 -ap"));
+        verify(mockTopicsPolicies).getBacklogQuotaMap("persistent://myprop/clust/ns1/ds1", true);
+        cmdTopics.run(split("set-backlog-quota persistent://myprop/clust/ns1/ds1 -l 10 -p producer_request_hold"));
+        verify(mockTopicsPolicies).setBacklogQuota("persistent://myprop/clust/ns1/ds1",
+                BacklogQuota.builder()
+                        .limitSize(10)
+                        .retentionPolicy(RetentionPolicy.producer_request_hold)
+                        .build(),
+                BacklogQuota.BacklogQuotaType.destination_storage);
+        //cmd with option cannot be executed repeatedly.
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        cmdTopics.run(split("set-backlog-quota persistent://myprop/clust/ns1/ds1 -lt 1000 -p producer_request_hold -t message_age"));
+        verify(mockTopicsPolicies).setBacklogQuota("persistent://myprop/clust/ns1/ds1",
+                BacklogQuota.builder()
+                        .limitSize(-1)
+                        .limitTime(1000)
+                        .retentionPolicy(RetentionPolicy.producer_request_hold)
+                        .build(),
+                BacklogQuota.BacklogQuotaType.message_age);
+        //cmd with option cannot be executed repeatedly.
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        cmdTopics.run(split("remove-backlog-quota persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopicsPolicies).removeBacklogQuota("persistent://myprop/clust/ns1/ds1", BacklogQuota.BacklogQuotaType.destination_storage);
+        //cmd with option cannot be executed repeatedly.
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        cmdTopics.run(split("remove-backlog-quota persistent://myprop/clust/ns1/ds1 -t message_age"));
+        verify(mockTopicsPolicies).removeBacklogQuota("persistent://myprop/clust/ns1/ds1", BacklogQuota.BacklogQuotaType.message_age);
     }
 
     @Test
@@ -976,7 +1004,7 @@ public class PulsarAdminToolTest {
                         .limitSize(10)
                         .retentionPolicy(RetentionPolicy.producer_request_hold)
                         .build(),
-                        BacklogQuota.BacklogQuotaType.destination_storage);
+                BacklogQuota.BacklogQuotaType.destination_storage);
         //cmd with option cannot be executed repeatedly.
         cmdTopics = new CmdTopics(() -> admin);
         cmdTopics.run(split("set-backlog-quota persistent://myprop/clust/ns1/ds1 -lt 1000 -p producer_request_hold -t message_age"));
@@ -986,7 +1014,7 @@ public class PulsarAdminToolTest {
                         .limitTime(1000)
                         .retentionPolicy(RetentionPolicy.producer_request_hold)
                         .build(),
-                        BacklogQuota.BacklogQuotaType.message_age);
+                BacklogQuota.BacklogQuotaType.message_age);
         //cmd with option cannot be executed repeatedly.
         cmdTopics = new CmdTopics(() -> admin);
         cmdTopics.run(split("remove-backlog-quota persistent://myprop/clust/ns1/ds1"));

@@ -2726,8 +2726,8 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Map<BacklogQuota.BacklogQuotaType, BacklogQuota>> internalGetBacklogQuota(
-            boolean applied) {
-        return getTopicPoliciesAsyncWithRetry(topicName)
+            boolean applied, boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> {
                 Map<BacklogQuota.BacklogQuotaType, BacklogQuota> quotaMap = op
                         .map(TopicPolicies::getBackLogQuotaMap)
@@ -2799,14 +2799,14 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetBacklogQuota(BacklogQuota.BacklogQuotaType backlogQuotaType,
-                                           BacklogQuotaImpl backlogQuota) {
+                                           BacklogQuotaImpl backlogQuota, boolean isGlobal) {
         validateTopicPolicyOperation(topicName, PolicyName.BACKLOG, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         BacklogQuota.BacklogQuotaType finalBacklogQuotaType = backlogQuotaType == null
                 ? BacklogQuota.BacklogQuotaType.destination_storage : backlogQuotaType;
 
-        return getTopicPoliciesAsyncWithRetry(topicName)
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenCompose(op -> {
                 TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
                 RetentionPolicies retentionPolicies = getRetentionPolicies(topicName, topicPolicies);
@@ -2825,6 +2825,7 @@ public class PersistentTopicsBase extends AdminResource {
                     topicPolicies.getBackLogQuotaMap().remove(finalBacklogQuotaType.name());
                 }
                 Map<String, BacklogQuotaImpl> backLogQuotaMap = topicPolicies.getBackLogQuotaMap();
+                topicPolicies.setIsGlobal(isGlobal);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
                     .thenRun(() -> {
                         try {

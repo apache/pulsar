@@ -269,6 +269,10 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("get-retention");
             cmdUsageFormatter.addDeprecatedCommand("set-retention");
             cmdUsageFormatter.addDeprecatedCommand("remove-retention");
+
+            cmdUsageFormatter.addDeprecatedCommand("get-backlog-quotas");
+            cmdUsageFormatter.addDeprecatedCommand("set-backlog-quota");
+            cmdUsageFormatter.addDeprecatedCommand("remove-backlog-quota");
         }
     }
 
