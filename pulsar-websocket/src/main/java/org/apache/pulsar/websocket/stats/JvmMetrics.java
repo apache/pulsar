@@ -22,6 +22,7 @@ import static org.apache.pulsar.common.stats.Metrics.create;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 
 import java.lang.management.ManagementFactory;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -58,7 +59,7 @@ public class JvmMetrics {
     }
 
     public Metrics generate() {
-        Map<String, String> dimensionMap = Maps.newHashMap();
+        Map<String, String> dimensionMap = new HashMap<>();
         dimensionMap.put("system", "jvm");
         Metrics m = create(dimensionMap);
 

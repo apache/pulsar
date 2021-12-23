@@ -1953,6 +1953,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
         doc = "maximum sessions (producers + consumers) in a bundle, otherwise bundle split will be triggered"
+                + "(disable threshold check with value -1)"
     )
     private int loadBalancerNamespaceBundleMaxSessions = 1000;
     @FieldContext(

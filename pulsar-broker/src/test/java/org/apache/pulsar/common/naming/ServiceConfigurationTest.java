@@ -224,7 +224,6 @@ public class ServiceConfigurationTest {
             final ServiceConfiguration javaConfig = PulsarConfigurationLoader.create(new Properties(), ServiceConfiguration.class);
             final ServiceConfiguration fileConfig = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
             List<String> toSkip = Arrays.asList("properties", "class");
-            int counter = 0;
             for (PropertyDescriptor pd : Introspector.getBeanInfo(ServiceConfiguration.class).getPropertyDescriptors()) {
                 if (pd.getReadMethod() == null || toSkip.contains(pd.getName())) {
                     continue;
@@ -234,9 +233,7 @@ public class ServiceConfigurationTest {
                 final Object fileValue = pd.getReadMethod().invoke(fileConfig);
                 assertTrue(Objects.equals(javaValue, fileValue), "property '"
                         + key + "' conf/broker.conf default value doesn't match java default value\nConf: "+ fileValue + "\nJava: " + javaValue);
-                counter++;
             }
-            assertEquals(counter, 378);
         }
 
     }

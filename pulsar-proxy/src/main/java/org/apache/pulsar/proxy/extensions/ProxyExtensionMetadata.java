@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.proxy.extensions;
 
+import java.nio.file.Path;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.nio.file.Path;
 
 /**
  * The metadata of Proxy Extension.

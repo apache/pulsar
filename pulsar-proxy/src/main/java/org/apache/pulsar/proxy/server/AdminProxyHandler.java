@@ -19,7 +19,6 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,13 +32,11 @@ import java.util.Iterator;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executor;
-
 import javax.net.ssl.SSLContext;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -115,14 +112,16 @@ class AdminProxyHandler extends ProxyServlet {
         String value = config.getInitParameter("maxThreads");
         if (value == null || "-".equals(value)) {
             executor = (Executor) getServletContext().getAttribute("org.eclipse.jetty.server.Executor");
-            if (executor == null)
+            if (executor == null) {
                 throw new IllegalStateException("No server executor for proxy");
+            }
         } else {
             QueuedThreadPool qtp = new QueuedThreadPool(Integer.parseInt(value));
             String servletName = config.getServletName();
             int dot = servletName.lastIndexOf('.');
-            if (dot >= 0)
+            if (dot >= 0) {
                 servletName = servletName.substring(dot + 1);
+            }
             qtp.setName(servletName);
             executor = qtp;
         }
@@ -130,22 +129,26 @@ class AdminProxyHandler extends ProxyServlet {
         client.setExecutor(executor);
 
         value = config.getInitParameter("maxConnections");
-        if (value == null)
+        if (value == null) {
             value = "256";
+        }
         client.setMaxConnectionsPerDestination(Integer.parseInt(value));
 
         value = config.getInitParameter("idleTimeout");
-        if (value == null)
+        if (value == null) {
             value = "30000";
+        }
         client.setIdleTimeout(Long.parseLong(value));
 
         value = config.getInitParameter("requestBufferSize");
-        if (value != null)
+        if (value != null) {
             client.setRequestBufferSize(Integer.parseInt(value));
+        }
 
         value = config.getInitParameter("responseBufferSize");
-        if (value != null)
+        if (value != null){
             client.setResponseBufferSize(Integer.parseInt(value));
+        }
 
         try {
             client.start();

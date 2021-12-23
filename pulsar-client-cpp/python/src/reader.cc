@@ -24,12 +24,12 @@ Message Reader_readNext(Reader& reader) {
 
     while (true) {
         Py_BEGIN_ALLOW_THREADS
-        // Use 100ms timeout to periodically check whether the
-        // interpreter was interrupted
-        res = reader.readNext(msg, 100);
+            // Use 100ms timeout to periodically check whether the
+            // interpreter was interrupted
+            res = reader.readNext(msg, 100);
         Py_END_ALLOW_THREADS
 
-        if (res != ResultTimeout) {
+            if (res != ResultTimeout) {
             // In case of timeout we keep calling receive() to simulate a
             // blocking call until a message is available, while breaking
             // every once in a while to check the Python signal status
@@ -49,62 +49,56 @@ Message Reader_readNext(Reader& reader) {
 Message Reader_readNextTimeout(Reader& reader, int timeoutMs) {
     Message msg;
     Result res;
-    Py_BEGIN_ALLOW_THREADS
-    res = reader.readNext(msg, timeoutMs);
+    Py_BEGIN_ALLOW_THREADS res = reader.readNext(msg, timeoutMs);
     Py_END_ALLOW_THREADS
 
-    CHECK_RESULT(res);
+        CHECK_RESULT(res);
     return msg;
 }
 
 bool Reader_hasMessageAvailable(Reader& reader) {
     bool available = false;
     Result res;
-    Py_BEGIN_ALLOW_THREADS
-        res = reader.hasMessageAvailable(available);
+    Py_BEGIN_ALLOW_THREADS res = reader.hasMessageAvailable(available);
     Py_END_ALLOW_THREADS
 
-    CHECK_RESULT(res);
+        CHECK_RESULT(res);
     return available;
 }
 
 void Reader_close(Reader& reader) {
     Result res;
-    Py_BEGIN_ALLOW_THREADS
-    res = reader.close();
+    Py_BEGIN_ALLOW_THREADS res = reader.close();
     Py_END_ALLOW_THREADS
 
-    CHECK_RESULT(res);
+        CHECK_RESULT(res);
 }
 
 void Reader_seek(Reader& reader, const MessageId& msgId) {
     Result res;
-    Py_BEGIN_ALLOW_THREADS
-    res = reader.seek(msgId);
+    Py_BEGIN_ALLOW_THREADS res = reader.seek(msgId);
     Py_END_ALLOW_THREADS
 
-    CHECK_RESULT(res);
+        CHECK_RESULT(res);
 }
 
 void Reader_seek_timestamp(Reader& reader, uint64_t timestamp) {
     Result res;
-    Py_BEGIN_ALLOW_THREADS
-    res = reader.seek(timestamp);
+    Py_BEGIN_ALLOW_THREADS res = reader.seek(timestamp);
     Py_END_ALLOW_THREADS
 
-    CHECK_RESULT(res);
+        CHECK_RESULT(res);
 }
 
 void export_reader() {
     using namespace boost::python;
 
     class_<Reader>("Reader", no_init)
-            .def("topic", &Reader::getTopic, return_value_policy<copy_const_reference>())
-            .def("read_next", &Reader_readNext)
-            .def("read_next", &Reader_readNextTimeout)
-            .def("has_message_available", &Reader_hasMessageAvailable)
-            .def("close", &Reader_close)
-            .def("seek", &Reader_seek)
-            .def("seek", &Reader_seek_timestamp)
-            ;
+        .def("topic", &Reader::getTopic, return_value_policy<copy_const_reference>())
+        .def("read_next", &Reader_readNext)
+        .def("read_next", &Reader_readNextTimeout)
+        .def("has_message_available", &Reader_hasMessageAvailable)
+        .def("close", &Reader_close)
+        .def("seek", &Reader_seek)
+        .def("seek", &Reader_seek_timestamp);
 }

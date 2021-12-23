@@ -39,6 +39,8 @@ import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.time.Duration;
 import java.util.Objects;
 import java.util.Collections;
 import java.util.Map;
@@ -152,7 +154,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
             consumer.subscribe(Collections.singletonList(kafkaSourceConfig.getTopic()));
             LOG.info("Kafka source started.");
             while (running) {
-                ConsumerRecords<Object, Object> consumerRecords = consumer.poll(1000);
+                ConsumerRecords<Object, Object> consumerRecords = consumer.poll(Duration.ofSeconds(1L));
                 CompletableFuture<?>[] futures = new CompletableFuture<?>[consumerRecords.count()];
                 int index = 0;
                 for (ConsumerRecord<Object, Object> consumerRecord : consumerRecords) {

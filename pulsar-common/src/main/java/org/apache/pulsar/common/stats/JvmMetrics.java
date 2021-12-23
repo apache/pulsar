@@ -121,7 +121,7 @@ public class JvmMetrics {
         long totalAllocated = 0;
         long totalUsed = 0;
 
-        for (PoolArenaMetric arena : PooledByteBufAllocator.DEFAULT.directArenas()) {
+        for (PoolArenaMetric arena : PooledByteBufAllocator.DEFAULT.metric().directArenas()) {
             this.gcLogger.logMetrics(m);
             for (PoolChunkListMetric list : arena.chunkLists()) {
                 for (PoolChunkMetric chunk : list) {
