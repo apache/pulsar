@@ -273,13 +273,33 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 .subscribe();
 ```
 
+Retry letter message contains some special property，automatically created by client.
+
+special property | Description
+:--------------------|:-----------
+`REAL_TOPIC` | The real topic name.
+`ORIGIN_MESSAGE_ID` | The origin message id, it will be crucial for message tracking.
+`RECONSUMETIMES`   | The retry consume times.
+`DELAY_TIME`      | Message delay timeMs.
+
+```
+REAL_TOPIC = persistent://public/default/my-topic
+ORIGIN_MESSAGE_ID = 1:0:-1:0
+RECONSUMETIMES = 6
+DELAY_TIME = 3000
+```
+
 If you want to put messages into a retrial queue, you can use the following API.
 
 ```java
-consumer.reconsumeLater(msg,3,TimeUnit.SECONDS);
+consumer.reconsumeLater(msg, 3, TimeUnit.SECONDS);
 ```
 
+If you want to add custom properties for the reconsumeLater, you can use the following API.
 
+```java
+consumer.reconsumeLater(msg, customProperties, 3, TimeUnit.SECONDS);
+```
 
 ## Topics
 
