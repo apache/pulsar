@@ -422,7 +422,6 @@ public class Consumer {
             }
 
             addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
-            log.info("broker unackedMessages : {}", UNACKED_MESSAGES_UPDATER.get(this));
 
             positionsAcked.add(position);
 

@@ -723,11 +723,7 @@ public class BatchMessageTest extends BrokerTestBase {
         PersistentDispatcherMultipleConsumers dispatcher = (PersistentDispatcherMultipleConsumers) topic
                 .getSubscription(subscriptionName).getDispatcher();
         // check strategically to let ack-message receive by broker
-        retryStrategically((test) -> {
-            int unackedMessages = dispatcher.getConsumers().get(0).getUnackedMessages();
-            System.out.println("unackedMessages : " + unackedMessages);
-            return unackedMessages == 0;
-        }, 50, 150);
+        retryStrategically((test) -> dispatcher.getConsumers().get(0).getUnackedMessages() == 0, 50, 150);
         assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 0);
 
         executor.shutdownNow();
