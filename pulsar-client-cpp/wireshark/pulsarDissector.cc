@@ -488,7 +488,10 @@ static int dissect_pulsar_message(tvbuff_t* tvb, packet_info* pinfo, proto_tree*
     offset += 4;
 
     if (offset + cmdSize > maxOffset) {
-        // Not enough data to dissect
+    // Not enough data to dissect
+#ifdef DEBUG
+        proto_tree_add_debug_text(tree, "[Debug] Not enough data to dissect command");
+#endif
         return maxOffset;
     }
 
