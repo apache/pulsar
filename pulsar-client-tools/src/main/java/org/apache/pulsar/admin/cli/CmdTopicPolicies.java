@@ -55,7 +55,7 @@ public class CmdTopicPolicies extends CmdBase {
         private boolean applied = false;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
-                + "If set to true, broker returned global topic policies", arity = 0)
+                + "If set to true, broker returned global topic policies")
         private boolean isGlobal = false;
 
         @Override
@@ -80,7 +80,7 @@ public class CmdTopicPolicies extends CmdBase {
         private String limitStr;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
-                + "If set to true, the policy will be replicate to other clusters asynchronously", arity = 0)
+                + "If set to true, the policy will be replicate to other clusters asynchronously")
         private boolean isGlobal = false;
 
         @Override
@@ -112,7 +112,7 @@ public class CmdTopicPolicies extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private List<String> params;
 
-        @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
+        @Parameter(names = { "--global", "-g" }, description = "Whether to remove this policy globally. "
                 + "If set to true, the removing operation will be replicate to other clusters asynchronously"
                 , arity = 0)
         private boolean isGlobal = false;
@@ -133,7 +133,7 @@ public class CmdTopicPolicies extends CmdBase {
         private boolean applied = false;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
-                + "If set to true, broker returned global topic policies", arity = 0)
+                + "If set to true, broker returned global topic policies")
         private boolean isGlobal = false;
 
         @Override
@@ -166,7 +166,7 @@ public class CmdTopicPolicies extends CmdBase {
         private String backlogQuotaTypeStr = BacklogQuota.BacklogQuotaType.destination_storage.name();
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
-                + "If set to true, the policy will be replicate to other clusters asynchronously", arity = 0)
+                + "If set to true, the policy will be replicate to other clusters asynchronously")
         private boolean isGlobal = false;
 
         @Override
@@ -211,8 +211,7 @@ public class CmdTopicPolicies extends CmdBase {
         private String backlogQuotaType = BacklogQuota.BacklogQuotaType.destination_storage.name();
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to remove this policy globally. "
-                + "If set to true, the removing operation will be replicate to other clusters asynchronously"
-                , arity = 0)
+                + "If set to true, the removing operation will be replicate to other clusters asynchronously")
         private boolean isGlobal = false;
 
         @Override
