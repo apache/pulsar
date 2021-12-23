@@ -50,5 +50,6 @@ The Pulsar community is planning more features for future Pulsar releases, inclu
 # Get Involved
 
 * Pulsar 2.8.1 was released in September 2021. [Download it now](https://pulsar.apache.org/en/download/) and try it out! 
+* Subscribe to the [Pulsar's mailing lists](https://pulsar.apache.org/en/contact/). 
 * Join the [Pulsar community on Slack](https://apache-pulsar.herokuapp.com/).
 
