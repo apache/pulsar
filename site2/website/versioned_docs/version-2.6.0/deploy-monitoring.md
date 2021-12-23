@@ -32,7 +32,7 @@ All the message rates are updated every 1min.
 The aggregated broker metrics are also exposed in the [Prometheus](https://prometheus.io) format at:
 
 ```shell
-http://$BROKER_ADDRESS:8080/metrics
+http://$BROKER_ADDRESS:8080/metrics/
 ```
 
 ### ZooKeeper stats
