@@ -486,7 +486,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     protected CompletableFuture<Void> doReconsumeLater(Message<?> message, AckType ackType,
-                                                       Map<String,Long> properties,
+                                                       Map<String, String> customProperties,
                                                        long delayTime,
                                                        TimeUnit unit) {
         MessageId messageId = message.getMessageId();
@@ -509,7 +509,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             }
         } else {
             ConsumerImpl<T> consumer = consumers.get(topicMessageId.getTopicPartitionName());
-            return consumer.doReconsumeLater(message, ackType, properties, delayTime, unit)
+            return consumer.doReconsumeLater(message, ackType, customProperties, delayTime, unit)
                      .thenRun(() ->unAckedMessageTracker.remove(topicMessageId));
         }
     }
