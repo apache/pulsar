@@ -1,9 +1,7 @@
 ---
 author: Technoboy-, Anonymitaet
-title: Apache Pulsar 2.7.4
+title: What’s New in Apache Pulsar 2.7.4
 ---
-
-# What’s New in Apache Pulsar 2.7.4
 
 The Apache Pulsar community releases version 2.7.4! 32 contributors provided improvements and bug fixes that delivered 98 commits.
 
@@ -13,99 +11,124 @@ Highlights of this release are as below:
 
 - NPE does not occur on `OpAddEntry` while ManagedLedger is closing. [PR-12364](https://github.com/apache/pulsar/pull/12364)
 
-- Fixed inconsistent behavior for namespace bundles cache [PR-11346](https://github.com/apache/pulsar/pull/11346)
+- Fix inconsistent behavior for namespace bundles cache [PR-11346](https://github.com/apache/pulsar/pull/11346)
 
 This blog walks through the most noteworthy changes grouped by the affected functionalities. For the complete list including all enhancements and bug fixes, check out the [Pulsar 2.7.4 Release Notes](TBD-link).
 
-## Notable bug fixes and enhancements
+# Notable bug fixes and enhancements
 
 ### `ManagerLedger` can be referenced correctly when `OpAddEntry` is recycled. [PR-12103](https://github.com/apache/pulsar/pull/12103)
 
-#### Issue
+- **Issue**
   
-Previously, after a write failure, a task was scheduled in the background to force close the ledger and trigger the creation of  a new ledger. If the `OpAddEntry` instance was already recycled, that could lead to either an NPE or undefined behavior.
+    Previously, after a write failure, a task was scheduled in the background to force close the ledger and trigger the creation of  a new ledger. If the `OpAddEntry` instance was already recycled, that could lead to either an NPE or undefined behavior.
 
-#### Resolution
+- **Resolution**
   
-The `ManagedLedgerImpl` object reference was copied to a final variable so the background task would not be dependent on the lifecycle of the `OpAddEntry` instance.
+    The `ManagedLedgerImpl` object reference was copied to a final variable so the background task would not be dependent on the lifecycle of the `OpAddEntry` instance.
 
-**No potential race condition in the `BlobStoreBackedReadHandler.`** [PR-12123](https://github.com/apache/pulsar/pull/12123)
+### No potential race condition in the `BlobStoreBackedReadHandler`. [PR-12123](https://github.com/apache/pulsar/pull/12123)
 
 - **Issue**
 
     Previously, `BlobStoreBackedReadHandler` entered an infinite loop when reading an offload ledger. There was a race condition between the operation of reading entries and closing BlobStoreBackedReadHandler.
 
 - **Resolution**
-Added a state check before reading entries and made the `BlobStoreBackedReadHandler` exit loop when the `entryID` is bigger than the `lastEntryID`.
+  
+    Added a state check before reading entries and made the `BlobStoreBackedReadHandler` exit loop when the `entryID` is bigger than the `lastEntryID`.
 
-**NPE does not occur on `OpAddEntry` while ManagedLedger is closing.** [PR-12364](https://github.com/apache/pulsar/pull/12364)
+### NPE does not occur on `OpAddEntry` while ManagedLedger is closing. [PR-12364](https://github.com/apache/pulsar/pull/12364)
 
 - **Issue** 
-Previously, the test `ManagedLedgerBkTest#managedLedgerClosed` closed ManagedLedger object on some `asyncAddEntry` operations and failed with NPE.
+
+    Previously, the test `ManagedLedgerBkTest#managedLedgerClosed` closed ManagedLedger object on some `asyncAddEntry` operations and failed with NPE.
 	
 - **Resolution**
-Closed `OpAddEntry`  when ` ManagedLedger` signaled  `OpAddEntry` to fail. In this way, the `OpAddEntry` object was correctly recycled and the failed callback was correctly triggered.
-**Set a topic policy through the topic name of a partition correctly.** [PR-11294](https://github.com/apache/pulsar/pull/11294)
+
+    Closed `OpAddEntry`  when ` ManagedLedger` signaled  `OpAddEntry` to fail. In this way, the `OpAddEntry` object was correctly recycled and the failed callback was correctly triggered.
+
+### Set a topic policy through the topic name of a partition correctly. [PR-11294](https://github.com/apache/pulsar/pull/11294)
 
 - **Issue**
-Previously, the topic name of a partition could not be used to set a topic policy.
+
+    Previously, the topic name of a partition could not be used to set a topic policy.
 
 - **Resolution**
-Allowed setting a topic policy through a topic name of a partition by converting the topic name of a partition in `SystemTopicBasedTopicPoliciesService`.
 
-**Dispatch rate limiter takes effect for consumers.** [PR-8611](https://github.com/apache/pulsar/pull/8611)
+    Allowed setting a topic policy through a topic name of a partition by converting the topic name of a partition in `SystemTopicBasedTopicPoliciesService`.
+
+### Dispatch rate limiter takes effect for consumers. [PR-8611](https://github.com/apache/pulsar/pull/8611)
 
 - **Issue**
-Previously, dispatch rate limiter did not take effect in cases where all consumers started reading in the next second since `acquiredPermits` was reset to 0 every second.
+
+    Previously, dispatch rate limiter did not take effect in cases where all consumers started reading in the next second since `acquiredPermits` was reset to 0 every second.
 
 
 - **Resolution**
-Changed the behaviour of DispatchRateLimiter by minus `permits` every second instead of reset `acquiredPermits` to 0.  Consumers stopped reading entries temporarily until `acquiredPermits` returned to a value less than `permits` .
-**NPE does not occur when executing unload bundles operations.** [PR-11310](https://github.com/apache/pulsar/pull/11310)
+    
+    Changed the behaviour of `DispatchRateLimiter` by minus `permits` every second instead of reset `acquiredPermits` to 0. Consumers stopped reading entries temporarily until `acquiredPermits` returned to a value less than `permits` .
+
+### NPE does not occur when executing unload bundles operations. [PR-11310](https://github.com/apache/pulsar/pull/11310)
 
 - **Issue**
-When performing pressure tests on persistent partitioned topics, NPE occurred when executing unload bundles operations. Concurrently, producers did not write messages.
+  
+    When performing pressure tests on persistent partitioned topics, NPE occurred when executing unload bundles operations. Concurrently, producers did not write messages.
 
 - **Resolution**
-Added more safety checks to fix this issue.
+  
+    Added more safety checks to fix this issue.
 
-**Fixed inconsistent behavior for Namespace bundles cache** [PR-11346](https://github.com/apache/pulsar/pull/11346)
+### Fix inconsistent behavior for Namespace bundles cache. [PR-11346](https://github.com/apache/pulsar/pull/11346)
 
 - **Issue**
-Previously, namespace bundle cache was not invalidated after a namespace was deleted.
+  
+    Previously, namespace bundle cache was not invalidated after a namespace was deleted.
 
 - **Resolution**
-Invalidate namespace policy cache when bundle cache is invalidated.
 
-**Close the replicator and replication client after a cluster is deleted.** [PR-11342](https://github.com/apache/pulsar/pull/11342)
+    Invalidate namespace policy cache when bundle cache is invalidated.
+
+### Close the replicator and replication client after a cluster is deleted. [PR-11342](https://github.com/apache/pulsar/pull/11342)
 
 - **Issue**
-Previously, the replicator and the replication client were not closed after a cluster was deleted. The producer of the replicator would then try to reconnect to the deleted cluster continuously.
+  
+    Previously, the replicator and the replication client were not closed after a cluster was deleted. The producer of the replicator would then try to reconnect to the deleted cluster continuously.
 
 - **Resolution**
-Closed the relative replicator and replication client.
+  
+    Closed the relative replicator and replication client.
 
-**Publish rate limiter takes effect as expected.** [PR-10384](https://github.com/apache/pulsar/pull/10384)
+### Publish rate limiter takes effect as expected. [PR-10384](https://github.com/apache/pulsar/pull/10384)
 
 - **Issue**
-Previously, there were various issues if `preciseTopicPublishRateLimiterEnable`  was set to `true` for rate limiting:
-- Updating the limits did not set a boundary when changing the limits from a bounded limit to an unbounded limit.
-- Each topic created a scheduler thread for each limiter instance.
-- Topics did not release the scheduler thread when the topic was unloaded or the operation closed.
-- Updating the limits did not close the scheduler thread related to the replaced limiter instance
+  
+    Previously, there were various issues if `preciseTopicPublishRateLimiterEnable`  was set to `true` for rate limiting:
+
+    - Updating the limits did not set a boundary when changing the limits from a bounded limit to an unbounded limit.
+    
+    - Each topic created a scheduler thread for each limiter instance.
+    
+    - Topics did not release the scheduler thread when the topic was unloaded or the operation closed.
+    
+    - Updating the limits did not close the scheduler thread related to the replaced limiter instance
 
 - **Resolution**
-Cleaned up the previous limiter instances before creating new limiter instances.
-Used `brokerService.pulsar().getExecutor()` as the scheduler for the rate limiter instances.
-Added resource cleanup hooks for topic closing (unload).
+  
+  - Cleaned up the previous limiter instances before creating new limiter instances.
 
-**Clean up newly created  ledgers if fails to update ZNode list**. [PR-12015](https://github.com/apache/pulsar/pull/12015)
+  - Used `brokerService.pulsar().getExecutor()` as the scheduler for the rate limiter instances.
+
+  - Added resource cleanup hooks for topic closing (unload).
+
+### Clean up newly created  ledgers if fails to update ZNode list. [PR-12015](https://github.com/apache/pulsar/pull/12015)
 
 - **Issue**
-When updating a ZNode list, ZooKeeper threw an exception and did not clean up the created ledger. Newly created ledgers were not  indexed to a topic `managedLedger` list and could not be cleared up as topic retention. Also, ZNode numbers increased in ZooKeeper if the z-node version mismatch exception was thrown out.
+  
+    When updating a ZNode list, ZooKeeper threw an exception and did not clean up the created ledger. Newly created ledgers were not  indexed to a topic `managedLedger` list and could not be cleared up as topic retention. Also, ZNode numbers increased in ZooKeeper if the ZNode version mismatch exception was thrown out.
 
 - **Resolution**
-Deleted the created ledger from broker cache and BookKeeper regardless of exception type when the ZNode list failed to update.
+  
+    Deleted the created ledger from broker cache and BookKeeper regardless of exception type when the ZNode list failed to update.
 
 # What’s Next?
 
@@ -116,4 +139,3 @@ Pulsar Summit Asia 2021 will take place on January 15-16, 2022. [Register now](h
 For more information about the Apache Pulsar project and current  progress, visit
 the [Pulsar website](https://pulsar.apache.org), follow the project on Twitter
 [@apache_pulsar](https://twitter.com/apache_pulsar), and join [Pulsar Slack](https://apache-pulsar.herokuapp.com/)!
-
