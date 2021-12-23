@@ -18,13 +18,12 @@
  */
 package org.apache.pulsar.client.impl.transaction;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import com.google.common.collect.Lists;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
@@ -61,8 +60,14 @@ public class TransactionImpl implements Transaction {
     private final TransactionCoordinatorClientImpl tcClient;
     private Map<ConsumerImpl<?>, Integer> cumulativeAckConsumers;
 
-    private final ArrayList<CompletableFuture<MessageId>> sendFutureList;
-    private final ArrayList<CompletableFuture<Void>> ackFutureList;
+    /**
+     *  The number of operations are executing  in this transaction.
+     */
+    private final AtomicLong opsExecutingInTxn = new AtomicLong(0);
+    /**
+     *  The latest execution status can be obtained here.
+     */
+    private volatile CompletableFuture<Void> executedFuture = new CompletableFuture<>();
     private volatile State state;
 
     public enum State {
@@ -88,8 +93,6 @@ public class TransactionImpl implements Transaction {
         this.registerSubscriptionMap = new ConcurrentHashMap<>();
         this.tcClient = client.getTcClient();
 
-        this.sendFutureList = new ArrayList<>();
-        this.ackFutureList = new ArrayList<>();
     }
 
     // register the topics that will be modified by this transaction
@@ -111,7 +114,7 @@ public class TransactionImpl implements Transaction {
     }
 
     public synchronized void registerSendOp(CompletableFuture<MessageId> sendFuture) {
-        sendFutureList.add(sendFuture);
+        registerInternal(sendFuture);
     }
 
     // register the topics that will be modified by this transaction
@@ -132,8 +135,32 @@ public class TransactionImpl implements Transaction {
         });
     }
 
+    public synchronized <T> void registerInternal(CompletableFuture<T> completableFuture) {
+        //There have been an exception, it means this transaction should not be commit,
+        //so there is no need to record the execution of other operations
+        if (!executedFuture.isCompletedExceptionally()) {
+            opsExecutingInTxn.incrementAndGet();
+            executedFuture = new CompletableFuture<>();
+            completableFuture.thenRun(() -> {
+                synchronized (this) {
+                    opsExecutingInTxn.decrementAndGet();
+                    // This is the last operation so far.
+                    if (opsExecutingInTxn.get() == 0) {
+                        executedFuture.complete(null);
+                    }
+                }
+            }).exceptionally(e -> {
+                //Complete this future exceptionally and there is no need to executed this method again.
+                synchronized (this) {
+                    executedFuture.completeExceptionally(new PulsarClientException
+                            .TransactionCanNotCommitException(txnIdMostBits, txnIdLeastBits, e.getCause()));
+                }
+                return null;
+            });
+        }
+    }
     public synchronized void registerAckOp(CompletableFuture<Void> ackFuture) {
-        ackFutureList.add(ackFuture);
+       registerInternal(ackFuture);
     }
 
     public synchronized void registerCumulativeAckConsumer(ConsumerImpl<?> consumer) {
@@ -147,27 +174,25 @@ public class TransactionImpl implements Transaction {
     public CompletableFuture<Void> commit() {
         return checkIfOpenOrCommitting().thenCompose((value) -> {
             CompletableFuture<Void> commitFuture = new CompletableFuture<>();
-            allOpComplete().whenComplete((v, e) -> {
-                if (e != null) {
-                    log.error(e.getMessage());
-                    commitFuture.completeExceptionally(new PulsarClientException
-                            .TransactionCanNotCommitException(this.txnIdMostBits, this.txnIdLeastBits, e));
-                } else {
-                    this.state = State.COMMITTING;
-                    tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits))
-                            .whenComplete((vx, ex) -> {
-                                if (ex != null) {
-                                    if (ex instanceof TransactionNotFoundException
-                                            || ex instanceof InvalidTxnStatusException) {
-                                        this.state = State.ERROR;
-                                    }
-                                    commitFuture.completeExceptionally(ex);
-                                } else {
-                                    this.state = State.COMMITTED;
-                                    commitFuture.complete(vx);
+            executedFuture.thenRun(() -> {
+                this.state = State.COMMITTING;
+                tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits))
+                        .whenComplete((vx, ex) -> {
+                            if (ex != null) {
+                                if (ex instanceof TransactionNotFoundException
+                                        || ex instanceof InvalidTxnStatusException) {
+                                    this.state = State.ERROR;
                                 }
-                            });
-                }
+                                commitFuture.completeExceptionally(ex);
+                            } else {
+                                this.state = State.COMMITTED;
+                                commitFuture.complete(vx);
+                            }
+                        });
+            }).exceptionally(e -> {
+                commitFuture.completeExceptionally(new PulsarClientException
+                        .TransactionCanNotCommitException(this.txnIdMostBits, this.txnIdLeastBits, e));
+                return null;
             });
             return commitFuture;
         });
@@ -177,16 +202,13 @@ public class TransactionImpl implements Transaction {
     public CompletableFuture<Void> abort() {
         return checkIfOpenOrAborting().thenCompose(value -> {
             CompletableFuture<Void> abortFuture = new CompletableFuture<>();
-            allOpComplete().whenComplete((v, e) -> {
-                if (e != null) {
-                    log.error(e.getMessage());
-                }
+            executedFuture.thenRun(() -> {
+                this.state = State.ABORTING;
                 if (cumulativeAckConsumers != null) {
                     cumulativeAckConsumers.forEach((consumer, integer) ->
                             cumulativeAckConsumers
                                     .putIfAbsent(consumer, consumer.clearIncomingMessagesAndGetMessageNumber()));
                 }
-                this.state = State.ABORTING;
                 tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits)).whenComplete((vx, ex) -> {
                     if (cumulativeAckConsumers != null) {
                         cumulativeAckConsumers.forEach(ConsumerImpl::increaseAvailablePermits);
@@ -246,11 +268,4 @@ public class TransactionImpl implements Transaction {
                 + state.name() + ", expect " + State.OPEN + " state!"));
     }
 
-
-    private CompletableFuture<Void> allOpComplete() {
-        List<CompletableFuture<?>> futureList = new ArrayList<>();
-        futureList.addAll(sendFutureList);
-        futureList.addAll(ackFutureList);
-        return CompletableFuture.allOf(futureList.toArray(new CompletableFuture[0]));
-    }
 }
