@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.util;
 
+import java.math.BigDecimal;
 import java.util.concurrent.TimeUnit;
 import lombok.experimental.UtilityClass;
 
@@ -62,5 +63,16 @@ public class RelativeTimeUtil {
         default:
             throw new IllegalArgumentException("Invalid time unit '" + lastChar + "'");
         }
+    }
+
+    /**
+     * Convert nanoseconds to seconds and keep three decimal places.
+     * @param ns
+     * @return seconds
+     */
+    public static double nsToSeconds(long ns) {
+        double seconds = (double) ns / 1_000_000_000;
+        BigDecimal bd = new BigDecimal(seconds);
+        return bd.setScale(3, BigDecimal.ROUND_HALF_UP).doubleValue();
     }
 }
