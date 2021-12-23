@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "docusaurus": "docusaurus",
-    "start": "docusaurus start",
-    "build": "node scripts/replace.js && docusaurus build",
+    "start": "NODE_OPTIONS=--max_old_space_size=20480 docusaurus start",
+    "build": "NODE_OPTIONS=--max_old_space_size=20480 node scripts/replace.js && docusaurus build",
     "swizzle": "docusaurus swizzle",
     "deploy": "docusaurus deploy",
     "clear": "docusaurus clear",
@@ -15,7 +15,6 @@
     "crowdin": "crowdin",
     "upload": "CROWDIN_PERSONAL_TOKEN=20a2c29bfe39397f7ae63ce318c04c96 crowdin upload",
     "download": "CROWDIN_PERSONAL_TOKEN=20a2c29bfe39397f7ae63ce318c04c96 crowdin download"
-
   },
   "dependencies": {
     "@crowdin/cli": "3.7.2",

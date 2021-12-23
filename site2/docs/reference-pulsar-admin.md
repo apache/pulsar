@@ -2161,6 +2161,14 @@ Usage
 $ pulsar-admin topics terminate persistent://tenant/namespace/topic
 ```
 
+### `partitioned-terminate`
+Terminate a persistent topic (disallow further messages from being published on the topic)
+
+Usage
+```bash
+$ pulsar-admin topics partitioned-terminate persistent://tenant/namespace/topic
+```
+
 ### `permissions`
 Get the permissions on a topic. Retrieve the effective permissions for a destination. These permissions are defined by the permissions set at the namespace level combined (union) with any eventual specific permissions set on the topic.
 

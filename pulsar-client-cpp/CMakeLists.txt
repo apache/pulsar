@@ -453,7 +453,9 @@ add_custom_target(format python ${BUILD_SUPPORT_DIR}/run_clang_format.py
         ${CMAKE_SOURCE_DIR}/perf
         ${CMAKE_SOURCE_DIR}/examples
         ${CMAKE_SOURCE_DIR}/tests
-        ${CMAKE_SOURCE_DIR}/include)
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/python/src
+        ${CMAKE_SOURCE_DIR}/wireshark)
 
 # `make check-format` option (for CI test)
 add_custom_target(check-format python ${BUILD_SUPPORT_DIR}/run_clang_format.py
@@ -464,4 +466,6 @@ add_custom_target(check-format python ${BUILD_SUPPORT_DIR}/run_clang_format.py
         ${CMAKE_SOURCE_DIR}/perf
         ${CMAKE_SOURCE_DIR}/examples
         ${CMAKE_SOURCE_DIR}/tests
-        ${CMAKE_SOURCE_DIR}/include)
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/python/src
+        ${CMAKE_SOURCE_DIR}/wireshark)

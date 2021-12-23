@@ -22,26 +22,39 @@
 #include <boost/asio.hpp>
 
 #include <array>
-#include <vector>
+#include <memory>
+#include <string>
+#include <utility>
 
 namespace pulsar {
-namespace detail {
-
-class SharedBufferInternal : public std::vector<char> {
-   public:
-    SharedBufferInternal(int size) : std::vector<char>(size) {}
-
-    inline char* ptr() { return &(*this)[0]; }
-
-    void resize(int newSize) { std::vector<char>::resize(newSize); }
-
-    int capacity() const { return std::vector<char>::capacity(); }
-};
-}  // namespace detail
 
 class SharedBuffer {
    public:
-    explicit SharedBuffer() : data_(), ptr_(0), readIdx_(0), writeIdx_(0), capacity_(0) {}
+    explicit SharedBuffer() : data_(), ptr_(nullptr), readIdx_(0), writeIdx_(0), capacity_(0) {}
+
+    // SHALLOW copy constructor.
+    SharedBuffer(const SharedBuffer&) = default;
+    SharedBuffer& operator=(const SharedBuffer&) = default;
+
+    // Move constructor.
+    SharedBuffer(SharedBuffer&& right) { *this = std::move(right); }
+    SharedBuffer& operator=(SharedBuffer&& right) {
+        this->data_ = std::move(right.data_);
+
+        this->ptr_ = right.ptr_;
+        right.ptr_ = nullptr;
+
+        this->readIdx_ = right.readIdx_;
+        right.readIdx_ = 0;
+
+        this->writeIdx_ = right.writeIdx_;
+        right.writeIdx_ = 0;
+
+        this->capacity_ = right.capacity_;
+        right.capacity_ = 0;
+
+        return *this;
+    }
 
     /**
      * Allocate a buffer of given size
@@ -56,6 +69,11 @@ class SharedBuffer {
         buf.write(ptr, size);
         return buf;
     }
+
+    /**
+     * Create a buffer by taking ownership of given data.
+     */
+    static SharedBuffer take(std::string&& data) { return SharedBuffer(std::move(data)); }
 
     static SharedBuffer copyFrom(const SharedBuffer& other, uint32_t capacity) {
         assert(other.readableBytes() <= capacity);
@@ -186,9 +204,7 @@ class SharedBuffer {
     }
 
    private:
-    typedef std::shared_ptr<detail::SharedBufferInternal> BufferPtr;
-
-    BufferPtr data_;
+    std::shared_ptr<std::string> data_;
     char* ptr_;
     uint32_t readIdx_;
     uint32_t writeIdx_;
@@ -198,12 +214,19 @@ class SharedBuffer {
         : data_(), ptr_(ptr), readIdx_(0), writeIdx_(size), capacity_(size) {}
 
     explicit SharedBuffer(size_t size)
-        : data_(std::make_shared<detail::SharedBufferInternal>(size)),
-          ptr_(data_->ptr()),
+        : data_(std::make_shared<std::string>(size, '\0')),
+          ptr_(size ? &(*data_)[0] : nullptr),
           readIdx_(0),
           writeIdx_(0),
           capacity_(size) {}
-};
+
+    explicit SharedBuffer(std::string&& data)
+        : data_(std::make_shared<std::string>(std::move(data))),
+          ptr_(data_->empty() ? nullptr : &(*data_)[0]),
+          readIdx_(0),
+          writeIdx_(data_->length()),
+          capacity_(data_->length()) {}
+};  // class SharedBuffer
 
 template <int Size>
 class CompositeSharedBuffer {

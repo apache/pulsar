@@ -37,7 +37,6 @@ import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.BacklogQuotaMixIn;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesClusterInfo;
@@ -192,7 +191,6 @@ public class ObjectMapperFactory {
         resolver.addMapping(AutoSubscriptionCreationOverride.class, AutoSubscriptionCreationOverrideImpl.class);
 
         // we use MixIn class to add jackson annotations
-        mapper.addMixIn(BacklogQuotaImpl.class, BacklogQuotaMixIn.class);
         mapper.addMixIn(ResourceQuota.class, ResourceQuotaMixIn.class);
         mapper.addMixIn(FunctionConfig.class, JsonIgnorePropertiesMixIn.class);
         mapper.addMixIn(FunctionState.class, JsonIgnorePropertiesMixIn.class);

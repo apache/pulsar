@@ -119,8 +119,9 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         public void buildCredentials(TieredStorageConfiguration config) {
             if (config.getCredentials() == null) {
                 try {
-                    String gcsKeyContent = Files.toString(
-                            new File(config.getConfigProperty(GCS_ACCOUNT_KEY_FILE_FIELD)), Charset.defaultCharset());
+                    String gcsKeyContent = Files.asCharSource(
+                            new File(config.getConfigProperty(GCS_ACCOUNT_KEY_FILE_FIELD)),
+                            Charset.defaultCharset()).read();
                     config.setProviderCredentials(() -> new GoogleCredentialsFromJson(gcsKeyContent).get());
                 } catch (IOException ioe) {
                     log.error("Cannot read GCS service account credentials file: {}",

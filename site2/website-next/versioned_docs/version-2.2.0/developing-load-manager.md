@@ -1,13 +1,9 @@
 ---
 id: develop-load-manager
 title: Modular load manager
-sidebar_label: Modular load manager
+sidebar_label: "Modular load manager"
 original_id: develop-load-manager
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 The *modular load manager*, implemented in  [`ModularLoadManagerImpl`](https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/loadbalance/impl/ModularLoadManagerImpl.java), is a flexible alternative to the previously implemented load manager, [`SimpleLoadManagerImpl`](https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/loadbalance/impl/SimpleLoadManagerImpl.java), which attempts to simplify how load is managed while also providing abstractions so that complex load management strategies may be implemented.
 
@@ -19,11 +15,11 @@ There are two ways that you can enable the modular load manager:
 2. Using the `pulsar-admin` tool. Here's an example:
 
    ```shell
-
+   
    $ pulsar-admin brokers update-dynamic-config \
-     --config loadManagerClassName \
-     --value org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl
-
+    --config loadManagerClassName \
+    --value org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl
+   
    ```
 
    You can use the same method to change back to the original value. In either case, any mistake in specifying the load manager will cause Pulsar to default to `SimpleLoadManagerImpl`.
@@ -34,111 +30,113 @@ There are a few different ways to determine which load manager is being used:
 
 1. Use `pulsar-admin` to examine the `loadManagerClassName` element:
 
-    ```shell
-
+   ```shell
+   
    $ bin/pulsar-admin brokers get-all-dynamic-config
    {
-     "loadManagerClassName" : "org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl"
+    "loadManagerClassName" : "org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl"
    }
-
+   
    ```
 
    If there is no `loadManagerClassName` element, then the default load manager is used.
 
 2. Consult a ZooKeeper load report. With the module load manager, the load report in `/loadbalance/brokers/...` will have many differences. for example the `systemResourceUsage` sub-elements (`bandwidthIn`, `bandwidthOut`, etc.) are now all at the top level. Here is an example load report from the module load manager:
 
-    ```json
+   ```json
+   
+   {
+     "bandwidthIn": {
+       "limit": 10240000.0,
+       "usage": 4.256510416666667
+     },
+     "bandwidthOut": {
+       "limit": 10240000.0,
+       "usage": 5.287239583333333
+     },
+     "bundles": [],
+     "cpu": {
+       "limit": 2400.0,
+       "usage": 5.7353247655435915
+     },
+     "directMemory": {
+       "limit": 16384.0,
+       "usage": 1.0
+     }
+   }
+   
+   ```
 
-    {
-      "bandwidthIn": {
-        "limit": 10240000.0,
-        "usage": 4.256510416666667
-      },
-      "bandwidthOut": {
-        "limit": 10240000.0,
-        "usage": 5.287239583333333
-      },
-      "bundles": [],
-      "cpu": {
-        "limit": 2400.0,
-        "usage": 5.7353247655435915
-      },
-      "directMemory": {
-        "limit": 16384.0,
-        "usage": 1.0
-      }
-    }
+   With the simple load manager, the load report in `/loadbalance/brokers/...` will look like this:
 
-    ```
-
-    With the simple load manager, the load report in `/loadbalance/brokers/...` will look like this:
-
-    ```json
-
-    {
-      "systemResourceUsage": {
-        "bandwidthIn": {
-          "limit": 10240000.0,
-          "usage": 0.0
-        },
-        "bandwidthOut": {
-          "limit": 10240000.0,
-          "usage": 0.0
-        },
-        "cpu": {
-          "limit": 2400.0,
-          "usage": 0.0
-        },
-        "directMemory": {
-          "limit": 16384.0,
-          "usage": 1.0
-        },
-        "memory": {
-          "limit": 8192.0,
-          "usage": 3903.0
-        }
-      }
-    }
-
-    ```
+   ```json
+   
+   {
+     "systemResourceUsage": {
+       "bandwidthIn": {
+         "limit": 10240000.0,
+         "usage": 0.0
+       },
+       "bandwidthOut": {
+         "limit": 10240000.0,
+         "usage": 0.0
+       },
+       "cpu": {
+         "limit": 2400.0,
+         "usage": 0.0
+       },
+       "directMemory": {
+         "limit": 16384.0,
+         "usage": 1.0
+       },
+       "memory": {
+         "limit": 8192.0,
+         "usage": 3903.0
+       }
+     }
+   }
+   
+   ```
 
 3. The command-line [broker monitor](reference-cli-tools.md#monitor-brokers) will have a different output format depending on which load manager implementation is being used.
 
-    Here is an example from the modular load manager:
+   Here is an example from the modular load manager:
 
-    ```
-    ===================================================================================================================
-    ||SYSTEM         |CPU %          |MEMORY %       |DIRECT %       |BW IN %        |BW OUT %       |MAX %          ||
-    ||               |0.00           |48.33          |0.01           |0.00           |0.00           |48.33          ||
-    ||COUNT          |TOPIC          |BUNDLE         |PRODUCER       |CONSUMER       |BUNDLE +       |BUNDLE -       ||
-    ||               |4              |4              |0              |2              |4              |0              ||
-    ||LATEST         |MSG/S IN       |MSG/S OUT      |TOTAL          |KB/S IN        |KB/S OUT       |TOTAL          ||
-    ||               |0.00           |0.00           |0.00           |0.00           |0.00           |0.00           ||
-    ||SHORT          |MSG/S IN       |MSG/S OUT      |TOTAL          |KB/S IN        |KB/S OUT       |TOTAL          ||
-    ||               |0.00           |0.00           |0.00           |0.00           |0.00           |0.00           ||
-    ||LONG           |MSG/S IN       |MSG/S OUT      |TOTAL          |KB/S IN        |KB/S OUT       |TOTAL          ||
-    ||               |0.00           |0.00           |0.00           |0.00           |0.00           |0.00           ||
-    ===================================================================================================================
+   ```
+   
+   ===================================================================================================================
+   ||SYSTEM         |CPU %          |MEMORY %       |DIRECT %       |BW IN %        |BW OUT %       |MAX %          ||
+   ||               |0.00           |48.33          |0.01           |0.00           |0.00           |48.33          ||
+   ||COUNT          |TOPIC          |BUNDLE         |PRODUCER       |CONSUMER       |BUNDLE +       |BUNDLE -       ||
+   ||               |4              |4              |0              |2              |4              |0              ||
+   ||LATEST         |MSG/S IN       |MSG/S OUT      |TOTAL          |KB/S IN        |KB/S OUT       |TOTAL          ||
+   ||               |0.00           |0.00           |0.00           |0.00           |0.00           |0.00           ||
+   ||SHORT          |MSG/S IN       |MSG/S OUT      |TOTAL          |KB/S IN        |KB/S OUT       |TOTAL          ||
+   ||               |0.00           |0.00           |0.00           |0.00           |0.00           |0.00           ||
+   ||LONG           |MSG/S IN       |MSG/S OUT      |TOTAL          |KB/S IN        |KB/S OUT       |TOTAL          ||
+   ||               |0.00           |0.00           |0.00           |0.00           |0.00           |0.00           ||
+   ===================================================================================================================
+   
+   ```
 
-    ```
+   Here is an example from the simple load manager:
 
-    Here is an example from the simple load manager:
-
-    ```
-    ===================================================================================================================
-    ||COUNT          |TOPIC          |BUNDLE         |PRODUCER       |CONSUMER       |BUNDLE +       |BUNDLE -       ||
-    ||               |4              |4              |0              |2              |0              |0              ||
-    ||RAW SYSTEM     |CPU %          |MEMORY %       |DIRECT %       |BW IN %        |BW OUT %       |MAX %          ||
-    ||               |0.25           |47.94          |0.01           |0.00           |0.00           |47.94          ||
-    ||ALLOC SYSTEM   |CPU %          |MEMORY %       |DIRECT %       |BW IN %        |BW OUT %       |MAX %          ||
-    ||               |0.20           |1.89           |               |1.27           |3.21           |3.21           ||
-    ||RAW MSG        |MSG/S IN       |MSG/S OUT      |TOTAL          |KB/S IN        |KB/S OUT       |TOTAL          ||
-    ||               |0.00           |0.00           |0.00           |0.01           |0.01           |0.01           ||
-    ||ALLOC MSG      |MSG/S IN       |MSG/S OUT      |TOTAL          |KB/S IN        |KB/S OUT       |TOTAL          ||
-    ||               |54.84          |134.48         |189.31         |126.54         |320.96         |447.50         ||
-    ===================================================================================================================
-
-    ```
+   ```
+   
+   ===================================================================================================================
+   ||COUNT          |TOPIC          |BUNDLE         |PRODUCER       |CONSUMER       |BUNDLE +       |BUNDLE -       ||
+   ||               |4              |4              |0              |2              |0              |0              ||
+   ||RAW SYSTEM     |CPU %          |MEMORY %       |DIRECT %       |BW IN %        |BW OUT %       |MAX %          ||
+   ||               |0.25           |47.94          |0.01           |0.00           |0.00           |47.94          ||
+   ||ALLOC SYSTEM   |CPU %          |MEMORY %       |DIRECT %       |BW IN %        |BW OUT %       |MAX %          ||
+   ||               |0.20           |1.89           |               |1.27           |3.21           |3.21           ||
+   ||RAW MSG        |MSG/S IN       |MSG/S OUT      |TOTAL          |KB/S IN        |KB/S OUT       |TOTAL          ||
+   ||               |0.00           |0.00           |0.00           |0.01           |0.01           |0.01           ||
+   ||ALLOC MSG      |MSG/S IN       |MSG/S OUT      |TOTAL          |KB/S IN        |KB/S OUT       |TOTAL          ||
+   ||               |54.84          |134.48         |189.31         |126.54         |320.96         |447.50         ||
+   ===================================================================================================================
+   
+   ```
 
 It is important to note that the module load manager is _centralized_, meaning that all requests to assign a bundle---whether it's been seen before or whether this is the first time---only get handled by the _lead_ broker (which can change over time). To determine the current lead broker, examine the `/loadbalance/leader` node in ZooKeeper.
 
