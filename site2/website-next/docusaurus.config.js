@@ -136,6 +136,10 @@ module.exports = {
           position: "right",
           items: [
             {
+              label: "2.8.1",
+              to: "docs/",
+            },
+            {
               label: "2.8.0",
               to: "docs/",
             },
