@@ -32,7 +32,7 @@ import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker")
-public class AdminApiBrokerTest extends MockedPulsarServiceBaseTest {
+public class AdminApiDynamicConfigurationsTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {

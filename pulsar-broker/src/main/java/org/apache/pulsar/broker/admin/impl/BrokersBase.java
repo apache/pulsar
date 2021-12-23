@@ -181,7 +181,7 @@ public class BrokersBase extends PulsarWebResource {
     public Map<String, String> getAllDynamicConfigurations() throws Exception {
         validateSuperUserAccess();
         try {
-            return dynamicConfigurationResources().getDynamicConfiguration();
+            return dynamicConfigurationResources().getDynamicConfiguration().orElse(Maps.newHashMap());
         } catch (RestException e) {
             LOG.error("[{}] couldn't find any configuration in zk {}", clientAppId(), e.getMessage(), e);
             throw e;

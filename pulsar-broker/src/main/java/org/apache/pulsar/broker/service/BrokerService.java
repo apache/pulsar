@@ -2298,12 +2298,11 @@ public class BrokerService implements Closeable {
         Optional<Map<String, String>> configCache = Optional.empty();
 
         try {
-            Map<String, String> dynamicConfiguration =
+            configCache  =
                     pulsar().getPulsarResources().getDynamicConfigResources().getDynamicConfiguration();
-            configCache = Optional.ofNullable(dynamicConfiguration);
 
             // create dynamic-config if not exist.
-            if (dynamicConfiguration == null) {
+            if (!configCache.isPresent()) {
                 pulsar().getPulsarResources().getDynamicConfigResources()
                         .setDynamicConfigurationWithCreate(n -> Maps.newHashMap());
             }
