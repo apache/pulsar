@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="127px" height="125px" viewBox="0 0 127 125" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Global Directions</title>
+    <defs>
+        <filter x="-11.9%" y="-12.1%" width="123.8%" height="124.3%" filterUnits="objectBoundingBox" id="filter-1">
+            <feOffset dx="0" dy="2" in="SourceAlpha" result="shadowOffsetOuter1"></feOffset>
+            <feGaussianBlur stdDeviation="2" in="shadowOffsetOuter1" result="shadowBlurOuter1"></feGaussianBlur>
+            <feColorMatrix values="0 0 0 0 0.0941176471   0 0 0 0 0.560784314   0 0 0 0 1  0 0 0 0.5 0" type="matrix" in="shadowBlurOuter1" result="shadowMatrixOuter1"></feColorMatrix>
+            <feMerge>
+                <feMergeNode in="shadowMatrixOuter1"></feMergeNode>
+                <feMergeNode in="SourceGraphic"></feMergeNode>
+            </feMerge>
+        </filter>
+    </defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Home" transform="translate(-130.000000, -1635.000000)">
+            <g id="Global-Directions" filter="url(#filter-1)" transform="translate(140.000000, 1645.000000)">
+                <path d="M93,53 C93,75.0444444 75.0444444,93 53,93 C30.9555556,93 13,68.6444444 13,53 C13,30.9555556 30.9555556,13 53,13 C75.0444444,13 93,30.9555556 93,53 Z" id="Path" fill="#FFFFFF" fill-rule="nonzero"></path>
+                <polyline id="Path" stroke="#2A5082" stroke-width="2" points="53 0 47 5.5 53 11"></polyline>
+                <path d="M101,38 C94.7209302,18.7936508 76.0631229,5 54.1760797,5 L47,5" id="Path" stroke="#2A5082" stroke-width="2"></path>
+                <path d="M66,99 C86.7,93.3111111 102,74.2888889 102,51.8888889 L102,43" id="Path" stroke="#2A5082" stroke-width="2"></path>
+                <path d="M6,65 C11.6842105,85.7 30.5131579,101 52.8947368,101 L60,101" id="Path" stroke="#2A5082" stroke-width="2"></path>
+                <path d="M41,6 C20.8484848,11.8618421 6,30.6907895 6,52.8947368 L6,60" id="Path" stroke="#2A5082" stroke-width="2"></path>
+                <polyline id="Path" stroke="#2A5082" stroke-width="2" points="54 105 60 99.5 54 94"></polyline>
+                <polyline id="Path" stroke="#2A5082" stroke-width="2" points="11 54 5.5 60 0 54"></polyline>
+                <polyline id="Path" stroke="#2A5082" stroke-width="2" points="107 50 101.5 44 96 50"></polyline>
+                <path d="M54.5,81 C70.175,81 83,68.175 83,52.5 C83,36.825 70.175,24 54.5,24 C38.825,24 26,36.825 26,52.5 C26,68.175 38.646875,81 54.5,81 Z" id="Path" stroke="#2A5082" stroke-width="2" fill="#A3D4FF" fill-rule="nonzero"></path>
+                <path d="M63.7530502,32.3474624 C69.4156499,43.4774123 69.4156499,61.5225699 63.7530502,72.6525376 C58.0904506,83.7824875 48.9095494,83.7824875 43.2469498,72.6525376 C37.5843501,61.5225877 37.5843501,43.4774301 43.2469498,32.3474624 C48.9095494,21.2175125 58.0904506,21.2175125 63.7530502,32.3474624" id="Path" stroke="#2A5082" stroke-width="2"></path>
+                <line x1="81" y1="41" x2="27" y2="41" id="Path" stroke="#2A5082" stroke-width="2"></line>
+                <line x1="81" y1="65" x2="27" y2="65" id="Path" stroke="#2A5082" stroke-width="2"></line>
+                <line x1="53" y1="24" x2="53" y2="81" id="Path" stroke="#2A5082" stroke-width="2"></line>
+            </g>
+        </g>
+    </g>
+</svg>

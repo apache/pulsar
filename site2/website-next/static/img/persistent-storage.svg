@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="140px" height="129px" viewBox="0 0 140 129" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Safe</title>
+    <defs>
+        <filter x="-10.8%" y="-10.8%" width="121.7%" height="121.6%" filterUnits="objectBoundingBox" id="filter-1">
+            <feOffset dx="0" dy="2" in="SourceAlpha" result="shadowOffsetOuter1"></feOffset>
+            <feGaussianBlur stdDeviation="2" in="shadowOffsetOuter1" result="shadowBlurOuter1"></feGaussianBlur>
+            <feColorMatrix values="0 0 0 0 0.0941176471   0 0 0 0 0.560784314   0 0 0 0 1  0 0 0 0.5 0" type="matrix" in="shadowBlurOuter1" result="shadowMatrixOuter1"></feColorMatrix>
+            <feMerge>
+                <feMergeNode in="shadowMatrixOuter1"></feMergeNode>
+                <feMergeNode in="SourceGraphic"></feMergeNode>
+            </feMerge>
+        </filter>
+    </defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Home" transform="translate(-938.000000, -864.000000)">
+            <g id="Safe" filter="url(#filter-1)" transform="translate(948.000000, 873.000000)">
+                <path d="M98.7444328,16.2555672 C120.418522,37.9296569 120.418522,73.0703431 98.7444328,94.7444328 C77.0703431,116.418522 41.9296569,116.418522 20.2555672,94.7444328 C-1.41852241,73.0703431 -1.41852241,37.9296569 20.2555672,16.2555672 C41.9296569,-5.41852241 77.0703431,-5.41852241 98.7444328,16.2555672" id="Path" fill="#FFFFFF" fill-rule="nonzero"></path>
+                <g id="Group" transform="translate(0.000000, 13.000000)" stroke="#2A5082" stroke-width="2">
+                    <line x1="112.258065" y1="7.82222222" x2="13.5483871" y2="7.82222222" id="Path"></line>
+                    <line x1="110.322581" y1="66.4888889" x2="110.322581" y2="13.6888889" id="Path"></line>
+                    <line x1="13.5483871" y1="72.3555556" x2="112.258065" y2="72.3555556" id="Path"></line>
+                    <line x1="15.483871" y1="39.1111111" x2="15.483871" y2="66.4888889" id="Path"></line>
+                    <line x1="15.483871" y1="13.6888889" x2="15.483871" y2="17.6" id="Path"></line>
+                    <polyline id="Path" points="17.4193548 86.0444444 19.5483871 88 34.8387097 88 36.7741935 86.0444444"></polyline>
+                    <polyline id="Path" points="89.0322581 86.0444444 91.1612903 88 106.451613 88 108.387097 86.0444444"></polyline>
+                    <path d="M23.2258065,25.4222222 L23.2258065,33.2444444 L1.93548387,33.2444444 C0.774193548,33.2444444 0,32.4622222 0,31.4844444 L0,21.7066667 C0,20.5333333 0.774193548,19.5555556 1.93548387,19.5555556 L25.1612903,19.5555556" id="Path"></path>
+                    <path d="M23.2258065,52.8 L23.2258065,60.6222222 L1.93548387,60.6222222 C0.774193548,60.6222222 0,59.84 0,58.8622222 L0,49.0844444 C0,47.9111111 0.774193548,46.9333333 1.93548387,46.9333333 L25.1612903,46.9333333" id="Path" fill="#FFFFFF" fill-rule="nonzero"></path>
+                    <polygon id="Path" fill="#188FFF" fill-rule="nonzero" points="44.516129 23.4666667 83.2258065 23.4666667 83.2258065 33.2444444 44.516129 33.2444444"></polygon>
+                    <line x1="48.3870968" y1="41.0666667" x2="56.1290323" y2="41.0666667" id="Path"></line>
+                    <line x1="60" y1="41.0666667" x2="67.7419355" y2="41.0666667" id="Path"></line>
+                    <line x1="71.6129032" y1="41.0666667" x2="79.3548387" y2="41.0666667" id="Path"></line>
+                    <line x1="48.3870968" y1="48.8888889" x2="56.1290323" y2="48.8888889" id="Path"></line>
+                    <line x1="60" y1="48.8888889" x2="67.7419355" y2="48.8888889" id="Path"></line>
+                    <line x1="71.6129032" y1="48.8888889" x2="79.3548387" y2="48.8888889" id="Path"></line>
+                    <line x1="48.3870968" y1="56.7111111" x2="56.1290323" y2="56.7111111" id="Path"></line>
+                    <line x1="60" y1="56.7111111" x2="67.7419355" y2="56.7111111" id="Path"></line>
+                    <line x1="71.6129032" y1="56.7111111" x2="79.3548387" y2="56.7111111" id="Path"></line>
+                    <path d="M5.80645161,60.6222222 L5.80645161,74.5066667 C5.80645161,77.6355556 8.32258065,80.1777778 11.6129032,80.1777778 L114.193548,80.1777778 C117.483871,80.1777778 120,77.6355556 120,74.5066667 L120,6.06222222 C120,2.73777778 117.483871,3.47376449e-15 114.193548,3.47376449e-15 L11.6129032,3.47376449e-15 C8.32258065,3.47376449e-15 5.80645161,2.73777778 5.80645161,6.06222222 L5.80645161,19.5555556" id="Path"></path>
+                    <line x1="5.80645161" y1="33.2444444" x2="5.80645161" y2="46.9333333" id="Path"></line>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

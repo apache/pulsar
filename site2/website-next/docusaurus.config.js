@@ -109,22 +109,63 @@ module.exports = {
     navbar: {
       title: "",
       logo: {
-        alt: "",
+        alt: "pulasr logo",
         src: "img/logo.svg",
       },
       items: [
         {
+          type: 'dropdown',
+          label: 'Get Started',
+          position: 'right',
+          items: [
+            {
+              label: 'Pulsar Basics',
+              href: '/pulsar-basics',
+            },
+            {
+              label: 'Quickstart',
+              href: '/quickstart'
+            },
+            {
+              label: 'Ecosystem',
+              href: '/ecosystem'
+            }
+            // ... more items
+          ],
+        },
+        {
           type: "doc",
           docId: "standalone",
-          position: "left",
+          position: "right",
           label: "Docs",
         },
-        { to: "/versions", label: "Versions", position: "left" },
-        { to: "/blog", label: "Blog", position: "left" },
         {
-          href: "https://github.com/apache/pulsar",
-          label: "GitHub",
-          position: "right",
+          type: 'dropdown',
+          label: 'Community',
+          position: 'right',
+          items: [
+            { to: "/community#welcom", label: "Welcome" },
+            { to: "/community#discussions", label: "Dicussions"},
+            { to: "/community#governance", label: "Governance"},
+            { to: "/community#community", label: "Meet the Community"},
+            { to: "/community#contribute", label: "Contribute"},
+            { to: "/community#coding-guide", label: "Coding Guide"},
+            { to: "/community#wiki", label: "Wiki"},
+            { to: "/community#issue-tracking", label: "Issue Tracking"},
+
+          ]
+        },
+        {
+          type: 'dropdown',
+          label: 'Learn',
+          position: 'right',
+          items: [
+            { to: "/blog", label: "Blog" },
+            { to: "/case-studies", label: "Case Studies"},
+            { to: "/resources", label: "Resources"},
+            { to: "/events", label: "Events"},
+
+          ]
         },
         // {
         //   type: "localeDropdown",
@@ -184,8 +225,26 @@ module.exports = {
       ],
     },
     footer: {
+      logo: {
+        alt: 'Pulsar Logo',
+        src: 'img/pulsar-white.svg',
+        href: '/',
+      },
       style: "dark",
-      copyright: `Inc.Copyright © ${new Date().getFullYear()} The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.`,
+      links: [
+        {
+          title: 'test.', //Column title
+	          items: [
+	            { //Embedded HTML
+	              html: `
+	              <p>Apache Pulsar is available under the <a href="/">Apache License, version 2.0.</a></p>
+	              `,
+	            },
+	          ],
+        }
+      ],
+      copyright: `<p>Apache Pulsar is available under the Apache License, version 2.0.</p>
+      <p>Inc.Copyright © ${new Date().getFullYear()} The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</p>`,
     },
     prism: {
       // theme: lightCodeTheme,

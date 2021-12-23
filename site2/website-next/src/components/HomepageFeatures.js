@@ -6,84 +6,61 @@ import { docUrl } from "../utils/index";
 
 const FeatureList = (language) => [
   {
-    // title: "Pulsar Functions",
-    title: `[Pulsar Functions](${docUrl("functions-overview", language)})`,
-    // Svg: require("../../static/img/undraw_docusaurus_mountain.svg").default,
-    content: (
-      <>
-        Easy to deploy, lightweight compute process, developer-friendly APIs, no
-        need to run your own stream processing engine.
-      </>
-    ),
+    title: "Cloud-native",
+    Svg: require("../../static/img/Technology-Solution.svg").default,
+    content: "A multiple layer approach separating compute from storage to work with cloud infrastructures and Kubernetes",
   },
   {
-    title: `[Proven in production](${docUrl(
-      "concepts-architecture-overview",
-      language
-    )})`,
-    // Svg: require("../../static/img/undraw_docusaurus_tree.svg").default,
-    content: (
-      <>
-        Run in production at Yahoo! scale for over 5 years, with millions of
-        messages per second across millions of topics.
-      </>
-    ),
+    title: "Serverless functions",
+    Svg: require("../../static/img/Technology-Solution.svg").default,
+    content:"Write serverless functions with developer-friendly APIs to natively process data immediately upon arrival. No need to run your own stream processing engine",
   },
   {
-    title: `[Horizontally scalable](${docUrl(
-      "concepts-architecture-overview",
-      language
-    )})`,
-    // Svg: require("../../static/img/undraw_docusaurus_react.svg").default,
-    content: <>Expand capacity seamlessly to hundreds of nodes.</>,
+    title: "Horizontally scalable",
+    Svg: require("../../static/img/horizontally-scalable.svg").default,
+    content: "Expand capacity seamlessly to hundreds of nodes.",
   },
   {
-    content:
-      "Low publish latency (< 5ms) at scale with strong durability guarantees.",
-    title: `[Low latency with durability](${docUrl(
-      "concepts-architecture-overview",
-      language
-    )})`,
+    title: "Low latency with durability",
+    Svg: require("../../static/img/low-latency.svg").default,
+    content:"Low publish latency (< 5ms) at scale with strong durability guarantees.",
   },
   {
-    content:
-      "Configurable replication between data centers across multiple geographic regions.",
-    title: `[Geo-replication](${docUrl("administration-geo", language)})`,
+    title: "Geo-replication",
+    Svg: require("../../static/img/geo-replication.svg").default,
+    content: "Configurable replication between data centers across multiple geographic regions.",
   },
   {
-    content:
-      "Built from the ground up as a multi-tenant system. Supports isolation, authentication, authorization and quotas.",
-    title: `[Multi-tenancy](${docUrl("concepts-multi-tenancy", language)})`,
+    title: "Multi-tenancy",
+    Svg: require("../../static/img/multi-tenancy.svg").default,
+    content:"Built from the ground up as a multi-tenant system. Supports isolation, authentication, authorization and quotas.",
   },
   {
-    content:
-      "Persistent message storage based on Apache BookKeeper. IO-level isolation between write and read operations.",
-    title: `[Persistent storage](${docUrl(
-      "concepts-architecture-overview#persistent-storage",
-      language
-    )})`,
+    title: "Persistent storage",
+    Svg: require("../../static/img/persistent-storage.svg").default,
+    content:"Persistent message storage based on Apache BookKeeper. IO-level isolation between write and read operations.",
   },
   {
-    content:
-      "Flexible messaging models with high-level APIs for Java, Go, Python, C++, Node.js, WebSocket and C#.",
-    title: `[Client libraries](${docUrl("client-libraries", language)})`,
+    title: "Client libraries",
+    Svg: require("../../static/img/client-libraries.svg").default,
+    content: "Flexible messaging models with high-level APIs for Java, Go, Python, C++, Node.js, WebSocket and C#.",
   },
   {
-    content:
-      "REST Admin API for provisioning, administration, tools and monitoring. Can be deployed on bare metal, Kubernetes, Amazon Web Services(AWS), and DataCenter Operating System(DC/OS).",
-    title: `[Operability](${docUrl("admin-api-overview", language)})`,
+    title: "Operability",
+    Svg: require("../../static/img/operability.svg").default,
+    content:"REST Admin API for provisioning, administration, tools and monitoring. Can be deployed on bare metal, Kubernetes, Amazon Web Services(AWS), and DataCenter Operating System(DC/OS).",
   },
 ];
 
 function Feature({ Svg, title, content }) {
   return (
-    <div className={clsx("col col--4 mb-24")}>
-      {/* <div className="text--center">
+    <div className="col col--4 mb-24 icon-feature">
+      <div className="text--left feature-image mb-4">
         <Svg className={styles.featureSvg} alt={title} />
-      </div> */}
-      <div className="text--center padding-horiz--md">
-        <ReactMarkdown children={title} className="text-2xl font-bold text-primary" />
-        <p className="mt-6 text-xl">{content}</p>
+      </div>
+      <div className="text--left padding-horiz--md">
+        <ReactMarkdown children={title} className="text-xl font-bold text-primary" />
+        <p className="mt-6">{content}</p>
       </div>
     </div>
   );

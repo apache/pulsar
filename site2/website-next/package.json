@@ -24,6 +24,7 @@
     "@emotion/react": "^11.6.0",
     "@emotion/styled": "^11.6.0",
     "@mdx-js/react": "^1.6.22",
+    "@mui/icons-material": "^5.2.1",
     "@mui/material": "^5.1.0",
     "@svgr/webpack": "^5.5.0",
     "clsx": "^1.1.1",
@@ -37,6 +38,7 @@
     "react-svg": "^14.1.2",
     "remark-linkify-regex": "^1.0.0",
     "replace-in-file": "^6.3.2",
+    "sine-waves": "^0.3.0",
     "url-loader": "^4.1.1"
   },
   "browserslist": {
