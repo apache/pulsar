@@ -416,6 +416,8 @@ public class Consumer {
                     if (cursorAckSet != null) {
                         ackedCount = batchSize - BitSet.valueOf(cursorAckSet).cardinality();
                     }
+                } else {
+                    ackedCount = batchSize;
                 }
             }
 
@@ -459,24 +461,14 @@ public class Consumer {
         for (int i = 0; i < ack.getMessageIdsCount(); i++) {
             MessageIdData msgId = ack.getMessageIdAt(i);
             PositionImpl position;
-            long ackedCount = 1;
-            long batchSize = getBatchSize(msgId);
-            Consumer ackOwnerConsumer = getAckOwnerConsumer(msgId.getLedgerId(), msgId.getEntryId());
             if (msgId.getAckSetsCount() > 0) {
-                long[] ackSets = new long[msgId.getAckSetsCount()];
+                long[] acksSets = new long[msgId.getAckSetsCount()];
                 for (int j = 0; j < msgId.getAckSetsCount(); j++) {
-                    ackSets[j] = msgId.getAckSetAt(j);
+                    acksSets[j] = msgId.getAckSetAt(j);
                 }
-                position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), ackSets);
-                ackedCount = getAckedCount(position, batchSize, ackSets);
+                position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), acksSets);
             } else {
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
-                if (isDeletionAtBatchIndexLevelEnabled()) {
-                    long[] cursorAckSet = getCursorAckSet(position);
-                    if (cursorAckSet != null) {
-                        ackedCount = batchSize - BitSet.valueOf(cursorAckSet).cardinality();
-                    }
-                }
             }
 
             if (msgId.hasBatchIndex()) {
@@ -484,8 +476,6 @@ public class Consumer {
             } else {
                 positionsAcked.add(new MutablePair<>(position, 0));
             }
-
-            addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
 
             checkCanRemovePendingAcksAndHandle(position, msgId);
 
