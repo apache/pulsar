@@ -30,10 +30,22 @@ jobs:
     name: Run OWASP Dependency Check
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: master
+            checkout_branch: 'master'
+          - name: branch-2.9
+            checkout_branch: 'branch-2.9'
+          - name: branch-2.8
+            checkout_branch: 'branch-2.8'
 
     steps:
       - name: checkout
         uses: actions/checkout@v2
+        with:
+          ref: ${{ matrix.checkout_branch }}
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
