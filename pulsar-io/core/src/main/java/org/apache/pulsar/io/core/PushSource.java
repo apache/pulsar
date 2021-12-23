@@ -20,7 +20,6 @@ package org.apache.pulsar.io.core;
 
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
-
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.functions.api.Record;
@@ -60,7 +59,7 @@ public abstract class PushSource<T> implements Source<T> {
      * @param sourceContext environment where the source connector is running
      * @throws Exception IO type exceptions when opening a connector
      */
-    abstract public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception;
+    public abstract void open(Map<String, Object> config, SourceContext sourceContext) throws Exception;
 
     /**
      * Attach a consumer function to this Source. This is invoked by the implementation
@@ -77,7 +76,7 @@ public abstract class PushSource<T> implements Source<T> {
     }
 
     /**
-     * Get length of the queue that records are push onto
+     * Get length of the queue that records are push onto.
      * Users can override this method to customize the queue length
      * @return queue length
      */
