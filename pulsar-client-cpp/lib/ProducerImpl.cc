@@ -389,28 +389,45 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
     }
 
     const auto& uncompressedPayload = msg.impl_->payload;
-    uint32_t uncompressedSize = uncompressedPayload.readableBytes();
-    if (!canEnqueueRequest(callback, uncompressedSize)) {
+    const uint32_t uncompressedSize = uncompressedPayload.readableBytes();
+    const auto result = canEnqueueRequest(uncompressedSize);
+    if (result != ResultOk) {
+        // If queue is full sending the batch immediately, no point waiting till batchMessagetimeout
+        if (batchMessageContainer_) {
+            LOG_DEBUG(getName() << " - sending batch message immediately");
+            Lock lock(mutex_);
+            auto failures = batchMessageAndSend();
+            lock.unlock();
+            failures.complete();
+        }
+
+        callback(result, {});
         return;
     }
+
+    // We have already reserved a spot, so if we need to early return for failed result, we should release the
+    // semaphore and memory first.
+    auto handleFailedResult = [this, uncompressedSize, callback](Result result) {
+        releaseSemaphore(uncompressedSize);  // it releases the memory as well
+        callback(result, {});
+    };
 
     const bool compressed = !canAddToBatch(msg);
     const auto payload =
         compressed ? uncompressedPayload : applyCompression(uncompressedPayload, conf_.getCompressionType());
     const auto compressedSize = static_cast<uint32_t>(payload.readableBytes());
     const auto maxMessageSize = static_cast<uint32_t>(ClientConnection::getMaxMessageSize());
+
     if (compressedSize > ClientConnection::getMaxMessageSize() && !chunkingEnabled_) {
         LOG_DEBUG(getName() << " - compressed Message payload size " << payload.readableBytes()
                             << " cannot exceed " << ClientConnection::getMaxMessageSize() << " bytes");
-        releaseSemaphore(uncompressedSize);
-        callback(ResultMessageTooBig, {});
+        handleFailedResult(ResultMessageTooBig);
         return;
     }
 
     auto& msgMetadata = msg.impl_->metadata;
     if (!msgMetadata.has_replicated_from() && msgMetadata.has_producer_name()) {
-        releaseSemaphore(uncompressedSize);
-        callback(ResultInvalidMessage, {});
+        handleFailedResult(ResultInvalidMessage);
         return;
     }
 
@@ -418,8 +435,9 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
         canAddToBatch(msg) ? 1 : getNumOfChunks(uncompressedSize, ClientConnection::getMaxMessageSize());
     // Each chunk should be sent individually, so try to acquire extra permits for chunks.
     for (int i = 0; i < (totalChunks - 1); i++) {
-        if (!canEnqueueRequest(callback, 0 /* The memory has already reserved */)) {
-            releaseSemaphore(uncompressedSize);
+        const auto result = canEnqueueRequest(0);  // size is 0 because the memory has already reserved
+        if (result != ResultOk) {
+            handleFailedResult(result);
             return;
         }
     }
@@ -436,7 +454,8 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
     producerStatsBasePtr_->messageSent(msg);
     auto self = shared_from_this();
     const auto now = boost::posix_time::microsec_clock::universal_time();
-    SendCallback cb = [this, self, now, callback](Result result, const MessageId& messageId) {
+    SendCallback callbackWithStatsUpdate = [this, self, now, callback](Result result,
+                                                                       const MessageId& messageId) {
         producerStatsBasePtr_->messageReceived(result, now);
         callback(result, messageId);
     };
@@ -447,7 +466,7 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
             batchMessageAndSend().complete();
         }
         bool isFirstMessage = batchMessageContainer_->isFirstMessageToAdd(msg);
-        bool isFull = batchMessageContainer_->add(msg, cb);
+        bool isFull = batchMessageContainer_->add(msg, callbackWithStatsUpdate);
         if (isFirstMessage) {
             batchTimer_->expires_from_now(
                 boost::posix_time::milliseconds(conf_.getBatchingMaxPublishDelayMs()));
@@ -480,12 +499,12 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
             SharedBuffer encryptedPayload;
             if (!encryptMessage(msgMetadata, chunkedPayload, encryptedPayload)) {
                 releaseSemaphore(uncompressedSize);
-                cb(ResultCryptoError, {});
+                callbackWithStatsUpdate(ResultCryptoError, {});
                 return;
             }
 
-            sendMessage(OpSendMsg{msg, (chunkId == totalChunks - 1) ? cb : nullptr, producerId_,
-                                  static_cast<uint64_t>(sequenceId), conf_.getSendTimeout(), 1,
+            sendMessage(OpSendMsg{msg, (chunkId == totalChunks - 1) ? callbackWithStatsUpdate : nullptr,
+                                  producerId_, static_cast<uint64_t>(sequenceId), conf_.getSendTimeout(), 1,
                                   uncompressedSize});
         }
     }
@@ -522,23 +541,6 @@ Result ProducerImpl::canEnqueueRequest(uint32_t payloadSize) {
 
         return ResultOk;
     }
-}
-
-bool ProducerImpl::canEnqueueRequest(const SendCallback& callback, uint32_t payloadSize) {
-    const auto result = canEnqueueRequest(payloadSize);
-    if (result != ResultOk) {
-        // If queue is full sending the batch immediately, no point waiting till batchMessagetimeout
-        if (batchMessageContainer_) {
-            LOG_DEBUG(getName() << " - sending batch message immediately");
-            Lock lock(mutex_);
-            auto failures = batchMessageAndSend();
-            lock.unlock();
-            failures.complete();
-        }
-
-        callback(result, {});
-    }
-    return result == ResultOk;
 }
 
 void ProducerImpl::releaseSemaphore(uint32_t payloadSize) {

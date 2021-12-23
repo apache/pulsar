@@ -136,13 +136,6 @@ class ProducerImpl : public HandlerBase,
      */
     Result canEnqueueRequest(uint32_t payloadSize);
 
-    /**
-     * It calls the previous overloaded method. If the result is not ResultOk, `batchMessageAndSend` will be
-     * called to send all pending messages. Then `callback` will be completed with `result` and a default
-     * MessageId.
-     */
-    bool canEnqueueRequest(const SendCallback& callback, uint32_t size);
-
     void releaseSemaphore(uint32_t payloadSize);
     void releaseSemaphoreForSendOp(const OpSendMsg& op);
 
