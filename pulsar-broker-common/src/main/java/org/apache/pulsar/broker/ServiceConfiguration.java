@@ -2389,7 +2389,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS TrustStore password for broker"
+            doc = "TLS TrustStore password for broker, null means empty password."
     )
     private String tlsTrustStorePassword = null;
 
