@@ -902,8 +902,11 @@ public class Consumer {
     }
 
     private int addAndGetUnAckedMsgs(Consumer consumer, int ackedMessages) {
-        subscription.addUnAckedMessages(ackedMessages);
-        return UNACKED_MESSAGES_UPDATER.addAndGet(consumer, ackedMessages);
+        if (Subscription.isIndividualAckMode(subType)) {
+            subscription.addUnAckedMessages(ackedMessages);
+            return UNACKED_MESSAGES_UPDATER.addAndGet(consumer, ackedMessages);
+        }
+        return 0;
     }
 
     private void clearUnAckedMsgs() {
