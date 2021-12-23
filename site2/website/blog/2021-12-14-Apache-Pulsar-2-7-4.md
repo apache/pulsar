@@ -11,7 +11,7 @@ Highlights of this release are as below:
 
 - NPE does not occur on `OpAddEntry` while ManagedLedger is closing. [PR-12364](https://github.com/apache/pulsar/pull/12364)
 
-- Fix inconsistent behavior for namespace bundles cache [PR-11346](https://github.com/apache/pulsar/pull/11346)
+- Fix inconsistent behavior for namespace bundles cache. [PR-11346](https://github.com/apache/pulsar/pull/11346)
 
 This blog walks through the most noteworthy changes grouped by the affected functionalities. For the complete list including all enhancements and bug fixes, check out the [Pulsar 2.7.4 Release Notes](TBD-link).
 
@@ -63,7 +63,6 @@ This blog walks through the most noteworthy changes grouped by the affected func
 
     Previously, dispatch rate limiter did not take effect in cases where all consumers started reading in the next second since `acquiredPermits` was reset to 0 every second.
 
-
 - **Resolution**
     
     Changed the behaviour of `DispatchRateLimiter` by minus `permits` every second instead of reset `acquiredPermits` to 0. Consumers stopped reading entries temporarily until `acquiredPermits` returned to a value less than `permits` .
@@ -86,7 +85,7 @@ This blog walks through the most noteworthy changes grouped by the affected func
 
 - **Resolution**
 
-    Invalidate namespace policy cache when bundle cache is invalidated.
+    Invalidated namespace policy cache when bundle cache was invalidated.
 
 ### Close the replicator and replication client after a cluster is deleted. [PR-11342](https://github.com/apache/pulsar/pull/11342)
 
