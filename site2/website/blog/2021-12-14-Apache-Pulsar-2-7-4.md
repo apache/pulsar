@@ -7,15 +7,25 @@ The Apache Pulsar community releases version 2.7.4! 32 contributors provided imp
 
 Highlights of this release are as below:
 
+- Upgrade Log4j to 2.17.0 - [CVE-2021-45105](https://pulsar.apache.org/blog/2021/12/11/Log4j-CVE/). [PR-13392](https://github.com/apache/pulsar/pull/13392)
+  
 - `ManagerLedger` can be referenced correctly when `OpAddEntry` is recycled. [PR-12103](https://github.com/apache/pulsar/pull/12103)
 
 - NPE does not occur on `OpAddEntry` while ManagedLedger is closing. [PR-12364](https://github.com/apache/pulsar/pull/12364)
 
-- Fix inconsistent behavior for namespace bundles cache. [PR-11346](https://github.com/apache/pulsar/pull/11346)
-
 This blog walks through the most noteworthy changes grouped by the affected functionalities. For the complete list including all enhancements and bug fixes, check out the [Pulsar 2.7.4 Release Notes](TBD-link).
 
 # Notable bug fixes and enhancements
+
+### Upgrade log4j to 2.17.0 - [CVE-2021-45105](https://pulsar.apache.org/blog/2021/12/11/Log4j-CVE/). [PR-13392](https://github.com/apache/pulsar/pull/13392)
+
+- **Issue**
+
+    A serious vulnerability was reported regarding Log4j that can allow remote execution for attackers. The vulnerability issue is described and tracked under [CVE-2021-44228](https://nvd.nist.gov/vuln/detail/CVE-2021-44228).
+
+- **Resolution**
+  
+  Patch your systems as soon as possible by setting the Java property to `-Dlog4j2.formatMsgNoLookups=true` and set the environment variable `LOG4J_FORMAT_MSG_NO_LOOKUPS=true`. Details see [Log4j2 Zero Day vulnerability (CVE-2021-44228)](https://pulsar.apache.org/blog/2021/12/11/Log4j-CVE/).
 
 ### `ManagerLedger` can be referenced correctly when `OpAddEntry` is recycled. [PR-12103](https://github.com/apache/pulsar/pull/12103)
 
