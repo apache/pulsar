@@ -295,9 +295,12 @@ If you want to put messages into a retrial queue, you can use the following API.
 consumer.reconsumeLater(msg, 3, TimeUnit.SECONDS);
 ```
 
-If you want to add custom properties for the reconsumeLater, you can use the following API.
+If you want to add custom properties for the `reconsumeLater`, you can use the following API.
 
 ```java
+Map<String, String> customProperties = new HashMap<String, String>();
+customProperties.put("custom-key-1", "custom-value-1");
+customProperties.put("custom-key-2", "custom-value-2");
 consumer.reconsumeLater(msg, customProperties, 3, TimeUnit.SECONDS);
 ```
 
