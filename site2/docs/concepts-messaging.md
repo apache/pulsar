@@ -273,7 +273,7 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 .subscribe();
 ```
 
-Retry letter message contains some special property，automatically created by client.
+Retry letter message contains some special properties created by a client automatically.
 
 special property | Description
 :--------------------|:-----------
