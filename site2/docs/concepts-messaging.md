@@ -275,7 +275,7 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
 
 Retry letter message contains some special properties created by a client automatically.
 
-special property | Description
+Special property | Description
 :--------------------|:-----------
 `REAL_TOPIC` | The real topic name.
 `ORIGIN_MESSAGE_ID` | The origin message ID. It is crucial for message tracking.
