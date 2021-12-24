@@ -269,6 +269,14 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("get-retention");
             cmdUsageFormatter.addDeprecatedCommand("set-retention");
             cmdUsageFormatter.addDeprecatedCommand("remove-retention");
+
+            cmdUsageFormatter.addDeprecatedCommand("get-backlog-quotas");
+            cmdUsageFormatter.addDeprecatedCommand("set-backlog-quota");
+            cmdUsageFormatter.addDeprecatedCommand("remove-backlog-quota");
+
+            cmdUsageFormatter.addDeprecatedCommand("get-persistence");
+            cmdUsageFormatter.addDeprecatedCommand("set-persistence");
+            cmdUsageFormatter.addDeprecatedCommand("remove-persistence");
         }
     }
 
@@ -638,6 +646,10 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
             String internalInfo = getTopics().getInternalInfo(topic);
+            if (internalInfo == null) {
+                System.out.println("Did not find any internal metadata info");
+                return;
+            }
             JsonObject result = JsonParser.parseString(internalInfo).getAsJsonObject();
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(result));

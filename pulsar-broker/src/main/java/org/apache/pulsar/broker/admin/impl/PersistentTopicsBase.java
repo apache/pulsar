@@ -2726,8 +2726,8 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Map<BacklogQuota.BacklogQuotaType, BacklogQuota>> internalGetBacklogQuota(
-            boolean applied) {
-        return getTopicPoliciesAsyncWithRetry(topicName)
+            boolean applied, boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> {
                 Map<BacklogQuota.BacklogQuotaType, BacklogQuota> quotaMap = op
                         .map(TopicPolicies::getBackLogQuotaMap)
@@ -2799,14 +2799,14 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetBacklogQuota(BacklogQuota.BacklogQuotaType backlogQuotaType,
-                                           BacklogQuotaImpl backlogQuota) {
+                                           BacklogQuotaImpl backlogQuota, boolean isGlobal) {
         validateTopicPolicyOperation(topicName, PolicyName.BACKLOG, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         BacklogQuota.BacklogQuotaType finalBacklogQuotaType = backlogQuotaType == null
                 ? BacklogQuota.BacklogQuotaType.destination_storage : backlogQuotaType;
 
-        return getTopicPoliciesAsyncWithRetry(topicName)
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenCompose(op -> {
                 TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
                 RetentionPolicies retentionPolicies = getRetentionPolicies(topicName, topicPolicies);
@@ -2825,6 +2825,7 @@ public class PersistentTopicsBase extends AdminResource {
                     topicPolicies.getBackLogQuotaMap().remove(finalBacklogQuotaType.name());
                 }
                 Map<String, BacklogQuotaImpl> backLogQuotaMap = topicPolicies.getBackLogQuotaMap();
+                topicPolicies.setIsGlobal(isGlobal);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
                     .thenRun(() -> {
                         try {
@@ -2998,8 +2999,8 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
-    protected CompletableFuture<PersistencePolicies> internalGetPersistence(boolean applied) {
-        return getTopicPoliciesAsyncWithRetry(topicName)
+    protected CompletableFuture<PersistencePolicies> internalGetPersistence(boolean applied, boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getPersistence)
                 .orElseGet(() -> {
                     if (applied) {
@@ -3017,23 +3018,26 @@ public class PersistentTopicsBase extends AdminResource {
                 }));
     }
 
-    protected CompletableFuture<Void> internalSetPersistence(PersistencePolicies persistencePolicies) {
+    protected CompletableFuture<Void> internalSetPersistence(PersistencePolicies persistencePolicies,
+                                                             boolean isGlobal) {
         validatePersistencePolicies(persistencePolicies);
-        return getTopicPoliciesAsyncWithRetry(topicName)
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenCompose(op -> {
                 TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
                 topicPolicies.setPersistence(persistencePolicies);
+                topicPolicies.setIsGlobal(isGlobal);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
             });
     }
 
-    protected CompletableFuture<Void> internalRemovePersistence() {
-        return getTopicPoliciesAsyncWithRetry(topicName)
+    protected CompletableFuture<Void> internalRemovePersistence(boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenCompose(op -> {
                 if (!op.isPresent()) {
                     return CompletableFuture.completedFuture(null);
                 }
                 op.get().setPersistence(null);
+                op.get().setIsGlobal(isGlobal);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
             });
     }

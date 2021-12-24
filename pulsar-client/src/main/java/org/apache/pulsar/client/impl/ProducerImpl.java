@@ -89,6 +89,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.RelativeTimeUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -467,6 +468,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         // chunked message also sent individually so, try to acquire send-permits
         for (int i = 0; i < (totalChunks - 1); i++) {
             if (!canEnqueueRequest(callback, message.getSequenceId(), 0 /* The memory was already reserved */)) {
+                client.getMemoryLimitController().releaseMemory(uncompressedSize);
+                semaphoreRelease(i + 1);
                 return;
             }
         }
@@ -1260,9 +1263,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     String errMsg = String.format(
                         "%s : createdAt %s ns ago, firstSentAt %s ns ago, lastSentAt %s ns ago, retryCount %s",
                         te.getMessage(),
-                        ns - this.createdAt,
-                        this.firstSentAt <= 0 ? ns - this.lastSentAt : ns - this.firstSentAt,
-                        ns - this.lastSentAt,
+                        RelativeTimeUtil.nsToSeconds(ns - this.createdAt),
+                        RelativeTimeUtil.nsToSeconds(this.firstSentAt <= 0 ? ns - this.lastSentAt : ns - this.firstSentAt),
+                        RelativeTimeUtil.nsToSeconds(ns - this.lastSentAt),
                         retryCount
                     );
 
@@ -1324,6 +1327,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
         };
     }
+
 
     /**
      * Queue implementation that is used as the pending messages queue.

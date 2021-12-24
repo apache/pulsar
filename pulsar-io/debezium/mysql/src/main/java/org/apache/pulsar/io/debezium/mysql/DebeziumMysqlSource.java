@@ -19,12 +19,11 @@
 package org.apache.pulsar.io.debezium.mysql;
 
 import java.util.Map;
-
 import org.apache.kafka.connect.runtime.TaskConfig;
 import org.apache.pulsar.io.debezium.DebeziumSource;
 
 /**
- * A pulsar source that runs debezium mysql source
+ * A pulsar source that runs debezium mysql source.
  */
 public class DebeziumMysqlSource extends DebeziumSource {
     private static final String DEFAULT_TASK = "io.debezium.connector.mysql.MySqlConnectorTask";

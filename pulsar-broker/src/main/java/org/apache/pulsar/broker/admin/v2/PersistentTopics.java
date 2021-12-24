@@ -1624,10 +1624,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("applied") boolean applied,
             @ApiParam(value = "Is authentication required to perform this operation")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalGetBacklogQuota(applied))
+            .thenCompose(__ -> internalGetBacklogQuota(applied, isGlobal))
             .thenAccept(asyncResponse::resume)
             .exceptionally(ex -> {
                 handleTopicPolicyException("getBacklogQuotaMap", ex, asyncResponse);
@@ -1651,10 +1652,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType, BacklogQuotaImpl backlogQuota) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetBacklogQuota(backlogQuotaType, backlogQuota))
+            .thenCompose(__ -> internalSetBacklogQuota(backlogQuotaType, backlogQuota, isGlobal))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
                 handleTopicPolicyException("setBacklogQuota", ex, asyncResponse);
@@ -1675,10 +1677,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType,
             @ApiParam(value = "Is authentication required to perform this operation")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetBacklogQuota(backlogQuotaType, null))
+            .thenCompose(__ -> internalSetBacklogQuota(backlogQuotaType, null, isGlobal))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
                 handleTopicPolicyException("removeBacklogQuota", ex, asyncResponse);
@@ -2036,11 +2039,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("applied") boolean applied,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalGetPersistence(applied))
+            .thenCompose(__ -> internalGetPersistence(applied, isGlobal))
             .thenApply(asyncResponse::resume)
             .exceptionally(ex -> {
                 handleTopicPolicyException("getPersistence", ex, asyncResponse);
@@ -2063,11 +2067,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Bookkeeper persistence policies for specified topic")
             PersistencePolicies persistencePolicies) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetPersistence(persistencePolicies))
+            .thenCompose(__ -> internalSetPersistence(persistencePolicies, isGlobal))
             .thenRun(() -> {
                 try {
                     log.info("[{}] Successfully updated persistence policies: "
@@ -2098,11 +2103,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalRemovePersistence())
+            .thenCompose(__ -> internalRemovePersistence(isGlobal))
             .thenRun(() -> {
                 log.info("[{}] Successfully remove persistence policies: namespace={}, topic={}",
                         clientAppId(),

@@ -21,7 +21,6 @@ package org.apache.pulsar.io.hdfs3.sink.seq;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
-
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.SequenceFile.Writer;

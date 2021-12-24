@@ -379,6 +379,12 @@
         {
           "type": "doc",
           "id": "version-2.2.0/develop-binary-protocol"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Development",
       "items": [
         {
           "type": "doc",
