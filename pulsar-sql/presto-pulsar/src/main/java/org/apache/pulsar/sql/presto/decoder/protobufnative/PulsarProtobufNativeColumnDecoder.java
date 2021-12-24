@@ -194,10 +194,13 @@ public class PulsarProtobufNativeColumnDecoder {
                 return floatToIntBits((Float) value);
             }
 
-            //return seconds field of protobuf/timestamp
+            //return millisecond which parsed from protobuf/timestamp
             if (columnType instanceof TimestampType && value instanceof DynamicMessage) {
                 DynamicMessage message = (DynamicMessage) value;
-                return (long) message.getField(message.getDescriptorForType().findFieldByName("seconds"));
+                long nanos = (int) message.getField(message.getDescriptorForType().findFieldByName("nanos"));
+                long seconds = (long) message.getField(message.getDescriptorForType().findFieldByName("seconds"));
+                //maybe an exception here, but seems will never happen in hundred years.
+                return seconds * MILLIS_PER_SECOND + nanos / NANOS_PER_MILLISECOND;
             }
 
             throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED,
@@ -384,5 +387,6 @@ public class PulsarProtobufNativeColumnDecoder {
 
     protected static final String PROTOBUF_MAP_KEY_NAME = "key";
     protected static final String PROTOBUF_MAP_VALUE_NAME = "value";
-
+    private static final long MILLIS_PER_SECOND = 1000;
+    private static final long NANOS_PER_MILLISECOND = 1000000;
 }

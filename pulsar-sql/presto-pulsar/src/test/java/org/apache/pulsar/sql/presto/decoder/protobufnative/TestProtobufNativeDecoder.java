@@ -67,6 +67,12 @@ public class TestProtobufNativeDecoder extends AbstractDecoderTester {
 
     @Test
     public void testPrimitiveType() {
+        //Time: 2921-1-1
+        long mills = 30010669261001L;
+        Timestamp timestamp = Timestamp.newBuilder()
+                .setSeconds(mills / 1000)
+                .setNanos((int) (mills % 1000) * 1000000)
+                .build();
 
         TestMsg.TestMessage testMessage = TestMsg.TestMessage.newBuilder()
                 .setStringField("aaa")
@@ -85,7 +91,7 @@ public class TestProtobufNativeDecoder extends AbstractDecoderTester {
                 .setBoolField(true)
                 .setBytesField(ByteString.copyFrom("abc".getBytes()))
                 .setTestEnum(TestMsg.TestEnum.FAILOVER)
-                .setTimestampField(Timestamp.newBuilder().setSeconds(System.currentTimeMillis()).build())
+                .setTimestampField(timestamp)
                 .build();
 
         ByteBuf payload = io.netty.buffer.Unpooled
@@ -169,7 +175,7 @@ public class TestProtobufNativeDecoder extends AbstractDecoderTester {
         PulsarColumnHandle timestampFieldColumnHandle = new PulsarColumnHandle(getPulsarConnectorId().toString(),
                 "timestampField", TIMESTAMP,false,false,"timestampField",null,null,
                 PulsarColumnHandle.HandleKeyValueType.NONE);
-        checkValue(decodedRow, timestampFieldColumnHandle, testMessage.getTimestampField().getSeconds());
+        checkValue(decodedRow, timestampFieldColumnHandle, mills);
 
     }
 
