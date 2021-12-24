@@ -38,12 +38,74 @@ public class CmdTopicPolicies extends CmdBase {
     public CmdTopicPolicies(Supplier<PulsarAdmin> admin) {
         super("topicPolicies", admin);
 
+        jcommander.addCommand("get-message-ttl", new GetMessageTTL());
+        jcommander.addCommand("set-message-ttl", new SetMessageTTL());
+        jcommander.addCommand("remove-message-ttl", new RemoveMessageTTL());
         jcommander.addCommand("get-retention", new GetRetention());
         jcommander.addCommand("set-retention", new SetRetention());
         jcommander.addCommand("remove-retention", new RemoveRetention());
         jcommander.addCommand("get-backlog-quota", new GetBacklogQuotaMap());
         jcommander.addCommand("set-backlog-quota", new SetBacklogQuota());
         jcommander.addCommand("remove-backlog-quota", new RemoveBacklogQuota());
+    }
+
+    @Parameters(commandDescription = "Get the message TTL for a topic")
+    private class GetMessageTTL extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic")
+        private boolean applied = false;
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
+                + "If set to true, broker returned global topic policies")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(getTopicPolicies(isGlobal).getMessageTTL(persistentTopic, applied));
+        }
+    }
+
+    @Parameters(commandDescription = "Set message TTL for a topic")
+    private class SetMessageTTL extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-t", "--ttl" }, description = "Message TTL for topic in second, allowed range from 1 to Integer.MAX_VALUE", required = true)
+        private int messageTTLInSecond;
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
+                + "If set to true, broker returned global topic policies")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            if (messageTTLInSecond < 0) {
+                throw new ParameterException(String.format("Invalid retention policy type '%d'. ", messageTTLInSecond));
+            }
+
+            String persistentTopic = validatePersistentTopic(params);
+            getTopicPolicies(isGlobal).setMessageTTL(persistentTopic, messageTTLInSecond);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove message TTL for a topic")
+    private class RemoveMessageTTL extends CliCommand {
+
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to remove this policy globally. "
+                + "If set to true, broker returned global topic policies")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopicPolicies(isGlobal).removeMessageTTL(persistentTopic);
+        }
     }
 
     @Parameters(commandDescription = "Get the retention policy for a topic")
