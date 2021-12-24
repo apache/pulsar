@@ -126,9 +126,14 @@ public class ClusterResources extends BaseResources<ClusterData> {
 
         public void deleteFailureDomains(String clusterName) throws MetadataStoreException {
             String failureDomainPath = joinPath(BASE_CLUSTERS_PATH, clusterName, FAILURE_DOMAIN);
+            if (!exists(failureDomainPath)) {
+                return;
+            }
+
             for (String domain : getChildren(failureDomainPath)) {
                 delete(joinPath(failureDomainPath, domain));
             }
+
             delete(failureDomainPath);
         }
 
