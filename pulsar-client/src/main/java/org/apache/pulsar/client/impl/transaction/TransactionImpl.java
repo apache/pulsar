@@ -70,7 +70,7 @@ public class TransactionImpl implements Transaction , TimerTask {
     /**
      *  The latest execution status can be obtained here.
      */
-    private volatile CompletableFuture<Void> executedFuture = new CompletableFuture<>();
+    private volatile CompletableFuture<Void> executedFuture = null;
     private volatile State state;
     private static final AtomicReferenceFieldUpdater<TransactionImpl, State> STATE_UPDATE =
         AtomicReferenceFieldUpdater.newUpdater(TransactionImpl.class, State.class, "state");
@@ -155,7 +155,7 @@ public class TransactionImpl implements Transaction , TimerTask {
     public synchronized <T> void registerInternal(CompletableFuture<T> completableFuture) {
         //There have been an exception, it means this transaction should not be commit,
         //so there is no need to record the execution of other operations
-        if (!executedFuture.isCompletedExceptionally()) {
+        if (executedFuture == null || !executedFuture.isCompletedExceptionally()) {
             opsExecutingInTxn.incrementAndGet();
             executedFuture = new CompletableFuture<>();
             completableFuture.thenRun(() -> {
@@ -191,7 +191,7 @@ public class TransactionImpl implements Transaction , TimerTask {
     public CompletableFuture<Void> commit() {
         return checkIfOpenOrCommitting().thenCompose((value) -> {
             CompletableFuture<Void> commitFuture = new CompletableFuture<>();
-            executedFuture.thenRun(() -> {
+            Runnable executedCommit = () -> {
                 this.state = State.COMMITTING;
                 tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits))
                         .whenComplete((vx, ex) -> {
@@ -206,11 +206,16 @@ public class TransactionImpl implements Transaction , TimerTask {
                                 commitFuture.complete(vx);
                             }
                         });
-            }).exceptionally(e -> {
-                commitFuture.completeExceptionally(new PulsarClientException
-                        .TransactionCanNotCommitException(this.txnIdMostBits, this.txnIdLeastBits, e));
-                return null;
-            });
+            };
+            if (executedFuture == null) {
+                executedCommit.run();
+            } else {
+                executedFuture.thenRun(executedCommit).exceptionally(e -> {
+                    commitFuture.completeExceptionally(new PulsarClientException
+                            .TransactionCanNotCommitException(this.txnIdMostBits, this.txnIdLeastBits, e));
+                    return null;
+                });
+            }
             return commitFuture;
         });
     }
@@ -219,7 +224,7 @@ public class TransactionImpl implements Transaction , TimerTask {
     public CompletableFuture<Void> abort() {
         return checkIfOpenOrAborting().thenCompose(value -> {
             CompletableFuture<Void> abortFuture = new CompletableFuture<>();
-            executedFuture.thenRun(() -> {
+            Runnable executeAbort = () -> {
                 this.state = State.ABORTING;
                 if (cumulativeAckConsumers != null) {
                     cumulativeAckConsumers.forEach((consumer, integer) ->
@@ -244,7 +249,12 @@ public class TransactionImpl implements Transaction , TimerTask {
                     }
 
                 });
-            });
+            };
+            if (executedFuture == null) {
+                executeAbort.run();
+            } else {
+                executedFuture.thenRun(executeAbort);
+            }
 
             return abortFuture;
         });
