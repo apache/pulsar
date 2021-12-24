@@ -417,7 +417,8 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 </tr>
 <tr id="i45" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;org.apache.pulsar.common.policies.data.PersistencePolicies&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalGetPersistence-boolean-">internalGetPersistence</a></span>(boolean&nbsp;applied)</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalGetPersistence-boolean-boolean-">internalGetPersistence</a></span>(boolean&nbsp;applied,
+                      boolean&nbsp;isGlobal)</code>&nbsp;</td>
 </tr>
 <tr id="i46" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Optional.html?is-external=true" title="class or interface in java.util">Optional</a>&lt;org.apache.pulsar.common.policies.data.PublishRate&gt;&gt;</code></td>
@@ -506,7 +507,7 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 </tr>
 <tr id="i64" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalRemovePersistence--">internalRemovePersistence</a></span>()</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalRemovePersistence-boolean-">internalRemovePersistence</a></span>(boolean&nbsp;isGlobal)</code>&nbsp;</td>
 </tr>
 <tr id="i65" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
@@ -620,7 +621,8 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 </tr>
 <tr id="i90" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalSetPersistence-org.apache.pulsar.common.policies.data.PersistencePolicies-">internalSetPersistence</a></span>(org.apache.pulsar.common.policies.data.PersistencePolicies&nbsp;persistencePolicies)</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalSetPersistence-org.apache.pulsar.common.policies.data.PersistencePolicies-boolean-">internalSetPersistence</a></span>(org.apache.pulsar.common.policies.data.PersistencePolicies&nbsp;persistencePolicies,
+                      boolean&nbsp;isGlobal)</code>&nbsp;</td>
 </tr>
 <tr id="i91" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
@@ -1409,31 +1411,33 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 <pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalRemoveRetention(boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
-<a name="internalGetPersistence-boolean-">
+<a name="internalGetPersistence-boolean-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalGetPersistence</h4>
-<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;org.apache.pulsar.common.policies.data.PersistencePolicies&gt;&nbsp;internalGetPersistence(boolean&nbsp;applied)</pre>
+<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;org.apache.pulsar.common.policies.data.PersistencePolicies&gt;&nbsp;internalGetPersistence(boolean&nbsp;applied,
+                                                                                                               boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
-<a name="internalSetPersistence-org.apache.pulsar.common.policies.data.PersistencePolicies-">
+<a name="internalSetPersistence-org.apache.pulsar.common.policies.data.PersistencePolicies-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalSetPersistence</h4>
-<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalSetPersistence(org.apache.pulsar.common.policies.data.PersistencePolicies&nbsp;persistencePolicies)</pre>
+<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalSetPersistence(org.apache.pulsar.common.policies.data.PersistencePolicies&nbsp;persistencePolicies,
+                                                         boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
-<a name="internalRemovePersistence--">
+<a name="internalRemovePersistence-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalRemovePersistence</h4>
-<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalRemovePersistence()</pre>
+<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalRemovePersistence(boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
 <a name="internalSetMaxMessageSize-java.lang.Integer-">

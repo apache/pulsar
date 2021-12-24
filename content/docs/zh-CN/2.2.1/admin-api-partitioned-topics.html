@@ -96,7 +96,7 @@
 admin.persistentTopics().createPartitionedTopic(topicName, numPartitions);
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="获取元数据"></a><a href="#获取元数据" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取元数据</h3>
-<p>Partitioned topics have metadata associated with them that you can fetch as a JSON object. The following metadata fields are currently available:</p>
+<p>你可以以JSON格式获取分区topics对应的元数据。 下面是当前可用的元数据字段：</p>
 <table>
 <thead>
 <tr><th style="text-align:left">字段</th><th style="text-align:left">含义</th></tr>
@@ -106,7 +106,7 @@ admin.persistentTopics().createPartitionedTopic(topicName, numPartitions);
 </tbody>
 </table>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-1"></a><a href="#pulsar-admin-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
-<p>You can see the number of partitions in a partitioned topic using the <a href="/docs/zh-CN/2.2.1/pulsar-admin#get-partitioned-topic-metadata"><code>get-partitioned-topic-metadata</code></a> subcommand. 下面是一个示例：</p>
+<p>你能通过 <a href="/docs/zh-CN/2.2.1/pulsar-admin#get-partitioned-topic-metadata"><code>get-partitioned-topic-metadata</code></a> 子命令看到分区topic的分区数量。 下面是一个示例：</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics get-partitioned-topic-metadata \</span>
   persistent://my-tenant/my-namespace/my-topic
 {
@@ -121,7 +121,7 @@ admin.persistentTopics().createPartitionedTopic(topicName, numPartitions);
 admin.persistentTopics().getPartitionedTopicMetadata(topicName);
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="更新"></a><a href="#更新" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>更新</h3>
-<p>You can update the number of partitions on an existing partitioned topic <em>if</em> the topic is non-global. To update, the new number of partitions must be greater than the existing number.</p>
+<p><em>如果</em>topic是非全局的，你可以更新已存在分区topic的分区数。在更新时，新的分区数必须大于原存在的分区数。</p>
 <p>Decrementing the number of partitions would deleting the topic, which is not supported in Pulsar.</p>
 <p>Already created partitioned producers and consumers can’t see newly created partitions and it requires to recreate them at application so, newly created producers and consumers can connect to newly added partitions as well. Therefore, it can violate partition ordering at producers until all producers are restarted at application.</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-2"></a><a href="#pulsar-admin-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
