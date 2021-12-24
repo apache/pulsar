@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
@@ -27,17 +28,20 @@ import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -47,6 +51,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.impl.MessageImpl.SchemaState;
 import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -367,6 +372,44 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         producer.close();
         consumer.close();
         producer = null; // clean reference of mocked producer
+    }
+
+    @Test
+    public void testChunksEnqueueFailed() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/test-chunks-enqueue-failed";
+        log.info("-- Starting {} test --", methodName);
+        this.conf.setMaxMessageSize(5);
+
+        final MemoryLimitController controller = ((PulsarClientImpl) pulsarClient).getMemoryLimitController();
+        assertEquals(controller.currentUsage(), 0);
+
+        final int maxPendingMessages = 10;
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .maxPendingMessages(maxPendingMessages)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
+        assertTrue(producer instanceof ProducerImpl);
+        Semaphore semaphore = ((ProducerImpl<byte[]>) producer).getSemaphore().orElse(null);
+        assertNotNull(semaphore);
+        assertEquals(semaphore.availablePermits(), maxPendingMessages);
+        producer.send(createMessagePayload(1).getBytes());
+        try {
+            producer.send(createMessagePayload(100).getBytes(StandardCharsets.UTF_8));
+            fail("It should fail with ProducerQueueIsFullError");
+        } catch (PulsarClientException e) {
+            assertTrue(e instanceof PulsarClientException.ProducerQueueIsFullError);
+            assertEquals(controller.currentUsage(), 0);
+            assertEquals(semaphore.availablePermits(), maxPendingMessages);
+        }
+    }
+
+    @Override
+    protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
+        clientBuilder.memoryLimit(10000L, SizeUnit.BYTES);
     }
 
     private String createMessagePayload(int size) {

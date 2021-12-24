@@ -28,6 +28,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.awaitility.Awaitility;
@@ -102,6 +103,27 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin2.topicPolicies(true).getMessageTTL(topic)));
         Awaitility.await().untilAsserted(() ->
                 assertNull(admin3.topicPolicies(true).getMessageTTL(topic)));
+    }
+
+    @Test
+    public void testReplicatePersistentPolicies() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+        init(namespace, topic);
+        // set PersistencePolicies
+        PersistencePolicies policies = new PersistencePolicies(5, 3, 2, 1000);
+        admin1.topicPolicies(true).setPersistence(topic, policies);
+
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true).getPersistence(topic), policies));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true).getPersistence(topic), policies));
+        //remove PersistencePolicies
+        admin1.topicPolicies(true).removePersistence(topic);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin2.topicPolicies(true).getPersistence(topic)));
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin3.topicPolicies(true).getPersistence(topic)));
     }
 
     @Test
