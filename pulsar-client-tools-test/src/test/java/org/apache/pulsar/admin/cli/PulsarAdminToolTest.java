@@ -37,6 +37,7 @@ import java.lang.reflect.Field;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -917,6 +918,34 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("remove-retention persistent://myprop/clust/ns1/ds1 -g"));
         verify(mockGlobalTopicsPolicies).removeRetention("persistent://myprop/clust/ns1/ds1");
 
+        cmdTopics.run(split("get-backlog-quota persistent://myprop/clust/ns1/ds1 -ap"));
+        verify(mockTopicsPolicies).getBacklogQuotaMap("persistent://myprop/clust/ns1/ds1", true);
+        cmdTopics.run(split("set-backlog-quota persistent://myprop/clust/ns1/ds1 -l 10 -p producer_request_hold"));
+        verify(mockTopicsPolicies).setBacklogQuota("persistent://myprop/clust/ns1/ds1",
+                BacklogQuota.builder()
+                        .limitSize(10)
+                        .retentionPolicy(RetentionPolicy.producer_request_hold)
+                        .build(),
+                BacklogQuota.BacklogQuotaType.destination_storage);
+        //cmd with option cannot be executed repeatedly.
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        cmdTopics.run(split("set-backlog-quota persistent://myprop/clust/ns1/ds1 -lt 1000 -p producer_request_hold -t message_age"));
+        verify(mockTopicsPolicies).setBacklogQuota("persistent://myprop/clust/ns1/ds1",
+                BacklogQuota.builder()
+                        .limitSize(-1)
+                        .limitTime(1000)
+                        .retentionPolicy(RetentionPolicy.producer_request_hold)
+                        .build(),
+                BacklogQuota.BacklogQuotaType.message_age);
+        //cmd with option cannot be executed repeatedly.
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        cmdTopics.run(split("remove-backlog-quota persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopicsPolicies).removeBacklogQuota("persistent://myprop/clust/ns1/ds1", BacklogQuota.BacklogQuotaType.destination_storage);
+        //cmd with option cannot be executed repeatedly.
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        cmdTopics.run(split("remove-backlog-quota persistent://myprop/clust/ns1/ds1 -t message_age"));
+        verify(mockTopicsPolicies).removeBacklogQuota("persistent://myprop/clust/ns1/ds1", BacklogQuota.BacklogQuotaType.message_age);
+
         cmdTopics.run(split("get-persistence persistent://myprop/clust/ns1/ds1 -g"));
         verify(mockGlobalTopicsPolicies).getPersistence("persistent://myprop/clust/ns1/ds1");
         cmdTopics.run(split("set-persistence persistent://myprop/clust/ns1/ds1 -e 2 -w 1 -a 1 -r 100.0 -g"));
@@ -991,7 +1020,7 @@ public class PulsarAdminToolTest {
                         .limitSize(10)
                         .retentionPolicy(RetentionPolicy.producer_request_hold)
                         .build(),
-                        BacklogQuota.BacklogQuotaType.destination_storage);
+                BacklogQuota.BacklogQuotaType.destination_storage);
         //cmd with option cannot be executed repeatedly.
         cmdTopics = new CmdTopics(() -> admin);
         cmdTopics.run(split("set-backlog-quota persistent://myprop/clust/ns1/ds1 -lt 1000 -p producer_request_hold -t message_age"));
@@ -1001,7 +1030,7 @@ public class PulsarAdminToolTest {
                         .limitTime(1000)
                         .retentionPolicy(RetentionPolicy.producer_request_hold)
                         .build(),
-                        BacklogQuota.BacklogQuotaType.message_age);
+                BacklogQuota.BacklogQuotaType.message_age);
         //cmd with option cannot be executed repeatedly.
         cmdTopics = new CmdTopics(() -> admin);
         cmdTopics.run(split("remove-backlog-quota persistent://myprop/clust/ns1/ds1"));
@@ -1291,6 +1320,12 @@ public class PulsarAdminToolTest {
         when(mockTopics.terminateTopicAsync("persistent://myprop/clust/ns1/ds1")).thenReturn(CompletableFuture.completedFuture(new MessageIdImpl(1L, 1L, 1)));
         cmdTopics.run(split("terminate persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).terminateTopicAsync("persistent://myprop/clust/ns1/ds1");
+
+        Map<Integer, MessageId> results = new HashMap<>();
+        results.put(0, new MessageIdImpl(1, 1, 0));
+        when(mockTopics.terminatePartitionedTopic("persistent://myprop/clust/ns1/ds1")).thenReturn(results);
+        cmdTopics.run(split("partitioned-terminate persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).terminatePartitionedTopic("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("compact persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).triggerCompaction("persistent://myprop/clust/ns1/ds1");

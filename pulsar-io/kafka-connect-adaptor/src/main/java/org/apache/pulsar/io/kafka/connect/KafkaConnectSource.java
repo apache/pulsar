@@ -20,6 +20,11 @@ package org.apache.pulsar.io.kafka.connect;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import java.util.Base64;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.json.JsonConverterConfig;
 import org.apache.kafka.connect.source.SourceRecord;
@@ -31,14 +36,8 @@ import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.kafka.connect.schema.KafkaSchemaWrappedSchema;
 import org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroData;
 
-import java.util.Base64;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
 /**
- * A pulsar source that runs
+ * A pulsar source that runs.
  */
 @Slf4j
 public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte[], byte[]>> {
@@ -70,7 +69,8 @@ public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte
 
     private static final AvroData avroData = new AvroData(1000);
 
-    private class KafkaSourceRecord extends AbstractKafkaSourceRecord<KeyValue<byte[], byte[]>> implements KVRecord<byte[], byte[]> {
+    private class KafkaSourceRecord extends AbstractKafkaSourceRecord<KeyValue<byte[], byte[]>>
+            implements KVRecord<byte[], byte[]> {
 
         KafkaSourceRecord(SourceRecord srcRecord) {
             super(srcRecord);

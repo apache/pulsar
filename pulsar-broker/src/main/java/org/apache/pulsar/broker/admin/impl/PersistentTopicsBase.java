@@ -37,6 +37,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -2725,8 +2726,8 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Map<BacklogQuota.BacklogQuotaType, BacklogQuota>> internalGetBacklogQuota(
-            boolean applied) {
-        return getTopicPoliciesAsyncWithRetry(topicName)
+            boolean applied, boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> {
                 Map<BacklogQuota.BacklogQuotaType, BacklogQuota> quotaMap = op
                         .map(TopicPolicies::getBackLogQuotaMap)
@@ -2798,14 +2799,14 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetBacklogQuota(BacklogQuota.BacklogQuotaType backlogQuotaType,
-                                           BacklogQuotaImpl backlogQuota) {
+                                           BacklogQuotaImpl backlogQuota, boolean isGlobal) {
         validateTopicPolicyOperation(topicName, PolicyName.BACKLOG, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         BacklogQuota.BacklogQuotaType finalBacklogQuotaType = backlogQuotaType == null
                 ? BacklogQuota.BacklogQuotaType.destination_storage : backlogQuotaType;
 
-        return getTopicPoliciesAsyncWithRetry(topicName)
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenCompose(op -> {
                 TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
                 RetentionPolicies retentionPolicies = getRetentionPolicies(topicName, topicPolicies);
@@ -2824,6 +2825,7 @@ public class PersistentTopicsBase extends AdminResource {
                     topicPolicies.getBackLogQuotaMap().remove(finalBacklogQuotaType.name());
                 }
                 Map<String, BacklogQuotaImpl> backLogQuotaMap = topicPolicies.getBackLogQuotaMap();
+                topicPolicies.setIsGlobal(isGlobal);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
                     .thenRun(() -> {
                         try {
@@ -3226,23 +3228,29 @@ public class PersistentTopicsBase extends AdminResource {
         validateTopicOwnership(topicName, authoritative);
         validateTopicOperation(topicName, TopicOperation.TERMINATE);
 
-      List<MessageId> messageIds = new ArrayList<>();
+      Map<Integer, MessageId> messageIds = new ConcurrentHashMap<>();
 
       PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
+
+        if (partitionMetadata.partitions == 0) {
+            throw new RestException(Status.METHOD_NOT_ALLOWED, "Termination of a non-partitioned topic is "
+                    + "not allowed using partitioned-terminate, please use terminate commands.");
+        }
         if (partitionMetadata.partitions > 0) {
           final List<CompletableFuture<MessageId>> futures = Lists.newArrayList();
 
           for (int i = 0; i < partitionMetadata.partitions; i++) {
             TopicName topicNamePartition = topicName.getPartition(i);
             try {
-              futures.add(pulsar().getAdminClient().topics()
+                int finalI = i;
+                futures.add(pulsar().getAdminClient().topics()
                   .terminateTopicAsync(topicNamePartition.toString()).whenComplete((messageId, throwable) -> {
                           if (throwable != null) {
                               log.error("[{}] Failed to terminate topic {}", clientAppId(), topicNamePartition,
                                       throwable);
                               asyncResponse.resume(new RestException(throwable));
                           }
-                          messageIds.add(messageId);
+                          messageIds.put(finalI, messageId);
                       }));
             } catch (Exception e) {
               log.error("[{}] Failed to terminate topic {}", clientAppId(), topicNamePartition, e);

@@ -22,6 +22,8 @@ import com.influxdb.client.InfluxDBClient;
 import com.influxdb.client.WriteApiBlocking;
 import com.influxdb.client.domain.WritePrecision;
 import com.influxdb.client.write.Point;
+import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import org.apache.avro.util.Utf8;
@@ -32,11 +34,8 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.influxdb.BatchSink;
 
-import java.util.List;
-import java.util.Map;
-
 /**
- * Pulsar sink for InfluxDB2
+ * Pulsar sink for InfluxDB2.
  */
 @Slf4j
 public class InfluxDBSink extends BatchSink<Point, GenericRecord> {
@@ -61,7 +60,7 @@ public class InfluxDBSink extends BatchSink<Point, GenericRecord> {
     }
 
     @Override
-    final protected Point buildPoint(Record<GenericRecord> record) {
+    protected final Point buildPoint(Record<GenericRecord> record) {
         val genericRecord = record.getValue();
 
         // looking for measurement
@@ -146,7 +145,8 @@ public class InfluxDBSink extends BatchSink<Point, GenericRecord> {
         } else if (value instanceof Utf8) {
             point.addField(fieldName, value.toString());
         } else {
-            throw new SchemaSerializationException("Unknown value type for field " + fieldName + ". Type: " + value.getClass());
+            throw new SchemaSerializationException("Unknown value type for field " + fieldName
+                    + ". Type: " + value.getClass());
         }
     }
 }

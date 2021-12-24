@@ -66,7 +66,7 @@ public class TransactionImpl implements Transaction , TimerTask {
     private final ArrayList<CompletableFuture<MessageId>> sendFutureList;
     private final ArrayList<CompletableFuture<Void>> ackFutureList;
     private volatile State state;
-    private final AtomicReferenceFieldUpdater<TransactionImpl, State> STATE_UPDATE =
+    private static final AtomicReferenceFieldUpdater<TransactionImpl, State> STATE_UPDATE =
         AtomicReferenceFieldUpdater.newUpdater(TransactionImpl.class, State.class, "state");
 
     @Override

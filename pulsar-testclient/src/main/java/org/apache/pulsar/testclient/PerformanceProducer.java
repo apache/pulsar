@@ -28,7 +28,6 @@ import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.RateLimiter;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -41,6 +40,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
@@ -312,7 +312,7 @@ public class PerformanceProducer {
             // keep compatibility with the previous version
             if (arguments.topics.size() == 1) {
                 String prefixTopicName = arguments.topics.get(0);
-                List<String> defaultTopics = Lists.newArrayList();
+                List<String> defaultTopics = new ArrayList<>();
                 for (int i = 0; i < arguments.numTopics; i++) {
                     defaultTopics.add(String.format("%s%s%d", prefixTopicName, arguments.separator, i));
                 }
@@ -377,7 +377,7 @@ public class PerformanceProducer {
         // Read payload data from file if needed
         final byte[] payloadBytes = new byte[arguments.msgSize];
         Random random = new Random(0);
-        List<byte[]> payloadByteList = Lists.newArrayList();
+        List<byte[]> payloadByteList = new ArrayList<>();
         if (arguments.payloadFilename != null) {
             Path payloadFilePath = Paths.get(arguments.payloadFilename);
             if (Files.notExists(payloadFilePath) || Files.size(payloadFilePath) == 0)  {
@@ -557,7 +557,7 @@ public class PerformanceProducer {
         PulsarClient client = null;
         try {
             // Now processing command line arguments
-            List<Future<Producer<byte[]>>> futures = Lists.newArrayList();
+            List<Future<Producer<byte[]>>> futures = new ArrayList<>();
 
             ClientBuilder clientBuilder = PulsarClient.builder() //
                     .enableTransaction(arguments.isEnableTransaction)//
@@ -641,7 +641,7 @@ public class PerformanceProducer {
                 }
             }
 
-            final List<Producer<byte[]>> producers = Lists.newArrayListWithCapacity(futures.size());
+            final List<Producer<byte[]>> producers = new ArrayList<>(futures.size());
             for (Future<Producer<byte[]>> future : futures) {
                 producers.add(future.get());
             }

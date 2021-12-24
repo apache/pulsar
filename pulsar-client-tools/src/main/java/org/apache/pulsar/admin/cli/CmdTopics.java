@@ -43,6 +43,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -125,6 +126,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-message-id", new GetMessageId());
         jcommander.addCommand("reset-cursor", new ResetCursor());
         jcommander.addCommand("terminate", new Terminate());
+        jcommander.addCommand("partitioned-terminate", new PartitionedTerminate());
         jcommander.addCommand("compact", new Compact());
         jcommander.addCommand("compaction-status", new CompactionStatusCmd());
         jcommander.addCommand("offload", new Offload());
@@ -267,6 +269,10 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("get-retention");
             cmdUsageFormatter.addDeprecatedCommand("set-retention");
             cmdUsageFormatter.addDeprecatedCommand("remove-retention");
+
+            cmdUsageFormatter.addDeprecatedCommand("get-backlog-quotas");
+            cmdUsageFormatter.addDeprecatedCommand("set-backlog-quota");
+            cmdUsageFormatter.addDeprecatedCommand("remove-backlog-quota");
 
             cmdUsageFormatter.addDeprecatedCommand("get-persistence");
             cmdUsageFormatter.addDeprecatedCommand("set-persistence");
@@ -640,6 +646,10 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
             String internalInfo = getTopics().getInternalInfo(topic);
+            if (internalInfo == null) {
+                System.out.println("Did not find any internal metadata info");
+                return;
+            }
             JsonObject result = JsonParser.parseString(internalInfo).getAsJsonObject();
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(result));
@@ -874,6 +884,22 @@ public class CmdTopics extends CmdBase {
                 System.out.println("Topic successfully terminated at " + lastMessageId);
             } catch (InterruptedException | ExecutionException e) {
                 throw new PulsarAdminException(e);
+            }
+        }
+    }
+
+    @Parameters(commandDescription = "Terminate a partitioned topic and don't allow any more messages to be published")
+    private class PartitionedTerminate extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException, TimeoutException {
+            String persistentTopic = validatePersistentTopic(params);
+            Map<Integer, MessageId> messageIds = getTopics().terminatePartitionedTopic(persistentTopic);
+            for (Map.Entry<Integer, MessageId> entry: messageIds.entrySet()) {
+                String topicName = persistentTopic + "-partition-" + entry.getKey();
+                System.out.println("Topic " + topicName +  " succesfully terminated at " + entry.getValue());
             }
         }
     }
