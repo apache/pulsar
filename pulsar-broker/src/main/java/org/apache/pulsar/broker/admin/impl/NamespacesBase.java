@@ -999,12 +999,9 @@ public abstract class NamespacesBase extends AdminResource {
             final BookieAffinityGroupData bookkeeperAffinityGroup = getLocalPolicies().getLocalPolicies(namespaceName)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                             "Namespace local-policies does not exist")).bookieAffinityGroup;
-            if (bookkeeperAffinityGroup == null) {
-                throw new RestException(Status.NOT_FOUND, "bookie-affinity group does not exist");
-            }
             return bookkeeperAffinityGroup;
         } catch (NotFoundException e) {
-            log.warn("[{}] Failed to update local-policy configuration for namespace {}: does not exist",
+            log.warn("[{}] Failed to get local-policy configuration for namespace {}: does not exist",
                     clientAppId(), namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace policies does not exist");
         } catch (RestException re) {

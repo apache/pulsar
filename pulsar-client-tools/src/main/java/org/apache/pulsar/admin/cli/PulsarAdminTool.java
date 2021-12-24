@@ -160,6 +160,7 @@ public class PulsarAdminTool {
         commandMap.put("sink", CmdSinks.class);
 
         commandMap.put("packages", CmdPackages.class);
+        commandMap.put("transactions", CmdTransactions.class);
     }
 
     private static class PulsarAdminSupplier implements Supplier<PulsarAdmin> {

@@ -18,13 +18,24 @@
  */
 package org.apache.pulsar.io.mongodb;
 
+import static java.util.stream.Collectors.toList;
 import com.google.common.collect.Lists;
 import com.mongodb.MongoBulkWriteException;
 import com.mongodb.client.result.InsertManyResult;
 import com.mongodb.reactivestreams.client.MongoClient;
-import com.mongodb.reactivestreams.client.MongoCollection;
 import com.mongodb.reactivestreams.client.MongoClients;
+import com.mongodb.reactivestreams.client.MongoCollection;
 import com.mongodb.reactivestreams.client.MongoDatabase;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import java.util.stream.IntStream;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
@@ -36,19 +47,6 @@ import org.bson.Document;
 import org.bson.json.JsonParseException;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
-
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
-import java.util.stream.IntStream;
-
-import static java.util.stream.Collectors.toList;
 
 /**
  * The base class for MongoDB sinks.
@@ -148,8 +146,7 @@ public class MongoSink implements Sink<byte[]> {
                 final byte[] docAsBytes = record.getValue();
                 final Document doc = Document.parse(new String(docAsBytes, StandardCharsets.UTF_8));
                 docsToInsert.add(doc);
-            }
-            catch (JsonParseException | BSONException e) {
+            } catch (JsonParseException | BSONException e) {
                 log.error("Bad message", e);
                 record.fail();
                 iter.remove();
@@ -157,15 +154,17 @@ public class MongoSink implements Sink<byte[]> {
         }
 
         if (docsToInsert.size() > 0) {
-            collection.insertMany(docsToInsert).subscribe(new DocsToInsertSubscriber(docsToInsert,recordsToInsert));
+            collection.insertMany(docsToInsert).subscribe(new DocsToInsertSubscriber(docsToInsert, recordsToInsert));
         }
     }
-    private class DocsToInsertSubscriber implements Subscriber<InsertManyResult>{
+
+    private class DocsToInsertSubscriber implements Subscriber<InsertManyResult> {
         final List<Document> docsToInsert;
         final List<Record<byte[]>> recordsToInsert;
-        final List<Integer> idxToAck ;
+        final List<Integer> idxToAck;
         final List<Integer> idxToFail = Lists.newArrayList();
-        public DocsToInsertSubscriber(List<Document> docsToInsert,List<Record<byte[]>> recordsToInsert){
+
+        public DocsToInsertSubscriber(List<Document> docsToInsert, List<Record<byte[]>> recordsToInsert) {
             this.docsToInsert = docsToInsert;
             this.recordsToInsert = recordsToInsert;
             idxToAck = IntStream.range(0, this.docsToInsert.size()).boxed().collect(toList());

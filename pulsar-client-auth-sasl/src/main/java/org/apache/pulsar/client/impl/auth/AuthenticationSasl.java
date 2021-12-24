@@ -41,6 +41,7 @@ import static org.apache.pulsar.common.sasl.SaslConstants.SASL_TYPE_VALUE;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -55,7 +56,6 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import com.google.common.collect.Maps;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Authentication;
@@ -212,7 +212,7 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
                                                        AuthenticationDataProvider authData,
                                                        Map<String, String> previousRespHeaders) throws Exception {
 
-        Map<String, String> headers = Maps.newHashMap();
+        Map<String, String> headers = new HashMap<>();
 
         if (authData.hasDataForHttp()) {
             authData.getHttpHeaders().forEach(header ->
@@ -281,7 +281,7 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
     }
 
     private Map<String, String> getHeaders(Response response) {
-        Map<String, String> headers = Maps.newHashMap();
+        Map<String, String> headers = new HashMap<>();
         String saslHeader = response.getHeaderString(SASL_HEADER_TYPE);
         String headerState = response.getHeaderString(SASL_HEADER_STATE);
         String authToken = response.getHeaderString(SASL_AUTH_TOKEN);

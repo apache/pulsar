@@ -95,7 +95,7 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
                     // delete the znode for id generation
                     store.delete(stat.getPath(), Optional.empty()).
                             exceptionally(ex -> {
-                                log.warn("Exception during deleting node for id generation : {}", ex);
+                                log.warn("Exception during deleting node for id generation: ", ex);
                                 return null;
                             });
 
@@ -226,7 +226,7 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
                     // delete the znode for id generation
                     store.delete(stat.getPath(), Optional.empty()).
                             exceptionally(ex -> {
-                                log.warn("Exception during deleting node for id generation : {}", ex);
+                                log.warn("Exception during deleting node for id generation: ", ex);
                                 return null;
                             });
 

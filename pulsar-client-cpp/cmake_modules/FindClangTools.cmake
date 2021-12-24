@@ -82,11 +82,8 @@ if (CLANG_FORMAT_VERSION)
     endif()
 else()
     find_program(CLANG_FORMAT_BIN
-            NAMES clang-format-4.0
-            clang-format-3.9
-            clang-format-3.8
-            clang-format-3.7
-            clang-format-3.6
+            NAMES clang-format-5
+            clang-format-5.0
             clang-format
             PATHS ${CLANG_SEARCH_PATHS}
             NO_DEFAULT_PATH

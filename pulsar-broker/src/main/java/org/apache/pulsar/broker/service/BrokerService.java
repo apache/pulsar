@@ -2296,9 +2296,16 @@ public class BrokerService implements Closeable {
      */
     private void updateDynamicServiceConfiguration() {
         Optional<Map<String, String>> configCache = Optional.empty();
+
         try {
-            configCache =
-                    Optional.of(pulsar().getPulsarResources().getDynamicConfigResources().getDynamicConfiguration());
+            configCache  =
+                    pulsar().getPulsarResources().getDynamicConfigResources().getDynamicConfiguration();
+
+            // create dynamic-config if not exist.
+            if (!configCache.isPresent()) {
+                pulsar().getPulsarResources().getDynamicConfigResources()
+                        .setDynamicConfigurationWithCreate(n -> Maps.newHashMap());
+            }
         } catch (Exception e) {
             log.warn("Failed to read dynamic broker configuration", e);
         }

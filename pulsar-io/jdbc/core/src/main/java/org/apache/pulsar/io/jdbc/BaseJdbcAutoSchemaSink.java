@@ -19,10 +19,9 @@
 
 package org.apache.pulsar.io.jdbc;
 
+import com.google.common.collect.Lists;
 import java.sql.PreparedStatement;
 import java.util.List;
-
-import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.functions.api.Record;
@@ -88,7 +87,7 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericRec
 
     private static void setColumnValue(PreparedStatement statement, int index, Object value) throws Exception {
 
-        log.debug("Setting column value, statement: {}, index: {}, value: {}", statement.toString(), index, value.toString());
+        log.debug("Setting column value, statement: {}, index: {}, value: {}", statement, index, value);
 
         if (value instanceof Integer) {
             statement.setInt(index, (Integer) value);
@@ -101,7 +100,7 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericRec
         } else if (value instanceof Boolean) {
             statement.setBoolean(index, (Boolean) value);
         } else if (value instanceof String) {
-            statement.setString(index, (String)value);
+            statement.setString(index, (String) value);
         } else if (value instanceof Short) {
             statement.setShort(index, (Short) value);
         } else {

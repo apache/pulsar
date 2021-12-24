@@ -33,7 +33,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -336,7 +336,9 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         // 9) terminate partitioned topic
         response = mock(AsyncResponse.class);
         persistentTopics.terminatePartitionedTopic(response, testTenant, testNamespace, testLocalTopicName, true);
-        verify(response, timeout(5000).times(1)).resume(Arrays.asList(new MessageIdImpl(3, -1, -1)));
+        Map<Integer, MessageId> messageIds = new ConcurrentHashMap<>();
+        messageIds.put(0, new MessageIdImpl(3, -1, -1));
+        verify(response, timeout(5000).times(1)).resume(messageIds);
     }
 
     @Test
@@ -1124,6 +1126,26 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
             persistentTopics.deleteTopic(testTenant, testNamespace, topicName, false, true, true);
         } catch (RestException e) {
             Assert.assertEquals(e.getResponse().getStatus(), 404);
+        }
+    }
+
+    public void testAdminTerminatePartitionedTopic() throws Exception{
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant("prop-xyz", tenantInfo);
+        admin.namespaces().createNamespace("prop-xyz/ns12", Sets.newHashSet("test"));
+        final String topicName = "persistent://prop-xyz/ns12/testTerminatePartitionedTopic";
+
+        admin.topics().createPartitionedTopic(topicName, 1);
+        Map<Integer, MessageId> results = new HashMap<>();
+        results.put(0, new MessageIdImpl(3, -1, -1));
+        Assert.assertEquals(admin.topics().terminatePartitionedTopic(topicName),  results);
+
+        // Check examine message not allowed on non-partitioned topic.
+        admin.topics().createNonPartitionedTopic("persistent://prop-xyz/ns12/test");
+        try {
+            admin.topics().terminatePartitionedTopic(topicName);
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getMessage(), "Termination of a non-partitioned topic is not allowed using partitioned-terminate, please use terminate commands.");
         }
     }
 }
