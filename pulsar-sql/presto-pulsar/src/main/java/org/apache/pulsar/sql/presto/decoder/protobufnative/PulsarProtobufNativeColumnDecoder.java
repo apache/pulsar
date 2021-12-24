@@ -197,7 +197,7 @@ public class PulsarProtobufNativeColumnDecoder {
             //return millisecond which parsed from protobuf/timestamp
             if (columnType instanceof TimestampType && value instanceof DynamicMessage) {
                 DynamicMessage message = (DynamicMessage) value;
-                long nanos = (int) message.getField(message.getDescriptorForType().findFieldByName("nanos"));
+                int nanos = (int) message.getField(message.getDescriptorForType().findFieldByName("nanos"));
                 long seconds = (long) message.getField(message.getDescriptorForType().findFieldByName("seconds"));
                 //maybe an exception here, but seems will never happen in hundred years.
                 return seconds * MILLIS_PER_SECOND + nanos / NANOS_PER_MILLISECOND;
