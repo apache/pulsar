@@ -2322,6 +2322,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Stats update initial delay in seconds"
     )
     private int statsUpdateInitialDelayInSecs = 60;
+    @FieldContext(
+        category = CATEGORY_METRICS,
+        doc = "If true, aggregate publisher stats of PartitionedTopicStats by producerName"
+    )
+    private boolean aggregatePublisherStatsByProducerName = false;
 
     /**** --- Ledger Offloading. --- ****/
     /****

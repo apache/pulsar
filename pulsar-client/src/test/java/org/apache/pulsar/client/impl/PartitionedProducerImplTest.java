@@ -36,6 +36,7 @@ import com.google.api.client.util.Lists;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
@@ -259,7 +260,7 @@ public class PartitionedProducerImplTest {
         String nonPartitionedTopicName = "test-get-num-of-partitions-for-non-partitioned-topic";
         ProducerConfigurationData producerConfDataNonPartitioned = new ProducerConfigurationData();
         ProducerImpl producerImpl = new ProducerImpl(clientImpl, nonPartitionedTopicName, producerConfDataNonPartitioned,
-                null, 0, null, null);
+                null, 0, null, null, Optional.empty());
         assertEquals(producerImpl.getNumOfPartitions(), 0);
     }
 

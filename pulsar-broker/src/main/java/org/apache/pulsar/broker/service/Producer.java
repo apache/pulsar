@@ -37,6 +37,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
@@ -100,6 +101,8 @@ public class Producer {
             ProducerAccessMode accessMode,
             Optional<Long> topicEpoch,
             boolean partialProducerSupported) {
+        final ServiceConfiguration serviceConf =  cnx.getBrokerService().pulsar().getConfiguration();
+
         this.topic = topic;
         this.cnx = cnx;
         this.producerId = producerId;
@@ -125,12 +128,20 @@ public class Producer {
         stats.setClientVersion(cnx.getClientVersion());
         stats.setProducerName(producerName);
         stats.producerId = producerId;
-        stats.setPartialProducerSupported(partialProducerSupported);
+        if (serviceConf.isAggregatePublisherStatsByProducerName()) {
+            // If true and the client supports partial producer,
+            // aggregate publisher stats of PartitionedTopicStats by producerName.
+            // Otherwise, aggregate it by list index.
+            stats.setPartialProducerSupported(partialProducerSupported);
+        } else {
+            // aggregate publisher stats of PartitionedTopicStats by list index.
+            stats.setPartialProducerSupported(false);
+        }
         stats.metadata = this.metadata;
         stats.accessMode = Commands.convertProducerAccessMode(accessMode);
 
 
-        String replicatorPrefix = cnx.getBrokerService().pulsar().getConfiguration().getReplicatorPrefix() + ".";
+        String replicatorPrefix = serviceConf.getReplicatorPrefix() + ".";
         this.isRemote = producerName.startsWith(replicatorPrefix);
         this.remoteCluster = parseRemoteClusterName(producerName, isRemote, replicatorPrefix);
 
