@@ -25,14 +25,15 @@ cd $ROOT_DIR/pulsar-client-cpp
 PYTHON_INCLUDE_DIR=${PYTHON_INCLUDE_DIR:-/usr/include/python3.8}
 PYTHON_LIBRARY=${PYTHON_LIBRARY:-/usr/lib/python3.8}
 
-cmake .  -DBUILD_TESTS=OFF \
-          -DBUILD_PYTHON_WRAPPER=ON \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DLINK_STATIC=ON  \
-          -DPYTHON_INCLUDE_DIR=${PYTHON_INCLUDE_DIR} \
-          -DPYTHON_LIBRARY=${PYTHON_LIBRARY}
+cmake . -DBUILD_TESTS=OFF \
+        -DBUILD_PYTHON_WRAPPER=ON \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DLINK_STATIC=ON  \
+        -DPYTHON_INCLUDE_DIR=${PYTHON_INCLUDE_DIR} \
+        -DPYTHON_LIBRARY=${PYTHON_LIBRARY} \
+        -DCMAKE_CXX_FLAGS="-Wno-error=array-bounds"
 
-make -j2 _pulsar
+make -j$(grep -c ^processor /proc/cpuinfo) _pulsar
 
 cd python
 python3 setup.py bdist_wheel

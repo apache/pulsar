@@ -91,7 +91,9 @@ RUN curl -L https://github.com/google/snappy/archive/1.1.8.tar.gz --output snapp
     rm -rf /snappy-1.1.8 /snappy-1.1.8.tar.gz
 
 
-RUN pip3 install wheel twine
+RUN pip3 install --upgrade pip && pip3 install wheel twine
 
 RUN adduser pulsar -D && \
     addgroup pulsar abuild
+
+WORKDIR /pulsar
