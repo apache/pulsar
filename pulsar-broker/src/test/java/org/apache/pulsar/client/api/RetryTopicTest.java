@@ -222,6 +222,8 @@ public class RetryTopicTest extends ProducerConsumerBase {
         message = consumer.receive();
         String value = message.getProperty("custom_key");
         assertEquals(value, "custom_value");
+        assertEquals(message.getProperty(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID),
+                message.getProperty(RetryMessageUtil.PROPERTY_ORIGIN_MESSAGE_ID));
         producer.close();
         consumer.close();
     }
