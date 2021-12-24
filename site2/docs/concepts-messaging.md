@@ -278,7 +278,7 @@ Retry letter message contains some special properties created by a client automa
 special property | Description
 :--------------------|:-----------
 `REAL_TOPIC` | The real topic name.
-`ORIGIN_MESSAGE_ID` | The origin message id, it will be crucial for message tracking.
+`ORIGIN_MESSAGE_ID` | The origin message ID. It is crucial for message tracking.
 `RECONSUMETIMES`   | The retry consume times.
 `DELAY_TIME`      | Message delay timeMs.
 **Example**
