@@ -95,7 +95,7 @@
 <h2><a class="anchor" aria-hidden="true" id="消息保留策略"></a><a href="#消息保留策略" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消息保留策略</h2>
 <p>默认情况下，当消息到达 broker 时，会一直保留这条消息直到消费者确认已消费到这条消息，此时它才被删除。 你可以修改命名空间中所有主题的<em>消息保留策略</em>，来保留所有订阅中已经确认的消息。 消息保留策略支持两种类型：<em>根据消息大小保留</em>或者<em>根据时间保留</em>。</p>
 <p>当使用 Reader 接口时，保留策略是有用的。 因为 Reader 接口不使用消息确认机制，消息将永远不会存在 backlog 中。 在只读的使用场景中，保留时间是必须配置的。</p>
-<p>当您在命名空间中设置主题保留政策时， 您必须同时设置 **** a <em>大小限制</em> 和 <em>时间限制</em>。 您可以参考以下表格来设置 <code>pulsar-admin</code> 和 Java 中的保留策略。</p>
+<p>When you set a retention policy on topics in a namespace, you must set <strong>both</strong> a <em>size limit</em> (via <code>defaultRetentionSizeInMB</code>) and a <em>time limit</em> (via <code>defaultRetentionTimeInMinutes</code>) . 您可以参考以下表格来设置 <code>pulsar-admin</code> 和 Java 中的保留策略。</p>
 <table>
 <thead>
 <tr><th>时间限制</th><th>大小限制：</th><th>消息保留策略</th></tr>

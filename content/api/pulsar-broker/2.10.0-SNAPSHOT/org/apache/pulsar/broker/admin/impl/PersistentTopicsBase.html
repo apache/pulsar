@@ -292,7 +292,8 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 </tr>
 <tr id="i18" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType,org.apache.pulsar.common.policies.data.BacklogQuota&gt;&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalGetBacklogQuota-boolean-">internalGetBacklogQuota</a></span>(boolean&nbsp;applied)</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalGetBacklogQuota-boolean-boolean-">internalGetBacklogQuota</a></span>(boolean&nbsp;applied,
+                       boolean&nbsp;isGlobal)</code>&nbsp;</td>
 </tr>
 <tr id="i19" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
@@ -553,8 +554,9 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 </tr>
 <tr id="i74" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalSetBacklogQuota-org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType-org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl-">internalSetBacklogQuota</a></span>(org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType&nbsp;backlogQuotaType,
-                       org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl&nbsp;backlogQuota)</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalSetBacklogQuota-org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType-org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl-boolean-">internalSetBacklogQuota</a></span>(org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType&nbsp;backlogQuotaType,
+                       org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl&nbsp;backlogQuota,
+                       boolean&nbsp;isGlobal)</code>&nbsp;</td>
 </tr>
 <tr id="i75" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
@@ -1301,13 +1303,14 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 <pre>protected&nbsp;org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats&nbsp;internalGetBacklog(boolean&nbsp;authoritative)</pre>
 </li>
 </ul>
-<a name="internalGetBacklogQuota-boolean-">
+<a name="internalGetBacklogQuota-boolean-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalGetBacklogQuota</h4>
-<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType,org.apache.pulsar.common.policies.data.BacklogQuota&gt;&gt;&nbsp;internalGetBacklogQuota(boolean&nbsp;applied)</pre>
+<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType,org.apache.pulsar.common.policies.data.BacklogQuota&gt;&gt;&nbsp;internalGetBacklogQuota(boolean&nbsp;applied,
+                                                                                                                                                                                   boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
 <a name="internalGetBacklogSizeByMessageId-javax.ws.rs.container.AsyncResponse-org.apache.pulsar.client.impl.MessageIdImpl-boolean-">
@@ -1321,14 +1324,15 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
                                                  boolean&nbsp;authoritative)</pre>
 </li>
 </ul>
-<a name="internalSetBacklogQuota-org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType-org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl-">
+<a name="internalSetBacklogQuota-org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType-org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalSetBacklogQuota</h4>
 <pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalSetBacklogQuota(org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType&nbsp;backlogQuotaType,
-                                                          org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl&nbsp;backlogQuota)</pre>
+                                                          org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl&nbsp;backlogQuota,
+                                                          boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
 <a name="internalSetReplicationClusters-java.util.List-">
