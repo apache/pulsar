@@ -99,7 +99,6 @@ import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
@@ -1301,39 +1300,74 @@ public abstract class NamespacesBase extends AdminResource {
         return policies.subscriptionDispatchRate.get(pulsar().getConfiguration().getClusterName());
     }
 
-    public List<BundleStats> internalGetAllBundleStats() {
-        List<BundleStats> bundleStatsList = Lists.newArrayList();
-        ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>> bundleMap =
-                pulsar().getBrokerService().getMultiLayerTopicMap().get(namespaceName.toString());
-        if (bundleMap != null) {
-            for (String bundle : bundleMap.keys()) {
-                bundleStatsList.add(internalGetBundleStats(bundle));
+    public BundleStats internalGetBundleStats(String bundleRange) {
+        validateSuperUserAccess();
+        checkNotNull(bundleRange, "BundleRange should not be null");
+        Policies policies = getNamespacePolicies(namespaceName);
+
+        NamespaceBundle bundle =
+                pulsar().getNamespaceService().getNamespaceBundleFactory()
+                        .getBundle(namespaceName.toString(), bundleRange);
+        boolean isOwnedByLocalCluster = false;
+        try {
+            isOwnedByLocalCluster = pulsar().getNamespaceService().isNamespaceBundleOwned(bundle).get();
+        } catch (Exception e) {
+            if (log.isDebugEnabled()) {
+                log.debug("Failed to validate cluster ownership for {}-{}, {}",
+                        namespaceName.toString(), bundleRange, e.getMessage(), e);
             }
         }
-        return bundleStatsList;
-    }
 
-    protected BundleStats internalGetBundleStats(String bundle) {
-        List<Topic> topicList = pulsar().getBrokerService().
-                getAllTopicsFromNamespaceBundle(namespaceName.toString(), bundle);
-        List<String> topics = topicList.stream().map(Topic::getName).collect(Collectors.toList());
-
-        NamespaceBundleStats bundleStats = pulsar().getBrokerService().getBundleStats().get(bundle);
-
-        BundleStats stats = new BundleStats();
-        stats.topics = topics;
-        stats.bundleName = bundle;
-        if (bundleStats != null) {
-            stats.msgThroughputIn = bundleStats.msgThroughputIn;
-            stats.msgThroughputOut = bundleStats.msgThroughputOut;
-            stats.cacheSize = bundleStats.cacheSize;
-            stats.msgRateIn = bundleStats.msgRateIn;
-            stats.msgRateOut = bundleStats.msgRateOut;
-            stats.producerCount = bundleStats.producerCount;
-            stats.consumerCount = bundleStats.consumerCount;
-            stats.topicCount = bundleStats.topics;
+        // validate namespace ownership only if namespace is not owned by local-cluster (it happens when broker doesn't
+        // receive replication-cluster change watch and still owning bundle
+        if (!isOwnedByLocalCluster) {
+            if (namespaceName.isGlobal()) {
+                // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+                validateGlobalNamespaceOwnership(namespaceName);
+            } else {
+                validateClusterOwnership(namespaceName.getCluster());
+                validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
+            }
         }
-        return stats;
+
+        validatePoliciesReadOnlyAccess();
+
+        try {
+            if (!isBundleOwnedByAnyBroker(namespaceName, policies.bundles, bundleRange)
+                    .get(pulsar().getConfig().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS)) {
+                log.info("[{}] Namespace bundle is not owned by any broker {}/{}", clientAppId(), namespaceName,
+                        bundleRange);
+                return null;
+            }
+
+            validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange, false, true);
+
+            List<Topic> topicList = pulsar().getBrokerService().
+                    getAllTopicsFromNamespaceBundle(namespaceName.toString(), bundle.toString());
+            List<String> topics = topicList.stream().map(Topic::getName).collect(Collectors.toList());
+
+            NamespaceBundleStats bundleStats = pulsar().getBrokerService().getBundleStats().get(bundle.toString());
+
+            BundleStats stats = new BundleStats();
+            stats.topics = topics;
+            stats.bundleName = bundle.toString();
+            if (bundleStats != null) {
+                stats.msgThroughputIn = bundleStats.msgThroughputIn;
+                stats.msgThroughputOut = bundleStats.msgThroughputOut;
+                stats.cacheSize = bundleStats.cacheSize;
+                stats.msgRateIn = bundleStats.msgRateIn;
+                stats.msgRateOut = bundleStats.msgRateOut;
+                stats.producerCount = bundleStats.producerCount;
+                stats.consumerCount = bundleStats.consumerCount;
+                stats.topicCount = bundleStats.topics;
+            }
+            return stats;
+        } catch (WebApplicationException wae) {
+            throw wae;
+        } catch (Exception e) {
+            log.error("[{}] Failed to get bundle stats {}/{}", clientAppId(), namespaceName.toString(), bundleRange, e);
+            throw new RestException(e);
+        }
     }
 
     protected void internalSetSubscribeRate(SubscribeRate subscribeRate) {

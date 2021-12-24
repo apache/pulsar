@@ -631,8 +631,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testGetAllBundleStats() throws Exception { ;
-        TopicName topicName = TopicName.get("persistent://my-tenant/global/test-global-ns1/topic-1");
+    public void testGetBundleStats() throws Exception {
+        NamespaceName testNs = this.testGlobalNamespaces.get(0);
+        TopicName topicName = TopicName.get(testNs.getPersistentTopicName("topic-1"));
         PersistentTopic topic = new PersistentTopic(topicName.toString(), mock(ManagedLedger.class), pulsar.getBrokerService());
         Method method = pulsar.getBrokerService().getClass().getDeclaredMethod("addTopicToStatsMaps",
                 TopicName.class, Topic.class);
@@ -640,9 +641,14 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         method.invoke(pulsar.getBrokerService(), topicName, topic);
         Thread.sleep(300);
 
-        List<BundleStats> bundleStatsList = namespaces.internalGetAllBundleStats();
-        assertEquals(bundleStatsList.size(), 1);
-        BundleStats bundleStats = bundleStatsList.get(0);
+
+        doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).isNamespaceBundleOwned(Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(testNs)));
+        URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
+        doReturn(CompletableFuture.completedFuture(Optional.of(localWebServiceUrl))).when(nsSvc)
+                .getWebServiceUrlAsync(Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(testNs)), Mockito.any());
+        doReturn(true).when(nsSvc).isServiceUnitOwned(Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(testNs)));
+
+        BundleStats bundleStats = namespaces.internalGetBundleStats("0x00000000_0xffffffff");
         assertEquals(bundleStats.getTopics().get(0), topicName.toString());
     }
 

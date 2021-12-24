@@ -852,19 +852,13 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--bundle", "-b" }, description = "{start-boundary}_{end-boundary}," +
-                " Omit this field to get all bundles' stats for namespace")
+        @Parameter(names = { "--bundle", "-b" }, description = "{start-boundary}_{end-boundary}", required = true)
         private String bundle;
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            if (bundle != null) {
-                print(getAdmin().namespaces().getBundleStats(namespace, bundle));
-            } else {
-                print(getAdmin().namespaces().getAllBundleStats(namespace));
-            }
-
+            print(getAdmin().namespaces().getBundleStats(namespace, bundle));
         }
     }
 

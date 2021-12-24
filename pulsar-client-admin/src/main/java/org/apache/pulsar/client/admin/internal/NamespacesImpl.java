@@ -148,31 +148,6 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public List<BundleStats> getAllBundleStats(String namespace) throws PulsarAdminException {
-        return sync(() -> getAllBundleStatsAsync(namespace));
-    }
-
-    @Override
-    public CompletableFuture<List<BundleStats>> getAllBundleStatsAsync(String namespace) {
-        NamespaceName ns = NamespaceName.get(namespace);
-        WebTarget path = namespacePath(ns, "bundleStats");
-        final CompletableFuture<List<BundleStats>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<List<BundleStats>>() {
-                    @Override
-                    public void completed(List<BundleStats> bundleStatsList) {
-                        future.complete(bundleStatsList);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
-    }
-
-    @Override
     public BundleStats getBundleStats(String namespace, String bundle) throws PulsarAdminException {
         return sync(() -> getBundleStatsAsync(namespace, bundle));
     }

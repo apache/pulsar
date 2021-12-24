@@ -18,15 +18,19 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import com.google.common.collect.Lists;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import java.io.OutputStream;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
@@ -35,11 +39,13 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.stats.AllocatorStatsGenerator;
 import org.apache.pulsar.broker.stats.BookieClientStatsGenerator;
 import org.apache.pulsar.broker.stats.MBeanStatsGenerator;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.policies.data.BundleStats;
 import org.apache.pulsar.common.stats.AllocatorStats;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
@@ -157,6 +163,25 @@ public class BrokerStatsBase extends AdminResource {
         }
     }
 
+    @GET
+    @Path("/bundle-stats")
+    @ApiOperation(value = "Get bundle stats for this broker")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public List<BundleStats> getBundleStats(@QueryParam("broker") String broker) throws Exception {
+        // Ensure super user access only
+        validateSuperUserAccess();
+
+        if (broker != null) {
+            validateBrokerName(broker);
+        }
+        try {
+            return internalGetBundleStats();
+        } catch (Exception e) {
+            log.error("[{}] Failed to get bundle stats for broker, reason [{}]", clientAppId(), e.getMessage(), e);
+            throw new RestException(e);
+        }
+    }
+
     protected Map<Long, Collection<ResourceUnit>> internalBrokerResourceAvailability(NamespaceName namespace) {
         try {
             LoadManager lm = pulsar().getLoadManager().get();
@@ -169,5 +194,29 @@ public class BrokerStatsBase extends AdminResource {
             log.error("Unable to get Resource Availability", e);
             throw new RestException(e);
         }
+    }
+
+    protected List<BundleStats> internalGetBundleStats() {
+        List<BundleStats> bundleStatsList = Lists.newArrayList();
+
+        pulsar().getBrokerService().getBundleStats().forEach((bundle, stats) -> {
+            BundleStats bundleStats = new BundleStats() {{
+                this.bundleName = bundle;
+                this.msgRateOut = stats.msgRateOut;
+                this.msgRateIn = stats.msgRateIn;
+                this.msgThroughputOut = stats.msgThroughputOut;
+                this.msgThroughputIn = stats.msgThroughputIn;
+                this.producerCount = stats.producerCount;
+                this.consumerCount = stats.consumerCount;
+                this.cacheSize = stats.cacheSize;
+                this.topicCount = stats.topics;
+            }};
+            String namespace = bundle.substring(0, bundle.indexOf("/", bundle.indexOf("/") + 1));
+            bundleStats.topics = pulsar().getBrokerService().
+                    getAllTopicsFromNamespaceBundle(namespace, bundle)
+                    .stream().map(Topic::getName).collect(Collectors.toList());
+            bundleStatsList.add(bundleStats);
+        });
+        return bundleStatsList;
     }
 }

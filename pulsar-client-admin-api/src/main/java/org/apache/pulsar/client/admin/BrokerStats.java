@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.client.admin;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.common.policies.data.BundleStats;
 import org.apache.pulsar.common.stats.AllocatorStats;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 
@@ -132,4 +134,23 @@ public interface BrokerStats {
      * @return
      */
     CompletableFuture<LoadManagerReport> getLoadReportAsync();
+
+    /**
+     * Get all bundles' stats from a single broker in the cluster.
+     *
+     * @param broker the broker url where to get bundle stats, or null to get from this broker
+     *
+     * @return
+     * @throws PulsarAdminException
+     */
+    List<BundleStats> getBundleStats(String broker) throws PulsarAdminException;
+
+    /**
+     * Get all bundles' stats from a single broker in the cluster asynchronously.
+     *
+     * @param broker the broker url where to get bundle stats, or null to get from this broker
+     *
+     * @return
+     */
+    CompletableFuture<List<BundleStats>> getBundleStatsAsync(String broker);
 }

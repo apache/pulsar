@@ -518,29 +518,13 @@ public class Namespaces extends NamespacesBase {
     }
 
     @GET
-    @Path("/{tenant}/{namespace}/bundleStats")
-    @ApiOperation(value = "Get all bundles split data of this namespace.")
-    @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
-            @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public List<BundleStats> getBundleStats(@PathParam("tenant") String tenant,
-                                      @PathParam("namespace") String namespace) {
-        validatePoliciesReadOnlyAccess();
-        validateNamespaceName(tenant, namespace);
-        validateNamespaceOperation(NamespaceName.get(tenant, namespace), NamespaceOperation.GET_BUNDLE);
-
-        return internalGetAllBundleStats();
-    }
-
-    @GET
     @Path("/{tenant}/{namespace}/{bundle}/stats")
-    @ApiOperation(value = "Get the bundles split data.")
+    @ApiOperation(value = "Get the bundles stats.")
     @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
+            @ApiResponse(code = 412, message = "Invalid bundle range"),
             @ApiResponse(code = 403, message = "Don't have admin permission") })
     public BundleStats getBundleStats(@PathParam("tenant") String tenant,
                                       @PathParam("namespace") String namespace, @PathParam("bundle") String bundle) {
-        validatePoliciesReadOnlyAccess();
         validateNamespaceName(tenant, namespace);
         validateNamespaceOperation(NamespaceName.get(tenant, namespace), NamespaceOperation.GET_BUNDLE);
         String bundleName = NamespaceName.get(tenant, namespace) + "/" + bundle;
