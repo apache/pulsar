@@ -3018,7 +3018,8 @@ public class PersistentTopicsBase extends AdminResource {
                 }));
     }
 
-    protected CompletableFuture<Void> internalSetPersistence(PersistencePolicies persistencePolicies, boolean isGlobal) {
+    protected CompletableFuture<Void> internalSetPersistence(PersistencePolicies persistencePolicies,
+                                                             boolean isGlobal) {
         validatePersistencePolicies(persistencePolicies);
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenCompose(op -> {
