@@ -70,7 +70,7 @@ public class TransactionImpl implements Transaction , TimerTask {
     /**
      *  The latest execution status can be obtained here.
      */
-    private volatile CompletableFuture<Void> executedFuture = null;
+    private volatile CompletableFuture<Void> executedFuture = new CompletableFuture<>();
     private volatile State state;
     private static final AtomicReferenceFieldUpdater<TransactionImpl, State> STATE_UPDATE =
         AtomicReferenceFieldUpdater.newUpdater(TransactionImpl.class, State.class, "state");
@@ -103,7 +103,7 @@ public class TransactionImpl implements Transaction , TimerTask {
         this.registerPartitionMap = new ConcurrentHashMap<>();
         this.registerSubscriptionMap = new ConcurrentHashMap<>();
         this.tcClient = client.getTcClient();
-
+        this.executedFuture.complete(null);
     }
 
     // register the topics that will be modified by this transaction
@@ -155,7 +155,7 @@ public class TransactionImpl implements Transaction , TimerTask {
     public synchronized <T> void registerInternal(CompletableFuture<T> completableFuture) {
         //There have been an exception, it means this transaction should not be commit,
         //so there is no need to record the execution of other operations
-        if (executedFuture == null || !executedFuture.isCompletedExceptionally()) {
+        if (!executedFuture.isCompletedExceptionally()) {
             opsExecutingInTxn.incrementAndGet();
             executedFuture = new CompletableFuture<>();
             completableFuture.thenRun(() -> {
@@ -191,7 +191,7 @@ public class TransactionImpl implements Transaction , TimerTask {
     public CompletableFuture<Void> commit() {
         return checkIfOpenOrCommitting().thenCompose((value) -> {
             CompletableFuture<Void> commitFuture = new CompletableFuture<>();
-            Runnable executedCommit = () -> {
+            executedFuture.thenRun(() -> {
                 this.state = State.COMMITTING;
                 tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits))
                         .whenComplete((vx, ex) -> {
@@ -206,16 +206,11 @@ public class TransactionImpl implements Transaction , TimerTask {
                                 commitFuture.complete(vx);
                             }
                         });
-            };
-            if (executedFuture == null) {
-                executedCommit.run();
-            } else {
-                executedFuture.thenRun(executedCommit).exceptionally(e -> {
-                    commitFuture.completeExceptionally(new PulsarClientException
-                            .TransactionCanNotCommitException(this.txnIdMostBits, this.txnIdLeastBits, e));
-                    return null;
-                });
-            }
+            }).exceptionally(e -> {
+                commitFuture.completeExceptionally(new PulsarClientException
+                        .TransactionCanNotCommitException(this.txnIdMostBits, this.txnIdLeastBits, e));
+                return null;
+            });
             return commitFuture;
         });
     }
@@ -224,7 +219,12 @@ public class TransactionImpl implements Transaction , TimerTask {
     public CompletableFuture<Void> abort() {
         return checkIfOpenOrAborting().thenCompose(value -> {
             CompletableFuture<Void> abortFuture = new CompletableFuture<>();
-            Runnable executeAbort = () -> {
+            executedFuture.whenComplete(((unused, throwable) -> {
+                if (throwable != null) {
+                    if (log.isDebugEnabled()) {
+                        log.error("Some op failed in txn [{} : {}]", txnIdMostBits, txnIdLeastBits);
+                    }
+                }
                 this.state = State.ABORTING;
                 if (cumulativeAckConsumers != null) {
                     cumulativeAckConsumers.forEach((consumer, integer) ->
@@ -247,21 +247,8 @@ public class TransactionImpl implements Transaction , TimerTask {
                         this.state = State.ABORTED;
                         abortFuture.complete(null);
                     }
-
                 });
-            };
-            if (executedFuture == null) {
-                executeAbort.run();
-            } else {
-                executedFuture.thenRun(executeAbort)
-                        .exceptionally(e -> {
-                            if (log.isDebugEnabled()) {
-                                log.error("Some op failed in txn [{} : {}]", txnIdMostBits, txnIdLeastBits);
-                            }
-                            executeAbort.run();
-                            return null;
-                        });
-            }
+            }));
 
             return abortFuture;
         });
