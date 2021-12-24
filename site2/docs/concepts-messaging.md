@@ -281,7 +281,7 @@ special property | Description
 `ORIGIN_MESSAGE_ID` | The origin message id, it will be crucial for message tracking.
 `RECONSUMETIMES`   | The retry consume times.
 `DELAY_TIME`      | Message delay timeMs.
-
+**Example**
 ```
 REAL_TOPIC = persistent://public/default/my-topic
 ORIGIN_MESSAGE_ID = 1:0:-1:0
