@@ -164,7 +164,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                                                                 List<MutablePair<PositionImpl, Integer>> positions,
                                                                 boolean isInCacheRequest) {
 
-        if (!checkIfReady()) {
+        if (!isInCacheRequest && !checkIfReady()) {
             CompletableFuture<Void> completableFuture = new CompletableFuture<>();
             synchronized (PendingAckHandleImpl.this) {
                 switch (state) {
@@ -305,7 +305,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     public CompletableFuture<Void> cumulativeAcknowledgeMessage(TxnID txnID,
                                                                 List<PositionImpl> positions,
                                                                 boolean isInCacheRequest) {
-        if (!checkIfReady()) {
+        if (!isInCacheRequest && !checkIfReady()) {
             CompletableFuture<Void> completableFuture = new CompletableFuture<>();
             synchronized (PendingAckHandleImpl.this) {
                 switch (state) {
@@ -406,7 +406,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     @Override
     public synchronized CompletableFuture<Void> commitTxn(TxnID txnID, Map<String, Long> properties,
                                                           long lowWaterMark, boolean isInCacheRequest) {
-        if (!checkIfReady()) {
+        if (!isInCacheRequest && !checkIfReady()) {
             synchronized (PendingAckHandleImpl.this) {
                 if (state == State.Initializing) {
                     CompletableFuture<Void> completableFuture = new CompletableFuture<>();
@@ -428,16 +428,6 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                                 new ServiceUnitNotReadyException("PendingAckHandle have been closed!"));
                     }
 
-                }
-            }
-        }
-
-        if (!acceptQueue.isEmpty() && !isInCacheRequest) {
-            synchronized (PendingAckHandleImpl.this) {
-                if (!acceptQueue.isEmpty()) {
-                    CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-                    addCommitTxnRequest(txnID, properties, lowWaterMark, completableFuture);
-                    return completableFuture;
                 }
             }
         }
@@ -514,7 +504,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     @Override
     public synchronized CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer,
                                                          long lowWaterMark, boolean isInCacheRequest) {
-        if (!checkIfReady()) {
+        if (!isInCacheRequest && !checkIfReady()) {
             synchronized (PendingAckHandleImpl.this) {
                 if (state == State.Initializing) {
                     CompletableFuture<Void> completableFuture = new CompletableFuture<>();
@@ -535,17 +525,6 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                         return FutureUtil.failedFuture(
                                 new ServiceUnitNotReadyException("PendingAckHandle have been closed!"));
                     }
-                }
-            }
-        }
-
-
-        if (!acceptQueue.isEmpty() && !isInCacheRequest) {
-            synchronized (PendingAckHandleImpl.this) {
-                if (!acceptQueue.isEmpty()) {
-                    CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-                    addAbortTxnRequest(txnId, consumer, lowWaterMark, completableFuture);
-                    return completableFuture;
                 }
             }
         }

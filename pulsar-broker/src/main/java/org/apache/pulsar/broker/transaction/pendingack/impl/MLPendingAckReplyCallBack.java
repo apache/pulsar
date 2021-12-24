@@ -48,6 +48,7 @@ public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
             log.info("Topic name : [{}], SubName : [{}] pending ack state reply success!",
                     pendingAckHandle.getTopicName(), pendingAckHandle.getSubName());
 
+            pendingAckHandle.handleCacheRequest();
             if (pendingAckHandle.changeToReadyState()) {
                 pendingAckHandle.completeHandleFuture();
                 log.info("Topic name : [{}], SubName : [{}] pending ack handle cache request success!",
@@ -57,7 +58,6 @@ public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
                         pendingAckHandle.getTopicName(), pendingAckHandle.getSubName());
             }
         }
-        pendingAckHandle.handleCacheRequest();
     }
 
     @Override
