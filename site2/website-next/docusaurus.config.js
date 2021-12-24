@@ -298,4 +298,8 @@ module.exports = {
     ],
     "./postcss-tailwind-loader",
   ],
+  // clientModules: [
+  //   require.resolve("./mySiteGlobalJs.js"),
+  //   require.resolve("./mySiteGlobalCss.css"),
+  // ],
 };

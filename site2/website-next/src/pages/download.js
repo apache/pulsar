@@ -196,7 +196,7 @@ export default function page(props) {
         sourceAsc: `${info.srcArchiveUrl}.asc`,
         sourceSha: `${info.srcArchiveUrl}.${sha}`,
         sourceShaText: `${sha}`,
-        releaseNote: `${siteConfig.baseUrl}/${language(
+        releaseNote: `${siteConfig.baseUrl}${language(
           props
         )}release-notes#${info.version.replace(/\./g, "")}`,
       };
@@ -233,7 +233,7 @@ export default function page(props) {
         sourceAsc: `${info.srcArchiveUrl}.asc`,
         sourceSha: `${info.srcArchiveUrl}.${sha}`,
         sourceShaText: `${sha}`,
-        releaseNote: `${siteConfig.baseUrl}/${language(props)}release-notes#${
+        releaseNote: `${siteConfig.baseUrl}${language(props)}release-notes#${
           info.version
         }`,
       };
@@ -254,7 +254,7 @@ export default function page(props) {
           </h2>
           <div>
             <p>
-              <a href={`${siteConfig.baseUrl}/${language(props)}release-notes`}>
+              <a href={`${siteConfig.baseUrl}${language(props)}release-notes`}>
                 Release notes
               </a>{" "}
               for all Pulsar's versions
@@ -360,7 +360,7 @@ export default function page(props) {
           <div>
             <p>
               <a
-                href={`${siteConfig.baseUrl}/${language(
+                href={`${siteConfig.baseUrl}${language(
                   props
                 )}pulsar-manager-release-notes`}
               >
