@@ -253,7 +253,14 @@ public class TransactionImpl implements Transaction , TimerTask {
             if (executedFuture == null) {
                 executeAbort.run();
             } else {
-                executedFuture.thenRun(executeAbort);
+                executedFuture.thenRun(executeAbort)
+                        .exceptionally(e -> {
+                            if (log.isDebugEnabled()) {
+                                log.error("Some op failed in txn [{} : {}]", txnIdMostBits, txnIdLeastBits);
+                            }
+                            executeAbort.run();
+                            return null;
+                        });
             }
 
             return abortFuture;
