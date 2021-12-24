@@ -34,6 +34,7 @@
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "react-markdown": "^7.1.1",
+    "react-md-file": "^2.0.0",
     "react-svg": "^14.1.5",
     "remark-linkify-regex": "^1.0.0",
     "replace-in-file": "^6.3.2",

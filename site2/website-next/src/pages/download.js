@@ -2,8 +2,11 @@ import * as React from "react";
 import Layout from "@theme/Layout";
 import ReleaseTable from "../components/ReleaseTable";
 import ConnectorTable from "../components/ConnectorTable";
+import GuideTable from "../components/GuideTable";
+import OldReleaseTable from "../components/OldReleaseTable";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import Translate, { translate } from "@docusaurus/Translate";
+import ReactMarkdown from "react-markdown";
 
 const versions = require(`../../versions.json`);
 const releases = require(`../../releases.json`);
@@ -64,7 +67,7 @@ function pulsarManagerDistUrl(version, type) {
 }
 
 function language(props) {
-  return props.language ? props.language : "";
+  return props.language ? props.language + "/" : "";
 }
 
 export default function page(props) {
@@ -94,6 +97,23 @@ export default function page(props) {
     latestPulsarManagerVersion,
     "src"
   );
+
+  const releaseInfo = releases.map((version) => {
+    return {
+      version: version,
+      binArchiveUrl: archiveUrl(version, "bin"),
+      srcArchiveUrl: archiveUrl(version, "src"),
+    };
+  });
+
+  const pulsarManagerReleaseInfo = pulsarManagerReleases.map((version) => {
+    return {
+      version: version,
+      binArchiveUrl: pularManagerArchiveUrl(version, "bin"),
+      srcArchiveUrl: pularManagerArchiveUrl(version, "src"),
+    };
+  });
+
   const latest = [
     {
       release: "Binary",
@@ -110,6 +130,15 @@ export default function page(props) {
       sha512: `${latestSrcArchiveUrl}.sha512`,
     },
   ];
+  const stable = [
+    {
+      release: "Source",
+      link: getLatestAdaptersMirrorUrl(latestPulsarAdaptersVersion),
+      linkText: `apache-pulsar-adapters-${latestPulsarAdaptersVersion}-src.tar.gz`,
+      asc: `${distAdaptersUrl(latestPulsarAdaptersVersion)}.asc`,
+      sha512: `${distAdaptersUrl(latestPulsarAdaptersVersion)}.sha512`,
+    },
+  ];
   const offloaders = [
     {
       release: "Offloaders",
@@ -119,20 +148,118 @@ export default function page(props) {
       sha512: `${distOffloadersUrl(latestVersion)}.sha512`,
     },
   ];
+  const guides = [
+    {
+      name: "The Pulsar java client",
+      link: `${siteConfig.baseUrl}docs/${language(props)}client-libraries-java`,
+      description: "The Pulsar java client",
+    },
+    {
+      name: "The Pulsar go client",
+      link: `${siteConfig.baseUrl}docs/${language(props)}client-libraries-go`,
+      description: "The Pulsar go client",
+    },
+    {
+      name: "The Pulsar python client",
+      link: `${siteConfig.baseUrl}docs/${language(
+        props
+      )}client-libraries-python`,
+      description: "The Pulsar java client",
+    },
+    {
+      name: "The Pulsar C++ client",
+      link: `${siteConfig.baseUrl}docs/${language(props)}client-libraries-cpp`,
+      description: "The Pulsar C++ client",
+    },
+  ];
+  const oldReleases = releaseInfo
+    .filter((info) => {
+      return info.version != latestVersion;
+    })
+    .map((info) => {
+      var sha = "sha512";
+      if (
+        info.version.includes("1.19.0-incubating") ||
+        info.version.includes("1.20.0-incubating")
+      ) {
+        sha = "sha";
+      }
+      return {
+        release: info.version,
+        binary: info.binArchiveUrl,
+        binaryText: `apache-pulsar-${info.version}-bin.tar.gz`,
+        binaryAsc: `${info.binArchiveUrl}.asc`,
+        binarySha: `${info.binArchiveUrl}.${sha}`,
+        binaryShaText: `${sha}`,
+        source: info.srcArchiveUrl,
+        sourceText: `apache-pulsar-${info.version}-src.tar.gz`,
+        sourceAsc: `${info.srcArchiveUrl}.asc`,
+        sourceSha: `${info.srcArchiveUrl}.${sha}`,
+        sourceShaText: `${sha}`,
+        releaseNote: `${siteConfig.baseUrl}/${language(
+          props
+        )}release-notes#${info.version.replace(/\./g, "")}`,
+      };
+    });
+  const apmStable = [
+    {
+      release: "Binary",
+      link: latestPulsarManagerArchiveMirrorUrl,
+      linkText: `apache-pulsar-manager-${latestPulsarManagerVersion}-bin.tar.gz`,
+      asc: `${pulsarManagerLatestArchiveUrl}.asc`,
+      sha512: `${pulsarManagerLatestArchiveUrl}.sha512`,
+    },
+    {
+      release: "Source",
+      link: latestPulsarManagerSrcArchiveMirrorUrl,
+      linkText: `apache-pulsar-manager-${latestPulsarManagerVersion}-src.tar.gz`,
+      asc: `${pulsarManagerLatestSrcArchiveUrl}.asc`,
+      sha512: `${pulsarManagerLatestSrcArchiveUrl}.sha512`,
+    },
+  ];
+  const apmOldReleases = pulsarManagerReleaseInfo
+    .filter((info) => info.version !== latestPulsarManagerVersion)
+    .map((info) => {
+      const sha = "sha512";
+      return {
+        release: info.version,
+        binary: info.binArchiveUrl,
+        binaryText: `apache-pulsar-manager-${info.version}-bin.tar.gz`,
+        binaryAsc: `${info.binArchiveUrl}.asc`,
+        binarySha: `${info.binArchiveUrl}.${sha}`,
+        binaryShaText: `${sha}`,
+        source: info.srcArchiveUrl,
+        sourceText: `apache-pulsar-manager-${info.version}-src.tar.gz`,
+        sourceAsc: `${info.srcArchiveUrl}.asc`,
+        sourceSha: `${info.srcArchiveUrl}.${sha}`,
+        sourceShaText: `${sha}`,
+        releaseNote: `${siteConfig.baseUrl}/${language(props)}release-notes#${
+          info.version
+        }`,
+      };
+    });
   return (
     <Layout>
       <div className="tailwind">
         <div className="my-12 container">
-          <h1 className="mb-6">{siteConfig.title} Download</h1>
-          <h2 className="mb-4" id="latest">
+          <header className="postHeader">
+            <h1>
+              <Translate>Apache Pulsar downloads</Translate>
+            </h1>
+            <hr />
+          </header>
+
+          <h2>
             <Translate>Release notes</Translate>
           </h2>
-          <p>
-            <a href={`${siteConfig.baseUrl}${language(props)}/release-notes`}>
-              Release notes
-            </a>{" "}
-            for all Pulsar's versions
-          </p>
+          <div>
+            <p>
+              <a href={`${siteConfig.baseUrl}/${language(props)}release-notes`}>
+                Release notes
+              </a>{" "}
+              for all Pulsar's versions
+            </p>
+          </div>
           <h2 id="latest">
             <Translate>Current version (Stable)</Translate> {latestVersion}
           </h2>
@@ -162,6 +289,95 @@ export default function page(props) {
               };
             })}
           ></ConnectorTable>
+          <h2>
+            <Translate>Release Integrity</Translate>
+          </h2>
+          <ReactMarkdown>
+            You must [verify](https://www.apache.org/info/verification.html) the
+            integrity of the downloaded files. We provide OpenPGP signatures for
+            every release file. This signature should be matched against the
+            [KEYS](https://www.apache.org/dist/pulsar/KEYS) file which contains
+            the OpenPGP keys of Pulsar's Release Managers. We also provide
+            `SHA-512` checksums for every release file. After you download the
+            file, you should calculate a checksum for your download, and make
+            sure it is the same as ours.
+          </ReactMarkdown>
+          <h2>
+            <Translate>Getting started</Translate>
+          </h2>
+          <div>
+            <p>
+              <Translate>
+                Once you've downloaded a Pulsar release, instructions on getting
+                up and running with a standalone cluster that you can run on
+                your laptop can be found in the
+              </Translate>
+              &nbsp;
+              <a
+                href={`${siteConfig.baseUrl}docs/${language(props)}standalone`}
+              >
+                <Translate>Run Pulsar locally</Translate>
+              </a>{" "}
+              <Translate>tutorial</Translate>.
+            </p>
+          </div>
+          <p>
+            <Translate>
+              If you need to connect to an existing Pulsar cluster or instance
+              using an officially supported client, see the client docs for
+              these languages:
+            </Translate>
+          </p>
+          <GuideTable data={guides}></GuideTable>
+          <h2 id="archive">
+            <Translate>Older releases</Translate>
+          </h2>
+          <OldReleaseTable data={oldReleases}></OldReleaseTable>
+          <header className="postHeader mt-12">
+            <h1>
+              <Translate>Pulsar Adapters</Translate>
+            </h1>
+            <hr />
+          </header>
+          <h2 id="latest">
+            <Translate>Current version (Stable)</Translate>{" "}
+            {latestPulsarAdaptersVersion}
+          </h2>
+          <ReleaseTable data={stable}></ReleaseTable>
+          <Translate>
+            Pulsar Adapters are available on Maven Central, there is no binary
+            package.
+          </Translate>
+          <header className="postHeader mt-12">
+            <h1>
+              <Translate>Apache Pulsar Manager downloads</Translate>
+            </h1>
+            <hr />
+          </header>
+          <h2>
+            <Translate>Release notes</Translate>
+          </h2>
+          <div>
+            <p>
+              <a
+                href={`${siteConfig.baseUrl}/${language(
+                  props
+                )}pulsar-manager-release-notes`}
+              >
+                Release notes
+              </a>{" "}
+              for all pulsar-manager's versions
+            </p>
+          </div>
+          <h2 id="latest">
+            <Translate>Current version (Stable)</Translate>{" "}
+            {latestPulsarManagerVersion}
+          </h2>
+          <ReleaseTable data={apmStable}></ReleaseTable>
+          <h2 id="pulsar-manager-archive">
+            <Translate>Pulsar Manager older releases</Translate>
+          </h2>
+          <OldReleaseTable data={apmOldReleases}></OldReleaseTable>
         </div>
       </div>
     </Layout>
