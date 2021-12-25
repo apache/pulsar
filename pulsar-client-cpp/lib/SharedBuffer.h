@@ -165,7 +165,7 @@ class SharedBuffer {
     }
 
     // Return current writer index
-    uint32_t writerIndex() { return writeIdx_; }
+    uint32_t writerIndex() const noexcept { return writeIdx_; }
 
     // skip writerIndex
     void skipBytes(uint32_t size) {
@@ -180,7 +180,7 @@ class SharedBuffer {
     }
 
     // Return current reader index
-    uint32_t readerIndex() { return readIdx_; }
+    uint32_t readerIndex() const noexcept { return readIdx_; }
 
     // set readerIndex
     void setReaderIndex(uint32_t index) {

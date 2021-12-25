@@ -37,7 +37,7 @@ struct ProducerImpl::PendingCallbacks {
 
     void complete(Result result) {
         for (const auto& opSendMsg : opSendMsgs) {
-            opSendMsg.sendCallback_(result, opSendMsg.msg_.getMessageId());
+            opSendMsg.complete(result, {});
         }
     }
 };
@@ -431,8 +431,9 @@ void ProducerImpl::sendAsyncWithStatsUpdate(const Message& msg, const SendCallba
     const auto maxMessageSize = static_cast<uint32_t>(ClientConnection::getMaxMessageSize());
 
     if (compressedSize > ClientConnection::getMaxMessageSize() && !chunkingEnabled_) {
-        LOG_DEBUG(getName() << " - compressed Message payload size " << payload.readableBytes()
-                            << " cannot exceed " << ClientConnection::getMaxMessageSize() << " bytes");
+        LOG_WARN(getName() << " - compressed Message payload size " << payload.readableBytes()
+                           << " cannot exceed " << ClientConnection::getMaxMessageSize()
+                           << " bytes unless chunking is enabled");
         handleFailedResult(ResultMessageTooBig);
         return;
     }
@@ -505,8 +506,9 @@ void ProducerImpl::sendAsyncWithStatsUpdate(const Message& msg, const SendCallba
                 return;
             }
 
-            sendMessage(OpSendMsg{msg, (chunkId == totalChunks - 1) ? callback : nullptr, producerId_,
-                                  sequenceId, conf_.getSendTimeout(), 1, uncompressedSize});
+            sendMessage(OpSendMsg{msgMetadata, encryptedPayload,
+                                  (chunkId == totalChunks - 1) ? callback : nullptr, producerId_, sequenceId,
+                                  conf_.getSendTimeout(), 1, uncompressedSize});
         }
     }
 }
@@ -582,7 +584,7 @@ PendingFailures ProducerImpl::batchMessageAndSend(const FlushCallback& flushCall
                 // we need to release the spot manually
                 LOG_ERROR("batchMessageAndSend | Failed to createOpSendMsg: " << result);
                 releaseSemaphoreForSendOp(opSendMsg);
-                failures.add(std::bind(opSendMsg.sendCallback_, result, MessageId{}));
+                failures.add([opSendMsg, result] { opSendMsg.complete(result, {}); });
             }
         } else if (numBatches > 1) {
             std::vector<OpSendMsg> opSendMsgs;
@@ -596,7 +598,9 @@ PendingFailures ProducerImpl::batchMessageAndSend(const FlushCallback& flushCall
                     LOG_ERROR("batchMessageAndSend | Failed to createOpSendMsgs[" << i
                                                                                   << "]: " << results[i]);
                     releaseSemaphoreForSendOp(opSendMsgs[i]);
-                    failures.add(std::bind(opSendMsgs[i].sendCallback_, results[i], MessageId{}));
+                    const auto& opSendMsg = opSendMsgs[i];
+                    const auto result = results[i];
+                    failures.add([opSendMsg, result] { opSendMsg.complete(result, {}); });
                 }
             }
         }  // else numBatches is 0, do nothing
@@ -610,7 +614,7 @@ PendingFailures ProducerImpl::batchMessageAndSend(const FlushCallback& flushCall
 // a. we have a reserved spot on the queue
 // b. call this function after acquiring the ProducerImpl mutex_
 void ProducerImpl::sendMessage(const OpSendMsg& op) {
-    const auto sequenceId = op.msg_.impl_->metadata.sequence_id();
+    const auto sequenceId = op.metadata_.sequence_id();
     LOG_DEBUG("Inserting data to pendingMessagesQueue_");
     pendingMessagesQueue_.push_back(op);
 
@@ -807,13 +811,11 @@ bool ProducerImpl::removeCorruptMessage(uint64_t sequenceId) {
         LOG_DEBUG(getName() << "Remove corrupt message from queue " << sequenceId);
         pendingMessagesQueue_.pop_front();
         lock.unlock();
-        if (op.sendCallback_) {
+        try {
             // to protect from client callback exception
-            try {
-                op.sendCallback_(ResultChecksumError, op.msg_.getMessageId());
-            } catch (const std::exception& e) {
-                LOG_ERROR(getName() << "Exception thrown from callback " << e.what());
-            }
+            op.complete(ResultChecksumError, {});
+        } catch (const std::exception& e) {
+            LOG_ERROR(getName() << "Exception thrown from callback " << e.what());
         }
         releaseSemaphoreForSendOp(op);
         return true;
@@ -854,12 +856,10 @@ bool ProducerImpl::ackReceived(uint64_t sequenceId, MessageId& rawMessageId) {
         pendingMessagesQueue_.pop_front();
 
         lock.unlock();
-        if (op.sendCallback_) {
-            try {
-                op.sendCallback_(ResultOk, messageId);
-            } catch (const std::exception& e) {
-                LOG_ERROR(getName() << "Exception thrown from callback " << e.what());
-            }
+        try {
+            op.complete(ResultOk, messageId);
+        } catch (const std::exception& e) {
+            LOG_ERROR(getName() << "Exception thrown from callback " << e.what());
         }
         return true;
     }
