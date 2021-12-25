@@ -254,6 +254,10 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("disable-deduplication");
             cmdUsageFormatter.addDeprecatedCommand("get-deduplication-enabled");
 
+            cmdUsageFormatter.addDeprecatedCommand("get-message-ttl");
+            cmdUsageFormatter.addDeprecatedCommand("set-message-ttl");
+            cmdUsageFormatter.addDeprecatedCommand("remove-message-ttl");
+
             cmdUsageFormatter.addDeprecatedCommand("get-max-unacked-messages-on-consumer");
             cmdUsageFormatter.addDeprecatedCommand("remove-max-unacked-messages-on-consumer");
             cmdUsageFormatter.addDeprecatedCommand("set-max-unacked-messages-on-consumer");
