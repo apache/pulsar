@@ -220,7 +220,7 @@ public class WindowManager<T> implements TriggerHandler {
         }
         eventsSinceLastExpiry.set(0);
         if (log.isDebugEnabled()) {
-            log.debug("[%s] events expired from window.", eventsToExpire.size());
+            log.debug("[{}] events expired from window.", eventsToExpire.size());
         }
         if (!eventsToExpire.isEmpty()) {
             log.debug("invoking windowLifecycleListener.onExpiry");
