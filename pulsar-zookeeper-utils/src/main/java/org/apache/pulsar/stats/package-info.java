@@ -17,13 +17,3 @@
  * under the License.
  */
 package org.apache.pulsar.stats;
-
-import lombok.experimental.UtilityClass;
-
-@UtilityClass
-public class CacheMetricsCollector {
-
-    public static final io.prometheus.client.cache.caffeine.CacheMetricsCollector CAFFEINE =
-            new io.prometheus.client.cache.caffeine.CacheMetricsCollector()
-            .register();
-}
