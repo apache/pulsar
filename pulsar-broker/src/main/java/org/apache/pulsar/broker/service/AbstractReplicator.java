@@ -183,8 +183,8 @@ public abstract class AbstractReplicator {
             CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
             disconnectFuture.completeExceptionally(new TopicBusyException("Cannot close a replicator with backlog"));
             if (log.isDebugEnabled()) {
-                log.debug("[{}][{} -> {}] Replicator disconnect failed since topic has backlog", topicName, localCluster,
-                        remoteCluster);
+                log.debug("[{}][{} -> {}] Replicator disconnect failed since topic has backlog", topicName, localCluster
+                        , remoteCluster);
             }
             return disconnectFuture;
         }
