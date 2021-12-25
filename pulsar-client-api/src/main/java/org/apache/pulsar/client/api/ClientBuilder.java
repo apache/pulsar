@@ -539,6 +539,20 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder enableTransaction(boolean enableTransaction);
 
     /**
+     *  Set dns lookup bind address.
+     * @param dnsLookupBindAddress
+     * @return
+     */
+    ClientBuilder dnsLookupBindAddress(String dnsLookupBindAddress);
+
+    /**
+     *  Set dns lookup bind port.
+     * @param dnsLookupBindPort
+     * @return
+     */
+    ClientBuilder dnsLookupBindPort(int dnsLookupBindPort);
+
+    /**
      *  Set socks5 proxy address.
      * @param socks5ProxyAddress
      * @return

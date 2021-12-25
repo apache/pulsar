@@ -70,4 +70,10 @@ public class ClientBuilderImplTest {
         }).build();
     }
 
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testClientBuilderWithIllegalPort() throws PulsarClientException {
+        PulsarClient.builder().dnsLookupBindPort(-1).build();
+    }
+
+
 }

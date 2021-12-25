@@ -339,6 +339,21 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
+    public ClientBuilder dnsLookupBindAddress(String dnsLookupBindAddress) {
+        conf.setDnsLookupBindAddress(dnsLookupBindAddress);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder dnsLookupBindPort(int dnsLookupBindPort) {
+        if (dnsLookupBindPort < 0 || dnsLookupBindPort > 65535) {
+            throw new IllegalArgumentException("DnsLookBindPort need to be within the range of 0 and 65535");
+        }
+        conf.setDnsLookupBindPort(dnsLookupBindPort);
+        return this;
+    }
+
+    @Override
     public ClientBuilder socks5ProxyAddress(InetSocketAddress socks5ProxyAddress) {
         conf.setSocks5ProxyAddress(socks5ProxyAddress);
         return this;
