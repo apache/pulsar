@@ -106,7 +106,7 @@ public class WindowManager<T> implements TriggerHandler {
         // watermark events are not added to the queue.
         if (windowEvent.isWatermark()) {
             if (log.isDebugEnabled()) {
-                log.debug(String.format("Got watermark event with ts %d", windowEvent.getTimestamp()));
+                log.debug("Got watermark event with ts {}", windowEvent.getTimestamp());
             }
         } else {
             queue.add(windowEvent);
@@ -148,8 +148,7 @@ public class WindowManager<T> implements TriggerHandler {
         if (!events.isEmpty()) {
             prevWindowEvents.addAll(windowEvents);
             if (log.isDebugEnabled()) {
-                log.debug(String.format("invoking windowLifecycleListener onActivation, [%d] events in "
-                        + "window.", events.size()));
+                log.debug("invoking windowLifecycleListener onActivation, [{}] events in window.", events.size());
             }
             windowLifecycleListener.onActivation(events, newEvents, expired,
                     evictionPolicy.getContext().getReferenceTime());
@@ -221,7 +220,7 @@ public class WindowManager<T> implements TriggerHandler {
         }
         eventsSinceLastExpiry.set(0);
         if (log.isDebugEnabled()) {
-            log.debug(String.format("[%d] events expired from window.", eventsToExpire.size()));
+            log.debug("[%s] events expired from window.", eventsToExpire.size());
         }
         if (!eventsToExpire.isEmpty()) {
             log.debug("invoking windowLifecycleListener.onExpiry");
