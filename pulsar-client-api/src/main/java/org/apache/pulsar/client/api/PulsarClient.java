@@ -257,6 +257,22 @@ public interface PulsarClient extends Closeable {
     void updateServiceUrl(String serviceUrl) throws PulsarClientException;
 
     /**
+     * Update the service URL and authentication this client is using.
+     *
+     * <p>This will force the client close all existing connections and to restart service discovery to the new service
+     * endpoint.
+     *
+     * @param serviceUrl
+     *            the new service URL this client should connect to
+     * @param authentication
+     *            the authentication provider this client should connect to
+     * @throws PulsarClientException
+     *             in case the serviceUrl is not valid
+     */
+    void updateServiceUrlAndAuthentication(String serviceUrl, Authentication authentication)
+            throws PulsarClientException;
+
+    /**
      * Get the list of partitions for a given topic.
      *
      * <p>If the topic is partitioned, this will return a list of partition names. If the topic is not partitioned, the

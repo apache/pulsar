@@ -47,6 +47,22 @@ public interface AutoClusterFailoverBuilder {
     AutoClusterFailoverBuilder secondary(String secondary);
 
     /**
+     * set primary authentication.
+     *
+     * @param authentication
+     * @return
+     */
+    AutoClusterFailoverBuilder primaryAuthentication(Authentication authentication);
+
+    /**
+     * set secondary authentication.
+     *
+     * @param authentication
+     * @return
+     */
+    AutoClusterFailoverBuilder secondaryAuthentication(Authentication authentication);
+
+    /**
      * Set the switch failoverDelay. When one cluster failed longer than failoverDelay, it will trigger cluster switch.
      *
      * @param failoverDelay

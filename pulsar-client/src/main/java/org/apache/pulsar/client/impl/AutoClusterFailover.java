@@ -23,15 +23,18 @@ import com.google.common.base.Strings;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AutoClusterFailoverBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 @Slf4j
 @Data
@@ -40,6 +43,8 @@ public class AutoClusterFailover implements ServiceUrlProvider {
     private volatile String currentPulsarServiceUrl;
     private final String primary;
     private final String secondary;
+    private final Authentication primaryAuthentication;
+    private final Authentication secondaryAuthentication;
     private final long failoverDelayNs;
     private final long switchBackDelayNs;
     private final ScheduledExecutorService executor;
@@ -48,9 +53,12 @@ public class AutoClusterFailover implements ServiceUrlProvider {
     private final int interval = 30_000;
     private final int TIMEOUT = 30_000;
 
-    private AutoClusterFailover(String primary, String secondary, long failoverDelayNs, long switchBackDelayNs) {
+    private AutoClusterFailover(String primary, String secondary, long failoverDelayNs, long switchBackDelayNs,
+                                Authentication primaryAuthentication, Authentication secondaryAuthentication) {
         this.primary = primary;
         this.secondary = secondary;
+        this.primaryAuthentication = primaryAuthentication;
+        this.secondaryAuthentication = secondaryAuthentication;
         this.failoverDelayNs = failoverDelayNs;
         this.switchBackDelayNs = switchBackDelayNs;
         this.currentPulsarServiceUrl = primary;
@@ -68,12 +76,12 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         this.executor.scheduleAtFixedRate(catchingAndLoggingThrowables(() -> {
             if (currentPulsarServiceUrl.equals(primary)) {
                 // current service url is primary, probe whether it is down
-                probeAndUpdateServiceUrl(secondary);
+                probeAndUpdateServiceUrl(secondary, secondaryAuthentication);
             } else {
                 // current service url is secondary, probe whether it is down
-                probeAndUpdateServiceUrl(primary);
+                probeAndUpdateServiceUrl(primary, primaryAuthentication);
                 // secondary cluster is up, check whether need to switch back to primary
-                probeAndCheckSwitchBack(primary);
+                probeAndCheckSwitchBack(primary, primaryAuthentication);
             }
         }), getInterval(), getInterval(), TimeUnit.MILLISECONDS);
 
@@ -138,9 +146,9 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         return Math.max(0L, Math.round(nanos / 1_000_000.0d));
     }
 
-    private void updateServiceUrl(String target) {
+    private void updateServiceUrl(String target, Authentication authentication) {
         try {
-            pulsarClient.updateServiceUrl(target);
+            pulsarClient.updateServiceUrlAndAuthentication(target, authentication);
             currentPulsarServiceUrl = target;
         } catch (PulsarClientException e) {
             log.error("Current Pulsar service is {}, "
@@ -148,7 +156,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         }
     }
 
-    private void probeAndUpdateServiceUrl(String targetServiceUrl) {
+    private void probeAndUpdateServiceUrl(String targetServiceUrl, Authentication authentication) {
         if (probeAvailable(currentPulsarServiceUrl)) {
             failedTimestamp = -1;
             return;
@@ -163,7 +171,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
                                 + "switch to the service {}. The current service down at {}",
                         currentPulsarServiceUrl, nanosToMillis(currentTimestamp - failedTimestamp),
                         targetServiceUrl, failedTimestamp);
-                updateServiceUrl(targetServiceUrl);
+                updateServiceUrl(targetServiceUrl, authentication);
                 failedTimestamp = -1;
             } else {
                 log.error("Current Pulsar service is {}, it has been down for {} ms. "
@@ -175,7 +183,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         }
     }
 
-    private void probeAndCheckSwitchBack(String target) {
+    private void probeAndCheckSwitchBack(String target, Authentication authentication) {
         long currentTimestamp = System.nanoTime();
         if (!probeAvailable(target)) {
             recoverTimestamp = -1;
@@ -189,7 +197,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
                             + "the primary service: {} has been recover for {} ms, "
                             + "switch back to the primary service",
                     currentPulsarServiceUrl, target, nanosToMillis(currentTimestamp - recoverTimestamp));
-            updateServiceUrl(target);
+            updateServiceUrl(target, authentication);
             recoverTimestamp = -1;
         }
     }
@@ -197,6 +205,8 @@ public class AutoClusterFailover implements ServiceUrlProvider {
     public static class AutoClusterFailoverBuilderImpl implements AutoClusterFailoverBuilder {
         private String primary;
         private String secondary;
+        private Authentication primaryAuthentication = null;
+        private Authentication secondaryAuthentication = null;
         private long failoverDelayNs;
         private long switchBackDelayNs;
 
@@ -211,6 +221,16 @@ public class AutoClusterFailover implements ServiceUrlProvider {
             return this;
         }
 
+        public AutoClusterFailoverBuilder primaryAuthentication(Authentication authentication) {
+            this.primaryAuthentication = authentication;
+            return this;
+        }
+
+        public AutoClusterFailoverBuilder secondaryAuthentication(Authentication authentication) {
+            this.secondaryAuthentication = authentication;
+            return this;
+        }
+
         public AutoClusterFailoverBuilder failoverDelay(long failoverDelay, TimeUnit timeUnit) {
             this.failoverDelayNs = timeUnit.toNanos(failoverDelay);
             return this;
@@ -222,7 +242,19 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         }
 
         public ServiceUrlProvider build() {
-            return new AutoClusterFailover(primary, secondary, failoverDelayNs, switchBackDelayNs);
+            Objects.requireNonNull(primary, "primary service url shouldn't be null");
+            Objects.requireNonNull(secondary, "secondary service url shouldn't be null");
+            checkArgument(failoverDelayNs >= 0, "failoverDelayMs should >= 0");
+            checkArgument(switchBackDelayNs >= 0, "switchBackDelayMs should >= 0");
+
+            return new AutoClusterFailover(primary, secondary, failoverDelayNs, switchBackDelayNs,
+                    primaryAuthentication, secondaryAuthentication);
+        }
+
+        public static void checkArgument(boolean expression, @Nullable Object errorMessage) {
+            if (!expression) {
+                throw new IllegalArgumentException(String.valueOf(errorMessage));
+            }
         }
     }
 

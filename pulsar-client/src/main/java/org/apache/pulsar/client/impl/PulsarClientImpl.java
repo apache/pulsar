@@ -48,6 +48,7 @@ import java.util.stream.Collectors;
 import lombok.Builder;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -859,6 +860,17 @@ public class PulsarClientImpl implements PulsarClient {
         log.info("Updating service URL to {}", serviceUrl);
 
         conf.setServiceUrl(serviceUrl);
+        lookup.updateServiceUrl(serviceUrl);
+        cnxPool.closeAllConnections();
+    }
+
+    @Override
+    public synchronized void updateServiceUrlAndAuthentication(String serviceUrl, Authentication authentication)
+            throws PulsarClientException {
+        log.info("Updating service URL to {} and authentication to {}", serviceUrl, authentication);
+
+        conf.setServiceUrl(serviceUrl);
+        conf.setAuthentication(authentication);
         lookup.updateServiceUrl(serviceUrl);
         cnxPool.closeAllConnections();
     }
