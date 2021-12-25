@@ -28,6 +28,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -36,6 +37,7 @@ import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.awaitility.Awaitility;
@@ -111,6 +113,34 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         Awaitility.await().untilAsserted(() ->
                 assertNull(admin3.topicPolicies(true).getMessageTTL(topic)));
     }
+
+    @Test
+    public void testReplicatePublishRatePolicies() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+        init(namespace, topic);
+        // set global topic policy
+        PublishRate publishRate = new PublishRate(100, 10000);
+        admin1.topicPolicies(true).setPublishRate(topic, publishRate);
+
+        // get global topic policy
+        untilRemoteClustersAsserted(
+                admin -> assertEquals(admin.topicPolicies(true).getPublishRate(topic), publishRate));
+
+        // remove global topic policy
+        admin1.topicPolicies(true).removePublishRate(topic);
+        untilRemoteClustersAsserted(admin -> assertNull(admin.topicPolicies(true).getPublishRate(topic)));
+    }
+
+    private void untilRemoteClustersAsserted(ThrowingConsumer<PulsarAdmin> condition) {
+        Awaitility.await().untilAsserted(() -> condition.apply(admin2));
+        Awaitility.await().untilAsserted(() -> condition.apply(admin3));
+    }
+
+    private interface ThrowingConsumer<I> {
+        void apply(I input) throws Throwable;
+    }
+
 
     @Test
     public void testReplicatePersistentPolicies() throws Exception {
