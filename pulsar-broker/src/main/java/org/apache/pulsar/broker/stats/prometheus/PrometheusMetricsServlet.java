@@ -100,7 +100,7 @@ public class PrometheusMetricsServlet extends HttpServlet {
                     // this happens when metricsServletTimeoutMs expires
                     // java.lang.IllegalStateException: AsyncContext completed and/or Request lifecycle recycled
                     log.error("Failed to generate prometheus stats, "
-                                    + "this is likely due to metricsServletTimeoutMs: {} ms elapsed",
+                                    + "this is likely due to metricsServletTimeoutMs: {} ms elapsed: {}",
                             time, e + "");
                 }
             }
