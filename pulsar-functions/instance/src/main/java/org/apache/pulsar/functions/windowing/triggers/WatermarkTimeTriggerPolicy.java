@@ -100,7 +100,7 @@ public class WatermarkTimeTriggerPolicy<T> implements TriggerPolicy<T, Long> {
                 }
                 if (ts == Long.MAX_VALUE) {
                     if (log.isDebugEnabled()) {
-                        log.debug("No events to process between %s and watermark ts %s",
+                        log.debug("No events to process between {} and watermark ts {}",
                                 windowEndTs, watermarkTs);
                     }
                     break;
