@@ -613,7 +613,8 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 </tr>
 <tr id="i88" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalSetMessageTTL-java.lang.Integer-">internalSetMessageTTL</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Integer.html?is-external=true" title="class or interface in java.lang">Integer</a>&nbsp;ttlInSecond)</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalSetMessageTTL-java.lang.Integer-boolean-">internalSetMessageTTL</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Integer.html?is-external=true" title="class or interface in java.lang">Integer</a>&nbsp;ttlInSecond,
+                     boolean&nbsp;isGlobal)</code>&nbsp;</td>
 </tr>
 <tr id="i89" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
@@ -1373,13 +1374,14 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 <pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalSetDeduplication(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Boolean.html?is-external=true" title="class or interface in java.lang">Boolean</a>&nbsp;enabled)</pre>
 </li>
 </ul>
-<a name="internalSetMessageTTL-java.lang.Integer-">
+<a name="internalSetMessageTTL-java.lang.Integer-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalSetMessageTTL</h4>
-<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalSetMessageTTL(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Integer.html?is-external=true" title="class or interface in java.lang">Integer</a>&nbsp;ttlInSecond)</pre>
+<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalSetMessageTTL(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Integer.html?is-external=true" title="class or interface in java.lang">Integer</a>&nbsp;ttlInSecond,
+                                                        boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
 <a name="internalGetRetention-boolean-boolean-">

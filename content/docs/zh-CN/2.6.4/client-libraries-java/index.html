@@ -174,17 +174,17 @@ producer.send(<span class="hljs-string">"My message"</span>.getBytes());
 stringProducer.send(<span class="hljs-string">"My message"</span>);
 </code></pre>
 <blockquote>
-<p>当不再需要生产者、消费者和客户端时，确保将其关闭。</p>
+<p>当不再需要生产者、消费者和客户端时，请确保将其关闭。</p>
 <pre><code class="hljs css language-java">producer.close();
 consumer.close();
 client.close();
 </code></pre>
 <p>关闭操作也可以是异步的：</p>
 <pre><code class="hljs css language-java">producer.closeAsync()
-   .thenRun(() -&gt; System.out.println(<span class="hljs-string">"Producer closed"</span>));
+   .thenRun(() -&gt; System.out.println(<span class="hljs-string">"Producer closed"</span>))
    .exceptionally((ex) -&gt; {
        System.err.println(<span class="hljs-string">"Failed to close producer: "</span> + ex);
-       <span class="hljs-keyword">return</span> ex;
+       <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
    });
 </code></pre>
 </blockquote>
