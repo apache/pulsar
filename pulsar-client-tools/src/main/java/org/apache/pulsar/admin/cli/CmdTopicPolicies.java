@@ -461,8 +461,8 @@ public class CmdTopicPolicies extends CmdBase {
                 "-rp" }, description = "dispatch rate relative to publish-rate (if publish-relative flag is enabled then broker will apply throttling value to (publish-rate + dispatch rate))", required = false)
         private boolean relativeToPublishRate = false;
 
-        @Parameter(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
-                + "If set to true, broker returned global topic policies")
+        @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
+                + "If set to true, the policy will be replicate to other clusters asynchronously")
         private boolean isGlobal = false;
 
         @Override
@@ -483,8 +483,8 @@ public class CmdTopicPolicies extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
-                + "If set to true, broker returned global topic policies")
+        @Parameter(names = { "--global", "-g" }, description = "Whether to remove this policy globally. "
+                + "If set to true, the removing operation will be replicate to other clusters asynchronously")
         private boolean isGlobal = false;
 
         @Override
