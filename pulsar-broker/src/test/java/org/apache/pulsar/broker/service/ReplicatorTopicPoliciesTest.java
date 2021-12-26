@@ -322,6 +322,36 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin3.topicPolicies(true).getInactiveTopicPolicies(persistentTopicName)));
     }
 
+    @Test
+    public void testReplicatorSubscriptionDispatchRatePolicies() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+
+        init(namespace, persistentTopicName);
+        // set subscription dispatch rate
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(1)
+                .ratePeriodInSecond(1)
+                .dispatchThrottlingRateInByte(1)
+                .relativeToPublishRate(true)
+                .build();
+        admin1.topicPolicies(true).setSubscriptionDispatchRate(persistentTopicName, dispatchRate);
+        // get subscription dispatch rate
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true)
+                        .getSubscriptionDispatchRate(persistentTopicName), dispatchRate));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true)
+                        .getSubscriptionDispatchRate(persistentTopicName), dispatchRate));
+
+        //remove subscription dispatch rate
+        admin1.topicPolicies(true).removeSubscriptionDispatchRate(persistentTopicName);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin2.topicPolicies(true).getSubscriptionDispatchRate(persistentTopicName)));
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin3.topicPolicies(true).getSubscriptionDispatchRate(persistentTopicName)));
+    }
+
     private void init(String namespace, String topic)
             throws PulsarAdminException, PulsarClientException, PulsarServerException {
         final String cluster2 = pulsar2.getConfig().getClusterName();
