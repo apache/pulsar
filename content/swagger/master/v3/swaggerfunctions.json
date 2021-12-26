@@ -1251,14 +1251,14 @@
         "CompletableFuture": {
             "type": "object",
             "properties": {
+                "cancelled": {
+                    "type": "boolean"
+                },
                 "numberOfDependents": {
                     "type": "integer",
                     "format": "int32"
                 },
                 "done": {
-                    "type": "boolean"
-                },
-                "cancelled": {
                     "type": "boolean"
                 },
                 "completedExceptionally": {
@@ -1269,14 +1269,14 @@
         "CompletableFutureClusterData": {
             "type": "object",
             "properties": {
+                "cancelled": {
+                    "type": "boolean"
+                },
                 "numberOfDependents": {
                     "type": "integer",
                     "format": "int32"
                 },
                 "done": {
-                    "type": "boolean"
-                },
-                "cancelled": {
                     "type": "boolean"
                 },
                 "completedExceptionally": {
@@ -2263,10 +2263,6 @@
                         "type": "string"
                     }
                 },
-                "intValue": {
-                    "type": "integer",
-                    "format": "int32"
-                },
                 "booleanValue": {
                     "type": "boolean"
                 },
@@ -2292,6 +2288,10 @@
                 },
                 "closed": {
                     "type": "boolean"
+                },
+                "intValue": {
+                    "type": "integer",
+                    "format": "int32"
                 },
                 "typeId": {
                     "type": "object"
@@ -2569,8 +2569,15 @@
                         "format": "byte"
                     }
                 },
+                "topicName": {
+                    "type": "string"
+                },
                 "messageId": {
                     "$ref": "#/definitions/MessageId"
+                },
+                "brokerPublishTime": {
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "keyBytes": {
                     "type": "array",
@@ -2588,13 +2595,6 @@
                 },
                 "readerSchema": {
                     "$ref": "#/definitions/SchemaObject"
-                },
-                "brokerPublishTime": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "topicName": {
-                    "type": "string"
                 },
                 "publishTime": {
                     "type": "integer",
@@ -2717,6 +2717,9 @@
                     "type": "integer",
                     "format": "int32"
                 },
+                "currency": {
+                    "$ref": "#/definitions/Currency"
+                },
                 "roundingMode": {
                     "type": "string",
                     "enum": [
@@ -2729,9 +2732,6 @@
                         "HALF_EVEN",
                         "UNNECESSARY"
                     ]
-                },
-                "currency": {
-                    "$ref": "#/definitions/Currency"
                 }
             }
         },
@@ -2928,11 +2928,11 @@
         "Schema": {
             "type": "object",
             "properties": {
-                "schemaInfo": {
-                    "$ref": "#/definitions/SchemaInfo"
-                },
                 "nativeSchema": {
                     "type": "object"
+                },
+                "schemaInfo": {
+                    "$ref": "#/definitions/SchemaInfo"
                 }
             }
         },
@@ -2993,11 +2993,11 @@
         "SchemaObject": {
             "type": "object",
             "properties": {
-                "schemaInfo": {
-                    "$ref": "#/definitions/SchemaInfo"
-                },
                 "nativeSchema": {
                     "type": "object"
+                },
+                "schemaInfo": {
+                    "$ref": "#/definitions/SchemaInfo"
                 }
             }
         },
@@ -3125,6 +3125,9 @@
                 "displayName": {
                     "type": "string"
                 },
+                "id": {
+                    "type": "string"
+                },
                 "dstsavings": {
                     "type": "integer",
                     "format": "int32"
@@ -3132,9 +3135,6 @@
                 "rawOffset": {
                     "type": "integer",
                     "format": "int32"
-                },
-                "id": {
-                    "type": "string"
                 }
             }
         },
@@ -3268,6 +3268,9 @@
                 "issuerX500Principal": {
                     "$ref": "#/definitions/X500Principal"
                 },
+                "serialNumber": {
+                    "type": "integer"
+                },
                 "tbscertificate": {
                     "type": "array",
                     "items": {
@@ -3337,9 +3340,6 @@
                             "type": "object"
                         }
                     }
-                },
-                "serialNumber": {
-                    "type": "integer"
                 },
                 "issuerDN": {
                     "$ref": "#/definitions/Principal"

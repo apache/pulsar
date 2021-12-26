@@ -583,14 +583,14 @@
         "CompletableFuture": {
             "type": "object",
             "properties": {
+                "cancelled": {
+                    "type": "boolean"
+                },
                 "numberOfDependents": {
                     "type": "integer",
                     "format": "int32"
                 },
                 "done": {
-                    "type": "boolean"
-                },
-                "cancelled": {
                     "type": "boolean"
                 },
                 "completedExceptionally": {
@@ -601,14 +601,14 @@
         "CompletableFutureClusterData": {
             "type": "object",
             "properties": {
+                "cancelled": {
+                    "type": "boolean"
+                },
                 "numberOfDependents": {
                     "type": "integer",
                     "format": "int32"
                 },
                 "done": {
-                    "type": "boolean"
-                },
-                "cancelled": {
                     "type": "boolean"
                 },
                 "completedExceptionally": {
@@ -996,10 +996,6 @@
                         "type": "string"
                     }
                 },
-                "intValue": {
-                    "type": "integer",
-                    "format": "int32"
-                },
                 "booleanValue": {
                     "type": "boolean"
                 },
@@ -1025,6 +1021,10 @@
                 },
                 "closed": {
                     "type": "boolean"
+                },
+                "intValue": {
+                    "type": "integer",
+                    "format": "int32"
                 },
                 "typeId": {
                     "type": "object"
@@ -1357,6 +1357,9 @@
                     "type": "integer",
                     "format": "int32"
                 },
+                "currency": {
+                    "$ref": "#/definitions/Currency"
+                },
                 "roundingMode": {
                     "type": "string",
                     "enum": [
@@ -1369,9 +1372,6 @@
                         "HALF_EVEN",
                         "UNNECESSARY"
                     ]
-                },
-                "currency": {
-                    "$ref": "#/definitions/Currency"
                 }
             }
         },
@@ -1678,6 +1678,9 @@
                 "displayName": {
                     "type": "string"
                 },
+                "id": {
+                    "type": "string"
+                },
                 "dstsavings": {
                     "type": "integer",
                     "format": "int32"
@@ -1685,9 +1688,6 @@
                 "rawOffset": {
                     "type": "integer",
                     "format": "int32"
-                },
-                "id": {
-                    "type": "string"
                 }
             }
         },
@@ -1773,6 +1773,9 @@
                 "issuerX500Principal": {
                     "$ref": "#/definitions/X500Principal"
                 },
+                "serialNumber": {
+                    "type": "integer"
+                },
                 "tbscertificate": {
                     "type": "array",
                     "items": {
@@ -1842,9 +1845,6 @@
                             "type": "object"
                         }
                     }
-                },
-                "serialNumber": {
-                    "type": "integer"
                 },
                 "issuerDN": {
                     "$ref": "#/definitions/Principal"
