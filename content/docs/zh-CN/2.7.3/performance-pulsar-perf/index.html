@@ -111,7 +111,7 @@
 <tr><td>batch-time-window</td><td>设置每批消息的窗口大小</td><td>1 ms</td></tr>
 <tr><td>batch-max-bytes</td><td>设置每个批消息的最大字节数</td><td>4194304</td></tr>
 <tr><td>batch-max-messages</td><td>设置每个批消息的最大消息数</td><td>1000</td></tr>
-<tr><td>chunking</td><td>Configure whether to split the message and publish in chunks if message size is larger than allowed max size.</td><td>false</td></tr>
+<tr><td>chunking</td><td>配置如果消息尺寸大于允许的最大尺寸，是否分割消息并在区块中发布。</td><td>false</td></tr>
 <tr><td>compression</td><td>指定消息载荷（ payload）的压缩格式</td><td>N/A</td></tr>
 <tr><td>conf-file</td><td>设置配置文件</td><td>N/A</td></tr>
 <tr><td>delay</td><td>给消息标记延迟时间</td><td>0s</td></tr>
@@ -168,8 +168,8 @@
 <tr><td>acks-delay-millis</td><td>设置确认分组的延迟时间，以毫秒为单位</td><td>100 ms</td></tr>
 <tr><td>auth-params</td><td>设置认证参数，格式由认证插件类中<code>configure</code>方法的实现决定的，如&quot;key1:val1,key2:val2&quot; 或 &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}&quot;。</td><td>N/A</td></tr>
 <tr><td>auth_plugin</td><td>设置认证插件类名</td><td>N/A</td></tr>
-<tr><td>auto_ack_chunk_q_full</td><td>Configure whether to automatically ack for the oldest message in receiver queue if the queue is full.</td><td>false</td></tr>
-<tr><td>listener-name</td><td>Set the listener name for the broker.</td><td>N/A</td></tr>
+<tr><td>auto_ack_chunk_q_full</td><td>配置如果队列满时，是否自动确认接收器队列中最旧的消息。</td><td>false</td></tr>
+<tr><td>listener-name</td><td>为broker指定监听器名称。</td><td>N/A</td></tr>
 <tr><td>batch-index-ack</td><td>开启或禁用批量索引确认</td><td>false</td></tr>
 <tr><td>conf-file</td><td>设置配置文件</td><td>N/A</td></tr>
 <tr><td>encryption-key-value-file</td><td>设置包含用于加密有效载荷的公钥文件</td><td>N/A</td></tr>

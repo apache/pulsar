@@ -488,7 +488,7 @@ consumer.acknowledge(messages)
 
 ### 否定确认重传退避
 
-The `NegativeAckRedeliveryBackoff` introduces a redelivery backoff mechanism. You can achieve redelivery with different delays by setting `redeliveryCount` of messages.
+`NegativeAckRedeliveryBackoff` 引入了一种重传退避机制。可以通过设置消息的 `redeliveryCount` 来实现不同延迟的重传。
 
 ```java
 Consumer consumer =  client.newConsumer()
@@ -501,7 +501,7 @@ Consumer consumer =  client.newConsumer()
         .subscribe();
 ```
 
-&gt; **Note** - The `negativeAckRedeliveryBackoff` does not work with `consumer.negativeAcknowledge(MessageId messageId)` because you are not able to get the redelivery count from the message ID. - If a consumer crashes, it triggers the redelivery of unacked messages. In this case, `NegativeAckRedeliveryBackoff` does not take effect and the messages might get redelivered earlier than the delay time from the backoff.
+&gt; **注意** - `negativeAckRedeliveryBackoff` 不适用于 `consumer.negativeAcknowledge(MessageId messageId)`，因为无法通过消息 ID 获取重传次数。 - 如果消费者崩溃，则会触发重传未确认的消息。 在这种情况下，`NegativeAckRedeliveryBackoff` 不会生效，消息可能会比退避延迟时间更早地重传。
 
 ### 多主题订阅
 
@@ -544,8 +544,8 @@ pulsarClient.newConsumer()
         .subscribe();
 ```
 
-&gt; **Note**  
-&gt; By default, the `subscriptionTopicsMode` of the consumer is `PersistentOnly`. `subscriptionTopicsMode` 的可用选项为： `PersistentOnly`，`NonPersistentOnly`，以及 `AllTopics`。
+&gt; **注意**  
+&gt; 默认情况下，消费者的 `subscriptionTopicsMode` 是 `PersistentOnly`。 `subscriptionTopicsMode` 的可用选项为： `PersistentOnly`，`NonPersistentOnly`，以及 `AllTopics`。
 
 你还可以订阅明确的主题列表 (如果愿意, 可跨命名空间):
 
@@ -570,7 +570,7 @@ Consumer multiTopicConsumer = consumerBuilder
         .subscribe();
 ```
 
-You can also subscribe to multiple topics asynchronously using the `subscribeAsync` method rather than the synchronous `subscribe` method. The following is an example.
+还可以使用 `subscribeAsync` 方法异步地订阅多个主题，而不是用 `subscribe` 方法同步地订阅。具体示例如下。
 
 ```java
 Pattern allTopicsInNamespace = Pattern.compile(&quot;persistent://public/default.*&quot;);
@@ -593,7 +593,7 @@ Pulsar has various [subscription types](concepts-messaging#subscription-types) t
 
 A subscription is identical with the subscription name; a subscription name can specify only one subscription type at a time. To change the subscription type, you should first stop all consumers of this subscription.
 
-Different subscription types have different message distribution types. This section describes the differences of subscription types and how to use them.
+不同的订阅类型对应不同的消息分发类型。本节介绍订阅类型的区别和使用方法。
 
 In order to better describe their differences, assuming you have a topic named &quot;my-topic&quot;, and the producer has published 10 messages.
 
@@ -627,11 +627,11 @@ Consumer consumer = client.newConsumer()
         .subscribe()
 ```
 
-Only the first consumer is allowed to the subscription, other consumers receive an error. The first consumer receives all 10 messages, and the consuming order is the same as the producing order.
+只有第一个消费者被允许订阅，其他消费者会收到错误信息。第一个消费者收到所有的 10 条消息，并且消费的顺序与生产顺序一致。
 
 &gt; 注意：
 &gt; 
-&gt; If topic is a partitioned topic, the first consumer subscribes to all partitioned topics, other consumers are not assigned with partitions and receive an error.
+&gt; 如果是分区主题，则第一个消费者订阅所有的分区主题，其他消费者不会被分配分区并会收到错误。 是所有分区主题的第一个消费者订阅者，则其他消费者没有分区而收到错误。
 
 #### Failover（灾备）
 
@@ -656,7 +656,7 @@ Consumer consumer2 = client.newConsumer()
 
 Multiple consumers can attach to the same subscription, yet only the first consumer is active, and others are standby. When the active consumer is disconnected, messages will be dispatched to one of standby consumers, and the standby consumer then becomes active consumer.
 
-If the first active consumer is disconnected after receiving 5 messages, the standby consumer becomes active consumer. Consumer1 will receive:
+如果第一个主消费者在收到 5 条消息后断开连接，则备用消费者将成为主消费者。Consumer1 会收到：
 
     (&quot;key-1&quot;, &quot;message-1-1&quot;)
     (&quot;key-1&quot;, &quot;message-1-2&quot;)
@@ -676,7 +676,7 @@ consumer2 will receive:
 
 &gt; 注意：
 &gt; 
-&gt; If a topic is a partitioned topic, each partition has only one active consumer, messages of one partition are distributed to only one consumer, and messages of multiple partitions are distributed to multiple consumers.
+&gt; 如果是分区主题，则每个分区只有一个主消费者， 一个分区的消息只分发给一个消费者，多个分区的消息分发给多个消费者。
 
 #### Shared（共享）
 
@@ -697,7 +697,7 @@ Consumer consumer2 = client.newConsumer()
 //Both consumer1 and consumer 2 is active consumers.
 ```
 
-In Shared subscription type, multiple consumers can attach to the same subscription and messages are delivered in a round robin distribution across consumers.
+在共享订阅类型中，多个消费者可以附加到同一个订阅，消息会跨多个消费者以 round robin 的方式分发。
 
 If a broker dispatches only one message at a time, consumer1 receives the following information.
 
@@ -721,7 +721,7 @@ consumer2 receives the following information.
 
 #### Key_shared
 
-This is a new subscription type since 2.4.0 release. Create new consumers and subscribe with `Key_Shared` subscription type.
+这是2.4.0版本新增的一个订阅类型。创建新的消费者并以 `Key_Shared` 订阅类型订阅。
 
 ```java
 Consumer consumer1 = client.newConsumer()
@@ -738,7 +738,7 @@ Consumer consumer2 = client.newConsumer()
 //Both consumer1 and consumer2 are active consumers.
 ```
 
-Just like in `Shared` subscription, all consumers in `Key_Shared` subscription type can attach to the same subscription. But `Key_Shared` subscription type is different from the `Shared` subscription. In `Key_Shared` subscription type, messages with the same key are delivered to only one consumer in order. The possible distribution of messages between different consumers (by default we do not know in advance which keys will be assigned to a consumer, but a key will only be assigned to a consumer at the same time).
+就像 `Shared` 订阅一样，在 `Key_Shared` 订阅类型中的所有消费者都可以附加到同一个订阅。 但 `Key_Shared` 订阅类型又不同于 `Shared` 类型。 在 `Key_Shared` 订阅类型中，相同 key 的消息只有序地发送给一个消费者。 The possible distribution of messages between different consumers (by default we do not know in advance which keys will be assigned to a consumer, but a key will only be assigned to a consumer at the same time).
 
 consumer1 receives the following information.
 
@@ -778,7 +778,7 @@ Producer producer = client.newProducer()
 
 &gt; 注意：
 &gt; 
-&gt; If the message key is not specified, messages without key are dispatched to one consumer in order by default.
+&gt; 如果未指定消息 key，则默认情况下无 key 的消息会按顺序分发给一个消费者。
 
 ## Reader
 
@@ -806,42 +806,42 @@ In the example above, a `Reader` object is instantiated for a specific topic and
 
 ### 配置读者
 
-When you create a reader, you can use the `loadConf` configuration. The following parameters are available in `loadConf`.
+在创建阅读者时，可以采用 `loadConf` 方式进行配置。`loadConf` 可用的参数如下。
 
-| Name | Type|
+| 名称 | 类型 |
 
 &lt;div style=&quot;width:300px&quot;&gt;
   说明
 &lt;/div&gt;
-| Default |\---|\---|\---|\--- `topicName`|String|Topic name. |None `receiverQueueSize`|int|Size of a consumer's receiver queue.  
+| 默认值 |\---|\---|\---|\--- `topicName`|String|主题名称。|None `receiverQueueSize`| int | 消费者接收队列的大小。  
   
-For example, the number of messages that can be accumulated by a consumer before an application calls ` `.  
+例如，在应用程序调用 Receive 方法之前，消费者可以累积的消息数量。 ` `.  
   
-A value higher than the default value increases consumer throughput, though at the expense of more memory utilization.|1000 `readerListener`|ReaderListener&lt;T&gt;|A listener that is called for message received.|None `readerName`|String|Reader name.|null `subscriptionName`|String| Subscription name|When there is a single topic, the default subscription name is `&quot;reader-&quot; + 10-digit UUID`.  
-When there are multiple topics, the default subscription name is `&quot;multiTopicsReader-&quot; + 10-digit UUID`. `subscriptionRolePrefix`|String|Prefix of subscription role. |null `cryptoKeyReader`|CryptoKeyReader|Interface that abstracts the access to a key store.|null `cryptoFailureAction`|ConsumerCryptoFailureAction| 当接收到无法解密的消息时，消费者应该采取的行动。  
+设置高于默认值的值会提高消费者吞吐量，但会增加内存开销。| 1000 `readerListener`|ReaderListener&lt;T&gt;| 收到消息时会被调用的监听器。|None `readerName`|String|阅读者名称。|null `subscriptionName`|String| 订阅名称|当只有一个主题时，默认的订阅名称是 `&quot;reader-&quot; + 10位数字的 UUID`.  
+当有多个主题时，默认订阅名称是 `&quot;multiTopicsReader-&quot; + 10位数字的 UUID`. `subscriptionRolePrefix`|String|订阅角色的前缀。|null `cryptoKeyReader`|CryptoKeyReader| 访问密钥库的接口。|null `cryptoFailureAction`|ConsumerCryptoFailureAction| 当接收到无法解密的消息时，消费者应该采取的行动。  
 
 
 * **FAIL**: 这是在加密成功之前，对于失败消息采取的默认选项。
-* **DISCARD**: silently acknowledge and not deliver message to an application.
+* **DISCARD**：静默地确认消息，但不分发给应用程序。
 * **CONSUME**：向应用程序分发加密的消息。而由应用程序负责对该消息进行解密。
   
-The message decompression fails.   
+消息解压失败。   
   
 如果消息包含批量消息，则客户端无法分批获取单条消息。  
   
-已分发的加密消息包含 {@link EncryptionContext}，其中包含包含加密和压缩信息，应用程序可以利用这些信息解密消息载荷。|ConsumerCryptoFailureAction.FAIL&lt;/li&gt; `readCompacted`|boolean|如果启用 `readCompacted`, a consumer reads messages from a compacted topic rather than a full message backlog of a topic.  
+已分发的加密消息包含 {@link EncryptionContext}，其中包含包含加密和压缩信息，应用程序可以利用这些信息解密消息载荷。|ConsumerCryptoFailureAction.FAIL&lt;/li&gt; `readCompacted`|boolean|如果启用 `readCompacted`，则消费者从压缩主题中读取消息，而不是读取主题的完整消息 backlog。  
   
 消费者只能看到压缩主题中每个键值的最新值，直到压缩 backlog 时主题消息中对应的位点。 超过这一位点，消息照常发送。  
   
-`readCompacted` can only be enabled on subscriptions to persistent topics, which have a single active consumer (for example, failure or exclusive subscriptions).   
+`readCompacted` 只能在订阅持久化主题时可以开启，这些主题仅有单个主消费者 (例如，故障或独占订阅类型)。   
   
-如果视图在非持久化主题或者共享订阅上开启该功能，则会导致订阅调用抛出 `PulsarClientException`。|false `resetIncludeHead`|boolean|If set to true, the first message to be returned is the one specified by `messageId`.  
+如果视图在非持久化主题或者共享订阅上开启该功能，则会导致订阅调用抛出 `PulsarClientException`。|false `resetIncludeHead`|boolean|如果设置为 true，则返回的第一条消息是 messageId 指定的那条。 `messageId`.  
   
-If set to false, the first message to be returned is the one next to the message specified by `messageId`。|false
+如果设置为 false，则返回的第一条消息是 messageId 指定的那条消息的下一条。 `messageId`。|false
 
 ### Sticky key range reader
 
-In sticky key range reader, broker will only dispatch messages which hash of the message key contains by the specified key hash range. Multiple key hash ranges can be specified on a reader.
+对于采用黏性 key 区间策略的 reader，broker 将只分发 key 哈希值在指定范围内的消息。可以在 reader 上指定多个 key 哈希值范围。
 
 The following is an example to create a sticky key range reader.
 
@@ -857,7 +857,7 @@ Total hash range size is 65536, so the max end of the range should be less than 
 
 ## Schema
 
-In Pulsar, all message data consists of byte arrays &quot;under the hood.&quot; [Message schemas](/docs/zh-CN/next/schema-get-started) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producer) without specifying a schema, then the producer can only produce messages of type `byte[]`. The following is an example.
+In Pulsar, all message data consists of byte arrays &quot;under the hood.&quot; [Message schemas](/docs/zh-CN/next/schema-get-started) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). 如果在不指定 schema 的情况下构造 [生产者](#producer)，那么生产者只能生产 `byte[]` 类型的消息。 The following is an example.
 
 ```java
 Producer&lt;byte[]&gt; producer = client.newProducer()
@@ -927,7 +927,7 @@ Producer&lt;SensorReading&gt; producer = client.newProducer(JSONSchema.of(Sensor
         .create();
     ```
 
-* 使用 `Schema.JSON`为 POJO 创建 JSON 格式消息。例子如下所示。
+* 使用 `Schema.JSON` 为 POJO 创建 JSON 格式消息。如下是一个例子。
     
     ```java
     Producer&lt;MyPojo&gt; pojoProducer = client.newProducer(Schema.JSON(MyPojo.class))
@@ -943,7 +943,7 @@ Producer&lt;SensorReading&gt; producer = client.newProducer(JSONSchema.of(Sensor
         .create();
     ```
 
-* 使用 `Schema.AVRO` 定义 Avro 格式 。下面的代码片段演示了如何创建和使用 Avro 格式.
+* 使用 `Schema.AVRO` 定义 Avro 格式 。下面的代码片段演示了如何创建和使用 Avro 格式。
     
     ```java
     Producer&lt;MyAvro&gt; avroProducer = client.newProducer(Schema.AVRO(MyAvro.class))
@@ -990,7 +990,7 @@ PulsarClient client = PulsarClient.builder()
 * `providerDomain`
 * `privateKey`
 
-You can also set an optional `keyId`. The following is an example.
+也可以设置可选的 `keyId`。下面是一个例子。
 
 ```java
 Map&lt;String, String&gt; authParams = new HashMap&lt;&gt;();

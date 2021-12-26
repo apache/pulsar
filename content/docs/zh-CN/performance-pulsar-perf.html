@@ -93,7 +93,7 @@
 ^C19:<span class="hljs-number">54</span>:<span class="hljs-number">44.325</span> [Thread<span class="hljs-number">-1</span>] INFO  org.apache.pulsar.testclient.PerformanceProducer - Aggregated throughput stats --- <span class="hljs-number">7286</span> records sent --- <span class="hljs-number">99.140</span> msg/s --- <span class="hljs-number">0.775</span> Mbit/s
 <span class="hljs-number">19</span>:<span class="hljs-number">54</span>:<span class="hljs-number">44.336</span> [Thread<span class="hljs-number">-1</span>] INFO  org.apache.pulsar.testclient.PerformanceProducer - Aggregated latency stats --- Latency: mean:   <span class="hljs-number">3.383</span> ms - med:   <span class="hljs-number">3.293</span> - <span class="hljs-number">95</span>pct:   <span class="hljs-number">4.610</span> - <span class="hljs-number">99</span>pct:   <span class="hljs-number">5.059</span> - <span class="hljs-number">99.9</span>pct:   <span class="hljs-number">5.588</span> - <span class="hljs-number">99.99</span>pct:   <span class="hljs-number">5.837</span> - <span class="hljs-number">99.999</span>pct:   <span class="hljs-number">6.609</span> - Max:   <span class="hljs-number">6.609</span>
 </code></pre>
-<p>From the above test data, you can get the throughput statistics and the write latency statistics. The aggregated statistics is printed when the Pulsar Perf is stopped. You can press <strong>Ctrl</strong>+<strong>C</strong> to stop the Pulsar Perf. If you specify a filename with the <code>--histogram-file</code> parameter, a file with the <a href="http://hdrhistogram.github.io/HdrHistogram/">HdrHistogram</a> formatted test result appears under your directory after Pulsar Perf is stopped. You can also check the test result through <a href="https://hdrhistogram.github.io/HdrHistogram/plotFiles.html">HdrHistogram Plotter</a>. For details about how to check the test result through <a href="https://hdrhistogram.github.io/HdrHistogram/plotFiles.html">HdrHistogram Plotter</a>, see <a href="#hdrhistogram-plotter">HdrHistogram Plotter</a>.</p>
+<p>From the above test data, you can get the throughput statistics and the write latency statistics. The aggregated statistics is printed when the Pulsar Perf is stopped. You can press <strong>Ctrl</strong>+<strong>C</strong> to stop the Pulsar Perf. 如果使用 <code>--histogram-file</code> 参数指定一个文件名， 当Pulsar Perf 停止后，在目录下会生成一个 <a href="http://hdrhistogram.github.io/HdrHistogram/">HdrHistogram</a> 格式的测试结果文件。 You can also check the test result through <a href="https://hdrhistogram.github.io/HdrHistogram/plotFiles.html">HdrHistogram Plotter</a>. For details about how to check the test result through <a href="https://hdrhistogram.github.io/HdrHistogram/plotFiles.html">HdrHistogram Plotter</a>, see <a href="#hdrhistogram-plotter">HdrHistogram Plotter</a>.</p>
 <h3><a class="anchor" aria-hidden="true" id="configuration-options-for-pulsar-perf-produce"></a><a href="#configuration-options-for-pulsar-perf-produce" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration options for <code>pulsar-perf produce</code></h3>
 <p>You can get all options by executing the <code>bin/pulsar-perf produce -h</code> command. Therefore, you can modify these options as required.</p>
 <p>The following table lists configuration options available for the <code>pulsar-perf produce</code> command.</p>
@@ -102,16 +102,16 @@
 <tr><th>选项</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td>access-mode</td><td>Set the producer access mode. Valid values are <code>Shared</code>, <code>Exclusive</code> and <code>WaitForExclusive</code>.</td><td>Shared（共享）</td></tr>
-<tr><td>admin-url</td><td>Set the Pulsar admin URL.</td><td>N/A</td></tr>
+<tr><td>access-mode</td><td>设置生产者访问模式。 有效值是 <code>Shared</code>, <code>Exclusive</code> 和 <code>WaitForExclusive</code>.</td><td>Shared（共享）</td></tr>
+<tr><td>admin-url</td><td>设置 Pulsar admin URL。</td><td>N/A</td></tr>
 <tr><td>auth-params</td><td>设置认证参数，格式由认证插件类中<code>configure</code>方法的实现决定的，如&quot;key1:val1,key2:val2&quot; 或 &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}&quot;。</td><td>N/A</td></tr>
 <tr><td>auth-plugin</td><td>设置认证插件类名</td><td>N/A</td></tr>
-<tr><td>listener-name</td><td>Set the listener name for the broker.</td><td>N/A</td></tr>
+<tr><td>listener-name</td><td>为broker指定监听器名称。</td><td>N/A</td></tr>
 <tr><td>batch-max-bytes</td><td>设置每个批消息的最大字节数</td><td>4194304</td></tr>
 <tr><td>batch-max-messages</td><td>设置每个批消息的最大消息数</td><td>1000</td></tr>
 <tr><td>batch-time-window</td><td>设置每批消息的窗口大小</td><td>1 ms</td></tr>
-<tr><td>busy-wait</td><td>Enable or disable Busy-Wait on the Pulsar client.</td><td>false</td></tr>
-<tr><td>chunking</td><td>Configure whether to split the message and publish in chunks if message size is larger than allowed max size.</td><td>false</td></tr>
+<tr><td>busy-wait</td><td>在 Pulsar 客户端启用或禁用 Busy-Wait.</td><td>false</td></tr>
+<tr><td>chunking</td><td>配置如果消息尺寸大于允许的最大尺寸，是否分割消息并在区块中发布。</td><td>false</td></tr>
 <tr><td>compression</td><td>指定消息载荷（ payload）的压缩格式</td><td>N/A</td></tr>
 <tr><td>conf-file</td><td>设置配置文件</td><td>N/A</td></tr>
 <tr><td>delay</td><td>给消息标记延迟时间</td><td>0s</td></tr>
@@ -176,10 +176,10 @@
 <tr><td>acks-delay-millis</td><td>设置确认分组的延迟时间，以毫秒为单位</td><td>100 ms</td></tr>
 <tr><td>auth-params</td><td>设置认证参数，格式由认证插件类中<code>configure</code>方法的实现决定的，如&quot;key1:val1,key2:val2&quot; 或 &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}&quot;。</td><td>N/A</td></tr>
 <tr><td>auth-plugin</td><td>设置认证插件类名</td><td>N/A</td></tr>
-<tr><td>auto_ack_chunk_q_full</td><td>Configure whether to automatically ack for the oldest message in receiver queue if the queue is full.</td><td>false</td></tr>
-<tr><td>listener-name</td><td>Set the listener name for the broker.</td><td>N/A</td></tr>
+<tr><td>auto_ack_chunk_q_full</td><td>配置如果队列满时，是否自动确认接收器队列中最旧的消息。</td><td>false</td></tr>
+<tr><td>listener-name</td><td>为broker指定监听器名称。</td><td>N/A</td></tr>
 <tr><td>batch-index-ack</td><td>开启或禁用批量索引确认</td><td>false</td></tr>
-<tr><td>busy-wait</td><td>Enable or disable Busy-Wait on the Pulsar client.</td><td>false</td></tr>
+<tr><td>busy-wait</td><td>在 Pulsar 客户端启用或禁用 Busy-Wait.</td><td>false</td></tr>
 <tr><td>conf-file</td><td>设置配置文件</td><td>N/A</td></tr>
 <tr><td>encryption-key-name</td><td>设置用于加密有效载荷的公钥名称</td><td>N/A</td></tr>
 <tr><td>encryption-key-value-file</td><td>设置包含用于加密有效载荷的公钥文件</td><td>N/A</td></tr>
