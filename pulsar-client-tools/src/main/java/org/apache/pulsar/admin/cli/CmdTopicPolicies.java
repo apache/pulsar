@@ -239,8 +239,8 @@ public class CmdTopicPolicies extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
-                + "If set to true, the policy will be replicate to other clusters asynchronously")
+        @Parameter(names = { "--global", "-g" }, description = "Whether to remove this policy globally. "
+                + "If set to true, the removing operation will be replicate to other clusters asynchronously")
         private boolean isGlobal = false;
 
         @Override
@@ -835,8 +835,8 @@ public class CmdTopicPolicies extends CmdBase {
         @Parameter(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic")
         private boolean applied = false;
 
-        @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
-                + "If set to true, the policy will be replicate to other clusters asynchronously")
+        @Parameter(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
+                + "If set to true, broker returned global topic policies")
         private boolean isGlobal = false;
 
         @Override
