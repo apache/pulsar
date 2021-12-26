@@ -285,6 +285,11 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("get-dispatch-rate");
             cmdUsageFormatter.addDeprecatedCommand("set-dispatch-rate");
             cmdUsageFormatter.addDeprecatedCommand("remove-dispatch-rate");
+
+            cmdUsageFormatter.addDeprecatedCommand("get-deduplication");
+            cmdUsageFormatter.addDeprecatedCommand("set-deduplication");
+            cmdUsageFormatter.addDeprecatedCommand("remove-deduplication");
+
         }
     }
 
