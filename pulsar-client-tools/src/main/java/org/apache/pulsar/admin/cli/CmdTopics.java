@@ -282,6 +282,10 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("set-persistence");
             cmdUsageFormatter.addDeprecatedCommand("remove-persistence");
 
+            cmdUsageFormatter.addDeprecatedCommand("get-inactive-topic-policies");
+            cmdUsageFormatter.addDeprecatedCommand("set-inactive-topic-policies");
+            cmdUsageFormatter.addDeprecatedCommand("remove-inactive-topic-policies");
+
             cmdUsageFormatter.addDeprecatedCommand("get-dispatch-rate");
             cmdUsageFormatter.addDeprecatedCommand("set-dispatch-rate");
             cmdUsageFormatter.addDeprecatedCommand("remove-dispatch-rate");
