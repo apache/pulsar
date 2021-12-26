@@ -307,7 +307,8 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 </tr>
 <tr id="i21" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Boolean.html?is-external=true" title="class or interface in java.lang">Boolean</a>&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalGetDeduplication-boolean-">internalGetDeduplication</a></span>(boolean&nbsp;applied)</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalGetDeduplication-boolean-boolean-">internalGetDeduplication</a></span>(boolean&nbsp;applied,
+                        boolean&nbsp;isGlobal)</code>&nbsp;</td>
 </tr>
 <tr id="i22" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies&gt;</code></td>
@@ -461,7 +462,7 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 </tr>
 <tr id="i54" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Optional.html?is-external=true" title="class or interface in java.util">Optional</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/List.html?is-external=true" title="class or interface in java.util">List</a>&lt;org.apache.pulsar.common.api.proto.CommandSubscribe.SubType&gt;&gt;&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalGetSubscriptionTypesEnabled--">internalGetSubscriptionTypesEnabled</a></span>()</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalGetSubscriptionTypesEnabled-boolean-">internalGetSubscriptionTypesEnabled</a></span>(boolean&nbsp;isGlobal)</code>&nbsp;</td>
 </tr>
 <tr id="i55" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
@@ -531,7 +532,7 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 </tr>
 <tr id="i70" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalRemoveSubscriptionTypesEnabled--">internalRemoveSubscriptionTypesEnabled</a></span>()</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalRemoveSubscriptionTypesEnabled-boolean-">internalRemoveSubscriptionTypesEnabled</a></span>(boolean&nbsp;isGlobal)</code>&nbsp;</td>
 </tr>
 <tr id="i71" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
@@ -565,7 +566,8 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 </tr>
 <tr id="i76" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalSetDeduplication-java.lang.Boolean-">internalSetDeduplication</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Boolean.html?is-external=true" title="class or interface in java.lang">Boolean</a>&nbsp;enabled)</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalSetDeduplication-java.lang.Boolean-boolean-">internalSetDeduplication</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Boolean.html?is-external=true" title="class or interface in java.lang">Boolean</a>&nbsp;enabled,
+                        boolean&nbsp;isGlobal)</code>&nbsp;</td>
 </tr>
 <tr id="i77" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
@@ -659,7 +661,8 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 </tr>
 <tr id="i98" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalSetSubscriptionTypesEnabled-java.util.Set-">internalSetSubscriptionTypesEnabled</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Set.html?is-external=true" title="class or interface in java.util">Set</a>&lt;org.apache.pulsar.client.api.SubscriptionType&gt;&nbsp;subscriptionTypesEnabled)</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalSetSubscriptionTypesEnabled-java.util.Set-boolean-">internalSetSubscriptionTypesEnabled</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Set.html?is-external=true" title="class or interface in java.util">Set</a>&lt;org.apache.pulsar.client.api.SubscriptionType&gt;&nbsp;subscriptionTypesEnabled,
+                                   boolean&nbsp;isGlobal)</code>&nbsp;</td>
 </tr>
 <tr id="i99" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
@@ -1356,22 +1359,24 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 <pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalRemoveReplicationClusters()</pre>
 </li>
 </ul>
-<a name="internalGetDeduplication-boolean-">
+<a name="internalGetDeduplication-boolean-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalGetDeduplication</h4>
-<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Boolean.html?is-external=true" title="class or interface in java.lang">Boolean</a>&gt;&nbsp;internalGetDeduplication(boolean&nbsp;applied)</pre>
+<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Boolean.html?is-external=true" title="class or interface in java.lang">Boolean</a>&gt;&nbsp;internalGetDeduplication(boolean&nbsp;applied,
+                                                              boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
-<a name="internalSetDeduplication-java.lang.Boolean-">
+<a name="internalSetDeduplication-java.lang.Boolean-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalSetDeduplication</h4>
-<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalSetDeduplication(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Boolean.html?is-external=true" title="class or interface in java.lang">Boolean</a>&nbsp;enabled)</pre>
+<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalSetDeduplication(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Boolean.html?is-external=true" title="class or interface in java.lang">Boolean</a>&nbsp;enabled,
+                                                           boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
 <a name="internalSetMessageTTL-java.lang.Integer-boolean-">
@@ -1811,31 +1816,32 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 <pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalSetPublishRate(org.apache.pulsar.common.policies.data.PublishRate&nbsp;publishRate)</pre>
 </li>
 </ul>
-<a name="internalGetSubscriptionTypesEnabled--">
+<a name="internalGetSubscriptionTypesEnabled-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalGetSubscriptionTypesEnabled</h4>
-<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Optional.html?is-external=true" title="class or interface in java.util">Optional</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/List.html?is-external=true" title="class or interface in java.util">List</a>&lt;org.apache.pulsar.common.api.proto.CommandSubscribe.SubType&gt;&gt;&gt;&nbsp;internalGetSubscriptionTypesEnabled()</pre>
+<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Optional.html?is-external=true" title="class or interface in java.util">Optional</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/List.html?is-external=true" title="class or interface in java.util">List</a>&lt;org.apache.pulsar.common.api.proto.CommandSubscribe.SubType&gt;&gt;&gt;&nbsp;internalGetSubscriptionTypesEnabled(boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
-<a name="internalSetSubscriptionTypesEnabled-java.util.Set-">
+<a name="internalSetSubscriptionTypesEnabled-java.util.Set-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalSetSubscriptionTypesEnabled</h4>
-<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalSetSubscriptionTypesEnabled(<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Set.html?is-external=true" title="class or interface in java.util">Set</a>&lt;org.apache.pulsar.client.api.SubscriptionType&gt;&nbsp;subscriptionTypesEnabled)</pre>
+<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalSetSubscriptionTypesEnabled(<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Set.html?is-external=true" title="class or interface in java.util">Set</a>&lt;org.apache.pulsar.client.api.SubscriptionType&gt;&nbsp;subscriptionTypesEnabled,
+                                                                      boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
-<a name="internalRemoveSubscriptionTypesEnabled--">
+<a name="internalRemoveSubscriptionTypesEnabled-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalRemoveSubscriptionTypesEnabled</h4>
-<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalRemoveSubscriptionTypesEnabled()</pre>
+<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalRemoveSubscriptionTypesEnabled(boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
 <a name="internalRemovePublishRate--">
