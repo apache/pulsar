@@ -4255,30 +4255,32 @@ public class PersistentTopicsBase extends AdminResource {
             });
     }
 
-    protected CompletableFuture<Optional<List<SubType>>> internalGetSubscriptionTypesEnabled() {
-        return getTopicPoliciesAsyncWithRetry(topicName)
+    protected CompletableFuture<Optional<List<SubType>>> internalGetSubscriptionTypesEnabled(boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getSubscriptionTypesEnabled));
     }
 
     protected CompletableFuture<Void> internalSetSubscriptionTypesEnabled(
-            Set<SubscriptionType> subscriptionTypesEnabled) {
+            Set<SubscriptionType> subscriptionTypesEnabled, boolean isGlobal) {
         List<SubType> subTypes = Lists.newArrayList();
         subscriptionTypesEnabled.forEach(subscriptionType -> subTypes.add(SubType.valueOf(subscriptionType.name())));
-        return getTopicPoliciesAsyncWithRetry(topicName)
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenCompose(op -> {
                 TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
                 topicPolicies.setSubscriptionTypesEnabled(subTypes);
+                topicPolicies.setIsGlobal(isGlobal);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
             });
     }
 
-    protected CompletableFuture<Void> internalRemoveSubscriptionTypesEnabled() {
-        return getTopicPoliciesAsyncWithRetry(topicName)
+    protected CompletableFuture<Void> internalRemoveSubscriptionTypesEnabled(boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
                 .thenCompose(op -> {
                     if (!op.isPresent()) {
                         return CompletableFuture.completedFuture(null);
                     }
                     op.get().setSubscriptionTypesEnabled(Lists.newArrayList());
+                    op.get().setIsGlobal(isGlobal);
                     return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
                 });
     }

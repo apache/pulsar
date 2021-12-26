@@ -23,10 +23,14 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -172,6 +176,27 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin2.topicPolicies(true).getRetention(persistentTopicName)));
         Awaitility.await().untilAsserted(() ->
                 assertNull(admin3.topicPolicies(true).getRetention(persistentTopicName)));
+    }
+    @Test
+    public void testReplicateSubscriptionTypesPolicies() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+        init(namespace, topic);
+        Set<SubscriptionType> subscriptionTypes = new HashSet<>();
+        subscriptionTypes.add(SubscriptionType.Shared);
+        // set subscription types policies
+        admin1.topicPolicies(true).setSubscriptionTypesEnabled(topic, subscriptionTypes);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true).getSubscriptionTypesEnabled(topic), subscriptionTypes));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true).getSubscriptionTypesEnabled(topic), subscriptionTypes));
+        // remove subscription types policies
+        admin1.topicPolicies(true).removeSubscriptionTypesEnabled(topic);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true).getSubscriptionTypesEnabled(topic), Collections.emptySet()));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true).getSubscriptionTypesEnabled(topic), Collections.emptySet()));
+
     }
 
     private void init(String namespace, String topic)

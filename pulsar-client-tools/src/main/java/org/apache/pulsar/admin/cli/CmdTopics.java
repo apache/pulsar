@@ -285,6 +285,10 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("get-deduplication");
             cmdUsageFormatter.addDeprecatedCommand("set-deduplication");
             cmdUsageFormatter.addDeprecatedCommand("remove-deduplication");
+
+            cmdUsageFormatter.addDeprecatedCommand("set-subscription-types-enabled");
+            cmdUsageFormatter.addDeprecatedCommand("get-subscription-types-enabled");
+            cmdUsageFormatter.addDeprecatedCommand("remove-subscription-types-enabled");
         }
     }
 
@@ -2003,7 +2007,6 @@ public class CmdTopics extends CmdBase {
             getTopics().setMaxUnackedMessagesOnSubscription(persistentTopic, maxNum);
         }
     }
-
 
     @Parameters(commandDescription = "Set subscription types enabled for a topic")
     private class SetSubscriptionTypesEnabled extends CliCommand {
