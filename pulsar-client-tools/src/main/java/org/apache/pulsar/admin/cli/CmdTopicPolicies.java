@@ -664,8 +664,8 @@ public class CmdTopicPolicies extends CmdBase {
                 ",Valid options are: [delete_when_no_subscriptions, delete_when_subscriptions_caught_up]", required = true)
         private String inactiveTopicDeleteMode;
 
-        @Parameter(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
-                + "If set to true, broker returned global topic policies")
+        @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
+                + "If set to true, the policy will be replicate to other clusters asynchronously")
         private boolean isGlobal = false;
 
         @Override
@@ -697,8 +697,8 @@ public class CmdTopicPolicies extends CmdBase {
     private class RemoveInactiveTopicPolicies extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
-        @Parameter(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
-                + "If set to true, broker returned global topic policies")
+        @Parameter(names = { "--global", "-g" }, description = "Whether to remove this policy globally. "
+                + "If set to true, the removing operation will be replicate to other clusters asynchronously")
         private boolean isGlobal = false;
         @Override
         void run() throws PulsarAdminException {
