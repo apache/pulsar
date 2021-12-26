@@ -4157,7 +4157,8 @@ public class PersistentTopicsBase extends AdminResource {
                 }));
     }
 
-    protected CompletableFuture<Void> internalSetSubscriptionDispatchRate(DispatchRateImpl dispatchRate, boolean isGlobal) {
+    protected CompletableFuture<Void> internalSetSubscriptionDispatchRate
+            (DispatchRateImpl dispatchRate, boolean isGlobal) {
         if (dispatchRate == null) {
             return CompletableFuture.completedFuture(null);
         }
