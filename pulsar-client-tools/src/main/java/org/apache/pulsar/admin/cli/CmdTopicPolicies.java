@@ -635,7 +635,7 @@ public class CmdTopicPolicies extends CmdBase {
         private boolean applied = false;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
-                + "If set to true, broker returned global topic policies", arity = 0)
+                + "If set to true, broker returned global topic policies")
         private boolean isGlobal = false;
 
         @Override
@@ -665,7 +665,7 @@ public class CmdTopicPolicies extends CmdBase {
         private String inactiveTopicDeleteMode;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
-                + "If set to true, broker returned global topic policies", arity = 0)
+                + "If set to true, broker returned global topic policies")
         private boolean isGlobal = false;
 
         @Override
@@ -698,7 +698,7 @@ public class CmdTopicPolicies extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
         @Parameter(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
-                + "If set to true, broker returned global topic policies", arity = 0)
+                + "If set to true, broker returned global topic policies")
         private boolean isGlobal = false;
         @Override
         void run() throws PulsarAdminException {
