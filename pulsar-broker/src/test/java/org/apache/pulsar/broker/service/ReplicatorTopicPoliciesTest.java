@@ -127,6 +127,26 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
     }
 
     @Test
+    public void testReplicateDeduplicationStatusPolicies() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+        init(namespace, topic);
+        // set subscription types policies
+        admin1.topicPolicies(true).setDeduplicationStatus(topic, true);
+        Awaitility.await().ignoreExceptions().untilAsserted(() ->
+                assertTrue(admin2.topicPolicies(true).getDeduplicationStatus(topic)));
+        Awaitility.await().ignoreExceptions().untilAsserted(() ->
+                assertTrue(admin3.topicPolicies(true).getDeduplicationStatus(topic)));
+        // remove subscription types policies
+        admin1.topicPolicies(true).removeDeduplicationStatus(topic);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin2.topicPolicies(true).getDeduplicationStatus(topic)));
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin3.topicPolicies(true).getDeduplicationStatus(topic)));
+
+    }
+
+    @Test
     public void testReplicatorTopicPolicies() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();

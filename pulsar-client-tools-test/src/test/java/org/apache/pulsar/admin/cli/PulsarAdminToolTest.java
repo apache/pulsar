@@ -915,6 +915,13 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("remove-message-ttl persistent://myprop/clust/ns1/ds1"));
         verify(mockTopicsPolicies).removeMessageTTL("persistent://myprop/clust/ns1/ds1");
 
+        cmdTopics.run(split("get-deduplication persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopicsPolicies).getDeduplicationStatus("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("set-deduplication persistent://myprop/clust/ns1/ds1 --disable"));
+        verify(mockTopicsPolicies).setDeduplicationStatus("persistent://myprop/clust/ns1/ds1", false);
+        cmdTopics.run(split("remove-deduplication persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopicsPolicies).removeDeduplicationStatus("persistent://myprop/clust/ns1/ds1");
+
         // Reset the cmd, and check global option
         cmdTopics = new CmdTopicPolicies(() -> admin);
         cmdTopics.run(split("get-retention persistent://myprop/clust/ns1/ds1 -g"));
@@ -967,6 +974,13 @@ public class PulsarAdminToolTest {
                 new PersistencePolicies(2, 1, 1, 100.0d));
         cmdTopics.run(split("remove-persistence persistent://myprop/clust/ns1/ds1 -g"));
         verify(mockGlobalTopicsPolicies).removePersistence("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("get-deduplication persistent://myprop/clust/ns1/ds1 -g"));
+        verify(mockGlobalTopicsPolicies).getDeduplicationStatus("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("set-deduplication persistent://myprop/clust/ns1/ds1 --disable -g"));
+        verify(mockGlobalTopicsPolicies).setDeduplicationStatus("persistent://myprop/clust/ns1/ds1", false);
+        cmdTopics.run(split("remove-deduplication persistent://myprop/clust/ns1/ds1 -g"));
+        verify(mockGlobalTopicsPolicies).removeDeduplicationStatus("persistent://myprop/clust/ns1/ds1");
     }
 
     @Test
