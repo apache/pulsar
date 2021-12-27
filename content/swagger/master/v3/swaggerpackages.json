@@ -586,12 +586,12 @@
                 "done": {
                     "type": "boolean"
                 },
-                "cancelled": {
-                    "type": "boolean"
-                },
                 "numberOfDependents": {
                     "type": "integer",
                     "format": "int32"
+                },
+                "cancelled": {
+                    "type": "boolean"
                 },
                 "completedExceptionally": {
                     "type": "boolean"
@@ -604,12 +604,12 @@
                 "done": {
                     "type": "boolean"
                 },
-                "cancelled": {
-                    "type": "boolean"
-                },
                 "numberOfDependents": {
                     "type": "integer",
                     "format": "int32"
+                },
+                "cancelled": {
+                    "type": "boolean"
                 },
                 "completedExceptionally": {
                     "type": "boolean"
@@ -654,11 +654,11 @@
                 "numberFormat": {
                     "$ref": "#/definitions/NumberFormat"
                 },
-                "lenient": {
-                    "type": "boolean"
-                },
                 "timeZone": {
                     "$ref": "#/definitions/TimeZone"
+                },
+                "lenient": {
+                    "type": "boolean"
                 }
             }
         },
@@ -696,11 +696,11 @@
                 "attributes": {
                     "$ref": "#/definitions/ContextAttributes"
                 },
-                "locale": {
-                    "$ref": "#/definitions/Locale"
-                },
                 "timeZone": {
                     "$ref": "#/definitions/TimeZone"
+                },
+                "locale": {
+                    "$ref": "#/definitions/Locale"
                 },
                 "typeFactory": {
                     "$ref": "#/definitions/TypeFactory"
@@ -728,11 +728,11 @@
         "DeserializationContext": {
             "type": "object",
             "properties": {
-                "locale": {
-                    "$ref": "#/definitions/Locale"
-                },
                 "timeZone": {
                     "$ref": "#/definitions/TimeZone"
+                },
+                "locale": {
+                    "$ref": "#/definitions/Locale"
                 },
                 "config": {
                     "$ref": "#/definitions/DeserializationConfig"
@@ -960,10 +960,6 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "charOffset": {
-                    "type": "integer",
-                    "format": "int64"
-                },
                 "sourceRef": {
                     "type": "object"
                 },
@@ -974,6 +970,10 @@
                 "columnNr": {
                     "type": "integer",
                     "format": "int32"
+                },
+                "charOffset": {
+                    "type": "integer",
+                    "format": "int64"
                 }
             }
         },
@@ -996,6 +996,14 @@
                         "type": "string"
                     }
                 },
+                "intValue": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "shortValue": {
+                    "type": "integer",
+                    "format": "int32"
+                },
                 "booleanValue": {
                     "type": "boolean"
                 },
@@ -1015,16 +1023,8 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "shortValue": {
-                    "type": "integer",
-                    "format": "int32"
-                },
                 "closed": {
                     "type": "boolean"
-                },
-                "intValue": {
-                    "type": "integer",
-                    "format": "int32"
                 },
                 "typeId": {
                     "type": "object"
@@ -1175,11 +1175,11 @@
         "JsonSerializerObject": {
             "type": "object",
             "properties": {
-                "unwrappingSerializer": {
-                    "type": "boolean"
-                },
                 "delegatee": {
                     "$ref": "#/definitions/JsonSerializerObject"
+                },
+                "unwrappingSerializer": {
+                    "type": "boolean"
                 }
             }
         },
@@ -1596,11 +1596,11 @@
                 "attributes": {
                     "$ref": "#/definitions/ContextAttributes"
                 },
-                "locale": {
-                    "$ref": "#/definitions/Locale"
-                },
                 "timeZone": {
                     "$ref": "#/definitions/TimeZone"
+                },
+                "locale": {
+                    "$ref": "#/definitions/Locale"
                 },
                 "typeFactory": {
                     "$ref": "#/definitions/TypeFactory"
@@ -1631,11 +1631,11 @@
         "SerializerProvider": {
             "type": "object",
             "properties": {
-                "locale": {
-                    "$ref": "#/definitions/Locale"
-                },
                 "timeZone": {
                     "$ref": "#/definitions/TimeZone"
+                },
+                "locale": {
+                    "$ref": "#/definitions/Locale"
                 },
                 "config": {
                     "$ref": "#/definitions/SerializationConfig"
@@ -1678,9 +1678,6 @@
                 "id": {
                     "type": "string"
                 },
-                "displayName": {
-                    "type": "string"
-                },
                 "dstsavings": {
                     "type": "integer",
                     "format": "int32"
@@ -1688,6 +1685,9 @@
                 "rawOffset": {
                     "type": "integer",
                     "format": "int32"
+                },
+                "displayName": {
+                    "type": "string"
                 }
             }
         },
@@ -1773,12 +1773,6 @@
                 "issuerX500Principal": {
                     "$ref": "#/definitions/X500Principal"
                 },
-                "issuerDN": {
-                    "$ref": "#/definitions/Principal"
-                },
-                "subjectDN": {
-                    "$ref": "#/definitions/Principal"
-                },
                 "version": {
                     "type": "integer",
                     "format": "int32"
@@ -1852,6 +1846,12 @@
                             "type": "object"
                         }
                     }
+                },
+                "issuerDN": {
+                    "$ref": "#/definitions/Principal"
+                },
+                "subjectDN": {
+                    "$ref": "#/definitions/Principal"
                 },
                 "serialNumber": {
                     "type": "integer"
