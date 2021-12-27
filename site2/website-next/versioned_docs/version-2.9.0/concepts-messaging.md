@@ -333,7 +333,7 @@ A namespace is a logical nomenclature within a tenant. A tenant creates multiple
 
 A subscription is a named configuration rule that determines how messages are delivered to consumers. Four subscription modes are available in Pulsar: [exclusive](#exclusive), [shared](#shared), [failover](#failover), and [key_shared](#key_shared). These modes are illustrated in the figure below.
 
-![Subscription modes](/assets/pulsar-subscription-modes.png)
+![Subscription modes](/assets/pulsar-subscription-types.png)
 
 > **Pub-Sub or Queuing**  
 > In Pulsar, you can use different subscriptions flexibly.
