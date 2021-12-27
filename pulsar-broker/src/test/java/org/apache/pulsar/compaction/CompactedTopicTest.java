@@ -650,4 +650,42 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         reader.close();
         producer.close();
     }
+
+    @Test(timeOut = 1000 * 30)
+    public void testReader() throws Exception {
+        final String ns = "my-property/use/my-ns";
+        String topic = "persistent://" + ns + "/t1";
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .create();
+
+        producer.newMessage().key("k").value(("value").getBytes()).send();
+        producer.newMessage().key("k").value(null).send();
+        pulsar.getCompactor().compact(topic).get();
+
+        Awaitility.await()
+                .pollInterval(3, TimeUnit.SECONDS)
+                .atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+            admin.topics().unload(topic);
+            Thread.sleep(100);
+            Assert.assertTrue(admin.topics().getInternalStats(topic).lastConfirmedEntry.endsWith("-1"));
+        });
+        // Make sure the last confirm entry is -1, then get last message id from compact ledger
+        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic);
+        Assert.assertTrue(internalStats.lastConfirmedEntry.endsWith("-1"));
+        // Because the latest value of the key `k` is null, so there is no data in compact ledger.
+        Assert.assertEquals(internalStats.compactedLedger.size, 0);
+
+        @Cleanup
+        Reader<byte[]> reader = pulsarClient.newReader()
+                .topic(topic)
+                .startMessageIdInclusive()
+                .startMessageId(MessageId.earliest)
+                .readCompacted(true)
+                .create();
+        Assert.assertFalse(reader.hasMessageAvailable());
+    }
+
 }
