@@ -1023,7 +1023,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             SubscriptionOption option = SubscriptionOption.builder().cnx(ServerCnx.this)
                                     .subscriptionName(subscriptionName)
                                     .consumerId(consumerId).subType(subType).priorityLevel(priorityLevel)
-                                    .consumerName(consumerName).isDurable(isDurable).subType(subType)
+                                    .consumerName(consumerName).isDurable(isDurable)
                                     .startMessageId(startMessageId).metadata(metadata).readCompacted(readCompacted)
                                     .initialPosition(initialPosition)
                                     .startMessageRollbackDurationSec(startMessageRollbackDurationSec)
