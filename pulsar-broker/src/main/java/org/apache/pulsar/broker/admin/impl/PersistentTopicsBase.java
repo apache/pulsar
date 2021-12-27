@@ -3064,8 +3064,8 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenApply(op -> op.map(TopicPolicies::getMaxMessageSize));
     }
 
-    protected CompletableFuture<Integer> internalGetMaxProducers(boolean applied) {
-        return getTopicPoliciesAsyncWithRetry(topicName)
+    protected CompletableFuture<Integer> internalGetMaxProducers(boolean applied, boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getMaxProducerPerTopic)
                 .orElseGet(() -> {
                     if (applied) {
@@ -3076,15 +3076,16 @@ public class PersistentTopicsBase extends AdminResource {
                 }));
     }
 
-    protected CompletableFuture<Void> internalSetMaxProducers(Integer maxProducers) {
+    protected CompletableFuture<Void> internalSetMaxProducers(Integer maxProducers, boolean isGlobal) {
         if (maxProducers != null && maxProducers < 0) {
             throw new RestException(Status.PRECONDITION_FAILED,
                     "maxProducers must be 0 or more");
         }
-        return getTopicPoliciesAsyncWithRetry(topicName)
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenCompose(op -> {
                 TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
                 topicPolicies.setMaxProducerPerTopic(maxProducers);
+                topicPolicies.setIsGlobal(isGlobal);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
             });
 
@@ -3157,13 +3158,14 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
-    protected CompletableFuture<Void> internalRemoveMaxProducers() {
-        return getTopicPoliciesAsyncWithRetry(topicName)
+    protected CompletableFuture<Void> internalRemoveMaxProducers(boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenCompose(op -> {
                 if (!op.isPresent()) {
                     return CompletableFuture.completedFuture(null);
                 }
                 op.get().setMaxProducerPerTopic(null);
+                op.get().setIsGlobal(isGlobal);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
             });
     }

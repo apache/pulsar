@@ -297,6 +297,10 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("set-subscription-types-enabled");
             cmdUsageFormatter.addDeprecatedCommand("get-subscription-types-enabled");
             cmdUsageFormatter.addDeprecatedCommand("remove-subscription-types-enabled");
+
+            cmdUsageFormatter.addDeprecatedCommand("get-max-producers");
+            cmdUsageFormatter.addDeprecatedCommand("set-max-producers");
+            cmdUsageFormatter.addDeprecatedCommand("remove-max-producers");
         }
     }
 
