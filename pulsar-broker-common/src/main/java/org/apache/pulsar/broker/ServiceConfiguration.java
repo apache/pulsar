@@ -2021,6 +2021,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String replicatorPrefix = "pulsar.repl";
     @FieldContext(
         category = CATEGORY_REPLICATION,
+        dynamic = true,
         doc = "Replicator producer queue size"
     )
     private int replicationProducerQueueSize = 1000;
