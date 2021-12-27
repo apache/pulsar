@@ -23,11 +23,16 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.awaitility.Awaitility;
@@ -86,6 +91,66 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
     }
 
     @Test
+    public void testReplicateMessageTTLPolicies() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+        init(namespace, topic);
+        // set message ttl
+        admin1.topicPolicies(true).setMessageTTL(topic, 10);
+        Awaitility.await().ignoreExceptions().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true).getMessageTTL(topic).intValue(), 10));
+        Awaitility.await().ignoreExceptions().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true).getMessageTTL(topic).intValue(), 10));
+        //remove message ttl
+        admin1.topicPolicies(true).removeMessageTTL(topic);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin2.topicPolicies(true).getMessageTTL(topic)));
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin3.topicPolicies(true).getMessageTTL(topic)));
+    }
+
+    @Test
+    public void testReplicatePersistentPolicies() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+        init(namespace, topic);
+        // set PersistencePolicies
+        PersistencePolicies policies = new PersistencePolicies(5, 3, 2, 1000);
+        admin1.topicPolicies(true).setPersistence(topic, policies);
+
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true).getPersistence(topic), policies));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true).getPersistence(topic), policies));
+        //remove PersistencePolicies
+        admin1.topicPolicies(true).removePersistence(topic);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin2.topicPolicies(true).getPersistence(topic)));
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin3.topicPolicies(true).getPersistence(topic)));
+    }
+
+    @Test
+    public void testReplicateDeduplicationStatusPolicies() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+        init(namespace, topic);
+        // set subscription types policies
+        admin1.topicPolicies(true).setDeduplicationStatus(topic, true);
+        Awaitility.await().ignoreExceptions().untilAsserted(() ->
+                assertTrue(admin2.topicPolicies(true).getDeduplicationStatus(topic)));
+        Awaitility.await().ignoreExceptions().untilAsserted(() ->
+                assertTrue(admin3.topicPolicies(true).getDeduplicationStatus(topic)));
+        // remove subscription types policies
+        admin1.topicPolicies(true).removeDeduplicationStatus(topic);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin2.topicPolicies(true).getDeduplicationStatus(topic)));
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin3.topicPolicies(true).getDeduplicationStatus(topic)));
+
+    }
+
+    @Test
     public void testReplicatorTopicPolicies() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();
@@ -111,6 +176,27 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin2.topicPolicies(true).getRetention(persistentTopicName)));
         Awaitility.await().untilAsserted(() ->
                 assertNull(admin3.topicPolicies(true).getRetention(persistentTopicName)));
+    }
+    @Test
+    public void testReplicateSubscriptionTypesPolicies() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+        init(namespace, topic);
+        Set<SubscriptionType> subscriptionTypes = new HashSet<>();
+        subscriptionTypes.add(SubscriptionType.Shared);
+        // set subscription types policies
+        admin1.topicPolicies(true).setSubscriptionTypesEnabled(topic, subscriptionTypes);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true).getSubscriptionTypesEnabled(topic), subscriptionTypes));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true).getSubscriptionTypesEnabled(topic), subscriptionTypes));
+        // remove subscription types policies
+        admin1.topicPolicies(true).removeSubscriptionTypesEnabled(topic);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true).getSubscriptionTypesEnabled(topic), Collections.emptySet()));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true).getSubscriptionTypesEnabled(topic), Collections.emptySet()));
+
     }
 
     private void init(String namespace, String topic)

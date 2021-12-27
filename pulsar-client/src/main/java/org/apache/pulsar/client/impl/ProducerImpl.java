@@ -468,6 +468,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         // chunked message also sent individually so, try to acquire send-permits
         for (int i = 0; i < (totalChunks - 1); i++) {
             if (!canEnqueueRequest(callback, message.getSequenceId(), 0 /* The memory was already reserved */)) {
+                client.getMemoryLimitController().releaseMemory(uncompressedSize);
+                semaphoreRelease(i + 1);
                 return;
             }
         }
