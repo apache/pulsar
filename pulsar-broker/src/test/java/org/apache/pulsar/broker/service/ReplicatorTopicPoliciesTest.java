@@ -152,6 +152,32 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
     }
 
     @Test
+    public void testReplicatorMaxConsumerPerSubPolicies() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+
+        init(namespace, topic);
+        // set max consumer per sub
+        admin1.topicPolicies(true).setMaxConsumersPerSubscription(topic, 100);
+        Awaitility.await().ignoreExceptions().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true).getMaxConsumersPerSubscription(topic).intValue(), 100));
+        Awaitility.await().ignoreExceptions().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true).getMaxConsumersPerSubscription(topic).intValue(), 100));
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin1.topicPolicies(true).getMaxConsumersPerSubscription(topic).intValue(), 100);
+            assertNull(admin1.topicPolicies().getMaxConsumersPerSubscription(topic));
+        });
+
+        //remove max consumer per sub
+        admin1.topicPolicies(true).removeMaxConsumersPerSubscription(topic);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin2.topicPolicies(true).getMaxConsumersPerSubscription(topic)));
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin3.topicPolicies(true).getMaxConsumersPerSubscription(topic)));
+    }
+
+    @Test
     public void testReplicatorTopicPolicies() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();

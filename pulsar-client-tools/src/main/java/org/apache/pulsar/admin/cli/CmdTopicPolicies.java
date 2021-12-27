@@ -46,6 +46,9 @@ public class CmdTopicPolicies extends CmdBase {
         jcommander.addCommand("get-message-ttl", new GetMessageTTL());
         jcommander.addCommand("set-message-ttl", new SetMessageTTL());
         jcommander.addCommand("remove-message-ttl", new RemoveMessageTTL());
+        jcommander.addCommand("get-max-consumers-per-subscription", new GetMaxConsumersPerSubscription());
+        jcommander.addCommand("set-max-consumers-per-subscription", new SetMaxConsumersPerSubscription());
+        jcommander.addCommand("remove-max-consumers-per-subscription", new RemoveMaxConsumersPerSubscription());
         jcommander.addCommand("set-subscription-types-enabled", new SetSubscriptionTypesEnabled());
         jcommander.addCommand("get-subscription-types-enabled", new GetSubscriptionTypesEnabled());
         jcommander.addCommand("remove-subscription-types-enabled", new RemoveSubscriptionTypesEnabled());
@@ -67,6 +70,57 @@ public class CmdTopicPolicies extends CmdBase {
         jcommander.addCommand("get-dispatch-rate", new GetDispatchRate());
         jcommander.addCommand("set-dispatch-rate", new SetDispatchRate());
         jcommander.addCommand("remove-dispatch-rate", new RemoveDispatchRate());
+    }
+
+    @Parameters(commandDescription = "Get max consumers per subscription for a topic")
+    private class GetMaxConsumersPerSubscription extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
+                + "If set to true, broker returned global topic policies")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(getTopicPolicies(isGlobal).getMaxConsumersPerSubscription(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Set max consumers per subscription for a topic")
+    private class SetMaxConsumersPerSubscription extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--max-consumers-per-subscription", "-c" }, description = "maxConsumersPerSubscription for a namespace", required = true)
+        private int maxConsumersPerSubscription;
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
+                + "If set to true, broker returned global topic policies")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopicPolicies(isGlobal).setMaxConsumersPerSubscription(persistentTopic, maxConsumersPerSubscription);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove max consumers per subscription for a topic")
+    private class RemoveMaxConsumersPerSubscription extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to remove this policy globally. "
+                + "If set to true, broker returned global topic policies")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopicPolicies(isGlobal).removeMaxConsumersPerSubscription(persistentTopic);
+        }
     }
 
     @Parameters(commandDescription = "Get the message TTL for a topic")

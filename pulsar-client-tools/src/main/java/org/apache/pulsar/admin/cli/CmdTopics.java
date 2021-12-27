@@ -258,6 +258,10 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("set-message-ttl");
             cmdUsageFormatter.addDeprecatedCommand("remove-message-ttl");
 
+            cmdUsageFormatter.addDeprecatedCommand("get-max-consumers-per-subscription");
+            cmdUsageFormatter.addDeprecatedCommand("set-max-consumers-per-subscription");
+            cmdUsageFormatter.addDeprecatedCommand("remove-max-consumers-per-subscription");
+
             cmdUsageFormatter.addDeprecatedCommand("get-max-unacked-messages-on-consumer");
             cmdUsageFormatter.addDeprecatedCommand("remove-max-unacked-messages-on-consumer");
             cmdUsageFormatter.addDeprecatedCommand("set-max-unacked-messages-on-consumer");
