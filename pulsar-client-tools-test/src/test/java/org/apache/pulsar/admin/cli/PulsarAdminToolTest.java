@@ -927,6 +927,13 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("remove-persistence persistent://myprop/clust/ns1/ds1"));
         verify(mockTopicsPolicies).removePersistence("persistent://myprop/clust/ns1/ds1");
 
+        cmdTopics.run(split("get-max-consumers persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopicsPolicies).getMaxConsumers("persistent://myprop/clust/ns1/ds1", false);
+        cmdTopics.run(split("remove-max-consumers persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopicsPolicies).removeMaxConsumers("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("set-max-consumers persistent://myprop/clust/ns1/ds1 -c 99"));
+        verify(mockTopicsPolicies).setMaxConsumers("persistent://myprop/clust/ns1/ds1", 99);
+
         cmdTopics.run(split("get-message-ttl persistent://myprop/clust/ns1/ds1"));
         verify(mockTopicsPolicies).getMessageTTL("persistent://myprop/clust/ns1/ds1", false);
         cmdTopics.run(split("set-message-ttl persistent://myprop/clust/ns1/ds1 -t 10"));
@@ -1020,6 +1027,13 @@ public class PulsarAdminToolTest {
         verify(mockGlobalTopicsPolicies).getSubscriptionTypesEnabled("persistent://myprop/clust/ns1/ds1");
         cmdTopics.run(split("remove-subscription-types-enabled persistent://myprop/clust/ns1/ds1 -g"));
         verify(mockGlobalTopicsPolicies).removeSubscriptionTypesEnabled("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("get-max-consumers persistent://myprop/clust/ns1/ds1 -g"));
+        verify(mockGlobalTopicsPolicies).getMaxConsumers("persistent://myprop/clust/ns1/ds1", false);
+        cmdTopics.run(split("remove-max-consumers persistent://myprop/clust/ns1/ds1 -g"));
+        verify(mockGlobalTopicsPolicies).removeMaxConsumers("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("set-max-consumers persistent://myprop/clust/ns1/ds1 -c 99 -g"));
+        verify(mockGlobalTopicsPolicies).setMaxConsumers("persistent://myprop/clust/ns1/ds1", 99);
     }
 
     @Test

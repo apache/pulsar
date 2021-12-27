@@ -64,6 +64,10 @@ public class CmdTopicPolicies extends CmdBase {
         jcommander.addCommand("set-persistence", new SetPersistence());
         jcommander.addCommand("remove-persistence", new RemovePersistence());
 
+        jcommander.addCommand("get-max-consumers", new GetMaxConsumers());
+        jcommander.addCommand("set-max-consumers", new SetMaxConsumers());
+        jcommander.addCommand("remove-max-consumers", new RemoveMaxConsumers());
+
         jcommander.addCommand("get-dispatch-rate", new GetDispatchRate());
         jcommander.addCommand("set-dispatch-rate", new SetDispatchRate());
         jcommander.addCommand("remove-dispatch-rate", new RemoveDispatchRate());
@@ -188,6 +192,60 @@ public class CmdTopicPolicies extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             getTopicPolicies(isGlobal).removeSubscriptionTypesEnabled(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Get max number of consumers for a topic")
+    private class GetMaxConsumers extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic")
+        private boolean applied = false;
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
+                + "If set to true, the policy will be replicate to other clusters asynchronously")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(getTopicPolicies(isGlobal).getMaxConsumers(persistentTopic, applied));
+        }
+    }
+
+    @Parameters(commandDescription = "Set max number of consumers for a topic")
+    private class SetMaxConsumers extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--max-consumers", "-c" }, description = "Max consumers for a topic", required = true)
+        private int maxConsumers;
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
+                + "If set to true, the policy will be replicate to other clusters asynchronously")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopicPolicies(isGlobal).setMaxConsumers(persistentTopic, maxConsumers);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove max number of consumers for a topic")
+    private class RemoveMaxConsumers extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to remove this policy globally. "
+                + "If set to true, the policy will be replicate to other clusters asynchronously")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopicPolicies(isGlobal).removeMaxConsumers(persistentTopic);
         }
     }
 

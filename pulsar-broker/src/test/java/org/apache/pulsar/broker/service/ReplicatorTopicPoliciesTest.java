@@ -200,6 +200,26 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
 
     }
 
+
+    @Test
+    public void testReplicateMaxConsumers() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+        init(namespace, topic);
+        // set max consumers
+        admin1.topicPolicies(true).setMaxConsumers(topic, 100);
+        Awaitility.await().ignoreExceptions().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true).getMaxConsumers(topic).intValue(), 100));
+        Awaitility.await().ignoreExceptions().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true).getMaxConsumers(topic).intValue(), 100));
+        // remove max consumers
+        admin1.topicPolicies(true).removeMaxConsumers(topic);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin2.topicPolicies(true).getMaxConsumers(topic)));
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin3.topicPolicies(true).getMaxConsumers(topic)));
+    }
+
     @Test
     public void testReplicatorMessageDispatchRatePolicies() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
