@@ -32,6 +32,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
@@ -197,6 +198,35 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         Awaitility.await().untilAsserted(() ->
                 assertEquals(admin3.topicPolicies(true).getSubscriptionTypesEnabled(topic), Collections.emptySet()));
 
+    }
+
+    @Test
+    public void testReplicatorMessageDispatchRatePolicies() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+
+        init(namespace, persistentTopicName);
+        // set dispatchRate
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(1)
+                .dispatchThrottlingRateInMsg(2)
+                .ratePeriodInSecond(3)
+                .relativeToPublishRate(true)
+                .build();
+        admin1.topicPolicies(true).setDispatchRate(persistentTopicName, dispatchRate);
+
+        // get dispatchRate
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true).getDispatchRate(persistentTopicName), dispatchRate));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true).getDispatchRate(persistentTopicName), dispatchRate));
+
+        //remove dispatchRate
+        admin1.topicPolicies(true).removeDispatchRate(persistentTopicName);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin2.topicPolicies(true).getDispatchRate(persistentTopicName)));
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin3.topicPolicies(true).getDispatchRate(persistentTopicName)));
     }
 
     private void init(String namespace, String topic)
