@@ -5,10 +5,6 @@ sidebar_label: "Prepare"
 original_id: helm-prepare
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 For a fully functional Pulsar cluster, you need a few resources before deploying the Apache Pulsar Helm chart. The following provides instructions to prepare the Kubernetes cluster before deploying the Pulsar Helm chart.
 
 - [Google Kubernetes Engine](#google-kubernetes-engine)

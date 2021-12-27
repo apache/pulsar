@@ -120,7 +120,8 @@ To configure a Pulsar [broker](reference-terminology.md#broker) to use TLS trans
 Add these values to the configuration file (substituting the appropriate certificate paths where necessary):
 
 ```properties
-tlsEnabled=true
+brokerServicePortTls=6651
+webServicePortTls=8081
 tlsRequireTrustedClientCertOnConnect=true
 tlsCertificateFilePath=/path/to/broker.cert.pem
 tlsKeyFilePath=/path/to/broker.key-pk8.pem

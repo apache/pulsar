@@ -49,6 +49,9 @@ public interface SubscriptionStats {
     /** Size of backlog in byte. **/
     long getBacklogSize();
 
+    /** Get the publish time of the earliest message in the backlog. */
+    long getEarliestMsgPublishTimeInBacklog();
+
     /** Number of messages in the subscription backlog that do not contain the delay messages. */
     long getMsgBacklogNoDelayed();
 
@@ -105,6 +108,9 @@ public interface SubscriptionStats {
 
     /** This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription. */
     Map<String, String> getConsumersAfterMarkDeletePosition();
+
+    /** SubscriptionProperties (key/value strings) associated with this subscribe. */
+    Map<String, String> getSubscriptionProperties();
 
     /** The number of non-contiguous deleted messages ranges. */
     int getNonContiguousDeletedMessagesRanges();

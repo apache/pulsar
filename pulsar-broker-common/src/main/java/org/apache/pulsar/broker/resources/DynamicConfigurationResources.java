@@ -40,8 +40,8 @@ public class DynamicConfigurationResources extends BaseResources<Map<String, Str
         return getAsync(BROKER_SERVICE_CONFIGURATION_PATH);
     }
 
-    public Map<String, String> getDynamicConfiguration() throws MetadataStoreException {
-        return get(BROKER_SERVICE_CONFIGURATION_PATH).orElse(Collections.emptyMap());
+    public Optional<Map<String, String>> getDynamicConfiguration() throws MetadataStoreException {
+        return get(BROKER_SERVICE_CONFIGURATION_PATH);
     }
 
     public void setDynamicConfigurationWithCreate(

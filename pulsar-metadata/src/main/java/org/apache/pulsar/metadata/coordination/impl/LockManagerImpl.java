@@ -137,7 +137,7 @@ class LockManagerImpl<T> implements LockManager<T> {
 
             try {
                 FutureUtil.waitForAll(futures).get();
-            } catch (ExecutionException|InterruptedException e) {
+            } catch (ExecutionException | InterruptedException e) {
                 log.warn("Failure when processing session event", e);
             }
         }));

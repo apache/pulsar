@@ -670,6 +670,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(admin.tenants().getTenantInfo("prop-xyz"), newTenantAdmin);
 
+        try {
+            admin.tenants().deleteTenant("prop-xyz");
+            fail("should have failed");
+        } catch (PulsarAdminException e) {
+            assertTrue(e instanceof ConflictException);
+            assertEquals(e.getStatusCode(), 409);
+            assertEquals(e.getMessage(), "The tenant still has active namespaces");
+        }
         admin.namespaces().deleteNamespace("prop-xyz/ns1");
         admin.tenants().deleteTenant("prop-xyz");
         assertEquals(admin.tenants().getTenants(), Lists.newArrayList());
@@ -1114,6 +1122,39 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         String partitionTopicInfoResponse = admin.topics().getInternalInfo(partitionedTopicName);
         assertEquals(partitionTopicInfoResponse, expectedResult);
     }
+
+    @Test
+    public void testGetStats() throws Exception {
+        final String topic = "persistent://prop-xyz/ns1/my-topic" + UUID.randomUUID().toString();
+        admin.topics().createNonPartitionedTopic(topic);
+        String subName = "my-sub";
+
+        // create consumer and subscription
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName(subName).subscribe();
+        TopicStats topicStats = admin.topics().getStats(topic, false, false, true);
+
+        assertEquals(topicStats.getEarliestMsgPublishTimeInBacklogs(), 0);
+        assertEquals(topicStats.getSubscriptions().get(subName).getEarliestMsgPublishTimeInBacklog(), 0);
+
+        // publish several messages
+        publishMessagesOnPersistentTopic(topic, 10);
+        Thread.sleep(1000);
+
+        topicStats = admin.topics().getStats(topic, false, false, true);
+        assertTrue(topicStats.getEarliestMsgPublishTimeInBacklogs() > 0);
+        assertTrue(topicStats.getSubscriptions().get(subName).getEarliestMsgPublishTimeInBacklog() > 0);
+
+        for (int i = 0; i < 10; i++) {
+            Message<byte[]> message = consumer.receive();
+            consumer.acknowledge(message);
+        }
+        Thread.sleep(1000);
+
+        topicStats = admin.topics().getStats(topic, false, false, true);
+        assertEquals(topicStats.getEarliestMsgPublishTimeInBacklogs(), 0);
+        assertEquals(topicStats.getSubscriptions().get(subName).getEarliestMsgPublishTimeInBacklog(), 0);
+    }
+
 
     @Test
     public void testGetPartitionedStatsInternal() throws Exception {

@@ -270,7 +270,6 @@ public class ManagedLedgerWriter {
                             if (arguments.testTime > 0) {
                                 if (System.nanoTime() > testEndTime) {
                                     log.info("------------- DONE (reached the maximum duration: [{} seconds] of production) --------------", arguments.testTime);
-                                    printAggregatedStats();
                                     isDone.set(true);
                                     Thread.sleep(5000);
                                     PerfClientUtils.exit(0);
@@ -280,7 +279,6 @@ public class ManagedLedgerWriter {
                             if (numMessagesForThisThread > 0) {
                                 if (totalSent++ >= numMessagesForThisThread) {
                                     log.info("------------- DONE (reached the maximum number: [{}] of production) --------------", numMessagesForThisThread);
-                                    printAggregatedStats();
                                     isDone.set(true);
                                     Thread.sleep(5000);
                                     PerfClientUtils.exit(0);

@@ -23,6 +23,9 @@ import lombok.Getter;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
  * This is the config passed to the Java Instance. Contains all the information
  * passed to run functions.
@@ -44,6 +47,7 @@ public class InstanceConfig {
     @Getter
     private boolean exposePulsarAdminClientEnabled = false;
     private int metricsPort;
+    private List<String> additionalJavaRuntimeArguments = Collections.emptyList();
 
     /**
      * Get the string representation of {@link #getInstanceId()}.

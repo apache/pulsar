@@ -4,10 +4,6 @@ title: Elasticsearch sink connector
 sidebar_label: "Elasticsearch sink connector"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The Elasticsearch sink connector pulls messages from Pulsar topics and persists the messages to indexes.
 
 
@@ -108,10 +104,12 @@ Before using the Elasticsearch sink connector, you need to create a configuratio
   ```json
   
   {
-      "elasticSearchUrl": "http://localhost:9200",
-      "indexName": "my_index",
-      "username": "scooby",
-      "password": "doobie"
+     "configs": {
+        "elasticSearchUrl": "http://localhost:9200",
+        "indexName": "my_index",
+        "username": "scooby",
+        "password": "doobie"
+     }
   }
   
   ```

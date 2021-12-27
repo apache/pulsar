@@ -34,7 +34,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -85,7 +84,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected volatile long incomingMessagesSize = 0;
     protected volatile Timeout batchReceiveTimeout = null;
     protected final Lock reentrantLock = new ReentrantLock();
-    private final AtomicInteger executorQueueSize = new AtomicInteger(0);
+    private volatile boolean isListenerHandlingMessage = false;
 
     protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                            int receiverQueueSize, ExecutorProvider executorProvider,
@@ -211,13 +210,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected CompletableFuture<Message<T>> nextPendingReceive() {
         CompletableFuture<Message<T>> receivedFuture;
-        while (true) {
+        do {
             receivedFuture = pendingReceives.poll();
             // skip done futures (cancelling a future could mark it done)
-            if (receivedFuture == null || !receivedFuture.isDone()) {
-                break;
-            }
-        }
+        } while (receivedFuture != null && receivedFuture.isDone());
         return receivedFuture;
     }
 
@@ -490,6 +486,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         if (null != txn) {
             checkArgument(txn instanceof TransactionImpl);
             txnImpl = (TransactionImpl) txn;
+            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+           if (!txnImpl.checkIfOpen(completableFuture)) {
+               return completableFuture;
+           }
         }
         return doAcknowledgeWithTxn(messageId, AckType.Individual, Collections.emptyMap(), txnImpl);
     }
@@ -914,32 +914,36 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     protected void triggerListener() {
-        // Trigger the notification on the message listener in a separate thread to avoid blocking the networking
-        // thread while the message processing happens
-        try {
-            // Control executor to call MessageListener one by one.
-            if (executorQueueSize.get() < 1) {
-                final Message<T> msg = internalReceive(0, TimeUnit.MILLISECONDS);
-                if (msg != null) {
-                    executorQueueSize.incrementAndGet();
-                    if (SubscriptionType.Key_Shared == conf.getSubscriptionType()) {
-                        executorProvider.getExecutor(peekMessageKey(msg)).execute(() ->
-                                callMessageListener(msg));
-                    } else {
-                        getExternalExecutor(msg).execute(() -> {
-                            callMessageListener(msg);
-                        });
+        // Use internalPinnedExecutor to maintain message ordering
+        internalPinnedExecutor.execute(() -> {
+            try {
+                // Listener should only have one pending/running executable to process a message
+                // See https://github.com/apache/pulsar/issues/11008 for context.
+                if (!isListenerHandlingMessage) {
+                    final Message<T> msg = internalReceive(0, TimeUnit.MILLISECONDS);
+                    if (msg != null) {
+                        isListenerHandlingMessage = true;
+                        // Trigger the notification on the message listener in a separate thread to avoid blocking the
+                        // internal pinned executor thread while the message processing happens
+                        if (SubscriptionType.Key_Shared == conf.getSubscriptionType()) {
+                            executorProvider.getExecutor(peekMessageKey(msg)).execute(() ->
+                                    callMessageListener(msg));
+                        } else {
+                            getExternalExecutor(msg).execute(() -> {
+                                callMessageListener(msg);
+                            });
+                        }
                     }
                 }
+            } catch (PulsarClientException e) {
+                log.warn("[{}] [{}] Failed to dequeue the message for listener", topic, subscription, e);
+                return;
             }
-        } catch (PulsarClientException e) {
-            log.warn("[{}] [{}] Failed to dequeue the message for listener", topic, subscription, e);
-            return;
-        }
 
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] [{}] Message has been cleared from the queue", topic, subscription);
-        }
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Message has been cleared from the queue", topic, subscription);
+            }
+        });
     }
 
     protected void callMessageListener(Message<T> msg) {
@@ -953,7 +957,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             log.error("[{}][{}] Message listener error in processing message: {}", topic, subscription,
                     msg.getMessageId(), t);
         } finally {
-            executorQueueSize.decrementAndGet();
+            isListenerHandlingMessage = false;
             triggerListener();
         }
     }

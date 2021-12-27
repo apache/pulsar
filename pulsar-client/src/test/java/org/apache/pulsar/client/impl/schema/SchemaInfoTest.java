@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import com.google.common.collect.Maps;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -298,12 +297,12 @@ public class SchemaInfoTest {
             assertEquals(schemaInfo.getSchema(), new byte[0]);
             assertEquals(schemaInfo.getType(), SchemaType.STRING);
             assertEquals(schemaInfo.getName(), "string");
-            assertEquals(schemaInfo.getProperties(), Maps.newHashMap());
+            assertEquals(schemaInfo.getProperties(), new HashMap<>());
         }
 
         @Test
         public void testSetProperties() {
-            final Map<String, String> map = Maps.newHashMap();
+            final Map<String, String> map = new HashMap<>();
             map.put("test", "value");
             final SchemaInfo schemaInfo = SchemaInfo.builder()
                     .type(SchemaType.STRING)
@@ -315,7 +314,7 @@ public class SchemaInfoTest {
             assertEquals(schemaInfo.getSchema(), new byte[0]);
             assertEquals(schemaInfo.getType(), SchemaType.STRING);
             assertEquals(schemaInfo.getName(), "string");
-            assertEquals(schemaInfo.getProperties(), Maps.newHashMap(map));
+            assertEquals(schemaInfo.getProperties(), new HashMap<>(map));
         }
 
         @Test

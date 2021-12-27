@@ -837,6 +837,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    @Override
     public boolean isClosed() {
         return state == State.Closed || state == State.Closing;
     }
@@ -1103,7 +1104,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     }
                 }
                 callback.resetComplete(newPosition);
-
+                updateLastActive();
             }
 
             @Override
@@ -3062,7 +3063,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     public boolean checkAndUpdateReadPositionChanged() {
         PositionImpl lastEntry = ledger.lastConfirmedEntry;
         boolean isReadPositionOnTail = lastEntry == null || readPosition == null
-                || !(lastEntry.compareTo(readPosition) > 0);
+                || (lastEntry.compareTo(readPosition) <= 0);
         boolean isReadPositionChanged = readPosition != null && !readPosition.equals(statsLastReadPosition);
         statsLastReadPosition = readPosition;
         return isReadPositionOnTail || isReadPositionChanged;

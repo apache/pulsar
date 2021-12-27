@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service.persistent;
 
 import org.apache.pulsar.broker.service.PersistentTopicE2ETest;
 import org.apache.pulsar.broker.service.streamingdispatch.StreamingDispatcher;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**

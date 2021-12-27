@@ -20,9 +20,6 @@ package org.apache.pulsar.broker.resources;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Joiner;
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -34,7 +31,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.apache.zookeeper.common.PathUtils;
 
 /**
  * Base class for all configuration resources to access configurations from metadata-store.
@@ -156,6 +152,25 @@ public class BaseResources<T> {
         return cache.delete(path);
     }
 
+    protected CompletableFuture<Void> deleteIfExistsAsync(String path) {
+        return cache.exists(path).thenCompose(exists -> {
+            if (!exists) {
+                return CompletableFuture.completedFuture(null);
+            }
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            cache.delete(path).whenComplete((ignore, ex) -> {
+                if (ex != null && ex.getCause() instanceof MetadataStoreException.NotFoundException) {
+                    future.complete(null);
+                } else if (ex != null) {
+                    future.completeExceptionally(ex);
+                } else {
+                    future.complete(null);
+                }
+            });
+            return future;
+        });
+    }
+
     protected boolean exists(String path) throws MetadataStoreException {
         try {
             return cache.exists(path).get(operationTimeoutSec, TimeUnit.SECONDS);
@@ -179,39 +194,5 @@ public class BaseResources<T> {
         StringBuilder sb = new StringBuilder();
         Joiner.on('/').appendTo(sb, parts);
         return sb.toString();
-    }
-
-
-
-    protected static void deleteRecursive(BaseResources resources, final String pathRoot) throws MetadataStoreException {
-        PathUtils.validatePath(pathRoot);
-        List<String> tree = listSubTreeBFS(resources, pathRoot);
-        log.debug("Deleting {} with size {}", tree, tree.size());
-        log.debug("Deleting " + tree.size() + " subnodes ");
-        for (int i = tree.size() - 1; i >= 0; --i) {
-            // Delete the leaves first and eventually get rid of the root
-            resources.delete(tree.get(i));
-        }
-    }
-
-    protected static List<String> listSubTreeBFS(BaseResources resources, final String pathRoot)
-            throws MetadataStoreException {
-        Deque<String> queue = new LinkedList<>();
-        List<String> tree = new ArrayList<>();
-        queue.add(pathRoot);
-        tree.add(pathRoot);
-        while (true) {
-            String node = queue.pollFirst();
-            if (node == null) {
-                break;
-            }
-            List<String> children = resources.getChildren(node);
-            for (final String child : children) {
-                final String childPath = node + "/" + child;
-                queue.add(childPath);
-                tree.add(childPath);
-            }
-        }
-        return tree;
     }
 }

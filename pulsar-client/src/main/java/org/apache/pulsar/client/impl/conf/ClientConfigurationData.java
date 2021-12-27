@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl.conf;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.google.common.collect.Sets;
 
 import io.swagger.annotations.ApiModelProperty;
 import java.net.InetSocketAddress;
@@ -38,6 +37,7 @@ import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 
 import java.io.Serializable;
 import java.util.Map;
+import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.util.Secret;
 
@@ -260,13 +260,13 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             name = "tlsCiphers",
             value = "Set of TLS Ciphers."
     )
-    private Set<String> tlsCiphers = Sets.newTreeSet();
+    private Set<String> tlsCiphers = new TreeSet<>();
 
     @ApiModelProperty(
             name = "tlsProtocols",
             value = "Protocols of TLS."
     )
-    private Set<String> tlsProtocols = Sets.newTreeSet();
+    private Set<String> tlsProtocols = new TreeSet<>();
 
     @ApiModelProperty(
             name = "memoryLimitBytes",
@@ -294,6 +294,19 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @JsonIgnore
     private Clock clock = Clock.systemDefaultZone();
+
+    @ApiModelProperty(
+            name = "dnsLookupBindAddress",
+            value = "The Pulsar client dns lookup bind address, default behavior is bind on 0.0.0.0"
+    )
+    private String dnsLookupBindAddress = null;
+
+    @ApiModelProperty(
+            name = "dnsLookupBindPort",
+            value = "The Pulsar client dns lookup bind port, takes effect when dnsLookupBindAddress is configured," +
+                    " default value is 0."
+    )
+    private int dnsLookupBindPort = 0;
 
     // socks5
     @ApiModelProperty(

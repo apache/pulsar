@@ -49,7 +49,6 @@ import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.BundleData;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
-import org.apache.pulsar.broker.loadbalance.ModularLoadManager;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.lookup.LookupResult;
@@ -382,7 +381,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         pulsar.getLocalMetadataStore().put(path,
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(ld),
                 Optional.empty(),
-                EnumSet.of(CreateOption.Ephemeral));
+                EnumSet.of(CreateOption.Ephemeral)).join();
 
         LookupResult noListener = pulsar.getNamespaceService().createLookupResult(candidateBroker, false, null).get();
         LookupResult withListener = pulsar.getNamespaceService().createLookupResult(candidateBroker, false, listener).get();
@@ -593,6 +592,14 @@ public class NamespaceServiceTest extends BrokerTestBase {
         for (NamespaceBundle b : namespaceService.getNamespaceBundleFactory().getBundles(nsname).getBundles()) {
             assertNotEquals(b.getBundleRange(), hotBundle);
         }
+    }
+
+    @Test
+    public void testHeartbeatNamespaceMatch() throws Exception {
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), conf);
+        NamespaceBundle namespaceBundle = pulsar.getNamespaceService().getNamespaceBundleFactory().getFullBundle(namespaceName);
+        assertTrue(NamespaceService.isSystemServiceNamespace(
+                        NamespaceBundle.getBundleNamespace(namespaceBundle.toString())));
     }
 
     @SuppressWarnings("unchecked")

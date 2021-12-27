@@ -5,10 +5,6 @@ sidebar_label: "Query data"
 original_id: sql-getting-started
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 Before querying data in Pulsar, you need to install Pulsar and built-in connectors. 
 
 ## Requirements

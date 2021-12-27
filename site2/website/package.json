@@ -14,15 +14,15 @@
   "devDependencies": {
     "axios": "^0.18.0",
     "docusaurus": "^1.11.1",
-    "jest": "^23.3.0",
-    "jest-puppeteer": "^3.2.1",
-    "puppeteer": "^1.5.0",
-    "remarkable-embed": "^0.4.1",
-    "replace-in-file": "^3.4.0",
-    "redoc": "^2.0.0-alpha.30",
     "ejs": "^2.5.2",
     "highlight.js": "^9.7.0",
-    "marked": "^0.3.6"
+    "jest": "^23.3.0",
+    "jest-puppeteer": "^3.2.1",
+    "marked": "^0.3.6",
+    "puppeteer": "^1.5.0",
+    "redoc": "^2.0.0-alpha.30",
+    "remarkable-embed": "^0.4.1",
+    "replace-in-file": "^3.4.0"
   },
   "jest": {
     "preset": "jest-puppeteer"

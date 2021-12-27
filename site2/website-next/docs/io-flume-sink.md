@@ -4,10 +4,6 @@ title: Flume sink connector
 sidebar_label: "Flume sink connector"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The Flume sink connector pulls messages from Pulsar topics to logs.
 
 ## Configuration
@@ -35,11 +31,13 @@ Before using the Flume sink connector, you need to create a configuration file t
   ```json
   
   {
-      "name": "a1",
-      "confFile": "sink.conf",
-      "noReloadConf": "false",
-      "zkConnString": "",
-      "zkBasePath": ""
+     "configs": {
+        "name": "a1",
+        "confFile": "sink.conf",
+        "noReloadConf": "false",
+        "zkConnString": "",
+        "zkBasePath": ""
+     }
   }
   
   ```

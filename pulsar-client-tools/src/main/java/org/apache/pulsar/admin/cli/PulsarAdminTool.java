@@ -133,6 +133,7 @@ public class PulsarAdminTool {
         commandMap.put("properties", CmdTenants.CmdProperties.class); // deprecated, doesn't show in usage()
         commandMap.put("namespaces", CmdNamespaces.class);
         commandMap.put("topics", CmdTopics.class);
+        commandMap.put("topicPolicies", CmdTopicPolicies.class);
         commandMap.put("schemas", CmdSchemas.class);
         commandMap.put("bookies", CmdBookies.class);
 
@@ -159,6 +160,7 @@ public class PulsarAdminTool {
         commandMap.put("sink", CmdSinks.class);
 
         commandMap.put("packages", CmdPackages.class);
+        commandMap.put("transactions", CmdTransactions.class);
     }
 
     private static class PulsarAdminSupplier implements Supplier<PulsarAdmin> {
@@ -318,7 +320,7 @@ public class PulsarAdminTool {
         }
 
         ++cmdPos;
-        boolean isLocalRun = cmdPos < args.length && "localrun".equals(args[cmdPos].toLowerCase());
+        boolean isLocalRun = cmdPos < args.length && "localrun".equalsIgnoreCase(args[cmdPos]);
 
         Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory;
         if (isLocalRun) {

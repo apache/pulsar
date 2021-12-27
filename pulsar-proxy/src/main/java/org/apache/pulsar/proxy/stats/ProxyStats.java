@@ -18,28 +18,27 @@
  */
 package org.apache.pulsar.proxy.stats;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
-import javax.servlet.ServletContext;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.POST;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response.Status;
-
-import org.apache.pulsar.proxy.server.ProxyService;
-
 import io.netty.channel.Channel;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import javax.servlet.ServletContext;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response.Status;
+import org.apache.pulsar.proxy.server.ProxyService;
+
+
 
 @Path("/")
 @Api(value = "/proxy-stats", description = "Stats for proxy", tags = "proxy-stats", hidden = true)
@@ -55,7 +54,8 @@ public class ProxyStats {
 
     @GET
     @Path("/connections")
-    @ApiOperation(value = "Proxy stats api to get info for live connections", response = List.class, responseContainer = "List")
+    @ApiOperation(value = "Proxy stats api to get info for live connections",
+            response = List.class, responseContainer = "List")
     @ApiResponses(value = { @ApiResponse(code = 503, message = "Proxy service is not initialized") })
     public List<ConnectionStats> metrics() {
         List<ConnectionStats> stats = new ArrayList<>();
@@ -88,7 +88,8 @@ public class ProxyStats {
 
     @POST
     @Path("/logging/{logLevel}")
-    @ApiOperation(hidden = true, value = "Change proxy logging level dynamically", notes = "It only changes log-level in memory, change it config file to persist the change")
+    @ApiOperation(hidden = true, value = "Change proxy logging level dynamically",
+            notes = "It only changes log-level in memory, change it config file to persist the change")
     @ApiResponses(value = { @ApiResponse(code = 412, message = "Proxy log level can be [0-2]"), })
     public void updateProxyLogLevel(@PathParam("logLevel") int logLevel) {
         if (logLevel < 0 || logLevel > 2) {

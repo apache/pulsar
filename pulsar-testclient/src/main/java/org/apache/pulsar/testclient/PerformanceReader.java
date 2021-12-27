@@ -28,10 +28,10 @@ import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.RateLimiter;
 import java.io.FileInputStream;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
@@ -134,6 +134,10 @@ public class PerformanceReader {
         @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be " +
                 "used for handling connections to brokers, default is 1 thread")
         public int ioThreads = 1;
+
+        @Parameter(names = {"-lt", "--num-listener-threads"}, description = "Set the number of threads"
+                + " to be used for message listeners")
+        public int listenerThreads = 1;
     }
 
     public static void main(String[] args) throws Exception {
@@ -158,7 +162,7 @@ public class PerformanceReader {
             // keep compatibility with the previous version
             if (arguments.topic.size() == 1) {
                 String prefixTopicName = arguments.topic.get(0);
-                List<String> defaultTopics = Lists.newArrayList();
+                List<String> defaultTopics = new ArrayList<>();
                 for (int i = 0; i < arguments.numTopics; i++) {
                     defaultTopics.add(String.format("%s-%d", prefixTopicName, i));
                 }
@@ -195,7 +199,7 @@ public class PerformanceReader {
                 arguments.authParams = prop.getProperty("authParams", null);
             }
 
-            if (arguments.useTls == false) {
+            if (!arguments.useTls) {
                 arguments.useTls = Boolean.parseBoolean(prop.getProperty("useTls"));
             }
 
@@ -227,7 +231,6 @@ public class PerformanceReader {
             }
             if (arguments.numMessages > 0 && totalMessagesReceived.sum() >= arguments.numMessages) {
                 log.info("------------- DONE (reached the maximum number: [{}] of consumption) --------------", arguments.numMessages);
-                printAggregatedStats();
                 PerfClientUtils.exit(0);
             }
             messagesReceived.increment();
@@ -252,6 +255,7 @@ public class PerformanceReader {
                 .connectionsPerBroker(arguments.maxConnections) //
                 .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
                 .ioThreads(arguments.ioThreads) //
+                .listenerThreads(arguments.listenerThreads)
                 .enableTls(arguments.useTls) //
                 .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
 
@@ -269,7 +273,7 @@ public class PerformanceReader {
 
         PulsarClient pulsarClient = clientBuilder.build();
 
-        List<CompletableFuture<Reader<byte[]>>> futures = Lists.newArrayList();
+        List<CompletableFuture<Reader<byte[]>>> futures = new ArrayList<>();
 
         MessageId startMessageId;
         if ("earliest".equals(arguments.startMessageId)) {

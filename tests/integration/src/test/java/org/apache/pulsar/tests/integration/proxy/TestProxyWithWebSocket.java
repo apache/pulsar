@@ -21,8 +21,6 @@ package org.apache.pulsar.tests.integration.proxy;
 import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.tests.integration.containers.CSContainer;
-import org.apache.pulsar.tests.integration.containers.ProxyContainer;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.awaitility.Awaitility;
@@ -43,8 +41,6 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Future;
-
-import static org.apache.pulsar.tests.integration.containers.PulsarContainer.CS_PORT;
 
 /**
  * Test cases for proxy.

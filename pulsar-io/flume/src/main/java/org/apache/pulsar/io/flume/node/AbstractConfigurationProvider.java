@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.io.flume.node;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ListMultimap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -29,7 +34,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
-
 import org.apache.flume.Channel;
 import org.apache.flume.ChannelFactory;
 import org.apache.flume.ChannelSelector;
@@ -63,12 +67,6 @@ import org.apache.flume.sink.SinkGroup;
 import org.apache.flume.source.DefaultSourceFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ListMultimap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 
 public abstract class AbstractConfigurationProvider implements ConfigurationProvider {
 
@@ -109,8 +107,8 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
                 for (String channelName : channelNames) {
                     ChannelComponent channelComponent = channelComponentMap.get(channelName);
                     if (channelComponent.components.isEmpty()) {
-                        LOGGER.warn("Channel {} has no components connected" +
-                                " and has been removed.", channelName);
+                        LOGGER.warn("Channel {} has no components connected"
+                                + " and has been removed.", channelName);
                         channelComponentMap.remove(channelName);
                         Map<String, Channel> nameChannelMap =
                                 channelCache.get(channelComponent.channel.getClass());
@@ -185,8 +183,8 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
                             new ChannelComponent(channel));
                     LOGGER.info("Created channel " + chName);
                 } catch (Exception e) {
-                    String msg = String.format("Channel %s has been removed due to an " +
-                            "error during configuration", chName);
+                    String msg = String.format("Channel %s has been removed due to an "
+                            + "error during configuration", chName);
                     LOGGER.error(msg, e);
                 }
             }
@@ -205,8 +203,8 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
                     channelComponentMap.put(chName, new ChannelComponent(channel));
                     LOGGER.info("Created channel " + chName);
                 } catch (Exception e) {
-                    String msg = String.format("Channel %s has been removed due to an " +
-                            "error during configuration", chName);
+                    String msg = String.format("Channel %s has been removed due to an "
+                            + "error during configuration", chName);
                     LOGGER.error(msg, e);
                 }
             }
@@ -282,8 +280,8 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
                     List<Channel> sourceChannels =
                             getSourceChannels(channelComponentMap, source, channelNames);
                     if (sourceChannels.isEmpty()) {
-                        String msg = String.format("Source %s is not connected to a " +
-                                "channel", sourceName);
+                        String msg = String.format("Source %s is not connected to a "
+                                + "channel", sourceName);
                         throw new IllegalStateException(msg);
                     }
                     ChannelSelectorConfiguration selectorConfig =
@@ -305,8 +303,8 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
                         channelComponent.components.add(sourceName);
                     }
                 } catch (Exception e) {
-                    String msg = String.format("Source %s has been removed due to an " +
-                            "error during configuration", sourceName);
+                    String msg = String.format("Source %s has been removed due to an "
+                            + "error during configuration", sourceName);
                     LOGGER.error(msg, e);
                 }
             }
@@ -329,8 +327,8 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
                     List<Channel> sourceChannels =
                             getSourceChannels(channelComponentMap, source, Arrays.asList(channelNames));
                     if (sourceChannels.isEmpty()) {
-                        String msg = String.format("Source %s is not connected to a " +
-                                "channel", sourceName);
+                        String msg = String.format("Source %s is not connected to a "
+                                + "channel", sourceName);
                         throw new IllegalStateException(msg);
                     }
                     Map<String, String> selectorConfig = context.getSubProperties(
@@ -351,17 +349,18 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
                         channelComponent.components.add(sourceName);
                     }
                 } catch (Exception e) {
-                    String msg = String.format("Source %s has been removed due to an " +
-                            "error during configuration", sourceName);
+                    String msg = String.format("Source %s has been removed due to an "
+                            + "error during configuration", sourceName);
                     LOGGER.error(msg, e);
                 }
             }
         }
     }
 
-    private List<Channel> getSourceChannels(Map<String, ChannelComponent> channelComponentMap,
-                                            Source source, Collection<String> channelNames) throws InstantiationException {
-        List<Channel> sourceChannels = new ArrayList<Channel>();
+    private List<Channel> getSourceChannels(
+            Map<String, ChannelComponent> channelComponentMap,
+            Source source, Collection<String> channelNames) throws InstantiationException {
+        List<Channel> sourceChannels = new ArrayList<>();
         for (String chName : channelNames) {
             ChannelComponent channelComponent = channelComponentMap.get(chName);
             if (channelComponent != null) {
@@ -379,9 +378,9 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
             long batchSize = ((BatchSizeSupported) source).getBatchSize();
             if (transCap < batchSize) {
                 String msg = String.format(
-                        "Incompatible source and channel settings defined. " +
-                                "source's batch size is greater than the channels transaction capacity. " +
-                                "Source: %s, batch size = %d, channel %s, transaction capacity = %d",
+                        "Incompatible source and channel settings defined. "
+                                + "source's batch size is greater than the channels transaction capacity. "
+                                + "Source: %s, batch size = %d, channel %s, transaction capacity = %d",
                         source.getName(), batchSize,
                         channel.getName(), transCap);
                 throw new InstantiationException(msg);
@@ -396,9 +395,9 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
             long batchSize = ((BatchSizeSupported) sink).getBatchSize();
             if (transCap < batchSize) {
                 String msg = String.format(
-                        "Incompatible sink and channel settings defined. " +
-                                "sink's batch size is greater than the channels transaction capacity. " +
-                                "Sink: %s, batch size = %d, channel %s, transaction capacity = %d",
+                        "Incompatible sink and channel settings defined. "
+                                + "sink's batch size is greater than the channels transaction capacity. "
+                                + "Sink: %s, batch size = %d, channel %s, transaction capacity = %d",
                         sink.getName(), batchSize,
                         channel.getName(), transCap);
                 throw new InstantiationException(msg);
@@ -425,8 +424,8 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
                     Configurables.configure(sink, config);
                     ChannelComponent channelComponent = channelComponentMap.get(config.getChannel());
                     if (channelComponent == null) {
-                        String msg = String.format("Sink %s is not connected to a " +
-                                "channel", sinkName);
+                        String msg = String.format("Sink %s is not connected to a "
+                                + "channel", sinkName);
                         throw new IllegalStateException(msg);
                     }
                     checkSinkChannelCompatibility(sink, channelComponent.channel);
@@ -434,8 +433,8 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
                     sinks.put(comp.getComponentName(), sink);
                     channelComponent.components.add(sinkName);
                 } catch (Exception e) {
-                    String msg = String.format("Sink %s has been removed due to an " +
-                            "error during configuration", sinkName);
+                    String msg = String.format("Sink %s has been removed due to an "
+                            + "error during configuration", sinkName);
                     LOGGER.error(msg, e);
                 }
             }
@@ -456,8 +455,8 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
                             channelComponentMap.get(
                                     context.getString(BasicConfigurationConstants.CONFIG_CHANNEL));
                     if (channelComponent == null) {
-                        String msg = String.format("Sink %s is not connected to a " +
-                                "channel", sinkName);
+                        String msg = String.format("Sink %s is not connected to a "
+                                + "channel", sinkName);
                         throw new IllegalStateException(msg);
                     }
                     checkSinkChannelCompatibility(sink, channelComponent.channel);
@@ -465,8 +464,8 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
                     sinks.put(sinkName, sink);
                     channelComponent.components.add(sinkName);
                 } catch (Exception e) {
-                    String msg = String.format("Sink %s has been removed due to an " +
-                            "error during configuration", sinkName);
+                    String msg = String.format("Sink %s has been removed due to an "
+                            + "error during configuration", sinkName);
                     LOGGER.error(msg, e);
                 }
             }
@@ -493,8 +492,8 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
                         String sinkUser = usedSinks.get(sink);
                         if (sinkUser != null) {
                             throw new InstantiationException(String.format(
-                                    "Sink %s of group %s already " +
-                                            "in use by group %s", sink, groupName, sinkUser));
+                                    "Sink %s of group %s already "
+                                            + "in use by group %s", sink, groupName, sinkUser));
                         } else {
                             throw new InstantiationException(String.format(
                                     "Sink %s of group %s does "
@@ -511,8 +510,8 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
                     sinkRunnerMap.put(comp.getComponentName(),
                             new SinkRunner(group.getProcessor()));
                 } catch (Exception e) {
-                    String msg = String.format("SinkGroup %s has been removed due to " +
-                            "an error during configuration", groupName);
+                    String msg = String.format("SinkGroup %s has been removed due to "
+                            + "an error during configuration", groupName);
                     LOGGER.error(msg, e);
                 }
             }
@@ -528,8 +527,8 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
                     Configurables.configure(pr, new Context());
                     sinkRunnerMap.put(entry.getKey(), new SinkRunner(pr));
                 } catch (Exception e) {
-                    String msg = String.format("SinkGroup %s has been removed due to " +
-                            "an error during configuration", entry.getKey());
+                    String msg = String.format("SinkGroup %s has been removed due to "
+                            + "an error during configuration", entry.getKey());
                     LOGGER.error(msg, e);
                 }
             }

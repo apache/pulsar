@@ -4,10 +4,6 @@ title: Bouncy Castle Providers
 sidebar_label: "Bouncy Castle Providers"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 ## BouncyCastle Introduce
 
 `Bouncy Castle` is a Java library that complements the default Java Cryptographic Extension (JCE), 

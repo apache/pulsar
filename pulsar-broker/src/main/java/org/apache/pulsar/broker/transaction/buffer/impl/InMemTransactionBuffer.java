@@ -194,7 +194,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
 
             final SortedMap<Long, ByteBuf> entriesToRead = new TreeMap<>();
             synchronized (entries) {
-                SortedMap<Long, ByteBuf> subEntries = entries.tailMap(Long.valueOf(sequenceId));
+                SortedMap<Long, ByteBuf> subEntries = entries.tailMap(sequenceId);
                 subEntries.values().forEach(value -> value.retain());
                 entriesToRead.putAll(subEntries);
             }

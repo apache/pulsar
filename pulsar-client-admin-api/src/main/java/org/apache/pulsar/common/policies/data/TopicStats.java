@@ -61,6 +61,9 @@ public interface TopicStats {
     /** Get estimated total unconsumed or backlog size in bytes. */
     long getBacklogSize();
 
+    /** Get the publish time of the earliest message over all the backlogs. */
+    long getEarliestMsgPublishTimeInBacklogs();
+
     /** Space used to store the offloaded messages for the topic/. */
     long getOffloadedStorageSize();
 

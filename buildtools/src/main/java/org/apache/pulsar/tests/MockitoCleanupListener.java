@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
 public class MockitoCleanupListener extends BetweenTestClassesListenerAdapter {
     private static final Logger LOG = LoggerFactory.getLogger(MockitoCleanupListener.class);
     private static final boolean
-            MOCKITO_CLEANUP_ENABLED = Boolean.valueOf(System.getProperty("testMockitoCleanup", "true"));
+            MOCKITO_CLEANUP_ENABLED = Boolean.parseBoolean(System.getProperty("testMockitoCleanup", "true"));
 
     @Override
     protected void onBetweenTestClasses(Class<?> endedTestClass, Class<?> startedTestClass) {

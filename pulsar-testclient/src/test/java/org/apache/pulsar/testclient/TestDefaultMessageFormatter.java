@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.testclient;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -69,6 +68,6 @@ public class TestDefaultMessageFormatter {
         Assert.assertTrue(0 < i2, "i2 was " + i2);
         Assert.assertTrue(f2 < 100000);
         Assert.assertTrue( -100000 < f2);
-
     }
+
 }

@@ -168,20 +168,7 @@ To upload (register) a new schema for a topic, you can use one of the following 
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java Admin API",
-    "value": "Java Admin API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -264,7 +251,7 @@ The post payload includes the following fields:
 | --- | --- |
 |  `type`  |   The schema type. | 
 |  `schema`  |   The schema definition data, which is encoded in UTF 8 charset. <li>If the schema is a </li>**primitive**<li>schema, this field should be blank. </li><li>If the schema is a </li>**struct**<li>schema, this field should be a JSON string of the Avro schema definition. </li> | 
-|  `properties`  |  The additional properties associated with the schema. | 
+|  `properties`  |  The additional properties associated with the schema. |
 
 </TabItem>
 <TabItem value="Java Admin API">
@@ -307,20 +294,7 @@ To get the latest schema for a topic, you can use one of the following methods.
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java Admin API",
-    "value": "Java Admin API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -370,7 +344,7 @@ The response includes the following fields:
 |  `type`  |   The schema type. | 
 |  `timestamp`  |   The timestamp of creating this version of schema. | 
 |  `data`  |   The schema definition data, which is encoded in UTF 8 charset. <li>If the schema is a </li>**primitive**<li>schema, this field should be blank. </li><li>If the schema is a </li>**struct**<li>schema, this field should be a JSON string of the Avro schema definition. </li> | 
-|  `properties`  |  The additional properties associated with the schema. | 
+|  `properties`  |  The additional properties associated with the schema. |
 
 </TabItem>
 <TabItem value="Java Admin API">
@@ -410,20 +384,7 @@ To get a specific version of a schema, you can use one of the following methods.
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java Admin API",
-    "value": "Java Admin API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -462,7 +423,7 @@ The response includes the following fields:
 |  `type`  |   The schema type. | 
 |  `timestamp`  |   The timestamp of creating this version of schema. | 
 |  `data`  |   The schema definition data, which is encoded in UTF 8 charset. <li>If the schema is a </li>**primitive**<li>schema, this field should be blank. </li><li>If the schema is a </li>**struct**<li>schema, this field should be a JSON string of the Avro schema definition. </li> | 
-|  `properties`  |  The additional properties associated with the schema. | 
+|  `properties`  |  The additional properties associated with the schema. |
 
 </TabItem>
 <TabItem value="Java Admin API">
@@ -502,12 +463,7 @@ To provide a schema via a topic, you can use the following method.
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -535,20 +491,7 @@ In any case, the **delete** action deletes **all versions** of a schema register
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java Admin API",
-    "value": "Java Admin API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -579,7 +522,7 @@ The response includes the following field:
 
 Field | Description |
 ---|---|
-`version` | The schema version, which is a long number. | 
+`version` | The schema version, which is a long number. |
 
 </TabItem>
 <TabItem value="Java Admin API">

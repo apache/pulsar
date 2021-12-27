@@ -1,0 +1,26 @@
+project_id: 485261
+# api_token_env: 'CROWDIN_PERSONAL_TOKEN'
+# api_token: 20a2c29bfe39397f7ae63ce318c04c96,
+api_token: f12b5ae600612e3a5c215708f09d2cd5c27896d7c67e40c9fdad24c5e5b5471039da023d379d3da4
+preserve_hierarchy: true
+files: [
+    # JSON 翻译文件
+    {
+      source: '/i18n/en/**/*',
+      translation: '/i18n/%two_letters_code%/**/%original_file_name%',
+    },
+    # 文档 Markdown 文件
+    {
+      source: '/docs/**/*',
+      translation: '/i18n/%two_letters_code%/docusaurus-plugin-content-docs/current/**/%original_file_name%',
+    },
+    {
+      source: '/versioned_docs/**/*',
+      translation: '/i18n/%two_letters_code%/docusaurus-plugin-content-docs/**/%original_file_name%',
+    },
+    # 博客 Markdown 文件
+    {
+      source: '/blog/**/*',
+      translation: '/i18n/%two_letters_code%/docusaurus-plugin-content-blog/**/%original_file_name%',
+    },
+  ]

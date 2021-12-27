@@ -19,10 +19,10 @@
 package org.apache.pulsar.client.api;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.Serializable;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -188,7 +188,7 @@ public class ProducerConfiguration implements Serializable {
      * @see MessageRoutingMode
      */
     public ProducerConfiguration setMessageRoutingMode(MessageRoutingMode messageRouteMode) {
-        checkNotNull(messageRouteMode);
+        Objects.requireNonNull(messageRouteMode);
         conf.setMessageRoutingMode(
                 org.apache.pulsar.client.api.MessageRoutingMode.valueOf(messageRouteMode.toString()));
         return this;
@@ -239,7 +239,7 @@ public class ProducerConfiguration implements Serializable {
      * @param messageRouter
      */
     public ProducerConfiguration setMessageRouter(MessageRouter messageRouter) {
-        checkNotNull(messageRouter);
+        Objects.requireNonNull(messageRouter);
         setMessageRoutingMode(MessageRoutingMode.CustomPartition);
         conf.setCustomMessageRouter(messageRouter);
         return this;
@@ -313,7 +313,7 @@ public class ProducerConfiguration implements Serializable {
      *            CryptoKeyReader object
      */
     public ProducerConfiguration setCryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
-        checkNotNull(cryptoKeyReader);
+        Objects.requireNonNull(cryptoKeyReader);
         conf.setCryptoKeyReader(cryptoKeyReader);
         return this;
     }

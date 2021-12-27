@@ -5,10 +5,6 @@ sidebar_label: "Get started"
 original_id: io-quickstart
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 This tutorial provides a hands-on look at how you can move data out of Pulsar without writing a single line of code.  
 
 It is helpful to review the [concepts](io-overview) for Pulsar I/O with running the steps in this guide to gain a deeper understanding.   
@@ -454,11 +450,12 @@ This section demonstrates how to connect Pulsar to PostgreSQL.
 :::tip
 
 * Make sure you have Docker installed. If you do not have one, see [install Docker](https://docs.docker.com/docker-for-mac/install/).
-* The JDBC sink connector pulls messages from Pulsar topics and persists the messages to ClickHouse, MariaDB, PostgreSQL, or SQlite. For more information, see [JDBC sink connector](io-jdbc-sink).
+* The JDBC sink connector pulls messages from Pulsar topics 
 
 :::
 
-
+and persists the messages to ClickHouse, MariaDB, PostgreSQL, or SQlite. 
+>For more information, see [JDBC sink connector](io-jdbc-sink).
 
 
 ### Setup a PostgreSQL cluster

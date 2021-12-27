@@ -23,7 +23,6 @@ import org.apache.bookkeeper.client.api.BKException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.zookeeper.ZooKeeper;
 import org.testng.annotations.Test;
 
 import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.bkException;
@@ -63,7 +62,7 @@ public class BookkeeperSchemaStorageTest {
 
         PulsarService mockPulsarService = mock(PulsarService.class);
         when(mockPulsarService.getLocalMetadataStore()).thenReturn(mock(MetadataStoreExtended.class));
-        BookkeeperSchemaStorage schemaStorage = new BookkeeperSchemaStorage(mockPulsarService, mock(ZooKeeper.class));
+        BookkeeperSchemaStorage schemaStorage = new BookkeeperSchemaStorage(mockPulsarService);
         assertEquals(new LongSchemaVersion(version), schemaStorage.versionFromBytes(versionBytesPre240));
         assertEquals(new LongSchemaVersion(version), schemaStorage.versionFromBytes(versionBytesPost240));
     }

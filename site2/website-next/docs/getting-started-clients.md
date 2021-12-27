@@ -4,10 +4,6 @@ title: Pulsar client libraries
 sidebar_label: "Overview"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 Pulsar supports the following client libraries:
 
 - [Java client](client-libraries-java)

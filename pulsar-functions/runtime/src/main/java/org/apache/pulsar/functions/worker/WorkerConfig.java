@@ -33,6 +33,8 @@ import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collections;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -178,6 +180,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_FUNCTIONS,
         doc = "The path to the location to locate builtin functions"
+    )
+    private Boolean uploadBuiltinSinksSources = true;
+    @FieldContext(
+            category = CATEGORY_FUNCTIONS,
+            doc = "Should the builtin sources/sinks be uploaded for the externally managed runtimes?"
     )
     private String functionsDirectory = "./functions";
     @FieldContext(
@@ -538,6 +545,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "Whether to forward the source message properties to the output message"
     )
     private boolean forwardSourceMessageProperty = true;
+
+    @FieldContext(
+            doc = "Additional arguments to pass to the Java command line for Java functions"
+    )
+    private List<String> additionalJavaRuntimeArguments = new ArrayList<>();
 
     public String getFunctionMetadataTopic() {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionMetadataTopicName);
