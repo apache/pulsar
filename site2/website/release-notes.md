@@ -827,7 +827,7 @@ For more context about this issue, see [[Pulsar Functions and IO] Cannot upgrade
 - Solving precise rate limiting does not take effect. [#11446](https://github.com/apache/pulsar/pull/11446)
 - Fix replicated subscriptions direct memory leak. [#11396](https://github.com/apache/pulsar/pull/11396)
 - Close the replicator and replication client when deleting cluster. [#11390](https://github.com/apache/pulsar/pull/11390)
-- Invalidate the read handle after all cursors consumed. [#11389](https://github.com/apache/pulsar/pull/11389)
+- Invalidate the read handle after all cursors are consumed. [#11389](https://github.com/apache/pulsar/pull/11389)
 - Fix NPE when unloading persistent partitioned topic. [#11386](https://github.com/apache/pulsar/pull/11386)
 - Fix retention of keys in compaction. [#11384](https://github.com/apache/pulsar/pull/11384)
 - Disable replicate system topic across clusters. [#11376](https://github.com/apache/pulsar/pull/11376)
