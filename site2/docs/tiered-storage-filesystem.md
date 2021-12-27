@@ -392,13 +392,13 @@ Execute the following commands in the repository where you download Pulsar tarba
 1. Start Pulsar standalone.
 
     ```
-    ./bin/pulsar standalone -a 127.0.0.1
+    bin/pulsar standalone -a 127.0.0.1
     ```
 
 2. To ensure the data generated is not deleted immediately, it is recommended to set the [retention policy](https://pulsar.apache.org/docs/en/next/cookbooks-retention-expiry/#retention-policies), which can be either a **size** limit or a **time** limit. The larger value you set for the retention policy, the longer the data can be retained.
 
     ```
-    ./bin/pulsarctl namespaces set-retention public/default --size 100M --time 2d
+    bin/pulsar-admin namespaces set-retention public/default --size 100M --time 2d
     ```
 
     > **Tip**
@@ -408,13 +408,13 @@ Execute the following commands in the repository where you download Pulsar tarba
 3. Produce data using pulsar-client.
 
     ```
-    ./bin/pulsar-client produce -m "Hello FileSystem Offloader" -n 1000 public/default/fs-test
+    bin/pulsar-client produce -m "Hello FileSystem Offloader" -n 1000 public/default/fs-test
     ```
 
 4. The offloading operation starts after a ledger rollover is triggered. To ensure offload data successfully, it is recommended that you wait until several ledger rollovers are triggered. In this case, you might need to wait for a second. You can check the ledger status using pulsarctl.
 
     ```
-    ./bin/pulsarctl topics internal-stats public/default/fs-test
+    bin/pulsar-admin topics stats-internal public/default/fs-test
     ```
 
     **Output**
@@ -439,13 +439,13 @@ Execute the following commands in the repository where you download Pulsar tarba
 5. Wait a second and send more messages to the topic.
 
     ```
-    ./bin/pulsar-client produce -m "Hello FileSystem Offloader" -n 1000 public/default/fs-test
+    bin/pulsar-client produce -m "Hello FileSystem Offloader" -n 1000 public/default/fs-test
     ```
 
 6. Check the ledger status using pulsarctl.
 
     ```
-    ./bin/pulsarctl topics internal-stats public/default/fs-test
+    bin/pulsar-admin topics stats-internal public/default/fs-test
     ```
 
     **Output**
@@ -476,7 +476,7 @@ Execute the following commands in the repository where you download Pulsar tarba
 7. Trigger the offloading operation manually using pulsarctl.
 
     ```
-    ./bin/pulsarctl topic offload -s 0 public/default/fs-test
+    bin/pulsar-admin topics offload -s 0 public/default/fs-test
     ```
 
     **Output**
@@ -491,7 +491,7 @@ Execute the following commands in the repository where you download Pulsar tarba
 8.  Check the ledger status using pulsarctl.
 
     ```
-    ./bin/pulsarctl topic internal-info public/default/fs-test
+    bin/pulsar-admin topics stats-internal public/default/fs-test
     ```
 
     **Output**
