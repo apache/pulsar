@@ -1994,9 +1994,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 ackSet.recycle();
 
                 seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), ackSetArr);
-            } else if(messageId instanceof ChunkMessageIdImpl){
+            } else if (messageId instanceof ChunkMessageIdImpl) {
                 ChunkMessageIdImpl msgId = (ChunkMessageIdImpl) messageId;
-                seek = Commands.newSeek(consumerId, requestId, msgId.getFirstChunkMessageId().getLedgerId(), msgId.getFirstChunkMessageId().getEntryId(), new long[0]);
+                seek = Commands.newSeek(consumerId, requestId, msgId.getFirstChunkMessageId().getLedgerId(),
+                        msgId.getFirstChunkMessageId().getEntryId(), new long[0]);
             } else {
                 MessageIdImpl msgId = (MessageIdImpl) messageId;
                 seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), new long[0]);

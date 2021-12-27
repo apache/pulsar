@@ -32,9 +32,11 @@ import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
+import io.netty.util.ReferenceCounted;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import io.netty.util.concurrent.ScheduledFuture;
@@ -485,7 +487,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     sequenceId = msgMetadata.getSequenceId();
                 }
                 String uuid = totalChunks > 1 ? String.format("%s-%d", producerName, sequenceId) : null;
-                ChunkedMessageCtx chunkedMessageCtx = totalChunks > 1 ? ChunkedMessageCtx.get() : null;
+                ChunkedMessageCtx chunkedMessageCtx = totalChunks > 1 ? ChunkedMessageCtx.get(totalChunks) : null;
                 byte[] schemaVersion = totalChunks > 1 && msg.getMessageBuilder().hasSchemaVersion() ?
                         msg.getMessageBuilder().getSchemaVersion() : null;
                 for (int chunkId = 0; chunkId < totalChunks; chunkId++) {
@@ -1197,7 +1199,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
     }
 
-    static class ChunkedMessageCtx {
+    static class ChunkedMessageCtx extends AbstractReferenceCounted {
         protected MessageIdImpl firstChunkMessageId;
         protected MessageIdImpl lastChunkMessageId;
 
@@ -1213,8 +1215,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     }
                 };
 
-        public static ChunkedMessageCtx get() {
-            return RECYCLER.get();
+        public static ChunkedMessageCtx get(int totalChunks) {
+            ChunkedMessageCtx chunkedMessageCtx = RECYCLER.get();
+            chunkedMessageCtx.setRefCnt(totalChunks);
+            return chunkedMessageCtx;
         }
 
         private final Handle<ProducerImpl.ChunkedMessageCtx> recyclerHandle;
@@ -1223,10 +1227,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             this.recyclerHandle = recyclerHandle;
         }
 
-        public void recycle() {
+        @Override
+        protected void deallocate() {
             this.firstChunkMessageId = null;
             this.lastChunkMessageId = null;
             recyclerHandle.recycle(this);
+        }
+
+        @Override
+        public ReferenceCounted touch(Object hint) {
+            return this;
         }
     }
 
@@ -1339,6 +1349,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             retryCount = 0;
             batchSizeByte = 0;
             numMessagesInBatch = 1;
+            if (chunkedMessageCtx != null) {
+                ReferenceCountUtil.safeRelease(chunkedMessageCtx);
+            }
+            chunkedMessageCtx = null;
             recyclerHandle.recycle(this);
         }
 

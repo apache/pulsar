@@ -42,29 +42,14 @@ public class ChunkMessageIdImpl extends MessageIdImpl implements MessageId {
 
     @Override
     public String toString() {
-        return new StringBuilder()
-                // First chunk message id part
-                .append(firstChunkMsgId.ledgerId)
-                .append(':')
-                .append(firstChunkMsgId.entryId)
-                .append(':')
-                .append(firstChunkMsgId.partitionIndex)
-                .append(';')
-
-                // Last chunk message id part
-                .append(ledgerId)
-                .append(':')
-                .append(entryId)
-                .append(':')
-                .append(partitionIndex)
-                .toString();
+        return firstChunkMsgId.toString() + ';' + super.toString();
     }
 
     @Override
     public byte[] toByteArray() {
 
         // write last chunk message id
-        MessageIdData msgId = super.writeMessageIdData(null,-1, 0);
+        MessageIdData msgId = super.writeMessageIdData(null, -1, 0);
 
         // write first chunk message id
         msgId.setFirstChunkMessageId();
