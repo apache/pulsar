@@ -606,8 +606,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     @Override
-    public void increasePublishLimitedTimes() {
-        RATE_LIMITED_UPDATER.incrementAndGet(this);
+    public long increasePublishLimitedTimes() {
+        return RATE_LIMITED_UPDATER.incrementAndGet(this);
     }
 
     protected void setSchemaCompatibilityStrategy(Policies policies) {

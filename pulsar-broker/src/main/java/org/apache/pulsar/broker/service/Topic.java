@@ -139,7 +139,7 @@ public interface Topic {
     /**
      * increase the publishing limited times.
      */
-    void increasePublishLimitedTimes();
+    long increasePublishLimitedTimes();
 
     @Deprecated
     CompletableFuture<Consumer> subscribe(TransportCnx cnx, String subscriptionName, long consumerId, SubType subType,
