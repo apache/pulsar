@@ -346,9 +346,7 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder dnsLookupBindPort(int dnsLookupBindPort) {
-        if (dnsLookupBindPort < 0 || dnsLookupBindPort > 65535) {
-            throw new IllegalArgumentException("DnsLookBindPort need to be within the range of 0 and 65535");
-        }
+       checkArgument(dnsLookupBindPort >= 0 && dnsLookupBindPort <= 65535, "DnsLookBindPort need to be within the range of 0 and 65535");
         conf.setDnsLookupBindPort(dnsLookupBindPort);
         return this;
     }
