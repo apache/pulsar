@@ -492,12 +492,12 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 if (state == State.Initializing) {
                     CompletableFuture<Void> completableFuture = new CompletableFuture<>();
                     addCommitTxnRequest(txnID, properties, lowWaterMark, completableFuture);
-                    return ;
+                    return;
                 } else if (state == State.None) {
                     CompletableFuture<Void> completableFuture = new CompletableFuture<>();
                     addCommitTxnRequest(txnID, properties, lowWaterMark, completableFuture);
                     initPendingAckStore();
-                    return ;
+                    return;
                 } else if (checkIfReady()) {
 
                 } else {
@@ -594,11 +594,11 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             if (!checkIfReady()) {
                 if (state == State.Initializing) {
                     addAbortTxnRequest(txnId, consumer, lowWaterMark, abortFuture);
-                    return ;
+                    return;
                 } else if (state == State.None) {
                     addAbortTxnRequest(txnId, consumer, lowWaterMark, abortFuture);
                     initPendingAckStore();
-                    return ;
+                    return;
                 } else if (checkIfReady()) {
 
                 } else {
