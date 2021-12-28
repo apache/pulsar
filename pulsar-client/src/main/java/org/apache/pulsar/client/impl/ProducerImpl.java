@@ -1349,9 +1349,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             retryCount = 0;
             batchSizeByte = 0;
             numMessagesInBatch = 1;
-            if (chunkedMessageCtx != null) {
-                ReferenceCountUtil.safeRelease(chunkedMessageCtx);
-            }
+            ReferenceCountUtil.safeRelease(chunkedMessageCtx);
             chunkedMessageCtx = null;
             recyclerHandle.recycle(this);
         }
