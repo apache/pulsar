@@ -339,16 +339,11 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
-    public ClientBuilder dnsLookupBindAddress(String dnsLookupBindAddress) {
-        conf.setDnsLookupBindAddress(dnsLookupBindAddress);
-        return this;
-    }
-
-    @Override
-    public ClientBuilder dnsLookupBindPort(int dnsLookupBindPort) {
-       checkArgument(dnsLookupBindPort >= 0 && dnsLookupBindPort <= 65535, "DnsLookBindPort need to be within the range of 0 and 65535");
-        conf.setDnsLookupBindPort(dnsLookupBindPort);
-        return this;
+    public ClientBuilder dnsLookupBind(String address, int port) {
+        checkArgument(port >= 0 && port <= 65535, "DnsLookBindPort need to be within the range of 0 and 65535");
+        conf.setDnsLookupBindAddress(address);
+        conf.setDnsLookupBindPort(port);
+        return null;
     }
 
     @Override
