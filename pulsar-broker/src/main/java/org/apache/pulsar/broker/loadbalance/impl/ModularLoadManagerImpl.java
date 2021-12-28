@@ -608,7 +608,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                         return;
                     }
 
-                    log.info("[%s] Unloading bundle: {} from broker {}", strategy.getClass().getSimpleName(), bundle, broker);
+                    log.info("[{}] Unloading bundle: {} from broker {}", strategy.getClass().getSimpleName(), bundle, broker);
                     try {
                         pulsar.getAdminClient().namespaces().unloadNamespaceBundle(namespaceName, bundleRange);
                         loadData.getRecentlyUnloadedBundles().put(bundle, System.currentTimeMillis());
