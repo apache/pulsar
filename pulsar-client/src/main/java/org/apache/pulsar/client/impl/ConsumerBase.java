@@ -341,11 +341,16 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public void reconsumeLater(Message<?> message, long delayTime, TimeUnit unit) throws PulsarClientException {
+        reconsumeLater(message,null, delayTime, unit);
+    }
+
+    @Override
+    public void reconsumeLater(Message<?> message, Map<String, String> customProperties, long delayTime, TimeUnit unit) throws PulsarClientException {
         if (!conf.isRetryEnable()) {
             throw new PulsarClientException("reconsumeLater method not support!");
         }
         try {
-            reconsumeLaterAsync(message, delayTime, unit).get();
+            reconsumeLaterAsync(message, customProperties, delayTime, unit).get();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw PulsarClientException.unwrap(e);
@@ -428,6 +433,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public CompletableFuture<Void> reconsumeLaterAsync(Message<?> message, long delayTime, TimeUnit unit) {
+        return reconsumeLaterAsync(message, null, delayTime, unit);
+    }
+
+    @Override
+    public CompletableFuture<Void> reconsumeLaterAsync(Message<?> message,Map<String, String> customProperties, long delayTime, TimeUnit unit) {
         if (!conf.isRetryEnable()) {
             return FutureUtil.failedFuture(new PulsarClientException("reconsumeLater method not support!"));
         }
@@ -436,7 +446,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         } catch (PulsarClientException e) {
             return FutureUtil.failedFuture(e);
         }
-        return doReconsumeLater(message, AckType.Individual, Collections.emptyMap(), delayTime, unit);
+        return doReconsumeLater(message, AckType.Individual, customProperties, delayTime, unit);
     }
 
     @Override
@@ -464,6 +474,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public CompletableFuture<Void> reconsumeLaterCumulativeAsync(Message<?> message, long delayTime, TimeUnit unit) {
+        return reconsumeLaterCumulativeAsync(message, null, delayTime, unit);
+    }
+
+    @Override
+    public CompletableFuture<Void> reconsumeLaterCumulativeAsync(Message<?> message, Map<String, String> customProperties, long delayTime, TimeUnit unit) {
         if (!conf.isRetryEnable()) {
             return FutureUtil.failedFuture(new PulsarClientException("reconsumeLater method not support!"));
         }
@@ -471,7 +486,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
                     "Cannot use cumulative acks on a non-exclusive subscription"));
         }
-        return doReconsumeLater(message, AckType.Cumulative, Collections.emptyMap(), delayTime, unit);
+        return doReconsumeLater(message, AckType.Cumulative, customProperties, delayTime, unit);
     }
 
     @Override
@@ -565,7 +580,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                                                     TransactionImpl txn);
 
     protected abstract CompletableFuture<Void> doReconsumeLater(Message<?> message, AckType ackType,
-                                                                Map<String,Long> properties,
+                                                                Map<String, String> customProperties,
                                                                 long delayTime,
                                                                 TimeUnit unit);
 
