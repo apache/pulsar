@@ -872,23 +872,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return CompletableFuture.completedFuture(null);
         }
 
-        Timeout timeout = sendTimeout;
-        if (timeout != null) {
-            timeout.cancel();
-            sendTimeout = null;
-        }
-
-        ScheduledFuture<?> batchTimerTask = this.batchTimerTask;
-        if (batchTimerTask != null) {
-            batchTimerTask.cancel(false);
-            this.batchTimerTask = null;
-        }
-
-        if (keyGeneratorTask != null && !keyGeneratorTask.isCancelled()) {
-            keyGeneratorTask.cancel(false);
-        }
-
-        stats.cancelStatsTimeout();
+        closeProducerTasks();
 
         ClientCnx cnx = cnx();
         if (cnx == null || currentState != State.Ready) {
@@ -1558,6 +1542,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             failPendingMessages(cnx(), (PulsarClientException) cause);
                         }
                         producerCreatedFuture.completeExceptionally(cause);
+                        closeProducerTasks();
                         client.cleanupProducer(this);
                     } else if (cause instanceof PulsarClientException.ProducerFencedException) {
                         setState(State.ProducerFenced);
@@ -1565,6 +1550,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             failPendingMessages(cnx(), (PulsarClientException) cause);
                         }
                         producerCreatedFuture.completeExceptionally(cause);
+                        closeProducerTasks();
                         client.cleanupProducer(this);
                     } else if (producerCreatedFuture.isDone() || //
                                (cause instanceof PulsarClientException && PulsarClientException.isRetriableError(cause)
@@ -1575,6 +1561,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     } else {
                         setState(State.Failed);
                         producerCreatedFuture.completeExceptionally(cause);
+                        closeProducerTasks();
                         client.cleanupProducer(this);
                         Timeout timeout = sendTimeout;
                         if (timeout != null) {
@@ -1599,12 +1586,33 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 } else {
                     log.info("[{}] Producer creation failed for producer {} after producerTimeout", topic, producerId);
                 }
+                closeProducerTasks();
                 setState(State.Failed);
                 client.cleanupProducer(this);
             }
         } else {
             previousExceptions.add(exception);
         }
+    }
+
+    private void closeProducerTasks() {
+        Timeout timeout = sendTimeout;
+        if (timeout != null) {
+            timeout.cancel();
+            sendTimeout = null;
+        }
+
+        ScheduledFuture<?> batchTimerTask = this.batchTimerTask;
+        if (batchTimerTask != null) {
+            batchTimerTask.cancel(false);
+            this.batchTimerTask = null;
+        }
+
+        if (keyGeneratorTask != null && !keyGeneratorTask.isCancelled()) {
+            keyGeneratorTask.cancel(false);
+        }
+
+        stats.cancelStatsTimeout();
     }
 
     private void resendMessages(ClientCnx cnx, long expectedEpoch) {
