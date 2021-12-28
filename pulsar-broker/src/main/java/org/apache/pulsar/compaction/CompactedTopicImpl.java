@@ -311,9 +311,8 @@ public class CompactedTopicImpl implements CompactedTopic {
             .compare(p.getEntryId(), m.getEntryId()).result();
     }
 
-    @VisibleForTesting
-    PositionImpl getCompactionHorizon() {
-        return this.compactionHorizon;
+    public synchronized Optional<Position> getCompactionHorizon() {
+        return Optional.ofNullable(this.compactionHorizon);
     }
     private static final Logger log = LoggerFactory.getLogger(CompactedTopicImpl.class);
 }
