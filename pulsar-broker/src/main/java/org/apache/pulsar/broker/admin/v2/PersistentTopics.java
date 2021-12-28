@@ -2800,7 +2800,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/dispatchRate")
     @ApiOperation(value = "Set message dispatch rate configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Topic does not exist"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -2837,7 +2837,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/dispatchRate")
     @ApiOperation(value = "Remove message dispatch rate configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Topic does not exist"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -2894,7 +2894,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/subscriptionDispatchRate")
     @ApiOperation(value = "Set subscription message dispatch rate configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Topic does not exist"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -2932,7 +2932,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/subscriptionDispatchRate")
     @ApiOperation(value = "Remove subscription message dispatch rate configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Topic does not exist"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -2988,7 +2988,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/compactionThreshold")
     @ApiOperation(value = "Set compaction threshold configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Topic does not exist"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -3024,7 +3024,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/compactionThreshold")
     @ApiOperation(value = "Remove compaction threshold configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Topic does not exist"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -3081,7 +3081,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/maxConsumersPerSubscription")
     @ApiOperation(value = "Set max consumers per subscription configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Topic does not exist"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -3119,7 +3119,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/maxConsumersPerSubscription")
     @ApiOperation(value = "Remove max consumers per subscription configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Topic does not exist"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -3177,7 +3177,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/publishRate")
     @ApiOperation(value = "Set message publish rate configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Topic does not exist"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -3213,7 +3213,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/publishRate")
     @ApiOperation(value = "Remove message publish rate configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Topic does not exist"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -3272,7 +3272,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/subscriptionTypesEnabled")
     @ApiOperation(value = "Set is enable sub types for specified topic")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Topic does not exist"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -3365,7 +3365,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/subscribeRate")
     @ApiOperation(value = "Set subscribe rate configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Topic does not exist"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -3402,7 +3402,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/subscribeRate")
     @ApiOperation(value = "Remove subscribe rate configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Topic does not exist"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
