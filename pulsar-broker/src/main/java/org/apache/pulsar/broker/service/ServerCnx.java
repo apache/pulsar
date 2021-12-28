@@ -39,6 +39,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.Collections;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -2475,6 +2476,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     producer.getTopic().isTopicPublishRateExceeded(numMessages, msgSize);
             if (isPreciseTopicPublishRateExceeded) {
                 producer.getTopic().disableCnxAutoRead();
+                recordRateLimitMetrics(producers.values());
                 return;
             }
             isPublishRateExceeded = producer.getTopic().isBrokerPublishRateExceeded();
@@ -2484,6 +2486,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                   producer.getTopic().isResourceGroupPublishRateExceeded(numMessages, msgSize);
                 if (resourceGroupPublishRateExceeded) {
                     producer.getTopic().disableCnxAutoRead();
+                    recordRateLimitMetrics(producers.values());
                     return;
                 }
             }
@@ -2494,6 +2497,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             // When the quota of pending send requests is reached, stop reading from socket to cause backpressure on
             // client connection, possibly shared between multiple producers
             ctx.channel().config().setAutoRead(false);
+            recordRateLimitMetrics(producers.values());
             autoReadDisabledRateLimiting = isPublishRateExceeded;
             throttledConnections.inc();
         }
@@ -2508,11 +2512,23 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     cnx.disableCnxAutoRead();
                     cnx.autoReadDisabledPublishBufferLimiting = true;
                     pausedConnections.increment();
+                    recordRateLimitMetrics(cnx.producers.values());
                 }
             });
 
             getBrokerService().pausedConnections(pausedConnections.intValue());
         }
+    }
+
+    private void recordRateLimitMetrics(List<CompletableFuture<Producer>> producers) {
+        producers.forEach((producerFuture) -> {
+            if (producerFuture.isDone()) {
+                Producer p = producerFuture.getNow(null);
+                if (p != null && p.getTopic() != null) {
+                    p.getTopic().increasePublishLimitedTimes();
+                }
+            }
+        });
     }
 
     @Override

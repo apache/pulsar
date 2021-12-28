@@ -1952,6 +1952,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.waitingPublishers = getWaitingProducersCount();
         stats.bytesOutCounter = bytesOutFromRemovedSubscriptions.longValue();
         stats.msgOutCounter = msgOutFromRemovedSubscriptions.longValue();
+        stats.publishRateLimitedTimes = publishRateLimitedTimes;
 
         subscriptions.forEach((name, subscription) -> {
             SubscriptionStatsImpl subStats =

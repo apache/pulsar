@@ -57,6 +57,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
+import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
@@ -90,6 +91,43 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+        resetConfig();
+    }
+
+    @Test
+    public void testPublishRateLimitedTimes() throws Exception {
+        cleanup();
+        conf.setMaxPublishRatePerTopicInBytes(1);
+        conf.setTopicPublisherThrottlingTickTimeMillis(1000000);
+        conf.setBrokerPublisherThrottlingTickTimeMillis(1000000);
+        conf.setPreciseTopicPublishRateLimiterEnable(true);
+        setup();
+        String ns1 = "prop/ns-abc1" + UUID.randomUUID();
+        admin.namespaces().createNamespace(ns1, 1);
+        String topicName = "persistent://" + ns1 + "/metrics" + UUID.randomUUID();
+        Producer<byte[]> producer = pulsarClient.newProducer().producerName("my-pub").enableBatching(false)
+                .topic(topicName).create();
+        producer.sendAsync(new byte[16]);
+
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopic(topicName, false).get().get();
+        Field field = AbstractTopic.class.getDeclaredField("publishRateLimitedTimes");
+        field.setAccessible(true);
+        Awaitility.await().untilAsserted(() -> {
+            long value = (long) field.get(persistentTopic);
+            assertEquals(value, 1);
+        });
+        @Cleanup
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        assertTrue(metrics.containsKey("pulsar_publish_rate_limit_times"));
+        metrics.get("pulsar_publish_rate_limit_times").forEach(item -> {
+            if (ns1.equals(item.tags.get("namespace"))) {
+                assertEquals(item.value, 1);
+            }
+        });
     }
 
     @Test
