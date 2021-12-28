@@ -26,6 +26,7 @@ import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -46,7 +47,6 @@ import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
-import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicFencedException;
@@ -528,50 +528,32 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             log.debug("[{}] Checking replication status", name);
         }
 
-        return brokerService.pulsar().getPulsarResources().getNamespaceResources()
-                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
-                .thenCompose(optPolicies -> {
-                    if (!optPolicies.isPresent()) {
-                        return FutureUtil.failedFuture(
-                                new ServerMetadataException(
-                                        new MetadataStoreException.NotFoundException()));
-                    }
+        Set<String> configuredClusters = new HashSet<>(topicPolicies.getReplicationClusters().get());
 
-                    Policies policies = optPolicies.get();
-                    Set<String> configuredClusters;
-                    if (policies.replication_clusters != null) {
-                        configuredClusters = policies.replication_clusters;
-                    } else {
-                        configuredClusters = Collections.emptySet();
-                    }
+        String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
 
-                    String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
+        List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
-                    List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        // Check for missing replicators
+        for (String cluster : configuredClusters) {
+            if (cluster.equals(localCluster)) {
+                continue;
+            }
 
-                    // Check for missing replicators
-                    for (String cluster : configuredClusters) {
-                        if (cluster.equals(localCluster)) {
-                            continue;
-                        }
+            if (!replicators.containsKey(cluster)) {
+                futures.add(startReplicator(cluster));
+            }
+        }
 
-                        if (!replicators.containsKey(cluster)) {
-                            futures.add(startReplicator(cluster));
-                        }
-                    }
-
-                    // Check for replicators to be stopped
-                    replicators.forEach((cluster, replicator) -> {
-                        if (!cluster.equals(localCluster)) {
-                            if (!configuredClusters.contains(cluster)) {
-                                futures.add(removeReplicator(cluster));
-                            }
-                        }
-                    });
-                    return FutureUtil.waitForAll(futures);
-                });
-
-
+        // Check for replicators to be stopped
+        replicators.forEach((cluster, replicator) -> {
+            if (!cluster.equals(localCluster)) {
+                if (!configuredClusters.contains(cluster)) {
+                    futures.add(removeReplicator(cluster));
+                }
+            }
+        });
+        return FutureUtil.waitForAll(futures);
     }
 
     CompletableFuture<Void> startReplicator(String remoteCluster) {

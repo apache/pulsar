@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockBookKeeper;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.atLeast;
@@ -41,7 +40,15 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.DefaultEventLoop;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
@@ -66,13 +73,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
-
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.DefaultEventLoop;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
 import lombok.Cleanup;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
@@ -80,8 +83,6 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
-import org.apache.bookkeeper.common.util.OrderedExecutor;
-import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -144,12 +145,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 
 @Test(groups = "broker")
 public class PersistentTopicTest extends MockedBookKeeperTestCase {
@@ -2259,14 +2254,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetReplicationClusters() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
-        TopicName name = TopicName.get(successTopicName);
-        CompletableFuture<List<String>> replicationClusters = topic.getReplicationClusters(name);
-        try {
-            replicationClusters.get();
-            fail("Should have failed");
-        } catch (ExecutionException ex) {
-            assertTrue(ex.getCause() instanceof BrokerServiceException.ServerMetadataException);
-        }
+        topic.initialize();
+        assertNull(topic.getHierarchyTopicPolicies().getReplicationClusters().get());
 
         PulsarResources pulsarResources = spy(new PulsarResources(store, store));
         NamespaceResources nsr = spy(new NamespaceResources(store, store, 30));
@@ -2282,9 +2271,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(policiesFuture).when(nsr).getPoliciesAsync(any());
 
         topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
-        replicationClusters = topic.getReplicationClusters(name);
-
-        assertEquals(replicationClusters.get(), namespaceClusters);
+        topic.initialize();
+        assertEquals(topic.getHierarchyTopicPolicies().getReplicationClusters().get(), namespaceClusters);
 
         TopicPoliciesService topicPoliciesService = mock(TopicPoliciesService.class);
         doReturn(topicPoliciesService).when(pulsar).getTopicPoliciesService();
@@ -2295,11 +2283,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         topicPolicies.setReplicationClusters(topicClusters);
         Optional<TopicPolicies> optionalTopicPolicies = Optional.of(topicPolicies);
         topicPoliciesFuture.complete(optionalTopicPolicies);
-        when(topicPoliciesService.getTopicPoliciesAsyncWithRetry(any(), any(), any(), anyBoolean())).thenReturn(topicPoliciesFuture);
+        when(topicPoliciesService.getTopicPoliciesIfExists(any())).thenReturn(topicPolicies);
 
         topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
-        replicationClusters = topic.getReplicationClusters(name);
-
-        assertEquals(replicationClusters.get(), topicClusters);
+        topic.initialize();
+        assertEquals(topic.getHierarchyTopicPolicies().getReplicationClusters().get(), namespaceClusters);
     }
 }

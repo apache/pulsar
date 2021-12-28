@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.Lists;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
@@ -151,6 +152,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     protected void updateTopicPolicy(TopicPolicies data) {
+        if (!isSystemTopic()) {
+            // Only use namespace level setting for system topic.
+            topicPolicies.getReplicationClusters().updateTopicValue(data.getReplicationClusters());
+        }
         topicPolicies.getMaxSubscriptionsPerTopic().updateTopicValue(data.getMaxSubscriptionsPerTopic());
         topicPolicies.getMaxProducersPerTopic().updateTopicValue(data.getMaxProducerPerTopic());
         topicPolicies.getMaxConsumerPerTopic().updateTopicValue(data.getMaxConsumerPerTopic());
@@ -173,6 +178,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         if (namespacePolicies.deleted) {
             return;
         }
+        topicPolicies.getReplicationClusters().updateNamespaceValue(
+                Lists.newArrayList(CollectionUtils.emptyIfNull(namespacePolicies.replication_clusters)));
         topicPolicies.getMessageTTLInSeconds().updateNamespaceValue(namespacePolicies.message_ttl_in_seconds);
         topicPolicies.getMaxSubscriptionsPerTopic().updateNamespaceValue(namespacePolicies.max_subscriptions_per_topic);
         topicPolicies.getMaxProducersPerTopic().updateNamespaceValue(namespacePolicies.max_producers_per_topic);
