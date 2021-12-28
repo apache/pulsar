@@ -1042,7 +1042,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         OpSendMsg finalOp = op;
         LAST_SEQ_ID_PUBLISHED_UPDATER.getAndUpdate(this, last -> Math.max(last, getHighestSequenceId(finalOp)));
         op.setMessageId(ledgerId, entryId, partitionIndex);
-        if (op.totalChunks > 1 && op.chunkedMessageCtx != null) {
+        if (op.totalChunks > 1) {
             if (op.chunkId == 0) {
                 op.chunkedMessageCtx.firstChunkMessageId = new MessageIdImpl(ledgerId, entryId, partitionIndex);
             } else if (op.chunkId == op.totalChunks - 1) {
