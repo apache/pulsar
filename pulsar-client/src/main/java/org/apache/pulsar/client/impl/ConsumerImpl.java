@@ -26,7 +26,6 @@ import com.google.common.collect.Iterables;
 import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
@@ -1255,7 +1254,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         if (msgMetadata.getChunkId() == 0) {
-            ByteBuf chunkedMsgBuffer = Unpooled.directBuffer(msgMetadata.getTotalChunkMsgSize(),
+            ByteBuf chunkedMsgBuffer = PulsarByteBufAllocator.DEFAULT.buffer(msgMetadata.getTotalChunkMsgSize(),
                     msgMetadata.getTotalChunkMsgSize());
             int totalChunks = msgMetadata.getNumChunksFromMsg();
             chunkedMessagesMap.computeIfAbsent(msgMetadata.getUuid(),
