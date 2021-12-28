@@ -68,7 +68,7 @@ This change added tests and can be verified as follows:
 
 ### Documentation
 
-Check the box below and label this PR (if you have committer privilege).
+Check the box below.
 
 Need to update docs? 
 
