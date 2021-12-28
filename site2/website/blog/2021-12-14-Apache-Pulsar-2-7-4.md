@@ -9,7 +9,7 @@ Highlights of this release are as below:
 
 - Upgrade Log4j to 2.17.0 - [CVE-2021-45105](https://pulsar.apache.org/blog/2021/12/11/Log4j-CVE/). [PR-13392](https://github.com/apache/pulsar/pull/13392)
   
-- `ManagerLedger` can be referenced correctly when `OpAddEntry` is recycled. [PR-12103](https://github.com/apache/pulsar/pull/12103)
+- `ManagedLedger` can be referenced correctly when `OpAddEntry` is recycled. [PR-12103](https://github.com/apache/pulsar/pull/12103)
 
 - NPE does not occur on `OpAddEntry` while ManagedLedger is closing. [PR-12364](https://github.com/apache/pulsar/pull/12364)
 
