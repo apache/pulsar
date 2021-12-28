@@ -27,7 +27,7 @@ This blog walks through the most noteworthy changes grouped by the affected func
   
   Patch your systems as soon as possible by setting the Java property to `-Dlog4j2.formatMsgNoLookups=true` and set the environment variable `LOG4J_FORMAT_MSG_NO_LOOKUPS=true`. Details see [Log4j2 Zero Day vulnerability (CVE-2021-44228)](https://pulsar.apache.org/blog/2021/12/11/Log4j-CVE/).
 
-### `ManagerLedger` can be referenced correctly when `OpAddEntry` is recycled. [PR-12103](https://github.com/apache/pulsar/pull/12103)
+### `ManagedLedger` can be referenced correctly when `OpAddEntry` is recycled. [PR-12103](https://github.com/apache/pulsar/pull/12103)
 
 - **Issue**
   
