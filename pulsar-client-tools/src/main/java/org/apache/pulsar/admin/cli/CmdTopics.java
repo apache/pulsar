@@ -254,9 +254,17 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("disable-deduplication");
             cmdUsageFormatter.addDeprecatedCommand("get-deduplication-enabled");
 
+            cmdUsageFormatter.addDeprecatedCommand("get-max-consumers");
+            cmdUsageFormatter.addDeprecatedCommand("set-max-consumers");
+            cmdUsageFormatter.addDeprecatedCommand("remove-max-consumers");
+
             cmdUsageFormatter.addDeprecatedCommand("get-message-ttl");
             cmdUsageFormatter.addDeprecatedCommand("set-message-ttl");
             cmdUsageFormatter.addDeprecatedCommand("remove-message-ttl");
+
+            cmdUsageFormatter.addDeprecatedCommand("get-max-consumers-per-subscription");
+            cmdUsageFormatter.addDeprecatedCommand("set-max-consumers-per-subscription");
+            cmdUsageFormatter.addDeprecatedCommand("remove-max-consumers-per-subscription");
 
             cmdUsageFormatter.addDeprecatedCommand("get-max-unacked-messages-on-consumer");
             cmdUsageFormatter.addDeprecatedCommand("remove-max-unacked-messages-on-consumer");
@@ -282,6 +290,10 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("set-persistence");
             cmdUsageFormatter.addDeprecatedCommand("remove-persistence");
 
+            cmdUsageFormatter.addDeprecatedCommand("get-dispatch-rate");
+            cmdUsageFormatter.addDeprecatedCommand("set-dispatch-rate");
+            cmdUsageFormatter.addDeprecatedCommand("remove-dispatch-rate");
+
             cmdUsageFormatter.addDeprecatedCommand("get-deduplication");
             cmdUsageFormatter.addDeprecatedCommand("set-deduplication");
             cmdUsageFormatter.addDeprecatedCommand("remove-deduplication");
@@ -289,6 +301,10 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("set-subscription-types-enabled");
             cmdUsageFormatter.addDeprecatedCommand("get-subscription-types-enabled");
             cmdUsageFormatter.addDeprecatedCommand("remove-subscription-types-enabled");
+
+            cmdUsageFormatter.addDeprecatedCommand("get-max-producers");
+            cmdUsageFormatter.addDeprecatedCommand("set-max-producers");
+            cmdUsageFormatter.addDeprecatedCommand("remove-max-producers");
         }
     }
 

@@ -437,7 +437,9 @@ public class PulsarRecordCursor implements RecordCursor {
 
         @Override
         public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-            log.debug(exception, "Failed to read entries from topic %s", topicName.toString());
+            if (log.isDebugEnabled()) {
+                log.debug(exception, "Failed to read entries from topic %s", topicName.toString());
+            }
             outstandingReadsRequests.incrementAndGet();
 
             //set read latency stats for failed

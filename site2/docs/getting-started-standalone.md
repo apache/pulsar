@@ -55,6 +55,7 @@ Directory | Contains
 `bin` | Pulsar's command-line tools, such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](https://pulsar.apache.org/tools/pulsar-admin/).
 `conf` | Configuration files for Pulsar, including [broker configuration](reference-configuration.md#broker), [ZooKeeper configuration](reference-configuration.md#zookeeper), and more.
 `examples` | A Java JAR file containing [Pulsar Functions](functions-overview.md) example.
+`instances` | Artifacts created for [Pulsar Functions](functions-overview.md).
 `lib` | The [JAR](https://en.wikipedia.org/wiki/JAR_(file_format)) files used by Pulsar.
 `licenses` | License files, in the`.txt` form, for various components of the Pulsar [codebase](https://github.com/apache/pulsar).
 
@@ -63,7 +64,6 @@ These directories are created once you begin running Pulsar.
 Directory | Contains
 :---------|:--------
 `data` | The data storage directory used by ZooKeeper and BookKeeper.
-`instances` | Artifacts created for [Pulsar Functions](functions-overview.md).
 `logs` | Logs created by the installation.
 
 > **Tip**  
@@ -168,7 +168,7 @@ If you have started Pulsar successfully, you will see `INFO`-level log messages 
 
 > **Tip**  
 > * The service is running on your terminal, which is under your direct control. If you need to run other commands, open a new terminal window.  
-You can also run the service as a background process using the `pulsar-daemon start standalone` command. For more information, see [pulsar-daemon](https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon).
+You can also run the service as a background process using the `bin/pulsar-daemon start standalone` command. For more information, see [pulsar-daemon](https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon).
 > 
 > * By default, there is no encryption, authentication, or authorization configured. Apache Pulsar can be accessed from remote server without any authorization. Please do check [Security Overview](security-overview.md) document to secure your deployment.
 >
@@ -214,6 +214,6 @@ If the message has been successfully published to the topic, you will see a conf
 Press `Ctrl+C` to stop a local standalone Pulsar.
 
 > **Tip**  
-> If the service runs as a background process using the `pulsar-daemon start standalone` command, then use the `pulsar-daemon stop standalone`  command to stop the service.
+> If the service runs as a background process using the `bin/pulsar-daemon start standalone` command, then use the `bin/pulsar-daemon stop standalone`  command to stop the service.
 > 
 > For more information, see [pulsar-daemon](https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon).
