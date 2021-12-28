@@ -347,6 +347,10 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("get-max-subscriptions-per-topic");
             cmdUsageFormatter.addDeprecatedCommand("set-max-subscriptions-per-topic");
             cmdUsageFormatter.addDeprecatedCommand("remove-max-subscriptions-per-topic");
+
+            cmdUsageFormatter.addDeprecatedCommand("get-offload-policies");
+            cmdUsageFormatter.addDeprecatedCommand("set-offload-policies");
+            cmdUsageFormatter.addDeprecatedCommand("remove-offload-policies");
         }
     }
 
