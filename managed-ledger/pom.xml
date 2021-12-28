@@ -94,15 +94,6 @@
        <artifactId>snappy-java</artifactId>
        <scope>test</scope>
     </dependency>
-    <!--
-        junit is a runtime dependency of zookeeper tests, so only
-        add this dependency here.
-    -->
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <scope>test</scope>
-    </dependency>
 
     <dependency>
       <groupId>org.awaitility</groupId>
