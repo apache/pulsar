@@ -13,11 +13,11 @@ Highlights of this release are as below:
 
 - NPE does not occur on `OpAddEntry` while ManagedLedger is closing. [PR-12364](https://github.com/apache/pulsar/pull/12364)
 
-This blog walks through the most noteworthy changes grouped by the affected functionalities. For the complete list including all enhancements and bug fixes, check out the [Pulsar 2.7.4 Release Notes](TBD-link).
+This blog walks through the most noteworthy changes grouped by the affected functionalities. For the complete list including all enhancements and bug fixes, check out the [Pulsar 2.7.4 Release Notes](https://pulsar.apache.org/en/release-notes/#274).
 
 # Notable bug fixes and enhancements
 
-### Upgrade log4j to 2.17.0 - [CVE-2021-45105](https://pulsar.apache.org/blog/2021/12/11/Log4j-CVE/). [PR-13392](https://github.com/apache/pulsar/pull/13392)
+### Upgrade Log4j to 2.17.0 - [CVE-2021-45105](https://pulsar.apache.org/blog/2021/12/11/Log4j-CVE/). [PR-13392](https://github.com/apache/pulsar/pull/13392)
 
 - **Issue**
 
@@ -35,7 +35,7 @@ This blog walks through the most noteworthy changes grouped by the affected func
 
 - **Resolution**
   
-    The `ManagedLedgerImpl` object reference was copied to a final variable so the background task would not be dependent on the lifecycle of the `OpAddEntry` instance.
+    The `ManagedLedgerImpl` object reference is copied to a final variable so the background task will not be dependent on the lifecycle of the `OpAddEntry` instance.
 
 ### No potential race condition in the `BlobStoreBackedReadHandler`. [PR-12123](https://github.com/apache/pulsar/pull/12123)
 
