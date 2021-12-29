@@ -120,6 +120,7 @@ module.exports = {
           label: "Docs",
         },
         { to: "/versions", label: "Versions", position: "left" },
+        { to: "/download", label: "Download", position: "left" },
         { to: "/blog", label: "Blog", position: "left" },
         {
           href: "https://github.com/apache/pulsar",
@@ -297,4 +298,8 @@ module.exports = {
     ],
     "./postcss-tailwind-loader",
   ],
+  // clientModules: [
+  //   require.resolve("./mySiteGlobalJs.js"),
+  //   require.resolve("./mySiteGlobalCss.css"),
+  // ],
 };
