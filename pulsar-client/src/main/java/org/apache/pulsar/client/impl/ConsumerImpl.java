@@ -1216,6 +1216,24 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 if (uncompressedPayload == null) {
                     return;
                 }
+
+                // last chunk received: so, stitch chunked-messages and clear up chunkedMsgBuffer
+                if (log.isDebugEnabled()) {
+                    log.debug("Chunked message completed chunkId {}, total-chunks {}, msgId {} sequenceId {}",
+                            msgMetadata.getChunkId(), msgMetadata.getNumChunksFromMsg(), msgId,
+                            msgMetadata.getSequenceId());
+                }
+
+                // remove buffer from the map, set the chunk message id
+                ChunkedMessageCtx chunkedMsgCtx = chunkedMessagesMap.remove(msgMetadata.getUuid());
+                if (chunkedMsgCtx.chunkedMessageIds.length > 0) {
+                    msgId = new ChunkMessageIdImpl(chunkedMsgCtx.chunkedMessageIds[0],
+                            chunkedMsgCtx.chunkedMessageIds[chunkedMsgCtx.chunkedMessageIds.length - 1]);
+                }
+                // add chunked messageId to unack-message tracker, and reduce pending-chunked-message count
+                unAckedChunkedMessageIdSequenceMap.put(msgId, chunkedMsgCtx.chunkedMessageIds);
+                pendingChunkedMessageCount--;
+                chunkedMsgCtx.recycle();
             }
 
             // If the topic is non-persistent, we should not ignore any messages.
@@ -1321,18 +1339,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return null;
         }
 
-        // last chunk received: so, stitch chunked-messages and clear up chunkedMsgBuffer
-        if (log.isDebugEnabled()) {
-            log.debug("Chunked message completed chunkId {}, total-chunks {}, msgId {} sequenceId {}",
-                    msgMetadata.getChunkId(), msgMetadata.getNumChunksFromMsg(), msgId, msgMetadata.getSequenceId());
-        }
-        // remove buffer from the map, add chunked messageId to unack-message tracker, and reduce pending-chunked-message count
-        chunkedMessagesMap.remove(msgMetadata.getUuid());
-        unAckedChunkedMessageIdSequenceMap.put(msgId, chunkedMsgCtx.chunkedMessageIds);
-        pendingChunkedMessageCount--;
         compressedPayload.release();
         compressedPayload = chunkedMsgCtx.chunkedMsgBuffer;
-        chunkedMsgCtx.recycle();
         ByteBuf uncompressedPayload = uncompressPayloadIfNeeded(messageId, msgMetadata, compressedPayload, cnx, false);
         compressedPayload.release();
         return uncompressedPayload;
@@ -1990,6 +1998,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 ackSet.recycle();
 
                 seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), ackSetArr);
+            } else if (messageId instanceof ChunkMessageIdImpl) {
+                ChunkMessageIdImpl msgId = (ChunkMessageIdImpl) messageId;
+                seek = Commands.newSeek(consumerId, requestId, msgId.getFirstChunkMessageId().getLedgerId(),
+                        msgId.getFirstChunkMessageId().getEntryId(), new long[0]);
             } else {
                 MessageIdImpl msgId = (MessageIdImpl) messageId;
                 seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), new long[0]);
