@@ -44,4 +44,7 @@ CROWDIN_DOCUSAURUS_API_KEY=${CROWDIN_DOCUSAURUS_API_KEY:-UNSET}
 
 DOCKER_CMD="docker run -i -e CI_USER=$CI_USER -e CI_GROUP=$CI_GROUP -v $HOME/.m2:/root/.m2 -e CROWDIN_DOCUSAURUS_PROJECT_ID=${CROWDIN_DOCUSAURUS_PROJECT_ID} -e CROWDIN_DOCUSAURUS_API_KEY=${CROWDIN_DOCUSAURUS_API_KEY} -v $ROOT_DIR:/pulsar $IMAGE"
 
+sed -i "s#$ROOT_DIR#/pulsar#g" $ROOT_DIR/distribution/server/target/classpath.txt
+sed -i "s#/home/runner#/root#g" $ROOT_DIR/distribution/server/target/classpath.txt
+
 $DOCKER_CMD bash -l -c 'cd /pulsar && /pulsar/site2/tools/build-site.sh'
