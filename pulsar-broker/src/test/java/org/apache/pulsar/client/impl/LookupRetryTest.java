@@ -27,7 +27,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import lombok.Cleanup;
+
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -37,7 +37,6 @@ import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.common.api.proto.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
@@ -79,10 +78,10 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
             protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
                 BrokerService broker = new BrokerService(this, ioEventLoopGroup);
                 broker.setPulsarChannelInitializerFactory(
-                        (_pulsar, tls) -> {
-                            return new PulsarChannelInitializer(_pulsar, tls) {
+                        (_pulsar, opts) -> {
+                            return new PulsarChannelInitializer(_pulsar, opts) {
                                 @Override
-                                protected ServerCnx newServerCnx(PulsarService pulsar) throws Exception {
+                                protected ServerCnx newServerCnx(PulsarService pulsar, String listenerName) throws Exception {
                                     connectionsCreated.incrementAndGet();
                                     return new ErrorByTopicServerCnx(pulsar, failureMap);
                                 }

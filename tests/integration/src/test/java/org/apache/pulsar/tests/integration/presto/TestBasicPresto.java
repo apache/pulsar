@@ -27,7 +27,6 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
@@ -35,6 +34,7 @@ import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.client.impl.schema.ProtobufNativeSchema;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -56,6 +56,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
     private void setupPresto() throws Exception {
         log.info("[TestBasicPresto] setupPresto...");
         pulsarCluster.startPrestoWorker();
+        initJdbcConnection();
     }
 
     private void teardownPresto() {
@@ -161,31 +162,26 @@ public class TestBasicPresto extends TestPulsarSQLBase {
                               boolean useNsOffloadPolices,
                               Schema schema,
                               CompressionType compressionType) throws Exception {
-        @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder()
-                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
-                .build();
 
         if (schema.getSchemaInfo().getName().equals(Schema.BYTES.getSchemaInfo().getName())) {
-            prepareDataForBytesSchema(pulsarClient, topicName, isBatch, compressionType);
+            prepareDataForBytesSchema(topicName, isBatch, compressionType);
         } else if (schema.getSchemaInfo().getName().equals(Schema.BYTEBUFFER.getSchemaInfo().getName())) {
-            prepareDataForByteBufferSchema(pulsarClient, topicName, isBatch, compressionType);
+            prepareDataForByteBufferSchema(topicName, isBatch, compressionType);
         } else if (schema.getSchemaInfo().getType().equals(SchemaType.STRING)) {
-            prepareDataForStringSchema(pulsarClient, topicName, isBatch, compressionType);
+            prepareDataForStringSchema(topicName, isBatch, compressionType);
         } else if (schema.getSchemaInfo().getType().equals(SchemaType.JSON)
                 || schema.getSchemaInfo().getType().equals(SchemaType.AVRO)) {
-            prepareDataForStructSchema(pulsarClient, topicName, isBatch, schema, compressionType);
+            prepareDataForStructSchema(topicName, isBatch, schema, compressionType);
         } else if (schema.getSchemaInfo().getType().equals(SchemaType.PROTOBUF_NATIVE)) {
-            prepareDataForProtobufNativeSchema(pulsarClient, topicName, isBatch, schema, compressionType);
+            prepareDataForProtobufNativeSchema(topicName, isBatch, schema, compressionType);
         } else if (schema.getSchemaInfo().getType().equals(SchemaType.KEY_VALUE)) {
-            prepareDataForKeyValueSchema(pulsarClient, topicName, schema, compressionType);
+            prepareDataForKeyValueSchema(topicName, schema, compressionType);
         }
 
         return NUM_OF_STOCKS;
     }
 
-    private void prepareDataForBytesSchema(PulsarClient pulsarClient,
-                                           TopicName topicName,
+    private void prepareDataForBytesSchema(TopicName topicName,
                                            boolean isBatch,
                                            CompressionType compressionType) throws PulsarClientException {
         @Cleanup
@@ -201,8 +197,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         producer.flush();
     }
 
-    private void prepareDataForByteBufferSchema(PulsarClient pulsarClient,
-                                                TopicName topicName,
+    private void prepareDataForByteBufferSchema(TopicName topicName,
                                                 boolean isBatch,
                                                 CompressionType compressionType) throws PulsarClientException {
         @Cleanup
@@ -218,8 +213,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         producer.flush();
     }
 
-    private void prepareDataForStringSchema(PulsarClient pulsarClient,
-                                            TopicName topicName,
+    private void prepareDataForStringSchema(TopicName topicName,
                                             boolean isBatch,
                                             CompressionType compressionType) throws PulsarClientException {
         @Cleanup
@@ -235,8 +229,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         producer.flush();
     }
 
-    private void prepareDataForStructSchema(PulsarClient pulsarClient,
-                                            TopicName topicName,
+    private void prepareDataForStructSchema(TopicName topicName,
                                             boolean isBatch,
                                             Schema<Stock> schema,
                                             CompressionType compressionType) throws Exception {
@@ -254,8 +247,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         producer.flush();
     }
 
-    private void prepareDataForProtobufNativeSchema(PulsarClient pulsarClient,
-                                            TopicName topicName,
+    private void prepareDataForProtobufNativeSchema(TopicName topicName,
                                             boolean isBatch,
                                             Schema<StockProtoMessage.Stock> schema,
                                             CompressionType compressionType) throws Exception {
@@ -274,8 +266,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         producer.flush();
     }
 
-    private void prepareDataForKeyValueSchema(PulsarClient pulsarClient,
-                                              TopicName topicName,
+    private void prepareDataForKeyValueSchema(TopicName topicName,
                                               Schema<KeyValue<Stock, Stock>> schema,
                                               CompressionType compressionType) throws Exception {
         @Cleanup
@@ -340,6 +331,35 @@ public class TestBasicPresto extends TestPulsarSQLBase {
             assertThat(contentArr).contains("\"" + "STOCK_" + j + "\"");
             assertThat(contentArr).contains("\"" + (100.0 + j * 10) + "\"");
         }
+    }
+
+    @Test(timeOut = 1000 * 30)
+    public void testQueueBigEntry() throws Exception {
+        String tableName = "big_data_" + randomName(5);
+        String topic = "persistent://public/default/" + tableName;
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        // Make sure that the data length bigger than the default maxMessageSize
+        int dataLength = Commands.DEFAULT_MAX_MESSAGE_SIZE + 2 * 1024 * 1024;
+        Assert.assertTrue(dataLength < pulsarCluster.getSpec().maxMessageSize());
+        byte[] data = new byte[dataLength];
+        for (int i = 0; i < dataLength; i++) {
+            data[i] = 'a';
+        }
+
+        int messageCnt = 5;
+        log.info("start produce big entry data, data length: {}", dataLength);
+        for (int i = 0 ; i < messageCnt; ++i) {
+            producer.newMessage().value(data).send();
+        }
+
+        int count = selectCount("public/default", tableName);
+        Assert.assertEquals(count, messageCnt);
     }
 
 }

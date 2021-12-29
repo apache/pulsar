@@ -5,6 +5,16 @@ sidebar_label: Packages
 original_id: admin-api-packages
 ---
 
+> **Important**
+>
+> This page only shows **some frequently used operations**.
+>
+> - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more information, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/).
+> 
+> - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
+> 
+> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/).
+
 Package management enables version management and simplifies the upgrade and rollback processes for Functions, Sinks, and Sources. When you use the same function, sink and source in different namespaces, you can upload them to a common package management system.
 
 ## Package name
@@ -70,7 +80,7 @@ You can upload a package to the package management service in the following ways
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
 ```shell
-bin/pulsar-admin packages upload functions://public/default/example@v0.1 --path package-file --description package-description
+bin/pulsar-admin packages upload function://public/default/example@v0.1 --path package-file --description package-description
 ```
 
 <!--REST API-->
@@ -95,7 +105,7 @@ You can download a package to the package management service in the following wa
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
 ```shell
-bin/pulsar-admin packages download functions://public/default/example@v0.1 --path package-file
+bin/pulsar-admin packages download function://public/default/example@v0.1 --path package-file
 ```
 
 <!--REST API-->
@@ -221,7 +231,7 @@ You can delete a specified package with its package name in the following ways.
 The following command example deletes a package of version 0.1.
 
 ```shell
-bin/pulsar-admin packages delete functions://public/default/example@v0.1
+bin/pulsar-admin packages delete function://public/default/example@v0.1
 ```
 
 <!--REST API-->

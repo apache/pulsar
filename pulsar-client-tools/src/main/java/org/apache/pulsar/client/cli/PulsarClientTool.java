@@ -25,7 +25,6 @@ import java.io.FileInputStream;
 import java.util.Arrays;
 import java.util.Properties;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -72,15 +71,15 @@ public class PulsarClientTool {
     @Parameter(names = { "-h", "--help", }, help = true, description = "Show this help.")
     boolean help;
 
-    boolean tlsAllowInsecureConnection = false;
-    boolean tlsEnableHostnameVerification = false;
-    String tlsTrustCertsFilePath = null;
+    boolean tlsAllowInsecureConnection;
+    boolean tlsEnableHostnameVerification;
+    String tlsTrustCertsFilePath;
 
     // for tls with keystore type config
-    boolean useKeyStoreTls = false;
-    String tlsTrustStoreType = "JKS";
-    String tlsTrustStorePath = null;
-    String tlsTrustStorePassword = null;
+    boolean useKeyStoreTls;
+    String tlsTrustStoreType;
+    String tlsTrustStorePath;
+    String tlsTrustStorePassword;
 
     JCommander commandParser;
     IUsageFormatter usageFormatter;
@@ -89,10 +88,10 @@ public class PulsarClientTool {
     CmdGenerateDocumentation generateDocumentation;
 
     public PulsarClientTool(Properties properties) {
-        this.serviceURL = StringUtils.isNotBlank(properties.getProperty("brokerServiceUrl"))
+        this.serviceURL = isNotBlank(properties.getProperty("brokerServiceUrl"))
                 ? properties.getProperty("brokerServiceUrl") : properties.getProperty("webServiceUrl");
         // fallback to previous-version serviceUrl property to maintain backward-compatibility
-        if (StringUtils.isBlank(this.serviceURL)) {
+        if (isBlank(this.serviceURL)) {
             this.serviceURL = properties.getProperty("serviceUrl");
         }
         this.authPluginClassName = properties.getProperty("authPlugin");
@@ -142,7 +141,7 @@ public class PulsarClientTool {
                 .tlsTrustStorePath(tlsTrustStorePath)
                 .tlsTrustStorePassword(tlsTrustStorePassword);
 
-        if (StringUtils.isNotBlank(proxyServiceURL)) {
+        if (isNotBlank(proxyServiceURL)) {
             if (proxyProtocol == null) {
                 System.out.println("proxy-protocol must be provided with proxy-url");
                 System.exit(-1);

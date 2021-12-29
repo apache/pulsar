@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.common.configuration;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 import static org.apache.pulsar.common.util.FieldParser.update;
 
 import java.io.FileInputStream;
@@ -52,7 +52,7 @@ public class PulsarConfigurationLoader {
      */
     public static <T extends PulsarConfiguration> T create(String configFile,
             Class<? extends PulsarConfiguration> clazz) throws IOException, IllegalArgumentException {
-        checkNotNull(configFile);
+        requireNonNull(configFile);
         try (InputStream inputStream = new FileInputStream(configFile)) {
             return create(inputStream, clazz);
         }
@@ -71,7 +71,7 @@ public class PulsarConfigurationLoader {
     public static <T extends PulsarConfiguration> T create(InputStream inStream,
             Class<? extends PulsarConfiguration> clazz) throws IOException, IllegalArgumentException {
         try {
-            checkNotNull(inStream);
+            requireNonNull(inStream);
             Properties properties = new Properties();
             properties.load(inStream);
             return (create(properties, clazz));
@@ -92,7 +92,7 @@ public class PulsarConfigurationLoader {
     @SuppressWarnings({ "rawtypes", "unchecked" })
     public static <T extends PulsarConfiguration> T create(Properties properties,
             Class<? extends PulsarConfiguration> clazz) throws IOException, IllegalArgumentException {
-        checkNotNull(properties);
+        requireNonNull(properties);
         T configuration = null;
         try {
             configuration = (T) clazz.getDeclaredConstructor().newInstance();
@@ -117,7 +117,7 @@ public class PulsarConfigurationLoader {
      * @throws IllegalAccessException
      */
     public static boolean isComplete(Object obj) throws IllegalArgumentException {
-        checkNotNull(obj);
+        requireNonNull(obj);
         Field[] fields = obj.getClass().getDeclaredFields();
         StringBuilder error = new StringBuilder();
         for (Field field : fields) {

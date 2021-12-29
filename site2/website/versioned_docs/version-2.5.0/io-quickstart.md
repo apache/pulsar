@@ -416,18 +416,18 @@ This example uses the MySQL 5.7 docker image to start a single-node MySQL cluste
 
     #### Tip
     
-     Flag | Description | This example
-     ---|---|---|
-     `-d` | To start a container in detached mode. | /
-     `-it` | Keep STDIN open even if not attached and allocate a terminal. | /
-     `--rm` | Remove the container automatically when it exits. | /
-     `-name` | Assign a name to the container. | This example specifies _pulsar-mysql_ for the container.
-     `-p` | Publish the port of the container to the host. | This example publishes the port _3306_ of the container to the host.
-     `-e` | Set environment variables. | This example sets the following variables:<br>- The password for the root user is _jdbc_.<br>- The name for the normal user is _mysqluser_.<br>- The password for the normal user is _mysqlpw_.
+    Flag | Description | This example
+    ---|---|---|
+    `-d` | To start a container in detached mode. | /
+    `-it` | Keep STDIN open even if not attached and allocate a terminal. | /
+    `--rm` | Remove the container automatically when it exits. | /
+    `-name` | Assign a name to the container. | This example specifies _pulsar-mysql_ for the container.
+    `-p` | Publish the port of the container to the host. | This example publishes the port _3306_ of the container to the host.
+    `-e` | Set environment variables. | This example sets the following variables:<br>- The password for the root user is _jdbc_.<br>- The name for the normal user is _mysqluser_.<br>- The password for the normal user is _mysqlpw_.
 
-     > #### Tip
-     >
-     > For more information about Docker commands, see [Docker CLI](https://docs.docker.com/engine/reference/commandline/run/).
+    > #### Tip
+    >
+    > For more information about Docker commands, see [Docker CLI](https://docs.docker.com/engine/reference/commandline/run/).
 
 3. Check if MySQL has been started successfully.
 

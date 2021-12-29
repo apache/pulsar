@@ -20,12 +20,11 @@ package org.apache.pulsar.broker.resourcegroup;
 
 
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-import org.testng.Assert;
 
 
 public class ResourceQuotaCalculatorImplTest extends MockedPulsarServiceBaseTest {
@@ -77,7 +76,7 @@ public class ResourceQuotaCalculatorImplTest extends MockedPulsarServiceBaseTest
         final long localUsed = 20;
         final long[] allUsage = { 100 };
         final long newQuota = this.rqCalc.computeLocalQuota(config, localUsed, allUsage);
-        Assert.assertTrue(newQuota == localUsed);
+        Assert.assertEquals(newQuota, localUsed);
     }
 
     @Test
@@ -109,7 +108,7 @@ public class ResourceQuotaCalculatorImplTest extends MockedPulsarServiceBaseTest
         final long localUsed = 0;  // don't care
         final long[] allUsage = { 0 };
         final long newQuota = this.rqCalc.computeLocalQuota(config, localUsed, allUsage);
-        Assert.assertTrue(newQuota == config);
+        Assert.assertEquals(newQuota, config);
     }
 
     private ResourceQuotaCalculatorImpl rqCalc;

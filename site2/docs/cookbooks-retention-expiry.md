@@ -31,7 +31,7 @@ By default, when a Pulsar message arrives at a broker, the message is stored unt
 
 Retention policies are useful when you use the Reader interface. The Reader interface does not use acknowledgements, and messages do not exist within backlogs. It is required to configure retention for Reader-only use cases.
 
-When you set a retention policy on topics in a namespace, you must set **both** a *size limit* and a *time limit*. You can refer to the following table to set retention policies in `pulsar-admin` and Java.
+When you set a retention policy on topics in a namespace, you must set **both** a *size limit* (via `defaultRetentionSizeInMB`) and a *time limit* (via `defaultRetentionTimeInMinutes`) . You can refer to the following table to set retention policies in `pulsar-admin` and Java.
 
 |Time limit|Size limit| Message retention      |
 |----------|----------|------------------------|
@@ -153,11 +153,9 @@ admin.namespaces().getRetention(namespace);
 
 *Backlogs* are sets of unacknowledged messages for a topic that have been stored by bookies. Pulsar stores all unacknowledged messages in backlogs until they are processed and acknowledged.
 
-You can control the allowable size of backlogs, at the namespace level, using *backlog quotas*. Setting a backlog quota involves setting:
+You can control the allowable size and/or time of backlogs, at the namespace level, using *backlog quotas*. Setting a backlog quota involves setting:
 
-TODO: Expand on is this per backlog or per topic?
-
-* an allowable *size threshold* for each topic in the namespace
+* an allowable *size and/or time threshold* for each topic in the namespace
 * a *retention policy* that determines which action the [broker](reference-terminology.md#broker) takes if the threshold is exceeded.
 
 The following retention policies are available:

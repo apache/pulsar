@@ -22,6 +22,11 @@ import com.alibaba.otter.canal.client.CanalConnector;
 import com.alibaba.otter.canal.client.CanalConnectors;
 import com.alibaba.otter.canal.protocol.FlatMessage;
 import com.alibaba.otter.canal.protocol.Message;
+import java.net.InetSocketAddress;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -29,12 +34,6 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.MDC;
-
-import java.net.InetSocketAddress;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
 
 
 /**
@@ -53,19 +52,22 @@ public abstract class CanalAbstractSource<V> extends PushSource<V> {
 
     private static final String DESTINATION = "destination";
 
-    protected final Thread.UncaughtExceptionHandler handler = (t, e) -> log.error("[{}] parse events has an error", t.getName(), e);
+    protected final Thread.UncaughtExceptionHandler handler =
+            (t, e) -> log.error("[{}] parse events has an error", t.getName(), e);
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         canalSourceConfig = CanalSourceConfig.load(config);
         if (canalSourceConfig.getCluster()) {
             connector = CanalConnectors.newClusterConnector(canalSourceConfig.getZkServers(),
-                    canalSourceConfig.getDestination(), canalSourceConfig.getUsername(), canalSourceConfig.getPassword());
+                    canalSourceConfig.getDestination(), canalSourceConfig.getUsername(),
+                    canalSourceConfig.getPassword());
             log.info("Start canal connect in cluster mode, canal cluster info {}", canalSourceConfig.getZkServers());
         } else {
             connector = CanalConnectors.newSingleConnector(
                     new InetSocketAddress(canalSourceConfig.getSingleHostname(), canalSourceConfig.getSinglePort()),
-                    canalSourceConfig.getDestination(), canalSourceConfig.getUsername(), canalSourceConfig.getPassword());
+                    canalSourceConfig.getDestination(), canalSourceConfig.getUsername(),
+                    canalSourceConfig.getPassword());
             log.info("Start canal connect in standalone mode, canal server info {}:{}",
                     canalSourceConfig.getSingleHostname(), canalSourceConfig.getSinglePort());
         }

@@ -113,7 +113,7 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
      */
     void tcpConnectAsync();
 
-    void close();
+    void close(Result result = ResultConnectError);
 
     bool isClosed() const;
 

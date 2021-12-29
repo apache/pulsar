@@ -1,13 +1,9 @@
 ---
 id: io-aerospike-sink
 title: Aerospike sink connector
-sidebar_label: Aerospike sink connector
+sidebar_label: "Aerospike sink connector"
 original_id: io-aerospike-sink
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 The Aerospike sink connector pulls messages from Pulsar topics to Aerospike clusters.
 

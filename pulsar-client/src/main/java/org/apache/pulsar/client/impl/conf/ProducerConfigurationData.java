@@ -39,7 +39,6 @@ import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import lombok.Data;
@@ -102,6 +101,8 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
 
     private ProducerAccessMode accessMode = ProducerAccessMode.Shared;
 
+    private boolean lazyStartPartitionedProducers = false;
+
     private SortedMap<String, String> properties = new TreeMap<>();
 
     /**
@@ -118,7 +119,7 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
         try {
             ProducerConfigurationData c = (ProducerConfigurationData) super.clone();
             c.encryptionKeys = Sets.newTreeSet(this.encryptionKeys);
-            c.properties = Maps.newTreeMap(this.properties);
+            c.properties = new TreeMap<>(this.properties);
             return c;
         } catch (CloneNotSupportedException e) {
             throw new RuntimeException("Failed to clone ProducerConfigurationData", e);

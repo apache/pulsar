@@ -39,6 +39,7 @@ import java.util.Map;
 public class DebeziumOracleDbSourceTester extends SourceTester<DebeziumOracleDbContainer> implements Closeable {
 
     private static final String NAME = "debezium-oracle";
+    private static final long SLEEP_AFTER_COMMAND_MS = 30_000;
 
     private final String pulsarServiceUrl;
 
@@ -142,25 +143,25 @@ public class DebeziumOracleDbSourceTester extends SourceTester<DebeziumOracleDbC
 
         // good first approximation but still not enough:
         waitForOracleStatus("OPEN");
-        Thread.sleep(30000);
+        Thread.sleep(SLEEP_AFTER_COMMAND_MS);
 
         // configure logminer
         runSqlCmd("shutdown immediate");
 
         // good first approximation but still not enough:
         waitForOracleStatus("ORACLE not available");
-        Thread.sleep(30000);
+        Thread.sleep(SLEEP_AFTER_COMMAND_MS);
 
         runSqlCmd("startup mount");
         // good first approximation but still not enough:
         waitForOracleStatus("MOUNTED");
-        Thread.sleep(30000);
+        Thread.sleep(SLEEP_AFTER_COMMAND_MS);
 
         runSqlCmd("alter database archivelog;");
         runSqlCmd("alter database open;");
         // good first approximation but still not enough:
         waitForOracleStatus("OPEN");
-        Thread.sleep(30000);
+        Thread.sleep(SLEEP_AFTER_COMMAND_MS);
 
         for (String cmd: minerCommands) {
             runSqlCmd(cmd);

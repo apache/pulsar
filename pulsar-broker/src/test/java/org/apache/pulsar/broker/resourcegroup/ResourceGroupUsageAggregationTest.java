@@ -28,7 +28,6 @@ import org.apache.pulsar.broker.service.resource.usage.ResourceUsage;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -36,9 +35,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -94,7 +91,7 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
             public void fillResourceUsage(ResourceUsage resourceUsage) {
                 activeRG.rgFillResourceUsage(resourceUsage);
                 numRgFillUsageCallbacks++;
-            };
+            }
         };
 
         ResourceUsageConsumer ruC = new ResourceUsageConsumer() {
@@ -116,13 +113,12 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
         activeRG = rgs.resourceGroupGet(activeRgName);
         Assert.assertNotEquals(activeRG, null);
 
-        Producer<byte[]> producer = null;
-        Consumer<byte[]> consumer = null;
 
-        producer = pulsarClient.newProducer()
+        Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topicString)
                 .create();
 
+        Consumer<byte[]> consumer = null;
         try {
             consumer = pulsarClient.newConsumer()
                     .topic(topicString)
@@ -130,8 +126,8 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
                     .subscriptionType(SubscriptionType.Shared)
                     .subscribe();
         } catch (PulsarClientException p) {
-            final String errMesg = String.format("Got exception while building consumer: ex={}", p.getMessage());
-            Assert.assertTrue(false, errMesg);
+            final String errMsg = String.format("Got exception while building consumer: ex=%s", p.getMessage());
+            Assert.fail(errMsg);
         }
 
         final TopicName myTopic = TopicName.get(topicString);
@@ -146,21 +142,20 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
         int recvdNumBytes = 0;
         int recvdNumMsgs = 0;
         for (int ix = 0; ix < NumMessagesToSend; ix++) {
-            MessageId prodMesgId = null;
             byte[] mesg;
             try {
-                mesg = String.format("Hi, ix={}", ix).getBytes();
+                mesg = String.format("Hi, ix=%s", ix).getBytes();
                 producer.send(mesg);
                 sentNumBytes += mesg.length;
                 sentNumMsgs++;
             } catch (PulsarClientException p) {
-                final String errMesg = String.format("Got exception while sending {}-th time: ex={}", ix, p.getMessage());
-                Assert.assertTrue(false, errMesg);
+                final String errMsg = String.format("Got exception while sending %s-th time: ex=%s", ix, p.getMessage());
+                Assert.fail(errMsg);
             }
         }
         producer.close();
 
-        this.verfyStats(topicString, activeRgName, sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs,
+        this.verifyStats(topicString, activeRgName, sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs,
                 true, false);
 
         Message<byte[]> message = null;
@@ -169,15 +164,14 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
                 message = consumer.receive();
                 recvdNumBytes += message.getValue().length;
             } catch (PulsarClientException p) {
-                final String errMesg = String.format("Got exception in while receiving {}-th mesg at consumer: ex={}",
+                final String errMesg = String.format("Got exception in while receiving %s-th mesg at consumer: ex=%s",
                         recvdNumMsgs, p.getMessage());
-                Assert.assertTrue(false, errMesg);
+                Assert.fail(errMesg);
             }
-            // log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
             recvdNumMsgs++;
         }
 
-        this.verfyStats(topicString, activeRgName, sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs,
+        this.verifyStats(topicString, activeRgName, sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs,
                 true, true);
 
         consumer.close();
@@ -191,10 +185,10 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
     // derives stats from the broker service)
     // There appears to be a 45-byte message header which is accounted in the stats, additionally to what the
     // application-level sends/receives. Hence, the byte counts are a ">=" check, instead of an equality check.
-    private void verfyStats(String topicString, String rgName,
-                            int sentNumBytes, int sentNumMsgs,
-                            int recvdNumBytes, int recvdNumMsgs,
-                            boolean checkProduce, boolean checkConsume)
+    private void verifyStats(String topicString, String rgName,
+                             int sentNumBytes, int sentNumMsgs,
+                             int recvdNumBytes, int recvdNumMsgs,
+                             boolean checkProduce, boolean checkConsume)
                                                                 throws InterruptedException, PulsarAdminException {
         BrokerService bs = pulsar.getBrokerService();
         Map<String, TopicStatsImpl> topicStatsMap = bs.getTopicStats();
@@ -204,11 +198,11 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
                 TopicStatsImpl stats = entry.getValue();
                 if (checkProduce) {
                     Assert.assertTrue(stats.bytesInCounter >= sentNumBytes);
-                    Assert.assertTrue(stats.msgInCounter == sentNumMsgs);
+                    Assert.assertEquals(sentNumMsgs, stats.msgInCounter);
                 }
                 if (checkConsume) {
                     Assert.assertTrue(stats.bytesOutCounter >= recvdNumBytes);
-                    Assert.assertTrue(stats.msgOutCounter == recvdNumMsgs);
+                    Assert.assertEquals(recvdNumMsgs, stats.msgOutCounter);
                 }
 
                 if (sentNumMsgs > 0 || recvdNumMsgs > 0) {
@@ -225,18 +219,18 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
                     BytesAndMessagesCount consCounts1 = rgs.getRGUsage(rgName, ResourceGroupMonitoringClass.Dispatch,
                             ResourceGroupUsageStatsType.Cumulative);
 
-                    Assert.assertTrue(prodCounts.bytes == prodCounts1.bytes);
-                    Assert.assertTrue(prodCounts.messages == prodCounts1.messages);
-                    Assert.assertTrue(consCounts.bytes == consCounts1.bytes);
-                    Assert.assertTrue(consCounts.messages == consCounts1.messages);
+                    Assert.assertEquals(prodCounts1.bytes, prodCounts.bytes);
+                    Assert.assertEquals(prodCounts1.messages, prodCounts.messages);
+                    Assert.assertEquals(consCounts1.bytes, consCounts.bytes);
+                    Assert.assertEquals(consCounts1.messages, consCounts.messages);
 
                     if (checkProduce) {
                         Assert.assertTrue(prodCounts.bytes >= sentNumBytes);
-                        Assert.assertTrue(prodCounts.messages == sentNumMsgs);
+                        Assert.assertEquals(sentNumMsgs, prodCounts.messages);
                     }
                     if (checkConsume) {
                         Assert.assertTrue(consCounts.bytes >= recvdNumBytes);
-                        Assert.assertTrue(consCounts.messages == recvdNumMsgs);
+                        Assert.assertEquals(recvdNumMsgs, consCounts.messages);
                     }
                 }
             }

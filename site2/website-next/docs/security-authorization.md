@@ -1,12 +1,8 @@
 ---
 id: security-authorization
 title: Authentication and authorization in Pulsar
-sidebar_label: Authorization and ACLs
+sidebar_label: "Authorization and ACLs"
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 
 In Pulsar, the [authentication provider](security-overview.md#authentication-providers) is responsible for properly identifying clients and associating the clients with [role tokens](security-overview.md#role-tokens). If you only enable authentication, an authenticated role token has the ability to access all resources in the cluster. *Authorization* is the process that determines *what* clients are able to do.
@@ -30,7 +26,7 @@ superUserRoles=my-super-user-1,my-super-user-2
 > A full list of parameters is available in the `conf/broker.conf` file.
 > You can also find the default values for those parameters in [Broker Configuration](reference-configuration.md#broker). 
 
-Typically, you use superuser roles for administrators, clients as well as broker-to-broker authorization. When you use [geo-replication](concepts-replication.md), every broker needs to be able to publish to all the other topics of clusters.
+Typically, you use superuser roles for administrators, clients as well as broker-to-broker authorization. When you use [geo-replication](concepts-replication), every broker needs to be able to publish to all the other topics of clusters.
 
 You can also enable the authorization for the proxy in the proxy configuration file (`conf/proxy.conf`). Once you enable the authorization on the proxy, the proxy does an additional authorization check before forwarding the request to a broker. 
 If you enable authorization on the broker, the broker checks the authorization of the request when the broker receives the forwarded request.
@@ -62,7 +58,7 @@ superUserRoles=my-super-user-1,my-super-user-2,my-proxy-role
 
 Pulsar [instance](reference-terminology.md#instance) administrators or some kind of self-service portal typically provisions a Pulsar [tenant](reference-terminology.md#tenant). 
 
-You can manage tenants using the [`pulsar-admin`](reference-pulsar-admin.md) tool. 
+You can manage tenants using the [`pulsar-admin`](reference-pulsar-admin) tool. 
 
 ### Create a new tenant
 
@@ -90,7 +86,7 @@ persistent://tenant/namespace/topic
 
 ### Manage permissions
 
-You can use [Pulsar Admin Tools](admin-api-permissions.md) for managing permission in Pulsar.
+You can use [Pulsar Admin Tools](admin-api-permissions) for managing permission in Pulsar.
 
 ### Pulsar admin authentication
 
@@ -114,3 +110,4 @@ PulsarAdmin admin = PulsarAdmin.builder()
                     .build();
 
 ```
+

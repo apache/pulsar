@@ -18,7 +18,7 @@
  */
 #include "Commands.h"
 #include "MessageImpl.h"
-#include "Version.h"
+#include "VersionInternal.h"
 #include "pulsar/MessageBuilder.h"
 #include "LogUtils.h"
 #include "PulsarApi.pb.h"
@@ -211,11 +211,11 @@ PairSharedBuffer Commands::newSend(SharedBuffer& headers, BaseCommand& cmd, uint
 }
 
 SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication, const std::string& logicalAddress,
-                                  bool connectingThroughProxy) {
+                                  bool connectingThroughProxy, Result& result) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::CONNECT);
     CommandConnect* connect = cmd.mutable_connect();
-    connect->set_client_version(_PULSAR_VERSION_);
+    connect->set_client_version(_PULSAR_VERSION_INTERNAL_);
     connect->set_auth_method_name(authentication->getAuthMethodName());
     connect->set_protocol_version(ProtocolVersion_MAX);
 
@@ -228,23 +228,33 @@ SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication, const
     }
 
     AuthenticationDataPtr authDataContent;
-    if (authentication->getAuthData(authDataContent) == ResultOk && authDataContent->hasDataFromCommand()) {
+    result = authentication->getAuthData(authDataContent);
+    if (result != ResultOk) {
+        return SharedBuffer{};
+    }
+
+    if (authDataContent->hasDataFromCommand()) {
         connect->set_auth_data(authDataContent->getCommandData());
     }
     return writeMessageWithSize(cmd);
 }
 
-SharedBuffer Commands::newAuthResponse(const AuthenticationPtr& authentication) {
+SharedBuffer Commands::newAuthResponse(const AuthenticationPtr& authentication, Result& result) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::AUTH_RESPONSE);
     CommandAuthResponse* authResponse = cmd.mutable_authresponse();
-    authResponse->set_client_version(_PULSAR_VERSION_);
+    authResponse->set_client_version(_PULSAR_VERSION_INTERNAL_);
 
     AuthData* authData = authResponse->mutable_response();
     authData->set_auth_method_name(authentication->getAuthMethodName());
 
     AuthenticationDataPtr authDataContent;
-    if (authentication->getAuthData(authDataContent) == ResultOk && authDataContent->hasDataFromCommand()) {
+    result = authentication->getAuthData(authDataContent);
+    if (result != ResultOk) {
+        return SharedBuffer{};
+    }
+
+    if (authDataContent->hasDataFromCommand()) {
         authData->set_auth_data(authDataContent->getCommandData());
     }
 

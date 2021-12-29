@@ -270,6 +270,9 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @Override
     public CompletableFuture<Void> checkConsumerCompatibility(String schemaId, SchemaData schemaData,
                                                               SchemaCompatibilityStrategy strategy) {
+        if (SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE == strategy) {
+            return CompletableFuture.completedFuture(null);
+        }
         return getSchema(schemaId).thenCompose(existingSchema -> {
             if (existingSchema != null && !existingSchema.schema.isDeleted()) {
                 if (strategy == SchemaCompatibilityStrategy.BACKWARD

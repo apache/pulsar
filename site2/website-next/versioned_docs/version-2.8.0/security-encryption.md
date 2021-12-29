@@ -1,13 +1,9 @@
 ---
 id: security-encryption
 title: Pulsar Encryption
-sidebar_label: End-to-End Encryption
+sidebar_label: "End-to-End Encryption"
 original_id: security-encryption
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 Applications can use Pulsar encryption to encrypt messages at the producer side and decrypt messages at the consumer side. You can use the public and private key pair that the application configures to perform encryption. Only the consumers with a valid key can decrypt the encrypted messages.
 
@@ -103,6 +99,7 @@ producer.close();
 pulsarClient.close();
 
 ```
+
 7. Sample Consumer Application:
 
 ```java
@@ -180,6 +177,7 @@ If you need to encrypt the messages using 2 keys (myapp.messagekey1 and myapp.me
 PulsarClient.newProducer().addEncryptionKey("myapp.messagekey1").addEncryptionKey("myapp.messagekey2");
 
 ```
+
 ## Decrypt encrypted messages at the consumer application
 Consumers require access one of the private keys to decrypt messages that the producer produces. If you want to receive encrypted messages, create a public or private key and give your public key to the producer application to encrypt messages using your public key.
 

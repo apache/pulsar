@@ -21,7 +21,6 @@ package org.apache.pulsar.websocket;
 import java.lang.reflect.Field;
 
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.websocket.WebSocketService;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.testng.Assert;
 import org.testng.annotations.Test;

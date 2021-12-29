@@ -25,11 +25,10 @@ extern boost::python::object MessageId_serialize(const MessageId& msgId);
 boost::python::object Producer_send(Producer& producer, const Message& message) {
     Result res;
     MessageId messageId;
-    Py_BEGIN_ALLOW_THREADS
-    res = producer.send(message, messageId);
+    Py_BEGIN_ALLOW_THREADS res = producer.send(message, messageId);
     Py_END_ALLOW_THREADS
 
-    CHECK_RESULT(res);
+        CHECK_RESULT(res);
     return MessageId_serialize(messageId);
 }
 
@@ -54,57 +53,55 @@ void Producer_sendAsync(Producer& producer, const Message& message, py::object c
     PyObject* pyCallback = callback.ptr();
     Py_XINCREF(pyCallback);
 
-    Py_BEGIN_ALLOW_THREADS
-    producer.sendAsync(message, std::bind(Producer_sendAsyncCallback, pyCallback,
-            std::placeholders::_1, std::placeholders::_2));
+    Py_BEGIN_ALLOW_THREADS producer.sendAsync(
+        message,
+        std::bind(Producer_sendAsyncCallback, pyCallback, std::placeholders::_1, std::placeholders::_2));
     Py_END_ALLOW_THREADS
 }
 
 void Producer_flush(Producer& producer) {
     Result res;
-    Py_BEGIN_ALLOW_THREADS
-    res = producer.flush();
+    Py_BEGIN_ALLOW_THREADS res = producer.flush();
     Py_END_ALLOW_THREADS
 
-    CHECK_RESULT(res);
+        CHECK_RESULT(res);
 }
 
 void Producer_close(Producer& producer) {
     Result res;
-    Py_BEGIN_ALLOW_THREADS
-    res = producer.close();
+    Py_BEGIN_ALLOW_THREADS res = producer.close();
     Py_END_ALLOW_THREADS
 
-    CHECK_RESULT(res);
+        CHECK_RESULT(res);
 }
 
 void export_producer() {
     using namespace boost::python;
 
     class_<Producer>("Producer", no_init)
-            .def("topic", &Producer::getTopic, "return the topic to which producer is publishing to",
-                 return_value_policy<copy_const_reference>())
-            .def("producer_name", &Producer::getProducerName,
-                 "return the producer name which could have been assigned by the system or specified by the client",
-                 return_value_policy<copy_const_reference>())
-            .def("last_sequence_id", &Producer::getLastSequenceId)
-            .def("send", &Producer_send,
-                 "Publish a message on the topic associated with this Producer.\n"
-                         "\n"
-                         "This method will block until the message will be accepted and persisted\n"
-                         "by the broker. In case of errors, the client library will try to\n"
-                         "automatically recover and use a different broker.\n"
-                         "\n"
-                         "If it wasn't possible to successfully publish the message within the sendTimeout,\n"
-                         "an error will be returned.\n"
-                         "\n"
-                         "This method is equivalent to asyncSend() and wait until the callback is triggered.\n"
-                         "\n"
-                         "@param msg message to publish\n")
-            .def("send_async", &Producer_sendAsync)
-            .def("flush", &Producer_flush,
-                 "Flush all the messages buffered in the client and wait until all messages have been\n"
-                         "successfully persisted\n")
-            .def("close", &Producer_close)
-            ;
+        .def("topic", &Producer::getTopic, "return the topic to which producer is publishing to",
+             return_value_policy<copy_const_reference>())
+        .def("producer_name", &Producer::getProducerName,
+             "return the producer name which could have been assigned by the system or specified by the "
+             "client",
+             return_value_policy<copy_const_reference>())
+        .def("last_sequence_id", &Producer::getLastSequenceId)
+        .def("send", &Producer_send,
+             "Publish a message on the topic associated with this Producer.\n"
+             "\n"
+             "This method will block until the message will be accepted and persisted\n"
+             "by the broker. In case of errors, the client library will try to\n"
+             "automatically recover and use a different broker.\n"
+             "\n"
+             "If it wasn't possible to successfully publish the message within the sendTimeout,\n"
+             "an error will be returned.\n"
+             "\n"
+             "This method is equivalent to asyncSend() and wait until the callback is triggered.\n"
+             "\n"
+             "@param msg message to publish\n")
+        .def("send_async", &Producer_sendAsync)
+        .def("flush", &Producer_flush,
+             "Flush all the messages buffered in the client and wait until all messages have been\n"
+             "successfully persisted\n")
+        .def("close", &Producer_close);
 }

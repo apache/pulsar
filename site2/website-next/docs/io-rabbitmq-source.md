@@ -1,12 +1,8 @@
 ---
 id: io-rabbitmq-source
 title: RabbitMQ source connector
-sidebar_label: RabbitMQ source connector
+sidebar_label: "RabbitMQ source connector"
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 The RabbitMQ source connector receives messages from RabbitMQ clusters 
 and writes messages to Pulsar topics.
@@ -41,8 +37,10 @@ Before using the RabbitMQ source connector, you need to create a configuration f
 
 * JSON 
 
-    ```json
-    {
+  ```json
+  
+  {
+     "configs": {
         "host": "localhost",
         "port": "5672",
         "virtualHost": "/",
@@ -58,27 +56,31 @@ Before using the RabbitMQ source connector, you need to create a configuration f
         "prefetchCount": "0",
         "prefetchGlobal": "false",
         "passive": "false"
-    }
-    ```
+     }
+  }
+  
+  ```
 
 * YAML
 
-    ```yaml
-    configs:
-        host: "localhost"
-        port: 5672
-        virtualHost: "/"
-        username: "guest"
-        password: "guest"
-        queueName: "test-queue"
-        connectionName: "test-connection"
-        requestedChannelMax: 0
-        requestedFrameMax: 0
-        connectionTimeout: 60000
-        handshakeTimeout: 10000
-        requestedHeartbeat: 60
-        prefetchCount: 0
-        prefetchGlobal: "false"
-        passive: "false"
-    ```
+  ```yaml
+  
+  configs:
+      host: "localhost"
+      port: 5672
+      virtualHost: "/"
+      username: "guest"
+      password: "guest"
+      queueName: "test-queue"
+      connectionName: "test-connection"
+      requestedChannelMax: 0
+      requestedFrameMax: 0
+      connectionTimeout: 60000
+      handshakeTimeout: 10000
+      requestedHeartbeat: 60
+      prefetchCount: 0
+      prefetchGlobal: "false"
+      passive: "false"
+  
+  ```
 

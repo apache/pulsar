@@ -1,12 +1,8 @@
 ---
 id: helm-tools
 title: Required tools for deploying Pulsar Helm Chart
-sidebar_label: Required Tools
+sidebar_label: "Required Tools"
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 Before deploying Pulsar to your Kubernetes cluster, there are some tools you must have installed locally.
 
@@ -28,7 +24,7 @@ You can get Helm from the project's [releases page](https://github.com/helm/helm
 
 ### Next steps
 
-Once kubectl and Helm are configured, you can configure your [Kubernetes cluster](helm-prepare.md).
+Once kubectl and Helm are configured, you can configure your [Kubernetes cluster](helm-prepare).
 
 ## Additional information
 

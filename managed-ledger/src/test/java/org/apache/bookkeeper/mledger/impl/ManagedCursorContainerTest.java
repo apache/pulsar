@@ -175,7 +175,7 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void seek(Position newReadPosition) {
+        public void seek(Position newReadPosition, boolean force) {
         }
 
         @Override
@@ -383,6 +383,11 @@ public class ManagedCursorContainerTest {
 
         @Override
         public boolean checkAndUpdateReadPositionChanged() {
+            return false;
+        }
+
+        @Override
+        public boolean isClosed() {
             return false;
         }
     }

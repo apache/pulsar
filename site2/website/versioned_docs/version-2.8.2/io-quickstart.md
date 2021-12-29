@@ -415,18 +415,18 @@ This example uses the PostgreSQL 12 docker image to start a single-node PostgreS
 
     #### Tip
     
-     Flag | Description | This example
-     ---|---|---|
-     `-d` | To start a container in detached mode. | /
-     `-it` | Keep STDIN open even if not attached and allocate a terminal. | /
-     `--rm` | Remove the container automatically when it exits. | /
-     `-name` | Assign a name to the container. | This example specifies _pulsar-postgres_ for the container.
-     `-p` | Publish the port of the container to the host. | This example publishes the port _5432_ of the container to the host.
-     `-e` | Set environment variables. | This example sets the following variables:<br>- The password for the user is _password_.<br>- The name for the user is _postgres_.
+    Flag | Description | This example
+    ---|---|---|
+    `-d` | To start a container in detached mode. | /
+    `-it` | Keep STDIN open even if not attached and allocate a terminal. | /
+    `--rm` | Remove the container automatically when it exits. | /
+    `-name` | Assign a name to the container. | This example specifies _pulsar-postgres_ for the container.
+    `-p` | Publish the port of the container to the host. | This example publishes the port _5432_ of the container to the host.
+    `-e` | Set environment variables. | This example sets the following variables:<br>- The password for the user is _password_.<br>- The name for the user is _postgres_.
 
-     > #### Tip
-     >
-     > For more information about Docker commands, see [Docker CLI](https://docs.docker.com/engine/reference/commandline/run/).
+    > #### Tip
+    >
+    > For more information about Docker commands, see [Docker CLI](https://docs.docker.com/engine/reference/commandline/run/).
 
 3. Check if PostgreSQL has been started successfully.
 

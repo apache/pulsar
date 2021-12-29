@@ -1,12 +1,8 @@
 ---
 id: client-libraries-websocket
 title: Pulsar WebSocket API
-sidebar_label: WebSocket
+sidebar_label: "WebSocket"
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 Pulsar [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) API provides a simple way to interact with Pulsar using languages that do not have an official [client library](getting-started-clients). Through WebSocket, you can publish and consume messages and use features available on the [Client Features Matrix](https://github.com/apache/pulsar/wiki/Client-Features-Matrix) page.
 
@@ -98,7 +94,7 @@ The producer endpoint requires you to specify a tenant, namespace, and topic in 
 
 ```http
 
-ws://broker-service-url:8080/ws/v2/producer/persistent/:tenant/:namespace/:topic 
+ws://broker-service-url:8080/ws/v2/producer/persistent/:tenant/:namespace/:topic
 
 ```
 
@@ -151,6 +147,7 @@ Key | Type | Required? | Explanation
  }
 
 ```
+
 ##### Example failure response
 
 ```json
@@ -206,23 +203,60 @@ Server will push messages on the WebSocket session:
 ```json
 
 {
-  "messageId": "CAAQAw==",
-  "payload": "SGVsbG8gV29ybGQ=",
-  "properties": {"key1": "value1", "key2": "value2"},
-  "publishTime": "2016-08-30 16:45:57.785",
-  "redeliveryCount": 4
+  "messageId": "CAMQADAA",
+  "payload": "hvXcJvHW7kOSrUn17P2q71RA5SdiXwZBqw==",
+  "properties": {},
+  "publishTime": "2021-10-29T16:01:38.967-07:00",
+  "redeliveryCount": 0,
+  "encryptionContext": {
+    "keys": {
+      "client-rsa.pem": {
+        "keyValue": "jEuwS+PeUzmCo7IfLNxqoj4h7txbLjCQjkwpaw5AWJfZ2xoIdMkOuWDkOsqgFmWwxiecakS6GOZHs94x3sxzKHQx9Oe1jpwBg2e7L4fd26pp+WmAiLm/ArZJo6JotTeFSvKO3u/yQtGTZojDDQxiqFOQ1ZbMdtMZA8DpSMuq+Zx7PqLo43UdW1+krjQfE5WD+y+qE3LJQfwyVDnXxoRtqWLpVsAROlN2LxaMbaftv5HckoejJoB4xpf/dPOUqhnRstwQHf6klKT5iNhjsY4usACt78uILT0pEPd14h8wEBidBz/vAlC/zVMEqiDVzgNS7dqEYS4iHbf7cnWVCn3Hxw==",
+        "metadata": {}
+      }
+    },
+    "param": "Tfu1PxVm6S9D3+Hk",
+    "compressionType": "NONE",
+    "uncompressedMessageSize": 0,
+    "batchSize": {
+      "empty": false,
+      "present": true
+    }
+  }
 }
 
 ```
 
-Key | Type | Required? | Explanation
-:---|:-----|:----------|:-----------
-`messageId` | string | yes | Message ID
-`payload` | string | yes | Base-64 encoded payload
-`publishTime` | string | yes | Publish timestamp
-`redeliveryCount` | number | yes | Number of times this message was already delivered
-`properties` | key-value pairs | no | Application-defined properties
-`key` | string | no |  Original routing key set by producer
+Below are the parameters in the WebSocket consumer response.
+
+- General parameters
+
+  Key | Type | Required? | Explanation
+  :---|:-----|:----------|:-----------
+  `messageId` | string | yes | Message ID
+  `payload` | string | yes | Base-64 encoded payload
+  `publishTime` | string | yes | Publish timestamp
+  `redeliveryCount` | number | yes | Number of times this message was already delivered
+  `properties` | key-value pairs | no | Application-defined properties
+  `key` | string | no |  Original routing key set by producer
+  `encryptionContext` | EncryptionContext | no | Encryption context that consumers can use to decrypt received messages
+  `param` | string | no | Initialization vector for cipher (Base64 encoding)
+  `batchSize` | string | no | Number of entries in a message (if it is a batch message)
+  `uncompressedMessageSize` | string | no | Message size before compression
+  `compressionType` | string | no | Algorithm used to compress the message payload
+
+- `encryptionContext` related parameter
+
+  Key | Type | Required? | Explanation
+  :---|:-----|:----------|:-----------
+  `keys` |key-EncryptionKey pairs | yes | Key in `key-EncryptionKey` pairs is an encryption key name. Value in `key-EncryptionKey` pairs is an encryption key object.
+
+- `encryptionKey` related parameters
+
+  Key | Type | Required? | Explanation
+  :---|:-----|:----------|:-----------
+  `keyValue` | string | yes | Encryption key (Base64 encoding)
+  `metadata` | key-value pairs | no | Application-defined metadata
 
 #### Acknowledging the message
 
@@ -626,3 +660,4 @@ ws.on('message', function(message) {
 });
 
 ```
+

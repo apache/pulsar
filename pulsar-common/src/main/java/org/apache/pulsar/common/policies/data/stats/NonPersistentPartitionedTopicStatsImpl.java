@@ -20,11 +20,8 @@ package org.apache.pulsar.common.policies.data.stats;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import lombok.Getter;
-import lombok.ToString;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.NonPersistentPartitionedTopicStats;
-import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
-import org.apache.pulsar.common.policies.data.TopicStats;
 
 import java.util.HashMap;
 import java.util.Map;

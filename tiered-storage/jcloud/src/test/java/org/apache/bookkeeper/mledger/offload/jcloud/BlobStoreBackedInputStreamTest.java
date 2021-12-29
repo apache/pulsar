@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger.offload.jcloud;
 
 import static org.mockito.AdditionalAnswers.delegatesTo;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -33,10 +32,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.BlobStoreBackedInputStreamImpl;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.Blob;
-import org.jclouds.blobstore.options.GetOptions;
 import org.jclouds.io.Payload;
 import org.jclouds.io.Payloads;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -219,7 +217,7 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         }
 
         verify(spiedBlobStore, times(1))
-            .getBlob(Mockito.eq(BUCKET), Mockito.eq(objectKey), Matchers.<GetOptions>anyObject());
+            .getBlob(Mockito.eq(BUCKET), Mockito.eq(objectKey), ArgumentMatchers.any());
     }
 
     @Test
@@ -259,5 +257,28 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
 
         toTest.seekForward(after);
         assertStreamsMatch(toTest, toCompare);
+    }
+
+    @Test
+    public void testAvailable() throws IOException {
+        String objectKey = "testAvailable";
+        int objectSize = 2048;
+        RandomInputStream toWrite = new RandomInputStream(0, objectSize);
+        Payload payload = Payloads.newInputStreamPayload(toWrite);
+        payload.getContentMetadata().setContentLength((long)objectSize);
+        Blob blob = blobStore.blobBuilder(objectKey)
+            .payload(payload)
+            .contentLength(objectSize)
+            .build();
+        String ret = blobStore.putBlob(BUCKET, blob);
+        BackedInputStream bis = new BlobStoreBackedInputStreamImpl(
+            blobStore, BUCKET, objectKey, (k, md) -> {}, objectSize, 512);
+        Assert.assertEquals(bis.available(), objectSize);
+        bis.seek(500);
+        Assert.assertEquals(bis.available(), objectSize - 500);
+        bis.seek(1024);
+        Assert.assertEquals(bis.available(), 1024);
+        bis.seek(2048);
+        Assert.assertEquals(bis.available(), 0);
     }
 }

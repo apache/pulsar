@@ -20,6 +20,7 @@
 #pragma once
 
 #include <pulsar/Authentication.h>
+#include <mutex>
 #include <string>
 
 namespace pulsar {
@@ -55,7 +56,7 @@ class ClientCredentialFlow : public Oauth2Flow {
     Oauth2TokenResultPtr authenticate();
     void close();
 
-    std::string generateJsonBody() const;
+    ParamMap generateParamMap() const;
 
    private:
     std::string tokenEndPoint_;
@@ -63,6 +64,7 @@ class ClientCredentialFlow : public Oauth2Flow {
     const KeyFile keyFile_;
     const std::string audience_;
     const std::string scope_;
+    std::once_flag initializeOnce_;
 };
 
 class Oauth2CachedToken : public CachedToken {

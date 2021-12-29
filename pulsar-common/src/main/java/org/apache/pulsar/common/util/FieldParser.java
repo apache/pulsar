@@ -19,19 +19,20 @@
 package org.apache.pulsar.common.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
+
 import com.fasterxml.jackson.databind.AnnotationIntrospector;
 import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector;
 import com.fasterxml.jackson.databind.util.EnumResolver;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -83,7 +84,7 @@ public final class FieldParser {
     @SuppressWarnings("unchecked")
     public static <T> T convert(Object from, Class<T> to) {
 
-        checkNotNull(to);
+        requireNonNull(to);
         if (from == null) {
             return null;
         }
@@ -163,7 +164,7 @@ public final class FieldParser {
      * @return
      */
     public static Object value(String strValue, Field field) {
-        checkNotNull(field);
+        requireNonNull(field);
         // if field is not primitive type
         Type fieldType = field.getGenericType();
         if (fieldType instanceof ParameterizedType) {
@@ -205,14 +206,14 @@ public final class FieldParser {
      */
     public static <T> void setEmptyValue(String strValue, Field field, T obj)
             throws IllegalArgumentException, IllegalAccessException {
-        checkNotNull(field);
+        requireNonNull(field);
         // if field is not primitive type
         Type fieldType = field.getGenericType();
         if (fieldType instanceof ParameterizedType) {
             if (field.getType().equals(List.class)) {
-                field.set(obj, Lists.newArrayList());
+                field.set(obj, new ArrayList<>());
             } else if (field.getType().equals(Set.class)) {
-                field.set(obj, Sets.newHashSet());
+                field.set(obj, new HashSet<>());
             } else if (field.getType().equals(Optional.class)) {
                 field.set(obj, Optional.empty());
             } else {
@@ -349,7 +350,7 @@ public final class FieldParser {
     }
 
     private static String trim(String val) {
-        checkNotNull(val);
+        requireNonNull(val);
         return val.trim();
     }
 

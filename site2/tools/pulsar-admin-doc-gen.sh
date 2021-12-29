@@ -32,11 +32,15 @@ $ROOT_DIR/bin/pulsar-admin documents generate broker-stats > $ROOT_DIR/site2/web
 $ROOT_DIR/bin/pulsar-admin documents generate brokers > $ROOT_DIR/site2/website/brodocs/documents/brokers.md
 $ROOT_DIR/bin/pulsar-admin documents generate clusters > $ROOT_DIR/site2/website/brodocs/documents/clusters.md
 $ROOT_DIR/bin/pulsar-admin documents generate functions > $ROOT_DIR/site2/website/brodocs/documents/functions.md
+$ROOT_DIR/bin/pulsar-admin documents generate functions-worker > $ROOT_DIR/site2/website/brodocs/documents/functions-worker.md
 $ROOT_DIR/bin/pulsar-admin documents generate namespaces > $ROOT_DIR/site2/website/brodocs/documents/namespaces.md
 $ROOT_DIR/bin/pulsar-admin documents generate ns-isolation-policy > $ROOT_DIR/site2/website/brodocs/documents/ns-isolation-policy.md
 $ROOT_DIR/bin/pulsar-admin documents generate sources > $ROOT_DIR/site2/website/brodocs/documents/sources.md
 $ROOT_DIR/bin/pulsar-admin documents generate sinks > $ROOT_DIR/site2/website/brodocs/documents/sinks.md
 $ROOT_DIR/bin/pulsar-admin documents generate topics > $ROOT_DIR/site2/website/brodocs/documents/topics.md
+$ROOT_DIR/bin/pulsar-admin documents generate proxy-stats > $ROOT_DIR/site2/website/brodocs/documents/proxy-stats.md
+$ROOT_DIR/bin/pulsar-admin documents generate resourcegroups > $ROOT_DIR/site2/website/brodocs/documents/resourcegroups.md
+$ROOT_DIR/bin/pulsar-admin documents generate transactions > $ROOT_DIR/site2/website/brodocs/documents/transactions.md
 $ROOT_DIR/bin/pulsar-admin documents generate tenants > $ROOT_DIR/site2/website/brodocs/documents/tenants.md
 $ROOT_DIR/bin/pulsar-admin documents generate resource-quotas > $ROOT_DIR/site2/website/brodocs/documents/resource-quotas.md
 $ROOT_DIR/bin/pulsar-admin documents generate schemas > $ROOT_DIR/site2/website/brodocs/documents/schemas.md

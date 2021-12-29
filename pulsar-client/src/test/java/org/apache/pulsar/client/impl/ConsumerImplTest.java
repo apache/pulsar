@@ -25,7 +25,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -186,5 +185,36 @@ public class ConsumerImplTest {
         future.cancel(true);
         // then
         Assert.assertFalse(consumer.hasPendingBatchReceive());
+    }
+
+    @Test
+    public void testClose() {
+        Exception checkException = null;
+        try {
+            if (consumer != null) {
+                consumer.negativeAcknowledge(new MessageIdImpl(-1, -1, -1));
+                consumer.close();
+            }
+        } catch (Exception e) {
+            checkException = e;
+        }
+        Assert.assertNull(checkException);
+    }
+
+    @Test
+    public void testConsumerCreatedWhilePaused() throws InterruptedException {
+        PulsarClientImpl client = ClientTestFixtures.createPulsarClientMock(executorProvider, internalExecutor);
+        ClientConfigurationData clientConf = client.getConfiguration();
+        clientConf.setOperationTimeoutMs(100);
+        clientConf.setStatsIntervalSeconds(0);
+        String topic = "non-persistent://tenant/ns1/my-topic";
+
+        consumerConf.setStartPaused(true);
+
+        consumer = ConsumerImpl.newConsumerImpl(client, topic, consumerConf,
+                executorProvider, -1, false, new CompletableFuture<>(), null, null, null,
+                true);
+
+        Assert.assertTrue(consumer.paused);
     }
 }

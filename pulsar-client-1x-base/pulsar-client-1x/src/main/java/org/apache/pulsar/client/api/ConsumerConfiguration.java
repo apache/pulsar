@@ -19,10 +19,10 @@
 package org.apache.pulsar.client.api;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.Serializable;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -94,7 +94,7 @@ public class ConsumerConfiguration implements Serializable {
      *            the subscription type value
      */
     public ConsumerConfiguration setSubscriptionType(SubscriptionType subscriptionType) {
-        checkNotNull(subscriptionType);
+        Objects.requireNonNull(subscriptionType);
         conf.setSubscriptionType(subscriptionType);
         return this;
     }
@@ -116,7 +116,7 @@ public class ConsumerConfiguration implements Serializable {
      *            the listener object
      */
     public ConsumerConfiguration setMessageListener(MessageListener<byte[]> messageListener) {
-        checkNotNull(messageListener);
+        Objects.requireNonNull(messageListener);
         this.messageListener = messageListener;
         conf.setMessageListener(new org.apache.pulsar.shade.client.api.v2.MessageListener<byte[]>() {
 
@@ -158,7 +158,7 @@ public class ConsumerConfiguration implements Serializable {
      * @since 2.0
      */
     public ConsumerConfiguration setConsumerEventListener(ConsumerEventListener listener) {
-        checkNotNull(listener);
+        Objects.requireNonNull(listener);
         conf.setConsumerEventListener(listener);
         return this;
     }
@@ -204,7 +204,7 @@ public class ConsumerConfiguration implements Serializable {
      *            CryptoKeyReader object
      */
     public ConsumerConfiguration setCryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
-        checkNotNull(cryptoKeyReader);
+        Objects.requireNonNull(cryptoKeyReader);
         conf.setCryptoKeyReader(cryptoKeyReader);
         return this;
     }
@@ -374,5 +374,22 @@ public class ConsumerConfiguration implements Serializable {
      */
     public SubscriptionInitialPosition getSubscriptionInitialPosition(){
         return conf.getSubscriptionInitialPosition();
+    }
+
+    /**
+     * @return the configured {@link NegativeAckRedeliveryBackoff} for the consumer
+     */
+    public NegativeAckRedeliveryBackoff getNegativeAckRedeliveryBackoff() {
+        return conf.getNegativeAckRedeliveryBackoff();
+    }
+
+    /**
+     * @param negativeAckRedeliveryBackoff the negative ack redelivery backoff policy.
+     * Default value is: NegativeAckRedeliveryExponentialBackoff
+     * @return the {@link ConsumerConfiguration}
+     */
+    public ConsumerConfiguration setNegativeAckRedeliveryBackoff(NegativeAckRedeliveryBackoff negativeAckRedeliveryBackoff) {
+        conf.setNegativeAckRedeliveryBackoff(negativeAckRedeliveryBackoff);
+        return this;
     }
 }

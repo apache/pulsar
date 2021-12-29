@@ -23,14 +23,12 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
-import com.google.common.base.Charsets;
-
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.function.Supplier;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang.SerializationUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -100,12 +98,12 @@ public class AuthenticationTokenTest {
 
     @Test
     public void testAuthTokenConfigFromFile() throws Exception {
-        File tokenFile = File.createTempFile("pular-test-token", ".key");
+        File tokenFile = File.createTempFile("pulsar-test-token", ".key");
         tokenFile.deleteOnExit();
-        FileUtils.write(tokenFile, "my-test-token-string", Charsets.UTF_8);
+        FileUtils.write(tokenFile, "my-test-token-string", StandardCharsets.UTF_8);
 
         AuthenticationToken authToken = new AuthenticationToken();
-        authToken.configure("file://" + tokenFile);
+        authToken.configure(getTokenFileUri(tokenFile));
         assertEquals(authToken.getAuthMethodName(), "token");
 
         AuthenticationDataProvider authData = authToken.getAuthData();
@@ -113,7 +111,7 @@ public class AuthenticationTokenTest {
         assertEquals(authData.getCommandData(), "my-test-token-string");
 
         // Ensure if the file content changes, the token will get refreshed as well
-        FileUtils.write(tokenFile, "other-token", Charsets.UTF_8);
+        FileUtils.write(tokenFile, "other-token", StandardCharsets.UTF_8);
 
         AuthenticationDataProvider authData2 = authToken.getAuthData();
         assertTrue(authData2.hasDataFromCommand());
@@ -128,12 +126,12 @@ public class AuthenticationTokenTest {
      */
     @Test
     public void testAuthTokenConfigFromFileWithNewline() throws Exception {
-        File tokenFile = File.createTempFile("pular-test-token", ".key");
+        File tokenFile = File.createTempFile("pulsar-test-token", ".key");
         tokenFile.deleteOnExit();
-        FileUtils.write(tokenFile, "  my-test-token-string  \r\n", Charsets.UTF_8);
+        FileUtils.write(tokenFile, "  my-test-token-string  \r\n", StandardCharsets.UTF_8);
 
         AuthenticationToken authToken = new AuthenticationToken();
-        authToken.configure("file://" + tokenFile);
+        authToken.configure(getTokenFileUri(tokenFile));
         assertEquals(authToken.getAuthMethodName(), "token");
 
         AuthenticationDataProvider authData = authToken.getAuthData();
@@ -141,7 +139,7 @@ public class AuthenticationTokenTest {
         assertEquals(authData.getCommandData(), "my-test-token-string");
 
         // Ensure if the file content changes, the token will get refreshed as well
-        FileUtils.write(tokenFile, "other-token", Charsets.UTF_8);
+        FileUtils.write(tokenFile, "other-token", StandardCharsets.UTF_8);
 
         AuthenticationDataProvider authData2 = authToken.getAuthData();
         assertTrue(authData2.hasDataFromCommand());
@@ -197,10 +195,14 @@ public class AuthenticationTokenTest {
         assertEquals(tokenSupplier.token, ts.getAuthData().getCommandData());
     }
 
+    private String getTokenFileUri(File file) {
+        return "file:///" + file.toString().replace('\\', '/');
+    }
+
     public static class SerializableSupplier implements Supplier<String>, Serializable {
 
         private static final long serialVersionUID = 6259616338933150683L;
-        private String token;
+        private final String token;
 
         public SerializableSupplier(final String token) {
             super();

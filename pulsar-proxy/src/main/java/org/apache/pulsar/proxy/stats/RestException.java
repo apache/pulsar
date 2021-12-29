@@ -20,11 +20,9 @@ package org.apache.pulsar.proxy.stats;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-
 import org.apache.pulsar.common.policies.data.ErrorData;
 
 /**

@@ -30,6 +30,8 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
+import lombok.Builder;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -46,6 +48,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     public static final String TLS_HANDLER = "tls";
 
     private final PulsarService pulsar;
+    private final String listenerName;
     private final boolean enableTls;
     private final boolean tlsEnabledWithKeyStore;
     private SslContextAutoRefreshBuilder<SslContext> sslCtxRefresher;
@@ -63,13 +66,14 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     /**
      * @param pulsar
      *              An instance of {@link PulsarService}
-     * @param enableTLS
-     *              Enable tls or not
+     * @param opts
+     *              Channel options
      */
-    public PulsarChannelInitializer(PulsarService pulsar, boolean enableTLS) throws Exception {
+    public PulsarChannelInitializer(PulsarService pulsar, PulsarChannelOptions opts) throws Exception {
         super();
         this.pulsar = pulsar;
-        this.enableTls = enableTLS;
+        this.listenerName = opts.getListenerName();
+        this.enableTls = opts.isEnableTLS();
         ServiceConfiguration serviceConfig = pulsar.getConfiguration();
         this.tlsEnabledWithKeyStore = serviceConfig.isTlsEnabledWithKeyStore();
         if (this.enableTls) {
@@ -130,7 +134,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         // ServerCnx ends up reading higher number of messages and broker can not throttle the messages by disabling
         // auto-read.
         ch.pipeline().addLast("flowController", new FlowControlHandler());
-        ServerCnx cnx = newServerCnx(pulsar);
+        ServerCnx cnx = newServerCnx(pulsar, listenerName);
         ch.pipeline().addLast("handler", cnx);
 
         connections.put(ch.remoteAddress(), cnx);
@@ -147,14 +151,29 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     }
 
     @VisibleForTesting
-    protected ServerCnx newServerCnx(PulsarService pulsar) throws Exception {
-        return new ServerCnx(pulsar);
+    protected ServerCnx newServerCnx(PulsarService pulsar, String listenerName) throws Exception {
+        return new ServerCnx(pulsar, listenerName);
     }
 
     public interface Factory {
-        PulsarChannelInitializer newPulsarChannelInitializer(PulsarService pulsar, boolean enableTLS) throws Exception;
+        PulsarChannelInitializer newPulsarChannelInitializer(
+                PulsarService pulsar, PulsarChannelOptions opts) throws Exception;
     }
 
-    public static final Factory DEFAULT_FACTORY =
-        (pulsar, tls) -> new PulsarChannelInitializer(pulsar, tls);
+    public static final Factory DEFAULT_FACTORY = PulsarChannelInitializer::new;
+
+    @Data
+    @Builder
+    public static class PulsarChannelOptions {
+
+        /**
+         * Indicates whether to enable TLS on the channel.
+         */
+        private boolean enableTLS;
+
+        /**
+         * The name of the listener to associate with the channel (optional).
+         */
+        private String listenerName;
+    }
 }

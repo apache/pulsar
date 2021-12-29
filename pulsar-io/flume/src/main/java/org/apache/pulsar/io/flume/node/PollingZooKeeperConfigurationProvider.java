@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.io.flume.node;
 
+import com.google.common.eventbus.EventBus;
 import java.io.IOException;
-
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.cache.ChildData;
 import org.apache.curator.framework.recipes.cache.NodeCache;
@@ -29,8 +29,6 @@ import org.apache.flume.lifecycle.LifecycleAware;
 import org.apache.flume.lifecycle.LifecycleState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.eventbus.EventBus;
 
 public class PollingZooKeeperConfigurationProvider extends
         AbstractZooKeeperConfigurationProvider implements LifecycleAware {

@@ -267,7 +267,7 @@ public class GrowablePriorityLongPairQueueTest {
         assertEquals(values, Lists.newArrayList(new LongPair(0, 0), new LongPair(1, 1), new LongPair(3, 3),
                 new LongPair(6, 6), new LongPair(7, 7)));
 
-        List<LongPair> removeList = Lists.newArrayList();
+        List<LongPair> removeList = new ArrayList<>();
         queue.forEach((first, second) -> {
             System.out.println(first + "," + second);
             if (first < 5) {

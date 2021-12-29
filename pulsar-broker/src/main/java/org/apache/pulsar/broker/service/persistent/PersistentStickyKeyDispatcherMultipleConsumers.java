@@ -155,6 +155,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     protected void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
         long totalMessagesSent = 0;
         long totalBytesSent = 0;
+        long totalEntries = 0;
         int entriesCount = entries.size();
 
         // Trigger read more messages
@@ -167,6 +168,37 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             entries.forEach(Entry::release);
             cursor.rewind();
             return;
+        }
+
+        // A corner case that we have to retry a readMoreEntries in order to preserver order delivery.
+        // This may happen when consumer closed. See issue #12885 for details.
+        if (!allowOutOfOrderDelivery) {
+            Set<PositionImpl> messagesToReplayNow = this.getMessagesToReplayNow(1);
+            if (messagesToReplayNow != null && !messagesToReplayNow.isEmpty() && this.minReplayedPosition != null) {
+                PositionImpl relayPosition = messagesToReplayNow.stream().findFirst().get();
+                // If relayPosition is a new entry wither smaller position is inserted for redelivery during this async
+                // read, it is possible that this relayPosition should dispatch to consumer first. So in order to
+                // preserver order delivery, we need to discard this read result, and try to trigger a replay read,
+                // that containing "relayPosition", by calling readMoreEntries.
+                if (relayPosition.compareTo(minReplayedPosition) < 0) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Position {} (<{}) is inserted for relay during current {} read, discard this "
+                                + "read and retry with readMoreEntries.",
+                                name, relayPosition, minReplayedPosition, readType);
+                    }
+                    if (readType == ReadType.Normal) {
+                        entries.forEach(entry -> {
+                            long stickyKeyHash = getStickyKeyHash(entry);
+                            addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
+                            entry.release();
+                        });
+                    } else if (readType == ReadType.Replay) {
+                        entries.forEach(Entry::release);
+                    }
+                    readMoreEntries();
+                    return;
+                }
+            }
         }
 
         nextStuckConsumers.clear();
@@ -229,8 +261,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
                 EntryBatchSizes batchSizes = EntryBatchSizes.get(messagesForC);
                 EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(messagesForC);
-                filterEntriesForConsumer(entriesWithSameKey, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
-                        readType == ReadType.Replay);
+                totalEntries += filterEntriesForConsumer(entriesWithSameKey, batchSizes, sendMessageInfo,
+                        batchIndexesAcks, cursor, readType == ReadType.Replay);
 
                 consumer.sendMessages(entriesWithSameKey, batchSizes, batchIndexesAcks,
                         sendMessageInfo.getTotalMessages(),
@@ -252,12 +284,13 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
         // acquire message-dispatch permits for already delivered messages
         if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
+            long permits = dispatchThrottlingOnBatchMessageEnabled ? totalEntries : totalMessagesSent;
             if (topic.getDispatchRateLimiter().isPresent()) {
-                topic.getDispatchRateLimiter().get().tryDispatchPermit(totalMessagesSent, totalBytesSent);
+                topic.getDispatchRateLimiter().get().tryDispatchPermit(permits, totalBytesSent);
             }
 
             if (dispatchRateLimiter.isPresent()) {
-                dispatchRateLimiter.get().tryDispatchPermit(totalMessagesSent, totalBytesSent);
+                dispatchRateLimiter.get().tryDispatchPermit(permits, totalBytesSent);
             }
         }
 
@@ -415,16 +448,21 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         return this.keySharedMode;
     }
 
+    public boolean isAllowOutOfOrderDelivery() {
+        return this.allowOutOfOrderDelivery;
+    }
+
+    public boolean hasSameKeySharedPolicy(KeySharedMeta ksm) {
+        return (ksm.getKeySharedMode() == this.keySharedMode
+                && ksm.isAllowOutOfOrderDelivery() == this.allowOutOfOrderDelivery);
+    }
+
     public LinkedHashMap<Consumer, PositionImpl> getRecentlyJoinedConsumers() {
         return recentlyJoinedConsumers;
     }
 
     public Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
         return selector.getConsumerKeyHashRanges();
-    }
-
-    public boolean isAllowOutOfOrderDelivery() {
-        return allowOutOfOrderDelivery;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentStickyKeyDispatcherMultipleConsumers.class);

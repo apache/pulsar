@@ -1,13 +1,9 @@
 ---
 id: io-twitter-source
 title: Twitter Firehose source connector
-sidebar_label: Twitter Firehose source connector
+sidebar_label: "Twitter Firehose source connector"
 original_id: io-twitter-source
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 The Twitter Firehose source connector receives tweets from Twitter Firehose and 
 writes the tweets to Pulsar topics.
@@ -29,9 +25,4 @@ The configuration of the Twitter Firehose source connector has the following pro
 | `clientHosts` |String| false | Constants.STREAM_HOST | The twitter firehose hosts to which client connects. |
 | `clientBufferSize` | int|false | 50000 | The buffer size for buffering tweets fetched from twitter firehose. |
 
-:::note
-
-For more information about OAuth credentials, see [Twitter developers portal](https://developer.twitter.com/en.html).
-
-:::
-
+> For more information about OAuth credentials, see [Twitter developers portal](https://developer.twitter.com/en.html).

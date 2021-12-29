@@ -1,12 +1,8 @@
 ---
 id: functions-overview
 title: Pulsar Functions overview
-sidebar_label: Overview
+sidebar_label: "Overview"
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 **Pulsar Functions** are lightweight compute processes that
 
@@ -59,8 +55,8 @@ If you implement the classic word count example using Pulsar Functions, it looks
 
 To write the function in Java with [Pulsar Functions SDK for Java](functions-develop.md#available-apis), you can write the function as follows.
 
-
 ```java
+
 package org.example.functions;
 
 import org.apache.pulsar.functions.api.Context;
@@ -79,12 +75,13 @@ public class WordCountFunction implements Function<String, Void> {
         return null;
     }
 }
+
 ```
 
 Bundle and build the JAR file to be deployed, and then deploy it in your Pulsar cluster using the [command line](functions-deploy.md#command-line-interface) as follows.
 
-
 ```bash
+
 $ bin/pulsar-admin functions create \
   --jar target/my-jar-with-dependencies.jar \
   --classname org.example.functions.WordCountFunction \
@@ -93,6 +90,7 @@ $ bin/pulsar-admin functions create \
   --name word-count \
   --inputs persistent://public/default/sentences \
   --output persistent://public/default/count
+
 ```
 
 ### Content-based routing example
@@ -105,8 +103,8 @@ For example, a function takes items (strings) as input and publishes them to eit
 
 If you implement this routing functionality in Python, it looks something like this:
 
-
 ```python
+
 from pulsar import Function
 
 class RoutingFunction(Function):
@@ -130,12 +128,13 @@ class RoutingFunction(Function):
         else:
             warning = "The item {0} is neither a fruit nor a vegetable".format(item)
             context.get_logger().warn(warning)
+
 ```
 
 If this code is stored in `~/router.py`, then you can deploy it in your Pulsar cluster using the [command line](functions-deploy.md#command-line-interface) as follows.
 
-
 ```bash
+
 $ bin/pulsar-admin functions create \
   --py ~/router.py \
   --classname router.RoutingFunction \
@@ -143,6 +142,7 @@ $ bin/pulsar-admin functions create \
   --namespace default \
   --name route-fruit-veg \
   --inputs persistent://public/default/basket-items
+
 ```
 
 ### Functions, messages and message types
@@ -154,15 +154,16 @@ Pulsar Functions take byte arrays as inputs and spit out byte arrays as output. 
 ## Fully Qualified Function Name (FQFN)
 Each Pulsar Function has a **Fully Qualified Function Name** (FQFN) that consists of three elements: the function tenant, namespace, and function name. FQFN looks like this:
 
-
 ```http
+
 tenant/namespace/name
+
 ```
 
 FQFNs enable you to create multiple functions with the same name provided that they are in different namespaces.
 
 ## Supported languages
-Currently, you can write Pulsar Functions in Java, Python, and Go. For details, refer to [Develop Pulsar Functions](functions-develop.md).
+Currently, you can write Pulsar Functions in Java, Python, and Go. For details, refer to [Develop Pulsar Functions](functions-develop).
 
 ## Processing guarantees
 Pulsar Functions provide three different messaging semantics that you can apply to any function.
@@ -177,12 +178,13 @@ Delivery semantics | Description
 ### Apply processing guarantees to a function
 You can set the processing guarantees for a Pulsar Function when you create the Function. The following [`pulsar-function create`](reference-pulsar-admin.md#create-1) command creates a function with effectively-once guarantees applied.
 
-
 ```bash
+
 $ bin/pulsar-admin functions create \
   --name my-effectively-once-function \
   --processing-guarantees EFFECTIVELY_ONCE \
   # Other function configs
+
 ```
 
 The available options for `--processing-guarantees` are:
@@ -196,9 +198,11 @@ The available options for `--processing-guarantees` are:
 ### Update the processing guarantees of a function
 You can change the processing guarantees applied to a function using the [`update`](reference-pulsar-admin.md#update-1) command. The following is an example.
 
-
 ```bash
+
 $ bin/pulsar-admin functions update \
   --processing-guarantees ATMOST_ONCE \
   # Other function configs
+
 ```
+

@@ -30,7 +30,7 @@
 #  CLANG_FORMAT_BIN, The path to the clang format binary
 #  CLANG_TIDY_FOUND, Whether clang format was found
 
-list(APPEND CLANG_SEARCH_PATHS ${ClangTools_PATH} $ENV{CLANG_TOOLS_PATH} /usr/local/bin /usr/bin)
+list(APPEND CLANG_SEARCH_PATHS ${ClangTools_PATH} $ENV{CLANG_TOOLS_PATH} /usr/local/bin /usr/bin /opt/homebrew/bin)
 if (WIN32)
        list(APPEND CLANG_SEARCH_PATHS "C:/Program Files/LLVM/bin" "C:/Program Files (x86)/LLVM/bin")
 endif()
@@ -82,11 +82,8 @@ if (CLANG_FORMAT_VERSION)
     endif()
 else()
     find_program(CLANG_FORMAT_BIN
-            NAMES clang-format-4.0
-            clang-format-3.9
-            clang-format-3.8
-            clang-format-3.7
-            clang-format-3.6
+            NAMES clang-format-5
+            clang-format-5.0
             clang-format
             PATHS ${CLANG_SEARCH_PATHS}
             NO_DEFAULT_PATH

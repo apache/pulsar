@@ -494,6 +494,84 @@
     },
     {
       "type": "category",
+      "label": "Adaptors",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.3/adaptors-kafka"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/adaptors-spark"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/adaptors-storm"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Cookbooks",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.3/cookbooks-compaction"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/cookbooks-deduplication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/cookbooks-non-persistent"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/cookbooks-retention-expiry"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/cookbooks-encryption"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/cookbooks-message-queue"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/cookbooks-bookkeepermetadata"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Development",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.3/develop-tools"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/develop-binary-protocol"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/develop-schema"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/develop-load-manager"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/develop-cpp"
+        }
+      ]
+    },
+    {
+      "type": "category",
       "label": "Reference",
       "items": [
         {

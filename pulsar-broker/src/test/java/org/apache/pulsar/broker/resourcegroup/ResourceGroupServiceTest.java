@@ -97,7 +97,7 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         rgs.resourceGroupCreate(rgName, rgConfig);
         ResourceGroup rg = rgs.resourceGroupGet("measureRGIncStatTime");
 
-        // Direct op on the reqourece group
+        // Direct op on the resource group
         mSecsStart = System.currentTimeMillis();
         for (int ix = 0; ix < numPerfTestIterations; ix++) {
             for (int monClassIdx = 0; monClassIdx < ResourceGroupMonitoringClass.values().length; monClassIdx++) {
@@ -131,10 +131,9 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         rgs.unRegisterNameSpace(rgName, tenantAndNamespaceName);
 
         // The overhead of a RG lookup
-        ResourceGroup retRG;
         mSecsStart = System.currentTimeMillis();
         for (int ix = 0; ix < numPerfTestIterations; ix++) {
-            retRG = rgs.resourceGroupGet(rg.resourceGroupName);
+            rgs.resourceGroupGet(rg.resourceGroupName);
         }
         mSecsEnd = System.currentTimeMillis();
         diffMsecs = mSecsEnd - mSecsStart;
@@ -172,9 +171,8 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
 
         Assert.assertEquals(rgs.getNumResourceGroups(), 1);
 
-        ResourceGroup retRG = null;
-        retRG = rgs.resourceGroupGet(randomRgName);
-        Assert.assertEquals(retRG, null);
+        ResourceGroup retRG = rgs.resourceGroupGet(randomRgName);
+        Assert.assertNull(retRG);
 
         retRG = rgs.resourceGroupGet(rgName);
         Assert.assertNotEquals(retRG, null);
@@ -222,7 +220,6 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
             // maxUsageReportSuppressRounds iterations. So, if we run for maxUsageReportSuppressRounds iterations,
             // we should see needToReportLocalUsage() return true at least once.
             Set<Boolean> myBoolSet = new HashSet<>();
-            myBoolSet.clear();
             for (int idx = 0; idx < ResourceGroupService.MaxUsageReportSuppressRounds; idx++) {
                 needToReport = retRG.setUsageInMonitoredEntity(monClass, nwUsage);
                 myBoolSet.add(needToReport);

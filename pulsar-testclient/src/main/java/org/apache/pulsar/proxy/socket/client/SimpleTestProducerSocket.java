@@ -92,10 +92,9 @@ public class SimpleTestProducerSocket {
         return this.session;
     }
 
-    public void sendMsg(String context, int sizeOfMessage)
+    public void sendMsg(String context, byte[] payloadData)
             throws IOException, JsonParseException, InterruptedException, ExecutionException {
-        byte[] payload = new byte[sizeOfMessage];
-        String message = getEncoder().encodeToString(payload);
+        String message = getEncoder().encodeToString(payloadData);
         String timeStamp = "{\"payload\": \"" + message + "\",\"context\": \"" + context + "\"}";
         String sampleMsg = new Gson().fromJson(timeStamp, JsonObject.class).toString();
         if (this.session != null && this.session.isOpen() && this.session.getRemote() != null) {

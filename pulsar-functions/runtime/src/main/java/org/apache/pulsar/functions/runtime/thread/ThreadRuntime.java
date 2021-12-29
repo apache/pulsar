@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.functions.runtime.thread;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Arrays;
@@ -26,13 +27,13 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-import io.prometheus.client.CollectorRegistry;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.common.nar.FileUtils;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
@@ -58,18 +59,19 @@ public class ThreadRuntime implements Runtime {
     private static final int THREAD_SHUTDOWN_TIMEOUT_MILLIS = 10_000;
 
     @Getter
-    private InstanceConfig instanceConfig;
+    private final InstanceConfig instanceConfig;
     private JavaInstanceRunnable javaInstanceRunnable;
-    private ThreadGroup threadGroup;
-    private FunctionCacheManager fnCache;
-    private String jarFile;
-    private ClientBuilder clientBuilder;
-    private PulsarClient pulsarClient;
-    private PulsarAdmin pulsarAdmin;
-    private String stateStorageServiceUrl;
-    private SecretsProvider secretsProvider;
-    private FunctionCollectorRegistry collectorRegistry;
-    private String narExtractionDirectory;
+    private final ThreadGroup threadGroup;
+    private final FunctionCacheManager fnCache;
+    private final String jarFile;
+    private final ClientBuilder clientBuilder;
+    private final PulsarClient pulsarClient;
+    private final PulsarAdmin pulsarAdmin;
+    private final String stateStorageImplClass;
+    private final String stateStorageServiceUrl;
+    private final SecretsProvider secretsProvider;
+    private final FunctionCollectorRegistry collectorRegistry;
+    private final String narExtractionDirectory;
     private final Optional<ConnectorsManager> connectorsManager;
 
     ThreadRuntime(InstanceConfig instanceConfig,
@@ -79,6 +81,7 @@ public class ThreadRuntime implements Runtime {
                   PulsarClient client,
                   ClientBuilder clientBuilder,
                   PulsarAdmin pulsarAdmin,
+                  String stateStorageImplClass,
                   String stateStorageServiceUrl,
                   SecretsProvider secretsProvider,
                   FunctionCollectorRegistry collectorRegistry,
@@ -95,6 +98,7 @@ public class ThreadRuntime implements Runtime {
         this.clientBuilder = clientBuilder;
         this.pulsarClient = client;
         this.pulsarAdmin = pulsarAdmin;
+        this.stateStorageImplClass = stateStorageImplClass;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.secretsProvider = secretsProvider;
         this.collectorRegistry = collectorRegistry;
@@ -132,14 +136,24 @@ public class ThreadRuntime implements Runtime {
             return Thread.currentThread().getContextClassLoader();
         }
         ClassLoader fnClassLoader;
-        try {
-            log.info("Load JAR: {}", jarFile);
-            // Let's first try to treat it as a nar archive
-            fnCache.registerFunctionInstanceWithArchive(
-                    instanceConfig.getFunctionId(),
-                    instanceConfig.getInstanceName(),
-                    jarFile, narExtractionDirectory);
-        } catch (FileNotFoundException e) {
+        boolean loadedAsNar = false;
+        if (FileUtils.mayBeANarArchive(new File(jarFile))) {
+            try {
+                log.info("Trying Loading file as NAR file: {}", jarFile);
+                // Let's first try to treat it as a nar archive
+                fnCache.registerFunctionInstanceWithArchive(
+                        instanceConfig.getFunctionId(),
+                        instanceConfig.getInstanceName(),
+                        jarFile, narExtractionDirectory);
+                loadedAsNar = true;
+            } catch (FileNotFoundException e) {
+                // this is usually like
+                // java.io.FileNotFoundException: /tmp/pulsar-nar/xxx.jar-unpacked/xxxxx/META-INF/MANIFEST.MF'
+                log.error("The file {} does not look like a .nar file {}", jarFile, e.toString());
+            }
+        }
+        if (!loadedAsNar) {
+            log.info("Load file as simple JAR file: {}", jarFile);
             // create the function class loader
             fnCache.registerFunctionInstance(
                     instanceConfig.getFunctionId(),
@@ -174,6 +188,7 @@ public class ThreadRuntime implements Runtime {
                 clientBuilder,
                 pulsarClient,
                 pulsarAdmin,
+                stateStorageImplClass,
                 stateStorageServiceUrl,
                 secretsProvider,
                 collectorRegistry,
@@ -200,7 +215,6 @@ public class ThreadRuntime implements Runtime {
         }
     }
 
-    @SuppressWarnings("deprecation")
     @Override
     public void stop() {
         if (fnThread != null) {

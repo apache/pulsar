@@ -30,9 +30,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -69,6 +67,15 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
     }
 
     @Test
+    public void testGetSchemaValidationEnforcedApplied() throws Exception {
+        String namespace = "schema-validation-enforced/testApplied";
+        admin.namespaces().createNamespace(namespace);
+        this.conf.setSchemaValidationEnforced(true);
+        assertTrue(admin.namespaces().getSchemaValidationEnforced(namespace, true));
+        assertFalse(admin.namespaces().getSchemaValidationEnforced(namespace, false));
+    }
+
+    @Test
     public void testDisableSchemaValidationEnforcedNoSchema() throws Exception {
         admin.namespaces().createNamespace("schema-validation-enforced/default-no-schema");
         String namespace = "schema-validation-enforced/default-no-schema";
@@ -98,7 +105,7 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
             assertTrue(e.getMessage().contains("HTTP 404 Not Found"));
         }
         Map<String, String> properties = Maps.newHashMap();
-        SchemaInfo schemaInfo = SchemaInfoImpl.builder()
+        SchemaInfo schemaInfo = SchemaInfo.builder()
                 .type(SchemaType.STRING)
                 .properties(properties)
                 .name("test")
@@ -147,7 +154,7 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
         }
         Map<String, String> properties = Maps.newHashMap();
         properties.put("key1", "value1");
-        SchemaInfo schemaInfo = SchemaInfoImpl.builder()
+        SchemaInfo schemaInfo = SchemaInfo.builder()
                 .type(SchemaType.STRING)
                 .properties(properties)
                 .name("test")
@@ -177,7 +184,7 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
         }
         admin.namespaces().setSchemaValidationEnforced(namespace,true);
         Map<String, String> properties = Maps.newHashMap();
-        SchemaInfo schemaInfo = SchemaInfoImpl.builder()
+        SchemaInfo schemaInfo = SchemaInfo.builder()
                 .type(SchemaType.STRING)
                 .properties(properties)
                 .name("test")

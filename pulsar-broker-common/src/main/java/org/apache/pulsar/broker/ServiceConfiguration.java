@@ -19,19 +19,26 @@
 package org.apache.pulsar.broker;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.netty.util.internal.PlatformDependent;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 import org.apache.bookkeeper.client.api.DigestType;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
@@ -100,10 +107,24 @@ public class ServiceConfiguration implements PulsarConfiguration {
     /***** --- pulsar configuration --- ****/
     @FieldContext(
         category = CATEGORY_SERVER,
-        required = true,
-        doc = "The Zookeeper quorum connection string (as a comma-separated list)"
+        required = false,
+        deprecated = true,
+        doc = "The Zookeeper quorum connection string (as a comma-separated list). Deprecated in favour of metadataStoreUrl"
     )
+    @Getter(AccessLevel.NONE)
     private String zookeeperServers;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            required = false,
+            doc = "The metadata store URL. \n" +
+                    " Examples: \n" +
+                    "  * zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181\n" +
+                    "  * my-zk-1:2181,my-zk-2:2181,my-zk-3:2181 (will default to ZooKeeper when the schema is not specified)\n" +
+                    "  * zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181/my-chroot-path (to add a ZK chroot path)\n"
+    )
+    private String metadataStoreUrl;
+
     @Deprecated
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -112,22 +133,38 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Global Zookeeper quorum connection string (as a comma-separated list)."
             + " Deprecated in favor of using `configurationStoreServers`"
     )
+    @Getter(AccessLevel.NONE)
     private String globalZookeeperServers;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         required = false,
+        deprecated = true,
         doc = "Configuration store connection string (as a comma-separated list)"
     )
+    @Getter(AccessLevel.NONE)
+    @Deprecated
     private String configurationStoreServers;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            required = false,
+            doc = "The metadata store URL for the configuration data. If empty, we fall back to use metadataStoreUrl"
+    )
+    private String configurationMetadataStoreUrl;
+
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "The port for serving binary protobuf requests"
+        doc = "The port for serving binary protobuf requests."
+            + " If set, defines a server binding for bindAddress:brokerServicePort."
+            + " The Default value is 6650."
     )
 
     private Optional<Integer> brokerServicePort = Optional.of(6650);
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "The port for serving tls secured binary protobuf requests"
+        doc = "The port for serving TLS-secured binary protobuf requests."
+            + " If set, defines a server binding for bindAddress:brokerServicePortTls."
     )
     private Optional<Integer> brokerServicePortTls = Optional.empty();
     @FieldContext(
@@ -167,6 +204,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "The listener name must contain in the advertisedListeners."
                     + "The Default value is absent, the broker uses the first listener as the internal listener.")
     private String internalListenerName;
+
+    @FieldContext(category=CATEGORY_SERVER,
+            doc = "Used to specify additional bind addresses for the broker."
+                    + " The value must format as <listener_name>:<scheme>://<host>:<port>,"
+                    + " multiple bind addresses should be separated with commas."
+                    + " Associates each bind address with an advertised listener and protocol handler."
+                    + " Note that the brokerServicePort, brokerServicePortTls, webServicePort, and"
+                    + " webServicePortTls properties define additional bindings.")
+    private String bindAddresses;
 
     @FieldContext(category=CATEGORY_SERVER,
             doc = "Enable or disable the proxy protocol.")
@@ -310,6 +356,36 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Amount of seconds to timeout when loading a topic. In situations with many geo-replicated clusters, this may need raised."
     )
     private long topicLoadTimeoutSeconds = 60;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Whether we should enable metadata operations batching"
+    )
+    private boolean metadataStoreBatchingEnabled = true;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Maximum delay to impose on batching grouping"
+    )
+    private int metadataStoreBatchingMaxDelayMillis = 5;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Maximum number of operations to include in a singular batch"
+    )
+    private int metadataStoreBatchingMaxOperations = 1_000;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Maximum size of a batch"
+    )
+    private int metadataStoreBatchingMaxSizeKb = 128;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Configuration file path for local metadata store. It's supported by RocksdbMetadataStore for now."
+    )
+    private String metadataStoreConfigPath = null;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -561,6 +637,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int brokerMaxConnectionsPerIp = 0;
 
     @FieldContext(
+        category = CATEGORY_POLICIES,
+        dynamic = true,
+        doc = "Allow schema to be auto updated at broker level. User can override this by 'is_allow_auto_update_schema'"
+            + " of namespace policy. This is enabled by default."
+    )
+    private boolean isAllowAutoUpdateSchemaEnabled = true;
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Enable check for minimum allowed client library version"
@@ -616,7 +700,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "Reducing to lower value can give more accuracy while throttling publish but "
                     + "it uses more CPU to perform frequent check. (Disable publish throttling with value 0)"
         )
-    private int topicPublisherThrottlingTickTimeMillis = 5;
+    private int topicPublisherThrottlingTickTimeMillis = 10;
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Enable precise rate limit for topic publish"
@@ -687,6 +771,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Default number of message-bytes dispatching throttling-limit for every topic. \n\n"
             + "Using a value of 0, is disabling default message-byte dispatch-throttling")
     private long dispatchThrottlingRatePerTopicInByte = 0;
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Apply dispatch rate limiting on batch message instead individual "
+                    + "messages with in batch message. (Default is disabled)")
+        private boolean dispatchThrottlingOnBatchMessageEnabled = false;
 
     @FieldContext(
         dynamic = true,
@@ -726,7 +816,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Default dispatch-throttling is disabled for consumers which already caught-up with"
             + " published messages and don't have backlog. This enables dispatch-throttling for "
             + " non-backlog consumers as well.")
-    private boolean dispatchThrottlingOnNonBacklogConsumerEnabled = false;
+    private boolean dispatchThrottlingOnNonBacklogConsumerEnabled = true;
 
     @FieldContext(
             category = CATEGORY_POLICIES,
@@ -770,6 +860,27 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         dynamic = true,
         category = CATEGORY_SERVER,
+        doc = "The read failure backoff initial time in milliseconds. By default it is 15s."
+    )
+    private int dispatcherReadFailureBackoffInitialTimeInMs = 15000;
+
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_SERVER,
+        doc = "The read failure backoff max time in milliseconds. By default it is 60s."
+    )
+    private int dispatcherReadFailureBackoffMaxTimeInMs = 60000;
+
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_SERVER,
+        doc = "The read failure backoff mandatory stop time in milliseconds. By default it is 0s."
+    )
+    private int dispatcherReadFailureBackoffMandatoryStopTimeInMs = 0;
+
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_SERVER,
         doc = "Max number of entries to dispatch for a shared subscription. By default it is 20 entries."
     )
     private int dispatcherMaxRoundRobinBatchSize = 20;
@@ -780,6 +891,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
          doc = "Precise dispatcher flow control according to history message number of each entry"
     )
     private boolean preciseDispatcherFlowControl = false;
+
+    @FieldContext(
+         dynamic = true,
+         category = CATEGORY_SERVER,
+         doc = " Class name of pluggable entry filter that decides whether the entry needs to be filtered."
+                 + "You can use this class to decide which entries can be sent to consumers."
+                 + "Multiple names need to be separated by commas."
+    )
+    private List<String> entryFilterNames = new ArrayList<>();
+
+    @FieldContext(
+         dynamic = true,
+         category = CATEGORY_SERVER,
+         doc = " The directory for all the entry filter implementations."
+    )
+    private String entryFiltersDirectory = "";
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -940,12 +1067,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "Check between intervals to see if max message size of topic policy has updated. default is 60s"
-    )
-    private int maxMessageSizeCheckIntervalInSeconds = 60;
-
-    @FieldContext(
-            category = CATEGORY_SERVER,
             doc = "The number of partitions per partitioned topic.\n"
                 + "If try to create or update partitioned topics by exceeded number of partitions, then fail."
     )
@@ -961,13 +1082,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_SERVER,
             doc = "List of broker interceptor to load, which is a list of broker interceptor names"
     )
-    private Set<String> brokerInterceptors = Sets.newTreeSet();
+    private Set<String> brokerInterceptors = new TreeSet<>();
 
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Enable or disable the broker interceptor, which is only used for testing for now"
     )
     private boolean disableBrokerInterceptors = true;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "List of interceptors for payload processing.")
+    private Set<String> brokerEntryPayloadProcessors = new LinkedHashSet<>();
 
     @FieldContext(
         doc = "There are two policies to apply when broker metadata session expires: session expired happens, \"shutdown\" or \"reconnect\". \n\n"
@@ -992,15 +1118,28 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String protocolHandlerDirectory = "./protocols";
 
     @FieldContext(
+            category = CATEGORY_PROTOCOLS,
+            doc = "Use a separate ThreadPool for each Protocol Handler"
+    )
+    private boolean useSeparateThreadPoolForProtocolHandlers = true;
+
+    @FieldContext(
         category = CATEGORY_PROTOCOLS,
         doc = "List of messaging protocols to load, which is a list of protocol names"
     )
-    private Set<String> messagingProtocols = Sets.newTreeSet();
+    private Set<String> messagingProtocols = new TreeSet<>();
 
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Enable or disable system topic.")
     private boolean systemTopicEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_SCHEMA,
+            doc = "The schema compatibility strategy to use for system topics"
+    )
+    private SchemaCompatibilityStrategy systemTopicSchemaCompatibilityStrategy =
+            SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -1062,13 +1201,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Specify the tls protocols the broker will use to negotiate during TLS Handshake.\n\n"
             + "Example:- [TLSv1.3, TLSv1.2]"
     )
-    private Set<String> tlsProtocols = Sets.newTreeSet();
+    private Set<String> tlsProtocols = new TreeSet<>();
     @FieldContext(
         category = CATEGORY_TLS,
         doc = "Specify the tls cipher the broker will use to negotiate during TLS Handshake.\n\n"
             + "Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]"
     )
-    private Set<String> tlsCiphers = Sets.newTreeSet();
+    private Set<String> tlsCiphers = new TreeSet<>();
     @FieldContext(
         category = CATEGORY_TLS,
         doc = "Specify whether Client certificates are required for TLS Reject.\n"
@@ -1085,7 +1224,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_AUTHENTICATION,
         doc = "Authentication provider name list, which is a list of class names"
     )
-    private Set<String> authenticationProviders = Sets.newTreeSet();
+    private Set<String> authenticationProviders = new TreeSet<>();
 
     @FieldContext(
         category = CATEGORY_AUTHENTICATION,
@@ -1110,14 +1249,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Role names that are treated as `super-user`, meaning they will be able to"
             + " do all admin operations and publish/consume from all topics"
     )
-    private Set<String> superUserRoles = Sets.newTreeSet();
+    private Set<String> superUserRoles = new TreeSet<>();
 
     @FieldContext(
         category = CATEGORY_AUTHORIZATION,
         doc = "Role names that are treated as `proxy roles`. \n\nIf the broker sees"
             + " a request with role as proxyRoles - it will demand to see the original"
             + " client role or certificate.")
-    private Set<String> proxyRoles = Sets.newTreeSet();
+    private Set<String> proxyRoles = new TreeSet<>();
 
     @FieldContext(
         category = CATEGORY_AUTHORIZATION,
@@ -1207,6 +1346,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Metadata service uri that bookkeeper is used for loading corresponding metadata driver"
             + " and resolving its metadata service location"
     )
+    @Getter(AccessLevel.NONE)
     private String bookkeeperMetadataServiceUri;
 
     @FieldContext(
@@ -1456,7 +1596,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_STORAGE_ML,
         doc = "Threshold to which bring down the cache level when eviction is triggered"
     )
-    private double managedLedgerCacheEvictionWatermark = 0.9f;
+    private double managedLedgerCacheEvictionWatermark = 0.9;
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Configure the cache eviction frequency for the managed ledger cache. Default is 100/s")
     private double managedLedgerCacheEvictionFrequency = 100.0;
@@ -1713,6 +1853,25 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int loadBalancerBrokerThresholdShedderPercentage = 10;
 
     @FieldContext(
+        dynamic = true,
+        category = CATEGORY_LOAD_BALANCER,
+        doc = "Message-rate percentage threshold between highest and least loaded brokers for "
+                + "uniform load shedding. (eg: broker1 with 50K msgRate and broker2 with 30K msgRate "
+                + "will have 66% msgRate difference and load balancer can unload bundles from broker-1 "
+                + "to broker-2)"
+    )
+    private double loadBalancerMsgRateDifferenceShedderThreshold = 50;
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_LOAD_BALANCER,
+        doc = "Message-throughput threshold between highest and least loaded brokers for "
+                + "uniform load shedding. (eg: broker1 with 450MB msgRate and broker2 with 100MB msgRate "
+                + "will have 4.5 times msgThroughout difference and load balancer can unload bundles "
+                + "from broker-1 to broker-2)"
+    )
+    private double loadBalancerMsgThroughputMultiplierDifferenceShedderThreshold = 4;
+
+    @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
             doc = "Resource history Usage Percentage When adding new resource usage info"
@@ -1794,6 +1953,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
         doc = "maximum sessions (producers + consumers) in a bundle, otherwise bundle split will be triggered"
+                + "(disable threshold check with value -1)"
     )
     private int loadBalancerNamespaceBundleMaxSessions = 1000;
     @FieldContext(
@@ -1833,14 +1993,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_LOAD_BALANCER,
         doc = "Option to override the auto-detected network interfaces max speed"
     )
-    private Double loadBalancerOverrideBrokerNicSpeedGbps;
+    private Optional<Double> loadBalancerOverrideBrokerNicSpeedGbps = Optional.empty();
+
+    @FieldContext(
+        category = CATEGORY_LOAD_BALANCER,
+        doc = "Time to wait for the unloading of a namespace bundle"
+    )
+    private long namespaceBundleUnloadingTimeoutMs = 60000;
 
     /**** --- Replication --- ****/
     @FieldContext(
         category = CATEGORY_REPLICATION,
         doc = "Enable replication metrics"
     )
-    private boolean replicationMetricsEnabled = false;
+    private boolean replicationMetricsEnabled = true;
     @FieldContext(
         category = CATEGORY_REPLICATION,
         doc = "Max number of connections to open for each broker in a remote cluster.\n\n"
@@ -1907,7 +2073,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "A comma-separated list of namespaces to bootstrap"
     )
     private List<String> bootstrapNamespaces = new ArrayList<String>();
+
+    @ToString.Exclude
+    @JsonIgnore
     private Properties properties = new Properties();
+
     @FieldContext(
         dynamic = true,
         category = CATEGORY_SERVER,
@@ -2055,6 +2225,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     " Default is false."
     )
     private boolean splitTopicAndPartitionLabelInPrometheus = false;
+
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Enable expose the broker bundles metrics."
+    )
+    private boolean exposeBundlesMetricsInPrometheus = false;
 
     /**** --- Functions --- ****/
     @FieldContext(
@@ -2254,7 +2430,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                   + "Examples:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256].\n"
                   + " used by the internal client to authenticate with Pulsar brokers"
     )
-    private Set<String> brokerClientTlsCiphers = Sets.newTreeSet();
+    private Set<String> brokerClientTlsCiphers = new TreeSet<>();
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
             doc = "Specify the tls protocols the broker will use to negotiate during TLS handshake"
@@ -2262,7 +2438,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                   + "Examples:- [TLSv1.3, TLSv1.2] \n"
                   + " used by the internal client to authenticate with Pulsar brokers"
     )
-    private Set<String> brokerClientTlsProtocols = Sets.newTreeSet();
+    private Set<String> brokerClientTlsProtocols = new TreeSet<>();
 
     /* packages management service configurations (begin) */
 
@@ -2303,39 +2479,46 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_PLUGIN,
             doc = "List of broker additional servlet to load, which is a list of broker additional servlet names"
     )
-    private Set<String> additionalServlets = Sets.newTreeSet();
+    private Set<String> additionalServlets = new TreeSet<>();
 
-    /**
-     * @deprecated See {@link #getConfigurationStoreServers}
-     */
-    @Deprecated
-    public String getGlobalZookeeperServers() {
-        if (this.globalZookeeperServers == null || this.globalZookeeperServers.isEmpty()) {
-            // If the configuration is not set, assuming that the globalZK is not enabled and all data is in the same
-            // ZooKeeper cluster
-            return this.getZookeeperServers();
+    public String getMetadataStoreUrl() {
+        if (StringUtils.isNotBlank(metadataStoreUrl)) {
+            return metadataStoreUrl;
+        } else {
+            // Fallback to old setting
+            return zookeeperServers;
         }
-        return globalZookeeperServers;
     }
 
-    /**
-     * @deprecated See {@link #setConfigurationStoreServers(String)}
-     */
-    @Deprecated
-    public void setGlobalZookeeperServers(String globalZookeeperServers) {
-        this.globalZookeeperServers = globalZookeeperServers;
-    }
-
-    public String getConfigurationStoreServers() {
-        if (this.configurationStoreServers == null || this.configurationStoreServers.isEmpty()) {
-            // If the configuration is not set, assuming that all data is in the same as globalZK cluster
-            return this.getGlobalZookeeperServers();
+    public String getConfigurationMetadataStoreUrl() {
+        if (StringUtils.isNotBlank(configurationMetadataStoreUrl)) {
+            return configurationMetadataStoreUrl;
+        } else if (StringUtils.isNotBlank(configurationStoreServers)) {
+            return configurationStoreServers;
+        } else if (StringUtils.isNotBlank(globalZookeeperServers)) {
+            return globalZookeeperServers;
+        } else {
+            // Fallback to local zookeeper
+            return getMetadataStoreUrl();
         }
-        return configurationStoreServers;
     }
 
-    public void setConfigurationStoreServers(String configurationStoreServers) {
-        this.configurationStoreServers = configurationStoreServers;
+    public boolean isConfigurationStoreSeparated() {
+        return !Objects.equals(getConfigurationMetadataStoreUrl(), getMetadataStoreUrl());
+    }
+
+    public boolean isBookkeeperMetadataStoreSeparated() {
+        return StringUtils.isNotBlank(bookkeeperMetadataServiceUri);
+    }
+
+    public String getBookkeeperMetadataStoreUrl() {
+        if (isBookkeeperMetadataStoreSeparated()) {
+            return bookkeeperMetadataServiceUri;
+        } else {
+            // Fallback to same metadata service used by broker, adding the "metadata-store" to specify the BK
+            // metadata adapter
+            return "metadata-store:" + getMetadataStoreUrl();
+        }
     }
 
     public Object getProperty(String key) {
@@ -2350,30 +2533,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @Override
     public void setProperties(Properties properties) {
         this.properties = properties;
-    }
-
-    public Optional<Double> getLoadBalancerOverrideBrokerNicSpeedGbps() {
-        return Optional.ofNullable(loadBalancerOverrideBrokerNicSpeedGbps);
-    }
-
-    public int getBookkeeperHealthCheckIntervalSec() {
-        return (int) bookkeeperClientHealthCheckIntervalSeconds;
-    }
-
-    public Optional<Integer> getBrokerServicePort() {
-        return brokerServicePort;
-    }
-
-    public Optional<Integer> getBrokerServicePortTls() {
-        return brokerServicePortTls;
-    }
-
-    public Optional<Integer> getWebServicePort() {
-        return webServicePort;
-    }
-
-    public Optional<Integer> getWebServicePortTls() {
-        return webServicePortTls;
     }
 
     public boolean isDefaultTopicTypePartitioned() {

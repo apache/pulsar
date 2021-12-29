@@ -126,7 +126,7 @@ void BinaryProtoLookupService::sendPartitionMetadataLookupRequest(const std::str
                                                                   const ClientConnectionWeakPtr& clientCnx,
                                                                   LookupDataResultPromisePtr promise) {
     if (result != ResultOk) {
-        promise->setFailed(ResultConnectError);
+        promise->setFailed(result);
         Future<Result, LookupDataResultPtr> future = promise->getFuture();
         return;
     }

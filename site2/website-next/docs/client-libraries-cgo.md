@@ -1,12 +1,8 @@
 ---
 id: client-libraries-cgo
 title: Pulsar CGo client
-sidebar_label: CGo(deprecated)
+sidebar_label: "CGo(deprecated)"
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 You can use Pulsar Go client to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Go (aka Golang).
 
@@ -579,3 +575,4 @@ fmt.Println(s.Name) // output: pulsar
 defer consumer.Close()
 
 ```
+

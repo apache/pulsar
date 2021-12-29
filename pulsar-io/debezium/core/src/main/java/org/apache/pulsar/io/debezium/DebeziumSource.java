@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.io.debezium;
 
+import io.debezium.relational.HistorizedRelationalDatabaseConnectorConfig;
 import io.debezium.relational.history.DatabaseHistory;
 import java.util.Map;
-
-import io.debezium.relational.HistorizedRelationalDatabaseConnectorConfig;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.io.core.SourceContext;
@@ -61,8 +60,8 @@ public abstract class DebeziumSource extends KafkaConnectSource {
         String tenant = sourceContext.getTenant();
         String namespace = sourceContext.getNamespace();
 
-        return (StringUtils.isEmpty(tenant) ? TopicName.PUBLIC_TENANT : tenant) + "/" +
-            (StringUtils.isEmpty(namespace) ? TopicName.DEFAULT_NAMESPACE : namespace);
+        return (StringUtils.isEmpty(tenant) ? TopicName.PUBLIC_TENANT : tenant) + "/"
+                + (StringUtils.isEmpty(namespace) ? TopicName.DEFAULT_NAMESPACE : namespace);
     }
 
     public abstract void setDbConnectorTask(Map<String, Object> config) throws Exception;

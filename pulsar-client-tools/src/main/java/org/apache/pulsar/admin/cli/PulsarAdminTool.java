@@ -20,6 +20,7 @@ package org.apache.pulsar.admin.cli;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import com.google.common.annotations.VisibleForTesting;
 
 import java.io.FileInputStream;
 import java.lang.reflect.InvocationTargetException;
@@ -31,11 +32,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
+
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public class PulsarAdminTool {
 
@@ -80,14 +83,14 @@ public class PulsarAdminTool {
     boolean help;
 
     // for tls with keystore type config
-    boolean useKeyStoreTls = false;
-    String tlsTrustStoreType = "JKS";
-    String tlsTrustStorePath = null;
-    String tlsTrustStorePassword = null;
+    boolean useKeyStoreTls;
+    String tlsTrustStoreType;
+    String tlsTrustStorePath;
+    String tlsTrustStorePassword;
 
     PulsarAdminTool(Properties properties) throws Exception {
         // fallback to previous-version serviceUrl property to maintain backward-compatibility
-        serviceUrl = StringUtils.isNotBlank(properties.getProperty("webServiceUrl"))
+        serviceUrl = isNotBlank(properties.getProperty("webServiceUrl"))
                 ? properties.getProperty("webServiceUrl")
                 : properties.getProperty("serviceUrl");
         authPluginClassName = properties.getProperty("authPlugin");
@@ -98,7 +101,7 @@ public class PulsarAdminTool {
         boolean tlsEnableHostnameVerification = this.tlsEnableHostnameVerification != null
                 ? this.tlsEnableHostnameVerification
                 : Boolean.parseBoolean(properties.getProperty("tlsEnableHostnameVerification", "false"));
-        final String tlsTrustCertsFilePath = StringUtils.isNotBlank(this.tlsTrustCertsFilePath)
+        final String tlsTrustCertsFilePath = isNotBlank(this.tlsTrustCertsFilePath)
                 ? this.tlsTrustCertsFilePath
                 : properties.getProperty("tlsTrustCertsFilePath");
 
@@ -130,6 +133,7 @@ public class PulsarAdminTool {
         commandMap.put("properties", CmdTenants.CmdProperties.class); // deprecated, doesn't show in usage()
         commandMap.put("namespaces", CmdNamespaces.class);
         commandMap.put("topics", CmdTopics.class);
+        commandMap.put("topicPolicies", CmdTopicPolicies.class);
         commandMap.put("schemas", CmdSchemas.class);
         commandMap.put("bookies", CmdBookies.class);
 
@@ -156,6 +160,7 @@ public class PulsarAdminTool {
         commandMap.put("sink", CmdSinks.class);
 
         commandMap.put("packages", CmdPackages.class);
+        commandMap.put("transactions", CmdTransactions.class);
     }
 
     private static class PulsarAdminSupplier implements Supplier<PulsarAdmin> {
@@ -249,6 +254,11 @@ public class PulsarAdminTool {
             return false;
         }
 
+        if (isBlank(serviceUrl)) {
+            jcommander.usage();
+            return false;
+        }
+
         if (version) {
             System.out.println("Current version of pulsar admin client is: " + PulsarVersion.getVersion());
             return true;
@@ -285,11 +295,12 @@ public class PulsarAdminTool {
 
     public static void main(String[] args) throws Exception {
         lastExitCode = 0;
-        String configFile = null;
-        if (args.length > 0) {
-            configFile = args[0];
-            args = Arrays.copyOfRange(args, 1, args.length);
+        if (args.length == 0) {
+            System.out.println("Usage: pulsar-admin CONF_FILE_PATH [options] [command] [command options]");
+            exit(0);
+            return;
         }
+        String configFile = args[0];
         Properties properties = new Properties();
 
         if (configFile != null) {
@@ -301,6 +312,7 @@ public class PulsarAdminTool {
         PulsarAdminTool tool = new PulsarAdminTool(properties);
 
         int cmdPos;
+        args = Arrays.copyOfRange(args, 1, args.length);
         for (cmdPos = 0; cmdPos < args.length; cmdPos++) {
             if (tool.commandMap.containsKey(args[cmdPos])) {
                 break;
@@ -308,7 +320,7 @@ public class PulsarAdminTool {
         }
 
         ++cmdPos;
-        boolean isLocalRun = cmdPos < args.length && "localrun".equals(args[cmdPos].toLowerCase());
+        boolean isLocalRun = cmdPos < args.length && "localrun".equalsIgnoreCase(args[cmdPos]);
 
         Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory;
         if (isLocalRun) {
@@ -334,7 +346,7 @@ public class PulsarAdminTool {
     }
 
     private static void exit(int code) {
-        lastExitCode = lastExitCode;
+        lastExitCode = code;
         if (allowSystemExit) {
             // we are using halt and not System.exit, we do not mind about shutdown hooks
             // they are only slowing down the tool
@@ -352,5 +364,9 @@ public class PulsarAdminTool {
         return lastExitCode;
     }
 
+    @VisibleForTesting
+    static void resetLastExitCode() {
+        lastExitCode = Integer.MIN_VALUE;
+    }
 
 }
