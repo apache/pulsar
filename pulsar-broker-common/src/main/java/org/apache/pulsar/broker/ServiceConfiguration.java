@@ -2028,7 +2028,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_REPLICATION,
             doc = "Duration to check replication policy to avoid replicator "
-                    + "inconsistency due to missing ZooKeeper watch (disable with value 0)"
+                    + "inconsistency due to missing ZooKeeper watch (disable with value 0)."
+                    + "When dynamically modified, it only takes effect for the newly added replicators"
         )
     private int replicationPolicyCheckDurationSeconds = 600;
     @Deprecated
