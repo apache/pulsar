@@ -126,6 +126,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
@@ -252,7 +253,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private PulsarResources pulsarResources;
 
     private TransactionPendingAckStoreProvider transactionPendingAckStoreProvider;
-    private final ScheduledExecutorService transactionReplayExecutor;
+    private final ExecutorProvider internalExecutorService;
 
     public enum State {
         Init, Started, Closing, Closed
@@ -308,11 +309,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 new DefaultThreadFactory("zk-cache-callback"));
 
         if (config.isTransactionCoordinatorEnabled()) {
-            this.transactionReplayExecutor = Executors.newScheduledThreadPool(
-                    config.getNumTransactionReplayThreadPoolSize(),
-                    new DefaultThreadFactory("transaction-replay"));
+            this.internalExecutorService = new ExecutorProvider(this.getConfiguration().getNumIOThreads(),
+                    "pulsar-executorProvider-internal");
         } else {
-            this.transactionReplayExecutor = null;
+            this.internalExecutorService = null;
         }
 
         this.ioEventLoopGroup = EventLoopUtil.newEventLoopGroup(config.getNumIOThreads(), config.isEnableBusyWait(),
@@ -491,8 +491,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 configurationMetadataStore.close();
             }
 
-            if (transactionReplayExecutor != null) {
-                transactionReplayExecutor.shutdown();
+            if (internalExecutorService != null) {
+                internalExecutorService.shutdownNow();
             }
 
             ioEventLoopGroup.shutdownGracefully();
@@ -1239,8 +1239,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return cacheExecutor;
     }
 
-    public ScheduledExecutorService getTransactionReplayExecutor() {
-        return transactionReplayExecutor;
+    public ExecutorProvider getInternalExecutorService() {
+        return internalExecutorService;
     }
 
     public ScheduledExecutorService getLoadManagerExecutor() {

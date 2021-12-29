@@ -31,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.ScheduledExecutorService;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -136,6 +137,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         internalPinnedExecutor = persistentSubscription
                 .getTopic()
                 .getBrokerService()
+                .getPulsar()
                 .getInternalExecutorService()
                 .getExecutor();
     }
@@ -147,8 +149,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                         pendingAckStoreProvider.newPendingAckStore(persistentSubscription);
                 this.pendingAckStoreFuture.thenAccept(pendingAckStore -> {
                     pendingAckStore.replayAsync(this,
-                            persistentSubscription.getTopic().getBrokerService()
-                                    .getPulsar().getTransactionReplayExecutor());
+                            (ScheduledExecutorService) persistentSubscription.getTopic().getBrokerService()
+                                    .getPulsar().getInternalExecutorService().getExecutor(this));
                 }).exceptionally(e -> {
                     acceptQueue.clear();
                     changeToErrorState();
