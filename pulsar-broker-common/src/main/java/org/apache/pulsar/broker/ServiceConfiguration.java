@@ -2022,14 +2022,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_REPLICATION,
         dynamic = true,
-        doc = "Replicator producer queue size"
+        doc = "Replicator producer queue size. "
+                + "When dynamically modified, it only takes effect for the newly added replicators"
     )
     private int replicationProducerQueueSize = 1000;
     @FieldContext(
             category = CATEGORY_REPLICATION,
             doc = "Duration to check replication policy to avoid replicator "
-                    + "inconsistency due to missing ZooKeeper watch (disable with value 0)."
-                    + "When dynamically modified, it only takes effect for the newly added replicators"
+                    + "inconsistency due to missing ZooKeeper watch (disable with value 0)"
         )
     private int replicationPolicyCheckDurationSeconds = 600;
     @Deprecated
