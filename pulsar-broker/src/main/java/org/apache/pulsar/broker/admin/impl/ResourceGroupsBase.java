@@ -63,10 +63,18 @@ public abstract class ResourceGroupsBase extends AdminResource {
             /*
              * assuming read-modify-write
              */
-            resourceGroup.setPublishRateInMsgs(rgConfig.getPublishRateInMsgs());
-            resourceGroup.setPublishRateInBytes(rgConfig.getPublishRateInBytes());
-            resourceGroup.setDispatchRateInMsgs(rgConfig.getDispatchRateInMsgs());
-            resourceGroup.setDispatchRateInBytes(rgConfig.getDispatchRateInBytes());
+            if (rgConfig.getPublishRateInMsgs() != -1) {
+                resourceGroup.setPublishRateInMsgs(rgConfig.getPublishRateInMsgs());
+            }
+            if (rgConfig.getPublishRateInBytes() != -1) {
+                resourceGroup.setPublishRateInBytes(rgConfig.getPublishRateInBytes());
+            }
+            if (rgConfig.getDispatchRateInMsgs() != -1) {
+                resourceGroup.setDispatchRateInMsgs(rgConfig.getDispatchRateInMsgs());
+            }
+            if (rgConfig.getDispatchRateInBytes() != -1) {
+                resourceGroup.setDispatchRateInBytes(rgConfig.getDispatchRateInBytes());
+            }
 
             // write back the new ResourceGroup config.
             resourceGroupResources().updateResourceGroup(rgName, r -> resourceGroup);

@@ -109,6 +109,60 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
     }
 
     @Test
+    public void testResourceGroupUpdatePart() throws Exception {
+        testAddRg = new ResourceGroup();
+        testAddRg.setPublishRateInBytes(1024 * 1024);
+        createResourceGroup(rgName, testAddRg);
+        ResourceGroup resourceGroup = admin.resourcegroups().getResourceGroup(rgName);
+        assertEquals(resourceGroup.getPublishRateInBytes(), 1024 * 1024);
+        assertEquals(resourceGroup.getPublishRateInMsgs(), -1);
+        assertEquals(resourceGroup.getDispatchRateInBytes(), -1);
+        assertEquals(resourceGroup.getDispatchRateInMsgs(), -1);
+
+        // automatically set publishRateInMsgs to 200000 in updateResourceGroup()
+        testAddRg = new ResourceGroup();
+        updateResourceGroup(rgName, testAddRg);
+        resourceGroup = admin.resourcegroups().getResourceGroup(rgName);
+        assertEquals(resourceGroup.getPublishRateInBytes(), 1024 * 1024);
+        assertEquals(resourceGroup.getPublishRateInMsgs(), 200000);
+        assertEquals(resourceGroup.getDispatchRateInBytes(), -1);
+        assertEquals(resourceGroup.getDispatchRateInMsgs(), -1);
+
+        // manually set dispatchRateInBytes to 2*1024*1024
+        testAddRg = new ResourceGroup();
+        testAddRg.setDispatchRateInBytes(2 * 1024 * 1024);
+        updateResourceGroup(rgName, testAddRg);
+        resourceGroup = admin.resourcegroups().getResourceGroup(rgName);
+        assertEquals(resourceGroup.getPublishRateInBytes(), 1024 * 1024);
+        assertEquals(resourceGroup.getPublishRateInMsgs(), 200000);
+        assertEquals(resourceGroup.getDispatchRateInBytes(), 2 * 1024 * 1024);
+        assertEquals(resourceGroup.getDispatchRateInMsgs(), -1);
+
+        // manually update dispatchRateInBytes to 3*1024*1024
+        testAddRg = new ResourceGroup();
+        testAddRg.setDispatchRateInBytes(3 * 1024 * 1024);
+        updateResourceGroup(rgName, testAddRg);
+        resourceGroup = admin.resourcegroups().getResourceGroup(rgName);
+        assertEquals(resourceGroup.getPublishRateInBytes(), 1024 * 1024);
+        assertEquals(resourceGroup.getPublishRateInMsgs(), 200000);
+        assertEquals(resourceGroup.getDispatchRateInBytes(), 3 * 1024 * 1024);
+        assertEquals(resourceGroup.getDispatchRateInMsgs(), -1);
+
+        // manually update dispatchRateInBytes to 4*1024*1024 and set dispatchRateInMsgs to 400000
+        testAddRg = new ResourceGroup();
+        testAddRg.setDispatchRateInBytes(4 * 1024 * 1024);
+        testAddRg.setDispatchRateInMsgs(400000);
+        updateResourceGroup(rgName, testAddRg);
+        resourceGroup = admin.resourcegroups().getResourceGroup(rgName);
+        assertEquals(resourceGroup.getPublishRateInBytes(), 1024 * 1024);
+        assertEquals(resourceGroup.getPublishRateInMsgs(), 200000);
+        assertEquals(resourceGroup.getDispatchRateInBytes(), 4 * 1024 * 1024);
+        assertEquals(resourceGroup.getDispatchRateInMsgs(), 400000);
+
+        deleteResourceGroup(rgName);
+    }
+
+    @Test
     public void testResourceGroupCreateDeleteCreate() throws Exception {
         createResourceGroup(rgName, testAddRg);
         deleteResourceGroup(rgName);
