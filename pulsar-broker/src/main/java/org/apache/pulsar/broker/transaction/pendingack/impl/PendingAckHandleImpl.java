@@ -162,11 +162,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     private void addIndividualAcknowledgeMessageRequest(TxnID txnID,
                                                         List<MutablePair<PositionImpl, Integer>> positions,
                                                         CompletableFuture<Void> completableFuture) {
-        acceptQueue.add(() -> internalIndividualAcknowledgeMessage(txnID, positions, new CompletableFuture<>())
-                .thenAccept(v -> completableFuture.complete(null)).exceptionally(e -> {
-            completableFuture.completeExceptionally(e);
-            return null;
-        }));
+        acceptQueue.add(() -> internalIndividualAcknowledgeMessage(txnID, positions, completableFuture));
     }
 
     public CompletableFuture<Void> internalIndividualAcknowledgeMessage(TxnID txnID,
@@ -280,7 +276,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                                                                 List<MutablePair<PositionImpl, Integer>> positions,
                                                                 boolean isInCacheRequest) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        internalPinnedExecutor.submit(() -> {
+        internalPinnedExecutor.execute(() -> {
             if (!checkIfReady()) {
                 switch (state) {
                     case Initializing:
@@ -310,11 +306,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     private void addCumulativeAcknowledgeMessageRequest(TxnID txnID,
                                                         List<PositionImpl> positions,
                                                         CompletableFuture<Void> completableFuture) {
-        acceptQueue.add(() -> internalCumulativeAcknowledgeMessage(txnID, positions, new CompletableFuture<>())
-                .thenAccept(v -> completableFuture.complete(null)).exceptionally(e -> {
-            completableFuture.completeExceptionally(e);
-            return null;
-        }));
+        acceptQueue.add(() -> internalCumulativeAcknowledgeMessage(txnID, positions, completableFuture));
     }
 
     public CompletableFuture<Void> internalCumulativeAcknowledgeMessage(TxnID txnID,
@@ -386,7 +378,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                                                                 List<PositionImpl> positions,
                                                                 boolean isInCacheRequest) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        internalPinnedExecutor.submit(() -> {
+        internalPinnedExecutor.execute(() -> {
             if (!checkIfReady()) {
                 switch (state) {
                     case Initializing:
@@ -416,11 +408,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     private void addCommitTxnRequest(TxnID txnId, Map<String, Long> properties, long lowWaterMark,
                                     CompletableFuture<Void> completableFuture) {
-        acceptQueue.add(() -> internalCommitTxn(txnId, properties, lowWaterMark, new CompletableFuture<>())
-                .thenAccept(v -> completableFuture.complete(null)).exceptionally(e -> {
-            completableFuture.completeExceptionally(e);
-            return null;
-        }));
+        acceptQueue.add(() -> internalCommitTxn(txnId, properties, lowWaterMark, completableFuture));
     }
 
     private CompletableFuture<Void> internalCommitTxn(TxnID txnID, Map<String, Long> properties, long lowWaterMark,
@@ -487,7 +475,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     public CompletableFuture<Void> commitTxn(TxnID txnID, Map<String, Long> properties,
                                                           long lowWaterMark, boolean isInCacheRequest) {
         CompletableFuture<Void> commitFuture = new CompletableFuture<>();
-        internalPinnedExecutor.submit(() -> {
+        internalPinnedExecutor.execute(() -> {
             if (!checkIfReady()) {
                 if (state == State.Initializing) {
                     CompletableFuture<Void> completableFuture = new CompletableFuture<>();
@@ -518,11 +506,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     private void addAbortTxnRequest(TxnID txnId, Consumer consumer, long lowWaterMark,
                                     CompletableFuture<Void> completableFuture) {
-        acceptQueue.add(() -> internalAbortTxn(txnId, consumer, lowWaterMark, new CompletableFuture<>())
-                .thenAccept(v -> completableFuture.complete(null)).exceptionally(e -> {
-            completableFuture.completeExceptionally(e);
-            return null;
-        }));
+        acceptQueue.add(() -> internalAbortTxn(txnId, consumer, lowWaterMark, completableFuture));
     }
 
     public CompletableFuture<Void> internalAbortTxn(TxnID txnId, Consumer consumer,
@@ -590,7 +574,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     public CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer,
                                                          long lowWaterMark, boolean isInCacheRequest) {
         CompletableFuture<Void> abortFuture = new CompletableFuture<>();
-        internalPinnedExecutor.submit(() -> {
+        internalPinnedExecutor.execute(() -> {
             if (!checkIfReady()) {
                 if (state == State.Initializing) {
                     addAbortTxnRequest(txnId, consumer, lowWaterMark, abortFuture);

@@ -44,7 +44,7 @@ public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
 
     @Override
     public void replayComplete() {
-        pendingAckHandle.getInternalPinnedExecutor().submit(() -> {
+        pendingAckHandle.getInternalPinnedExecutor().execute(() -> {
             log.info("Topic name : [{}], SubName : [{}] pending ack state reply success!",
                     pendingAckHandle.getTopicName(), pendingAckHandle.getSubName());
 

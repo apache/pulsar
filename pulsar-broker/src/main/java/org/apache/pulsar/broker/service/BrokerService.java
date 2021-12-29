@@ -307,8 +307,12 @@ public class BrokerService implements Closeable {
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-stats-updater"));
         this.authorizationService = new AuthorizationService(
                 pulsar.getConfiguration(), pulsar().getPulsarResources());
-        this.internalExecutorService = new ExecutorProvider(pulsar.getConfiguration().getNumIOThreads(),
-                "pulsar-broker-internal");
+        if (pulsar.getConfiguration().isTransactionCoordinatorEnabled()) {
+            this.internalExecutorService = new ExecutorProvider(pulsar.getConfiguration().getNumIOThreads(),
+                    "pulsar-broker-internal");
+        } else {
+            this.internalExecutorService = null;
+        }
         if (!pulsar.getConfiguration().getEntryFilterNames().isEmpty()) {
             this.entryFilters = EntryFilterProvider.createEntryFilters(pulsar.getConfiguration());
         }
