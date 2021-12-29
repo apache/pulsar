@@ -13,7 +13,7 @@
 * Support displaying stats for tenants and namespaces [PR-243](https://github.com/apache/pulsar-manager/pull/243).
 * Add a configuration file for the backend service of Pulsar manager [PR-236](https://github.com/apache/pulsar-manager/pull/236).
 * Add default configurations for the environment [PR-242](https://github.com/apache/pulsar-manager/pull/242).
-* Fixe an SQL syntax error [PR-298](https://github.com/apache/pulsar-manager/pull/298).
+* Fix an SQL syntax error [PR-298](https://github.com/apache/pulsar-manager/pull/298).
 * Fix the issue that Pulsar Manager fail to process the request sent to the Pulsar proxy [PR-281](https://github.com/apache/pulsar-manager/pull/281).
 * Change the default port and replace the request URI [PR-316](https://github.com/apache/pulsar-manager/pull/316).
 
