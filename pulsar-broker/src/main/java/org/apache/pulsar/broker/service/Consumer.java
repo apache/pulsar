@@ -415,6 +415,8 @@ public class Consumer {
                     long[] cursorAckSet = getCursorAckSet(position);
                     if (cursorAckSet != null) {
                         ackedCount = batchSize - BitSet.valueOf(cursorAckSet).cardinality();
+                    } else {
+                        ackedCount = batchSize;
                     }
                 } else {
                     ackedCount = batchSize;
