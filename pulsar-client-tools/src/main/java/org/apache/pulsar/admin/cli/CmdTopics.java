@@ -274,6 +274,10 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("remove-max-unacked-messages-on-subscription");
             cmdUsageFormatter.addDeprecatedCommand("set-max-unacked-messages-on-subscription");
 
+            cmdUsageFormatter.addDeprecatedCommand("get-publish-rate");
+            cmdUsageFormatter.addDeprecatedCommand("set-publish-rate");
+            cmdUsageFormatter.addDeprecatedCommand("remove-publish-rate");
+
             cmdUsageFormatter.addDeprecatedCommand("get-maxProducers");
             cmdUsageFormatter.addDeprecatedCommand("set-maxProducers");
             cmdUsageFormatter.addDeprecatedCommand("remove-maxProducers");
