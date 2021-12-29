@@ -306,6 +306,10 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("set-deduplication");
             cmdUsageFormatter.addDeprecatedCommand("remove-deduplication");
 
+            cmdUsageFormatter.addDeprecatedCommand("get-max-unacked-messages-on-subscription");
+            cmdUsageFormatter.addDeprecatedCommand("set-max-unacked-messages-on-subscription");
+            cmdUsageFormatter.addDeprecatedCommand("remove-max-unacked-messages-on-subscription");
+
             cmdUsageFormatter.addDeprecatedCommand("set-subscription-types-enabled");
             cmdUsageFormatter.addDeprecatedCommand("get-subscription-types-enabled");
             cmdUsageFormatter.addDeprecatedCommand("remove-subscription-types-enabled");

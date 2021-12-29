@@ -352,6 +352,25 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin3.topicPolicies(true).getInactiveTopicPolicies(persistentTopicName)));
     }
 
+    @Test
+    public void testReplicateMaxUnackedMsgPerSub() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+        init(namespace, topic);
+        // set max unacked msgs per sub
+        admin1.topicPolicies(true).setMaxUnackedMessagesOnSubscription(topic, 100);
+        Awaitility.await().ignoreExceptions().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true).getMaxUnackedMessagesOnSubscription(topic).intValue(), 100));
+        Awaitility.await().ignoreExceptions().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true).getMaxUnackedMessagesOnSubscription(topic).intValue(), 100));
+        // remove max unacked msgs per sub
+        admin1.topicPolicies(true).removeMaxUnackedMessagesOnSubscription(topic);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin2.topicPolicies(true).getMaxUnackedMessagesOnSubscription(topic)));
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin3.topicPolicies(true).getMaxUnackedMessagesOnSubscription(topic)));
+    }
+
     private void init(String namespace, String topic)
             throws PulsarAdminException, PulsarClientException, PulsarServerException {
         final String cluster2 = pulsar2.getConfig().getClusterName();
