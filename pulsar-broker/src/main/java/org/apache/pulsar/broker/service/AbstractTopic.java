@@ -185,7 +185,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         topicPolicies.getMaxSubscriptionsPerTopic().updateNamespaceValue(namespacePolicies.max_subscriptions_per_topic);
         topicPolicies.getMaxProducersPerTopic().updateNamespaceValue(namespacePolicies.max_producers_per_topic);
         topicPolicies.getMaxConsumerPerTopic().updateNamespaceValue(namespacePolicies.max_consumers_per_topic);
-        topicPolicies.getMaxConsumersPerSubscription().updateNamespaceValue(namespacePolicies.max_consumers_per_subscription);
+        topicPolicies.getMaxConsumersPerSubscription()
+                .updateNamespaceValue(namespacePolicies.max_consumers_per_subscription);
         topicPolicies.getInactiveTopicPolicies().updateNamespaceValue(namespacePolicies.inactive_topic_policies);
         topicPolicies.getDeduplicationEnabled().updateNamespaceValue(namespacePolicies.deduplicationEnabled);
         topicPolicies.getSubscriptionTypesEnabled().updateNamespaceValue(
