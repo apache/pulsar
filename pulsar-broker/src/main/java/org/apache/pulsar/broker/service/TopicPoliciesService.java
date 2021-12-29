@@ -78,12 +78,6 @@ public interface TopicPoliciesService {
     TopicPolicies getTopicPolicies(TopicName topicName, boolean isGlobal) throws TopicPoliciesCacheNotInitException;
 
     /**
-     * Remove policies from current cache.
-     * @param topicName topic name
-     */
-    CompletableFuture<Void> removeTopicPoliciesCache(TopicName topicName);
-
-    /**
      * When getting TopicPolicies, if the initialization has not been completed,
      * we will go back off and try again until time out.
      * @param topicName topic name
@@ -164,11 +158,6 @@ public interface TopicPoliciesService {
         public TopicPolicies getTopicPolicies(TopicName topicName, boolean isGlobal)
                 throws TopicPoliciesCacheNotInitException {
             return null;
-        }
-
-        @Override
-        public CompletableFuture<Void> removeTopicPoliciesCache(TopicName topicName) {
-            return CompletableFuture.completedFuture(null);
         }
 
         @Override

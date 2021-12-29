@@ -397,19 +397,4 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
             Assert.assertFalse(admin.namespaces().getNamespaces("system-topic").contains(NAMESPACE4));
         });
     }
-
-    @Test
-    public void testRemoveTopicPoliciesCache() throws Exception {
-        TopicPolicies initPolicy = TopicPolicies.builder()
-                .maxConsumerPerTopic(10)
-                .build();
-        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC7, initPolicy).get();
-        Awaitility.await().untilAsserted(() ->
-                Assert.assertTrue(systemTopicBasedTopicPoliciesService
-                        .getPoliciesCacheInit(TOPIC7.getNamespaceObject())));
-        systemTopicBasedTopicPoliciesService.removeTopicPoliciesCache(TOPIC7);
-        Awaitility.await().untilAsserted(() ->
-                Assert.assertNull(systemTopicBasedTopicPoliciesService
-                        .getPoliciesCacheInit(TOPIC7.getNamespaceObject())));
-    }
 }
