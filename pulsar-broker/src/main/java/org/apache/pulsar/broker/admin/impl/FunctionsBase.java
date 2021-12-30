@@ -166,7 +166,7 @@ public class FunctionsBase extends AdminResource {
                             + "- **cleanupSubscription**\n"
                             + "  Whether the subscriptions of a Pulsar Function created or used should be deleted"
                             + " when the Pulsar Function is deleted.\n"
-                            + "2. Encapsulate the JSON object to a multipart object",
+                            + "2. Encapsulate the JSON object to a multipart object.",
                     examples = @Example(
                             value = @ExampleProperty(
                                     mediaType = MediaType.APPLICATION_JSON,
@@ -186,7 +186,7 @@ public class FunctionsBase extends AdminResource {
                                             + "      'inputs': ['persistent://public/default/pulsar-mysql-jdbc-sink-topic'],\n"
                                             + "      'parallelism': 1,\n"
                                             + "      'sinkType': 'jdbc',\n"
-                                            + "      'archive': \"builtin://jdbc\"\n
+                                            + "      'archive': \"builtin://jdbc\"\n"
                                             + "}\n"
                             )
                     )
