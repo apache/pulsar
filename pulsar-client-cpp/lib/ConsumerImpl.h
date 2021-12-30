@@ -157,7 +157,7 @@ class ConsumerImpl : public ConsumerImplBase,
 
    private:
     bool waitingForZeroQueueSizeMessage;
-    bool uncompressMessageIfNeeded(const ClientConnectionPtr& cnx, const proto::CommandMessage& msg,
+    bool uncompressMessageIfNeeded(const ClientConnectionPtr& cnx, const proto::MessageIdData& messageIdData,
                                    const proto::MessageMetadata& metadata, SharedBuffer& payload);
     void discardCorruptedMessage(const ClientConnectionPtr& cnx, const proto::MessageIdData& messageId,
                                  proto::CommandAck::ValidationError validationError);
@@ -177,7 +177,7 @@ class ConsumerImpl : public ConsumerImplBase,
     void notifyPendingReceivedCallback(Result result, Message& message, const ReceiveCallback& callback);
     void failPendingReceiveCallback();
     void setNegativeAcknowledgeEnabledForTesting(bool enabled) override;
-    void trackMessage(const Message& msg);
+    void trackMessage(const MessageId& messageId);
 
     Optional<MessageId> clearReceiveQueue();
 
@@ -226,6 +226,76 @@ class ConsumerImpl : public ConsumerImplBase,
     const MessageId& lastMessageIdInBroker() {
         return lastMessageInBroker_.is_present() ? lastMessageInBroker_.value() : MessageId::earliest();
     }
+
+    class ChunkedMessageCtx {
+       public:
+        ChunkedMessageCtx() : totalChunks_(0) {}
+        ChunkedMessageCtx(int totalChunks, int totalChunkMessageSize)
+            : totalChunks_(totalChunks), chunkedMsgBuffer_(SharedBuffer::allocate(totalChunkMessageSize)) {
+            chunkedMessageIds_.reserve(totalChunks);
+        }
+
+        ChunkedMessageCtx(const ChunkedMessageCtx&) = delete;
+        ChunkedMessageCtx(ChunkedMessageCtx&& rhs) noexcept = default;
+
+        bool validateChunkId(int chunkId) const noexcept {
+            return (chunkId == lastChunkedId_ + 1) && chunkId >= 0 && chunkId < totalChunks_;
+        }
+
+        void appendChunk(int chunkId, const MessageId& messageId, const SharedBuffer& payload) {
+            lastChunkedId_ = chunkId;
+            chunkedMessageIds_.emplace_back(messageId);
+            chunkedMsgBuffer_.write(payload.data(), payload.readableBytes());
+        }
+
+        bool isCompleted() const noexcept { return lastChunkedId_ + 1 == totalChunks_; }
+
+        const SharedBuffer& getBuffer() const noexcept { return chunkedMsgBuffer_; }
+
+        const std::vector<MessageId>& getChunkedMessageIds() const noexcept { return chunkedMessageIds_; }
+
+        friend std::ostream& operator<<(std::ostream& os, const ChunkedMessageCtx& ctx) {
+            return os << "total chunks: " << ctx.totalChunks_ << ", last chunk id: " << ctx.lastChunkedId_;
+        }
+
+       private:
+        const int totalChunks_;
+        SharedBuffer chunkedMsgBuffer_;
+        std::vector<MessageId> chunkedMessageIds_;
+        int lastChunkedId_{-1};
+    };
+
+    mutable std::mutex chunkProcessMutex_;
+    std::unordered_map<std::string, ChunkedMessageCtx> chunkedMessagesMap_;
+    const size_t maxPendingChunkedMessage_;
+    size_t pendingChunkedMessage_{0};
+    // use list here for removing uuid of expired chunks quickly
+    std::list<std::string> pendingChunkedMessageUuidQueue_;
+
+    // if queue size is reasonable (most of the time equal to number of producers try to publish messages
+    // concurrently on the topic) then it guards against broken chunked message which was not fully published
+    const bool autoAckOldestChunkedMessageOnQueueFull_;
+
+    /**
+     * Process a chunk. If the chunk is the last chunk of a message, concatenate all buffered chunks into the
+     * payload. In this case, `payload` will point to the completed payload. Otherwise, the chunk will be
+     * buffered.
+     *
+     * @param payload the original payload, which could be modified if this method returns true
+     * @param metadata the message metadata
+     * @param messageId
+     * @param messageIdData
+     * @param cnx
+     *
+     * @return true if chunks are concatenated into a completed message payload successfully
+     */
+    bool processMessageChunk(SharedBuffer& payload, const proto::MessageMetadata& metadata,
+                             const MessageId& messageId, const proto::MessageIdData& messageIdData,
+                             const ClientConnectionPtr& cnx);
+
+    void removeOldestPendingChunkedMessage();
+
+    void removeChunkMessage(const std::string& uuid, bool processMessageId);
 
     friend class PulsarFriend;
 

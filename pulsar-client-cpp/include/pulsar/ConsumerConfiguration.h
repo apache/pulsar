@@ -452,6 +452,8 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      * threshold, it drops the outstanding unchunked-messages by silently acking or asking broker to redeliver
      * later by marking it unacked. See setAutoOldestChunkedMessageOnQueueFull.
      *
+     * If it's zero, the pending chunked messages will not be limited.
+     *
      * Default: 100
      *
      * @param maxPendingChunkedMessage the number of max pending chunked messages
