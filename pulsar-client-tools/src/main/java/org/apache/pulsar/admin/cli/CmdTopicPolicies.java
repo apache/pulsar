@@ -30,11 +30,10 @@ import java.util.function.Supplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.TopicPolicies;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
-import org.apache.pulsar.common.policies.data.DispatchRate;
-import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -73,6 +72,10 @@ public class CmdTopicPolicies extends CmdBase {
         jcommander.addCommand("get-max-producers", new GetMaxProducers());
         jcommander.addCommand("set-max-producers", new SetMaxProducers());
         jcommander.addCommand("remove-max-producers", new RemoveMaxProducers());
+
+        jcommander.addCommand("get-max-message-size", new GetMaxMessageSize());
+        jcommander.addCommand("set-max-message-size", new SetMaxMessageSize());
+        jcommander.addCommand("remove-max-message-size", new RemoveMaxMessageSize());
 
         jcommander.addCommand("set-deduplication", new SetDeduplicationStatus());
         jcommander.addCommand("get-deduplication", new GetDeduplicationStatus());
@@ -655,6 +658,55 @@ public class CmdTopicPolicies extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             getTopicPolicies(isGlobal).removeMaxProducers(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Get max message size for a topic")
+    private class GetMaxMessageSize extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--global", "-g"}, description = "Whether to get this policy globally. "
+                + "If set to true, broker returns global topic policies")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(getTopicPolicies(isGlobal).getMaxMessageSize(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Set max message size for a topic")
+    private class SetMaxMessageSize extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--max-message-size", "-m"}, description = "Max message size for a topic", required = true)
+        private int maxMessageSize;
+
+        @Parameter(names = {"--global", "-g"}, description = "Whether to set this policy globally.")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopicPolicies(isGlobal).setMaxMessageSize(persistentTopic, maxMessageSize);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove max message size for a topic")
+    private class RemoveMaxMessageSize extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--global", "-g"}, description = "Whether to remove this policy globally. ")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopicPolicies(isGlobal).removeMaxMessageSize(persistentTopic);
         }
     }
 
