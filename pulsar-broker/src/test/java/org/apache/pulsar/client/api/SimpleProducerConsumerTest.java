@@ -1815,13 +1815,13 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                     messages.add(msg);
                     totalReceiveMessages++;
                     consumer1.acknowledgeAsync(msg);
+                    log.info("Received message: " + new String(msg.getData()));
                 } else {
                     break;
                 }
             }
             // verify total-consumer messages = total-produce messages
-            final int finalTotalReceiveMessages = totalReceiveMessages;
-            Awaitility.await().untilAsserted(() -> assertEquals(totalProducedMsgs, finalTotalReceiveMessages));
+            assertEquals(totalProducedMsgs, totalReceiveMessages);
             producer.close();
             consumer1.close();
             log.info("-- Exiting {} test --", methodName);
@@ -1901,6 +1901,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                     break;
                 }
             }
+
             for (int i = 0; i < totalProducedMsgs; i++) {
                 msg = consumer2.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 if (msg != null) {
@@ -1910,6 +1911,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                     break;
                 }
             }
+
             // verify total-consumer messages = total-produce messages
             assertEquals(totalProducedMsgs, totalReceiveMessages);
             producer.close();

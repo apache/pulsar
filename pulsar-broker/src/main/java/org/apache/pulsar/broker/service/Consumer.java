@@ -236,7 +236,7 @@ public class Consumer {
             writePromise.setSuccess(null);
             return writePromise;
         }
-        int unackedMessage = totalMessages;
+        int unackedMessages = totalMessages;
         // Note
         // Must ensure that the message is written to the pendingAcks before sent is first , because this consumer
         // is possible to disconnect at this time.
@@ -248,7 +248,7 @@ public class Consumer {
                     int stickyKeyHash = getStickyKeyHash(entry);
                     long[] ackSet = getCursorAckSet(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
                     if (ackSet != null) {
-                        unackedMessage -= (batchSize - BitSet.valueOf(ackSet).cardinality());
+                        unackedMessages -= (batchSize - BitSet.valueOf(ackSet).cardinality());
                     }
                     pendingAcks.put(entry.getLedgerId(), entry.getEntryId(), batchSize, stickyKeyHash);
                     if (log.isDebugEnabled()) {
@@ -275,7 +275,7 @@ public class Consumer {
                             + " for consumerId: {}; avgMessagesPerEntry is {}",
                    topicName, subscription, ackedCount, totalMessages, consumerId, tmpAvgMessagesPerEntry);
         }
-        incrementUnackedMessages(unackedMessage);
+        incrementUnackedMessages(unackedMessages);
         msgOut.recordMultipleEvents(totalMessages, totalBytes);
         msgOutCounter.add(totalMessages);
         bytesOutCounter.add(totalBytes);
@@ -556,7 +556,7 @@ public class Consumer {
         Consumer ackOwnerConsumer = this;
         if (Subscription.isIndividualAckMode(subType)) {
             for (Consumer consumer : subscription.getConsumers()) {
-                if (!consumer.equals(this) && consumer.getPendingAcks().containsKey(ledgerId, entryId)) {
+                if (consumer != this && consumer.getPendingAcks().containsKey(ledgerId, entryId)) {
                     ackOwnerConsumer = consumer;
                     break;
                 }
