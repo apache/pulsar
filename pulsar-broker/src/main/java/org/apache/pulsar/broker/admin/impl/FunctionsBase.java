@@ -79,7 +79,9 @@ public class FunctionsBase extends AdminResource {
             final @FormDataParam("data") FormDataContentDisposition fileDetail,
             final @FormDataParam("url") String functionPkgUrl,
             @ApiParam(
-                    value = "A JSON value presenting configuration payload of a Pulsar Function."
+                    value = "You can create a function in Java, Python, and Go. Follow the steps below.\n"
+                            + "1. Create a JSON object using some of the following parameters.\n"
+                            + "A JSON value presenting configuration payload of a Pulsar Function.\n"
                             + " An example of the expected Pulsar Function can be found here.\n"
                             + "- **autoAck**\n"
                             + "  Whether or not the framework acknowledges messages automatically.\n"
@@ -163,7 +165,8 @@ public class FunctionsBase extends AdminResource {
                             + "  SecretProviderConfigurator.getSecretObjectType() method. \n"
                             + "- **cleanupSubscription**\n"
                             + "  Whether the subscriptions of a Pulsar Function created or used should be deleted"
-                            + " when the Pulsar Function is deleted.\n",
+                            + " when the Pulsar Function is deleted.\n"
+                            + "2. Encapsulate the JSON object to a multipart object",
                     examples = @Example(
                             value = @ExampleProperty(
                                     mediaType = MediaType.APPLICATION_JSON,
@@ -174,6 +177,16 @@ public class FunctionsBase extends AdminResource {
                                             + "  \"log-topic\": persistent://public/default/log-topic\n"
                                             + "  \"classname\": org.example.test.ExclamationFunction\n"
                                             + "  \"jar\": java-function-1.0-SNAPSHOT.jar\n"
+                                            + "}\n"
+                    examples = @Example(
+                            value = @ExampleProperty(
+                                    mediaType = MediaType.APPLICATION_JSON,
+                                    value = "{\n"
+                                            + "  config = {\n"
+                                            + "      'inputs': ['persistent://public/default/pulsar-mysql-jdbc-sink-topic'],\n"
+                                            + "      'parallelism': 1,\n"
+                                            + "      'sinkType': 'jdbc',\n"
+                                            + "      'archive': \"builtin://jdbc\"\n
                                             + "}\n"
                             )
                     )
