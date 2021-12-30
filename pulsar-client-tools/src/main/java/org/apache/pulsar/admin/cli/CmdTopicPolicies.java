@@ -34,10 +34,10 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
@@ -78,6 +78,10 @@ public class CmdTopicPolicies extends CmdBase {
         jcommander.addCommand("get-subscription-dispatch-rate", new GetSubscriptionDispatchRate());
         jcommander.addCommand("set-subscription-dispatch-rate", new SetSubscriptionDispatchRate());
         jcommander.addCommand("remove-subscription-dispatch-rate", new RemoveSubscriptionDispatchRate());
+      
+        jcommander.addCommand("get-publish-rate", new GetPublishRate());
+        jcommander.addCommand("set-publish-rate", new SetPublishRate());
+        jcommander.addCommand("remove-publish-rate", new RemovePublishRate());
 
         jcommander.addCommand("get-max-consumers", new GetMaxConsumers());
         jcommander.addCommand("set-max-consumers", new SetMaxConsumers());
@@ -86,6 +90,10 @@ public class CmdTopicPolicies extends CmdBase {
         jcommander.addCommand("get-dispatch-rate", new GetDispatchRate());
         jcommander.addCommand("set-dispatch-rate", new SetDispatchRate());
         jcommander.addCommand("remove-dispatch-rate", new RemoveDispatchRate());
+
+        jcommander.addCommand("get-max-unacked-messages-per-subscription", new GetMaxUnackedMessagesPerSubscription());
+        jcommander.addCommand("set-max-unacked-messages-per-subscription", new SetMaxUnackedMessagesPerSubscription());
+        jcommander.addCommand("remove-max-unacked-messages-per-subscription", new RemoveMaxUnackedMessagesPerSubscription());
 
         jcommander.addCommand("get-inactive-topic-policies",new GetInactiveTopicPolicies());
         jcommander.addCommand("set-inactive-topic-policies",new SetInactiveTopicPolicies());
@@ -397,6 +405,59 @@ public class CmdTopicPolicies extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get max unacked messages policy per subscription for a topic")
+    private class GetMaxUnackedMessagesPerSubscription extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic")
+        private boolean applied = false;
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
+                + "If set to true, the removing operation will be replicate to other clusters asynchronously")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(getTopicPolicies(isGlobal).getMaxUnackedMessagesOnSubscription(persistentTopic, applied));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove max unacked messages policy per subscription for a topic")
+    private class RemoveMaxUnackedMessagesPerSubscription extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to remove this policy globally. "
+                + "If set to true, the removing operation will be replicate to other clusters asynchronously")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopicPolicies(isGlobal).removeMaxUnackedMessagesOnSubscription(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Set max unacked messages policy on subscription for a topic")
+    private class SetMaxUnackedMessagesPerSubscription extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"-m", "--maxNum"}, description = "max unacked messages num on subscription", required = true)
+        private int maxNum;
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
+                + "If set to true, the removing operation will be replicate to other clusters asynchronously")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopicPolicies(isGlobal).setMaxUnackedMessagesOnSubscription(persistentTopic, maxNum);
+        }
+    }
 
     @Parameters(commandDescription = "Get max number of producers for a topic")
     private class GetMaxProducers extends CliCommand {
@@ -603,6 +664,61 @@ public class CmdTopicPolicies extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             getTopicPolicies(isGlobal).removeBacklogQuota(persistentTopic, BacklogQuota.BacklogQuotaType.valueOf(backlogQuotaType));
+        }
+    }
+
+    @Parameters(commandDescription = "Get publish rate for a topic")
+    private class GetPublishRate extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--global", "-g"}, description = "Whether to get this policy globally. "
+                + "If set to true, broker returns global topic policies")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(getTopicPolicies(isGlobal).getPublishRate(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Set publish rate for a topic")
+    private class SetPublishRate extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--msg-publish-rate", "-m"}, description = "message-publish-rate (default -1 will be "
+                + "overwrite if not passed)", required = false)
+        private int msgPublishRate = -1;
+
+        @Parameter(names = {"--byte-publish-rate", "-b"}, description = "byte-publish-rate "
+                + "(default -1 will be overwrite if not passed)", required = false)
+        private long bytePublishRate = -1;
+
+        @Parameter(names = {"--global", "-g"}, description = "Whether to set this policy globally.")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopicPolicies(isGlobal).setPublishRate(persistentTopic,
+                    new PublishRate(msgPublishRate, bytePublishRate));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove publish rate for a topic")
+    private class RemovePublishRate extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--global", "-g"}, description = "Whether to remove this policy globally. ")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopicPolicies(isGlobal).removePublishRate(persistentTopic);
         }
     }
 

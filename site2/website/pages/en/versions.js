@@ -42,7 +42,7 @@ function Versions(props) {
                   </a>
                 </td>
                 <td>
-                  <a href={`${siteConfig.baseUrl}release-notes#${latestStableVersion}`}>
+                  <a href={`${siteConfig.baseUrl}release-notes#${latestStableVersion.replace(/\./g, "")}`}>
                     <translate>
                     Release Notes
                     </translate>
@@ -91,7 +91,7 @@ function Versions(props) {
                         </a>
                       </td>
                       <td>
-                        <a href={`${siteConfig.baseUrl}release-notes#${version}`}>
+                        <a href={`${siteConfig.baseUrl}release-notes#${version.replace(/\./g, "")}`}>
                           <translate>Release Notes</translate>
                         </a>
                       </td>
@@ -110,7 +110,7 @@ function Versions(props) {
                         </a>
                       </td>
                       <td>
-                        <a href={`${siteConfig.baseUrl}release-notes#${version}`}>
+                        <a href={`${siteConfig.baseUrl}release-notes#${version.replace(/\./g, "")}`}>
                           <translate>Release Notes</translate>
                         </a>
                       </td>

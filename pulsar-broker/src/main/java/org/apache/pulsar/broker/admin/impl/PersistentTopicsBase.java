@@ -894,8 +894,9 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
-    protected CompletableFuture<Integer> internalGetMaxUnackedMessagesOnSubscription(boolean applied) {
-        return getTopicPoliciesAsyncWithRetry(topicName)
+    protected CompletableFuture<Integer> internalGetMaxUnackedMessagesOnSubscription(boolean applied,
+                                                                                     boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getMaxUnackedMessagesOnSubscription)
                 .orElseGet(() -> {
                     if (applied) {
@@ -907,16 +908,18 @@ public class PersistentTopicsBase extends AdminResource {
                 }));
     }
 
-    protected CompletableFuture<Void> internalSetMaxUnackedMessagesOnSubscription(Integer maxUnackedNum) {
+    protected CompletableFuture<Void> internalSetMaxUnackedMessagesOnSubscription(Integer maxUnackedNum,
+                                                                                  boolean isGlobal) {
         if (maxUnackedNum != null && maxUnackedNum < 0) {
             throw new RestException(Status.PRECONDITION_FAILED,
                     "maxUnackedNum must be 0 or more");
         }
 
-        return getTopicPoliciesAsyncWithRetry(topicName)
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenCompose(op -> {
                 TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
                 topicPolicies.setMaxUnackedMessagesOnSubscription(maxUnackedNum);
+                topicPolicies.setIsGlobal(isGlobal);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
             });
     }
@@ -4255,19 +4258,20 @@ public class PersistentTopicsBase extends AdminResource {
             });
     }
 
-    protected CompletableFuture<Optional<PublishRate>> internalGetPublishRate() {
-        return getTopicPoliciesAsyncWithRetry(topicName)
+    protected CompletableFuture<Optional<PublishRate>> internalGetPublishRate(boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getPublishRate));
     }
 
-    protected CompletableFuture<Void> internalSetPublishRate(PublishRate publishRate) {
+    protected CompletableFuture<Void> internalSetPublishRate(PublishRate publishRate, boolean isGlobal) {
         if (publishRate == null) {
             return CompletableFuture.completedFuture(null);
         }
-        return getTopicPoliciesAsyncWithRetry(topicName)
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenCompose(op -> {
                 TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
                 topicPolicies.setPublishRate(publishRate);
+                topicPolicies.setIsGlobal(isGlobal);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
             });
     }
@@ -4302,13 +4306,14 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
-    protected CompletableFuture<Void> internalRemovePublishRate() {
-        return getTopicPoliciesAsyncWithRetry(topicName)
+    protected CompletableFuture<Void> internalRemovePublishRate(boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenCompose(op -> {
                 if (!op.isPresent()) {
                     return CompletableFuture.completedFuture(null);
                 }
                 op.get().setPublishRate(null);
+                op.get().setIsGlobal(isGlobal);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
             });
     }
