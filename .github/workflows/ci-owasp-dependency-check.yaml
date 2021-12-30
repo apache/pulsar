@@ -27,6 +27,7 @@ env:
 
 jobs:
   run-owasp-dependency-check:
+    if: ${{ github.repository == 'apache/pulsar' }}
     name: Run OWASP Dependency Check
     runs-on: ubuntu-latest
     timeout-minutes: 45
