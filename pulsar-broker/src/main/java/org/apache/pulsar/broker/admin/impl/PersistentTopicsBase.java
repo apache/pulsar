@@ -3738,6 +3738,9 @@ public class PersistentTopicsBase extends AdminResource {
         } catch (RestException e) {
             throw e;
         } catch (Exception e) {
+            if (e.getCause() == null){
+                throw new RestException(Status.NOT_FOUND, String.format("Topic %s not found", topicName));
+            }
             if (e.getCause() instanceof NotAllowedException) {
                 throw new RestException(Status.CONFLICT, e.getCause());
             }
