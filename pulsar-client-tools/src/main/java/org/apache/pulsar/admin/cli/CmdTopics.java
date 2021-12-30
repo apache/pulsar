@@ -258,6 +258,10 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("set-max-consumers");
             cmdUsageFormatter.addDeprecatedCommand("remove-max-consumers");
 
+            cmdUsageFormatter.addDeprecatedCommand("get-max-unacked-messages-per-consumer");
+            cmdUsageFormatter.addDeprecatedCommand("set-max-unacked-messages-per-consumer");
+            cmdUsageFormatter.addDeprecatedCommand("remove-max-unacked-messages-per-consumer");
+
             cmdUsageFormatter.addDeprecatedCommand("get-message-ttl");
             cmdUsageFormatter.addDeprecatedCommand("set-message-ttl");
             cmdUsageFormatter.addDeprecatedCommand("remove-message-ttl");
@@ -277,6 +281,10 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("get-publish-rate");
             cmdUsageFormatter.addDeprecatedCommand("set-publish-rate");
             cmdUsageFormatter.addDeprecatedCommand("remove-publish-rate");
+
+            cmdUsageFormatter.addDeprecatedCommand("get-subscribe-rate");
+            cmdUsageFormatter.addDeprecatedCommand("set-subscribe-rate");
+            cmdUsageFormatter.addDeprecatedCommand("remove-subscribe-rate");
 
             cmdUsageFormatter.addDeprecatedCommand("get-maxProducers");
             cmdUsageFormatter.addDeprecatedCommand("set-maxProducers");
@@ -318,9 +326,17 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("get-subscription-types-enabled");
             cmdUsageFormatter.addDeprecatedCommand("remove-subscription-types-enabled");
 
+            cmdUsageFormatter.addDeprecatedCommand("get-delayed-delivery");
+            cmdUsageFormatter.addDeprecatedCommand("set-delayed-delivery");
+            cmdUsageFormatter.addDeprecatedCommand("remove-delayed-delivery");
+
             cmdUsageFormatter.addDeprecatedCommand("get-max-producers");
             cmdUsageFormatter.addDeprecatedCommand("set-max-producers");
             cmdUsageFormatter.addDeprecatedCommand("remove-max-producers");
+
+            cmdUsageFormatter.addDeprecatedCommand("get-subscription-dispatch-rate");
+            cmdUsageFormatter.addDeprecatedCommand("set-subscription-dispatch-rate");
+            cmdUsageFormatter.addDeprecatedCommand("remove-subscription-dispatch-rate");
         }
     }
 

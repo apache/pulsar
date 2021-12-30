@@ -182,6 +182,24 @@
           </excludes>
         </configuration>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <dependencies>
+          <dependency>
+            <groupId>com.puppycrawl.tools</groupId>
+            <artifactId>checkstyle</artifactId>
+            <version>8.37</version>
+          </dependency>
+        </dependencies>
+        <configuration>
+          <configLocation>${project.basedir}/src/main/resources/pulsar/checkstyle.xml</configLocation>
+          <suppressionsLocation>${project.basedir}/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
+          <includeTestSourceDirectory>true</includeTestSourceDirectory>
+          <encoding>UTF-8</encoding>
+          <excludes>**/proto/*</excludes>
+        </configuration>
+      </plugin>
     </plugins>
     <extensions>
       <extension>
