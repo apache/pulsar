@@ -85,6 +85,7 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.zookeeper.KeeperException;
+import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
 import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
@@ -423,21 +424,24 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testCreatePartitionedTopic() {
         AsyncResponse response = mock(AsyncResponse.class);
-        final String topicName = "standard-partitioned-topic-a" + UUID.randomUUID().toString();
+        final String topicName = "standard-partitioned-topic-a";
         persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, topicName, 2, true);
-        PartitionedTopicMetadata pMetadata = persistentTopics.getPartitionedMetadata(
-                testTenant, testNamespace, topicName, true, false);
-        Assert.assertNull(pMetadata.properties);
-
-        final String topicName2 = "standard-partitioned-topic-b" + UUID.randomUUID().toString();
+        Awaitility.await().untilAsserted(() -> {
+            PartitionedTopicMetadata pMetadata = persistentTopics.getPartitionedMetadata(
+                    testTenant, testNamespace, topicName, true, false);
+            Assert.assertNull(pMetadata.properties);
+        });
+        final String topicName2 = "standard-partitioned-topic-b";
         Map<String, String> topicMetadata = Maps.newHashMap();
         topicMetadata.put("key1", "value1");
         PartitionedTopicMetadata metadata = new PartitionedTopicMetadata(2, topicMetadata);
         persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, topicName2, true, metadata);
-        PartitionedTopicMetadata pMetadata2 = persistentTopics.getPartitionedMetadata(
-                testTenant, testNamespace, topicName2, true, false);
-        Assert.assertEquals(pMetadata2.properties.size(), 1);
-        Assert.assertEquals(pMetadata2.properties, topicMetadata);
+        Awaitility.await().untilAsserted(() -> {
+            PartitionedTopicMetadata pMetadata2 = persistentTopics.getPartitionedMetadata(
+                    testTenant, testNamespace, topicName2, true, false);
+            Assert.assertEquals(pMetadata2.properties.size(), 1);
+            Assert.assertEquals(pMetadata2.properties, topicMetadata);
+        });
     }
 
     @Test(expectedExceptions = RestException.class)
