@@ -312,7 +312,8 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 </tr>
 <tr id="i22" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalGetDelayedDeliveryPolicies-boolean-">internalGetDelayedDeliveryPolicies</a></span>(boolean&nbsp;applied)</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalGetDelayedDeliveryPolicies-boolean-boolean-">internalGetDelayedDeliveryPolicies</a></span>(boolean&nbsp;applied,
+                                  boolean&nbsp;isGlobal)</code>&nbsp;</td>
 </tr>
 <tr id="i23" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;org.apache.pulsar.common.policies.data.impl.DispatchRateImpl&gt;</code></td>
@@ -371,7 +372,8 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 </tr>
 <tr id="i35" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Integer.html?is-external=true" title="class or interface in java.lang">Integer</a>&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalGetMaxUnackedMessagesOnConsumer-boolean-">internalGetMaxUnackedMessagesOnConsumer</a></span>(boolean&nbsp;applied)</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalGetMaxUnackedMessagesOnConsumer-boolean-boolean-">internalGetMaxUnackedMessagesOnConsumer</a></span>(boolean&nbsp;applied,
+                                       boolean&nbsp;isGlobal)</code>&nbsp;</td>
 </tr>
 <tr id="i36" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Integer.html?is-external=true" title="class or interface in java.lang">Integer</a>&gt;</code></td>
@@ -454,11 +456,13 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 </tr>
 <tr id="i51" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;org.apache.pulsar.common.policies.data.SubscribeRate&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalGetSubscribeRate-boolean-">internalGetSubscribeRate</a></span>(boolean&nbsp;applied)</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalGetSubscribeRate-boolean-boolean-">internalGetSubscribeRate</a></span>(boolean&nbsp;applied,
+                        boolean&nbsp;isGlobal)</code>&nbsp;</td>
 </tr>
 <tr id="i52" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;org.apache.pulsar.common.policies.data.DispatchRate&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalGetSubscriptionDispatchRate-boolean-">internalGetSubscriptionDispatchRate</a></span>(boolean&nbsp;applied)</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalGetSubscriptionDispatchRate-boolean-boolean-">internalGetSubscriptionDispatchRate</a></span>(boolean&nbsp;applied,
+                                   boolean&nbsp;isGlobal)</code>&nbsp;</td>
 </tr>
 <tr id="i53" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
@@ -529,11 +533,11 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 </tr>
 <tr id="i68" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalRemoveSubscribeRate--">internalRemoveSubscribeRate</a></span>()</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalRemoveSubscribeRate-boolean-">internalRemoveSubscribeRate</a></span>(boolean&nbsp;isGlobal)</code>&nbsp;</td>
 </tr>
 <tr id="i69" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalRemoveSubscriptionDispatchRate--">internalRemoveSubscriptionDispatchRate</a></span>()</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalRemoveSubscriptionDispatchRate-boolean-">internalRemoveSubscriptionDispatchRate</a></span>(boolean&nbsp;isGlobal)</code>&nbsp;</td>
 </tr>
 <tr id="i70" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
@@ -580,7 +584,8 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 </tr>
 <tr id="i78" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalSetDelayedDeliveryPolicies-org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies-">internalSetDelayedDeliveryPolicies</a></span>(org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies&nbsp;deliveryPolicies)</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalSetDelayedDeliveryPolicies-org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies-boolean-">internalSetDelayedDeliveryPolicies</a></span>(org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies&nbsp;deliveryPolicies,
+                                  boolean&nbsp;isGlobal)</code>&nbsp;</td>
 </tr>
 <tr id="i79" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
@@ -617,7 +622,8 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 </tr>
 <tr id="i86" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalSetMaxUnackedMessagesOnConsumer-java.lang.Integer-">internalSetMaxUnackedMessagesOnConsumer</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Integer.html?is-external=true" title="class or interface in java.lang">Integer</a>&nbsp;maxUnackedNum)</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalSetMaxUnackedMessagesOnConsumer-java.lang.Integer-boolean-">internalSetMaxUnackedMessagesOnConsumer</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Integer.html?is-external=true" title="class or interface in java.lang">Integer</a>&nbsp;maxUnackedNum,
+                                       boolean&nbsp;isGlobal)</code>&nbsp;</td>
 </tr>
 <tr id="i87" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
@@ -665,11 +671,13 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 </tr>
 <tr id="i96" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalSetSubscribeRate-org.apache.pulsar.common.policies.data.SubscribeRate-">internalSetSubscribeRate</a></span>(org.apache.pulsar.common.policies.data.SubscribeRate&nbsp;subscribeRate)</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalSetSubscribeRate-org.apache.pulsar.common.policies.data.SubscribeRate-boolean-">internalSetSubscribeRate</a></span>(org.apache.pulsar.common.policies.data.SubscribeRate&nbsp;subscribeRate,
+                        boolean&nbsp;isGlobal)</code>&nbsp;</td>
 </tr>
 <tr id="i97" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalSetSubscriptionDispatchRate-org.apache.pulsar.common.policies.data.impl.DispatchRateImpl-">internalSetSubscriptionDispatchRate</a></span>(org.apache.pulsar.common.policies.data.impl.DispatchRateImpl&nbsp;dispatchRate)</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalSetSubscriptionDispatchRate-org.apache.pulsar.common.policies.data.impl.DispatchRateImpl-boolean-">internalSetSubscriptionDispatchRate</a></span>(org.apache.pulsar.common.policies.data.impl.DispatchRateImpl&nbsp;dispatchRate,
+                                   boolean&nbsp;isGlobal)</code>&nbsp;</td>
 </tr>
 <tr id="i98" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
@@ -935,13 +943,14 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 <pre>protected&nbsp;void&nbsp;internalCreateMissedPartitions(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse)</pre>
 </li>
 </ul>
-<a name="internalSetDelayedDeliveryPolicies-org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies-">
+<a name="internalSetDelayedDeliveryPolicies-org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalSetDelayedDeliveryPolicies</h4>
-<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalSetDelayedDeliveryPolicies(org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies&nbsp;deliveryPolicies)</pre>
+<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalSetDelayedDeliveryPolicies(org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies&nbsp;deliveryPolicies,
+                                                                     boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
 <a name="internalGetPartitionedMetadata-boolean-boolean-">
@@ -976,13 +985,14 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
                                    boolean&nbsp;authoritative)</pre>
 </li>
 </ul>
-<a name="internalGetDelayedDeliveryPolicies-boolean-">
+<a name="internalGetDelayedDeliveryPolicies-boolean-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalGetDelayedDeliveryPolicies</h4>
-<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies&gt;&nbsp;internalGetDelayedDeliveryPolicies(boolean&nbsp;applied)</pre>
+<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies&gt;&nbsp;internalGetDelayedDeliveryPolicies(boolean&nbsp;applied,
+                                                                                                                               boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
 <a name="internalGetOffloadPolicies-boolean-">
@@ -1043,22 +1053,24 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
                                                                               boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
-<a name="internalGetMaxUnackedMessagesOnConsumer-boolean-">
+<a name="internalGetMaxUnackedMessagesOnConsumer-boolean-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalGetMaxUnackedMessagesOnConsumer</h4>
-<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Integer.html?is-external=true" title="class or interface in java.lang">Integer</a>&gt;&nbsp;internalGetMaxUnackedMessagesOnConsumer(boolean&nbsp;applied)</pre>
+<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Integer.html?is-external=true" title="class or interface in java.lang">Integer</a>&gt;&nbsp;internalGetMaxUnackedMessagesOnConsumer(boolean&nbsp;applied,
+                                                                             boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
-<a name="internalSetMaxUnackedMessagesOnConsumer-java.lang.Integer-">
+<a name="internalSetMaxUnackedMessagesOnConsumer-java.lang.Integer-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalSetMaxUnackedMessagesOnConsumer</h4>
-<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalSetMaxUnackedMessagesOnConsumer(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Integer.html?is-external=true" title="class or interface in java.lang">Integer</a>&nbsp;maxUnackedNum)</pre>
+<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalSetMaxUnackedMessagesOnConsumer(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Integer.html?is-external=true" title="class or interface in java.lang">Integer</a>&nbsp;maxUnackedNum,
+                                                                          boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
 <a name="internalSetDeduplicationSnapshotInterval-java.lang.Integer-">
@@ -1739,31 +1751,33 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 <pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalRemoveDispatchRate(boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
-<a name="internalGetSubscriptionDispatchRate-boolean-">
+<a name="internalGetSubscriptionDispatchRate-boolean-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalGetSubscriptionDispatchRate</h4>
-<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;org.apache.pulsar.common.policies.data.DispatchRate&gt;&nbsp;internalGetSubscriptionDispatchRate(boolean&nbsp;applied)</pre>
+<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;org.apache.pulsar.common.policies.data.DispatchRate&gt;&nbsp;internalGetSubscriptionDispatchRate(boolean&nbsp;applied,
+                                                                                                                     boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
-<a name="internalSetSubscriptionDispatchRate-org.apache.pulsar.common.policies.data.impl.DispatchRateImpl-">
+<a name="internalSetSubscriptionDispatchRate-org.apache.pulsar.common.policies.data.impl.DispatchRateImpl-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalSetSubscriptionDispatchRate</h4>
-<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalSetSubscriptionDispatchRate(org.apache.pulsar.common.policies.data.impl.DispatchRateImpl&nbsp;dispatchRate)</pre>
+<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalSetSubscriptionDispatchRate(org.apache.pulsar.common.policies.data.impl.DispatchRateImpl&nbsp;dispatchRate,
+                                                                      boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
-<a name="internalRemoveSubscriptionDispatchRate--">
+<a name="internalRemoveSubscriptionDispatchRate-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalRemoveSubscriptionDispatchRate</h4>
-<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalRemoveSubscriptionDispatchRate()</pre>
+<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalRemoveSubscriptionDispatchRate(boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
 <a name="internalGetMaxConsumersPerSubscription-boolean-">
@@ -1877,31 +1891,33 @@ extends <a href="../../../../../../org/apache/pulsar/broker/admin/AdminResource.
 <pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalRemovePublishRate(boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
-<a name="internalGetSubscribeRate-boolean-">
+<a name="internalGetSubscribeRate-boolean-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalGetSubscribeRate</h4>
-<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;org.apache.pulsar.common.policies.data.SubscribeRate&gt;&nbsp;internalGetSubscribeRate(boolean&nbsp;applied)</pre>
+<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;org.apache.pulsar.common.policies.data.SubscribeRate&gt;&nbsp;internalGetSubscribeRate(boolean&nbsp;applied,
+                                                                                                           boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
-<a name="internalSetSubscribeRate-org.apache.pulsar.common.policies.data.SubscribeRate-">
+<a name="internalSetSubscribeRate-org.apache.pulsar.common.policies.data.SubscribeRate-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalSetSubscribeRate</h4>
-<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalSetSubscribeRate(org.apache.pulsar.common.policies.data.SubscribeRate&nbsp;subscribeRate)</pre>
+<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalSetSubscribeRate(org.apache.pulsar.common.policies.data.SubscribeRate&nbsp;subscribeRate,
+                                                           boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
-<a name="internalRemoveSubscribeRate--">
+<a name="internalRemoveSubscribeRate-boolean-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalRemoveSubscribeRate</h4>
-<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalRemoveSubscribeRate()</pre>
+<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;internalRemoveSubscribeRate(boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
 <a name="internalHandleResult-javax.ws.rs.container.AsyncResponse-java.lang.Object-java.lang.Throwable-java.lang.String-">
