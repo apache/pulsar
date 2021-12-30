@@ -31,6 +31,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.TopicPolicies;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -96,6 +97,10 @@ public class CmdTopicPolicies extends CmdBase {
         jcommander.addCommand("get-max-consumers", new GetMaxConsumers());
         jcommander.addCommand("set-max-consumers", new SetMaxConsumers());
         jcommander.addCommand("remove-max-consumers", new RemoveMaxConsumers());
+
+        jcommander.addCommand("get-delayed-delivery", new GetDelayedDelivery());
+        jcommander.addCommand("set-delayed-delivery", new SetDelayedDelivery());
+        jcommander.addCommand("remove-delayed-delivery", new RemoveDelayedDelivery());
 
         jcommander.addCommand("get-dispatch-rate", new GetDispatchRate());
         jcommander.addCommand("set-dispatch-rate", new SetDispatchRate());
@@ -558,6 +563,82 @@ public class CmdTopicPolicies extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             getTopicPolicies(isGlobal).setMaxProducers(persistentTopic, maxProducers);
+        }
+    }
+
+    @Parameters(commandDescription = "Get the delayed delivery policy for a topic")
+    private class GetDelayedDelivery extends CliCommand {
+        @Parameter(description = "tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic")
+        private boolean applied = false;
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
+                + "If set to true, the policy will be replicate to other clusters asynchronously")
+        private boolean isGlobal;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String topicName = validateTopicName(params);
+            print(getTopicPolicies(isGlobal).getDelayedDeliveryPolicy(topicName, applied));
+        }
+    }
+
+    @Parameters(commandDescription = "Set the delayed delivery policy on a topic")
+    private class SetDelayedDelivery extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--enable", "-e" }, description = "Enable delayed delivery messages")
+        private boolean enable = false;
+
+        @Parameter(names = { "--disable", "-d" }, description = "Disable delayed delivery messages")
+        private boolean disable = false;
+
+        @Parameter(names = { "--time", "-t" }, description = "The tick time for when retrying on delayed delivery messages, " +
+                "affecting the accuracy of the delivery time compared to the scheduled time. (eg: 1s, 10s, 1m, 5h, 3d)")
+        private String delayedDeliveryTimeStr = "1s";
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
+                + "If set to true, the policy will be replicate to other clusters asynchronously")
+        private boolean isGlobal;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String topicName = validateTopicName(params);
+            long delayedDeliveryTimeInMills;
+            try {
+                delayedDeliveryTimeInMills = TimeUnit.SECONDS.toMillis(
+                        RelativeTimeUtil.parseRelativeTimeInSeconds(delayedDeliveryTimeStr));
+            } catch (IllegalArgumentException exception) {
+                throw new ParameterException(exception.getMessage());
+            }
+
+            if (enable == disable) {
+                throw new ParameterException("Need to specify either --enable or --disable");
+            }
+
+            getTopicPolicies(isGlobal).setDelayedDeliveryPolicy(topicName, DelayedDeliveryPolicies.builder()
+                    .tickTime(delayedDeliveryTimeInMills)
+                    .active(enable)
+                    .build());
+        }
+    }
+
+    @Parameters(commandDescription = "Remove the delayed delivery policy on a topic")
+    private class RemoveDelayedDelivery extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to remove this policy globally. "
+                + "If set to true, the policy will be replicate to other clusters asynchronously")
+        private boolean isGlobal;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String topicName = validateTopicName(params);
+            getTopicPolicies(isGlobal).removeDelayedDeliveryPolicy(topicName);
         }
     }
 
