@@ -169,6 +169,25 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         untilRemoteClustersAsserted(admin -> assertNull(admin.topicPolicies(true).getPublishRate(topic)));
     }
 
+    @Test
+    public void testReplicateDeduplicationSnapshotIntervalPolicies() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+        init(namespace, topic);
+        // set global topic policy
+        admin1.topicPolicies(true).setDeduplicationSnapshotInterval(topic, 100);
+
+        // get global topic policy
+        untilRemoteClustersAsserted(
+                admin -> assertEquals(admin.topicPolicies(true).getDeduplicationSnapshotInterval(topic),
+                        Integer.valueOf(100)));
+
+        // remove global topic policy
+        admin1.topicPolicies(true).removeDeduplicationSnapshotInterval(topic);
+        untilRemoteClustersAsserted(
+                admin -> assertNull(admin.topicPolicies(true).getDeduplicationSnapshotInterval(topic)));
+    }
+
     private void untilRemoteClustersAsserted(ThrowingConsumer<PulsarAdmin> condition) {
         Awaitility.await().untilAsserted(() -> condition.apply(admin2));
         Awaitility.await().untilAsserted(() -> condition.apply(admin3));

@@ -955,14 +955,15 @@ public class PersistentTopicsBase extends AdminResource {
             });
     }
 
-    protected CompletableFuture<Void> internalSetDeduplicationSnapshotInterval(Integer interval) {
+    protected CompletableFuture<Void> internalSetDeduplicationSnapshotInterval(Integer interval,boolean isGlobal) {
         if (interval != null && interval < 0) {
             throw new RestException(Status.PRECONDITION_FAILED, "interval must be 0 or more");
         }
-        return getTopicPoliciesAsyncWithRetry(topicName)
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenCompose(op -> {
                 TopicPolicies policies = op.orElseGet(TopicPolicies::new);
                 policies.setDeduplicationSnapshotIntervalSeconds(interval);
+                policies.setIsGlobal(isGlobal);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, policies);
             });
     }
