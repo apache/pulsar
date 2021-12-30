@@ -5,10 +5,6 @@ sidebar_label: "Kinesis source connector"
 original_id: io-kinesis-source
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The Kinesis source connector pulls data from Amazon Kinesis and persists data into Pulsar.
 
 This connector uses the [Kinesis Consumer Library](https://github.com/awslabs/amazon-kinesis-client) (KCL) to do the actual consuming of messages. The KCL uses DynamoDB to track state for consumers.

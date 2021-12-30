@@ -61,6 +61,9 @@ message MessageIdData {
     optional int32 batch_index = 4 [default = -1];
     repeated int64 ack_set = 5;
     optional int32 batch_size = 6;
+
+    // For the chunk message id, we need to specify the first chunk message id.
+    optional MessageIdData first_chunk_message_id = 7;
 }
 
 message KeyValue {
@@ -382,6 +385,8 @@ message CommandSubscribe {
     optional uint64 start_message_rollback_duration_sec = 16 [default = 0];
 
     optional KeySharedMeta keySharedMeta = 17;
+
+    repeated KeyValue subscription_properties = 18;
 }
 
 message CommandPartitionedTopicMetadata {

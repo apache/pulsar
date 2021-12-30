@@ -20,7 +20,6 @@ package org.apache.pulsar.io.file;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
@@ -31,7 +30,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
-
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
@@ -64,7 +62,7 @@ public class FileSourceConfig implements Serializable {
     /**
      * Only files whose names match the given regular expression will be picked up.
      */
-    private String fileFilter = "[^\\.].*";
+    private String fileFilter = "[^.].*";
 
     /**
      * When 'recurse' property is true, then only sub-directories whose

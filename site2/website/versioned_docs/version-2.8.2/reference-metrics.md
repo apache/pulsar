@@ -32,22 +32,7 @@ The following types of metrics are available:
 
 The ZooKeeper metrics are exposed under "/metrics" at port `8000`. You can use a different port by configuring the `metricsProvider.httpPort` in conf/zookeeper.conf.
 
-### Server metrics
-
-| Name | Type | Description |
-|---|---|---|
-| zookeeper_server_znode_count | Gauge | The number of z-nodes stored. |
-| zookeeper_server_data_size_bytes | Gauge | The total size of all of z-nodes stored. |
-| zookeeper_server_connections | Gauge | The number of currently opened connections. |
-| zookeeper_server_watches_count | Gauge | The number of watchers registered. |
-| zookeeper_server_ephemerals_count | Gauge | The number of ephemeral z-nodes. |
-
-### Request metrics
-
-| Name | Type | Description |
-|---|---|---|
-| zookeeper_server_requests | Counter | The total number of requests received by a particular server. |
-| zookeeper_server_requests_latency_ms | Summary | The requests latency calculated in milliseconds. <br> Available labels: *type* (write, read). <br> <ul><li>*write*: the requests that write data to ZooKeeper.</li><li>*read*: the requests that read data from ZooKeeper.</li></ul>|
+ZooKeeper provides a New Metrics System since 3.6.0, more detailed metrics can refer [ZooKeeper Monitor Guide](https://zookeeper.apache.org/doc/r3.7.0/zookeeperMonitor.html).
 
 ## BookKeeper
 

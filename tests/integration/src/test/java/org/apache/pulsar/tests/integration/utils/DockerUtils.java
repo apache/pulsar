@@ -267,7 +267,7 @@ public class DockerUtils {
                         LOG.info("DOCKER.exec({}:{}): Done", containerName, cmdString);
 
                         InspectExecResponse resp = waitForExecCmdToFinish(dockerClient, execId);
-                        int retCode = resp.getExitCode();
+                        long retCode = resp.getExitCodeLong();
                         ContainerExecResult result = ContainerExecResult.of(
                                 retCode,
                                 stdout.toString(),
@@ -342,7 +342,7 @@ public class DockerUtils {
         future.join();
 
         InspectExecResponse resp = waitForExecCmdToFinish(dockerClient, execId);
-        int retCode = resp.getExitCode();
+        long retCode = resp.getExitCodeLong();
 
         ContainerExecResultBytes result = ContainerExecResultBytes.of(
                 retCode,
@@ -356,9 +356,9 @@ public class DockerUtils {
         return result;
     }
 
-    public static CompletableFuture<Integer> runCommandAsyncWithLogging(DockerClient dockerClient,
+    public static CompletableFuture<Long> runCommandAsyncWithLogging(DockerClient dockerClient,
                                                                         String containerId, String... cmd) {
-        CompletableFuture<Integer> future = new CompletableFuture<>();
+        CompletableFuture<Long> future = new CompletableFuture<>();
         String execId = dockerClient.execCreateCmd(containerId)
                 .withCmd(cmd)
                 .withAttachStderr(true)
@@ -392,7 +392,7 @@ public class DockerUtils {
                     public void onComplete() {
                         LOG.info("DOCKER.exec({}:{}): Done", containerName, cmdString);
                         InspectExecResponse resp = waitForExecCmdToFinish(dockerClient, execId);
-                        int retCode = resp.getExitCode();
+                        long retCode = resp.getExitCodeLong();
                         LOG.info("DOCKER.exec({}:{}): completed with {}", containerName, cmdString, retCode);
                         future.complete(retCode);
                     }

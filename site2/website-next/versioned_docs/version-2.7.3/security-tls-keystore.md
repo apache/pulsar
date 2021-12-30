@@ -5,10 +5,6 @@ sidebar_label: "Using TLS with KeyStore configure"
 original_id: security-tls-keystore
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 ## Overview
 
 Apache Pulsar supports [TLS encryption](security-tls-transport.md) and [TLS authentication](security-tls-authentication) between clients and Apache Pulsar service. 

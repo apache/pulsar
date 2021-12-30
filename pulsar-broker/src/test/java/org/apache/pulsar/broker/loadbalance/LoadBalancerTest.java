@@ -662,6 +662,11 @@ public class LoadBalancerTest {
                 isAutoUnooadSplitBundleEnabled, null);
         verify(namespaceAdmin, never()).splitNamespaceBundle("pulsar/use/primary-ns-10", "0x00000000_0x02000000",
                 isAutoUnooadSplitBundleEnabled, null);
+        // disable max session
+        bundleStats.put("pulsar/use/primary-ns-03/0x00000000_0x80000000",
+                newBundleStats(2, -1, 0, 0, 0, 0, 0));
+        verify(namespaceAdmin, times(0)).splitNamespaceBundle("pulsar/use/primary-ns-12", "0x00000000_0x80000000",
+                isAutoUnooadSplitBundleEnabled, null);
     }
 
     /*

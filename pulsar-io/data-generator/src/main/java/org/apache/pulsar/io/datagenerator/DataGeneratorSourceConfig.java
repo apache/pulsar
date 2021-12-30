@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.io.datagenerator;
 
-import static org.apache.pulsar.config.validation.ConfigValidationAnnotations.PositiveNumber;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.Data;
-import org.apache.pulsar.io.core.annotations.FieldDoc;
-
 import java.io.Serializable;
 import java.util.Map;
+import lombok.Data;
+import org.apache.pulsar.config.validation.ConfigValidationAnnotations.PositiveNumber;
+import org.apache.pulsar.io.core.annotations.FieldDoc;
+
 
 @Data
 public class DataGeneratorSourceConfig implements Serializable {

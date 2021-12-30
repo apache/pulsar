@@ -18,20 +18,18 @@
  */
 package org.apache.pulsar.io.flume.node;
 
+import com.google.common.base.Preconditions;
+import com.google.common.eventbus.EventBus;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.File;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.flume.CounterGroup;
 import org.apache.flume.lifecycle.LifecycleAware;
 import org.apache.flume.lifecycle.LifecycleState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Preconditions;
-import com.google.common.eventbus.EventBus;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 public class PollingPropertiesFileConfigurationProvider
         extends PropertiesFileConfigurationProvider
@@ -148,8 +146,8 @@ public class PollingPropertiesFileConfigurationProvider
                     LOGGER.error("Failed to load configuration data. Exception follows.",
                             e);
                 } catch (NoClassDefFoundError e) {
-                    LOGGER.error("Failed to start agent because dependencies were not " +
-                            "found in classpath. Error follows.", e);
+                    LOGGER.error("Failed to start agent because dependencies were not "
+                            + "found in classpath. Error follows.", e);
                 } catch (Throwable t) {
                     // caught because the caller does not handle or log Throwables
                     LOGGER.error("Unhandled error", t);

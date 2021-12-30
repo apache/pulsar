@@ -4,10 +4,6 @@ title: Non-persistent messaging
 sidebar_label: "Non-persistent messaging"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 **Non-persistent topics** are Pulsar topics in which message data is *never* [persistently stored](concepts-architecture-overview.md#persistent-storage) and kept only in memory. This cookbook provides:
 
 * A basic [conceptual overview](#overview) of non-persistent topics

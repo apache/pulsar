@@ -641,7 +641,7 @@ public class TopicsBase extends PersistentTopicsBase {
                 }
             }
             if (null != message.getEventTime() && !message.getEventTime().isEmpty()) {
-                messageMetadata.setEventTime(Long.valueOf(message.getEventTime()));
+                messageMetadata.setEventTime(Long.parseLong(message.getEventTime()));
             }
             if (message.isDisableReplication()) {
                 messageMetadata.clearReplicateTo();

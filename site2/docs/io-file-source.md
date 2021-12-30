@@ -35,18 +35,20 @@ Before using the File source connector, you need to create a configuration file 
 
     ```json
     {
-        "inputDirectory": "/Users/david",
-        "recurse": true,
-        "keepFile": true,
-        "fileFilter": "[^\\.].*",
-        "pathFilter": "*",
-        "minimumFileAge": 0,
-        "maximumFileAge": 9999999999,
-        "minimumSize": 1,
-        "maximumSize": 5000000,
-        "ignoreHiddenFiles": true,
-        "pollingInterval": 5000,
-        "numWorkers": 1
+       "configs": {
+          "inputDirectory": "/Users/david",
+          "recurse": true,
+          "keepFile": true,
+          "fileFilter": "[^\\.].*",
+          "pathFilter": "*",
+          "minimumFileAge": 0,
+          "maximumFileAge": 9999999999,
+          "minimumSize": 1,
+          "maximumSize": 5000000,
+          "ignoreHiddenFiles": true,
+          "pollingInterval": 5000,
+          "numWorkers": 1
+       }
     }
     ```
 
@@ -103,25 +105,32 @@ Here is an example of using the File source connecter.
     $ curl -O https://mirrors.tuna.tsinghua.edu.cn/apache/pulsar/pulsar-{version}/connectors/pulsar-io-file-{version}.nar
     ```
 
-6. Start the File source connector.
+6. Copy it to the `connectors` folder, then restart the container.
+
+    ```bash
+    $ docker cp pulsar-io-file-{version}.nar pulsar-standalone:/pulsar/connectors/  
+    $ docker restart pulsar-standalone
+    ```
+
+7. Start the File source connector.
 
     ```bash
     $ docker exec -it pulsar-standalone /bin/bash
 
     $ ./bin/pulsar-admin sources localrun \
-    --archive /pulsar/pulsar-io-file-{version}.nar \
+    --archive /pulsar/connectors/pulsar-io-file-{version}.nar \
     --name file-test \
     --destination-topic-name  pulsar-file-test \
     --source-config-file /pulsar/file-connector.yaml
     ```
 
-7. Start a consumer.
+8. Start a consumer.
 
     ```bash
     ./bin/pulsar-client consume -s file-test -n 0 pulsar-file-test
     ```
 
-8. Write the message to the file _test.txt_.
+9. Write the message to the file _test.txt_.
    
     ```bash
     echo "hello world!" > /opt/test.txt

@@ -19,18 +19,43 @@
 
 package org.apache.pulsar.common.policies.data;
 
+import com.google.common.collect.ImmutableMap;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Map;
 import lombok.Getter;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 
 /**
  * Topic policy hierarchy value container
  */
 @Getter
 public class HierarchyTopicPolicies {
+    final PolicyHierarchyValue<List<String>> replicationClusters;
+    final PolicyHierarchyValue<Boolean> deduplicationEnabled;
     final PolicyHierarchyValue<InactiveTopicPolicies> inactiveTopicPolicies;
+    final PolicyHierarchyValue<EnumSet<SubType>> subscriptionTypesEnabled;
     final PolicyHierarchyValue<Integer> maxSubscriptionsPerTopic;
+    final PolicyHierarchyValue<Integer> maxProducersPerTopic;
+    final Map<BacklogQuotaType, PolicyHierarchyValue<BacklogQuota>> backLogQuotaMap;
+    final PolicyHierarchyValue<Integer> topicMaxMessageSize;
+    final PolicyHierarchyValue<Integer> messageTTLInSeconds;
+    final PolicyHierarchyValue<Integer> maxConsumerPerTopic;
 
     public HierarchyTopicPolicies() {
+        replicationClusters = new PolicyHierarchyValue<>();
+        deduplicationEnabled = new PolicyHierarchyValue<>();
         inactiveTopicPolicies = new PolicyHierarchyValue<>();
+        subscriptionTypesEnabled = new PolicyHierarchyValue<>();
         maxSubscriptionsPerTopic = new PolicyHierarchyValue<>();
+        maxProducersPerTopic = new PolicyHierarchyValue<>();
+        maxConsumerPerTopic = new PolicyHierarchyValue<>();
+        backLogQuotaMap = new ImmutableMap.Builder<BacklogQuotaType, PolicyHierarchyValue<BacklogQuota>>()
+                .put(BacklogQuotaType.destination_storage, new PolicyHierarchyValue<>())
+                .put(BacklogQuotaType.message_age, new PolicyHierarchyValue<>())
+                .build();
+        topicMaxMessageSize = new PolicyHierarchyValue<>();
+        messageTTLInSeconds = new PolicyHierarchyValue<>();
     }
 }

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.stats;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.netty.buffer.PoolArenaMetric;
@@ -96,7 +97,7 @@ public class JvmMetrics {
     public JvmMetrics(ScheduledExecutorService executor, String componentName, JvmGCMetricsLogger gcLogger) {
         this.gcLogger = gcLogger;
         if (executor != null) {
-            executor.scheduleAtFixedRate(gcLogger::refresh, 0, 1, TimeUnit.MINUTES);
+            executor.scheduleAtFixedRate(catchingAndLoggingThrowables(gcLogger::refresh), 0, 1, TimeUnit.MINUTES);
         }
         this.componentName = componentName;
     }
@@ -120,7 +121,7 @@ public class JvmMetrics {
         long totalAllocated = 0;
         long totalUsed = 0;
 
-        for (PoolArenaMetric arena : PooledByteBufAllocator.DEFAULT.directArenas()) {
+        for (PoolArenaMetric arena : PooledByteBufAllocator.DEFAULT.metric().directArenas()) {
             this.gcLogger.logMetrics(m);
             for (PoolChunkListMetric list : arena.chunkLists()) {
                 for (PoolChunkMetric chunk : list) {

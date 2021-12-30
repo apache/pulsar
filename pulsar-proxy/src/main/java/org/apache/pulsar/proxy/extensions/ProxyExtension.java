@@ -20,13 +20,12 @@ package org.apache.pulsar.proxy.extensions;
 
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
+import java.net.InetSocketAddress;
+import java.util.Map;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.proxy.server.ProxyConfiguration;
 import org.apache.pulsar.proxy.server.ProxyService;
-
-import java.net.InetSocketAddress;
-import java.util.Map;
 
 /**
  * The extension interface for support additional extensions on Pulsar Proxy.

@@ -5,10 +5,6 @@ sidebar_label: "HDFS2 sink connector"
 original_id: io-hdfs2-sink
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The HDFS2 sink connector pulls the messages from Pulsar topics 
 and persists the messages to HDFS files.
 

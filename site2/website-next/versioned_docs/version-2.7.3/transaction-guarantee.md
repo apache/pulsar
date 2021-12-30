@@ -5,10 +5,6 @@ sidebar_label: "Transactions Guarantee"
 original_id: transactions-guarantee
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 Pulsar transactions support the following guarantee.
 
 ## Atomic multi-partition writes and multi-subscription acknowledges

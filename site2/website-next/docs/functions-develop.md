@@ -22,16 +22,7 @@ The language-native function, which adds an exclamation point to all incoming st
 
 <Tabs 
   defaultValue="Java"
-  values={[
-  {
-    "label": "Java",
-    "value": "Java"
-  },
-  {
-    "label": "Python",
-    "value": "Python"
-  }
-]}>
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"}]}>
 <TabItem value="Java">
 
 ```Java
@@ -83,20 +74,7 @@ sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 10
 The following example uses Pulsar Functions SDK.
 <Tabs 
   defaultValue="Java"
-  values={[
-  {
-    "label": "Java",
-    "value": "Java"
-  },
-  {
-    "label": "Python",
-    "value": "Python"
-  },
-  {
-    "label": "Go",
-    "value": "Go"
-  }
-]}>
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"Go","value":"Go"}]}>
 <TabItem value="Java">
 
 ```Java
@@ -172,20 +150,7 @@ SerDe stands for **Ser**ialization and **De**serialization. Pulsar Functions use
 
 <Tabs 
   defaultValue="Java"
-  values={[
-  {
-    "label": "Java",
-    "value": "Java"
-  },
-  {
-    "label": "Python",
-    "value": "Python"
-  },
-  {
-    "label": "Go",
-    "value": "Go"
-  }
-]}>
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"Go","value":"Go"}]}>
 <TabItem value="Java">
 
 When you write Pulsar Functions in Java, the following basic Java types are built in and supported by default: `String`, `Double`, `Integer`, `Float`, `Long`, `Short`, and `Byte`.
@@ -206,7 +171,7 @@ SerDe works in the following ways in Java Functions.
 - If the input or output topics do not exist, Pulsar Functions adopt the following rules to determine SerDe:
   - If the schema type is specified, Pulsar Functions use the specified schema type.
   - If SerDe is specified, Pulsar Functions use the specified SerDe, and the schema type for input and output topics is `Byte`.
-  - If neither the schema type nor SerDe is specified, Pulsar Functions use the built-in SerDe. For non-primitive schema type, the built-in SerDe serializes and deserializes objects in the `JSON` format. 
+  - If neither the schema type nor SerDe is specified, Pulsar Functions use the built-in SerDe. For non-primitive schema type, the built-in SerDe serializes and deserializes objects in the `JSON` format.
 
 </TabItem>
 <TabItem value="Python">
@@ -259,16 +224,7 @@ Imagine that you're writing Pulsar Functions that are processing tweet objects, 
 
 <Tabs 
   defaultValue="Java"
-  values={[
-  {
-    "label": "Java",
-    "value": "Java"
-  },
-  {
-    "label": "Python",
-    "value": "Python"
-  }
-]}>
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"}]}>
 <TabItem value="Java">
 
 ```java
@@ -392,20 +348,7 @@ Java, Python and Go SDKs provide access to a **context object** that can be used
 
 <Tabs 
   defaultValue="Java"
-  values={[
-  {
-    "label": "Java",
-    "value": "Java"
-  },
-  {
-    "label": "Python",
-    "value": "Python"
-  },
-  {
-    "label": "Go",
-    "value": "Go"
-  }
-]}>
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"Go","value":"Go"}]}>
 <TabItem value="Java">
 
 The [Context](https://github.com/apache/pulsar/blob/master/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Context.java) interface provides a number of methods that you can use to access the function [context](#context). The various method signatures for the `Context` interface are listed as follows.
@@ -645,20 +588,7 @@ $ bin/pulsar-admin functions create \
 
 <Tabs 
   defaultValue="Java"
-  values={[
-  {
-    "label": "Java",
-    "value": "Java"
-  },
-  {
-    "label": "Python",
-    "value": "Python"
-  },
-  {
-    "label": "Go",
-    "value": "Go"
-  }
-]}>
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"Go","value":"Go"}]}>
 <TabItem value="Java"> 
 
 The Java SDK [`Context`](#context) object enables you to access key/value pairs provided to Pulsar Functions via the command line (as JSON). The following example passes a key/value pair.
@@ -805,20 +735,7 @@ func contextFunc(ctx context.Context) {
 
 <Tabs 
   defaultValue="Java"
-  values={[
-  {
-    "label": "Java",
-    "value": "Java"
-  },
-  {
-    "label": "Python",
-    "value": "Python"
-  },
-  {
-    "label": "Go",
-    "value": "Go"
-  }
-]}>
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"Go","value":"Go"}]}>
 <TabItem value="Java">
 
 Pulsar Functions that use the Java SDK have access to an [SLF4j](https://www.slf4j.org/) [`Logger`](https://www.slf4j.org/api/org/apache/log4j/Logger.html) object that can be used to produce logs at the chosen log level. The following example logs either a `WARNING`- or `INFO`-level log based on whether the incoming string contains the word `danger`.
@@ -1141,12 +1058,7 @@ Pulsar Functions using the Java SDK has access to the Pulsar admin client, which
 
 <Tabs 
   defaultValue="Java"
-  values={[
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"Java","value":"Java"}]}>
 <TabItem value="Java">
 
 Below is an example of how to use the Pulsar admin client exposed from the Function `context`.
@@ -1225,20 +1137,7 @@ Here are examples of how to customize metrics for Java and Python functions.
 
 <Tabs 
   defaultValue="Java"
-  values={[
-  {
-    "label": "Java",
-    "value": "Java"
-  },
-  {
-    "label": "Python",
-    "value": "Python"
-  },
-  {
-    "label": "Go",
-    "value": "Go"
-  }
-]}>
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"Go","value":"Go"}]}>
 <TabItem value="Java">
 
 You can record metrics using the [`Context`](#context) object on a per-key basis. For example, you can set a metric for the `process-count` key and a different metric for the `elevens-count` key every time the function processes a message. 
@@ -1307,20 +1206,7 @@ At the same time, Pulsar Functions provides two interfaces, **SecretsProvider** 
 
 <Tabs 
   defaultValue="Java"
-  values={[
-  {
-    "label": "Java",
-    "value": "Java"
-  },
-  {
-    "label": "Python",
-    "value": "Python"
-  },
-  {
-    "label": "Go",
-    "value": "Go"
-  }
-]}>
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"Go","value":"Go"}]}>
 <TabItem value="Java">
 
 You can get secret provider using the [`Context`](#context) object. The following is an example:
@@ -1398,16 +1284,7 @@ State storage is not available in Go.
 
 <Tabs 
   defaultValue="Java"
-  values={[
-  {
-    "label": "Java",
-    "value": "Java"
-  },
-  {
-    "label": "Python",
-    "value": "Python"
-  }
-]}>
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"}]}>
 <TabItem value="Java">
 
 Currently Pulsar Functions expose the following APIs for mutating and accessing State. These APIs are available in the [Context](functions-develop.md#context) object when you are using Java SDK functions.
@@ -1644,16 +1521,7 @@ If `--watch` is specified, the CLI will watch the value of the provided `state-k
 
 <Tabs 
   defaultValue="Java"
-  values={[
-  {
-    "label": "Java",
-    "value": "Java"
-  },
-  {
-    "label": "Python",
-    "value": "Python"
-  }
-]}>
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"}]}>
 <TabItem value="Java">
 
 {@inject: github:WordCountFunction:/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/WordCountFunction.java} is a very good example

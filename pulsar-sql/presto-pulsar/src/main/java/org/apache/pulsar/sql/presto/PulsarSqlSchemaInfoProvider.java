@@ -102,8 +102,13 @@ public class PulsarSqlSchemaInfoProvider implements SchemaInfoProvider {
         ClassLoader originalContextLoader = Thread.currentThread().getContextClassLoader();
         try {
             Thread.currentThread().setContextClassLoader(InjectionManagerFactory.class.getClassLoader());
-            return pulsarAdmin.schemas()
-                    .getSchemaInfo(topicName.toString(), ByteBuffer.wrap(bytesSchemaVersion.get()).getLong());
+            long version = ByteBuffer.wrap(bytesSchemaVersion.get()).getLong();
+            SchemaInfo schemaInfo = pulsarAdmin.schemas().getSchemaInfo(topicName.toString(), version);
+            if (schemaInfo == null) {
+                throw new RuntimeException(
+                        "The specific version (" + version + ") schema of the topic " + topicName + " is null");
+            }
+            return schemaInfo;
         } finally {
             Thread.currentThread().setContextClassLoader(originalContextLoader);
         }

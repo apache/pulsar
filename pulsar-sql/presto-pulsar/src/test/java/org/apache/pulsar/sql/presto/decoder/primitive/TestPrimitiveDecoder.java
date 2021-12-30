@@ -141,7 +141,7 @@ public class TestPrimitiveDecoder extends AbstractDecoderTester {
                         .copiedBuffer(schemaFloat.encode(floatValue))).get();
         checkValue(decodedRowFloat, new PulsarColumnHandle(getPulsarConnectorId().toString(),
                 PRIMITIVE_COLUMN_NAME, REAL, false, false, PRIMITIVE_COLUMN_NAME, null, null,
-                PulsarColumnHandle.HandleKeyValueType.NONE), Long.valueOf(Float.floatToIntBits(floatValue)));
+                PulsarColumnHandle.HandleKeyValueType.NONE), Float.floatToIntBits(floatValue));
 
         double doubleValue = 0.22d;
         SchemaInfo schemaInfoDouble = SchemaInfo.builder().type(SchemaType.DOUBLE).build();

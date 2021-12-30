@@ -18,12 +18,11 @@
  */
 package org.apache.pulsar.io.batchdatagenerator;
 
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
-
-import java.util.Map;
 
 @Slf4j
 public class BatchDataGeneratorPrintSink implements Sink<Person> {

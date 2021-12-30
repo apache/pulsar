@@ -5,10 +5,6 @@ sidebar_label: "AWS S3 offloader"
 original_id: tiered-storage-aws
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 This chapter guides you through every step of installing and configuring the AWS S3 offloader and using it with Pulsar.
 
 ## Installation

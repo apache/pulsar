@@ -5,10 +5,6 @@ sidebar_label: "Redis sink connector"
 original_id: io-redis-sink
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The  Redis sink connector pulls messages from Pulsar topics 
 and persists the messages to a Redis database.
 

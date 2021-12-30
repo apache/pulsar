@@ -352,24 +352,26 @@ The Apache Software License, Version 2.0
     - org.apache.commons-commons-compress-1.21.jar
     - org.apache.commons-commons-lang3-3.11.jar
  * Netty
-    - io.netty-netty-buffer-4.1.68.Final.jar
-    - io.netty-netty-codec-4.1.68.Final.jar
-    - io.netty-netty-codec-dns-4.1.68.Final.jar
-    - io.netty-netty-codec-http-4.1.68.Final.jar
-    - io.netty-netty-codec-http2-4.1.68.Final.jar
-    - io.netty-netty-codec-socks-4.1.68.Final.jar
-    - io.netty-netty-codec-haproxy-4.1.68.Final.jar
-    - io.netty-netty-common-4.1.68.Final.jar
-    - io.netty-netty-handler-4.1.68.Final.jar
-    - io.netty-netty-handler-proxy-4.1.68.Final.jar
-    - io.netty-netty-resolver-4.1.68.Final.jar
-    - io.netty-netty-resolver-dns-4.1.68.Final.jar
-    - io.netty-netty-transport-4.1.68.Final.jar
-    - io.netty-netty-transport-native-epoll-4.1.68.Final-linux-x86_64.jar
-    - io.netty-netty-transport-native-epoll-4.1.68.Final.jar
-    - io.netty-netty-transport-native-unix-common-4.1.68.Final.jar
-    - io.netty-netty-transport-native-unix-common-4.1.68.Final-linux-x86_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.42.Final.jar
+    - io.netty-netty-buffer-4.1.72.Final.jar
+    - io.netty-netty-codec-4.1.72.Final.jar
+    - io.netty-netty-codec-dns-4.1.72.Final.jar
+    - io.netty-netty-codec-http-4.1.72.Final.jar
+    - io.netty-netty-codec-http2-4.1.72.Final.jar
+    - io.netty-netty-codec-socks-4.1.72.Final.jar
+    - io.netty-netty-codec-haproxy-4.1.72.Final.jar
+    - io.netty-netty-common-4.1.72.Final.jar
+    - io.netty-netty-handler-4.1.72.Final.jar
+    - io.netty-netty-handler-proxy-4.1.72.Final.jar
+    - io.netty-netty-resolver-4.1.72.Final.jar
+    - io.netty-netty-resolver-dns-4.1.72.Final.jar
+    - io.netty-netty-transport-4.1.72.Final.jar
+    - io.netty-netty-transport-classes-epoll-4.1.72.Final.jar
+    - io.netty-netty-transport-native-epoll-4.1.72.Final-linux-x86_64.jar
+    - io.netty-netty-transport-native-epoll-4.1.72.Final.jar
+    - io.netty-netty-transport-native-unix-common-4.1.72.Final.jar
+    - io.netty-netty-transport-native-unix-common-4.1.72.Final-linux-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.46.Final.jar
+    - io.netty-netty-tcnative-classes-2.0.46.Final.jar
  * Prometheus client
     - io.prometheus-simpleclient-0.5.0.jar
     - io.prometheus-simpleclient_common-0.5.0.jar
@@ -383,11 +385,11 @@ The Apache Software License, Version 2.0
     - jakarta.validation-jakarta.validation-api-2.0.2.jar
     - javax.validation-validation-api-1.1.0.Final.jar
  * Log4J
-    - org.apache.logging.log4j-log4j-api-2.14.0.jar
-    - org.apache.logging.log4j-log4j-core-2.14.0.jar
-    - org.apache.logging.log4j-log4j-slf4j-impl-2.14.0.jar
-    - org.apache.logging.log4j-log4j-web-2.14.0.jar
-    - org.apache.logging.log4j-log4j-1.2-api-2.14.0.jar
+    - org.apache.logging.log4j-log4j-api-2.17.1.jar
+    - org.apache.logging.log4j-log4j-core-2.17.1.jar
+    - org.apache.logging.log4j-log4j-slf4j-impl-2.17.1.jar
+    - org.apache.logging.log4j-log4j-web-2.17.1.jar
+    - org.apache.logging.log4j-log4j-1.2-api-2.17.1.jar
  * Java Native Access JNA -- net.java.dev.jna-jna-4.2.0.jar
  * BookKeeper
     - org.apache.bookkeeper-bookkeeper-common-4.14.3.jar
@@ -446,12 +448,18 @@ The Apache Software License, Version 2.0
  * SnakeYaml -- org.yaml-snakeyaml-1.27.jar
  * RocksDB - org.rocksdb-rocksdbjni-6.10.2.jar
  * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.5.1.jar
- * Apache Thrifth - org.apache.thrift-libthrift-0.14.2.jar
+ * Apache Thrift - org.apache.thrift-libthrift-0.14.2.jar
  * OkHttp3
-     - com.squareup.okhttp3-logging-interceptor-3.14.9.jar
-     - com.squareup.okhttp3-okhttp-3.14.9.jar
- * Okio - com.squareup.okio-okio-1.17.2.jar
+     - com.squareup.okhttp3-logging-interceptor-4.9.3.jar
+     - com.squareup.okhttp3-okhttp-4.9.3.jar
+ * Okio - com.squareup.okio-okio-2.8.0.jar
  * Javassist -- org.javassist-javassist-3.25.0-GA.jar
+ * Kotlin Standard Lib
+     - org.jetbrains.kotlin-kotlin-stdlib-1.4.32.jar
+     - org.jetbrains.kotlin-kotlin-stdlib-common-1.4.32.jar
+     - org.jetbrains.kotlin-kotlin-stdlib-jdk7-1.4.32.jar
+     - org.jetbrains.kotlin-kotlin-stdlib-jdk8-1.4.32.jar
+     - org.jetbrains-annotations-13.0.jar
  * gRPC
     - io.grpc-grpc-all-1.33.0.jar
     - io.grpc-grpc-auth-1.33.0.jar

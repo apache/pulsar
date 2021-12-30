@@ -4,7 +4,7 @@ title: Messaging
 sidebar_label: Messaging
 ---
 
-Pulsar is built on the [publish-subscribe](https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern) pattern (often abbreviated to pub-sub). In this pattern, [producers](#producers) publish messages to [topics](#topics); [consumers](#consumers) [subscribe](#subscription-modes) to those topics, process incoming messages, and send [acknowledgements](#acknowledgement) to the broker when processing is finished.
+Pulsar is built on the [publish-subscribe](https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern) pattern (often abbreviated to pub-sub). In this pattern, [producers](#producers) publish messages to [topics](#topics); [consumers](#consumers) [subscribe](#subscription-types) to those topics, process incoming messages, and send [acknowledgements](#acknowledgement) to the broker when processing is finished.
 
 When a subscription is created, Pulsar [retains](concepts-architecture-overview.md#persistent-storage) all messages, even if the consumer is disconnected. The retained messages are discarded only when a consumer acknowledges that all these messages are processed successfully. 
 
@@ -273,13 +273,36 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 .subscribe();
 ```
 
+Retry letter message contains some special properties created by a client automatically.
+
+Special property | Description
+:--------------------|:-----------
+`REAL_TOPIC` | The real topic name.
+`ORIGIN_MESSAGE_ID` | The origin message ID. It is crucial for message tracking.
+`RECONSUMETIMES`   | The retry consume times.
+`DELAY_TIME`      | Message delay timeMs.
+**Example**
+```
+REAL_TOPIC = persistent://public/default/my-topic
+ORIGIN_MESSAGE_ID = 1:0:-1:0
+RECONSUMETIMES = 6
+DELAY_TIME = 3000
+```
+
 If you want to put messages into a retrial queue, you can use the following API.
 
 ```java
-consumer.reconsumeLater(msg,3,TimeUnit.SECONDS);
+consumer.reconsumeLater(msg, 3, TimeUnit.SECONDS);
 ```
 
+If you want to add custom properties for the `reconsumeLater`, you can use the following API.
 
+```java
+Map<String, String> customProperties = new HashMap<String, String>();
+customProperties.put("custom-key-1", "custom-value-1");
+customProperties.put("custom-key-2", "custom-value-2");
+consumer.reconsumeLater(msg, customProperties, 3, TimeUnit.SECONDS);
+```
 
 ## Topics
 
@@ -316,7 +339,7 @@ A subscription is a named configuration rule that determines how messages are de
 > * If you want to achieve "message queuing" among consumers, share the same subscription name among multiple consumers(shared, failover, key_shared).
 > * If you want to achieve both effects simultaneously, combine exclusive subscription type with other subscription types for consumers.
 
-### Subscriptions type
+### Subscription types
 
 When a subscription has no consumers, its subscription type is undefined. The type of a subscription is defined when a consumer connects to it, and the type can be changed by restarting all consumers with a different configuration.
 
@@ -397,9 +420,9 @@ producer = client.create_producer(topic='my-topic', batching_type=pulsar.Batchin
 > * You need to specify a key or orderingKey for messages.
 > * You cannot use cumulative acknowledgment with Key_Shared type.
 
-### Subscription mode
+### Subscription modes
 
-#### What is subscription mode
+#### What is a subscription mode
 
 The subscription mode indicates the cursor type. 
 

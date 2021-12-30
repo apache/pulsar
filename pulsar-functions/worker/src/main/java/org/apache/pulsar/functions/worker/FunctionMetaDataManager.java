@@ -365,7 +365,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
     }
 
     private void processCompactedMetaDataTopicMessage(Message<byte[]> message) throws IOException {
-        long version = Long.valueOf(message.getProperty(versionTag));
+        long version = Long.parseLong(message.getProperty(versionTag));
         String tenant = FunctionCommon.extractTenantFromFullyQualifiedName(message.getKey());
         String namespace = FunctionCommon.extractNamespaceFromFullyQualifiedName(message.getKey());
         String functionName = FunctionCommon.extractNameFromFullyQualifiedName(message.getKey());
@@ -413,8 +413,9 @@ public class FunctionMetaDataManager implements AutoCloseable {
                                            String functionName, long version) throws IllegalArgumentException {
 
         boolean needsScheduling = false;
-
-        log.debug("Process deregister request: {}/{}/{}/{}", tenant, namespace, functionName, version);
+        if (log.isDebugEnabled()) {
+            log.debug("Process deregister request: {}/{}/{}/{}", tenant, namespace, functionName, version);
+        }
 
         // Check if we still have this function. Maybe already deleted by someone else
         if (this.containsFunctionMetaData(tenant, namespace, functionName)) {
