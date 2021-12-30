@@ -480,12 +480,10 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         internalPinnedExecutor.execute(() -> {
             if (!checkIfReady()) {
                 if (state == State.Initializing) {
-                    CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-                    addCommitTxnRequest(txnID, properties, lowWaterMark, completableFuture);
+                    addCommitTxnRequest(txnID, properties, lowWaterMark, commitFuture);
                     return;
                 } else if (state == State.None) {
-                    CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-                    addCommitTxnRequest(txnID, properties, lowWaterMark, completableFuture);
+                    addCommitTxnRequest(txnID, properties, lowWaterMark, commitFuture);
                     initPendingAckStore();
                     return;
                 } else if (checkIfReady()) {
