@@ -61,6 +61,7 @@ import org.testng.annotations.Test;
  * Test for consuming transaction messages.
  */
 @Slf4j
+@Test(groups = "broker")
 public class PendingAckPersistentTest extends TransactionTestBase {
 
     private static final String PENDING_ACK_REPLAY_TOPIC = NAMESPACE1 + "/pending-ack-replay";
@@ -412,6 +413,5 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 .subscribe();
         Message<String> message = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(message);
-        fail();
     }
 }

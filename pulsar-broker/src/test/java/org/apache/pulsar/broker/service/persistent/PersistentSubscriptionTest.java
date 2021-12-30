@@ -318,7 +318,7 @@ public class PersistentSubscriptionTest {
             assertTrue(e.getCause() instanceof TransactionConflictException);
             assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic]" +
                     "[subscriptionName] Transaction:(1,2) try to cumulative batch ack position: " +
-                    "2:50 within range of current currentPosition: 1:100");
+                    "2:50 within range of current currentPosition: 2:1");
         }
 
         List<Position> positionList = new ArrayList<>();
