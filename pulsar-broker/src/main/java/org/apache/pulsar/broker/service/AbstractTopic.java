@@ -883,7 +883,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
         //topic-level policy is not set, try to use namespace-level rate policy
         final String clusterName = brokerService.pulsar().getConfiguration().getClusterName();
-        final PublishRate publishRate = policies !=null && policies.publishMaxMessageRate != null
+        final PublishRate publishRate = policies.publishMaxMessageRate != null
                 ? policies.publishMaxMessageRate.get(clusterName)
                 : null;
 
@@ -899,7 +899,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         }
 
         // attach the resource-group level rate limiters, if set
-        String rgName = policies != null && policies.resource_group_name != null
+        String rgName = policies.resource_group_name != null
           ? policies.resource_group_name
           : null;
         if (rgName != null) {
