@@ -878,9 +878,8 @@ public class BrokerService implements Closeable {
                 serviceUnits.forEach(su -> {
                     if (su instanceof NamespaceBundle) {
                         try {
-                            pulsar.getNamespaceService().unloadNamespaceBundle(su,
-                                            pulsar.getConfiguration().getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS)
-                                    .get();
+                            pulsar.getNamespaceService().unloadNamespaceBundle(su, pulsar.getConfiguration()
+                                    .getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS).get();
                         } catch (Exception e) {
                             log.warn("Failed to unload namespace bundle {}", su, e);
                         }
