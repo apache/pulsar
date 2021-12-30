@@ -298,10 +298,6 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("set-inactive-topic-policies");
             cmdUsageFormatter.addDeprecatedCommand("remove-inactive-topic-policies");
 
-            cmdUsageFormatter.addDeprecatedCommand("get-deduplication");
-            cmdUsageFormatter.addDeprecatedCommand("set-deduplication");
-            cmdUsageFormatter.addDeprecatedCommand("remove-deduplication");
-
             cmdUsageFormatter.addDeprecatedCommand("get-compaction-threshold");
             cmdUsageFormatter.addDeprecatedCommand("set-compaction-threshold");
             cmdUsageFormatter.addDeprecatedCommand("remove-compaction-threshold");
