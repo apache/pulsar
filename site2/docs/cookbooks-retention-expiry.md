@@ -31,7 +31,7 @@ By default, when a Pulsar message arrives at a broker, the message is stored unt
 
 Retention policies are useful when you use the Reader interface. The Reader interface does not use acknowledgements, and messages do not exist within backlogs. It is required to configure retention for Reader-only use cases.
 
-When you set a retention policy on topics in a namespace, you must set **both** a *size limit* and a *time limit*. You can refer to the following table to set retention policies in `pulsar-admin` and Java.
+When you set a retention policy on topics in a namespace, you must set **both** a *size limit* (via `defaultRetentionSizeInMB`) and a *time limit* (via `defaultRetentionTimeInMinutes`) . You can refer to the following table to set retention policies in `pulsar-admin` and Java.
 
 |Time limit|Size limit| Message retention      |
 |----------|----------|------------------------|

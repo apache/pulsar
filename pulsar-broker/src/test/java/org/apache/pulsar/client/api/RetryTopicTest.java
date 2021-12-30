@@ -21,6 +21,9 @@ package org.apache.pulsar.client.api;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import com.google.common.collect.Sets;
+
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
@@ -120,7 +123,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
         checkConsumer.close();
     }
 
-    @Test
+    @Test(timeOut = 60000)
     public void testRetryTopicProperties() throws Exception {
         final String topic = "persistent://my-property/my-ns/retry-topic";
 
@@ -155,8 +158,6 @@ public class RetryTopicTest extends ProducerConsumerBase {
             MessageId msgId = producer.send(String.format("Hello Pulsar [%d]", i).getBytes());
             originMessageIds.add(msgId.toString());
         }
-
-        producer.close();
 
         int totalReceived = 0;
         Set<String> retryMessageIds = Sets.newHashSet();
@@ -195,7 +196,6 @@ public class RetryTopicTest extends ProducerConsumerBase {
         assertEquals(deadLetterMessageIds, originMessageIds);
 
         deadLetterConsumer.close();
-        consumer.close();
 
         Consumer<byte[]> checkConsumer = this.pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topic)
@@ -212,6 +212,20 @@ public class RetryTopicTest extends ProducerConsumerBase {
         assertNull(checkMessage);
 
         checkConsumer.close();
+
+        // check the custom properties
+        producer.send(String.format("Hello Pulsar [%d]", 1).getBytes());
+        Message<byte[]> message = consumer.receive();
+        Map<String, String> customProperties = new HashMap<String, String>();
+        customProperties.put("custom_key", "custom_value");
+        consumer.reconsumeLater(message, customProperties, 1, TimeUnit.SECONDS);
+        message = consumer.receive();
+        String value = message.getProperty("custom_key");
+        assertEquals(value, "custom_value");
+        assertEquals(message.getProperty(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID),
+                message.getProperty(RetryMessageUtil.PROPERTY_ORIGIN_MESSAGE_ID));
+        producer.close();
+        consumer.close();
     }
 
     //Issue 9327: do compatibility check in case of the default retry and dead letter topic name changed

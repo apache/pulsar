@@ -43,6 +43,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -125,6 +126,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-message-id", new GetMessageId());
         jcommander.addCommand("reset-cursor", new ResetCursor());
         jcommander.addCommand("terminate", new Terminate());
+        jcommander.addCommand("partitioned-terminate", new PartitionedTerminate());
         jcommander.addCommand("compact", new Compact());
         jcommander.addCommand("compaction-status", new CompactionStatusCmd());
         jcommander.addCommand("offload", new Offload());
@@ -252,6 +254,18 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("disable-deduplication");
             cmdUsageFormatter.addDeprecatedCommand("get-deduplication-enabled");
 
+            cmdUsageFormatter.addDeprecatedCommand("get-max-consumers");
+            cmdUsageFormatter.addDeprecatedCommand("set-max-consumers");
+            cmdUsageFormatter.addDeprecatedCommand("remove-max-consumers");
+
+            cmdUsageFormatter.addDeprecatedCommand("get-message-ttl");
+            cmdUsageFormatter.addDeprecatedCommand("set-message-ttl");
+            cmdUsageFormatter.addDeprecatedCommand("remove-message-ttl");
+
+            cmdUsageFormatter.addDeprecatedCommand("get-max-consumers-per-subscription");
+            cmdUsageFormatter.addDeprecatedCommand("set-max-consumers-per-subscription");
+            cmdUsageFormatter.addDeprecatedCommand("remove-max-consumers-per-subscription");
+
             cmdUsageFormatter.addDeprecatedCommand("get-max-unacked-messages-on-consumer");
             cmdUsageFormatter.addDeprecatedCommand("remove-max-unacked-messages-on-consumer");
             cmdUsageFormatter.addDeprecatedCommand("set-max-unacked-messages-on-consumer");
@@ -260,6 +274,10 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("remove-max-unacked-messages-on-subscription");
             cmdUsageFormatter.addDeprecatedCommand("set-max-unacked-messages-on-subscription");
 
+            cmdUsageFormatter.addDeprecatedCommand("get-publish-rate");
+            cmdUsageFormatter.addDeprecatedCommand("set-publish-rate");
+            cmdUsageFormatter.addDeprecatedCommand("remove-publish-rate");
+
             cmdUsageFormatter.addDeprecatedCommand("get-maxProducers");
             cmdUsageFormatter.addDeprecatedCommand("set-maxProducers");
             cmdUsageFormatter.addDeprecatedCommand("remove-maxProducers");
@@ -267,6 +285,38 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("get-retention");
             cmdUsageFormatter.addDeprecatedCommand("set-retention");
             cmdUsageFormatter.addDeprecatedCommand("remove-retention");
+
+            cmdUsageFormatter.addDeprecatedCommand("get-backlog-quotas");
+            cmdUsageFormatter.addDeprecatedCommand("set-backlog-quota");
+            cmdUsageFormatter.addDeprecatedCommand("remove-backlog-quota");
+
+            cmdUsageFormatter.addDeprecatedCommand("get-persistence");
+            cmdUsageFormatter.addDeprecatedCommand("set-persistence");
+            cmdUsageFormatter.addDeprecatedCommand("remove-persistence");
+
+            cmdUsageFormatter.addDeprecatedCommand("get-inactive-topic-policies");
+            cmdUsageFormatter.addDeprecatedCommand("set-inactive-topic-policies");
+            cmdUsageFormatter.addDeprecatedCommand("remove-inactive-topic-policies");
+
+            cmdUsageFormatter.addDeprecatedCommand("get-dispatch-rate");
+            cmdUsageFormatter.addDeprecatedCommand("set-dispatch-rate");
+            cmdUsageFormatter.addDeprecatedCommand("remove-dispatch-rate");
+
+            cmdUsageFormatter.addDeprecatedCommand("get-deduplication");
+            cmdUsageFormatter.addDeprecatedCommand("set-deduplication");
+            cmdUsageFormatter.addDeprecatedCommand("remove-deduplication");
+
+            cmdUsageFormatter.addDeprecatedCommand("get-max-unacked-messages-on-subscription");
+            cmdUsageFormatter.addDeprecatedCommand("set-max-unacked-messages-on-subscription");
+            cmdUsageFormatter.addDeprecatedCommand("remove-max-unacked-messages-on-subscription");
+
+            cmdUsageFormatter.addDeprecatedCommand("set-subscription-types-enabled");
+            cmdUsageFormatter.addDeprecatedCommand("get-subscription-types-enabled");
+            cmdUsageFormatter.addDeprecatedCommand("remove-subscription-types-enabled");
+
+            cmdUsageFormatter.addDeprecatedCommand("get-max-producers");
+            cmdUsageFormatter.addDeprecatedCommand("set-max-producers");
+            cmdUsageFormatter.addDeprecatedCommand("remove-max-producers");
         }
     }
 
@@ -636,6 +686,10 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
             String internalInfo = getTopics().getInternalInfo(topic);
+            if (internalInfo == null) {
+                System.out.println("Did not find any internal metadata info");
+                return;
+            }
             JsonObject result = JsonParser.parseString(internalInfo).getAsJsonObject();
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(result));
@@ -870,6 +924,22 @@ public class CmdTopics extends CmdBase {
                 System.out.println("Topic successfully terminated at " + lastMessageId);
             } catch (InterruptedException | ExecutionException e) {
                 throw new PulsarAdminException(e);
+            }
+        }
+    }
+
+    @Parameters(commandDescription = "Terminate a partitioned topic and don't allow any more messages to be published")
+    private class PartitionedTerminate extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException, TimeoutException {
+            String persistentTopic = validatePersistentTopic(params);
+            Map<Integer, MessageId> messageIds = getTopics().terminatePartitionedTopic(persistentTopic);
+            for (Map.Entry<Integer, MessageId> entry: messageIds.entrySet()) {
+                String topicName = persistentTopic + "-partition-" + entry.getKey();
+                System.out.println("Topic " + topicName +  " succesfully terminated at " + entry.getValue());
             }
         }
     }
@@ -1965,7 +2035,6 @@ public class CmdTopics extends CmdBase {
             getTopics().setMaxUnackedMessagesOnSubscription(persistentTopic, maxNum);
         }
     }
-
 
     @Parameters(commandDescription = "Set subscription types enabled for a topic")
     private class SetSubscriptionTypesEnabled extends CliCommand {

@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.io.kafka;
 
-import lombok.Value;
-
 import java.nio.ByteBuffer;
+import lombok.Value;
 
 /**
  * This is a wrapper around a Byte array (the Avro encoded record) and a schema id in the Kafka Schema Registry.

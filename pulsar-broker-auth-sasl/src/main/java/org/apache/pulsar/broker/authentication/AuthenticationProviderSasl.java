@@ -37,6 +37,7 @@ import static org.apache.pulsar.common.sasl.SaslConstants.SASL_STATE_SERVER_CHEC
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
@@ -49,7 +50,6 @@ import javax.security.auth.login.LoginException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import com.google.common.collect.Maps;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.AuthData;
@@ -75,7 +75,7 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
-        this.configuration = Maps.newHashMap();
+        this.configuration = new HashMap<>();
         final String allowedIdsPatternRegExp = config.getSaslJaasClientAllowedIds();
         configuration.put(JAAS_CLIENT_ALLOWED_IDS, allowedIdsPatternRegExp);
         configuration.put(JAAS_SERVER_SECTION_NAME, config.getSaslJaasServerSectionName());

@@ -24,7 +24,7 @@ export default function VersionsTable(props) {
               sx={{ border: 1, color: "inherit" }}
               align="left"
             >
-              <p>{row.name}</p>
+              <span>{row.name}</span>
             </TableCell>
             <TableCell
               className="border-gray-300"

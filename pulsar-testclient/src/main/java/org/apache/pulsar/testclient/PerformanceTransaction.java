@@ -26,12 +26,12 @@ import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
-import com.google.common.collect.Lists;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -667,12 +667,12 @@ public class PerformanceTransaction {
                 .subscriptionInitialPosition(arguments.subscriptionInitialPosition);
 
         Iterator<String> consumerTopicsIterator = arguments.consumerTopic.iterator();
-        List<List<Consumer<byte[]>>> consumers = Lists.newArrayListWithCapacity(arguments.consumerTopic.size());
+        List<List<Consumer<byte[]>>> consumers = new ArrayList<>(arguments.consumerTopic.size());
         while(consumerTopicsIterator.hasNext()){
             String topic = consumerTopicsIterator.next();
-            final List<Consumer<byte[]>> subscriptions = Lists.newArrayListWithCapacity(arguments.numSubscriptions);
+            final List<Consumer<byte[]>> subscriptions = new ArrayList<>(arguments.numSubscriptions);
             final List<Future<Consumer<byte[]>>> subscriptionFutures =
-                    Lists.newArrayListWithCapacity(arguments.numSubscriptions);
+                    new ArrayList<>(arguments.numSubscriptions);
             log.info("Create subscriptions for topic {}", topic);
             for (int j = 0; j < arguments.numSubscriptions; j++) {
                 String subscriberName = arguments.subscriptions.get(j);
@@ -694,12 +694,12 @@ public class PerformanceTransaction {
         ProducerBuilder<byte[]> producerBuilder = client.newProducer(Schema.BYTES)
                 .sendTimeout(0, TimeUnit.SECONDS);
 
-        final List<Future<Producer<byte[]>>> producerFutures = Lists.newArrayList();
+        final List<Future<Producer<byte[]>>> producerFutures = new ArrayList<>();
         for (String topic : arguments.producerTopic) {
             log.info("Create producer for topic {}", topic);
             producerFutures.add(producerBuilder.clone().topic(topic).createAsync());
         }
-        final List<Producer<byte[]>> producers = Lists.newArrayListWithCapacity(producerFutures.size());
+        final List<Producer<byte[]>> producers = new ArrayList<>(producerFutures.size());
 
         for (Future<Producer<byte[]>> future : producerFutures) {
             producers.add(future.get());

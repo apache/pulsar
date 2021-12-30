@@ -113,7 +113,7 @@ public class SaslRoleToken implements Principal {
      * Generates the token.
      */
     private void generateToken() {
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         sb.append(USER_ROLE).append("=").append(getUserRole()).append(ATTR_SEPARATOR);
         sb.append(SESSION).append("=").append(getSession()).append(ATTR_SEPARATOR);
         sb.append(EXPIRES).append("=").append(getExpires());
