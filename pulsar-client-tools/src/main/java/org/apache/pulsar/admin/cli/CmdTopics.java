@@ -317,6 +317,10 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("get-max-producers");
             cmdUsageFormatter.addDeprecatedCommand("set-max-producers");
             cmdUsageFormatter.addDeprecatedCommand("remove-max-producers");
+
+            cmdUsageFormatter.addDeprecatedCommand("get-subscription-dispatch-rate");
+            cmdUsageFormatter.addDeprecatedCommand("set-subscription-dispatch-rate");
+            cmdUsageFormatter.addDeprecatedCommand("remove-subscription-dispatch-rate");
         }
     }
 
