@@ -896,7 +896,19 @@ public class BrokerService implements Closeable {
     }
 
     public CompletableFuture<Optional<Topic>> getTopicIfExists(final String topic) {
-        return getTopic(topic, false /* createIfMissing */);
+        TopicName topicName = TopicName.get(topic);
+        if (topicName.isPersistent()) {
+            return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topicName)
+                    .thenCompose(n -> {
+                        if (n != null && n) {
+                            return getTopic(topic, false /* createIfMissing */);
+                        } else {
+                            return CompletableFuture.completedFuture(Optional.empty());
+                        }
+                    });
+        } else {
+            return getTopic(topic, false /* createIfMissing */);
+        }
     }
 
     public CompletableFuture<Topic> getOrCreateTopic(final String topic) {
