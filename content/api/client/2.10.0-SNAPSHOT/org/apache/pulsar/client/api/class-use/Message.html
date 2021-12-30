@@ -301,8 +301,26 @@
 </td>
 </tr>
 <tr class="rowColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><span class="typeNameLabel">Consumer.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/api/Consumer.html#reconsumeLater-org.apache.pulsar.client.api.Message-java.util.Map-long-java.util.concurrent.TimeUnit-">reconsumeLater</a></span>(<a href="../../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;?&gt;&nbsp;message,
+              <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;customProperties,
+              long&nbsp;delayTime,
+              <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/TimeUnit.html?is-external=true" title="class or interface in java.util.concurrent">TimeUnit</a>&nbsp;unit)</code>
+<div class="block">reconsumeLater the consumption of <a href="../../../../../../org/apache/pulsar/client/api/Messages.html" title="interface in org.apache.pulsar.client.api"><code>Messages</code></a>.</div>
+</td>
+</tr>
+<tr class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
 <td class="colLast"><span class="typeNameLabel">Consumer.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/api/Consumer.html#reconsumeLaterAsync-org.apache.pulsar.client.api.Message-long-java.util.concurrent.TimeUnit-">reconsumeLaterAsync</a></span>(<a href="../../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;?&gt;&nbsp;message,
+                   long&nbsp;delayTime,
+                   <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/TimeUnit.html?is-external=true" title="class or interface in java.util.concurrent">TimeUnit</a>&nbsp;unit)</code>
+<div class="block">Asynchronously reconsumeLater the consumption of a single message.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
+<td class="colLast"><span class="typeNameLabel">Consumer.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/api/Consumer.html#reconsumeLaterAsync-org.apache.pulsar.client.api.Message-java.util.Map-long-java.util.concurrent.TimeUnit-">reconsumeLaterAsync</a></span>(<a href="../../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;?&gt;&nbsp;message,
+                   <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;customProperties,
                    long&nbsp;delayTime,
                    <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/TimeUnit.html?is-external=true" title="class or interface in java.util.concurrent">TimeUnit</a>&nbsp;unit)</code>
 <div class="block">Asynchronously reconsumeLater the consumption of a single message.</div>
@@ -319,6 +337,16 @@
 <tr class="rowColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
 <td class="colLast"><span class="typeNameLabel">Consumer.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/api/Consumer.html#reconsumeLaterCumulativeAsync-org.apache.pulsar.client.api.Message-long-java.util.concurrent.TimeUnit-">reconsumeLaterCumulativeAsync</a></span>(<a href="../../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;?&gt;&nbsp;message,
+                             long&nbsp;delayTime,
+                             <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/TimeUnit.html?is-external=true" title="class or interface in java.util.concurrent">TimeUnit</a>&nbsp;unit)</code>
+<div class="block">Asynchronously ReconsumeLater the reception of all the messages in the stream up to (and including) the provided
+ message.</div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
+<td class="colLast"><span class="typeNameLabel">Consumer.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/api/Consumer.html#reconsumeLaterCumulativeAsync-org.apache.pulsar.client.api.Message-java.util.Map-long-java.util.concurrent.TimeUnit-">reconsumeLaterCumulativeAsync</a></span>(<a href="../../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;?&gt;&nbsp;message,
+                             <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;customProperties,
                              long&nbsp;delayTime,
                              <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/TimeUnit.html?is-external=true" title="class or interface in java.util.concurrent">TimeUnit</a>&nbsp;unit)</code>
 <div class="block">Asynchronously ReconsumeLater the reception of all the messages in the stream up to (and including) the provided

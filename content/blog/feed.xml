@@ -4,7 +4,7 @@
         <title>Apache Pulsar Blog</title>
         <link>https://pulsar.apache.org/blog</link>
         <description>The best place to stay up-to-date with the latest Apache Pulsar news and events.</description>
-        <lastBuildDate>Sat, 11 Dec 2021 06:00:00 GMT</lastBuildDate>
+        <lastBuildDate>Tue, 14 Dec 2021 06:00:00 GMT</lastBuildDate>
         <docs>https://validator.w3.org/feed/docs/rss2.html</docs>
         <generator>https://github.com/jpmonette/feed</generator>
         <image>
@@ -13,6 +13,13 @@
             <link>https://pulsar.apache.org/blog</link>
         </image>
         <copyright>Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</copyright>
+        <item>
+            <title><![CDATA[What’s New in Apache Pulsar 2.7.4]]></title>
+            <link>https://pulsar.apache.org/blog/2021/12/14/Apache-Pulsar-2-7-4.html</link>
+            <guid>https://pulsar.apache.org/blog/2021/12/14/Apache-Pulsar-2-7-4.html</guid>
+            <pubDate>Tue, 14 Dec 2021 06:00:00 GMT</pubDate>
+            <description><![CDATA[<p>The Apache Pulsar community releases version 2.7.4! 32 contributors provided improvements and bug fixes that delivered 98 commits.</p> <p>Highlights of this release are as below:</p> <ul> <li><p>Upgrade Log4j to 2.17.0 - <a href="https://pulsar.apache.org/blog/2021/12/11/Log4j-CVE/">CVE-2021-45105</a>. <a href="https://github.com/apache/pulsar/pull/13392">PR-13392</a></p></li> <li><p><code>ManagedLedger</code> can be refer...</p></li></ul>]]></description>
+        </item>
         <item>
             <title><![CDATA[Log4j2 Zero Day vulnerability (CVE-2021-44228)]]></title>
             <link>https://pulsar.apache.org/blog/2021/12/11/Log4j-CVE.html</link>

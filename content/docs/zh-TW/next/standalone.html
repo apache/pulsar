@@ -113,7 +113,8 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.9.1
 <tr><td style="text-align:left"><code>bin</code></td><td style="text-align:left">Pulsar's command-line tools, such as <a href="/docs/zh-TW/next/reference-cli-tools#pulsar"><code>pulsar</code></a> and <a href="https://pulsar.apache.org/tools/pulsar-admin/"><code>pulsar-admin</code></a>.</td></tr>
 <tr><td style="text-align:left"><code>conf</code></td><td style="text-align:left">Pulsar 的配置文件，包含 <a href="/docs/zh-TW/next/reference-configuration#broker">broker 配置</a>,<a href="/docs/zh-TW/next/reference-configuration#zookeeper">ZooKeeper 配置</a> 等等。</td></tr>
 <tr><td style="text-align:left"><code>examples</code></td><td style="text-align:left">一個 Java JAR 包，包含 <a href="/docs/zh-TW/next/functions-overview">Pulsar Functions</a> 的範例。</td></tr>
-<tr><td style="text-align:left"><code>lib</code></td><td style="text-align:left">Pulsar 使用到的 <a href="https://en.wikipedia.org/wiki/JAR_(file_format)"> JAR </a> 文件</td></tr>
+<tr><td style="text-align:left"><code>instances</code></td><td style="text-align:left">為 <a href="/docs/zh-TW/next/functions-overview">Pulsar Functions</a> 創建的組件。</td></tr>
+<tr><td style="text-align:left"><code>lib</code></td><td style="text-align:left">The <a href="https://en.wikipedia.org/wiki/JAR_(file_format)">JAR</a> files used by Pulsar.</td></tr>
 <tr><td style="text-align:left"><code>licenses</code></td><td style="text-align:left">開源許可文件 <code>.txt</code>格式, 適用於 Pulsar <a href="https://github.com/apache/pulsar">代碼庫</a> 裡的各種組件。</td></tr>
 </tbody>
 </table>
@@ -124,8 +125,7 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.9.1
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>data</code></td><td style="text-align:left">ZooKeeper 和 BookKeeper 使用的數據存儲目錄</td></tr>
-<tr><td style="text-align:left"><code>instances</code></td><td style="text-align:left">為 <a href="/docs/zh-TW/next/functions-overview">Pulsar Functions</a> 創建的組件。</td></tr>
-<tr><td style="text-align:left"><code>logs</code></td><td style="text-align:left">安裝時生成的日誌文件目錄</td></tr>
+<tr><td style="text-align:left"><code>logs</code></td><td style="text-align:left">Logs created by the installation.</td></tr>
 </tbody>
 </table>
 <blockquote>
@@ -210,7 +210,7 @@ tiered-storage-jcloud-2.9.1.nar
 <p><strong>Tip</strong></p>
 <ul>
 <li><p>The service is running on your terminal, which is under your direct control. If you need to run other commands, open a new terminal window.<br>
-You can also run the service as a background process using the <code>pulsar-daemon start standalone</code> command. For more information, see <a href="https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon">pulsar-daemon</a>.</p></li>
+You can also run the service as a background process using the <code>bin/pulsar-daemon start standalone</code> command. For more information, see <a href="https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon">pulsar-daemon</a>.</p></li>
 <li><p>By default, there is no encryption, authentication, or authorization configured. 因此無需授權即可從遠端來訪問 Apache Pulsar。 請詳閱<a href="/docs/zh-TW/next/security-overview">安全概述</a>文檔來保護所部署的 Pulsar。</p></li>
 <li><p>When you start a local standalone cluster, a <code>public/default</code> <a href="/docs/zh-TW/next/concepts-messaging#namespaces">namespace</a> is created automatically. 這個預設的命名空間主要用於開發。 All Pulsar topics are managed within namespaces. 更多相關內容请参考 <a href="/docs/zh-TW/next/concepts-messaging#topics">Topics</a>。</p></li>
 </ul>
@@ -239,7 +239,7 @@ As you have noticed that we do not explicitly create the <code>my-topic</code> t
 <p>按 <code>Ctrl+C</code> 停止單機模式運行的 Pulsar。</p>
 <blockquote>
 <p><strong>Tip</strong>  <br>
-If the service runs as a background process using the <code>pulsar-daemon start standalone</code> command, then use the <code>pulsar-daemon stop standalone</code> command to stop the service.</p>
+If the service runs as a background process using the <code>bin/pulsar-daemon start standalone</code> command, then use the <code>bin/pulsar-daemon stop standalone</code> command to stop the service.</p>
 <p>有關更多說明，請參見<a href="https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon"> pulsar-daemon </a>。</p>
 </blockquote>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-next button" href="/docs/zh-TW/next/standalone-docker"><span>在Docker中運行Pulsar</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安裝-pulsar-單機模式">安裝 Pulsar 單機模式</a><ul class="toc-headings"><li><a href="#系統要求">系統要求</a></li><li><a href="#使用二進制發行版安裝-pulsar">使用二進制發行版安裝 Pulsar</a></li><li><a href="#安裝內建-sourcesink-連接器可選">安裝內建 Source/Sink 連接器（可選）</a></li><li><a href="#安裝分層存儲卸載插件可選">安裝分層存儲卸載插件（可選）</a></li></ul></li><li><a href="#啟動-pulsar-單機模式">啟動 Pulsar 單機模式</a></li><li><a href="#pulsar-單機模式的操作">Pulsar 單機模式的操作</a><ul class="toc-headings"><li><a href="#消費一條信息">消費一條信息</a></li><li><a href="#產生一條信息">產生一條信息</a></li></ul></li><li><a href="#停止-pulsar-單機模式">停止 Pulsar 單機模式</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>

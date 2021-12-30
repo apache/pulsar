@@ -258,20 +258,20 @@ Reason: <span class="hljs-builtin-name">Error</span> offloading: org.apache.book
 <p>Execute the following commands in the repository where you download Pulsar tarball. For example, <code>~/path/to/apache-pulsar-2.5.1</code>.</p>
 <ol>
 <li><p>Start Pulsar standalone.</p>
-<pre><code class="hljs">./bin/pulsar standalone -a <span class="hljs-number">127.0</span><span class="hljs-number">.0</span><span class="hljs-number">.1</span>
+<pre><code class="hljs">bin/pulsar standalone -a <span class="hljs-number">127.0</span><span class="hljs-number">.0</span><span class="hljs-number">.1</span>
 </code></pre></li>
 <li><p>To ensure the data generated is not deleted immediately, it is recommended to set the <a href="https://pulsar.apache.org/docs/en/next/cookbooks-retention-expiry/#retention-policies">retention policy</a>, which can be either a <strong>size</strong> limit or a <strong>time</strong> limit. The larger value you set for the retention policy, the longer the data can be retained.</p>
-<pre><code class="hljs">./<span class="hljs-string">bin/</span><span class="hljs-string">pulsarctl </span><span class="hljs-string">namespaces </span><span class="hljs-built_in">set-retention</span> <span class="hljs-string">public/</span><span class="hljs-string">default </span><span class="hljs-built_in">--size</span> <span class="hljs-string">100M </span><span class="hljs-built_in">--time</span> <span class="hljs-string">2d
+<pre><code class="hljs"><span class="hljs-string">bin/</span><span class="hljs-string">pulsar-admin </span><span class="hljs-string">namespaces </span><span class="hljs-built_in">set-retention</span> <span class="hljs-string">public/</span><span class="hljs-string">default </span><span class="hljs-built_in">--size</span> <span class="hljs-string">100M </span><span class="hljs-built_in">--time</span> <span class="hljs-string">2d
 </span></code></pre>
 <blockquote>
 <p><strong>提示</strong></p>
 <p>For more information about the <code>pulsarctl namespaces set-retention options</code> command, including flags, descriptions, default values, and shorthands, see <a href="https://docs.streamnative.io/pulsarctl/v2.7.0.6/#-em-set-retention-em-">here</a>.</p>
 </blockquote></li>
 <li><p>Produce data using pulsar-client.</p>
-<pre><code class="hljs">./bin/pulsar-client produce -m <span class="hljs-string">"Hello FileSystem Offloader"</span> -n <span class="hljs-number">1000</span> <span class="hljs-meta">public</span>/<span class="hljs-meta">default</span>/<span class="hljs-built_in">fs</span>-<span class="hljs-keyword">test</span>
+<pre><code class="hljs">bin/pulsar-client produce -m <span class="hljs-string">"Hello FileSystem Offloader"</span> -n <span class="hljs-number">1000</span> <span class="hljs-meta">public</span>/<span class="hljs-meta">default</span>/<span class="hljs-built_in">fs</span>-<span class="hljs-keyword">test</span>
 </code></pre></li>
 <li><p>The offloading operation starts after a ledger rollover is triggered. To ensure offload data successfully, it is recommended that you wait until several ledger rollovers are triggered. In this case, you might need to wait for a second. You can check the ledger status using pulsarctl.</p>
-<pre><code class="hljs">./bin/pulsarctl topics internal-stats <span class="hljs-meta">public</span>/<span class="hljs-meta">default</span>/<span class="hljs-built_in">fs</span>-<span class="hljs-keyword">test</span>
+<pre><code class="hljs">bin/pulsar-<span class="hljs-keyword">admin</span> topics stats-<span class="hljs-type">internal</span> <span class="hljs-built_in">public</span>/<span class="hljs-keyword">default</span>/fs-test
 </code></pre>
 <p><strong>Output</strong></p>
 <p>The data of the ledger 696 is not offloaded.</p>
@@ -289,10 +289,10 @@ Reason: <span class="hljs-builtin-name">Error</span> offloading: org.apache.book
 }
 </code></pre></li>
 <li><p>Wait a second and send more messages to the topic.</p>
-<pre><code class="hljs">./bin/pulsar-client produce -m <span class="hljs-string">"Hello FileSystem Offloader"</span> -n <span class="hljs-number">1000</span> <span class="hljs-meta">public</span>/<span class="hljs-meta">default</span>/<span class="hljs-built_in">fs</span>-<span class="hljs-keyword">test</span>
+<pre><code class="hljs">bin/pulsar-client produce -m <span class="hljs-string">"Hello FileSystem Offloader"</span> -n <span class="hljs-number">1000</span> <span class="hljs-meta">public</span>/<span class="hljs-meta">default</span>/<span class="hljs-built_in">fs</span>-<span class="hljs-keyword">test</span>
 </code></pre></li>
 <li><p>Check the ledger status using pulsarctl.</p>
-<pre><code class="hljs">./bin/pulsarctl topics internal-stats <span class="hljs-meta">public</span>/<span class="hljs-meta">default</span>/<span class="hljs-built_in">fs</span>-<span class="hljs-keyword">test</span>
+<pre><code class="hljs">bin/pulsar-<span class="hljs-keyword">admin</span> topics stats-<span class="hljs-type">internal</span> <span class="hljs-built_in">public</span>/<span class="hljs-keyword">default</span>/fs-test
 </code></pre>
 <p><strong>Output</strong></p>
 <p>The ledger 696 is rollovered.</p>
@@ -316,7 +316,7 @@ Reason: <span class="hljs-builtin-name">Error</span> offloading: org.apache.book
 }
 </code></pre></li>
 <li><p>Trigger the offloading operation manually using pulsarctl.</p>
-<pre><code class="hljs">./bin/pulsarctl topic offload -s <span class="hljs-number">0</span> <span class="hljs-meta">public</span>/<span class="hljs-meta">default</span>/<span class="hljs-built_in">fs</span>-<span class="hljs-keyword">test</span>
+<pre><code class="hljs">bin/pulsar-admin topics offload -s <span class="hljs-number">0</span> <span class="hljs-meta">public</span>/<span class="hljs-meta">default</span>/<span class="hljs-built_in">fs</span>-<span class="hljs-keyword">test</span>
 </code></pre>
 <p><strong>Output</strong></p>
 <p>Data in ledgers before the ledge 697 is offloaded.</p>
@@ -324,7 +324,7 @@ Reason: <span class="hljs-builtin-name">Error</span> offloading: org.apache.book
 Offload triggered <span class="hljs-keyword">for</span> persistent:<span class="hljs-regexp">//</span>public<span class="hljs-regexp">/default/</span>fs-test3 <span class="hljs-keyword">for</span> messages before <span class="hljs-number">697</span>:<span class="hljs-number">0</span>:-<span class="hljs-number">1</span>
 </code></pre></li>
 <li><p>Check the ledger status using pulsarctl.</p>
-<pre><code class="hljs">./bin/pulsarctl topic <span class="hljs-type">internal</span>-<span class="hljs-keyword">info</span> <span class="hljs-built_in">public</span>/<span class="hljs-keyword">default</span>/fs-test
+<pre><code class="hljs">bin/pulsar-<span class="hljs-keyword">admin</span> topics stats-<span class="hljs-type">internal</span> <span class="hljs-built_in">public</span>/<span class="hljs-keyword">default</span>/fs-test
 </code></pre>
 <p><strong>Output</strong></p>
 <p>The data of the ledger 696 is offloaded.</p>

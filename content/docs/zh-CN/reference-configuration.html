@@ -155,7 +155,7 @@
 <tr><td>serverTcpNoDelay</td><td>此设置用于启用/禁用 Nagle 的算法，该算法能通过减少通过网络发送的数据包数量来提高 TCP/IP 网络效率。 如果你正在发送许多小消息，这样在单个 IP 数据包中就可以放入不止一个消息，设置 server.tcpnodelay 为 false 来启用 Nagle 算法可以提供更好的性能。</td><td>true</td></tr>
 <tr><td>serverSockKeepalive</td><td>此设置用于在面向连接的套接字上发送 keep-alive 消息。</td><td>true</td></tr>
 <tr><td>serverTcpLinger</td><td>关闭时套接字延迟超时。 When enabled, a close or shutdown will not return until all queued messages for the socket have been successfully sent or the linger timeout has been reached. Otherwise, the call returns immediately and the closing is done in the background.</td><td>0</td></tr>
-<tr><td>byteBufAllocatorSizeMax</td><td>The maximum buf size of the received ByteBuf allocator.</td><td>1048576</td></tr>
+<tr><td>byteBufAllocatorSizeMax</td><td>ByteBuf分配器能够接受的最大buf的大小</td><td>1048576</td></tr>
 <tr><td>nettyMaxFrameSizeBytes</td><td>The maximum netty frame size in bytes. Any message received larger than this will be rejected.</td><td>5253120</td></tr>
 <tr><td>openFileLimit</td><td>在 bookie 服务器上可以打开 ledger 索引文件的最大数量。如果 ledger 索引文件数量达到这个限制，bookie 服务器会开始将一些 ledger 从内存交换到磁盘。 过于频繁的交换会影响性能。 你可以根据你的要求调整这个数字以获得性能提升。</td><td>0</td></tr>
 <tr><td>pageSize</td><td>Size of a index page in ledger cache, in bytes A larger index page can improve performance writing page to disk, which is efficient when you have small number of ledgers and these ledgers have similar number of entries. 如果你有大量的 ledger，而每个 ledger 都有较少的条目，较小的索引页面将会提高内存使用率。</td><td>8192</td></tr>

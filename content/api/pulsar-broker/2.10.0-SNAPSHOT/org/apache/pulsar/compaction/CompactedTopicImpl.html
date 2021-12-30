@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10};
+var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -170,11 +170,15 @@ implements <a href="../../../../org/apache/pulsar/compaction/CompactedTopic.html
 </td>
 </tr>
 <tr id="i3" class="rowColor">
+<td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/Optional.html?is-external=true" title="class or interface in java.util">Optional</a>&lt;org.apache.bookkeeper.mledger.Position&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../org/apache/pulsar/compaction/CompactedTopicImpl.html#getCompactionHorizon--">getCompactionHorizon</a></span>()</code>&nbsp;</td>
+</tr>
+<tr id="i4" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="../../../../org/apache/pulsar/compaction/CompactedTopicContext.html" title="class in org.apache.pulsar.compaction">CompactedTopicContext</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../org/apache/pulsar/compaction/CompactedTopicImpl.html#newCompactedLedger-org.apache.bookkeeper.mledger.Position-long-">newCompactedLedger</a></span>(org.apache.bookkeeper.mledger.Position&nbsp;p,
                   long&nbsp;compactedLedgerId)</code>&nbsp;</td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;org.apache.bookkeeper.mledger.Entry&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../org/apache/pulsar/compaction/CompactedTopicImpl.html#readLastEntryOfCompactedLedger--">readLastEntryOfCompactedLedger</a></span>()</code>&nbsp;</td>
 </tr>
@@ -283,13 +287,26 @@ implements <a href="../../../../org/apache/pulsar/compaction/CompactedTopic.html
 <a name="readLastEntryOfCompactedLedger--">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>readLastEntryOfCompactedLedger</h4>
 <pre>public&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;org.apache.bookkeeper.mledger.Entry&gt;&nbsp;readLastEntryOfCompactedLedger()</pre>
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
 <dd><code><a href="../../../../org/apache/pulsar/compaction/CompactedTopic.html#readLastEntryOfCompactedLedger--">readLastEntryOfCompactedLedger</a></code>&nbsp;in interface&nbsp;<code><a href="../../../../org/apache/pulsar/compaction/CompactedTopic.html" title="interface in org.apache.pulsar.compaction">CompactedTopic</a></code></dd>
+</dl>
+</li>
+</ul>
+<a name="getCompactionHorizon--">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>getCompactionHorizon</h4>
+<pre>public&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Optional.html?is-external=true" title="class or interface in java.util">Optional</a>&lt;org.apache.bookkeeper.mledger.Position&gt;&nbsp;getCompactionHorizon()</pre>
+<dl>
+<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
+<dd><code><a href="../../../../org/apache/pulsar/compaction/CompactedTopic.html#getCompactionHorizon--">getCompactionHorizon</a></code>&nbsp;in interface&nbsp;<code><a href="../../../../org/apache/pulsar/compaction/CompactedTopic.html" title="interface in org.apache.pulsar.compaction">CompactedTopic</a></code></dd>
 </dl>
 </li>
 </ul>

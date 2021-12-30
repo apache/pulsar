@@ -6863,7 +6863,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Topic does not exist"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -6907,7 +6907,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Topic does not exist"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -7492,7 +7492,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Topic does not exist"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -7542,7 +7542,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Topic does not exist"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -7655,6 +7655,12 @@
           "required" : false,
           "type" : "boolean"
         }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -7703,6 +7709,12 @@
           "type" : "boolean",
           "default" : false
         }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        }, {
           "in" : "body",
           "name" : "body",
           "description" : "inactive topic policies for the specified topic",
@@ -7741,6 +7753,12 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
@@ -8040,6 +8058,12 @@
           "required" : true,
           "type" : "string"
         }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        }, {
           "name" : "applied",
           "in" : "query",
           "required" : false,
@@ -8088,6 +8112,12 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
@@ -8145,6 +8175,12 @@
           "required" : true,
           "type" : "string"
         }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -8191,6 +8227,12 @@
           "required" : true,
           "type" : "string"
         }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -8235,6 +8277,12 @@
           "required" : true,
           "type" : "string"
         }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -8253,7 +8301,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Topic does not exist"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -8288,6 +8336,12 @@
           "required" : true,
           "type" : "string"
         }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -8297,7 +8351,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Topic does not exist"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -8933,6 +8987,12 @@
           "required" : false,
           "type" : "boolean"
         }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -8973,6 +9033,12 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
@@ -9020,6 +9086,12 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
@@ -10281,6 +10353,12 @@
           "required" : true,
           "type" : "string"
         }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -10325,6 +10403,12 @@
           "required" : true,
           "type" : "string"
         }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -10342,7 +10426,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Topic does not exist"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -10377,6 +10461,12 @@
           "required" : true,
           "type" : "string"
         }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -10386,7 +10476,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Topic does not exist"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -11048,7 +11138,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Topic does not exist"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -11099,7 +11189,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Topic does not exist"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -11992,7 +12082,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Topic does not exist"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -12036,7 +12126,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Topic does not exist"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -12150,7 +12240,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Topic does not exist"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -13282,7 +13372,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Topic does not exist"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -13326,7 +13416,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Topic does not exist"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -13911,7 +14001,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Topic does not exist"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -13961,7 +14051,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Topic does not exist"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -14074,6 +14164,12 @@
           "required" : false,
           "type" : "boolean"
         }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -14122,6 +14218,12 @@
           "type" : "boolean",
           "default" : false
         }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        }, {
           "in" : "body",
           "name" : "body",
           "description" : "inactive topic policies for the specified topic",
@@ -14160,6 +14262,12 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
@@ -14462,6 +14570,12 @@
           "required" : true,
           "type" : "string"
         }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        }, {
           "name" : "applied",
           "in" : "query",
           "required" : false,
@@ -14510,6 +14624,12 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
@@ -14567,6 +14687,12 @@
           "required" : true,
           "type" : "string"
         }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -14613,6 +14739,12 @@
           "required" : true,
           "type" : "string"
         }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -14657,6 +14789,12 @@
           "required" : true,
           "type" : "string"
         }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -14675,7 +14813,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Topic does not exist"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -14710,6 +14848,12 @@
           "required" : true,
           "type" : "string"
         }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -14719,7 +14863,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Topic does not exist"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -15355,6 +15499,12 @@
           "required" : false,
           "type" : "boolean"
         }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -15395,6 +15545,12 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
@@ -15442,6 +15598,12 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
@@ -16703,6 +16865,12 @@
           "required" : true,
           "type" : "string"
         }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -16747,6 +16915,12 @@
           "required" : true,
           "type" : "string"
         }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -16764,7 +16938,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Topic does not exist"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -16799,6 +16973,12 @@
           "required" : true,
           "type" : "string"
         }, {
+          "name" : "isGlobal",
+          "in" : "query",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -16808,7 +16988,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Topic does not exist"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -17473,7 +17653,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Topic does not exist"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -17524,7 +17704,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Topic does not exist"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -18417,7 +18597,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Topic does not exist"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -18461,7 +18641,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Topic does not exist"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -18575,7 +18755,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Topic does not exist"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -20242,11 +20422,11 @@
             "$ref" : "#/definitions/X509Certificate"
           }
         },
-        "httpAuthType" : {
-          "type" : "string"
-        },
         "peerAddress" : {
           "$ref" : "#/definitions/SocketAddress"
+        },
+        "httpAuthType" : {
+          "type" : "string"
         },
         "commandData" : {
           "type" : "string"
@@ -20279,28 +20459,28 @@
     "AutoTopicCreationOverride" : {
       "type" : "object",
       "properties" : {
-        "topicType" : {
-          "type" : "string"
-        },
         "defaultNumPartitions" : {
           "type" : "integer",
           "format" : "int32"
         },
         "allowAutoTopicCreation" : {
           "type" : "boolean"
+        },
+        "topicType" : {
+          "type" : "string"
         }
       }
     },
     "BacklogQuota" : {
       "type" : "object",
       "properties" : {
-        "limit" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
         "policy" : {
           "type" : "string",
           "enum" : [ "producer_request_hold", "producer_exception", "consumer_backlog_eviction" ]
+        },
+        "limit" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "limitSize" : {
           "type" : "integer",
@@ -20315,16 +20495,16 @@
     "Base64Variant" : {
       "type" : "object",
       "properties" : {
+        "maxLineLength" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
         "paddingChar" : {
           "type" : "string"
         },
         "paddingByte" : {
           "type" : "string",
           "format" : "byte"
-        },
-        "maxLineLength" : {
-          "type" : "integer",
-          "format" : "int32"
         },
         "name" : {
           "type" : "string"
@@ -20568,12 +20748,12 @@
     "CompletableFuture" : {
       "type" : "object",
       "properties" : {
-        "done" : {
-          "type" : "boolean"
-        },
         "numberOfDependents" : {
           "type" : "integer",
           "format" : "int32"
+        },
+        "done" : {
+          "type" : "boolean"
         },
         "cancelled" : {
           "type" : "boolean"
@@ -20586,12 +20766,12 @@
     "CompletableFutureClusterData" : {
       "type" : "object",
       "properties" : {
-        "done" : {
-          "type" : "boolean"
-        },
         "numberOfDependents" : {
           "type" : "integer",
           "format" : "int32"
+        },
+        "done" : {
+          "type" : "boolean"
         },
         "cancelled" : {
           "type" : "boolean"
@@ -20604,12 +20784,12 @@
     "CompletableFuturePartitionedTopicMetadata" : {
       "type" : "object",
       "properties" : {
-        "done" : {
-          "type" : "boolean"
-        },
         "numberOfDependents" : {
           "type" : "integer",
           "format" : "int32"
+        },
+        "done" : {
+          "type" : "boolean"
         },
         "cancelled" : {
           "type" : "boolean"
@@ -20645,13 +20825,11 @@
     "ConsumerStats" : {
       "type" : "object",
       "properties" : {
-        "msgRateOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
+        "metadata" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "string"
+          }
         },
         "bytesOutCounter" : {
           "type" : "integer",
@@ -20660,22 +20838,6 @@
         "msgOutCounter" : {
           "type" : "integer",
           "format" : "int64"
-        },
-        "metadata" : {
-          "type" : "object",
-          "additionalProperties" : {
-            "type" : "string"
-          }
-        },
-        "chunkedMessageRate" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "connectedSince" : {
-          "type" : "string"
-        },
-        "clientVersion" : {
-          "type" : "string"
         },
         "msgRateRedeliver" : {
           "type" : "number",
@@ -20716,6 +20878,24 @@
             "type" : "string"
           }
         },
+        "chunkedMessageRate" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "connectedSince" : {
+          "type" : "string"
+        },
+        "clientVersion" : {
+          "type" : "string"
+        },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgRateOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
         "address" : {
           "type" : "string"
         }
@@ -20738,13 +20918,13 @@
           "type" : "integer",
           "format" : "int32"
         },
+        "displayName" : {
+          "type" : "string"
+        },
         "symbol" : {
           "type" : "string"
         },
         "numericCodeAsString" : {
-          "type" : "string"
-        },
-        "displayName" : {
           "type" : "string"
         }
       }
@@ -20832,11 +21012,11 @@
         "numberFormat" : {
           "$ref" : "#/definitions/NumberFormat"
         },
-        "timeZone" : {
-          "$ref" : "#/definitions/TimeZone"
-        },
         "lenient" : {
           "type" : "boolean"
+        },
+        "timeZone" : {
+          "$ref" : "#/definitions/TimeZone"
         }
       }
     },
@@ -20864,14 +21044,11 @@
     "DeserializationConfig" : {
       "type" : "object",
       "properties" : {
-        "defaultPropertyInclusion" : {
-          "$ref" : "#/definitions/Value"
+        "nodeFactory" : {
+          "$ref" : "#/definitions/JsonNodeFactory"
         },
         "problemHandlers" : {
           "$ref" : "#/definitions/LinkedNodeDeserializationProblemHandler"
-        },
-        "nodeFactory" : {
-          "$ref" : "#/definitions/JsonNodeFactory"
         },
         "annotationIntrospector" : {
           "$ref" : "#/definitions/AnnotationIntrospector"
@@ -20880,17 +21057,20 @@
           "type" : "integer",
           "format" : "int32"
         },
+        "defaultPropertyInclusion" : {
+          "$ref" : "#/definitions/Value"
+        },
         "rootName" : {
           "type" : "string"
-        },
-        "fullRootName" : {
-          "$ref" : "#/definitions/PropertyName"
         },
         "subtypeResolver" : {
           "$ref" : "#/definitions/SubtypeResolver"
         },
         "defaultVisibilityChecker" : {
           "$ref" : "#/definitions/VisibilityCheckerObject"
+        },
+        "fullRootName" : {
+          "$ref" : "#/definitions/PropertyName"
         },
         "attributes" : {
           "$ref" : "#/definitions/ContextAttributes"
@@ -20904,20 +21084,20 @@
         "typeFactory" : {
           "$ref" : "#/definitions/TypeFactory"
         },
-        "annotationProcessingEnabled" : {
-          "type" : "boolean"
-        },
-        "handlerInstantiator" : {
-          "$ref" : "#/definitions/HandlerInstantiator"
-        },
         "propertyNamingStrategy" : {
           "$ref" : "#/definitions/PropertyNamingStrategy"
         },
         "dateFormat" : {
           "$ref" : "#/definitions/DateFormat"
         },
+        "handlerInstantiator" : {
+          "$ref" : "#/definitions/HandlerInstantiator"
+        },
         "base64Variant" : {
           "$ref" : "#/definitions/Base64Variant"
+        },
+        "annotationProcessingEnabled" : {
+          "type" : "boolean"
         },
         "classIntrospector" : {
           "$ref" : "#/definitions/ClassIntrospector"
@@ -20942,11 +21122,11 @@
         "typeFactory" : {
           "$ref" : "#/definitions/TypeFactory"
         },
-        "arrayBuilders" : {
-          "$ref" : "#/definitions/ArrayBuilders"
-        },
         "nodeFactory" : {
           "$ref" : "#/definitions/JsonNodeFactory"
+        },
+        "arrayBuilders" : {
+          "$ref" : "#/definitions/ArrayBuilders"
         },
         "annotationIntrospector" : {
           "$ref" : "#/definitions/AnnotationIntrospector"
@@ -21334,6 +21514,12 @@
     "JsonFactory" : {
       "type" : "object",
       "properties" : {
+        "characterEscapes" : {
+          "$ref" : "#/definitions/CharacterEscapes"
+        },
+        "rootValueSeparator" : {
+          "type" : "string"
+        },
         "codec" : {
           "$ref" : "#/definitions/ObjectCodec"
         },
@@ -21345,12 +21531,6 @@
         },
         "outputDecorator" : {
           "$ref" : "#/definitions/OutputDecorator"
-        },
-        "rootValueSeparator" : {
-          "type" : "string"
-        },
-        "characterEscapes" : {
-          "$ref" : "#/definitions/CharacterEscapes"
         }
       }
     },
@@ -21359,15 +21539,6 @@
       "properties" : {
         "closed" : {
           "type" : "boolean"
-        },
-        "schema" : {
-          "$ref" : "#/definitions/FormatSchema"
-        },
-        "codec" : {
-          "$ref" : "#/definitions/ObjectCodec"
-        },
-        "prettyPrinter" : {
-          "$ref" : "#/definitions/PrettyPrinter"
         },
         "featureMask" : {
           "type" : "integer",
@@ -21379,6 +21550,12 @@
         },
         "currentValue" : {
           "type" : "object"
+        },
+        "schema" : {
+          "$ref" : "#/definitions/FormatSchema"
+        },
+        "outputContext" : {
+          "$ref" : "#/definitions/JsonStreamContext"
         },
         "highestEscapedChar" : {
           "type" : "integer",
@@ -21394,8 +21571,11 @@
           "type" : "integer",
           "format" : "int32"
         },
-        "outputContext" : {
-          "$ref" : "#/definitions/JsonStreamContext"
+        "codec" : {
+          "$ref" : "#/definitions/ObjectCodec"
+        },
+        "prettyPrinter" : {
+          "$ref" : "#/definitions/PrettyPrinter"
         }
       }
     },
@@ -21442,13 +21622,8 @@
             "type" : "string"
           }
         },
-        "intValue" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
-        "shortValue" : {
-          "type" : "integer",
-          "format" : "int32"
+        "closed" : {
+          "type" : "boolean"
         },
         "booleanValue" : {
           "type" : "boolean"
@@ -21469,27 +21644,19 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "closed" : {
-          "type" : "boolean"
+        "shortValue" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "objectId" : {
+          "type" : "object"
+        },
+        "intValue" : {
+          "type" : "integer",
+          "format" : "int32"
         },
         "typeId" : {
           "type" : "object"
-        },
-        "schema" : {
-          "$ref" : "#/definitions/FormatSchema"
-        },
-        "tokenLocation" : {
-          "$ref" : "#/definitions/JsonLocation"
-        },
-        "codec" : {
-          "$ref" : "#/definitions/ObjectCodec"
-        },
-        "currentToken" : {
-          "type" : "string",
-          "enum" : [ "NOT_AVAILABLE", "START_OBJECT", "END_OBJECT", "START_ARRAY", "END_ARRAY", "FIELD_NAME", "VALUE_EMBEDDED_OBJECT", "VALUE_STRING", "VALUE_NUMBER_INT", "VALUE_NUMBER_FLOAT", "VALUE_TRUE", "VALUE_FALSE", "VALUE_NULL" ]
-        },
-        "currentName" : {
-          "type" : "string"
         },
         "featureMask" : {
           "type" : "integer",
@@ -21564,14 +21731,27 @@
         "valueAsString" : {
           "type" : "string"
         },
-        "objectId" : {
-          "type" : "object"
-        },
         "inputSource" : {
           "type" : "object"
         },
         "currentValue" : {
           "type" : "object"
+        },
+        "schema" : {
+          "$ref" : "#/definitions/FormatSchema"
+        },
+        "tokenLocation" : {
+          "$ref" : "#/definitions/JsonLocation"
+        },
+        "codec" : {
+          "$ref" : "#/definitions/ObjectCodec"
+        },
+        "currentToken" : {
+          "type" : "string",
+          "enum" : [ "NOT_AVAILABLE", "START_OBJECT", "END_OBJECT", "START_ARRAY", "END_ARRAY", "FIELD_NAME", "VALUE_EMBEDDED_OBJECT", "VALUE_STRING", "VALUE_NUMBER_INT", "VALUE_NUMBER_FLOAT", "VALUE_TRUE", "VALUE_FALSE", "VALUE_NULL" ]
+        },
+        "currentName" : {
+          "type" : "string"
         }
       }
     },
@@ -21586,31 +21766,31 @@
     "JsonSerializerObject" : {
       "type" : "object",
       "properties" : {
-        "delegatee" : {
-          "$ref" : "#/definitions/JsonSerializerObject"
-        },
         "unwrappingSerializer" : {
           "type" : "boolean"
+        },
+        "delegatee" : {
+          "$ref" : "#/definitions/JsonSerializerObject"
         }
       }
     },
     "JsonStreamContext" : {
       "type" : "object",
       "properties" : {
-        "typeDesc" : {
-          "type" : "string"
-        },
-        "currentIndex" : {
-          "type" : "integer",
-          "format" : "int32"
+        "currentValue" : {
+          "type" : "object"
         },
         "currentName" : {
           "type" : "string"
         },
-        "currentValue" : {
-          "type" : "object"
-        },
         "entryCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "typeDesc" : {
+          "type" : "string"
+        },
+        "currentIndex" : {
           "type" : "integer",
           "format" : "int32"
         },
@@ -21903,23 +22083,6 @@
           "type" : "number",
           "format" : "double"
         },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "loadReportType" : {
-          "type" : "string"
-        },
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
@@ -21938,12 +22101,32 @@
         "lastUpdate" : {
           "type" : "integer",
           "format" : "int64"
+        },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "underLoaded" : {
+          "type" : "boolean"
+        },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "loadReportType" : {
+          "type" : "string"
         }
       }
     },
     "Locale" : {
       "type" : "object",
       "properties" : {
+        "displayName" : {
+          "type" : "string"
+        },
         "script" : {
           "type" : "string"
         },
@@ -21990,9 +22173,6 @@
           "type" : "string"
         },
         "displayVariant" : {
-          "type" : "string"
-        },
-        "displayName" : {
           "type" : "string"
         },
         "language" : {
@@ -22201,23 +22381,15 @@
           "type" : "number",
           "format" : "double"
         },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "averageMsgSize" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgRateIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
         "metadata" : {
           "type" : "object",
           "additionalProperties" : {
             "type" : "string"
           }
+        },
+        "averageMsgSize" : {
+          "type" : "number",
+          "format" : "double"
         },
         "accessMode" : {
           "type" : "string",
@@ -22237,6 +22409,14 @@
         "clientVersion" : {
           "type" : "string"
         },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgRateIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
         "producerName" : {
           "type" : "string"
         },
@@ -22252,32 +22432,16 @@
           "type" : "number",
           "format" : "double"
         },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgRateOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgRateIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
         "connected" : {
           "type" : "boolean"
-        },
-        "replicationBacklog" : {
-          "type" : "integer",
-          "format" : "int64"
         },
         "msgRateExpired" : {
           "type" : "number",
           "format" : "double"
+        },
+        "replicationBacklog" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "replicationDelayInSeconds" : {
           "type" : "integer",
@@ -22294,6 +22458,22 @@
         },
         "outboundConnectedSince" : {
           "type" : "string"
+        },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgRateIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgRateOut" : {
+          "type" : "number",
+          "format" : "double"
         }
       }
     },
@@ -22304,23 +22484,15 @@
           "type" : "number",
           "format" : "double"
         },
-        "msgRateOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
+        "backlogSize" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "bytesOutCounter" : {
           "type" : "integer",
           "format" : "int64"
         },
         "msgOutCounter" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "backlogSize" : {
           "type" : "integer",
           "format" : "int64"
         },
@@ -22332,17 +22504,11 @@
           "type" : "integer",
           "format" : "int32"
         },
-        "chunkedMessageRate" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
-        "msgRateExpired" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgBacklog" : {
-          "type" : "integer",
-          "format" : "int64"
+        "consumers" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/ConsumerStats"
+          }
         },
         "msgRateRedeliver" : {
           "type" : "number",
@@ -22412,11 +22578,25 @@
             "type" : "string"
           }
         },
-        "consumers" : {
-          "type" : "array",
-          "items" : {
-            "$ref" : "#/definitions/ConsumerStats"
-          }
+        "chunkedMessageRate" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "msgRateExpired" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgBacklog" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgRateOut" : {
+          "type" : "number",
+          "format" : "double"
         },
         "replicated" : {
           "type" : "boolean"
@@ -22454,17 +22634,9 @@
             "$ref" : "#/definitions/NonPersistentSubscriptionStats"
           }
         },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgRateOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
+        "backlogSize" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "bytesInCounter" : {
           "type" : "integer",
@@ -22493,10 +22665,6 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "backlogSize" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
         "earliestMsgPublishTimeInBacklogs" : {
           "type" : "integer",
           "format" : "int64"
@@ -22508,10 +22676,6 @@
         "waitingPublishers" : {
           "type" : "integer",
           "format" : "int32"
-        },
-        "msgRateIn" : {
-          "type" : "number",
-          "format" : "double"
         },
         "deduplicationStatus" : {
           "type" : "string"
@@ -22530,6 +22694,22 @@
         },
         "compaction" : {
           "$ref" : "#/definitions/CompactionStats"
+        },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgRateIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgRateOut" : {
+          "type" : "number",
+          "format" : "double"
         }
       }
     },
@@ -22634,40 +22814,8 @@
     "OffloadPolicies" : {
       "type" : "object",
       "properties" : {
-        "offloadersDirectory" : {
+        "fileSystemURI" : {
           "type" : "string"
-        },
-        "managedLedgerOffloadDriver" : {
-          "type" : "string"
-        },
-        "managedLedgerOffloadMaxThreads" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
-        "managedLedgerOffloadPrefetchRounds" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
-        "managedLedgerOffloadedReadPriority" : {
-          "type" : "string",
-          "enum" : [ "BOOKKEEPER_FIRST", "TIERED_STORAGE_FIRST" ]
-        },
-        "s3ManagedLedgerOffloadRegion" : {
-          "type" : "string"
-        },
-        "s3ManagedLedgerOffloadBucket" : {
-          "type" : "string"
-        },
-        "s3ManagedLedgerOffloadServiceEndpoint" : {
-          "type" : "string"
-        },
-        "s3ManagedLedgerOffloadMaxBlockSizeInBytes" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
-        "s3ManagedLedgerOffloadReadBufferSizeInBytes" : {
-          "type" : "integer",
-          "format" : "int32"
         },
         "s3ManagedLedgerOffloadCredentialId" : {
           "type" : "string"
@@ -22701,9 +22849,6 @@
         "fileSystemProfilePath" : {
           "type" : "string"
         },
-        "fileSystemURI" : {
-          "type" : "string"
-        },
         "managedLedgerOffloadBucket" : {
           "type" : "string"
         },
@@ -22728,6 +22873,41 @@
         "managedLedgerOffloadDeletionLagInMillis" : {
           "type" : "integer",
           "format" : "int64"
+        },
+        "managedLedgerOffloadDriver" : {
+          "type" : "string"
+        },
+        "offloadersDirectory" : {
+          "type" : "string"
+        },
+        "managedLedgerOffloadMaxThreads" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "managedLedgerOffloadPrefetchRounds" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "s3ManagedLedgerOffloadRegion" : {
+          "type" : "string"
+        },
+        "s3ManagedLedgerOffloadBucket" : {
+          "type" : "string"
+        },
+        "s3ManagedLedgerOffloadMaxBlockSizeInBytes" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "s3ManagedLedgerOffloadReadBufferSizeInBytes" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "s3ManagedLedgerOffloadServiceEndpoint" : {
+          "type" : "string"
+        },
+        "managedLedgerOffloadedReadPriority" : {
+          "type" : "string",
+          "enum" : [ "BOOKKEEPER_FIRST", "TIERED_STORAGE_FIRST" ]
         }
       }
     },
@@ -22843,15 +23023,15 @@
     "OffloadProcessStatus" : {
       "type" : "object",
       "properties" : {
+        "status" : {
+          "type" : "string",
+          "enum" : [ "NOT_RUN", "RUNNING", "SUCCESS", "ERROR" ]
+        },
         "lastError" : {
           "type" : "string"
         },
         "firstUnoffloadedMessage" : {
           "$ref" : "#/definitions/MessageId"
-        },
-        "status" : {
-          "type" : "string",
-          "enum" : [ "NOT_RUN", "RUNNING", "SUCCESS", "ERROR" ]
         }
       }
     },
@@ -23460,10 +23640,10 @@
     "PublicKey" : {
       "type" : "object",
       "properties" : {
-        "algorithm" : {
+        "format" : {
           "type" : "string"
         },
-        "format" : {
+        "algorithm" : {
           "type" : "string"
         },
         "encoded" : {
@@ -23491,23 +23671,15 @@
     "PublisherStats" : {
       "type" : "object",
       "properties" : {
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "averageMsgSize" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgRateIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
         "metadata" : {
           "type" : "object",
           "additionalProperties" : {
             "type" : "string"
           }
+        },
+        "averageMsgSize" : {
+          "type" : "number",
+          "format" : "double"
         },
         "accessMode" : {
           "type" : "string",
@@ -23526,6 +23698,14 @@
         },
         "clientVersion" : {
           "type" : "string"
+        },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgRateIn" : {
+          "type" : "number",
+          "format" : "double"
         },
         "producerName" : {
           "type" : "string"
@@ -23546,32 +23726,16 @@
     "ReplicatorStats" : {
       "type" : "object",
       "properties" : {
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgRateOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgRateIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
         "connected" : {
           "type" : "boolean"
-        },
-        "replicationBacklog" : {
-          "type" : "integer",
-          "format" : "int64"
         },
         "msgRateExpired" : {
           "type" : "number",
           "format" : "double"
+        },
+        "replicationBacklog" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "replicationDelayInSeconds" : {
           "type" : "integer",
@@ -23588,6 +23752,22 @@
         },
         "outboundConnectedSince" : {
           "type" : "string"
+        },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgRateIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgRateOut" : {
+          "type" : "number",
+          "format" : "double"
         }
       }
     },
@@ -23682,11 +23862,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "resourceId" : {
-          "type" : "string"
-        },
         "availableResource" : {
           "$ref" : "#/definitions/ResourceDescription"
+        },
+        "resourceId" : {
+          "type" : "string"
         }
       }
     },
@@ -23739,17 +23919,17 @@
     "SerializationConfig" : {
       "type" : "object",
       "properties" : {
-        "defaultPropertyInclusion" : {
-          "$ref" : "#/definitions/Value"
-        },
-        "filterProvider" : {
-          "$ref" : "#/definitions/FilterProvider"
-        },
         "defaultPrettyPrinter" : {
           "$ref" : "#/definitions/PrettyPrinter"
         },
         "annotationIntrospector" : {
           "$ref" : "#/definitions/AnnotationIntrospector"
+        },
+        "defaultPropertyInclusion" : {
+          "$ref" : "#/definitions/Value"
+        },
+        "filterProvider" : {
+          "$ref" : "#/definitions/FilterProvider"
         },
         "serializationInclusion" : {
           "type" : "string",
@@ -23762,14 +23942,14 @@
         "rootName" : {
           "type" : "string"
         },
-        "fullRootName" : {
-          "$ref" : "#/definitions/PropertyName"
-        },
         "subtypeResolver" : {
           "$ref" : "#/definitions/SubtypeResolver"
         },
         "defaultVisibilityChecker" : {
           "$ref" : "#/definitions/VisibilityCheckerObject"
+        },
+        "fullRootName" : {
+          "$ref" : "#/definitions/PropertyName"
         },
         "attributes" : {
           "$ref" : "#/definitions/ContextAttributes"
@@ -23783,20 +23963,20 @@
         "typeFactory" : {
           "$ref" : "#/definitions/TypeFactory"
         },
-        "annotationProcessingEnabled" : {
-          "type" : "boolean"
-        },
-        "handlerInstantiator" : {
-          "$ref" : "#/definitions/HandlerInstantiator"
-        },
         "propertyNamingStrategy" : {
           "$ref" : "#/definitions/PropertyNamingStrategy"
         },
         "dateFormat" : {
           "$ref" : "#/definitions/DateFormat"
         },
+        "handlerInstantiator" : {
+          "$ref" : "#/definitions/HandlerInstantiator"
+        },
         "base64Variant" : {
           "$ref" : "#/definitions/Base64Variant"
+        },
+        "annotationProcessingEnabled" : {
+          "type" : "boolean"
         },
         "classIntrospector" : {
           "$ref" : "#/definitions/ClassIntrospector"
@@ -23812,6 +23992,9 @@
         "timeZone" : {
           "$ref" : "#/definitions/TimeZone"
         },
+        "generator" : {
+          "$ref" : "#/definitions/JsonGenerator"
+        },
         "locale" : {
           "$ref" : "#/definitions/Locale"
         },
@@ -23821,6 +24004,9 @@
         "typeFactory" : {
           "$ref" : "#/definitions/TypeFactory"
         },
+        "annotationIntrospector" : {
+          "$ref" : "#/definitions/AnnotationIntrospector"
+        },
         "filterProvider" : {
           "$ref" : "#/definitions/FilterProvider"
         },
@@ -23829,12 +24015,6 @@
         },
         "defaultNullValueSerializer" : {
           "$ref" : "#/definitions/JsonSerializerObject"
-        },
-        "generator" : {
-          "$ref" : "#/definitions/JsonGenerator"
-        },
-        "annotationIntrospector" : {
-          "$ref" : "#/definitions/AnnotationIntrospector"
         }
       }
     },
@@ -23928,23 +24108,15 @@
     "SubscriptionStats" : {
       "type" : "object",
       "properties" : {
-        "msgRateOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
+        "backlogSize" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "bytesOutCounter" : {
           "type" : "integer",
           "format" : "int64"
         },
         "msgOutCounter" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "backlogSize" : {
           "type" : "integer",
           "format" : "int64"
         },
@@ -23956,17 +24128,11 @@
           "type" : "integer",
           "format" : "int32"
         },
-        "chunkedMessageRate" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
-        "msgRateExpired" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgBacklog" : {
-          "type" : "integer",
-          "format" : "int64"
+        "consumers" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/ConsumerStats"
+          }
         },
         "msgRateRedeliver" : {
           "type" : "number",
@@ -24036,11 +24202,25 @@
             "type" : "string"
           }
         },
-        "consumers" : {
-          "type" : "array",
-          "items" : {
-            "$ref" : "#/definitions/ConsumerStats"
-          }
+        "chunkedMessageRate" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "msgRateExpired" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgBacklog" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgRateOut" : {
+          "type" : "number",
+          "format" : "double"
         },
         "replicated" : {
           "type" : "boolean"
@@ -24112,7 +24292,7 @@
     "TimeZone" : {
       "type" : "object",
       "properties" : {
-        "id" : {
+        "displayName" : {
           "type" : "string"
         },
         "dstsavings" : {
@@ -24123,7 +24303,7 @@
           "type" : "integer",
           "format" : "int32"
         },
-        "displayName" : {
+        "id" : {
           "type" : "string"
         }
       }
@@ -24131,17 +24311,9 @@
     "TopicStats" : {
       "type" : "object",
       "properties" : {
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgRateOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
+        "backlogSize" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "bytesInCounter" : {
           "type" : "integer",
@@ -24170,10 +24342,6 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "backlogSize" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
         "earliestMsgPublishTimeInBacklogs" : {
           "type" : "integer",
           "format" : "int64"
@@ -24191,10 +24359,6 @@
         "waitingPublishers" : {
           "type" : "integer",
           "format" : "int32"
-        },
-        "msgRateIn" : {
-          "type" : "number",
-          "format" : "double"
         },
         "replication" : {
           "type" : "object",
@@ -24225,6 +24389,22 @@
           "additionalProperties" : {
             "$ref" : "#/definitions/SubscriptionStats"
           }
+        },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgRateIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgRateOut" : {
+          "type" : "number",
+          "format" : "double"
         }
       }
     },
@@ -24630,23 +24810,23 @@
         "sources" : {
           "$ref" : "#/definitions/SourcesWorkerService"
         },
+        "initialized" : {
+          "type" : "boolean"
+        },
         "functions" : {
           "$ref" : "#/definitions/FunctionsWorkerService"
         },
         "sinks" : {
           "$ref" : "#/definitions/SinksWorkerService"
         },
-        "initialized" : {
-          "type" : "boolean"
-        },
-        "workerConfig" : {
-          "$ref" : "#/definitions/WorkerConfig"
-        },
         "functionsV2" : {
           "$ref" : "#/definitions/FunctionsV2WorkerService"
         },
         "workers" : {
           "$ref" : "#/definitions/WorkersWorkerService"
+        },
+        "workerConfig" : {
+          "$ref" : "#/definitions/WorkerConfig"
         }
       }
     },
@@ -24683,25 +24863,27 @@
         "issuerX500Principal" : {
           "$ref" : "#/definitions/X500Principal"
         },
+        "issuerDN" : {
+          "$ref" : "#/definitions/Principal"
+        },
+        "subjectDN" : {
+          "$ref" : "#/definitions/Principal"
+        },
         "version" : {
           "type" : "integer",
           "format" : "int32"
         },
-        "tbscertificate" : {
+        "keyUsage" : {
           "type" : "array",
           "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
-        "extendedKeyUsage" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string"
+            "type" : "boolean"
           }
         },
         "sigAlgName" : {
           "type" : "string"
+        },
+        "serialNumber" : {
+          "type" : "integer"
         },
         "notBefore" : {
           "type" : "string",
@@ -24710,6 +24892,13 @@
         "notAfter" : {
           "type" : "string",
           "format" : "date-time"
+        },
+        "tbscertificate" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
         },
         "sigAlgOID" : {
           "type" : "string"
@@ -24733,10 +24922,10 @@
             "type" : "boolean"
           }
         },
-        "keyUsage" : {
+        "extendedKeyUsage" : {
           "type" : "array",
           "items" : {
-            "type" : "boolean"
+            "type" : "string"
           }
         },
         "subjectAlternativeNames" : {
@@ -24756,15 +24945,6 @@
               "type" : "object"
             }
           }
-        },
-        "issuerDN" : {
-          "$ref" : "#/definitions/Principal"
-        },
-        "subjectDN" : {
-          "$ref" : "#/definitions/Principal"
-        },
-        "serialNumber" : {
-          "type" : "integer"
         },
         "signature" : {
           "type" : "array",

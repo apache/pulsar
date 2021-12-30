@@ -487,7 +487,8 @@
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><span class="typeNameLabel">Consumer.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/api/Consumer.html#reconsumeLater-org.apache.pulsar.client.api.Messages-long-java.util.concurrent.TimeUnit-">reconsumeLater</a></span>(<a href="../../../../../../org/apache/pulsar/client/api/Messages.html" title="interface in org.apache.pulsar.client.api">Messages</a>&lt;?&gt;&nbsp;messages,
+<td class="colLast"><span class="typeNameLabel">Consumer.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/api/Consumer.html#reconsumeLater-org.apache.pulsar.client.api.Message-java.util.Map-long-java.util.concurrent.TimeUnit-">reconsumeLater</a></span>(<a href="../../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;?&gt;&nbsp;message,
+              <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;customProperties,
               long&nbsp;delayTime,
               <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/TimeUnit.html?is-external=true" title="class or interface in java.util.concurrent">TimeUnit</a>&nbsp;unit)</code>
 <div class="block">reconsumeLater the consumption of <a href="../../../../../../org/apache/pulsar/client/api/Messages.html" title="interface in org.apache.pulsar.client.api"><code>Messages</code></a>.</div>
@@ -495,85 +496,93 @@
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>void</code></td>
+<td class="colLast"><span class="typeNameLabel">Consumer.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/api/Consumer.html#reconsumeLater-org.apache.pulsar.client.api.Messages-long-java.util.concurrent.TimeUnit-">reconsumeLater</a></span>(<a href="../../../../../../org/apache/pulsar/client/api/Messages.html" title="interface in org.apache.pulsar.client.api">Messages</a>&lt;?&gt;&nbsp;messages,
+              long&nbsp;delayTime,
+              <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/TimeUnit.html?is-external=true" title="class or interface in java.util.concurrent">TimeUnit</a>&nbsp;unit)</code>
+<div class="block">reconsumeLater the consumption of <a href="../../../../../../org/apache/pulsar/client/api/Messages.html" title="interface in org.apache.pulsar.client.api"><code>Messages</code></a>.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>void</code></td>
 <td class="colLast"><span class="typeNameLabel">Consumer.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/api/Consumer.html#reconsumeLaterCumulative-org.apache.pulsar.client.api.Message-long-java.util.concurrent.TimeUnit-">reconsumeLaterCumulative</a></span>(<a href="../../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;?&gt;&nbsp;message,
                         long&nbsp;delayTime,
                         <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/TimeUnit.html?is-external=true" title="class or interface in java.util.concurrent">TimeUnit</a>&nbsp;unit)</code>
 <div class="block">reconsumeLater the reception of all the messages in the stream up to (and including) the provided message.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><span class="typeNameLabel">Reader.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/api/Reader.html#seek-java.util.function.Function-">seek</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html?is-external=true" title="class or interface in java.util.function">Function</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&gt;&nbsp;function)</code>
 <div class="block">Reset the subscription associated with this consumer to a specific message ID or message publish time.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><span class="typeNameLabel">Consumer.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/api/Consumer.html#seek-java.util.function.Function-">seek</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html?is-external=true" title="class or interface in java.util.function">Function</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&gt;&nbsp;function)</code>
 <div class="block">Reset the subscription associated with this consumer to a specific message ID or message publish time.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><span class="typeNameLabel">Reader.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/api/Reader.html#seek-long-">seek</a></span>(long&nbsp;timestamp)</code>
 <div class="block">Reset the subscription associated with this reader to a specific message publish time.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><span class="typeNameLabel">Consumer.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/api/Consumer.html#seek-long-">seek</a></span>(long&nbsp;timestamp)</code>
 <div class="block">Reset the subscription associated with this consumer to a specific message publish time.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><span class="typeNameLabel">Reader.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/api/Reader.html#seek-org.apache.pulsar.client.api.MessageId-">seek</a></span>(<a href="../../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&nbsp;messageId)</code>
 <div class="block">Reset the subscription associated with this reader to a specific message id.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><span class="typeNameLabel">Consumer.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/api/Consumer.html#seek-org.apache.pulsar.client.api.MessageId-">seek</a></span>(<a href="../../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&nbsp;messageId)</code>
 <div class="block">Reset the subscription associated with this consumer to a specific message id.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code><a href="../../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a></code></td>
 <td class="colLast"><span class="typeNameLabel">TypedMessageBuilder.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html#send--">send</a></span>()</code>
 <div class="block">Send a message synchronously.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code><a href="../../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a></code></td>
 <td class="colLast"><span class="typeNameLabel">Producer.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/api/Producer.html#send-T-">send</a></span>(<a href="../../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&nbsp;message)</code>
 <div class="block">Sends a message.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><span class="typeNameLabel">PulsarClient.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/api/PulsarClient.html#shutdown--">shutdown</a></span>()</code>
 <div class="block">Perform immediate shutdown of PulsarClient.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><span class="typeNameLabel">Authentication.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/api/Authentication.html#start--">start</a></span>()</code>
 <div class="block">Initialize the authentication provider.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code><a href="../../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;<a href="../../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><span class="typeNameLabel">ConsumerBuilder.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#subscribe--">subscribe</a></span>()</code>
 <div class="block">Finalize the <a href="../../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api"><code>Consumer</code></a> creation by subscribing to the topic.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><span class="typeNameLabel">Consumer.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/api/Consumer.html#unsubscribe--">unsubscribe</a></span>()</code>
 <div class="block">Unsubscribe the consumer.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><span class="typeNameLabel">PulsarClient.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/client/api/PulsarClient.html#updateServiceUrl-java.lang.String-">updateServiceUrl</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;serviceUrl)</code>
 <div class="block">Update the service URL this client is using.</div>
