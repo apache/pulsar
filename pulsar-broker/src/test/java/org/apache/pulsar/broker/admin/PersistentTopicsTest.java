@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -422,13 +423,13 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testCreatePartitionedTopic() {
         AsyncResponse response = mock(AsyncResponse.class);
-        final String topicName = "standard-partitioned-topic-a";
+        final String topicName = "standard-partitioned-topic-a" + UUID.randomUUID().toString();
         persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, topicName, 2, true);
         PartitionedTopicMetadata pMetadata = persistentTopics.getPartitionedMetadata(
                 testTenant, testNamespace, topicName, true, false);
         Assert.assertNull(pMetadata.properties);
 
-        final String topicName2 = "standard-partitioned-topic-b";
+        final String topicName2 = "standard-partitioned-topic-b" + UUID.randomUUID().toString();
         Map<String, String> topicMetadata = Maps.newHashMap();
         topicMetadata.put("key1", "value1");
         PartitionedTopicMetadata metadata = new PartitionedTopicMetadata(2, topicMetadata);
