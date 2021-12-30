@@ -528,7 +528,7 @@ public class Consumer {
                 cursorBitSet.and(givenBitSet);
                 givenBitSet.recycle();
                 int currentCardinality = cursorBitSet.cardinality();
-                ackedCount = Math.abs(currentCardinality - lastCardinality);
+                ackedCount = lastCardinality - currentCardinality;
                 cursorBitSet.recycle();
             } else {
                 ackedCount = batchSize - BitSet.valueOf(ackSets).cardinality();
