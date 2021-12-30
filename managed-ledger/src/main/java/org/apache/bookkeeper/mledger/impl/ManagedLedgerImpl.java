@@ -30,6 +30,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Range;
+import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
@@ -52,6 +53,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -145,6 +147,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private static final long MegaByte = 1024 * 1024;
 
     protected static final int AsyncOperationTimeoutSeconds = 30;
+
+    protected static final String DELETABLE_LEDGER_MARKER_KEYWORD = "pulsar.ml.deletable.ledgers";
+    protected static final String DELETABLE_LEDGER_MARKER_PREFIX = DELETABLE_LEDGER_MARKER_KEYWORD + ":";
+    protected static final String DELETABLE_LEDGER_PLACEHOLDER = "";
 
     protected final BookKeeper bookKeeper;
     protected final String name;
@@ -2572,6 +2578,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 ls.getSize());
                         asyncDeleteLedgerFromBookKeeper(ls.getLedgerId());
                     }
+                    removeAllDeletableLedgers();
                     promise.complete(null);
                 }
 
@@ -2719,13 +2726,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void asyncDeleteLedgerFromBookKeeper(long ledgerId) {
-        asyncDeleteLedger(ledgerId, DEFAULT_LEDGER_DELETE_RETRIES);
+        markDeletableLedger(ledgerId);
     }
 
     private void asyncDeleteLedger(long ledgerId, LedgerInfo info) {
         if (!info.getOffloadContext().getBookkeeperDeleted()) {
             // only delete if it hasn't been previously deleted for offload
-            asyncDeleteLedger(ledgerId, DEFAULT_LEDGER_DELETE_RETRIES);
+            markDeletableLedger(ledgerId);
         }
 
         if (info.getOffloadContext().hasUidMsb()) {
@@ -2738,6 +2745,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void asyncDeleteLedger(long ledgerId, long retry) {
+        asyncDeleteLedger(ledgerId, retry, new AsyncCallback.DeleteCallback() {
+            @Override
+            public void deleteComplete(int i, Object o) {
+
+            }
+        });
+    }
+
+    private void asyncDeleteLedger(long ledgerId, long retry, AsyncCallback.DeleteCallback callback) {
         if (retry <= 0) {
             log.warn("[{}] Failed to delete ledger after retries {}", name, ledgerId);
             return;
@@ -2747,13 +2763,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 log.warn("[{}] Ledger was already deleted {}", name, ledgerId);
             } else if (rc != BKException.Code.OK) {
                 log.error("[{}] Error deleting ledger {} : {}", name, ledgerId, BKException.getMessage(rc));
-                scheduledExecutor.schedule(safeRun(() -> asyncDeleteLedger(ledgerId, retry - 1)),
-                        DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC, TimeUnit.SECONDS);
+                scheduledExecutor.schedule(safeRun(() -> asyncDeleteLedger(ledgerId, retry - 1, callback)), DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC, TimeUnit.SECONDS);
+                return;
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Deleted ledger {}", name, ledgerId);
                 }
             }
+            callback.deleteComplete(rc, ctx);
         }, null);
     }
 
@@ -4047,6 +4064,68 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         });
         statFuture.complete(stats);
         return statFuture;
+    }
+
+    @Override
+    public void markDeletableLedger(long ledgerId) {
+        try {
+            final String deletableLedgerMarker = DELETABLE_LEDGER_MARKER_PREFIX + ledgerId;
+            setProperty(deletableLedgerMarker, DELETABLE_LEDGER_PLACEHOLDER);
+        } catch (Exception e) {
+            // retry in the next internal trimming
+            log.error("[{}] Failed to mark deletable ledger:{}", name, ledgerId);
+        }
+    }
+
+    @Override
+    public Set<String> getAllDeletableLedgers() {
+        Set<String> deletableLedgers = propertiesMap.keySet().stream()
+                .filter(k -> k.startsWith(DELETABLE_LEDGER_MARKER_PREFIX))
+                .map(k -> k.substring(DELETABLE_LEDGER_MARKER_PREFIX.length()))
+                .collect(Collectors.toSet());
+        if (!deletableLedgers.isEmpty()) {
+            return deletableLedgers;
+        }
+        return Sets.newHashSet();
+    }
+
+    @Override
+    public void removeAllDeletableLedgers() {
+        Set<String> deletableLedgers = getAllDeletableLedgers();
+        final CountDownLatch counter = new CountDownLatch(deletableLedgers.size());
+
+        Set<String> succeedDeletedLedgers = ConcurrentHashMap.newKeySet();
+        Set<String> failDeletedLedgers = ConcurrentHashMap.newKeySet();
+
+        for (String deletableLedger : deletableLedgers) {
+            asyncDeleteLedger(Long.parseLong(deletableLedger), DEFAULT_LEDGER_DELETE_RETRIES, (rc, ctx) -> {
+                counter.countDown();
+                succeedDeletedLedgers.add(deletableLedger);
+            });
+        }
+
+        try {
+            if (!counter.await(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS)) {
+                for (String deletableLedger : deletableLedgers) {
+                    if (!succeedDeletedLedgers.contains(deletableLedger)) {
+                        log.warn("[{}] Failed to delete ledger:{} due to timeout", name, deletableLedger);
+                        failDeletedLedgers.add(deletableLedger);
+                    }
+                }
+            }
+
+            // force update deleted ledger info to meta store
+            if (!succeedDeletedLedgers.isEmpty()) {
+                for (String succeedDeletedLedger : succeedDeletedLedgers) {
+                    final String deletableLedgerMarker = DELETABLE_LEDGER_MARKER_PREFIX + succeedDeletedLedger;
+                    deleteProperty(deletableLedgerMarker);
+                }
+            }
+        } catch (Exception e) {
+            // Avoid modifying the existing meta-information so that
+            // it can trigger a retry in the next check
+            log.error("[{}] Failed to update metadata after ledger deletion", name);
+        }
     }
 
     public CompletableFuture<Set<BookieId>> getEnsemblesAsync(long ledgerId) {
