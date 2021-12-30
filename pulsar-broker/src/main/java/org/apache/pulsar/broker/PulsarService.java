@@ -253,7 +253,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private PulsarResources pulsarResources;
 
     private TransactionPendingAckStoreProvider transactionPendingAckStoreProvider;
-    private final ExecutorProvider internalExecutorService;
+    private final ExecutorProvider transactionExecutorProvider;
 
     public enum State {
         Init, Started, Closing, Closed
@@ -309,10 +309,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 new DefaultThreadFactory("zk-cache-callback"));
 
         if (config.isTransactionCoordinatorEnabled()) {
-            this.internalExecutorService = new ExecutorProvider(this.getConfiguration().getNumIOThreads(),
-                    "pulsar-executorProvider-internal");
+            this.transactionExecutorProvider = new ExecutorProvider(this.getConfiguration().getNumIOThreads(),
+                    "pulsar-transaction-executor");
         } else {
-            this.internalExecutorService = null;
+            this.transactionExecutorProvider = null;
         }
 
         this.ioEventLoopGroup = EventLoopUtil.newEventLoopGroup(config.getNumIOThreads(), config.isEnableBusyWait(),
@@ -491,8 +491,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 configurationMetadataStore.close();
             }
 
-            if (internalExecutorService != null) {
-                internalExecutorService.shutdownNow();
+            if (transactionExecutorProvider != null) {
+                transactionExecutorProvider.shutdownNow();
             }
 
             ioEventLoopGroup.shutdownGracefully();
@@ -1239,8 +1239,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return cacheExecutor;
     }
 
-    public ExecutorProvider getInternalExecutorService() {
-        return internalExecutorService;
+    public ExecutorProvider getTransactionExecutorProvider() {
+        return transactionExecutorProvider;
     }
 
     public ScheduledExecutorService getLoadManagerExecutor() {

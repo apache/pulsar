@@ -138,7 +138,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 .getTopic()
                 .getBrokerService()
                 .getPulsar()
-                .getInternalExecutorService()
+                .getTransactionExecutorProvider()
                 .getExecutor();
     }
 
@@ -150,7 +150,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 this.pendingAckStoreFuture.thenAccept(pendingAckStore -> {
                     pendingAckStore.replayAsync(this,
                             (ScheduledExecutorService) persistentSubscription.getTopic().getBrokerService()
-                                    .getPulsar().getInternalExecutorService().getExecutor(this));
+                                    .getPulsar().getTransactionExecutorProvider().getExecutor(this));
                 }).exceptionally(e -> {
                     acceptQueue.clear();
                     changeToErrorState();

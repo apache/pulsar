@@ -35,8 +35,10 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
+import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckReplyCallBack;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
+import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleState;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -362,7 +364,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 .subscriptionName("sub")
                 .subscribe();
 
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 20; i++) {
             producer.newMessage().value(String.valueOf(i)).send();
         }
         Transaction transaction = pulsarClient
@@ -370,9 +372,36 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build()
                 .get();
-        for (int i = 0; i < 10; i++) {
+        List<Message> messages = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
             Message<String> message = consumer.receive();
-            consumer.acknowledgeCumulativeAsync(message.getMessageId(), transaction);
+            messages.add(message);
+        }
+        PersistentSubscription persistentSubscription =
+                (PersistentSubscription) getPulsarServiceList()
+                        .get(0)
+                        .getBrokerService()
+                        .getTopicIfExists(topic)
+                        .get()
+                        .get()
+                        .getSubscription("sub");
+        Class<PersistentSubscription> persistentSubscriptionClass = PersistentSubscription.class;
+        Field field = persistentSubscriptionClass.getDeclaredField("pendingAckHandle");
+        field.setAccessible(true);
+        PendingAckHandleImpl pendingAckHandle = (PendingAckHandleImpl) field.get(persistentSubscription);
+        Class<PendingAckHandleState> pendingAckHandleStateClass = PendingAckHandleState.class;
+        Field field1 = pendingAckHandleStateClass.getDeclaredField("state");
+        field1.setAccessible(true);
+        field1.set(pendingAckHandle, PendingAckHandleState.State.None);
+
+        for (int i = 0; i < 10; i++) {
+            consumer.acknowledgeCumulativeAsync(messages.get(i).getMessageId(), transaction);
+        }
+        field1.set(pendingAckHandle, PendingAckHandleState.State.Ready);
+        MLPendingAckReplyCallBack pendingAckReplyCallBack = new MLPendingAckReplyCallBack(pendingAckHandle);
+        pendingAckReplyCallBack.replayComplete();
+        for (int i = 10; i < 20; i++) {
+            consumer.acknowledgeCumulativeAsync(messages.get(i).getMessageId(), transaction);
         }
         transaction.commit().get();
         consumer.close();
@@ -383,5 +412,6 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 .subscribe();
         Message<String> message = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(message);
+        fail();
     }
 }
