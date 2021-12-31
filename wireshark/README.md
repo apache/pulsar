@@ -1,4 +1,4 @@
-# how to use 
+# How to use 
 
 ## Step 1: prepare PulsarApi.proto file
 You need to put PulsarApi.proto to a separate path.
