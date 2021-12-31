@@ -77,6 +77,8 @@ public class JettySslContextFactoryWithAutoRefreshTest {
         CloseableHttpClient httpClient = httpClientBuilder.build();
         HttpGet httpGet = new HttpGet("https://localhost:" + connector.getLocalPort());
         httpClient.execute(httpGet);
+        httpClient.close();
+        server.stop();
     }
 
     @Test(expectedExceptions = SSLHandshakeException.class)
@@ -110,6 +112,8 @@ public class JettySslContextFactoryWithAutoRefreshTest {
         CloseableHttpClient httpClient = httpClientBuilder.build();
         HttpGet httpGet = new HttpGet("https://localhost:" + connector.getLocalPort());
         httpClient.execute(httpGet);
+        httpClient.close();
+        server.stop();
     }
 
     @Test(expectedExceptions = SSLHandshakeException.class)
@@ -147,6 +151,8 @@ public class JettySslContextFactoryWithAutoRefreshTest {
         CloseableHttpClient httpClient = httpClientBuilder.build();
         HttpGet httpGet = new HttpGet("https://localhost:" + connector.getLocalPort());
         httpClient.execute(httpGet);
+        httpClient.close();
+        server.stop();
     }
 
     private static SSLContext getClientSslContext() {
