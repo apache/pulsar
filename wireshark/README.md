@@ -11,8 +11,11 @@ You need to put PulsarApi.proto to a separate path.
 
 ## add pulsar.lua to plugins
 
-open wireshark, go to 'About Wireshark', click  'Folders', then click 'Personal Lua Plugins'
-go to the plugin path, add put pulsar.lua to this path.
+1. Open Wireshark.
+
+2. Go to **About Wireshark > Folders > Personal Lua Plugins > Plugin Path**.
+
+3. Add pulsar.lua to this path.
 
 ## start to use
 
