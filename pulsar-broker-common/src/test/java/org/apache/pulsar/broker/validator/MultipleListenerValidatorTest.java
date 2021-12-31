@@ -53,9 +53,15 @@ public class MultipleListenerValidatorTest {
 
         config.setAdvertisedAddress(null);
         assertEquals(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, false),
-                ServiceConfigurationUtils.getDefaultOrConfiguredAddress(null));
+                ServiceConfigurationUtils.getDefaultOrConfiguredAddress(null, false));
         assertEquals(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, true),
-                ServiceConfigurationUtils.getDefaultOrConfiguredAddress(null));
+                ServiceConfigurationUtils.getDefaultOrConfiguredAddress(null, false));
+
+        config.setIpAsAdvertisedAddress(true);
+        assertEquals(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, false),
+                InetAddress.getLocalHost().getHostAddress());
+        assertEquals(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, true),
+                InetAddress.getLocalHost().getHostAddress());
     }
 
     @Test

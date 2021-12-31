@@ -33,15 +33,18 @@ public class ServiceConfigurationUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(ServiceConfigurationUtils.class);
 
-    public static String getDefaultOrConfiguredAddress(String configuredAddress) {
+    public static String getDefaultOrConfiguredAddress(String configuredAddress, boolean ipAsAdvertisedAddress) {
         if (isBlank(configuredAddress)) {
-            return unsafeLocalhostResolve();
+            return unsafeLocalhostResolve(ipAsAdvertisedAddress);
         }
         return configuredAddress;
     }
 
-    public static String unsafeLocalhostResolve() {
+    public static String unsafeLocalhostResolve(boolean ipAsAdvertisedAddress) {
         try {
+            if (ipAsAdvertisedAddress) {
+                return InetAddress.getLocalHost().getHostAddress();
+            }
             // Get the fully qualified hostname
             return InetAddress.getLocalHost().getCanonicalHostName();
         } catch (UnknownHostException ex) {
@@ -78,7 +81,7 @@ public class ServiceConfigurationUtils {
             }
         }
 
-        return getDefaultOrConfiguredAddress(advertisedAddress);
+        return getDefaultOrConfiguredAddress(advertisedAddress, configuration.isIpAsAdvertisedAddress());
     }
 
     /**
@@ -91,7 +94,9 @@ public class ServiceConfigurationUtils {
         AdvertisedListener internal = result.get(config.getInternalListenerName());
         if (internal == null) {
             // synthesize an advertised listener based on legacy configuration properties
-            String host = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
+            String host = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
+                    config.getAdvertisedAddress(),
+                    config.isIpAsAdvertisedAddress());
             internal = AdvertisedListener.builder()
                     .brokerServiceUrl(createUriOrNull("pulsar", host, config.getBrokerServicePort()))
                     .brokerServiceUrlTls(createUriOrNull("pulsar+ssl", host, config.getBrokerServicePortTls()))
@@ -109,7 +114,9 @@ public class ServiceConfigurationUtils {
      * Gets the web service address (hostname).
      */
     public static String getWebServiceAddress(ServiceConfiguration config) {
-        return ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
+        return ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
+                config.getAdvertisedAddress(),
+                config.isIpAsAdvertisedAddress());
     }
 
     public static String brokerUrl(String host, int port) {

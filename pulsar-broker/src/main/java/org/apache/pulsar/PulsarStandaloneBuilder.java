@@ -108,7 +108,9 @@ public final class PulsarStandaloneBuilder {
             zkServers = pulsarStandalone.getAdvertisedAddress();
         } else if (isBlank(pulsarStandalone.getConfig().getAdvertisedAddress())) {
             // Use advertised address as local hostname
-            pulsarStandalone.getConfig().setAdvertisedAddress(ServiceConfigurationUtils.unsafeLocalhostResolve());
+            pulsarStandalone.getConfig().setAdvertisedAddress(
+                    ServiceConfigurationUtils.unsafeLocalhostResolve(
+                            pulsarStandalone.getConfig().isIpAsAdvertisedAddress()));
         } else {
             // Use advertised address from config file
         }

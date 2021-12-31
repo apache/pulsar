@@ -166,7 +166,9 @@ public class PulsarWorkerAssignmentTest {
         workerConfig.setInstanceLivenessCheckFreqMs(100);
         workerConfig.setWorkerPort(0);
         workerConfig.setPulsarFunctionsCluster(config.getClusterName());
-        final String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
+        final String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
+                config.getAdvertisedAddress(),
+                false);
         workerId = "c-" + config.getClusterName() + "-fw-" + hostname + "-" + workerConfig.getWorkerPort();
         workerConfig.setWorkerHostname(hostname);
         workerConfig.setWorkerId(workerId);

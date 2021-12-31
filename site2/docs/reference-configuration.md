@@ -162,7 +162,8 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |jvmGCMetricsLoggerClassName|Classname of Pluggable JVM GC metrics logger that can log GC specific metrics.|N/A|
 |bindAddress| Hostname or IP address the service binds on, default is 0.0.0.0.  |0.0.0.0|
 |bindAddresses| Additional Hostname or IP addresses the service binds on: `listener_name:scheme://host:port,...`.  ||
-|advertisedAddress| Hostname or IP address the service advertises to the outside world. If not set, the value of `InetAddress.getLocalHost().getHostName()` is used.  ||
+|advertisedAddress| Hostname or IP address the service advertises to the outside world. If `advertisedAddress` is not set, the value of `InetAddress.getLocalHost().getHostName()` is used by default. If `advertisedAddress` is not set and `ipAsAdvertisedAddress` is set to true, the value of `InetAddress.getLocalHost().getHostAddress()` is used ||
+|ipAsAdvertisedAddress| If `ipAsAdvertisedAddress` is set to true and `advertisedAddress` is not set, the value of `InetAddress.getLocalHost().getHostAddress()` is used to set the advertised address.|false|
 |clusterName| Name of the cluster to which this broker belongs to ||
 |brokerDeduplicationEnabled|  Sets the default behavior for message deduplication in the broker. If enabled, the broker will reject messages that were already stored in the topic. This setting can be overridden on a per-namespace basis.  |false|
 |brokerDeduplicationMaxNumberOfProducers| The maximum number of producers for which information will be stored for deduplication purposes.  |10000|
@@ -437,7 +438,8 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |webServicePort|  The port used by the standalone broker for HTTP requests  |8080|
 |bindAddress| The hostname or IP address on which the standalone service binds  |0.0.0.0|
 |bindAddresses| Additional Hostname or IP addresses the service binds on: `listener_name:scheme://host:port,...`.  ||
-|advertisedAddress| The hostname or IP address that the standalone service advertises to the outside world. If not set, the value of `InetAddress.getLocalHost().getHostName()` is used.  ||
+|advertisedAddress| Hostname or IP address the service advertises to the outside world. If `advertisedAddress` is not set, the value of `InetAddress.getLocalHost().getHostName()` is used by default. If `advertisedAddress` is not set and `ipAsAdvertisedAddress` is set to true, the value of `InetAddress.getLocalHost().getHostAddress()` is used ||
+|ipAsAdvertisedAddress| If `ipAsAdvertisedAddress` is set to true and `advertisedAddress` is not set, the value of `InetAddress.getLocalHost().getHostAddress()` is used to set the advertised address.|false|
 | numAcceptorThreads | Number of threads to use for Netty Acceptor | 1 |
 | numIOThreads | Number of threads to use for Netty IO | 2 * Runtime.getRuntime().availableProcessors() |
 | numHttpServerThreads | Number of threads to use for HTTP requests processing | 2 * Runtime.getRuntime().availableProcessors()|
@@ -705,7 +707,8 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 | functionWorkerWebServiceURLTLS | The TLS Web service URL pointing to the function worker cluster. It is only configured when you setup function workers in a separate cluster. | |
 |zookeeperSessionTimeoutMs| ZooKeeper session timeout (in milliseconds) |30000|
 |zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300|
-|advertisedAddress|Hostname or IP address the service advertises to the outside world. If not set, the value of `InetAddress.getLocalHost().getHostname()` is used.|N/A|
+|advertisedAddress| Hostname or IP address the service advertises to the outside world. If `advertisedAddress` is not set, the value of `InetAddress.getLocalHost().getHostName()` is used by default. If `advertisedAddress` is not set and `ipAsAdvertisedAddress` is set to true, the value of `InetAddress.getLocalHost().getHostAddress()` is used ||
+|ipAsAdvertisedAddress| If `ipAsAdvertisedAddress` is set to true and `advertisedAddress` is not set, the value of `InetAddress.getLocalHost().getHostAddress()` is used to set the advertised address.|false|
 |servicePort| The port to use for server binary Protobuf requests |6650|
 |servicePortTls|  The port to use to server binary Protobuf TLS requests  |6651|
 |statusFilePath|  Path for the file used to determine the rotation status for the proxy instance when responding to service discovery health checks ||

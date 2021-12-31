@@ -192,7 +192,7 @@ public class PulsarFunctionAdminTest {
         workerConfig.setInstanceLivenessCheckFreqMs(100);
         workerConfig.setWorkerPort(0);
         workerConfig.setPulsarFunctionsCluster(config.getClusterName());
-        String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
+        String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress(), false);
         workerConfig.setWorkerHostname(hostname);
         workerConfig
                 .setWorkerId("c-" + config.getClusterName() + "-fw-" + hostname + "-" + workerConfig.getWorkerPort());

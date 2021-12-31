@@ -144,9 +144,19 @@ public class ProxyConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Hostname or IP address the service advertises to the outside world."
-            + " If not set, the value of `InetAddress.getLocalHost().getCanonicalHostName()` is used."
+            + " If `advertisedAddress` is not set, the value of `InetAddress.getLocalHost().getHostname()` is "
+            + "used by default."
+            + " If `advertisedAddress` is not set and `ipAsAdvertisedAddress` is set to true, the value of "
+            + "`InetAddress.getLocalHost().getHostAddress()` is used"
     )
     private String advertisedAddress;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "If `ipAsAdvertisedAddress` is set to true and `advertisedAddress` is not set,"
+            + " the value of `InetAddress.getLocalHost().getHostAddress()` is used to set the advertised address."
+    )
+    private boolean ipAsAdvertisedAddress = false;
 
     @FieldContext(category = CATEGORY_SERVER,
             doc = "Enable or disable the proxy protocol.")
