@@ -566,8 +566,9 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         // set offload policies
         try{
             admin1.topicPolicies(true).setOffloadPolicies(persistentTopicName, offloadPolicies);
-        }catch (Exception ignore){
-            // ignore PersistentTopicsBase#internalUpdateOffloadPolicies not found nar loader exception.
+        }catch (Exception exception){
+            // driver not found exception.
+            assertTrue(exception instanceof PulsarAdminException.ServerSideErrorException);
         }
         // get offload policies
         Awaitility.await().untilAsserted(() ->
