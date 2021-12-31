@@ -264,7 +264,7 @@ public class PersistentSubscriptionTest {
     }
 
     @Test
-    public void testCanAcknowledgeAndAbortForTransaction() throws BrokerServiceException, InterruptedException {
+    public void testCanAcknowledgeAndAbortForTransaction() throws Exception {
         List<MutablePair<PositionImpl, Integer>> positionsPair = new ArrayList<>();
         positionsPair.add(new MutablePair<>(new PositionImpl(2, 1), 0));
         positionsPair.add(new MutablePair<>(new PositionImpl(2, 3), 0));
@@ -293,7 +293,7 @@ public class PersistentSubscriptionTest {
         positions.add(new PositionImpl(1, 100));
 
         // Cumulative ack for txn1
-        persistentSubscription.transactionCumulativeAcknowledge(txnID1, positions);
+        persistentSubscription.transactionCumulativeAcknowledge(txnID1, positions).get();
 
         positions.clear();
         positions.add(new PositionImpl(2, 1));
@@ -318,7 +318,7 @@ public class PersistentSubscriptionTest {
             assertTrue(e.getCause() instanceof TransactionConflictException);
             assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic]" +
                     "[subscriptionName] Transaction:(1,2) try to cumulative batch ack position: " +
-                    "2:50 within range of current currentPosition: 2:1");
+                    "2:50 within range of current currentPosition: 1:100");
         }
 
         List<Position> positionList = new ArrayList<>();
