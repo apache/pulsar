@@ -343,7 +343,7 @@ public class ClientBuilderImpl implements ClientBuilder {
         checkArgument(port >= 0 && port <= 65535, "DnsLookBindPort need to be within the range of 0 and 65535");
         conf.setDnsLookupBindAddress(address);
         conf.setDnsLookupBindPort(port);
-        return null;
+        return this;
     }
 
     @Override
