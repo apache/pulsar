@@ -459,6 +459,30 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin3.topicPolicies(true).getMaxUnackedMessagesOnSubscription(topic)));
     }
 
+    @Test
+    public void testReplicatorCompactionThresholdPolicies() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+
+        init(namespace, persistentTopicName);
+        // set compaction threshold
+        admin1.topicPolicies(true).setCompactionThreshold(persistentTopicName, 1);
+        // get compaction threshold
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true)
+                        .getCompactionThreshold(persistentTopicName), Long.valueOf(1)));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true)
+                        .getCompactionThreshold(persistentTopicName), Long.valueOf(1)));
+
+        //remove compaction threshold
+        admin1.topicPolicies(true).removeCompactionThreshold(persistentTopicName);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin2.topicPolicies(true).getCompactionThreshold(persistentTopicName)));
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin3.topicPolicies(true).getCompactionThreshold(persistentTopicName)));
+    }
+
     private void init(String namespace, String topic)
             throws PulsarAdminException, PulsarClientException, PulsarServerException {
         final String cluster2 = pulsar2.getConfig().getClusterName();
