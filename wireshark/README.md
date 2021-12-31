@@ -1,6 +1,6 @@
 # how to use 
 
-## prepare PulsarApi.proto file
+## Step 1: prepare PulsarApi.proto file
 You need to put PulsarApi.proto to a separate path.
 
 1. Open your Wireshark.
