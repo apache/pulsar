@@ -23,6 +23,7 @@ import static org.apache.pulsar.broker.resources.PulsarResources.DEFAULT_OPERATI
 import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsTransactionCoordinatorAssign;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.zafarkhaja.semver.Version;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -3730,7 +3731,8 @@ public class PersistentTopicsBase extends AdminResource {
     /**
      * Get the Topic object reference from the Pulsar broker.
      */
-    private Topic getTopicReference(TopicName topicName) {
+    @VisibleForTesting
+    public Topic getTopicReference(TopicName topicName) {
         try {
             return pulsar().getBrokerService().getTopicIfExists(topicName.toString())
                     .get(pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS)
@@ -3738,13 +3740,10 @@ public class PersistentTopicsBase extends AdminResource {
         } catch (RestException e) {
             throw e;
         } catch (Exception e) {
-            if (e.getCause() == null){
-                throw new RestException(Status.NOT_FOUND, String.format("Topic %s not found", topicName));
-            }
             if (e.getCause() instanceof NotAllowedException) {
                 throw new RestException(Status.CONFLICT, e.getCause());
             }
-            throw new RestException(e.getCause());
+            throw new RestException(e.getCause() == null ? e : e.getCause());
         }
     }
 

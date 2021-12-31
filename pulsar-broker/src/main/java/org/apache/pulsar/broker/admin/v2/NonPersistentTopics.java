@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.broker.admin.v2;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -536,7 +537,8 @@ public class NonPersistentTopics extends PersistentTopics {
         validateTopicOwnership(topicName, authoritative);
     }
 
-    private Topic getTopicReference(TopicName topicName) {
+    @VisibleForTesting
+    public Topic getTopicReference(TopicName topicName) {
         try {
             return pulsar().getBrokerService().getTopicIfExists(topicName.toString())
                     .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS)

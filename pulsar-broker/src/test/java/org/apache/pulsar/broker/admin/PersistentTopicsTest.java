@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
@@ -1148,4 +1149,21 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(e.getMessage(), "Termination of a non-partitioned topic is not allowed using partitioned-terminate, please use terminate commands.");
         }
     }
+
+    /**
+     * Fix issue 13573
+     */
+    @Test
+    public void testTopicReferenceNPEReturn404(){
+        String topicName = "notFoundTopic";
+        String exceptionDetail = "testTopicReferenceNPEReturn404";
+        doThrow(new RuntimeException(exceptionDetail)).when(pulsar).getBrokerService();
+        try{
+            persistentTopics.getTopicReference(TopicName.get(topicName));
+        }catch (Exception ex){
+            Assert.assertTrue(ex instanceof RestException);
+            Assert.assertTrue(((String)((RestException) ex).getResponse().getEntity()).contains(exceptionDetail));
+        }
+    }
+
 }
