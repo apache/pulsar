@@ -212,13 +212,31 @@
 <h5><a class="anchor" aria-hidden="true" id="接收消息"></a><a href="#接收消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>接收消息</h5>
 <p>Server will push messages on the WebSocket session:</p>
 <pre><code class="hljs css language-json">{
-  <span class="hljs-attr">"messageId"</span>: <span class="hljs-string">"CAAQAw=="</span>,
-  <span class="hljs-attr">"payload"</span>: <span class="hljs-string">"SGVsbG8gV29ybGQ="</span>,
-  <span class="hljs-attr">"properties"</span>: {<span class="hljs-attr">"key1"</span>: <span class="hljs-string">"value1"</span>, <span class="hljs-attr">"key2"</span>: <span class="hljs-string">"value2"</span>},
-  <span class="hljs-attr">"publishTime"</span>: <span class="hljs-string">"2016-08-30 16:45:57.785"</span>,
-  <span class="hljs-attr">"redeliveryCount"</span>: <span class="hljs-number">4</span>
+<span class="hljs-attr">"messageId"</span>: <span class="hljs-string">"CAMQADAA"</span>,
+  <span class="hljs-attr">"payload"</span>: <span class="hljs-string">"hvXcJvHW7kOSrUn17P2q71RA5SdiXwZBqw=="</span>,
+  <span class="hljs-attr">"properties"</span>: {},
+  <span class="hljs-attr">"publishTime"</span>: <span class="hljs-string">"2021-10-29T16:01:38.967-07:00"</span>,
+  <span class="hljs-attr">"redeliveryCount"</span>: <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"encryptionContext"</span>: {
+    <span class="hljs-attr">"keys"</span>: {
+      <span class="hljs-attr">"client-rsa.pem"</span>: {
+        <span class="hljs-attr">"keyValue"</span>: <span class="hljs-string">"jEuwS+PeUzmCo7IfLNxqoj4h7txbLjCQjkwpaw5AWJfZ2xoIdMkOuWDkOsqgFmWwxiecakS6GOZHs94x3sxzKHQx9Oe1jpwBg2e7L4fd26pp+WmAiLm/ArZJo6JotTeFSvKO3u/yQtGTZojDDQxiqFOQ1ZbMdtMZA8DpSMuq+Zx7PqLo43UdW1+krjQfE5WD+y+qE3LJQfwyVDnXxoRtqWLpVsAROlN2LxaMbaftv5HckoejJoB4xpf/dPOUqhnRstwQHf6klKT5iNhjsY4usACt78uILT0pEPd14h8wEBidBz/vAlC/zVMEqiDVzgNS7dqEYS4iHbf7cnWVCn3Hxw=="</span>,
+        <span class="hljs-attr">"metadata"</span>: {}
+      }
+    },
+    <span class="hljs-attr">"param"</span>: <span class="hljs-string">"Tfu1PxVm6S9D3+Hk"</span>,
+    <span class="hljs-attr">"compressionType"</span>: <span class="hljs-string">"NONE"</span>,
+    <span class="hljs-attr">"uncompressedMessageSize"</span>: <span class="hljs-number">0</span>,
+    <span class="hljs-attr">"batchSize"</span>: {
+      <span class="hljs-attr">"empty"</span>: <span class="hljs-literal">false</span>,
+      <span class="hljs-attr">"present"</span>: <span class="hljs-literal">true</span>
+    }
+  }
 }
 </code></pre>
+<p>Below are the parameters in the WebSocket consumer response.</p>
+<ul>
+<li><p>General parameters</p>
 <table>
 <thead>
 <tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
@@ -230,8 +248,36 @@
 <tr><td style="text-align:left"><code>redeliveryCount</code></td><td style="text-align:left">number</td><td style="text-align:left">是</td><td style="text-align:left">此消息已经发送的次数</td></tr>
 <tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">键值对</td><td style="text-align:left">否</td><td style="text-align:left">应用程序定义的属性</td></tr>
 <tr><td style="text-align:left"><code>key</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">Producer 设置的原始路由密钥</td></tr>
+<tr><td style="text-align:left"><code>encryptionContext</code></td><td style="text-align:left">EncryptionContext</td><td style="text-align:left">否</td><td style="text-align:left">Encryption context that consumers can use to decrypt received messages</td></tr>
+<tr><td style="text-align:left"><code>param</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">Initialization vector for cipher (Base64 encoding)</td></tr>
+<tr><td style="text-align:left"><code>batchSize</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">Number of entries in a message (if it is a batch message)</td></tr>
+<tr><td style="text-align:left"><code>uncompressedMessageSize</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">Message size before compression</td></tr>
+<tr><td style="text-align:left"><code>compressionType</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">Algorithm used to compress the message payload</td></tr>
 </tbody>
 </table>
+</li>
+<li><p><code>encryptionContext</code> related parameter</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>keys</code></td><td style="text-align:left">key-EncryptionKey pairs</td><td style="text-align:left">是</td><td style="text-align:left">Key in <code>key-EncryptionKey</code> pairs is an encryption key name. Value in <code>key-EncryptionKey</code> pairs is an encryption key object.</td></tr>
+</tbody>
+</table>
+</li>
+<li><p><code>encryptionKey</code> related parameters</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>keyValue</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">Encryption key (Base64 encoding)</td></tr>
+<tr><td style="text-align:left"><code>metadata</code></td><td style="text-align:left">键值对</td><td style="text-align:left">否</td><td style="text-align:left">Application-defined metadata</td></tr>
+</tbody>
+</table>
+</li>
+</ul>
 <h4><a class="anchor" aria-hidden="true" id="ack-确认消息"></a><a href="#ack-确认消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ACK 确认消息</h4>
 <p>Consumer needs to acknowledge the successful processing of the message to have the Pulsar broker delete it.</p>
 <pre><code class="hljs css language-json">{

@@ -147,6 +147,16 @@ keytool -keystore broker.keystore.jks -alias localhost -import -file cert-signed
 <span class="hljs-attr">XPath</span>: <span class="hljs-string">/pre[8]/code</span>
 </code></pre>
 <p>注意：必须通过文件系统权限限制对存储文件的访问。</p>
+<p>如果您在经纪上配置了TLS，要禁用非TLS端口，您可以将以下配置的值设置为空。</p>
+<pre><code class="hljs"><span class="hljs-attr">brokerServicePort</span>=
+<span class="hljs-attr">webServicePort</span>=
+</code></pre>
+<p>在这种情况下，您需要进行以下配置。</p>
+<pre><code class="hljs css language-conf">brokerClientTlsEnabled=<span class="hljs-keyword">true</span> // <span class="hljs-keyword">Set</span> this <span class="hljs-keyword">to</span> <span class="hljs-keyword">true</span>
+brokerClientTlsEnabledWithKeyStore=<span class="hljs-keyword">true</span>  // <span class="hljs-keyword">Set</span> this <span class="hljs-keyword">to</span> <span class="hljs-keyword">true</span>
+brokerClientTlsTrustStore= // <span class="hljs-keyword">Set</span> this <span class="hljs-keyword">to</span> your desired <span class="hljs-keyword">value</span>
+brokerClientTlsTrustStorePassword= // <span class="hljs-keyword">Set</span> this <span class="hljs-keyword">to</span> your desired <span class="hljs-keyword">value</span>
+</code></pre>
 <p>Optional settings that may worth consider:</p>
 <ol>
 <li>tlsClientAuthentication=false: Enable/Disable using TLS for authentication. This config when enabled will authenticate the other end of the communication channel. It should be enabled on both brokers and clients for mutual TLS.</li>
