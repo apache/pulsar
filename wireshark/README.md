@@ -17,7 +17,7 @@ You need to put PulsarApi.proto to a separate path.
 
 3. Add pulsar.lua to this path.
 
-## start to use
+## Step 3: start to use
 
 this plugin will register a pulsar protocol automatically in 6650, you can use it to decode pulsar message now.
 
