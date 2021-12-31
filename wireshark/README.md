@@ -1,8 +1,13 @@
 # how to use 
 
 ## prepare PulsarApi.proto file
-you need to put PulsarApi.proto to a separate path, open your wireshark,go to 
-Edit->Preferences->Protocols->ProtoBuf->Protobuf search paths，add the path of PulsarApi.proto
+You need to put PulsarApi.proto to a separate path.
+
+1. Open your Wireshark.
+
+2. Go to **Edit > Preferences > Protocols > ProtoBuf > Protobuf**, and then search paths.
+
+3. Add the path of PulsarApi.proto.
 
 ## add pulsar.lua to plugins
 
