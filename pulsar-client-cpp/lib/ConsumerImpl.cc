@@ -310,9 +310,11 @@ void ConsumerImpl::handleUnsubscribe(Result result, ResultCallback callback) {
     callback(result);
 }
 
-bool ConsumerImpl::processMessageChunk(SharedBuffer& payload, const proto::MessageMetadata& metadata,
-                                       const MessageId& messageId, const proto::MessageIdData& messageIdData,
-                                       const ClientConnectionPtr& cnx) {
+Optional<SharedBuffer> ConsumerImpl::processMessageChunk(const SharedBuffer& payload,
+                                                         const proto::MessageMetadata& metadata,
+                                                         const MessageId& messageId,
+                                                         const proto::MessageIdData& messageIdData,
+                                                         const ClientConnectionPtr& cnx) {
     const auto chunkId = metadata.chunk_id();
     const auto uuid = metadata.uuid();
 
@@ -345,21 +347,26 @@ bool ConsumerImpl::processMessageChunk(SharedBuffer& payload, const proto::Messa
         lock.unlock();
         increaseAvailablePermits(cnx);
         trackMessage(messageId);
-        return false;
+        return Optional<SharedBuffer>::empty();
     }
 
     chunkedMsgCtx.appendChunk(chunkId, messageId, payload);
     if (!chunkedMsgCtx.isCompleted()) {
         lock.unlock();
         increaseAvailablePermits(cnx);
-        return false;
+        return Optional<SharedBuffer>::empty();
     }
 
     LOG_DEBUG("Chunked message completed chunkId: " << chunkId << ", ChunkedMessageCtx: " << chunkedMsgCtx
                                                     << ", sequenceId: " << metadata.sequence_id());
 
     removeChunkMessage(uuid, false);
-    return uncompressMessageIfNeeded(cnx, messageIdData, metadata, payload);
+    auto wholePayload = chunkedMsgCtx.getBuffer();
+    if (uncompressMessageIfNeeded(cnx, messageIdData, metadata, wholePayload)) {
+        return Optional<SharedBuffer>::of(wholePayload);
+    } else {
+        return Optional<SharedBuffer>::empty();
+    }
 }
 
 // It must be called when `chunkProcessMutex_` is acquired
@@ -434,7 +441,10 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
         const auto& messageIdData = msg.message_id();
         MessageId messageId(messageIdData.partition(), messageIdData.ledgerid(), messageIdData.entryid(),
                             messageIdData.batch_index());
-        if (!processMessageChunk(payload, metadata, messageId, messageIdData, cnx)) {
+        auto optionalPayload = processMessageChunk(payload, metadata, messageId, messageIdData, cnx);
+        if (optionalPayload.is_present()) {
+            payload = optionalPayload.value();
+        } else {
             return;
         }
     }

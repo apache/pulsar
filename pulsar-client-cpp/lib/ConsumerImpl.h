@@ -278,20 +278,22 @@ class ConsumerImpl : public ConsumerImplBase,
 
     /**
      * Process a chunk. If the chunk is the last chunk of a message, concatenate all buffered chunks into the
-     * payload. In this case, `payload` will point to the completed payload. Otherwise, the chunk will be
-     * buffered.
+     * payload and return it.
      *
-     * @param payload the original payload, which could be modified if this method returns true
+     * @param payload the payload of a chunk
      * @param metadata the message metadata
      * @param messageId
      * @param messageIdData
      * @param cnx
      *
-     * @return true if chunks are concatenated into a completed message payload successfully
+     * @return the concatenated payload if chunks are concatenated into a completed message payload
+     *   successfully, else Optional::empty()
      */
-    bool processMessageChunk(SharedBuffer& payload, const proto::MessageMetadata& metadata,
-                             const MessageId& messageId, const proto::MessageIdData& messageIdData,
-                             const ClientConnectionPtr& cnx);
+    Optional<SharedBuffer> processMessageChunk(const SharedBuffer& payload,
+                                               const proto::MessageMetadata& metadata,
+                                               const MessageId& messageId,
+                                               const proto::MessageIdData& messageIdData,
+                                               const ClientConnectionPtr& cnx);
 
     void removeOldestPendingChunkedMessage();
 
