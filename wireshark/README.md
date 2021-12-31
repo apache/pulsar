@@ -19,6 +19,6 @@ You need to put PulsarApi.proto to a separate path.
 
 ## Step 3: start to use
 
-this plugin will register a pulsar protocol automatically in 6650, you can use it to decode pulsar message now.
+This plugin registers a Pulsar protocol automatically in 6650. You can use it to decode Pulsar messages now.
 
 
