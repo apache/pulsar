@@ -910,12 +910,12 @@ public class PulsarClientException extends IOException {
         }
     }
 
-    public static class TransactionCanNotCommitException extends PulsarClientException {
+    public static class TransactionOngoingRequestsNotCompleteException extends PulsarClientException {
         /**
          * Constructs an TransactionCanNotEndException with the specified detail message.
          * @param msg -The detail message.
          */
-        public TransactionCanNotCommitException(String msg) {
+        public TransactionOngoingRequestsNotCompleteException(String msg) {
             super(msg);
         }
 
@@ -925,7 +925,7 @@ public class PulsarClientException extends IOException {
          * @param txnIdLeastBits The transaction id.
          * @param t - The cause which was thrown when the operation in this txn failed.
          */
-        public TransactionCanNotCommitException(long txnIdMostBits, long txnIdLeastBits, Throwable t) {
+        public TransactionOngoingRequestsNotCompleteException(long txnIdMostBits, long txnIdLeastBits, Throwable t) {
             super("The transaction [" + txnIdMostBits + ":"
                     + txnIdLeastBits + "] cannot be committed"
                     + "because there are some transaction operations that failed with exception", t);
@@ -994,8 +994,8 @@ public class PulsarClientException extends IOException {
             return new MessageAcknowledgeException(msg);
         } else if (t instanceof TransactionConflictException) {
             return new TransactionConflictException(msg);
-        } else if (t instanceof TransactionCanNotCommitException) {
-            return new TransactionCanNotCommitException(msg);
+        } else if (t instanceof TransactionOngoingRequestsNotCompleteException) {
+            return new TransactionOngoingRequestsNotCompleteException(msg);
         } else if (t instanceof PulsarClientException) {
             return new PulsarClientException(msg);
         } else if (t instanceof CompletionException) {
@@ -1086,8 +1086,8 @@ public class PulsarClientException extends IOException {
             newException = new MessageAcknowledgeException(msg);
         } else if (cause instanceof TransactionConflictException) {
             newException = new TransactionConflictException(msg);
-        } else if (cause instanceof TransactionCanNotCommitException) {
-            newException = new TransactionCanNotCommitException(msg);
+        } else if (cause instanceof TransactionOngoingRequestsNotCompleteException) {
+            newException = new TransactionOngoingRequestsNotCompleteException(msg);
         } else if (cause instanceof TopicDoesNotExistException) {
             newException = new TopicDoesNotExistException(msg);
         } else if (cause instanceof ProducerFencedException) {

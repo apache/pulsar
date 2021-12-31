@@ -25,8 +25,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import com.google.common.collect.Lists;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import java.util.concurrent.atomic.AtomicLong;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
@@ -66,7 +66,10 @@ public class TransactionImpl implements Transaction , TimerTask {
     /**
      *  The number of operations are executing  in this transaction.
      */
-    private final AtomicLong opsExecutingInTxn = new AtomicLong(0);
+    private volatile long opsExecutingInTxn;
+    private static AtomicLongFieldUpdater<TransactionImpl> opsExecutingInTxnUpdater = AtomicLongFieldUpdater
+            .newUpdater(TransactionImpl.class, "opsExecutingInTxn");
+
     /**
      *  The latest execution status can be obtained here.
      */
@@ -156,13 +159,13 @@ public class TransactionImpl implements Transaction , TimerTask {
         //There have been an exception, it means this transaction should not be commit,
         //so there is no need to record the execution of other operations
         if (!executedFuture.isCompletedExceptionally()) {
-            opsExecutingInTxn.incrementAndGet();
+            opsExecutingInTxnUpdater.incrementAndGet(this);
             executedFuture = new CompletableFuture<>();
             completableFuture.thenRun(() -> {
                 synchronized (this) {
-                    opsExecutingInTxn.decrementAndGet();
                     // This is the last operation so far.
-                    if (opsExecutingInTxn.get() == 0) {
+                    opsExecutingInTxnUpdater.decrementAndGet(this);
+                    if (opsExecutingInTxn == 0) {
                         executedFuture.complete(null);
                     }
                 }
@@ -170,7 +173,7 @@ public class TransactionImpl implements Transaction , TimerTask {
                 //Complete this future exceptionally and there is no need to executed this method again.
                 synchronized (this) {
                     executedFuture.completeExceptionally(new PulsarClientException
-                            .TransactionCanNotCommitException(txnIdMostBits, txnIdLeastBits, e.getCause()));
+                            .TransactionOngoingRequestsNotCompleteException(txnIdMostBits, txnIdLeastBits, e.getCause()));
                 }
                 return null;
             });
@@ -207,8 +210,7 @@ public class TransactionImpl implements Transaction , TimerTask {
                             }
                         });
             }).exceptionally(e -> {
-                commitFuture.completeExceptionally(new PulsarClientException
-                        .TransactionCanNotCommitException(this.txnIdMostBits, this.txnIdLeastBits, e));
+                commitFuture.completeExceptionally(e.getCause());
                 return null;
             });
             return commitFuture;
