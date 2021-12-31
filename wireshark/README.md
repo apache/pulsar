@@ -9,7 +9,7 @@ You need to put PulsarApi.proto to a separate path.
 
 3. Add the path of PulsarApi.proto.
 
-## add pulsar.lua to plugins
+## Step 2: add pulsar.lua to plugins
 
 1. Open Wireshark.
 
