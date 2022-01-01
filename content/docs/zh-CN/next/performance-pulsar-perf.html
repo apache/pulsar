@@ -77,10 +77,16 @@
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar Perf 性能测试</h1></header><article><div><span><p>Pulsar Perf 是 Apache Pulsar 内置的性能测试工具。 你可以用 Pulsar Perf 测试消息写入或读取性能。 更多性能优化细节，请参阅 <a href="https://streamnative.io/en/blog/tech/2021-01-14-pulsar-architecture-performance-tuning">这里</a>。</p>
 <h2><a class="anchor" aria-hidden="true" id="生产消息"></a><a href="#生产消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>生产消息</h2>
-<p>本示例展示 Pulsar Perf 如何使用默认选项生产消息。 <code>pulsar-perf produce</code> 命令的全部可用配置选项，可参考<a href="#configuration-options-for-pulsar-perf-produce">配置选项</a>。</p>
+<blockquote>
+<p><strong>提示</strong></p>
+<p>For the latest and complete information about <code>pulsar-perf</code>, including commands, flags, descriptions, and more, see <a href="https://pulsar.apache.org/tools/pulsar-perf/"><code>pulsar-perf</code></a> or <a href="/docs/zh-CN/next/reference-cli-tools#pulsar-perf">here</a>.</p>
+</blockquote>
+<ul>
+<li><p>This example shows how the Pulsar Perf produces messages with <strong>default</strong> options.</p>
+<p><strong>输入</strong></p>
 <pre><code class="hljs">bin/pulsar-perf produce <span class="hljs-keyword">my</span>-topic
 </code></pre>
-<p>命令执行后，终端上就会输出连续不断的测试数据。</p>
+<p>After the command is executed, the test data is continuously output on the Console.</p>
 <p><strong>输出</strong></p>
 <pre><code class="hljs"><span class="hljs-number">19</span>:<span class="hljs-number">53</span>:<span class="hljs-number">31.459</span> [pulsar-perf-producer-exec<span class="hljs-number">-1</span><span class="hljs-number">-1</span>] INFO  org.apache.pulsar.testclient.PerformanceProducer - Created <span class="hljs-number">1</span> producers
 <span class="hljs-number">19</span>:<span class="hljs-number">53</span>:<span class="hljs-number">31.482</span> [pulsar-timer<span class="hljs-number">-5</span><span class="hljs-number">-1</span>] WARN  com.scurrilous.circe.checksum.Crc32cIntChecksum - Failed to load Circe JNI library. Falling back to Java based CRC32c provider
@@ -94,65 +100,38 @@
 ^C19:<span class="hljs-number">54</span>:<span class="hljs-number">44.325</span> [Thread<span class="hljs-number">-1</span>] INFO  org.apache.pulsar.testclient.PerformanceProducer - Aggregated throughput stats --- <span class="hljs-number">7286</span> records sent --- <span class="hljs-number">99.140</span> msg/s --- <span class="hljs-number">0.775</span> Mbit/s
 <span class="hljs-number">19</span>:<span class="hljs-number">54</span>:<span class="hljs-number">44.336</span> [Thread<span class="hljs-number">-1</span>] INFO  org.apache.pulsar.testclient.PerformanceProducer - Aggregated latency stats --- Latency: mean:   <span class="hljs-number">3.383</span> ms - med:   <span class="hljs-number">3.293</span> - <span class="hljs-number">95</span>pct:   <span class="hljs-number">4.610</span> - <span class="hljs-number">99</span>pct:   <span class="hljs-number">5.059</span> - <span class="hljs-number">99.9</span>pct:   <span class="hljs-number">5.588</span> - <span class="hljs-number">99.99</span>pct:   <span class="hljs-number">5.837</span> - <span class="hljs-number">99.999</span>pct:   <span class="hljs-number">6.609</span> - Max:   <span class="hljs-number">6.609</span>
 </code></pre>
-<p>从以上测试数据，你可以得到吞吐统计和写延迟统计。 Pulsar Perf 停止运行后会显示汇总的统计数据。 你可以按下 <strong>Ctrl</strong>+<strong>C</strong> 停止运行 Pulsar Perf。 如果使用 <code>--histogram-file</code> 参数指定一个文件名， 当Pulsar Perf 停止后，在目录下会生成一个 <a href="http://hdrhistogram.github.io/HdrHistogram/">HdrHistogram</a> 格式的测试结果文件。 You can also check the test result through <a href="https://hdrhistogram.github.io/HdrHistogram/plotFiles.html">HdrHistogram Plotter</a>. For details about how to check the test result through <a href="https://hdrhistogram.github.io/HdrHistogram/plotFiles.html">HdrHistogram Plotter</a>, see <a href="#hdrhistogram-plotter">HdrHistogram Plotter</a>.</p>
-<h3><a class="anchor" aria-hidden="true" id="pulsar-perf-produce-选项配置"></a><a href="#pulsar-perf-produce-选项配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>pulsar-perf produce</code> 选项配置</h3>
-<p>你可以用命令 <code>bin/pulsar-perf produce -h</code> 查看全部可用参数选项。 同时，你也可以根据需求修改相关参数选项。</p>
-<p>下面表格列出了当前 <code>pulsar-perf produce</code> 命令全部可用参数配置。</p>
-<table>
-<thead>
-<tr><th>选项</th><th>说明</th><th>默认值</th></tr>
-</thead>
-<tbody>
-<tr><td>access-mode</td><td>设置生产者访问模式。 有效值是 <code>Shared</code>, <code>Exclusive</code> 和 <code>WaitForExclusive</code>.</td><td>Shared（共享）</td></tr>
-<tr><td>admin-url</td><td>设置 Pulsar admin URL。</td><td>N/A</td></tr>
-<tr><td>auth-params</td><td>设置认证参数，格式由认证插件类中<code>configure</code>方法的实现决定的，如&quot;key1:val1,key2:val2&quot; 或 &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}&quot;。</td><td>N/A</td></tr>
-<tr><td>auth-plugin</td><td>设置认证插件类名</td><td>N/A</td></tr>
-<tr><td>listener-name</td><td>为broker指定监听器名称。</td><td>N/A</td></tr>
-<tr><td>batch-max-bytes</td><td>设置每个批消息的最大字节数</td><td>4194304</td></tr>
-<tr><td>batch-max-messages</td><td>设置每个批消息的最大消息数</td><td>1000</td></tr>
-<tr><td>batch-time-window</td><td>设置每批消息的窗口大小</td><td>1 ms</td></tr>
-<tr><td>busy-wait</td><td>在 Pulsar 客户端启用或禁用 Busy-Wait.</td><td>false</td></tr>
-<tr><td>chunking</td><td>配置如果消息尺寸大于允许的最大尺寸，是否分割消息并在区块中发布。</td><td>false</td></tr>
-<tr><td>compression</td><td>指定消息载荷（ payload）的压缩格式</td><td>N/A</td></tr>
-<tr><td>conf-file</td><td>设置配置文件</td><td>N/A</td></tr>
-<tr><td>delay</td><td>给消息标记延迟时间</td><td>0s</td></tr>
-<tr><td>encryption-key-name</td><td>设置用于加密有效载荷的公钥名称</td><td>N/A</td></tr>
-<tr><td>encryption-key-value-file</td><td>设置包含用于加密有效载荷的公钥文件</td><td>N/A</td></tr>
-<tr><td>exit-on-failure</td><td>配置发布失败时是否退出进程</td><td>false</td></tr>
-<tr><td>format-class</td><td>Set the custom formatter class name.</td><td>org.apache.pulsar.testclient.DefaultMessageFormatter</td></tr>
-<tr><td>format-payload</td><td>Configure whether to format %i as a message index in the stream from producer and/or %t as the timestamp nanoseconds.</td><td>false</td></tr>
-<tr><td>help</td><td>配置帮助信息</td><td>false</td></tr>
-<tr><td>histogram-file</td><td>HdrHistogram output file</td><td>N/A</td></tr>
-<tr><td>max-connections</td><td>设置单个broker的最大TCP连接数</td><td>100</td></tr>
-<tr><td>max-outstanding</td><td>设置未处理消息的最大数量</td><td>1000</td></tr>
-<tr><td>max-outstanding-across-partitions</td><td>设置跨分区场景下的最大未处理消息数</td><td>50000</td></tr>
-<tr><td>message-key-generation-mode</td><td>Set the generation mode of message key. Valid options are <code>autoIncrement</code>, <code>random</code>.</td><td>N/A</td></tr>
-<tr><td>num-io-threads</td><td>Set the number of threads to be used for handling connections to brokers.</td><td>1</td></tr>
-<tr><td>num-messages</td><td>设置要发布的消息总数。 如果设为0则持续发布消息</td><td>0</td></tr>
-<tr><td>num-producers</td><td>设置每个主题的生产者数量</td><td>1</td></tr>
-<tr><td>num-test-threads</td><td>设置测试线程数量</td><td>1</td></tr>
-<tr><td>num-topic</td><td>设置主题数量</td><td>1</td></tr>
-<tr><td>分区</td><td>Configure whether to create partitioned topics with the given number of partitions.</td><td>N/A</td></tr>
-<tr><td>payload-delimiter</td><td>当使用来自文件的有效载荷（ payload）时，设置每行之间的分隔符。</td><td>\n</td></tr>
-<tr><td>payload-file</td><td>使用 UTF-8 编码的文本文件的有效载荷（payload），会在发布消息时随机选择一个有效载荷。</td><td>N/A</td></tr>
-<tr><td>producer-name</td><td>Set the producer name.</td><td>N/A</td></tr>
-<tr><td>rate</td><td>设置跨主题的消息发布速率</td><td>100</td></tr>
-<tr><td>send-timeout</td><td>Set the sendTimeout.</td><td>0</td></tr>
-<tr><td>separator</td><td>Set the separator between the topic and topic number.</td><td>-</td></tr>
-<tr><td>service-url</td><td>设置 Pulsar 服务的 URL</td><td></td></tr>
-<tr><td>size</td><td>设置消息大小</td><td>1024 bytes</td></tr>
-<tr><td>stats-interval-seconds</td><td>设置统计间隔。 如果置为0，则不统计。</td><td>0</td></tr>
-<tr><td>test-duration</td><td>设置测试持续时间。 如果设为0则持续保持发布测试</td><td>0s</td></tr>
-<tr><td>trust-cert-file</td><td>设置受信的TLS证书文件所在路径</td><td><empty string></td></tr>
-<tr><td>warmup-time</td><td>设置预热时间</td><td>1s</td></tr>
-<tr><td>tls-allow-insecure</td><td>Set the allowed insecure TLS connection.</td><td>N/A</td></tr>
-</tbody>
-</table>
-<h2><a class="anchor" aria-hidden="true" id="消费消息"></a><a href="#消费消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消费消息</h2>
-<p>本示例展示 Pulsar Perf 如何使用默认选项消费消息。</p>
-<pre><code class="hljs">bin/pulsar-perf consume <span class="hljs-keyword">my</span>-topic
+<p>From the above test data, you can get the throughput statistics and the write latency statistics. The aggregated statistics is printed when the Pulsar Perf is stopped. You can press <strong>Ctrl</strong>+<strong>C</strong> to stop the Pulsar Perf. After the Pulsar Perf is stopped, the <a href="http://hdrhistogram.github.io/HdrHistogram/">HdrHistogram</a> formatted test result appears under your directory. The document looks like <code>perf-producer-1589370810837.hgrm</code>. You can also check the test result through <a href="https://hdrhistogram.github.io/HdrHistogram/plotFiles.html">HdrHistogram Plotter</a>. For details about how to check the test result through <a href="https://hdrhistogram.github.io/HdrHistogram/plotFiles.html">HdrHistogram Plotter</a>, see <a href="#hdrhistogram-plotter">HdrHistogram Plotter</a>.</p></li>
+<li><p>This example shows how the Pulsar Perf produces messages with <code>transaction</code> option.</p>
+<p><strong>输入</strong></p>
+<pre><code class="hljs css language-shell">bin/pulsar-perf produce my-topic -r 10 -m 100 -txn
 </code></pre>
-<p>命令执行后，终端上就会输出连续不断的测试数据。</p>
+<p><strong>输出</strong></p>
+<pre><code class="hljs css language-shell">2021-10-11T13:36:15,595+0800 INFO  [Thread-3] o.a.p.t.PerformanceProducer@499 - --- Transaction : 2 transaction end successfully ---0 transaction end failed --- 0.200 Txn/s 
+
+2021-10-11T13:36:15,614+0800 INFO  [Thread-3] o.a.p.t.PerformanceProducer@503 - Throughput produced:     100 msg ---      0.0 msg/s ---      0.1 Mbit/s  --- failure      0.0 msg/s --- Latency: mean:   3.067 ms - med:   3.104 - 95pct:   3.747 - 99pct:   4.619 - 99.9pct:   6.760 - 99.99pct:   6.760 - Max:   6.760 
+
+2021-10-11T13:36:15,710+0800 INFO  [pulsar-perf-producer-exec-46-1] o.a.p.t.PerformanceProducer@834 - Aggregated latency stats --- Latency: mean:   3.067 ms - med:   3.104 - 95pct:   3.747 - 99pct:   4.619 - 99.9pct:   6.760 - 99.99pct:   6.760 - 99.999pct:   6.760 - Max:   6.760 
+
+2021-10-11T13:36:29,976+0800 INFO  [Thread-4] o.a.p.t.PerformanceProducer@815 - --- Transaction : 2 transaction end successfully --- 0 transaction end failed --- 2 transaction open successfully --- 0 transaction open failed --- 12.237 Txn/s 
+
+2021-10-11T13:36:29,976+0800 INFO  [Thread-4] o.a.p.t.PerformanceProducer@824 - Aggregated throughput stats --- 102 records sent --- 4.168 msg/s --- 0.033 Mbit/s
+</code></pre></li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="消费消息"></a><a href="#消费消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消费消息</h2>
+<blockquote>
+<p><strong>提示</strong></p>
+<p>For the latest and complete information about <code>pulsar-perf</code>, including commands, flags, descriptions, and more, see <a href="https://pulsar.apache.org/tools/pulsar-perf/"><code>pulsar-perf</code></a> or <a href="/docs/zh-CN/next/reference-cli-tools#pulsar-perf">here</a>.</p>
+</blockquote>
+<ul>
+<li><p>This example shows how the Pulsar Perf consumes messages with <strong>default</strong> options.</p>
+<p><strong>输入</strong></p>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>If you have not created a topic (in this example, it is <em>my-topic</em>) before, the broker creates a new topic without partitions and messages, then the consumer can not receive any messages. Consequently, before using <code>pulsar-perf consume</code>, make sure your topic has enough messages to consume.</p>
+<pre><code class="hljs">    bin/pulsar-perf consume <span class="hljs-keyword">my</span>-topic
+</code></pre>
+</blockquote>
+<p>After the command is executed, the test data is continuously output on the Console.</p>
 <p><strong>输出</strong></p>
 <pre><code class="hljs"><span class="hljs-number">20</span>:<span class="hljs-number">35</span>:<span class="hljs-number">37.071</span> [main] INFO  org.apache.pulsar.testclient.PerformanceConsumer - Start receiving <span class="hljs-keyword">from</span> <span class="hljs-number">1</span> consumers on <span class="hljs-number">1</span> topics
 <span class="hljs-number">20</span>:<span class="hljs-number">35</span>:<span class="hljs-number">41.150</span> [pulsar-client-io<span class="hljs-number">-1</span><span class="hljs-number">-9</span>] WARN  com.scurrilous.circe.checksum.Crc32cIntChecksum - Failed to load Circe JNI library. Falling back to Java based CRC32c provider
@@ -165,61 +144,75 @@
 ^C20:<span class="hljs-number">36</span>:<span class="hljs-number">42.755</span> [Thread<span class="hljs-number">-1</span>] INFO  org.apache.pulsar.testclient.PerformanceConsumer - Aggregated throughput stats --- <span class="hljs-number">6051</span> records received --- <span class="hljs-number">92.125</span> msg/s --- <span class="hljs-number">0.720</span> Mbit/s
 <span class="hljs-number">20</span>:<span class="hljs-number">36</span>:<span class="hljs-number">42.759</span> [Thread<span class="hljs-number">-1</span>] INFO  org.apache.pulsar.testclient.PerformanceConsumer - Aggregated latency stats --- Latency: mean: <span class="hljs-number">9.422</span> ms - med: <span class="hljs-number">9</span> - <span class="hljs-number">95</span>pct: <span class="hljs-number">15</span> - <span class="hljs-number">99</span>pct: <span class="hljs-number">16</span> - <span class="hljs-number">99.9</span>pct: <span class="hljs-number">98</span> - <span class="hljs-number">99.99</span>pct: <span class="hljs-number">137</span> - <span class="hljs-number">99.999</span>pct: <span class="hljs-number">152</span> - Max: <span class="hljs-number">152</span>
 </code></pre>
-<p>通过输出的测试数据，你可以得到吞吐统计和端到端延迟统计。 Pulsar Perf 停止运行后会显示汇总的统计数据。 你可以按下 <strong>Ctrl</strong>+<strong>C</strong> 停止运行 Pulsar Perf。</p>
-<h3><a class="anchor" aria-hidden="true" id="pulsar-perf-consume-选项配置"></a><a href="#pulsar-perf-consume-选项配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>pulsar-perf consume</code> 选项配置</h3>
-<p>你可以用命令 <code>bin/pulsar-perf consume -h</code> 查看全部可用参数选项。 同时，你也可以根据需求修改相关参数选项。</p>
-<p>下面表格列出了当前 <code>pulsar-perf consume</code> 命令全部可用参数配置。</p>
-<table>
-<thead>
-<tr><th>选项</th><th>说明</th><th>默认值</th></tr>
-</thead>
-<tbody>
-<tr><td>acks-delay-millis</td><td>设置确认分组的延迟时间，以毫秒为单位</td><td>100 ms</td></tr>
-<tr><td>auth-params</td><td>设置认证参数，格式由认证插件类中<code>configure</code>方法的实现决定的，如&quot;key1:val1,key2:val2&quot; 或 &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}&quot;。</td><td>N/A</td></tr>
-<tr><td>auth-plugin</td><td>设置认证插件类名</td><td>N/A</td></tr>
-<tr><td>auto_ack_chunk_q_full</td><td>配置如果队列满时，是否自动确认接收器队列中最旧的消息。</td><td>false</td></tr>
-<tr><td>listener-name</td><td>为broker指定监听器名称。</td><td>N/A</td></tr>
-<tr><td>batch-index-ack</td><td>开启或禁用批量索引确认</td><td>false</td></tr>
-<tr><td>busy-wait</td><td>在 Pulsar 客户端启用或禁用 Busy-Wait.</td><td>false</td></tr>
-<tr><td>conf-file</td><td>设置配置文件</td><td>N/A</td></tr>
-<tr><td>encryption-key-name</td><td>设置用于加密有效载荷的公钥名称</td><td>N/A</td></tr>
-<tr><td>encryption-key-value-file</td><td>设置包含用于加密有效载荷的公钥文件</td><td>N/A</td></tr>
-<tr><td>help</td><td>配置帮助信息</td><td>false</td></tr>
-<tr><td>histogram-file</td><td>HdrHistogram output file</td><td>N/A</td></tr>
-<tr><td>expire_time_incomplete_chunked_messages</td><td>Set the expiration time for incomplete chunk messages (in milliseconds).</td><td>0</td></tr>
-<tr><td>max-connections</td><td>设置单个broker的最大TCP连接数</td><td>100</td></tr>
-<tr><td>max_chunked_msg</td><td>Set the max pending chunk messages.</td><td>0</td></tr>
-<tr><td>num-consumers</td><td>设定每个主题的消费者数量</td><td>1</td></tr>
-<tr><td>num-io-threads</td><td>Set the number of threads to be used for handling connections to brokers.</td><td>1</td></tr>
-<tr><td>num-subscriptions</td><td>Set the number of subscriptions (per topic).</td><td>1</td></tr>
-<tr><td>num-topic</td><td>设置主题数量</td><td>1</td></tr>
-<tr><td>pool-messages</td><td>Configure whether to use the pooled message.</td><td>true</td></tr>
-<tr><td>rate</td><td>模拟一个慢速消费者消费数据(速率 消息/秒)</td><td>0.0</td></tr>
-<tr><td>receiver-queue-size</td><td>设置接收队列大小</td><td>1000</td></tr>
-<tr><td>receiver-queue-size-across-partitions</td><td>Set the max total size of the receiver queue across partitions.</td><td>50000</td></tr>
-<tr><td>replicated</td><td>配置是否复制订阅状态。</td><td>false</td></tr>
-<tr><td>service-url</td><td>设置 Pulsar 服务的 URL</td><td></td></tr>
-<tr><td>stats-interval-seconds</td><td>设置统计间隔。 如果置为0，则不统计。</td><td>0</td></tr>
-<tr><td>subscriber-name</td><td>设置订阅者名称前缀</td><td></td></tr>
-<tr><td>subscription-position</td><td>Set the subscription position. Valid values are <code>Latest</code>, <code>Earliest</code>.</td><td>Latest</td></tr>
-<tr><td>subscription-type</td><td>设置订阅类型 <li> Exclusive <li> Shared（共享） <li> Failover（灾备） <li> Key_Shared</td><td>Exclusive</td></tr>
-<tr><td>test-duration</td><td>Set the test duration (in seconds). If the value is 0 or smaller than 0, it keeps consuming messages.</td><td>0</td></tr>
-<tr><td>tls-allow-insecure</td><td>Set the allowed insecure TLS connection.</td><td>N/A</td></tr>
-<tr><td>trust-cert-file</td><td>设置受信的TLS证书文件所在路径</td><td><empty string></td></tr>
-</tbody>
-</table>
-<h2><a class="anchor" aria-hidden="true" id="配置"></a><a href="#配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置</h2>
-<p>默认情况下，Pulsar Perf 使用 <code>conf/client.conf</code> 文件作为默认配置，将 <code>conf/log4j2.yaml</code> 作为 Log4j 默认配置。 如果你想连接到其他 Pulsar 集群，你可以更新客户端配置中的 <code>brokerServiceUrl</code>。</p>
-<p>您可以使用以下命令来更改配置文件和 Log4j 配置文件。</p>
+<p>From the output test data, you can get the throughput statistics and the end-to-end latency statistics. The aggregated statistics is printed after the Pulsar Perf is stopped. You can press <strong>Ctrl</strong>+<strong>C</strong> to stop the Pulsar Perf.</p></li>
+<li><p>This example shows how the Pulsar Perf consumes messages with <code>transaction</code> option.</p>
+<p><strong>输入</strong></p>
+<pre><code class="hljs css language-shell">bin/pulsar-perf consume my-topic -r 10 -txn -ss mysubName -st Exclusive -sp Earliest -ntxn 10
+</code></pre>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>If you have not created a topic (in this example, it is <em>my-topic</em>) before, the broker creates a new topic without partitions and messages, then the consumer can not receive any messages. Consequently, before using <code>pulsar-perf consume</code>, make sure your topic has enough messages to consume.</p>
+</blockquote>
+<p><strong>输出</strong></p>
+<pre><code class="hljs css language-shell">2021-10-11T13:43:36,052+0800 INFO  [Thread-3] o.a.p.t.PerformanceConsumer@538 - --- Transaction: 6 transaction end successfully --- 0 transaction end failed --- 0.199  Txn/s --- AckRate: 9.952 msg/s 
+
+2021-10-11T13:43:36,065+0800 INFO  [Thread-3] o.a.p.t.PerformanceConsumer@545 - Throughput received:     306 msg --- 9.952  msg/s -- 0.000 Mbit/s  --- Latency: mean: 26177.380 ms - med: 26128 - 95pct: 30531 - 99pct: 30923 - 99.9pct: 31021 - 99.99pct: 31021 - Max: 31021 
+
+2021-10-11T13:43:59,854+0800 INFO  [Thread-5] o.a.p.t.PerformanceConsumer@579 - -- Transaction: 10  transaction end successfully --- 0 transaction end failed --- 10 transaction open successfully --- 0 transaction open failed --- 0.185 Txn/s  
+
+2021-10-11T13:43:59,854+0800 INFO  [Thread-5] o.a.p.t.PerformanceConsumer@588 - Aggregated throughput stats --- 505 records received --- 9.345 msg/s --- 0.000 Mbit/s--- AckRate: 9.27065308842743  msg/s --- ack failed 4 msg 
+
+2021-10-11T13:43:59,882+0800 INFO  [Thread-5] o.a.p.t.PerformanceConsumer@601 - Aggregated latency stats --- Latency: mean: 50593.000 ms - med: 50593 - 95pct: 50593 - 99pct: 50593 - 99.9pct: 50593 - 99.99pct: 50593 - 99.999pct: 50593 - Max: 50593 
+</code></pre></li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="事务"></a><a href="#事务" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>事务</h2>
+<p>This section shows how Pulsar Perf runs transactions. For more information, see <a href="/docs/zh-CN/next/txn-why">Pulsar transactions</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="use-transaction"></a><a href="#use-transaction" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Use transaction</h3>
+<p>This example executes 50 transactions. Each transaction sends and receives 1 message (default).</p>
+<p><strong>输入</strong></p>
+<pre><code class="hljs css language-shell">bin/pulsar-perf transaction --topics-c myConsumerTopic --topics-p MyproduceTopic -threads 1 -ntxn 50 -ss testSub  -nmp 1 -nmc 1
+</code></pre>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>If you have not created a topic (in this example, it is <em>myConsumerTopic</em>) before, the broker creates a new topic without partitions and messages, then the consumer can not receive any messages. Consequently, before using <code>pulsar-perf transaction</code>, make sure your topic has enough messages to consume.</p>
+</blockquote>
+<p><strong>输出</strong></p>
+<pre><code class="hljs css language-shell">2021-10-11T14:37:27,863+0800 INFO  [Thread-5] o.a.p.t.PerformanceProducer@613 - Messages ack aggregated latency stats --- Latency: mean:  29.239 ms - med:  26.799 - 95pct:  46.696 - 99pct:  55.660 - 99.9pct:  55.660 - 99.99pct:  55.660 - 99.999pct:  55.660 - Max:  55.660 {}
+
+2021-10-11T14:37:19,391+0800 INFO  [Thread-4] o.a.p.t.PerformanceProducer@525 - Throughput transaction:      50 transaction executes ---   4.999 transaction/s  ---send Latency: mean:  31.368 ms - med:  28.369 - 95pct:  55.631 - 99pct:  57.764 - 99.9pct:  57.764 - 99.99pct:  57.764 - Max:  57.764---ack Latency: mean:  29.239 ms - med:  26.799 - 95pct:  46.696 - 99pct:  55.660 - 99.9pct:  55.660 - 99.99pct:  55.660 - Max:  55.660 {}
+
+2021-10-11T14:37:26,625+0800 INFO  [Thread-5] o.a.p.t.PerformanceProducer@571 - Aggregated throughput stats --- 50 transaction executed ---   2.718 transaction/s  --- 50 transaction open successfully --- 0 transaction open failed --- 50 transaction end successfully --- 0 transaction end failed--- 0 message ack failed --- 0 message send failed--- 50 message ack success --- 50 message send success  {}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="disable-transaction"></a><a href="#disable-transaction" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Disable Transaction</h3>
+<p>This example disables transactions.</p>
+<p><strong>输入</strong></p>
+<pre><code class="hljs css language-shell">bin/pulsar-perf transaction --topics-c myConsumerTopic --topics-p myproduceTopic -threads 1 -ntxn 50 -ss testSub --txn-disEnable
+</code></pre>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>If you have not created a topic (in this example, it is <em>myConsumerTopic</em>) before, the broker creates a new topic without partitions and messages, then the consumer can not receive any messages. Consequently, before using <code>pulsar-perf transaction --txn-disEnable</code>, make sure your topic has enough messages to consume.</p>
+</blockquote>
+<p><strong>输出</strong></p>
+<pre><code class="hljs css language-shell">2021-10-11T16:48:26,876+0800 INFO  [Thread-4] o.a.p.t.PerformanceProducer@529 - Throughput task:      50 task executes ---   4.999 task/s  ---send Latency: mean:  10.002 ms - med:   9.875 - 95pct:  11.733 - 99pct:  15.995 - 99.9pct:  15.995 - 99.99pct:  15.995 - Max:  15.995---ack Latency: mean:   0.051 ms - med:   0.020 - 95pct:   0.059 - 99pct:   1.377 - 99.9pct:   1.377 - 99.99pct:   1.377 - Max:   1.377 
+
+2021-10-11T16:48:29,222+0800 INFO  [Thread-5] o.a.p.t.PerformanceProducer@617 - Messages ack aggregated latency stats --- Latency: mean:   0.051 ms - med:   0.020 - 95pct:   0.059 - 99pct:   1.377 - 99.9pct:   1.377 - 99.99pct:   1.377 - 99.999pct:   1.377 - Max:   1.377 
+
+2021-10-11T16:48:29,246+0800 INFO  [Thread-5] o.a.p.t.PerformanceProducer@629 - Messages send aggregated latency stats --- Latency: mean:  10.002 ms - med:   9.875 - 95pct:  11.733 - 99pct:  15.995 - 99.9pct:  15.995 - 99.99pct:  15.995 - 99.999pct:  15.995 - Max:  15.995
+
+2021-10-11T16:48:29,117+0800 INFO  [Thread-5] o.a.p.t.PerformanceProducer@602 - Aggregated throughput stats --- 50 task executed --- 4.025 task/s --- 0 message ack failed --- 0 message send failed--- 50 message ack success --- 50 message send success 
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="configurations"></a><a href="#configurations" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configurations</h2>
+<p>By default, the Pulsar Perf uses <code>conf/client.conf</code> as the default configuration and uses <code>conf/log4j2.yaml</code> as the default Log4j configuration. If you want to connect to other Pulsar clusters, you can update the <code>brokerServiceUrl</code> in the client configuration.</p>
+<p>You can use the following commands to change the configuration file and the Log4j configuration file.</p>
 <pre><code class="hljs"><span class="hljs-builtin-name">export</span> <span class="hljs-attribute">PULSAR_CLIENT_CONF</span>=&lt;你的配置文件&gt;
 <span class="hljs-builtin-name">export</span> <span class="hljs-attribute">PULSAR_LOG_CONF</span>=&lt;你的日志配置文件&gt;
 </code></pre>
-<p>此外，你可以使用以下命令通过环境变量设置 JVM 配置：</p>
+<p>In addition, you can use the following command to configure the JVM configuration through environment variables:</p>
 <pre><code class="hljs"><span class="hljs-builtin-name">export</span> <span class="hljs-attribute">PULSAR_EXTRA_OPTS</span>=<span class="hljs-string">'-Xms4g -Xmx4g -XX:MaxDirectMemorySize=4g'</span>
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="hdrhistogram-plotter"></a><a href="#hdrhistogram-plotter" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>HdrHistogram Plotter</h2>
-<p><a href="https://hdrhistogram.github.io/HdrHistogram/plotFiles.html">HdrHistogram Plotter</a> 是一款查验 Pulsar Perf 测试结果的可视化工具，便于观察。</p>
-<p>可通过如下步骤，实现用 HdrHistogram Plotter 查看相关测试结果：</p>
+<p>The <a href="https://hdrhistogram.github.io/HdrHistogram/plotFiles.html">HdrHistogram Plotter</a> is a visualization tool for checking Pulsar Perf test results, which makes it easier to observe the test results.</p>
+<p>To check test results through the HdrHistogram Plotter, follow these steps:</p>
 <ol>
 <li><p>从 GitHub 上克隆 HdrHistogram 仓库到本地</p>
 <pre><code class="hljs">git <span class="hljs-keyword">clone</span> <span class="hljs-title">https</span>://github.com/HdrHistogram/HdrHistogram.git
@@ -237,7 +230,7 @@
 <li><p>可通过 HdrHistogram Plotter 的图形化界面检查测试结果，如图所示：</p>
 <p><img src="/docs/assets/perf-produce.png" alt=""></p></li>
 </ol>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/security-bouncy-castle"><span class="arrow-prev">← </span><span>Bouncy Castle Providers</span></a><a class="docs-next button" href="/docs/zh-CN/next/client-libraries"><span>概述</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#生产消息">生产消息</a><ul class="toc-headings"><li><a href="#pulsar-perf-produce-选项配置"><code>pulsar-perf produce</code> 选项配置</a></li></ul></li><li><a href="#消费消息">消费消息</a><ul class="toc-headings"><li><a href="#pulsar-perf-consume-选项配置"><code>pulsar-perf consume</code> 选项配置</a></li></ul></li><li><a href="#配置">配置</a></li><li><a href="#hdrhistogram-plotter">HdrHistogram Plotter</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/security-bouncy-castle"><span class="arrow-prev">← </span><span>Bouncy Castle Providers</span></a><a class="docs-next button" href="/docs/zh-CN/next/client-libraries"><span>概述</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#生产消息">生产消息</a></li><li><a href="#消费消息">消费消息</a></li><li><a href="#事务">事务</a><ul class="toc-headings"><li><a href="#use-transaction">Use transaction</a></li><li><a href="#disable-transaction">Disable Transaction</a></li></ul></li><li><a href="#configurations">Configurations</a></li><li><a href="#hdrhistogram-plotter">HdrHistogram Plotter</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
