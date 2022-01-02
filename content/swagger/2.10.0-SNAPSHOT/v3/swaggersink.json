@@ -936,9 +936,6 @@
         "ArrayBuilders": {
             "type": "object",
             "properties": {
-                "doubleBuilder": {
-                    "$ref": "#/definitions/DoubleBuilder"
-                },
                 "booleanBuilder": {
                     "$ref": "#/definitions/BooleanBuilder"
                 },
@@ -956,6 +953,9 @@
                 },
                 "floatBuilder": {
                     "$ref": "#/definitions/FloatBuilder"
+                },
+                "doubleBuilder": {
+                    "$ref": "#/definitions/DoubleBuilder"
                 }
             }
         },
@@ -1209,10 +1209,10 @@
                     "type": "integer",
                     "format": "int32"
                 },
-                "symbol": {
+                "displayName": {
                     "type": "string"
                 },
-                "displayName": {
+                "symbol": {
                     "type": "string"
                 },
                 "numericCodeAsString": {
@@ -1278,9 +1278,6 @@
                 "locale": {
                     "$ref": "#/definitions/Locale"
                 },
-                "classIntrospector": {
-                    "$ref": "#/definitions/ClassIntrospector"
-                },
                 "typeFactory": {
                     "$ref": "#/definitions/TypeFactory"
                 },
@@ -1298,6 +1295,9 @@
                 },
                 "base64Variant": {
                     "$ref": "#/definitions/Base64Variant"
+                },
+                "classIntrospector": {
+                    "$ref": "#/definitions/ClassIntrospector"
                 }
             }
         },
@@ -1544,7 +1544,7 @@
         "JsonLocation": {
             "type": "object",
             "properties": {
-                "charOffset": {
+                "byteOffset": {
                     "type": "integer",
                     "format": "int64"
                 },
@@ -1559,7 +1559,7 @@
                     "type": "integer",
                     "format": "int32"
                 },
-                "byteOffset": {
+                "charOffset": {
                     "type": "integer",
                     "format": "int64"
                 }
@@ -1584,6 +1584,13 @@
                 "text": {
                     "type": "string"
                 },
+                "booleanValue": {
+                    "type": "boolean"
+                },
+                "byteValue": {
+                    "type": "string",
+                    "format": "byte"
+                },
                 "doubleValue": {
                     "type": "number",
                     "format": "double"
@@ -1599,13 +1606,6 @@
                 "shortValue": {
                     "type": "integer",
                     "format": "int32"
-                },
-                "booleanValue": {
-                    "type": "boolean"
-                },
-                "byteValue": {
-                    "type": "string",
-                    "format": "byte"
                 },
                 "closed": {
                     "type": "boolean"
@@ -1763,11 +1763,11 @@
         "JsonSerializerObject": {
             "type": "object",
             "properties": {
-                "unwrappingSerializer": {
-                    "type": "boolean"
-                },
                 "delegatee": {
                     "$ref": "#/definitions/JsonSerializerObject"
+                },
+                "unwrappingSerializer": {
+                    "type": "boolean"
                 }
             }
         },
@@ -1805,6 +1805,9 @@
         "Locale": {
             "type": "object",
             "properties": {
+                "displayName": {
+                    "type": "string"
+                },
                 "script": {
                     "type": "string"
                 },
@@ -1851,9 +1854,6 @@
                     "type": "string"
                 },
                 "displayVariant": {
-                    "type": "string"
-                },
-                "displayName": {
                     "type": "string"
                 },
                 "language": {
@@ -1945,9 +1945,6 @@
                     "type": "integer",
                     "format": "int32"
                 },
-                "currency": {
-                    "$ref": "#/definitions/Currency"
-                },
                 "roundingMode": {
                     "type": "string",
                     "enum": [
@@ -1960,6 +1957,9 @@
                         "HALF_EVEN",
                         "UNNECESSARY"
                     ]
+                },
+                "currency": {
+                    "$ref": "#/definitions/Currency"
                 }
             }
         },
@@ -2182,9 +2182,6 @@
                 "locale": {
                     "$ref": "#/definitions/Locale"
                 },
-                "classIntrospector": {
-                    "$ref": "#/definitions/ClassIntrospector"
-                },
                 "typeFactory": {
                     "$ref": "#/definitions/TypeFactory"
                 },
@@ -2202,6 +2199,9 @@
                 },
                 "base64Variant": {
                     "$ref": "#/definitions/Base64Variant"
+                },
+                "classIntrospector": {
+                    "$ref": "#/definitions/ClassIntrospector"
                 }
             }
         },
@@ -2453,10 +2453,10 @@
         "TimeZone": {
             "type": "object",
             "properties": {
-                "id": {
+                "displayName": {
                     "type": "string"
                 },
-                "displayName": {
+                "id": {
                     "type": "string"
                 },
                 "dstsavings": {
