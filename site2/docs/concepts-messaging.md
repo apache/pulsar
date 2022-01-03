@@ -8,7 +8,7 @@ Pulsar is built on the [publish-subscribe](https://en.wikipedia.org/wiki/Publish
 
 When a subscription is created, Pulsar [retains](concepts-architecture-overview.md#persistent-storage) all messages, even if the consumer is disconnected. The retained messages are discarded only when a consumer acknowledges that all these messages are processed successfully. 
 
-If the consumption of a message fails and you want this message to be consumed again, then you can enable the automatic redelivery of this message by sending a [negative acknowledgement](negative-acknowledgement) to the broker or enabling the [acknowledgement timeout](acknowledgement-timeout) for unacknowledged messages.
+If the consumption of a message fails and you want this message to be consumed again, then you can enable the automatic redelivery of this message by sending a [negative acknowledgement](#negative-acknowledgement) to the broker or enabling the [acknowledgement timeout](#acknowledgement-timeout) for unacknowledged messages.
 
 ## Messages
 
