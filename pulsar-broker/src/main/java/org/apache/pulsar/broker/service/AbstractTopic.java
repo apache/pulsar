@@ -972,7 +972,11 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         return waitingExclusiveProducers.size();
     }
 
-    protected boolean isExceedMaximumMessageSize(int size) {
+    protected boolean isExceedMaximumMessageSize(int size, PublishContext publishContext) {
+        if (publishContext.isChunked()) {
+            //skip topic level max message check if it's chunk message.
+            return false;
+        }
         int topicMaxMessageSize = topicPolicies.getTopicMaxMessageSize().get();
         if (topicMaxMessageSize <= 0) {
             //invalid setting means this check is disabled.
