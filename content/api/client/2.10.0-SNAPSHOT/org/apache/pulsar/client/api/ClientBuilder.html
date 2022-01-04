@@ -26,7 +26,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":38,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6,"i22":6,"i23":6,"i24":6,"i25":6,"i26":6,"i27":6,"i28":6,"i29":6,"i30":6,"i31":6,"i32":6,"i33":6,"i34":6,"i35":6,"i36":6,"i37":6,"i38":6,"i39":6,"i40":6,"i41":6,"i42":6};
+var data = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":38,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6,"i22":6,"i23":6,"i24":6,"i25":6,"i26":6,"i27":6,"i28":6,"i29":6,"i30":6,"i31":6,"i32":6,"i33":6,"i34":6,"i35":6,"i36":6,"i37":6,"i38":6,"i39":6,"i40":6,"i41":6,"i42":6,"i43":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],32:["t6","Deprecated Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -225,19 +225,27 @@ extends java.io.Serializable, java.lang.Cloneable</pre>
 </tr>
 <tr id="i9" class="rowColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#dnsLookupBind(java.lang.String,int)">dnsLookupBind</a></span>&#8203;(java.lang.String&nbsp;address,
+             int&nbsp;port)</code></th>
+<td class="colLast">
+<div class="block">Set dns lookup bind address and port.</div>
+</td>
+</tr>
+<tr id="i10" class="altColor">
+<td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#enableBusyWait(boolean)">enableBusyWait</a></span>&#8203;(boolean&nbsp;enableBusyWait)</code></th>
 <td class="colLast">
 <div class="block">Option to enable busy-wait settings.</div>
 </td>
 </tr>
-<tr id="i10" class="altColor">
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#enableTcpNoDelay(boolean)">enableTcpNoDelay</a></span>&#8203;(boolean&nbsp;enableTcpNoDelay)</code></th>
 <td class="colLast">
 <div class="block">Configure whether to use TCP no-delay flag on the connection, to disable Nagle algorithm.</div>
 </td>
 </tr>
-<tr id="i11" class="rowColor">
+<tr id="i12" class="altColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#enableTls(boolean)">enableTls</a></span>&#8203;(boolean&nbsp;enableTls)</code></th>
 <td class="colLast">
@@ -246,28 +254,28 @@ extends java.io.Serializable, java.lang.Cloneable</pre>
 </div>
 </td>
 </tr>
-<tr id="i12" class="altColor">
+<tr id="i13" class="rowColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#enableTlsHostnameVerification(boolean)">enableTlsHostnameVerification</a></span>&#8203;(boolean&nbsp;enableTlsHostnameVerification)</code></th>
 <td class="colLast">
 <div class="block">It allows to validate hostname verification when client connects to broker over tls.</div>
 </td>
 </tr>
-<tr id="i13" class="rowColor">
+<tr id="i14" class="altColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#enableTransaction(boolean)">enableTransaction</a></span>&#8203;(boolean&nbsp;enableTransaction)</code></th>
 <td class="colLast">
 <div class="block">If enable transaction, start the transactionCoordinatorClient with pulsar client.</div>
 </td>
 </tr>
-<tr id="i14" class="altColor">
+<tr id="i15" class="rowColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#ioThreads(int)">ioThreads</a></span>&#8203;(int&nbsp;numIoThreads)</code></th>
 <td class="colLast">
 <div class="block">Set the number of threads to be used for handling connections to brokers <i>(default: 1 thread)</i>.</div>
 </td>
 </tr>
-<tr id="i15" class="rowColor">
+<tr id="i16" class="altColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#keepAliveInterval(int,java.util.concurrent.TimeUnit)">keepAliveInterval</a></span>&#8203;(int&nbsp;keepAliveInterval,
                  java.util.concurrent.TimeUnit&nbsp;unit)</code></th>
@@ -275,28 +283,28 @@ extends java.io.Serializable, java.lang.Cloneable</pre>
 <div class="block">Set keep alive interval for each client-broker-connection.</div>
 </td>
 </tr>
-<tr id="i16" class="altColor">
+<tr id="i17" class="rowColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#listenerName(java.lang.String)">listenerName</a></span>&#8203;(java.lang.String&nbsp;name)</code></th>
 <td class="colLast">
 <div class="block">Configure the listenerName that the broker will return the corresponding `advertisedListener`.</div>
 </td>
 </tr>
-<tr id="i17" class="rowColor">
+<tr id="i18" class="altColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#listenerThreads(int)">listenerThreads</a></span>&#8203;(int&nbsp;numListenerThreads)</code></th>
 <td class="colLast">
 <div class="block">Set the number of threads to be used for message listeners <i>(default: 1 thread)</i>.</div>
 </td>
 </tr>
-<tr id="i18" class="altColor">
+<tr id="i19" class="rowColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#loadConf(java.util.Map)">loadConf</a></span>&#8203;(java.util.Map&lt;java.lang.String,&#8203;java.lang.Object&gt;&nbsp;config)</code></th>
 <td class="colLast">
 <div class="block">Load the configuration from provided <tt>config</tt> map.</div>
 </td>
 </tr>
-<tr id="i19" class="rowColor">
+<tr id="i20" class="altColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#lookupTimeout(int,java.util.concurrent.TimeUnit)">lookupTimeout</a></span>&#8203;(int&nbsp;lookupTimeout,
              java.util.concurrent.TimeUnit&nbsp;unit)</code></th>
@@ -306,7 +314,7 @@ extends java.io.Serializable, java.lang.Cloneable</pre>
  Lookup operations have a different load pattern to other operations.</div>
 </td>
 </tr>
-<tr id="i20" class="altColor">
+<tr id="i21" class="rowColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#maxBackoffInterval(long,java.util.concurrent.TimeUnit)">maxBackoffInterval</a></span>&#8203;(long&nbsp;duration,
                   java.util.concurrent.TimeUnit&nbsp;unit)</code></th>
@@ -314,28 +322,28 @@ extends java.io.Serializable, java.lang.Cloneable</pre>
 <div class="block">Set the maximum duration of time for a backoff interval.</div>
 </td>
 </tr>
-<tr id="i21" class="rowColor">
+<tr id="i22" class="altColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#maxConcurrentLookupRequests(int)">maxConcurrentLookupRequests</a></span>&#8203;(int&nbsp;maxConcurrentLookupRequests)</code></th>
 <td class="colLast">
 <div class="block">Number of concurrent lookup-requests allowed to send on each broker-connection to prevent overload on broker.</div>
 </td>
 </tr>
-<tr id="i22" class="altColor">
+<tr id="i23" class="rowColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#maxLookupRedirects(int)">maxLookupRedirects</a></span>&#8203;(int&nbsp;maxLookupRedirects)</code></th>
 <td class="colLast">
 <div class="block">Set the maximum number of times a lookup-request to a broker will be redirected.</div>
 </td>
 </tr>
-<tr id="i23" class="rowColor">
+<tr id="i24" class="altColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#maxLookupRequests(int)">maxLookupRequests</a></span>&#8203;(int&nbsp;maxLookupRequests)</code></th>
 <td class="colLast">
 <div class="block">Number of max lookup-requests allowed on each broker-connection to prevent overload on broker.</div>
 </td>
 </tr>
-<tr id="i24" class="altColor">
+<tr id="i25" class="rowColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#maxNumberOfRejectedRequestPerConnection(int)">maxNumberOfRejectedRequestPerConnection</a></span>&#8203;(int&nbsp;maxNumberOfRejectedRequestPerConnection)</code></th>
 <td class="colLast">
@@ -344,7 +352,7 @@ extends java.io.Serializable, java.lang.Cloneable</pre>
  50)</i>.</div>
 </td>
 </tr>
-<tr id="i25" class="rowColor">
+<tr id="i26" class="altColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#memoryLimit(long,org.apache.pulsar.client.api.SizeUnit)">memoryLimit</a></span>&#8203;(long&nbsp;memoryLimit,
            <a href="SizeUnit.html" title="enum in org.apache.pulsar.client.api">SizeUnit</a>&nbsp;unit)</code></th>
@@ -352,7 +360,7 @@ extends java.io.Serializable, java.lang.Cloneable</pre>
 <div class="block">Configure a limit on the amount of direct memory that will be allocated by this client instance.</div>
 </td>
 </tr>
-<tr id="i26" class="altColor">
+<tr id="i27" class="rowColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#operationTimeout(int,java.util.concurrent.TimeUnit)">operationTimeout</a></span>&#8203;(int&nbsp;operationTimeout,
                 java.util.concurrent.TimeUnit&nbsp;unit)</code></th>
@@ -360,7 +368,7 @@ extends java.io.Serializable, java.lang.Cloneable</pre>
 <div class="block">Set the operation timeout <i>(default: 30 seconds)</i>.</div>
 </td>
 </tr>
-<tr id="i27" class="rowColor">
+<tr id="i28" class="altColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#proxyServiceUrl(java.lang.String,org.apache.pulsar.client.api.ProxyProtocol)">proxyServiceUrl</a></span>&#8203;(java.lang.String&nbsp;proxyServiceUrl,
                <a href="ProxyProtocol.html" title="enum in org.apache.pulsar.client.api">ProxyProtocol</a>&nbsp;proxyProtocol)</code></th>
@@ -368,49 +376,49 @@ extends java.io.Serializable, java.lang.Cloneable</pre>
 <div class="block">Proxy-service url when client would like to connect to broker via proxy.</div>
 </td>
 </tr>
-<tr id="i28" class="altColor">
+<tr id="i29" class="rowColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#serviceUrl(java.lang.String)">serviceUrl</a></span>&#8203;(java.lang.String&nbsp;serviceUrl)</code></th>
 <td class="colLast">
 <div class="block">Configure the service URL for the Pulsar service.</div>
 </td>
 </tr>
-<tr id="i29" class="rowColor">
+<tr id="i30" class="altColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#serviceUrlProvider(org.apache.pulsar.client.api.ServiceUrlProvider)">serviceUrlProvider</a></span>&#8203;(<a href="ServiceUrlProvider.html" title="interface in org.apache.pulsar.client.api">ServiceUrlProvider</a>&nbsp;serviceUrlProvider)</code></th>
 <td class="colLast">
 <div class="block">Configure the service URL provider for Pulsar service.</div>
 </td>
 </tr>
-<tr id="i30" class="altColor">
+<tr id="i31" class="rowColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#socks5ProxyAddress(java.net.InetSocketAddress)">socks5ProxyAddress</a></span>&#8203;(java.net.InetSocketAddress&nbsp;socks5ProxyAddress)</code></th>
 <td class="colLast">
 <div class="block">Set socks5 proxy address.</div>
 </td>
 </tr>
-<tr id="i31" class="rowColor">
+<tr id="i32" class="altColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#socks5ProxyPassword(java.lang.String)">socks5ProxyPassword</a></span>&#8203;(java.lang.String&nbsp;socks5ProxyPassword)</code></th>
 <td class="colLast">
 <div class="block">Set socks5 proxy password.</div>
 </td>
 </tr>
-<tr id="i32" class="altColor">
+<tr id="i33" class="rowColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#socks5ProxyUsername(java.lang.String)">socks5ProxyUsername</a></span>&#8203;(java.lang.String&nbsp;socks5ProxyUsername)</code></th>
 <td class="colLast">
 <div class="block">Set socks5 proxy username.</div>
 </td>
 </tr>
-<tr id="i33" class="rowColor">
+<tr id="i34" class="altColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#sslProvider(java.lang.String)">sslProvider</a></span>&#8203;(java.lang.String&nbsp;sslProvider)</code></th>
 <td class="colLast">
 <div class="block">The name of the security provider used for SSL connections.</div>
 </td>
 </tr>
-<tr id="i34" class="altColor">
+<tr id="i35" class="rowColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#startingBackoffInterval(long,java.util.concurrent.TimeUnit)">startingBackoffInterval</a></span>&#8203;(long&nbsp;duration,
                        java.util.concurrent.TimeUnit&nbsp;unit)</code></th>
@@ -418,7 +426,7 @@ extends java.io.Serializable, java.lang.Cloneable</pre>
 <div class="block">Set the duration of time for a backoff interval.</div>
 </td>
 </tr>
-<tr id="i35" class="rowColor">
+<tr id="i36" class="altColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#statsInterval(long,java.util.concurrent.TimeUnit)">statsInterval</a></span>&#8203;(long&nbsp;statsInterval,
              java.util.concurrent.TimeUnit&nbsp;unit)</code></th>
@@ -427,49 +435,49 @@ extends java.io.Serializable, java.lang.Cloneable</pre>
  statsInterval It should be set to at least 1 second.</div>
 </td>
 </tr>
-<tr id="i36" class="altColor">
+<tr id="i37" class="rowColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#tlsCiphers(java.util.Set)">tlsCiphers</a></span>&#8203;(java.util.Set&lt;java.lang.String&gt;&nbsp;tlsCiphers)</code></th>
 <td class="colLast">
 <div class="block">A list of cipher suites.</div>
 </td>
 </tr>
-<tr id="i37" class="rowColor">
+<tr id="i38" class="altColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#tlsProtocols(java.util.Set)">tlsProtocols</a></span>&#8203;(java.util.Set&lt;java.lang.String&gt;&nbsp;tlsProtocols)</code></th>
 <td class="colLast">
 <div class="block">The SSL protocol used to generate the SSLContext.</div>
 </td>
 </tr>
-<tr id="i38" class="altColor">
+<tr id="i39" class="rowColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#tlsTrustCertsFilePath(java.lang.String)">tlsTrustCertsFilePath</a></span>&#8203;(java.lang.String&nbsp;tlsTrustCertsFilePath)</code></th>
 <td class="colLast">
 <div class="block">Set the path to the trusted TLS certificate file.</div>
 </td>
 </tr>
-<tr id="i39" class="rowColor">
+<tr id="i40" class="altColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#tlsTrustStorePassword(java.lang.String)">tlsTrustStorePassword</a></span>&#8203;(java.lang.String&nbsp;tlsTrustStorePassword)</code></th>
 <td class="colLast">
 <div class="block">The store password for the key store file.</div>
 </td>
 </tr>
-<tr id="i40" class="altColor">
+<tr id="i41" class="rowColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#tlsTrustStorePath(java.lang.String)">tlsTrustStorePath</a></span>&#8203;(java.lang.String&nbsp;tlsTrustStorePath)</code></th>
 <td class="colLast">
 <div class="block">The location of the trust store file.</div>
 </td>
 </tr>
-<tr id="i41" class="rowColor">
+<tr id="i42" class="altColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#tlsTrustStoreType(java.lang.String)">tlsTrustStoreType</a></span>&#8203;(java.lang.String&nbsp;tlsTrustStoreType)</code></th>
 <td class="colLast">
 <div class="block">The file format of the trust store file.</div>
 </td>
 </tr>
-<tr id="i42" class="altColor">
+<tr id="i43" class="rowColor">
 <td class="colFirst"><code><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#useKeyStoreTls(boolean)">useKeyStoreTls</a></span>&#8203;(boolean&nbsp;useKeyStoreTls)</code></th>
 <td class="colLast">
@@ -1305,6 +1313,23 @@ extends java.io.Serializable, java.lang.Cloneable</pre>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>enableTransaction</code> - whether enable transaction feature</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+</dl>
+</li>
+</ul>
+<a id="dnsLookupBind(java.lang.String,int)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>dnsLookupBind</h4>
+<pre class="methodSignature"><a href="ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a>&nbsp;dnsLookupBind&#8203;(java.lang.String&nbsp;address,
+                            int&nbsp;port)</pre>
+<div class="block">Set dns lookup bind address and port.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>address</code> - dnsBindAddress</dd>
+<dd><code>port</code> - dnsBindPort</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 </dl>
 </li>
