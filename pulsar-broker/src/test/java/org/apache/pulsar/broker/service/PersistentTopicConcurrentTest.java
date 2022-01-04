@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.withSettings;
 import static org.testng.Assert.assertFalse;
 
 import java.lang.reflect.Method;
@@ -101,7 +103,9 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         brokerService = spy(new BrokerService(pulsar, eventLoopGroup));
         doReturn(brokerService).when(pulsar).getBrokerService();
 
-        serverCnx = spy(new ServerCnx(pulsar));
+        serverCnx = mock(ServerCnx.class, withSettings()
+                .useConstructor(pulsar)
+                .defaultAnswer(CALLS_REAL_METHODS));
         doReturn(true).when(serverCnx).isActive();
 
         NamespaceService nsSvc = mock(NamespaceService.class);
