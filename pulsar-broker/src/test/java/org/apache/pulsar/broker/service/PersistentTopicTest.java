@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMo
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
@@ -34,6 +35,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
@@ -206,7 +208,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         brokerService = spy(new BrokerService(pulsar, eventLoopGroup));
         doReturn(brokerService).when(pulsar).getBrokerService();
 
-        serverCnx = spy(new ServerCnx(pulsar));
+        serverCnx = mock(ServerCnx.class, withSettings()
+                .useConstructor(pulsar)
+                .defaultAnswer(CALLS_REAL_METHODS));
         doReturn(true).when(serverCnx).isActive();
         doReturn(true).when(serverCnx).isWritable();
         doReturn(new InetSocketAddress("localhost", 1234)).when(serverCnx).clientAddress();
@@ -587,7 +591,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         final String producerNameBase = "producer";
         final String role = "appid1";
 
-        ServerCnx cnx = spy(new ServerCnx(pulsar));
+        ServerCnx cnx = mock(ServerCnx.class, withSettings()
+                .useConstructor(pulsar)
+                .defaultAnswer(CALLS_REAL_METHODS));
         doReturn(true).when(cnx).isActive();
         doReturn(true).when(cnx).isWritable();
         doReturn(new InetSocketAddress(address, 1234)).when(cnx).clientAddress();
@@ -1042,7 +1048,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         final String consumerNameBase = "consumer";
         final String role = "appid1";
 
-        ServerCnx cnx = spy(new ServerCnx(pulsar));
+        ServerCnx cnx = mock(ServerCnx.class, withSettings()
+                .useConstructor(pulsar)
+                .defaultAnswer(CALLS_REAL_METHODS));
         doReturn(true).when(cnx).isActive();
         doReturn(true).when(cnx).isWritable();
         doReturn(new InetSocketAddress(address, 1234)).when(cnx).clientAddress();
