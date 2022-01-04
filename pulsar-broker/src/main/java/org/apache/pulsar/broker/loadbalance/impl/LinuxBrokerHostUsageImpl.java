@@ -46,6 +46,9 @@ import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
  */
 @Slf4j
 public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
+    private final ScheduledExecutorService executorService;
+    private final int hostUsageCheckIntervalMin;
+
     private long lastCollection;
     private double lastTotalNicUsageTx;
     private double lastTotalNicUsageRx;
@@ -84,11 +87,12 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
             log.warn("Failed to check cgroup CPU usage file: {}", e.getMessage());
         }
         this.isCGroupsEnabled = isCGroupsEnabled;
+        this.executorService = executorService;
+        this.hostUsageCheckIntervalMin = hostUsageCheckIntervalMin;
 
         // Call now to initialize values before the constructor returns
         calculateBrokerHostUsage();
-        executorService.scheduleAtFixedRate(catchingAndLoggingThrowables(this::calculateBrokerHostUsage),
-                hostUsageCheckIntervalMin,
+        this.executorService.schedule(catchingAndLoggingThrowables(this::calculateBrokerHostUsage),
                 hostUsageCheckIntervalMin, TimeUnit.MINUTES);
     }
 
@@ -128,6 +132,9 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         lastCollection = System.currentTimeMillis();
         this.usage = usage;
         usage.setCpu(new ResourceUsage(cpuUsage, totalCpuLimit));
+
+        executorService.schedule(catchingAndLoggingThrowables(this::calculateBrokerHostUsage),
+                hostUsageCheckIntervalMin, TimeUnit.MINUTES);
     }
 
     private double getTotalCpuLimit() {
