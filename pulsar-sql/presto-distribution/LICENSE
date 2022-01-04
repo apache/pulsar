@@ -329,8 +329,7 @@ The Apache Software License, Version 2.0
     - leveldb-0.10.jar
     - leveldb-api-0.10.jar
   * Log4j implemented over SLF4J
-    - log4j-over-slf4j-1.7.29.jar
-    - log4j-over-slf4j-1.7.30.jar
+    - log4j-over-slf4j-1.7.32.jar
   * Lucene Common Analyzers
     - lucene-analyzers-common-8.4.1.jar
     - lucene-core-8.4.1.jar
@@ -484,9 +483,8 @@ MIT License
  * PCollections
    - pcollections-2.1.2.jar
  * SLF4J
-   - slf4j-jdk14-1.7.29.jar
    - slf4j-api-1.7.32.jar
-   - slf4j-jdk14-1.7.30.jar
+   - slf4j-jdk14-1.7.32.jar
  * JCL 1.2 Implemented Over SLF4J
    - jcl-over-slf4j-1.7.32.jar
  * JUL to SLF4J Bridge
