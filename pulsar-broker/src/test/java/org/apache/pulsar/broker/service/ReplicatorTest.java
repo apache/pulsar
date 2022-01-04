@@ -74,6 +74,7 @@ import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
@@ -85,6 +86,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.schema.Schemas;
@@ -1365,6 +1367,44 @@ public class ReplicatorTest extends ReplicatorTestBase {
         for (String expectTopic : expectedTopicList) {
             Assert.assertTrue(list.contains(expectTopic));
         }
+    }
+
+    @Test
+    private void testCloseReplicatorBeforeConnected() throws Exception {
+        String cluster = "tmp-cluster";
+        String tenant = "tmp-tenant";
+        String namespace = "vv-ns";
+        TopicName topicName = TopicName.get("persistent", tenant, namespace, "testCloseReplicatorBeforeConnected");
+
+        // 1.Remote cluster is not available.
+        admin1.clusters().createCluster(cluster, ClusterData.builder()
+                .serviceUrl("http://localhost:18787")
+                .brokerServiceUrl("pulsar://localhost:18787")
+                .build());
+        admin1.tenants().createTenant("tmp-tenant",
+                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("r1", cluster)));
+        admin1.namespaces().createNamespace(topicName.getNamespace());
+        admin1.namespaces().setNamespaceReplicationClusters(topicName.getNamespace(), Sets.newHashSet("r1", cluster));
+
+        // 2.Start replicator.
+        @Cleanup
+        MessageProducer producer = new MessageProducer(url1, topicName);
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(topicName.toString()).get();
+        Replicator replicator = topic.getPersistentReplicator(cluster);
+
+        // 3.Disconnect replicator.
+        Field field = AbstractReplicator.class.getDeclaredField("backOff");
+        Backoff backOff = (Backoff) field.get(replicator);
+        while (backOff.getNext() == 100) {
+            Thread.sleep(10);
+        }
+        replicator.disconnect();
+
+        // 4.Check if start task canceled.
+        long lastNum = backOff.getNext();
+        Thread.sleep(10000);
+        long curNum = backOff.getNext();
+        assert(lastNum == curNum);
     }
 
     private static final Logger log = LoggerFactory.getLogger(ReplicatorTest.class);
