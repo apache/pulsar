@@ -488,13 +488,6 @@
         "description" : "",
         "operationId" : "healthcheck",
         "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "topicVersion",
-          "in" : "query",
-          "required" : false,
-          "type" : "string",
-          "enum" : [ "V1", "V2" ]
-        } ],
         "responses" : {
           "200" : {
             "description" : "Everything is OK"
@@ -1694,39 +1687,6 @@
       }
     },
     "/namespaces/{tenant}/{namespace}/autoSubscriptionCreation" : {
-      "get" : {
-        "tags" : [ "namespaces" ],
-        "summary" : "Get autoSubscriptionCreation info in a namespace",
-        "description" : "",
-        "operationId" : "getAutoSubscriptionCreation",
-        "consumes" : [ "application/json" ],
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "successful operation",
-            "schema" : {
-              "$ref" : "#/definitions/AutoSubscriptionCreationOverride"
-            }
-          },
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Tenant or namespace doesn't exist"
-          }
-        }
-      },
       "post" : {
         "tags" : [ "namespaces" ],
         "summary" : "Override broker's allowAutoSubscriptionCreation setting for a namespace",
@@ -1794,39 +1754,6 @@
       }
     },
     "/namespaces/{tenant}/{namespace}/autoTopicCreation" : {
-      "get" : {
-        "tags" : [ "namespaces" ],
-        "summary" : "Get autoTopicCreation info in a namespace",
-        "description" : "",
-        "operationId" : "getAutoTopicCreation",
-        "consumes" : [ "application/json" ],
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "successful operation",
-            "schema" : {
-              "$ref" : "#/definitions/AutoTopicCreationOverride"
-            }
-          },
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Tenant or namespace doesn't exist"
-          }
-        }
-      },
       "post" : {
         "tags" : [ "namespaces" ],
         "summary" : "Override broker's allowAutoTopicCreation setting for a namespace",
@@ -2084,7 +2011,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin or operate permission on the namespace"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Namespace does not exist"
@@ -2124,7 +2051,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin or operate permission on the namespace"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Namespace does not exist"
@@ -2512,7 +2439,7 @@
     "/namespaces/{tenant}/{namespace}/dispatchRate" : {
       "get" : {
         "tags" : [ "namespaces" ],
-        "summary" : "Get dispatch-rate configured for the namespace, null means dispatch-rate not configured, -1 means msg-dispatch-rate or byte-dispatch-rate not configured in dispatch-rate yet",
+        "summary" : "Get dispatch-rate configured for the namespace, -1 represents not configured yet",
         "description" : "",
         "operationId" : "getDispatchRate",
         "consumes" : [ "application/json" ],
@@ -2601,39 +2528,6 @@
       }
     },
     "/namespaces/{tenant}/{namespace}/encryptionRequired" : {
-      "get" : {
-        "tags" : [ "namespaces" ],
-        "summary" : "Get message encryption required status in a namespace",
-        "description" : "",
-        "operationId" : "getEncryptionRequired",
-        "consumes" : [ "application/json" ],
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "successful operation",
-            "schema" : {
-              "type" : "boolean"
-            }
-          },
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Tenant or namespace doesn't exist"
-          }
-        }
-      },
       "post" : {
         "tags" : [ "namespaces" ],
         "summary" : "Message encryption is required or not for all topics in a namespace",
@@ -4009,51 +3903,6 @@
         }
       }
     },
-    "/namespaces/{tenant}/{namespace}/permissions/subscription" : {
-      "get" : {
-        "tags" : [ "namespaces" ],
-        "summary" : "Retrieve the permissions for a subscription.",
-        "description" : "",
-        "operationId" : "getPermissionOnSubscription",
-        "consumes" : [ "application/json" ],
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "successful operation",
-            "schema" : {
-              "type" : "object",
-              "additionalProperties" : {
-                "type" : "array",
-                "uniqueItems" : true,
-                "items" : {
-                  "type" : "string"
-                }
-              }
-            }
-          },
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Tenant or cluster or namespace doesn't exist"
-          },
-          "409" : {
-            "description" : "Namespace is not empty"
-          }
-        }
-      }
-    },
     "/namespaces/{tenant}/{namespace}/permissions/{role}" : {
       "post" : {
         "tags" : [ "namespaces" ],
@@ -4606,7 +4455,7 @@
     "/namespaces/{tenant}/{namespace}/replicatorDispatchRate" : {
       "get" : {
         "tags" : [ "namespaces" ],
-        "summary" : "Get replicator dispatch-rate configured for the namespace, null means replicator dispatch-rate not configured, -1 means msg-dispatch-rate or byte-dispatch-rate not configured in dispatch-rate yet",
+        "summary" : "Get replicator dispatch-rate configured for the namespace, -1 represents not configured yet",
         "description" : "",
         "operationId" : "getReplicatorDispatchRate",
         "consumes" : [ "application/json" ],
@@ -4728,38 +4577,6 @@
           }
         }
       },
-      "delete" : {
-        "tags" : [ "namespaces" ],
-        "summary" : "Delete resourcegroup for a namespace",
-        "description" : "",
-        "operationId" : "removeNamespaceResourceGroup",
-        "consumes" : [ "application/json" ],
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Tenant or cluster or namespace doesn't exist"
-          },
-          "412" : {
-            "description" : "Invalid resourcegroup"
-          }
-        }
-      }
-    },
-    "/namespaces/{tenant}/{namespace}/resourcegroup/{resourcegroup}" : {
       "post" : {
         "tags" : [ "namespaces" ],
         "summary" : "Set resourcegroup for a namespace",
@@ -4778,7 +4595,40 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "resourcegroup",
+          "in" : "body",
+          "name" : "body",
+          "description" : "Name of resourcegroup",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Tenant or cluster or namespace doesn't exist"
+          },
+          "412" : {
+            "description" : "Invalid resourcegroup"
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Delete resourcegroup for a namespace",
+        "description" : "",
+        "operationId" : "removeNamespaceResourceGroup",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
           "in" : "path",
           "required" : true,
           "type" : "string"
@@ -5238,40 +5088,6 @@
       }
     },
     "/namespaces/{tenant}/{namespace}/subscriptionAuthMode" : {
-      "get" : {
-        "tags" : [ "namespaces" ],
-        "summary" : "Get subscription auth mode in a namespace",
-        "description" : "",
-        "operationId" : "getSubscriptionAuthMode",
-        "consumes" : [ "application/json" ],
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "successful operation",
-            "schema" : {
-              "type" : "string",
-              "enum" : [ "None", "Prefix" ]
-            }
-          },
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Tenant or namespace doesn't exist"
-          }
-        }
-      },
       "post" : {
         "tags" : [ "namespaces" ],
         "summary" : " Set a subscription auth mode for all the topics on a namespace.",
@@ -5314,7 +5130,7 @@
     "/namespaces/{tenant}/{namespace}/subscriptionDispatchRate" : {
       "get" : {
         "tags" : [ "namespaces" ],
-        "summary" : "Get subscription dispatch-rate configured for the namespace, null means subscription dispatch-rate not configured, -1 means msg-dispatch-rate or byte-dispatch-rate not configured in dispatch-rate yet",
+        "summary" : "Get Subscription dispatch-rate configured for the namespace, -1 represents not configured yet",
         "description" : "",
         "operationId" : "getSubscriptionDispatchRate",
         "consumes" : [ "application/json" ],
@@ -5587,36 +5403,6 @@
             "description" : "Concurrent modification"
           }
         }
-      },
-      "delete" : {
-        "tags" : [ "namespaces" ],
-        "summary" : " Remove subscription types enabled on a namespace.",
-        "description" : "",
-        "operationId" : "removeSubscriptionTypesEnabled",
-        "consumes" : [ "application/json" ],
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Tenant or Namespace does not exist"
-          },
-          "409" : {
-            "description" : "Concurrent modification"
-          }
-        }
       }
     },
     "/namespaces/{tenant}/{namespace}/topics" : {
@@ -5657,7 +5443,7 @@
             }
           },
           "403" : {
-            "description" : "Don't have admin or operate permission on the namespace"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Tenant or cluster or namespace doesn't exist"
@@ -5732,7 +5518,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin or operate permission on the namespace"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Namespace does not exist"
@@ -5827,7 +5613,7 @@
             "description" : "Current broker doesn't serve the namespace"
           },
           "403" : {
-            "description" : "Don't have admin or operate permission on the namespace"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Namespace does not exist"
@@ -5875,7 +5661,7 @@
             "description" : "Current broker doesn't serve the namespace"
           },
           "403" : {
-            "description" : "Don't have admin or operate permission on the namespace"
+            "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Namespace does not exist"
@@ -6104,7 +5890,7 @@
             "description" : "Don't have permission to administrate resources on this tenant"
           },
           "403" : {
-            "description" : "Don't have admin or operate permission on the namespace"
+            "description" : "Don't have admin or consume permission on namespace"
           },
           "404" : {
             "description" : "tenant/namespace/topic doesn't exit"
@@ -6451,12 +6237,6 @@
           "type" : "boolean",
           "default" : false
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "backlogQuotaType",
           "in" : "query",
           "required" : false,
@@ -6515,12 +6295,6 @@
           "required" : false,
           "type" : "boolean",
           "default" : false
-        }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         } ],
         "responses" : {
           "403" : {
@@ -6572,12 +6346,6 @@
           "required" : false,
           "type" : "boolean",
           "default" : false
-        }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         } ],
         "responses" : {
           "403" : {
@@ -6588,58 +6356,6 @@
           },
           "405" : {
             "description" : "Topic level policy is disabled, to enable the topic level policy and retry"
-          }
-        }
-      }
-    },
-    "/non-persistent/{tenant}/{namespace}/{topic}/backlogSize" : {
-      "put" : {
-        "tags" : [ "non-persistent topic" ],
-        "summary" : "Calculate backlog size by a message ID (in bytes).",
-        "description" : "",
-        "operationId" : "getBacklogSizeByMessageId",
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "description" : "Specify the tenant",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "description" : "Specify the namespace",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "topic",
-          "in" : "path",
-          "description" : "Specify topic name",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "authoritative",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        } ],
-        "responses" : {
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Topic does not exist"
-          },
-          "412" : {
-            "description" : "Topic name is not valid"
-          },
-          "500" : {
-            "description" : "Internal server error"
-          },
-          "503" : {
-            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -6801,12 +6517,6 @@
           "required" : false,
           "type" : "boolean"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -6858,12 +6568,6 @@
           "type" : "boolean",
           "default" : false
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "in" : "body",
           "name" : "body",
           "description" : "Dispatch rate for the specified topic",
@@ -6875,7 +6579,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Topic does not exist"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -6910,12 +6614,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -6925,7 +6623,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Topic does not exist"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -6970,7 +6668,7 @@
             "description" : "Current broker doesn't serve the namespace of this topic"
           },
           "401" : {
-            "description" : "Don't have permission to administrate resources on this tenant"
+            "description" : "Don't have permission to adminisActions to be grantedtrate resources on this tenant"
           },
           "403" : {
             "description" : "Don't have admin permission"
@@ -7018,12 +6716,6 @@
           "required" : false,
           "type" : "boolean"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -7065,15 +6757,9 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -7120,15 +6806,9 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -7300,12 +6980,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "applied",
           "in" : "query",
           "required" : false,
@@ -7351,12 +7025,6 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
-        }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
@@ -7404,12 +7072,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -7454,12 +7116,6 @@
           "in" : "query",
           "required" : false,
           "type" : "boolean"
-        }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
@@ -7512,12 +7168,6 @@
           "type" : "boolean",
           "default" : false
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "in" : "body",
           "name" : "body",
           "description" : "Dispatch rate for the specified topic",
@@ -7528,7 +7178,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Topic does not exist"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -7563,12 +7213,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -7578,7 +7222,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Topic does not exist"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -7691,12 +7335,6 @@
           "required" : false,
           "type" : "boolean"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -7745,12 +7383,6 @@
           "type" : "boolean",
           "default" : false
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "in" : "body",
           "name" : "body",
           "description" : "inactive topic policies for the specified topic",
@@ -7789,12 +7421,6 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
-        }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
@@ -8094,12 +7720,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "applied",
           "in" : "query",
           "required" : false,
@@ -8148,12 +7768,6 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
-        }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
@@ -8211,12 +7825,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -8263,12 +7871,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -8313,12 +7915,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -8337,7 +7933,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Topic does not exist"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -8372,12 +7968,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -8387,7 +7977,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Topic does not exist"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -8575,12 +8165,6 @@
           "required" : false,
           "type" : "boolean"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -8628,12 +8212,6 @@
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
-          "name" : "isGlobal",
-          "in" : "query",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -8686,12 +8264,6 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
-        }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
@@ -8890,12 +8462,6 @@
           "required" : false,
           "type" : "boolean"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -8936,12 +8502,6 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
-        }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
@@ -8990,12 +8550,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -9041,12 +8595,6 @@
           "required" : false,
           "type" : "boolean"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -9087,12 +8635,6 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
-        }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
@@ -9141,12 +8683,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -9191,12 +8727,6 @@
           "in" : "query",
           "required" : false,
           "type" : "boolean"
-        }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
@@ -9246,12 +8776,6 @@
           "type" : "integer",
           "format" : "int32"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -9296,15 +8820,9 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -9321,74 +8839,6 @@
           },
           "412" : {
             "description" : "Invalid message TTL value"
-          }
-        }
-      }
-    },
-    "/non-persistent/{tenant}/{namespace}/{topic}/messageid/{timestamp}" : {
-      "get" : {
-        "tags" : [ "non-persistent topic" ],
-        "summary" : "Get message ID published at or just after this absolute timestamp (in ms).",
-        "description" : "",
-        "operationId" : "getMessageIdByTimestamp",
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "description" : "Specify the tenant",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "description" : "Specify the namespace",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "topic",
-          "in" : "path",
-          "description" : "Specify topic name",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "timestamp",
-          "in" : "path",
-          "description" : "Specify the timestamp",
-          "required" : true,
-          "type" : "integer",
-          "format" : "int64"
-        }, {
-          "name" : "authoritative",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        } ],
-        "responses" : {
-          "307" : {
-            "description" : "Current broker doesn't serve the namespace of this topic"
-          },
-          "401" : {
-            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
-          },
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Topic does not exist"
-          },
-          "405" : {
-            "description" : "Topic is not non-partitioned and persistent"
-          },
-          "412" : {
-            "description" : "Topic name is not valid"
-          },
-          "500" : {
-            "description" : "Internal server error"
-          },
-          "503" : {
-            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -9710,13 +9160,6 @@
           "required" : false,
           "type" : "boolean",
           "default" : false
-        }, {
-          "name" : "getEarliestTimeInBacklog",
-          "in" : "query",
-          "description" : "If return the earliest time in backlog",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         } ],
         "responses" : {
           "307" : {
@@ -9851,12 +9294,6 @@
           "type" : "boolean",
           "default" : false
         }, {
-          "name" : "force",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "in" : "body",
           "name" : "body",
           "description" : "The number of partitions for the topic",
@@ -9872,7 +9309,7 @@
             "description" : "Current broker doesn't serve the namespace of this topic"
           },
           "401" : {
-            "description" : "Don't have permission to administrate resources on this tenant"
+            "description" : "Don't have permission to adminisActions to be grantedtrate resources on this tenant"
           },
           "403" : {
             "description" : "Don't have admin permission"
@@ -10244,12 +9681,6 @@
           "required" : false,
           "type" : "boolean"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -10297,12 +9728,6 @@
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
-          "name" : "isGlobal",
-          "in" : "query",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -10355,12 +9780,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -10407,12 +9826,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -10457,12 +9870,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -10480,7 +9887,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Topic does not exist"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -10515,12 +9922,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -10530,169 +9931,13 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Topic does not exist"
           },
           "404" : {
             "description" : "Topic does not exist"
           },
           "405" : {
             "description" : "Topic level policy is disabled, please enable the topic level policy and retry"
-          },
-          "409" : {
-            "description" : "Concurrent modification"
-          }
-        }
-      }
-    },
-    "/non-persistent/{tenant}/{namespace}/{topic}/replication" : {
-      "get" : {
-        "tags" : [ "non-persistent topic" ],
-        "summary" : "Get the replication clusters for a topic",
-        "description" : "",
-        "operationId" : "getReplicationClusters",
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "topic",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "applied",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean"
-        }, {
-          "name" : "authoritative",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        } ],
-        "responses" : {
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Topic does not exist"
-          },
-          "405" : {
-            "description" : "Topic level policy is disabled, enable the topic level policy and retry"
-          }
-        }
-      },
-      "post" : {
-        "tags" : [ "non-persistent topic" ],
-        "summary" : "Set the replication clusters for a topic.",
-        "description" : "",
-        "operationId" : "setReplicationClusters",
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "topic",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "authoritative",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
-          "in" : "body",
-          "name" : "body",
-          "description" : "List of replication clusters",
-          "required" : true,
-          "schema" : {
-            "type" : "array",
-            "items" : {
-              "type" : "string"
-            }
-          }
-        } ],
-        "responses" : {
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Topic does not exist"
-          },
-          "405" : {
-            "description" : "Topic level policy is disabled, to enable the topic level policy and retry"
-          },
-          "409" : {
-            "description" : "Concurrent modification"
-          },
-          "412" : {
-            "description" : "Topic is not global or invalid cluster ids"
-          }
-        }
-      },
-      "delete" : {
-        "tags" : [ "non-persistent topic" ],
-        "summary" : "Remove the replication clusters from a topic.",
-        "description" : "",
-        "operationId" : "removeReplicationClusters",
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "topic",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "backlogQuotaType",
-          "in" : "query",
-          "required" : false,
-          "type" : "string",
-          "enum" : [ "destination_storage", "message_age" ]
-        }, {
-          "name" : "authoritative",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        } ],
-        "responses" : {
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Topic does not exist"
-          },
-          "405" : {
-            "description" : "Topic level policy is disabled, to enable the topic level policy and retry"
           },
           "409" : {
             "description" : "Concurrent modification"
@@ -10873,12 +10118,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "applied",
           "in" : "query",
           "required" : false,
@@ -10935,12 +10174,6 @@
           "type" : "boolean",
           "default" : false
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "in" : "body",
           "name" : "body",
           "description" : "Retention policies for the specified namespace",
@@ -10989,15 +10222,9 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -11067,13 +10294,6 @@
           "required" : false,
           "type" : "boolean",
           "default" : false
-        }, {
-          "name" : "getEarliestTimeInBacklog",
-          "in" : "query",
-          "description" : "If return time of the earliest message in backlog",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         } ],
         "responses" : {
           "200" : {
@@ -11131,12 +10351,6 @@
           "required" : false,
           "type" : "boolean"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -11181,12 +10395,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -11204,7 +10412,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Topic does not exist"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -11239,12 +10447,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "required" : false,
@@ -11261,7 +10463,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Topic does not exist"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -11566,62 +10768,6 @@
       }
     },
     "/non-persistent/{tenant}/{namespace}/{topic}/subscription/{subName}/replicatedSubscriptionStatus" : {
-      "get" : {
-        "tags" : [ "non-persistent topic" ],
-        "summary" : "Get replicated subscription status on a topic.",
-        "description" : "",
-        "operationId" : "getReplicatedSubscriptionStatus",
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "description" : "Specify the tenant",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "description" : "Specify the namespace",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "topic",
-          "in" : "path",
-          "description" : "Specify topic name",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "subName",
-          "in" : "path",
-          "description" : "Name of subscription",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "authoritative",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        } ],
-        "responses" : {
-          "401" : {
-            "description" : "Don't have permission to administrate resources"
-          },
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Topic does not exist"
-          },
-          "412" : {
-            "description" : "Can't find owner for topic"
-          },
-          "500" : {
-            "description" : "Internal server error"
-          }
-        }
-      },
       "post" : {
         "tags" : [ "non-persistent topic" ],
         "summary" : "Enable or disable a replicated subscription on a topic.",
@@ -12028,7 +11174,7 @@
           "description" : "messageId where to create the subscription. It can be 'latest', 'earliest' or (ledgerId:entryId)",
           "required" : false,
           "schema" : {
-            "$ref" : "#/definitions/ResetCursorData"
+            "$ref" : "#/definitions/MessageIdImpl"
           }
         }, {
           "name" : "replicated",
@@ -12093,12 +11239,6 @@
           "required" : false,
           "type" : "boolean"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -12150,12 +11290,6 @@
           "type" : "boolean",
           "default" : false
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "in" : "body",
           "name" : "body",
           "description" : "Subscription message dispatch rate for the specified topic",
@@ -12166,7 +11300,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Topic does not exist"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -12201,12 +11335,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -12216,7 +11344,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Topic does not exist"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -12253,15 +11381,9 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -12303,15 +11425,9 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -12330,63 +11446,13 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Topic does not exist"
           },
           "404" : {
             "description" : "Topic does not exist"
           },
           "405" : {
             "description" : "Topic level policy is disabled, please enable the topic level policy and retry"
-          },
-          "409" : {
-            "description" : "Concurrent modification"
-          }
-        }
-      },
-      "delete" : {
-        "tags" : [ "non-persistent topic" ],
-        "summary" : "Remove subscription types enabled for specified topic.",
-        "description" : "",
-        "operationId" : "removeSubscriptionTypesEnabled",
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "topic",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
-          "name" : "authoritative",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        } ],
-        "responses" : {
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Topic does not exist"
-          },
-          "405" : {
-            "description" : "Topic level policy is disabled, to enable the topic level policy and retry"
           },
           "409" : {
             "description" : "Concurrent modification"
@@ -12507,9 +11573,6 @@
           "405" : {
             "description" : "Termination of a partitioned topic is not allowed"
           },
-          "406" : {
-            "description" : "Need to provide a persistent topic name"
-          },
           "412" : {
             "description" : "Topic name is not valid"
           },
@@ -12566,7 +11629,7 @@
             "description" : "Topic does not exist"
           },
           "405" : {
-            "description" : "Termination of a non-partitioned topic is not allowed"
+            "description" : "Termination of a partitioned topic is not allowed"
           },
           "412" : {
             "description" : "Topic name is not valid"
@@ -12712,7 +11775,7 @@
             "description" : "Don't have permission to administrate resources on this tenant"
           },
           "403" : {
-            "description" : "Don't have admin or operate permission on the namespace"
+            "description" : "Don't have admin or consume permission on namespace"
           },
           "404" : {
             "description" : "tenant/namespace/topic doesn't exit"
@@ -12760,7 +11823,7 @@
             "description" : "Don't have permission to administrate resources on this tenant"
           },
           "403" : {
-            "description" : "Don't have admin or operate permission on the namespace"
+            "description" : "Don't have admin or consume permission on namespace"
           },
           "404" : {
             "description" : "tenant/namespace/topic doesn't exit"
@@ -13050,12 +12113,6 @@
           "type" : "boolean",
           "default" : false
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "backlogQuotaType",
           "in" : "query",
           "required" : false,
@@ -13114,12 +12171,6 @@
           "required" : false,
           "type" : "boolean",
           "default" : false
-        }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         } ],
         "responses" : {
           "403" : {
@@ -13171,12 +12222,6 @@
           "required" : false,
           "type" : "boolean",
           "default" : false
-        }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         } ],
         "responses" : {
           "403" : {
@@ -13187,58 +12232,6 @@
           },
           "405" : {
             "description" : "Topic level policy is disabled, to enable the topic level policy and retry"
-          }
-        }
-      }
-    },
-    "/persistent/{tenant}/{namespace}/{topic}/backlogSize" : {
-      "put" : {
-        "tags" : [ "persistent topic" ],
-        "summary" : "Calculate backlog size by a message ID (in bytes).",
-        "description" : "",
-        "operationId" : "getBacklogSizeByMessageId",
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "description" : "Specify the tenant",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "description" : "Specify the namespace",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "topic",
-          "in" : "path",
-          "description" : "Specify topic name",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "authoritative",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        } ],
-        "responses" : {
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Topic does not exist"
-          },
-          "412" : {
-            "description" : "Topic name is not valid"
-          },
-          "500" : {
-            "description" : "Internal server error"
-          },
-          "503" : {
-            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -13400,12 +12393,6 @@
           "required" : false,
           "type" : "boolean"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -13457,12 +12444,6 @@
           "type" : "boolean",
           "default" : false
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "in" : "body",
           "name" : "body",
           "description" : "Dispatch rate for the specified topic",
@@ -13474,7 +12455,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Topic does not exist"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -13509,12 +12490,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -13524,7 +12499,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Topic does not exist"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -13569,7 +12544,7 @@
             "description" : "Current broker doesn't serve the namespace of this topic"
           },
           "401" : {
-            "description" : "Don't have permission to administrate resources on this tenant"
+            "description" : "Don't have permission to adminisActions to be grantedtrate resources on this tenant"
           },
           "403" : {
             "description" : "Don't have admin permission"
@@ -13617,12 +12592,6 @@
           "required" : false,
           "type" : "boolean"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -13664,15 +12633,9 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -13719,15 +12682,9 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -13899,12 +12856,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "applied",
           "in" : "query",
           "required" : false,
@@ -13950,12 +12901,6 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
-        }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
@@ -14003,12 +12948,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -14053,12 +12992,6 @@
           "in" : "query",
           "required" : false,
           "type" : "boolean"
-        }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
@@ -14111,12 +13044,6 @@
           "type" : "boolean",
           "default" : false
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "in" : "body",
           "name" : "body",
           "description" : "Dispatch rate for the specified topic",
@@ -14127,7 +13054,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Topic does not exist"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -14162,12 +13089,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -14177,7 +13098,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Topic does not exist"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -14290,12 +13211,6 @@
           "required" : false,
           "type" : "boolean"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -14344,12 +13259,6 @@
           "type" : "boolean",
           "default" : false
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "in" : "body",
           "name" : "body",
           "description" : "inactive topic policies for the specified topic",
@@ -14388,12 +13297,6 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
-        }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
@@ -14696,12 +13599,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "applied",
           "in" : "query",
           "required" : false,
@@ -14750,12 +13647,6 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
-        }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
@@ -14813,12 +13704,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -14865,12 +13750,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -14915,12 +13794,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -14939,7 +13812,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Topic does not exist"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -14974,12 +13847,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -14989,7 +13856,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Topic does not exist"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -15177,12 +14044,6 @@
           "required" : false,
           "type" : "boolean"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -15230,12 +14091,6 @@
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
-          "name" : "isGlobal",
-          "in" : "query",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -15288,12 +14143,6 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
-        }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
@@ -15492,12 +14341,6 @@
           "required" : false,
           "type" : "boolean"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -15538,12 +14381,6 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
-        }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
@@ -15592,12 +14429,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -15643,12 +14474,6 @@
           "required" : false,
           "type" : "boolean"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -15689,12 +14514,6 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
-        }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
@@ -15743,12 +14562,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -15793,12 +14606,6 @@
           "in" : "query",
           "required" : false,
           "type" : "boolean"
-        }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
@@ -15848,12 +14655,6 @@
           "type" : "integer",
           "format" : "int32"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -15898,15 +14699,9 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -15923,74 +14718,6 @@
           },
           "412" : {
             "description" : "Invalid message TTL value"
-          }
-        }
-      }
-    },
-    "/persistent/{tenant}/{namespace}/{topic}/messageid/{timestamp}" : {
-      "get" : {
-        "tags" : [ "persistent topic" ],
-        "summary" : "Get message ID published at or just after this absolute timestamp (in ms).",
-        "description" : "",
-        "operationId" : "getMessageIdByTimestamp",
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "description" : "Specify the tenant",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "description" : "Specify the namespace",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "topic",
-          "in" : "path",
-          "description" : "Specify topic name",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "timestamp",
-          "in" : "path",
-          "description" : "Specify the timestamp",
-          "required" : true,
-          "type" : "integer",
-          "format" : "int64"
-        }, {
-          "name" : "authoritative",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        } ],
-        "responses" : {
-          "307" : {
-            "description" : "Current broker doesn't serve the namespace of this topic"
-          },
-          "401" : {
-            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
-          },
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Topic does not exist"
-          },
-          "405" : {
-            "description" : "Topic is not non-partitioned and persistent"
-          },
-          "412" : {
-            "description" : "Topic name is not valid"
-          },
-          "500" : {
-            "description" : "Internal server error"
-          },
-          "503" : {
-            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -16312,13 +15039,6 @@
           "required" : false,
           "type" : "boolean",
           "default" : false
-        }, {
-          "name" : "getEarliestTimeInBacklog",
-          "in" : "query",
-          "description" : "If return the earliest time in backlog",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         } ],
         "responses" : {
           "307" : {
@@ -16453,12 +15173,6 @@
           "type" : "boolean",
           "default" : false
         }, {
-          "name" : "force",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "in" : "body",
           "name" : "body",
           "description" : "The number of partitions for the topic",
@@ -16474,7 +15188,7 @@
             "description" : "Current broker doesn't serve the namespace of this topic"
           },
           "401" : {
-            "description" : "Don't have permission to administrate resources on this tenant"
+            "description" : "Don't have permission to adminisActions to be grantedtrate resources on this tenant"
           },
           "403" : {
             "description" : "Don't have admin permission"
@@ -16846,12 +15560,6 @@
           "required" : false,
           "type" : "boolean"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -16899,12 +15607,6 @@
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
-          "name" : "isGlobal",
-          "in" : "query",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -16957,12 +15659,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -17009,12 +15705,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -17059,12 +15749,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -17082,7 +15766,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Topic does not exist"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -17117,12 +15801,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -17132,169 +15810,13 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Topic does not exist"
           },
           "404" : {
             "description" : "Topic does not exist"
           },
           "405" : {
             "description" : "Topic level policy is disabled, please enable the topic level policy and retry"
-          },
-          "409" : {
-            "description" : "Concurrent modification"
-          }
-        }
-      }
-    },
-    "/persistent/{tenant}/{namespace}/{topic}/replication" : {
-      "get" : {
-        "tags" : [ "persistent topic" ],
-        "summary" : "Get the replication clusters for a topic",
-        "description" : "",
-        "operationId" : "getReplicationClusters",
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "topic",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "applied",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean"
-        }, {
-          "name" : "authoritative",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        } ],
-        "responses" : {
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Topic does not exist"
-          },
-          "405" : {
-            "description" : "Topic level policy is disabled, enable the topic level policy and retry"
-          }
-        }
-      },
-      "post" : {
-        "tags" : [ "persistent topic" ],
-        "summary" : "Set the replication clusters for a topic.",
-        "description" : "",
-        "operationId" : "setReplicationClusters",
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "topic",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "authoritative",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
-          "in" : "body",
-          "name" : "body",
-          "description" : "List of replication clusters",
-          "required" : true,
-          "schema" : {
-            "type" : "array",
-            "items" : {
-              "type" : "string"
-            }
-          }
-        } ],
-        "responses" : {
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Topic does not exist"
-          },
-          "405" : {
-            "description" : "Topic level policy is disabled, to enable the topic level policy and retry"
-          },
-          "409" : {
-            "description" : "Concurrent modification"
-          },
-          "412" : {
-            "description" : "Topic is not global or invalid cluster ids"
-          }
-        }
-      },
-      "delete" : {
-        "tags" : [ "persistent topic" ],
-        "summary" : "Remove the replication clusters from a topic.",
-        "description" : "",
-        "operationId" : "removeReplicationClusters",
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "topic",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "backlogQuotaType",
-          "in" : "query",
-          "required" : false,
-          "type" : "string",
-          "enum" : [ "destination_storage", "message_age" ]
-        }, {
-          "name" : "authoritative",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        } ],
-        "responses" : {
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Topic does not exist"
-          },
-          "405" : {
-            "description" : "Topic level policy is disabled, to enable the topic level policy and retry"
           },
           "409" : {
             "description" : "Concurrent modification"
@@ -17475,12 +15997,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "applied",
           "in" : "query",
           "required" : false,
@@ -17537,12 +16053,6 @@
           "type" : "boolean",
           "default" : false
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "in" : "body",
           "name" : "body",
           "description" : "Retention policies for the specified namespace",
@@ -17591,15 +16101,9 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -17669,13 +16173,6 @@
           "required" : false,
           "type" : "boolean",
           "default" : false
-        }, {
-          "name" : "getEarliestTimeInBacklog",
-          "in" : "query",
-          "description" : "If return time of the earliest message in backlog",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         } ],
         "responses" : {
           "200" : {
@@ -17736,12 +16233,6 @@
           "required" : false,
           "type" : "boolean"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -17786,12 +16277,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -17809,7 +16294,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Topic does not exist"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -17844,12 +16329,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "required" : false,
@@ -17866,7 +16345,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Topic does not exist"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -18171,62 +16650,6 @@
       }
     },
     "/persistent/{tenant}/{namespace}/{topic}/subscription/{subName}/replicatedSubscriptionStatus" : {
-      "get" : {
-        "tags" : [ "persistent topic" ],
-        "summary" : "Get replicated subscription status on a topic.",
-        "description" : "",
-        "operationId" : "getReplicatedSubscriptionStatus",
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "description" : "Specify the tenant",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "description" : "Specify the namespace",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "topic",
-          "in" : "path",
-          "description" : "Specify topic name",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "subName",
-          "in" : "path",
-          "description" : "Name of subscription",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "authoritative",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        } ],
-        "responses" : {
-          "401" : {
-            "description" : "Don't have permission to administrate resources"
-          },
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Topic does not exist"
-          },
-          "412" : {
-            "description" : "Can't find owner for topic"
-          },
-          "500" : {
-            "description" : "Internal server error"
-          }
-        }
-      },
       "post" : {
         "tags" : [ "persistent topic" ],
         "summary" : "Enable or disable a replicated subscription on a topic.",
@@ -18633,7 +17056,7 @@
           "description" : "messageId where to create the subscription. It can be 'latest', 'earliest' or (ledgerId:entryId)",
           "required" : false,
           "schema" : {
-            "$ref" : "#/definitions/ResetCursorData"
+            "$ref" : "#/definitions/MessageIdImpl"
           }
         }, {
           "name" : "replicated",
@@ -18698,12 +17121,6 @@
           "required" : false,
           "type" : "boolean"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -18755,12 +17172,6 @@
           "type" : "boolean",
           "default" : false
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "in" : "body",
           "name" : "body",
           "description" : "Subscription message dispatch rate for the specified topic",
@@ -18771,7 +17182,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Topic does not exist"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -18806,12 +17217,6 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -18821,7 +17226,7 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Topic does not exist"
           },
           "404" : {
             "description" : "Topic does not exist"
@@ -18858,15 +17263,9 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -18908,15 +17307,9 @@
           "required" : true,
           "type" : "string"
         }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -18935,63 +17328,13 @@
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Topic does not exist"
           },
           "404" : {
             "description" : "Topic does not exist"
           },
           "405" : {
             "description" : "Topic level policy is disabled, please enable the topic level policy and retry"
-          },
-          "409" : {
-            "description" : "Concurrent modification"
-          }
-        }
-      },
-      "delete" : {
-        "tags" : [ "persistent topic" ],
-        "summary" : "Remove subscription types enabled for specified topic.",
-        "description" : "",
-        "operationId" : "removeSubscriptionTypesEnabled",
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "topic",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "isGlobal",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        }, {
-          "name" : "authoritative",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        } ],
-        "responses" : {
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Topic does not exist"
-          },
-          "405" : {
-            "description" : "Topic level policy is disabled, to enable the topic level policy and retry"
           },
           "409" : {
             "description" : "Concurrent modification"
@@ -19112,9 +17455,6 @@
           "405" : {
             "description" : "Termination of a partitioned topic is not allowed"
           },
-          "406" : {
-            "description" : "Need to provide a persistent topic name"
-          },
           "412" : {
             "description" : "Topic name is not valid"
           },
@@ -19171,7 +17511,7 @@
             "description" : "Topic does not exist"
           },
           "405" : {
-            "description" : "Termination of a non-partitioned topic is not allowed"
+            "description" : "Termination of a partitioned topic is not allowed"
           },
           "412" : {
             "description" : "Topic name is not valid"
@@ -20363,104 +18703,6 @@
         }
       }
     },
-    "/worker/drain" : {
-      "get" : {
-        "summary" : "Get the status of any ongoing drain operation at this worker",
-        "description" : "",
-        "operationId" : "getDrainStatus",
-        "responses" : {
-          "200" : {
-            "description" : "successful operation",
-            "schema" : {
-              "$ref" : "#/definitions/LongRunningProcessStatus"
-            }
-          },
-          "403" : {
-            "description" : "The requester doesn't have admin permissions"
-          },
-          "503" : {
-            "description" : "Worker service is not ready"
-          }
-        }
-      },
-      "put" : {
-        "summary" : "Drains this worker, i.e., moves its work-assignments to other workers",
-        "description" : "",
-        "operationId" : "drain",
-        "responses" : {
-          "400" : {
-            "description" : "Invalid request"
-          },
-          "403" : {
-            "description" : "The requester doesn't have admin permissions"
-          },
-          "408" : {
-            "description" : "Request timeout"
-          },
-          "409" : {
-            "description" : "Drain already in progress"
-          },
-          "503" : {
-            "description" : "Worker service is not ready"
-          }
-        }
-      }
-    },
-    "/worker/leader/drain" : {
-      "get" : {
-        "summary" : "Get the status of any ongoing drain operation at the specified worker",
-        "description" : "",
-        "operationId" : "getDrainStatusFromLeader",
-        "parameters" : [ {
-          "name" : "workerId",
-          "in" : "query",
-          "required" : false,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "successful operation",
-            "schema" : {
-              "$ref" : "#/definitions/LongRunningProcessStatus"
-            }
-          },
-          "403" : {
-            "description" : "The requester doesn't have admin permissions"
-          },
-          "503" : {
-            "description" : "Worker service is not ready"
-          }
-        }
-      },
-      "put" : {
-        "summary" : "Drains the specified worker, i.e., moves its work-assignments to other workers",
-        "description" : "",
-        "operationId" : "drainAtLeader",
-        "parameters" : [ {
-          "name" : "workerId",
-          "in" : "query",
-          "required" : false,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "400" : {
-            "description" : "Invalid request"
-          },
-          "403" : {
-            "description" : "The requester doesn't have admin permissions"
-          },
-          "408" : {
-            "description" : "Request timeout"
-          },
-          "409" : {
-            "description" : "Drain already in progress"
-          },
-          "503" : {
-            "description" : "Worker service is not ready"
-          }
-        }
-      }
-    },
     "/worker/rebalance" : {
       "put" : {
         "summary" : "Triggers a rebalance of functions to workers",
@@ -20501,6 +18743,10 @@
           "format" : "int32"
         },
         "smallCacheSize" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "tinyCacheSize" : {
           "type" : "integer",
           "format" : "int32"
         },
@@ -20553,14 +18799,17 @@
     "AuthPolicies" : {
       "type" : "object",
       "properties" : {
-        "namespaceAuthentication" : {
+        "topicAuthentication" : {
           "type" : "object",
           "additionalProperties" : {
-            "type" : "array",
-            "uniqueItems" : true,
-            "items" : {
-              "type" : "string",
-              "enum" : [ "produce", "consume", "functions", "sources", "sinks", "packages" ]
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "array",
+              "uniqueItems" : true,
+              "items" : {
+                "type" : "string",
+                "enum" : [ "produce", "consume", "functions", "sources", "sinks", "packages" ]
+              }
             }
           }
         },
@@ -20574,17 +18823,14 @@
             }
           }
         },
-        "topicAuthentication" : {
+        "namespaceAuthentication" : {
           "type" : "object",
           "additionalProperties" : {
-            "type" : "object",
-            "additionalProperties" : {
-              "type" : "array",
-              "uniqueItems" : true,
-              "items" : {
-                "type" : "string",
-                "enum" : [ "produce", "consume", "functions", "sources", "sinks", "packages" ]
-              }
+            "type" : "array",
+            "uniqueItems" : true,
+            "items" : {
+              "type" : "string",
+              "enum" : [ "produce", "consume", "functions", "sources", "sinks", "packages" ]
             }
           }
         }
@@ -20639,15 +18885,15 @@
     "AutoTopicCreationOverride" : {
       "type" : "object",
       "properties" : {
+        "topicType" : {
+          "type" : "string"
+        },
         "defaultNumPartitions" : {
           "type" : "integer",
           "format" : "int32"
         },
         "allowAutoTopicCreation" : {
           "type" : "boolean"
-        },
-        "topicType" : {
-          "type" : "string"
         }
       }
     },
@@ -20675,19 +18921,19 @@
     "Base64Variant" : {
       "type" : "object",
       "properties" : {
+        "paddingByte" : {
+          "type" : "string",
+          "format" : "byte"
+        },
+        "paddingChar" : {
+          "type" : "string"
+        },
         "name" : {
           "type" : "string"
         },
         "maxLineLength" : {
           "type" : "integer",
           "format" : "int32"
-        },
-        "paddingChar" : {
-          "type" : "string"
-        },
-        "paddingByte" : {
-          "type" : "string",
-          "format" : "byte"
         }
       }
     },
@@ -21005,6 +19251,17 @@
     "ConsumerStats" : {
       "type" : "object",
       "properties" : {
+        "connectedSince" : {
+          "type" : "string"
+        },
+        "availablePermits" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "msgOutCounter" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
         "msgRateOut" : {
           "type" : "number",
           "format" : "double"
@@ -21017,31 +19274,7 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "msgOutCounter" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "msgRateRedeliver" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "chunkedMessageRate" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "unackedMessages" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
-        "lastConsumedTimestamp" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "lastAckedTimestamp" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "clientVersion" : {
+        "consumerName" : {
           "type" : "string"
         },
         "avgMessagesPerEntry" : {
@@ -21054,30 +19287,43 @@
         "readPositionWhenJoining" : {
           "type" : "string"
         },
+        "clientVersion" : {
+          "type" : "string"
+        },
         "keyHashRanges" : {
           "type" : "array",
           "items" : {
             "type" : "string"
           }
         },
-        "consumerName" : {
-          "type" : "string"
-        },
-        "connectedSince" : {
-          "type" : "string"
-        },
-        "availablePermits" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
-        "address" : {
-          "type" : "string"
-        },
         "metadata" : {
           "type" : "object",
           "additionalProperties" : {
             "type" : "string"
           }
+        },
+        "address" : {
+          "type" : "string"
+        },
+        "lastConsumedTimestamp" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "chunkedMessageRate" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgRateRedeliver" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "unackedMessages" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "lastAckedTimestamp" : {
+          "type" : "integer",
+          "format" : "int64"
         }
       }
     },
@@ -21098,13 +19344,13 @@
           "type" : "integer",
           "format" : "int32"
         },
-        "numericCodeAsString" : {
+        "symbol" : {
           "type" : "string"
         },
         "displayName" : {
           "type" : "string"
         },
-        "symbol" : {
+        "numericCodeAsString" : {
           "type" : "string"
         }
       }
@@ -21224,12 +19470,6 @@
     "DeserializationConfig" : {
       "type" : "object",
       "properties" : {
-        "nodeFactory" : {
-          "$ref" : "#/definitions/JsonNodeFactory"
-        },
-        "annotationIntrospector" : {
-          "$ref" : "#/definitions/AnnotationIntrospector"
-        },
         "defaultPropertyInclusion" : {
           "$ref" : "#/definitions/Value"
         },
@@ -21240,35 +19480,26 @@
         "problemHandlers" : {
           "$ref" : "#/definitions/LinkedNodeDeserializationProblemHandler"
         },
-        "attributes" : {
-          "$ref" : "#/definitions/ContextAttributes"
+        "annotationIntrospector" : {
+          "$ref" : "#/definitions/AnnotationIntrospector"
         },
-        "rootName" : {
-          "type" : "string"
-        },
-        "defaultVisibilityChecker" : {
-          "$ref" : "#/definitions/VisibilityCheckerObject"
-        },
-        "subtypeResolver" : {
-          "$ref" : "#/definitions/SubtypeResolver"
+        "nodeFactory" : {
+          "$ref" : "#/definitions/JsonNodeFactory"
         },
         "fullRootName" : {
           "$ref" : "#/definitions/PropertyName"
         },
-        "timeZone" : {
-          "$ref" : "#/definitions/TimeZone"
+        "rootName" : {
+          "type" : "string"
         },
-        "locale" : {
-          "$ref" : "#/definitions/Locale"
+        "attributes" : {
+          "$ref" : "#/definitions/ContextAttributes"
         },
-        "dateFormat" : {
-          "$ref" : "#/definitions/DateFormat"
+        "subtypeResolver" : {
+          "$ref" : "#/definitions/SubtypeResolver"
         },
-        "propertyNamingStrategy" : {
-          "$ref" : "#/definitions/PropertyNamingStrategy"
-        },
-        "typeFactory" : {
-          "$ref" : "#/definitions/TypeFactory"
+        "defaultVisibilityChecker" : {
+          "$ref" : "#/definitions/VisibilityCheckerObject"
         },
         "handlerInstantiator" : {
           "$ref" : "#/definitions/HandlerInstantiator"
@@ -21281,36 +19512,27 @@
         },
         "classIntrospector" : {
           "$ref" : "#/definitions/ClassIntrospector"
+        },
+        "locale" : {
+          "$ref" : "#/definitions/Locale"
+        },
+        "timeZone" : {
+          "$ref" : "#/definitions/TimeZone"
+        },
+        "propertyNamingStrategy" : {
+          "$ref" : "#/definitions/PropertyNamingStrategy"
+        },
+        "typeFactory" : {
+          "$ref" : "#/definitions/TypeFactory"
+        },
+        "dateFormat" : {
+          "$ref" : "#/definitions/DateFormat"
         }
       }
     },
     "DeserializationContext" : {
       "type" : "object",
       "properties" : {
-        "timeZone" : {
-          "$ref" : "#/definitions/TimeZone"
-        },
-        "factory" : {
-          "$ref" : "#/definitions/DeserializerFactory"
-        },
-        "locale" : {
-          "$ref" : "#/definitions/Locale"
-        },
-        "config" : {
-          "$ref" : "#/definitions/DeserializationConfig"
-        },
-        "parser" : {
-          "$ref" : "#/definitions/JsonParser"
-        },
-        "nodeFactory" : {
-          "$ref" : "#/definitions/JsonNodeFactory"
-        },
-        "typeFactory" : {
-          "$ref" : "#/definitions/TypeFactory"
-        },
-        "annotationIntrospector" : {
-          "$ref" : "#/definitions/AnnotationIntrospector"
-        },
         "contextualType" : {
           "$ref" : "#/definitions/JavaType"
         },
@@ -21323,6 +19545,30 @@
         },
         "arrayBuilders" : {
           "$ref" : "#/definitions/ArrayBuilders"
+        },
+        "annotationIntrospector" : {
+          "$ref" : "#/definitions/AnnotationIntrospector"
+        },
+        "config" : {
+          "$ref" : "#/definitions/DeserializationConfig"
+        },
+        "locale" : {
+          "$ref" : "#/definitions/Locale"
+        },
+        "factory" : {
+          "$ref" : "#/definitions/DeserializerFactory"
+        },
+        "parser" : {
+          "$ref" : "#/definitions/JsonParser"
+        },
+        "timeZone" : {
+          "$ref" : "#/definitions/TimeZone"
+        },
+        "typeFactory" : {
+          "$ref" : "#/definitions/TypeFactory"
+        },
+        "nodeFactory" : {
+          "$ref" : "#/definitions/JsonNodeFactory"
         }
       }
     },
@@ -21418,6 +19664,10 @@
             "format" : "double"
           }
         },
+        "receivedTotal" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
         "processedSuccessfullyTotal" : {
           "type" : "integer",
           "format" : "int64"
@@ -21433,16 +19683,16 @@
         "avgProcessLatency" : {
           "type" : "number",
           "format" : "double"
-        },
-        "receivedTotal" : {
-          "type" : "integer",
-          "format" : "int64"
         }
       }
     },
     "FunctionInstanceStatsDataBase" : {
       "type" : "object",
       "properties" : {
+        "receivedTotal" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
         "processedSuccessfullyTotal" : {
           "type" : "integer",
           "format" : "int64"
@@ -21458,10 +19708,6 @@
         "avgProcessLatency" : {
           "type" : "number",
           "format" : "double"
-        },
-        "receivedTotal" : {
-          "type" : "integer",
-          "format" : "int64"
         }
       }
     },
@@ -21608,8 +19854,29 @@
     "JavaType" : {
       "type" : "object",
       "properties" : {
-        "contentType" : {
+        "containerType" : {
+          "type" : "boolean"
+        },
+        "mapLikeType" : {
+          "type" : "boolean"
+        },
+        "collectionLikeType" : {
+          "type" : "boolean"
+        },
+        "referencedType" : {
           "$ref" : "#/definitions/JavaType"
+        },
+        "contentValueHandler" : {
+          "type" : "object"
+        },
+        "contentTypeHandler" : {
+          "type" : "object"
+        },
+        "erasedSignature" : {
+          "type" : "string"
+        },
+        "concrete" : {
+          "type" : "boolean"
         },
         "interface" : {
           "type" : "boolean"
@@ -21635,8 +19902,14 @@
         "bindings" : {
           "$ref" : "#/definitions/TypeBindings"
         },
-        "concrete" : {
+        "keyType" : {
+          "$ref" : "#/definitions/JavaType"
+        },
+        "javaLangObject" : {
           "type" : "boolean"
+        },
+        "contentType" : {
+          "$ref" : "#/definitions/JavaType"
         },
         "arrayType" : {
           "type" : "boolean"
@@ -21644,44 +19917,17 @@
         "throwable" : {
           "type" : "boolean"
         },
-        "javaLangObject" : {
-          "type" : "boolean"
-        },
-        "keyType" : {
-          "$ref" : "#/definitions/JavaType"
-        },
-        "enumType" : {
-          "type" : "boolean"
-        },
-        "containerType" : {
-          "type" : "boolean"
+        "typeHandler" : {
+          "type" : "object"
         },
         "valueHandler" : {
           "type" : "object"
         },
-        "typeHandler" : {
-          "type" : "object"
-        },
-        "referencedType" : {
-          "$ref" : "#/definitions/JavaType"
+        "enumType" : {
+          "type" : "boolean"
         },
         "superClass" : {
           "$ref" : "#/definitions/JavaType"
-        },
-        "contentValueHandler" : {
-          "type" : "object"
-        },
-        "contentTypeHandler" : {
-          "type" : "object"
-        },
-        "erasedSignature" : {
-          "type" : "string"
-        },
-        "collectionLikeType" : {
-          "type" : "boolean"
-        },
-        "mapLikeType" : {
-          "type" : "boolean"
         },
         "typeName" : {
           "type" : "string"
@@ -21694,12 +19940,6 @@
     "JsonFactory" : {
       "type" : "object",
       "properties" : {
-        "codec" : {
-          "$ref" : "#/definitions/ObjectCodec"
-        },
-        "rootValueSeparator" : {
-          "type" : "string"
-        },
         "formatName" : {
           "type" : "string"
         },
@@ -21711,26 +19951,46 @@
         },
         "outputDecorator" : {
           "$ref" : "#/definitions/OutputDecorator"
+        },
+        "rootValueSeparator" : {
+          "type" : "string"
+        },
+        "codec" : {
+          "$ref" : "#/definitions/ObjectCodec"
         }
       }
     },
     "JsonGenerator" : {
       "type" : "object",
       "properties" : {
-        "closed" : {
-          "type" : "boolean"
+        "characterEscapes" : {
+          "$ref" : "#/definitions/CharacterEscapes"
+        },
+        "outputContext" : {
+          "$ref" : "#/definitions/JsonStreamContext"
+        },
+        "outputTarget" : {
+          "type" : "object"
+        },
+        "highestEscapedChar" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "outputBuffered" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "currentValue" : {
+          "type" : "object"
+        },
+        "schema" : {
+          "$ref" : "#/definitions/FormatSchema"
         },
         "codec" : {
           "$ref" : "#/definitions/ObjectCodec"
         },
         "prettyPrinter" : {
           "$ref" : "#/definitions/PrettyPrinter"
-        },
-        "schema" : {
-          "$ref" : "#/definitions/FormatSchema"
-        },
-        "characterEscapes" : {
-          "$ref" : "#/definitions/CharacterEscapes"
         },
         "featureMask" : {
           "type" : "integer",
@@ -21740,22 +20000,8 @@
           "type" : "integer",
           "format" : "int32"
         },
-        "highestEscapedChar" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
-        "outputTarget" : {
-          "type" : "object"
-        },
-        "outputBuffered" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
-        "currentValue" : {
-          "type" : "object"
-        },
-        "outputContext" : {
-          "$ref" : "#/definitions/JsonStreamContext"
+        "closed" : {
+          "type" : "boolean"
         }
       }
     },
@@ -21789,9 +20035,24 @@
     "JsonParser" : {
       "type" : "object",
       "properties" : {
-        "textLength" : {
-          "type" : "integer",
-          "format" : "int32"
+        "objectId" : {
+          "type" : "object"
+        },
+        "binaryValue" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "currentValue" : {
+          "type" : "object"
+        },
+        "parsingContext" : {
+          "$ref" : "#/definitions/JsonStreamContext"
+        },
+        "tokenLocation" : {
+          "$ref" : "#/definitions/JsonLocation"
         },
         "text" : {
           "type" : "string"
@@ -21801,6 +20062,19 @@
           "items" : {
             "type" : "string"
           }
+        },
+        "schema" : {
+          "$ref" : "#/definitions/FormatSchema"
+        },
+        "textLength" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "codec" : {
+          "$ref" : "#/definitions/ObjectCodec"
+        },
+        "currentLocation" : {
+          "$ref" : "#/definitions/JsonLocation"
         },
         "booleanValue" : {
           "type" : "boolean"
@@ -21825,31 +20099,12 @@
           "type" : "integer",
           "format" : "int32"
         },
-        "closed" : {
-          "type" : "boolean"
-        },
-        "objectId" : {
-          "type" : "object"
-        },
-        "codec" : {
-          "$ref" : "#/definitions/ObjectCodec"
-        },
         "intValue" : {
           "type" : "integer",
           "format" : "int32"
         },
-        "currentToken" : {
-          "type" : "string",
-          "enum" : [ "NOT_AVAILABLE", "START_OBJECT", "END_OBJECT", "START_ARRAY", "END_ARRAY", "FIELD_NAME", "VALUE_EMBEDDED_OBJECT", "VALUE_STRING", "VALUE_NUMBER_INT", "VALUE_NUMBER_FLOAT", "VALUE_TRUE", "VALUE_FALSE", "VALUE_NULL" ]
-        },
         "typeId" : {
           "type" : "object"
-        },
-        "schema" : {
-          "$ref" : "#/definitions/FormatSchema"
-        },
-        "currentName" : {
-          "type" : "string"
         },
         "featureMask" : {
           "type" : "integer",
@@ -21859,58 +20114,19 @@
           "type" : "integer",
           "format" : "int32"
         },
-        "currentValue" : {
-          "type" : "object"
-        },
-        "textOffset" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
-        "numberType" : {
+        "currentToken" : {
           "type" : "string",
-          "enum" : [ "INT", "LONG", "BIG_INTEGER", "FLOAT", "DOUBLE", "BIG_DECIMAL" ]
-        },
-        "bigIntegerValue" : {
-          "type" : "integer"
-        },
-        "decimalValue" : {
-          "type" : "number"
-        },
-        "embeddedObject" : {
-          "type" : "object"
-        },
-        "tokenLocation" : {
-          "$ref" : "#/definitions/JsonLocation"
+          "enum" : [ "NOT_AVAILABLE", "START_OBJECT", "END_OBJECT", "START_ARRAY", "END_ARRAY", "FIELD_NAME", "VALUE_EMBEDDED_OBJECT", "VALUE_STRING", "VALUE_NUMBER_INT", "VALUE_NUMBER_FLOAT", "VALUE_TRUE", "VALUE_FALSE", "VALUE_NULL" ]
         },
         "currentTokenId" : {
           "type" : "integer",
           "format" : "int32"
-        },
-        "parsingContext" : {
-          "$ref" : "#/definitions/JsonStreamContext"
-        },
-        "currentLocation" : {
-          "$ref" : "#/definitions/JsonLocation"
         },
         "expectedStartArrayToken" : {
           "type" : "boolean"
         },
         "expectedStartObjectToken" : {
           "type" : "boolean"
-        },
-        "lastClearedToken" : {
-          "type" : "string",
-          "enum" : [ "NOT_AVAILABLE", "START_OBJECT", "END_OBJECT", "START_ARRAY", "END_ARRAY", "FIELD_NAME", "VALUE_EMBEDDED_OBJECT", "VALUE_STRING", "VALUE_NUMBER_INT", "VALUE_NUMBER_FLOAT", "VALUE_TRUE", "VALUE_FALSE", "VALUE_NULL" ]
-        },
-        "numberValue" : {
-          "$ref" : "#/definitions/Number"
-        },
-        "binaryValue" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
         },
         "valueAsInt" : {
           "type" : "integer",
@@ -21930,6 +20146,36 @@
         "valueAsString" : {
           "type" : "string"
         },
+        "lastClearedToken" : {
+          "type" : "string",
+          "enum" : [ "NOT_AVAILABLE", "START_OBJECT", "END_OBJECT", "START_ARRAY", "END_ARRAY", "FIELD_NAME", "VALUE_EMBEDDED_OBJECT", "VALUE_STRING", "VALUE_NUMBER_INT", "VALUE_NUMBER_FLOAT", "VALUE_TRUE", "VALUE_FALSE", "VALUE_NULL" ]
+        },
+        "currentName" : {
+          "type" : "string"
+        },
+        "textOffset" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "numberValue" : {
+          "$ref" : "#/definitions/Number"
+        },
+        "numberType" : {
+          "type" : "string",
+          "enum" : [ "INT", "LONG", "BIG_INTEGER", "FLOAT", "DOUBLE", "BIG_DECIMAL" ]
+        },
+        "bigIntegerValue" : {
+          "type" : "integer"
+        },
+        "decimalValue" : {
+          "type" : "number"
+        },
+        "embeddedObject" : {
+          "type" : "object"
+        },
+        "closed" : {
+          "type" : "boolean"
+        },
         "inputSource" : {
           "type" : "object"
         }
@@ -21946,36 +20192,36 @@
     "JsonSerializerObject" : {
       "type" : "object",
       "properties" : {
-        "delegatee" : {
-          "$ref" : "#/definitions/JsonSerializerObject"
-        },
         "unwrappingSerializer" : {
           "type" : "boolean"
+        },
+        "delegatee" : {
+          "$ref" : "#/definitions/JsonSerializerObject"
         }
       }
     },
     "JsonStreamContext" : {
       "type" : "object",
       "properties" : {
-        "typeDesc" : {
-          "type" : "string"
-        },
-        "currentIndex" : {
+        "entryCount" : {
           "type" : "integer",
           "format" : "int32"
         },
-        "parent" : {
-          "$ref" : "#/definitions/JsonStreamContext"
-        },
-        "currentName" : {
+        "typeDesc" : {
           "type" : "string"
         },
         "currentValue" : {
           "type" : "object"
         },
-        "entryCount" : {
+        "parent" : {
+          "$ref" : "#/definitions/JsonStreamContext"
+        },
+        "currentIndex" : {
           "type" : "integer",
           "format" : "int32"
+        },
+        "currentName" : {
+          "type" : "string"
         }
       }
     },
@@ -22263,13 +20509,15 @@
           "type" : "number",
           "format" : "double"
         },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "lastUpdate" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "underLoaded" : {
           "type" : "boolean"
@@ -22280,24 +20528,22 @@
         "loadReportType" : {
           "type" : "string"
         },
-        "cpu" : {
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
         "bandwidthIn" : {
           "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "lastUpdate" : {
-          "type" : "integer",
-          "format" : "int64"
         }
       }
     },
@@ -22305,9 +20551,6 @@
       "type" : "object",
       "properties" : {
         "language" : {
-          "type" : "string"
-        },
-        "displayName" : {
           "type" : "string"
         },
         "script" : {
@@ -22357,6 +20600,9 @@
         },
         "displayVariant" : {
           "type" : "string"
+        },
+        "displayName" : {
+          "type" : "string"
         }
       }
     },
@@ -22399,6 +20645,23 @@
     },
     "MessageId" : {
       "type" : "object"
+    },
+    "MessageIdImpl" : {
+      "type" : "object",
+      "properties" : {
+        "ledgerId" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "entryId" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "partitionIndex" : {
+          "type" : "integer",
+          "format" : "int32"
+        }
+      }
     },
     "Metrics" : {
       "type" : "object",
@@ -22561,32 +20824,6 @@
           "type" : "number",
           "format" : "double"
         },
-        "producerName" : {
-          "type" : "string"
-        },
-        "msgRateIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "averageMsgSize" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "chunkedMessageRate" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "clientVersion" : {
-          "type" : "string"
-        },
-        "producerId" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
         "connectedSince" : {
           "type" : "string"
         },
@@ -22594,7 +20831,26 @@
           "type" : "string",
           "enum" : [ "Shared", "Exclusive", "WaitForExclusive" ]
         },
-        "address" : {
+        "producerName" : {
+          "type" : "string"
+        },
+        "msgRateIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "averageMsgSize" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "producerId" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "clientVersion" : {
           "type" : "string"
         },
         "metadata" : {
@@ -22602,6 +20858,13 @@
           "additionalProperties" : {
             "type" : "string"
           }
+        },
+        "address" : {
+          "type" : "string"
+        },
+        "chunkedMessageRate" : {
+          "type" : "number",
+          "format" : "double"
         }
       }
     },
@@ -22612,29 +20875,13 @@
           "type" : "number",
           "format" : "double"
         },
-        "msgRateIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgRateOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgRateExpired" : {
-          "type" : "number",
-          "format" : "double"
-        },
         "replicationDelayInSeconds" : {
           "type" : "integer",
           "format" : "int64"
+        },
+        "msgRateIn" : {
+          "type" : "number",
+          "format" : "double"
         },
         "replicationBacklog" : {
           "type" : "integer",
@@ -22652,8 +20899,24 @@
         "outboundConnectedSince" : {
           "type" : "string"
         },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgRateOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
         "connected" : {
           "type" : "boolean"
+        },
+        "msgRateExpired" : {
+          "type" : "number",
+          "format" : "double"
         }
       }
     },
@@ -22667,22 +20930,28 @@
         "replicated" : {
           "type" : "boolean"
         },
-        "durable" : {
-          "type" : "boolean"
-        },
         "consumers" : {
           "type" : "array",
           "items" : {
             "$ref" : "#/definitions/ConsumerStats"
           }
         },
-        "nonContiguousDeletedMessagesRanges" : {
-          "type" : "integer",
-          "format" : "int32"
+        "allowOutOfOrderDelivery" : {
+          "type" : "boolean"
         },
-        "nonContiguousDeletedMessagesRangesSerializedSize" : {
+        "keySharedMode" : {
+          "type" : "string"
+        },
+        "backlogSize" : {
           "type" : "integer",
-          "format" : "int32"
+          "format" : "int64"
+        },
+        "durable" : {
+          "type" : "boolean"
+        },
+        "msgOutCounter" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "msgRateOut" : {
           "type" : "number",
@@ -22696,40 +20965,16 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "msgOutCounter" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "msgBacklog" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "msgRateRedeliver" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "chunkedMessageRate" : {
+        "nonContiguousDeletedMessagesRanges" : {
           "type" : "integer",
           "format" : "int32"
         },
-        "earliestMsgPublishTimeInBacklog" : {
+        "nonContiguousDeletedMessagesRangesSerializedSize" : {
           "type" : "integer",
-          "format" : "int64"
+          "format" : "int32"
         },
-        "msgBacklogNoDelayed" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "blockedSubscriptionOnUnackedMsgs" : {
-          "type" : "boolean"
-        },
-        "msgDelayed" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "unackedMessages" : {
-          "type" : "integer",
-          "format" : "int64"
+        "type" : {
+          "type" : "string"
         },
         "activeConsumerName" : {
           "type" : "string"
@@ -22754,6 +20999,33 @@
           "type" : "integer",
           "format" : "int64"
         },
+        "chunkedMessageRate" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "msgBacklog" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "msgRateRedeliver" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgBacklogNoDelayed" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "blockedSubscriptionOnUnackedMsgs" : {
+          "type" : "boolean"
+        },
+        "msgDelayed" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "unackedMessages" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
         "lastAckedTimestamp" : {
           "type" : "integer",
           "format" : "int64"
@@ -22767,25 +21039,6 @@
           "additionalProperties" : {
             "type" : "string"
           }
-        },
-        "allowOutOfOrderDelivery" : {
-          "type" : "boolean"
-        },
-        "keySharedMode" : {
-          "type" : "string"
-        },
-        "subscriptionProperties" : {
-          "type" : "object",
-          "additionalProperties" : {
-            "type" : "string"
-          }
-        },
-        "type" : {
-          "type" : "string"
-        },
-        "backlogSize" : {
-          "type" : "integer",
-          "format" : "int64"
         }
       }
     },
@@ -22814,27 +21067,43 @@
             "$ref" : "#/definitions/NonPersistentReplicatorStats"
           }
         },
+        "backlogSize" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "msgRateIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgOutCounter" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "averageMsgSize" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgChunkPublished" : {
+          "type" : "boolean"
+        },
+        "storageSize" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "offloadedStorageSize" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "waitingPublishers" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
         "deduplicationStatus" : {
           "type" : "string"
         },
         "topicEpoch" : {
           "type" : "integer",
           "format" : "int64"
-        },
-        "nonContiguousDeletedMessagesRanges" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
-        "nonContiguousDeletedMessagesRangesSerializedSize" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
-        "compaction" : {
-          "$ref" : "#/definitions/CompactionStats"
-        },
-        "msgRateIn" : {
-          "type" : "number",
-          "format" : "double"
         },
         "msgThroughputIn" : {
           "type" : "number",
@@ -22860,36 +21129,16 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "msgOutCounter" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "averageMsgSize" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgChunkPublished" : {
-          "type" : "boolean"
-        },
-        "storageSize" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "earliestMsgPublishTimeInBacklogs" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "offloadedStorageSize" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "waitingPublishers" : {
+        "nonContiguousDeletedMessagesRanges" : {
           "type" : "integer",
           "format" : "int32"
         },
-        "backlogSize" : {
+        "nonContiguousDeletedMessagesRangesSerializedSize" : {
           "type" : "integer",
-          "format" : "int64"
+          "format" : "int32"
+        },
+        "compaction" : {
+          "$ref" : "#/definitions/CompactionStats"
         }
       }
     },
@@ -22921,22 +21170,22 @@
           "type" : "integer",
           "format" : "int32"
         },
+        "currency" : {
+          "$ref" : "#/definitions/Currency"
+        },
         "roundingMode" : {
           "type" : "string",
           "enum" : [ "UP", "DOWN", "CEILING", "FLOOR", "HALF_UP", "HALF_DOWN", "HALF_EVEN", "UNNECESSARY" ]
-        },
-        "currency" : {
-          "$ref" : "#/definitions/Currency"
         }
       }
     },
     "ObjectCodec" : {
       "type" : "object",
       "properties" : {
-        "factory" : {
+        "jsonFactory" : {
           "$ref" : "#/definitions/JsonFactory"
         },
-        "jsonFactory" : {
+        "factory" : {
           "$ref" : "#/definitions/JsonFactory"
         }
       }
@@ -22944,29 +21193,11 @@
     "ObjectMapper" : {
       "type" : "object",
       "properties" : {
-        "factory" : {
-          "$ref" : "#/definitions/JsonFactory"
-        },
-        "typeFactory" : {
-          "$ref" : "#/definitions/TypeFactory"
-        },
-        "nodeFactory" : {
-          "$ref" : "#/definitions/JsonNodeFactory"
-        },
         "jsonFactory" : {
           "$ref" : "#/definitions/JsonFactory"
         },
-        "dateFormat" : {
-          "$ref" : "#/definitions/DateFormat"
-        },
-        "injectableValues" : {
-          "$ref" : "#/definitions/InjectableValues"
-        },
-        "serializerProvider" : {
-          "$ref" : "#/definitions/SerializerProvider"
-        },
-        "serializerProviderInstance" : {
-          "$ref" : "#/definitions/SerializerProvider"
+        "factory" : {
+          "$ref" : "#/definitions/JsonFactory"
         },
         "visibilityChecker" : {
           "$ref" : "#/definitions/VisibilityCheckerObject"
@@ -22976,6 +21207,12 @@
         },
         "propertyNamingStrategy" : {
           "$ref" : "#/definitions/PropertyNamingStrategy"
+        },
+        "serializerProvider" : {
+          "$ref" : "#/definitions/SerializerProvider"
+        },
+        "serializerProviderInstance" : {
+          "$ref" : "#/definitions/SerializerProvider"
         },
         "serializationConfig" : {
           "$ref" : "#/definitions/SerializationConfig"
@@ -22988,20 +21225,24 @@
         },
         "serializerFactory" : {
           "$ref" : "#/definitions/SerializerFactory"
+        },
+        "dateFormat" : {
+          "$ref" : "#/definitions/DateFormat"
+        },
+        "typeFactory" : {
+          "$ref" : "#/definitions/TypeFactory"
+        },
+        "nodeFactory" : {
+          "$ref" : "#/definitions/JsonNodeFactory"
+        },
+        "injectableValues" : {
+          "$ref" : "#/definitions/InjectableValues"
         }
       }
     },
     "OffloadPolicies" : {
       "type" : "object",
       "properties" : {
-        "managedLedgerOffloadThresholdInBytes" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "managedLedgerOffloadDeletionLagInMillis" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
         "offloadersDirectory" : {
           "type" : "string"
         },
@@ -23088,6 +21329,14 @@
         "managedLedgerOffloadReadBufferSizeInBytes" : {
           "type" : "integer",
           "format" : "int32"
+        },
+        "managedLedgerOffloadThresholdInBytes" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "managedLedgerOffloadDeletionLagInMillis" : {
+          "type" : "integer",
+          "format" : "int64"
         }
       }
     },
@@ -23203,11 +21452,11 @@
     "OffloadProcessStatus" : {
       "type" : "object",
       "properties" : {
-        "lastError" : {
-          "type" : "string"
-        },
         "firstUnoffloadedMessage" : {
           "$ref" : "#/definitions/MessageId"
+        },
+        "lastError" : {
+          "type" : "string"
         },
         "status" : {
           "type" : "string",
@@ -23620,6 +21869,10 @@
     "PoolArenaStats" : {
       "type" : "object",
       "properties" : {
+        "numTinySubpages" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
         "numSmallSubpages" : {
           "type" : "integer",
           "format" : "int32"
@@ -23627,6 +21880,12 @@
         "numChunkLists" : {
           "type" : "integer",
           "format" : "int32"
+        },
+        "tinySubpages" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/PoolSubpageStats"
+          }
         },
         "smallSubpages" : {
           "type" : "array",
@@ -23641,6 +21900,10 @@
           }
         },
         "numAllocations" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "numTinyAllocations" : {
           "type" : "integer",
           "format" : "int64"
         },
@@ -23660,6 +21923,10 @@
           "type" : "integer",
           "format" : "int64"
         },
+        "numTinyDeallocations" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
         "numSmallDeallocations" : {
           "type" : "integer",
           "format" : "int64"
@@ -23673,6 +21940,10 @@
           "format" : "int64"
         },
         "numActiveAllocations" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "numActiveTinyAllocations" : {
           "type" : "integer",
           "format" : "int64"
         },
@@ -23803,13 +22074,13 @@
     "PropertyName" : {
       "type" : "object",
       "properties" : {
+        "namespace" : {
+          "type" : "string"
+        },
         "empty" : {
           "type" : "boolean"
         },
         "simpleName" : {
-          "type" : "string"
-        },
-        "namespace" : {
           "type" : "string"
         }
       }
@@ -23820,6 +22091,9 @@
     "PublicKey" : {
       "type" : "object",
       "properties" : {
+        "format" : {
+          "type" : "string"
+        },
         "algorithm" : {
           "type" : "string"
         },
@@ -23829,9 +22103,6 @@
             "type" : "string",
             "format" : "byte"
           }
-        },
-        "format" : {
-          "type" : "string"
         }
       }
     },
@@ -23851,32 +22122,6 @@
     "PublisherStats" : {
       "type" : "object",
       "properties" : {
-        "producerName" : {
-          "type" : "string"
-        },
-        "msgRateIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "averageMsgSize" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "chunkedMessageRate" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "clientVersion" : {
-          "type" : "string"
-        },
-        "producerId" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
         "connectedSince" : {
           "type" : "string"
         },
@@ -23884,7 +22129,26 @@
           "type" : "string",
           "enum" : [ "Shared", "Exclusive", "WaitForExclusive" ]
         },
-        "address" : {
+        "producerName" : {
+          "type" : "string"
+        },
+        "msgRateIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "averageMsgSize" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "producerId" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "clientVersion" : {
           "type" : "string"
         },
         "metadata" : {
@@ -23892,6 +22156,13 @@
           "additionalProperties" : {
             "type" : "string"
           }
+        },
+        "address" : {
+          "type" : "string"
+        },
+        "chunkedMessageRate" : {
+          "type" : "number",
+          "format" : "double"
         }
       }
     },
@@ -23906,29 +22177,13 @@
     "ReplicatorStats" : {
       "type" : "object",
       "properties" : {
-        "msgRateIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgRateOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgRateExpired" : {
-          "type" : "number",
-          "format" : "double"
-        },
         "replicationDelayInSeconds" : {
           "type" : "integer",
           "format" : "int64"
+        },
+        "msgRateIn" : {
+          "type" : "number",
+          "format" : "double"
         },
         "replicationBacklog" : {
           "type" : "integer",
@@ -23946,8 +22201,24 @@
         "outboundConnectedSince" : {
           "type" : "string"
         },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgRateOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
         "connected" : {
           "type" : "boolean"
+        },
+        "msgRateExpired" : {
+          "type" : "number",
+          "format" : "double"
         }
       }
     },
@@ -24036,6 +22307,9 @@
         },
         "dynamic" : {
           "type" : "boolean"
+        },
+        "valid" : {
+          "type" : "boolean"
         }
       }
     },
@@ -24099,8 +22373,8 @@
     "SerializationConfig" : {
       "type" : "object",
       "properties" : {
-        "annotationIntrospector" : {
-          "$ref" : "#/definitions/AnnotationIntrospector"
+        "defaultPrettyPrinter" : {
+          "$ref" : "#/definitions/PrettyPrinter"
         },
         "defaultPropertyInclusion" : {
           "$ref" : "#/definitions/Value"
@@ -24108,8 +22382,8 @@
         "filterProvider" : {
           "$ref" : "#/definitions/FilterProvider"
         },
-        "defaultPrettyPrinter" : {
-          "$ref" : "#/definitions/PrettyPrinter"
+        "annotationIntrospector" : {
+          "$ref" : "#/definitions/AnnotationIntrospector"
         },
         "serializationInclusion" : {
           "type" : "string",
@@ -24119,35 +22393,20 @@
           "type" : "integer",
           "format" : "int32"
         },
-        "attributes" : {
-          "$ref" : "#/definitions/ContextAttributes"
+        "fullRootName" : {
+          "$ref" : "#/definitions/PropertyName"
         },
         "rootName" : {
           "type" : "string"
         },
-        "defaultVisibilityChecker" : {
-          "$ref" : "#/definitions/VisibilityCheckerObject"
+        "attributes" : {
+          "$ref" : "#/definitions/ContextAttributes"
         },
         "subtypeResolver" : {
           "$ref" : "#/definitions/SubtypeResolver"
         },
-        "fullRootName" : {
-          "$ref" : "#/definitions/PropertyName"
-        },
-        "timeZone" : {
-          "$ref" : "#/definitions/TimeZone"
-        },
-        "locale" : {
-          "$ref" : "#/definitions/Locale"
-        },
-        "dateFormat" : {
-          "$ref" : "#/definitions/DateFormat"
-        },
-        "propertyNamingStrategy" : {
-          "$ref" : "#/definitions/PropertyNamingStrategy"
-        },
-        "typeFactory" : {
-          "$ref" : "#/definitions/TypeFactory"
+        "defaultVisibilityChecker" : {
+          "$ref" : "#/definitions/VisibilityCheckerObject"
         },
         "handlerInstantiator" : {
           "$ref" : "#/definitions/HandlerInstantiator"
@@ -24160,6 +22419,21 @@
         },
         "classIntrospector" : {
           "$ref" : "#/definitions/ClassIntrospector"
+        },
+        "locale" : {
+          "$ref" : "#/definitions/Locale"
+        },
+        "timeZone" : {
+          "$ref" : "#/definitions/TimeZone"
+        },
+        "propertyNamingStrategy" : {
+          "$ref" : "#/definitions/PropertyNamingStrategy"
+        },
+        "typeFactory" : {
+          "$ref" : "#/definitions/TypeFactory"
+        },
+        "dateFormat" : {
+          "$ref" : "#/definitions/DateFormat"
         }
       }
     },
@@ -24169,24 +22443,6 @@
     "SerializerProvider" : {
       "type" : "object",
       "properties" : {
-        "generator" : {
-          "$ref" : "#/definitions/JsonGenerator"
-        },
-        "timeZone" : {
-          "$ref" : "#/definitions/TimeZone"
-        },
-        "locale" : {
-          "$ref" : "#/definitions/Locale"
-        },
-        "config" : {
-          "$ref" : "#/definitions/SerializationConfig"
-        },
-        "typeFactory" : {
-          "$ref" : "#/definitions/TypeFactory"
-        },
-        "annotationIntrospector" : {
-          "$ref" : "#/definitions/AnnotationIntrospector"
-        },
         "defaultNullValueSerializer" : {
           "$ref" : "#/definitions/JsonSerializerObject"
         },
@@ -24195,6 +22451,24 @@
         },
         "defaultNullKeySerializer" : {
           "$ref" : "#/definitions/JsonSerializerObject"
+        },
+        "annotationIntrospector" : {
+          "$ref" : "#/definitions/AnnotationIntrospector"
+        },
+        "config" : {
+          "$ref" : "#/definitions/SerializationConfig"
+        },
+        "locale" : {
+          "$ref" : "#/definitions/Locale"
+        },
+        "timeZone" : {
+          "$ref" : "#/definitions/TimeZone"
+        },
+        "generator" : {
+          "$ref" : "#/definitions/JsonGenerator"
+        },
+        "typeFactory" : {
+          "$ref" : "#/definitions/TypeFactory"
         }
       }
     },
@@ -24291,22 +22565,28 @@
         "replicated" : {
           "type" : "boolean"
         },
-        "durable" : {
-          "type" : "boolean"
-        },
         "consumers" : {
           "type" : "array",
           "items" : {
             "$ref" : "#/definitions/ConsumerStats"
           }
         },
-        "nonContiguousDeletedMessagesRanges" : {
-          "type" : "integer",
-          "format" : "int32"
+        "allowOutOfOrderDelivery" : {
+          "type" : "boolean"
         },
-        "nonContiguousDeletedMessagesRangesSerializedSize" : {
+        "keySharedMode" : {
+          "type" : "string"
+        },
+        "backlogSize" : {
           "type" : "integer",
-          "format" : "int32"
+          "format" : "int64"
+        },
+        "durable" : {
+          "type" : "boolean"
+        },
+        "msgOutCounter" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "msgRateOut" : {
           "type" : "number",
@@ -24320,40 +22600,16 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "msgOutCounter" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "msgBacklog" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "msgRateRedeliver" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "chunkedMessageRate" : {
+        "nonContiguousDeletedMessagesRanges" : {
           "type" : "integer",
           "format" : "int32"
         },
-        "earliestMsgPublishTimeInBacklog" : {
+        "nonContiguousDeletedMessagesRangesSerializedSize" : {
           "type" : "integer",
-          "format" : "int64"
+          "format" : "int32"
         },
-        "msgBacklogNoDelayed" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "blockedSubscriptionOnUnackedMsgs" : {
-          "type" : "boolean"
-        },
-        "msgDelayed" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "unackedMessages" : {
-          "type" : "integer",
-          "format" : "int64"
+        "type" : {
+          "type" : "string"
         },
         "activeConsumerName" : {
           "type" : "string"
@@ -24378,6 +22634,33 @@
           "type" : "integer",
           "format" : "int64"
         },
+        "chunkedMessageRate" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "msgBacklog" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "msgRateRedeliver" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgBacklogNoDelayed" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "blockedSubscriptionOnUnackedMsgs" : {
+          "type" : "boolean"
+        },
+        "msgDelayed" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "unackedMessages" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
         "lastAckedTimestamp" : {
           "type" : "integer",
           "format" : "int64"
@@ -24391,25 +22674,6 @@
           "additionalProperties" : {
             "type" : "string"
           }
-        },
-        "allowOutOfOrderDelivery" : {
-          "type" : "boolean"
-        },
-        "keySharedMode" : {
-          "type" : "string"
-        },
-        "subscriptionProperties" : {
-          "type" : "object",
-          "additionalProperties" : {
-            "type" : "string"
-          }
-        },
-        "type" : {
-          "type" : "string"
-        },
-        "backlogSize" : {
-          "type" : "integer",
-          "format" : "int64"
         }
       }
     },
@@ -24472,12 +22736,6 @@
     "TimeZone" : {
       "type" : "object",
       "properties" : {
-        "displayName" : {
-          "type" : "string"
-        },
-        "id" : {
-          "type" : "string"
-        },
         "dstsavings" : {
           "type" : "integer",
           "format" : "int32"
@@ -24485,6 +22743,12 @@
         "rawOffset" : {
           "type" : "integer",
           "format" : "int32"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "displayName" : {
+          "type" : "string"
         }
       }
     },
@@ -24497,23 +22761,32 @@
             "$ref" : "#/definitions/SubscriptionStats"
           }
         },
-        "deduplicationStatus" : {
-          "type" : "string"
-        },
-        "topicEpoch" : {
+        "backlogSize" : {
           "type" : "integer",
           "format" : "int64"
         },
-        "nonContiguousDeletedMessagesRanges" : {
-          "type" : "integer",
-          "format" : "int32"
+        "msgRateIn" : {
+          "type" : "number",
+          "format" : "double"
         },
-        "nonContiguousDeletedMessagesRangesSerializedSize" : {
+        "msgOutCounter" : {
           "type" : "integer",
-          "format" : "int32"
+          "format" : "int64"
         },
-        "compaction" : {
-          "$ref" : "#/definitions/CompactionStats"
+        "averageMsgSize" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgChunkPublished" : {
+          "type" : "boolean"
+        },
+        "storageSize" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "offloadedStorageSize" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "publishers" : {
           "type" : "array",
@@ -24521,15 +22794,22 @@
             "$ref" : "#/definitions/PublisherStats"
           }
         },
+        "waitingPublishers" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
         "replication" : {
           "type" : "object",
           "additionalProperties" : {
             "$ref" : "#/definitions/ReplicatorStats"
           }
         },
-        "msgRateIn" : {
-          "type" : "number",
-          "format" : "double"
+        "deduplicationStatus" : {
+          "type" : "string"
+        },
+        "topicEpoch" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "msgThroughputIn" : {
           "type" : "number",
@@ -24555,36 +22835,16 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "msgOutCounter" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "averageMsgSize" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgChunkPublished" : {
-          "type" : "boolean"
-        },
-        "storageSize" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "earliestMsgPublishTimeInBacklogs" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "offloadedStorageSize" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "waitingPublishers" : {
+        "nonContiguousDeletedMessagesRanges" : {
           "type" : "integer",
           "format" : "int32"
         },
-        "backlogSize" : {
+        "nonContiguousDeletedMessagesRangesSerializedSize" : {
           "type" : "integer",
-          "format" : "int64"
+          "format" : "int32"
+        },
+        "compaction" : {
+          "$ref" : "#/definitions/CompactionStats"
         }
       }
     },
@@ -24690,9 +22950,6 @@
         "validateConnectorConfig" : {
           "type" : "boolean"
         },
-        "uploadBuiltinSinksSources" : {
-          "type" : "boolean"
-        },
         "functionsDirectory" : {
           "type" : "string"
         },
@@ -24730,9 +22987,6 @@
         "stateStorageServiceUrl" : {
           "type" : "string"
         },
-        "stateStorageProviderImplementation" : {
-          "type" : "string"
-        },
         "functionAssignmentTopicName" : {
           "type" : "string"
         },
@@ -24750,10 +23004,6 @@
         "rebalanceCheckFreqSec" : {
           "type" : "integer",
           "format" : "int64"
-        },
-        "workerListProbeIntervalSec" : {
-          "type" : "integer",
-          "format" : "int32"
         },
         "initialBrokerReconnectMaxRetries" : {
           "type" : "integer",
@@ -24901,12 +23151,6 @@
         "forwardSourceMessageProperty" : {
           "type" : "boolean"
         },
-        "additionalJavaRuntimeArguments" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string"
-          }
-        },
         "functionsWorkerServiceNarPackage" : {
           "type" : "string"
         },
@@ -24987,23 +23231,23 @@
     "WorkerService" : {
       "type" : "object",
       "properties" : {
-        "functionsV2" : {
-          "$ref" : "#/definitions/FunctionsV2WorkerService"
-        },
         "workers" : {
           "$ref" : "#/definitions/WorkersWorkerService"
         },
         "workerConfig" : {
           "$ref" : "#/definitions/WorkerConfig"
         },
+        "sinks" : {
+          "$ref" : "#/definitions/SinksWorkerService"
+        },
+        "functionsV2" : {
+          "$ref" : "#/definitions/FunctionsV2WorkerService"
+        },
         "sources" : {
           "$ref" : "#/definitions/SourcesWorkerService"
         },
         "initialized" : {
           "type" : "boolean"
-        },
-        "sinks" : {
-          "$ref" : "#/definitions/SinksWorkerService"
         },
         "functions" : {
           "$ref" : "#/definitions/FunctionsWorkerService"
@@ -25042,12 +23286,6 @@
         },
         "issuerX500Principal" : {
           "$ref" : "#/definitions/X500Principal"
-        },
-        "keyUsage" : {
-          "type" : "array",
-          "items" : {
-            "type" : "boolean"
-          }
         },
         "sigAlgName" : {
           "type" : "string"
@@ -25098,6 +23336,24 @@
             "type" : "string"
           }
         },
+        "subjectAlternativeNames" : {
+          "type" : "array",
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "type" : "object"
+            }
+          }
+        },
+        "issuerAlternativeNames" : {
+          "type" : "array",
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "type" : "object"
+            }
+          }
+        },
         "signature" : {
           "type" : "array",
           "items" : {
@@ -25119,32 +23375,20 @@
         "subjectDN" : {
           "$ref" : "#/definitions/Principal"
         },
-        "subjectAlternativeNames" : {
+        "keyUsage" : {
           "type" : "array",
           "items" : {
-            "type" : "array",
-            "items" : {
-              "type" : "object"
-            }
+            "type" : "boolean"
           }
         },
-        "issuerAlternativeNames" : {
-          "type" : "array",
-          "items" : {
-            "type" : "array",
-            "items" : {
-              "type" : "object"
-            }
-          }
-        },
-        "criticalExtensionOIDs" : {
+        "nonCriticalExtensionOIDs" : {
           "type" : "array",
           "uniqueItems" : true,
           "items" : {
             "type" : "string"
           }
         },
-        "nonCriticalExtensionOIDs" : {
+        "criticalExtensionOIDs" : {
           "type" : "array",
           "uniqueItems" : true,
           "items" : {

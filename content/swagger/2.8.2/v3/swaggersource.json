@@ -1,9 +1,9 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "This provides the REST API for Pulsar Sink operations",
+        "description": "This provides the REST API for Pulsar Source operations",
         "version": "v3",
-        "title": "Pulsar Sink REST API",
+        "title": "Pulsar Source REST API",
         "license": {
             "name": "Apache 2.0",
             "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
@@ -12,7 +12,7 @@
     "basePath": "/admin/v3",
     "tags": [
         {
-            "name": "sinks"
+            "name": "sources"
         }
     ],
     "schemes": [
@@ -20,14 +20,14 @@
         "https"
     ],
     "paths": {
-        "/sinks/builtinsinks": {
+        "/sources/builtinsources": {
             "get": {
                 "tags": [
-                    "sinks"
+                    "sources"
                 ],
-                "summary": "Fetches the list of built-in Pulsar IO sinks",
+                "summary": "Fetches the list of built-in Pulsar IO sources",
                 "description": "",
-                "operationId": "getSinkList",
+                "operationId": "getSourceList",
                 "consumes": [
                     "application/json"
                 ],
@@ -36,25 +36,37 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Get builtin sinks successfully.",
+                        "description": "successful operation",
                         "schema": {
                             "type": "array",
                             "items": {
                                 "$ref": "#/definitions/ConnectorDefinition"
                             }
                         }
+                    },
+                    "400": {
+                        "description": "Invalid request"
+                    },
+                    "403": {
+                        "description": "The requester doesn't have admin permissions"
+                    },
+                    "408": {
+                        "description": "Request timeout"
+                    },
+                    "503": {
+                        "description": "Function worker service is now initializing. Please try again later."
                     }
                 }
             }
         },
-        "/sinks/builtinsinks/{name}/configdefinition": {
+        "/sources/builtinsources/{name}/configdefinition": {
             "get": {
                 "tags": [
-                    "sinks"
+                    "sources"
                 ],
-                "summary": "Fetches information about config fields associated with the specified builtin sink",
+                "summary": "Fetches information about config fields associated with the specified builtin source",
                 "description": "",
-                "operationId": "getSinkConfigDefinition",
+                "operationId": "getSourceConfigDefinition",
                 "consumes": [
                     "application/json"
                 ],
@@ -65,7 +77,7 @@
                     {
                         "name": "name",
                         "in": "path",
-                        "description": "The name of the builtin sink",
+                        "description": "The name of the builtin source",
                         "required": true,
                         "type": "string"
                     }
@@ -84,7 +96,7 @@
                         "description": "The requester doesn't have admin permissions"
                     },
                     "404": {
-                        "description": "builtin sink does not exist"
+                        "description": "builtin source does not exist"
                     },
                     "500": {
                         "description": "Internal server error"
@@ -95,14 +107,14 @@
                 }
             }
         },
-        "/sinks/reloadBuiltInSinks": {
+        "/sources/reloadBuiltInSources": {
             "post": {
                 "tags": [
-                    "sinks"
+                    "sources"
                 ],
                 "summary": "Reload the built-in connectors, including Sources and Sinks",
                 "description": "",
-                "operationId": "reloadSinks",
+                "operationId": "reloadSources",
                 "consumes": [
                     "application/json"
                 ],
@@ -122,14 +134,14 @@
                 }
             }
         },
-        "/sinks/{tenant}/{namespace}": {
+        "/sources/{tenant}/{namespace}": {
             "get": {
                 "tags": [
-                    "sinks"
+                    "sources"
                 ],
-                "summary": "Lists all Pulsar Sinks currently deployed in a given namespace",
+                "summary": "Lists all Pulsar Sources currently deployed in a given namespace",
                 "description": "",
-                "operationId": "listSinks",
+                "operationId": "listSources",
                 "consumes": [
                     "application/json"
                 ],
@@ -140,14 +152,14 @@
                     {
                         "name": "tenant",
                         "in": "path",
-                        "description": "The tenant of a Pulsar Sink",
+                        "description": "The tenant of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
                         "name": "namespace",
                         "in": "path",
-                        "description": "The namespace of a Pulsar Sink",
+                        "description": "The namespace of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     }
@@ -160,13 +172,13 @@
                         }
                     },
                     "400": {
-                        "description": "Invalid list request"
+                        "description": "Invalid request"
                     },
                     "401": {
-                        "description": "The client is not authorized to perform this operation"
+                        "description": "Client is not authorize to perform operation"
                     },
                     "500": {
-                        "description": "Internal server error (failed to authorize, etc.)"
+                        "description": "Internal Server Error"
                     },
                     "503": {
                         "description": "Function worker service is now initializing. Please try again later."
@@ -174,14 +186,14 @@
                 }
             }
         },
-        "/sinks/{tenant}/{namespace}/{sinkName}": {
+        "/sources/{tenant}/{namespace}/{sourceName}": {
             "get": {
                 "tags": [
-                    "sinks"
+                    "sources"
                 ],
-                "summary": "Fetches information about a Pulsar Sink currently running in cluster mode",
+                "summary": "Fetches information about a Pulsar Source currently running in cluster mode",
                 "description": "",
-                "operationId": "getSinkInfo",
+                "operationId": "getSourceInfo",
                 "consumes": [
                     "application/json"
                 ],
@@ -192,21 +204,21 @@
                     {
                         "name": "tenant",
                         "in": "path",
-                        "description": "The tenant of a Pulsar Sink",
+                        "description": "The tenant of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
                         "name": "namespace",
                         "in": "path",
-                        "description": "The namespace of a Pulsar Sink",
+                        "description": "The namespace of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
-                        "name": "sinkName",
+                        "name": "sourceName",
                         "in": "path",
-                        "description": "The name of a Pulsar Sink",
+                        "description": "The name of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     }
@@ -215,14 +227,14 @@
                     "200": {
                         "description": "successful operation",
                         "schema": {
-                            "$ref": "#/definitions/SinkConfig"
+                            "$ref": "#/definitions/SourceConfig"
                         }
                     },
                     "400": {
                         "description": "Invalid request"
                     },
                     "404": {
-                        "description": "The Pulsar Sink does not exist"
+                        "description": "Not Found(The Pulsar Source doesn't exist)"
                     },
                     "503": {
                         "description": "Function worker service is now initializing. Please try again later."
@@ -231,11 +243,11 @@
             },
             "post": {
                 "tags": [
-                    "sinks"
+                    "sources"
                 ],
-                "summary": "Creates a new Pulsar Sink in cluster mode",
+                "summary": "Creates a new Pulsar Source in cluster mode",
                 "description": "",
-                "operationId": "registerSink",
+                "operationId": "registerSource",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -246,49 +258,49 @@
                     {
                         "name": "tenant",
                         "in": "path",
-                        "description": "The tenant of a Pulsar Sink",
+                        "description": "The tenant of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
                         "name": "namespace",
                         "in": "path",
-                        "description": "The namespace of a Pulsar Sink",
+                        "description": "The namespace of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
-                        "name": "sinkName",
+                        "name": "sourceName",
                         "in": "path",
-                        "description": "The name of a Pulsar Sink",
+                        "description": "The name of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
                         "in": "body",
                         "name": "body",
-                        "description": "A JSON value presenting config payload of a Pulsar Sink. All available configuration options are:\n- **classname**\n   The class name of a Pulsar Sink if archive is file-url-path (file://)\n- **sourceSubscriptionName**\n   Pulsar source subscription name if user wants a specific\n   subscription-name for input-topic consumer\n- **inputs**\n   The input topic or topics of a Pulsar Sink (specified as a JSON array)\n- **topicsPattern**\n   TopicsPattern to consume from list of topics under a namespace that    match the pattern. [input] and [topicsPattern] are mutually    exclusive. Add SerDe class name for a pattern in customSerdeInputs    (supported for java fun only)- **topicToSerdeClassName**\n   The map of input topics to SerDe class names (specified as a JSON object)\n- **topicToSchemaType**\n   The map of input topics to Schema types or class names (specified as a JSON object)\n- **inputSpecs**\n   The map of input topics to its consumer configuration, each configuration has schema of    {\"schemaType\": \"type-x\", \"serdeClassName\": \"name-x\", \"isRegexPattern\": true, \"receiverQueueSize\": 5}\n- **configs**\n   The map of configs (specified as a JSON object)\n- **secrets**\n   a map of secretName(aka how the secret is going to be \n   accessed in the function via context) to an object that \n   encapsulates how the secret is fetched by the underlying \n   secrets provider. The type of an value here can be found by the \n   SecretProviderConfigurator.getSecretObjectType() method. (specified as a JSON object)\n- **parallelism**\n   The parallelism factor of a Pulsar Sink (i.e. the number of a Pulsar Sink instances to run \n- **processingGuarantees**\n   The processing guarantees (aka delivery semantics) applied to the Pulsar Sink. Possible Values: \"ATLEAST_ONCE\", \"ATMOST_ONCE\", \"EFFECTIVELY_ONCE\"\n- **retainOrdering**\n   Boolean denotes whether the Pulsar Sink consumes and processes messages in order\n- **resources**\n   {\"cpu\": 1, \"ram\": 2, \"disk\": 3} The CPU (in cores), RAM (in bytes) and disk (in bytes) that needs to be allocated per Pulsar Sink instance (applicable only to Docker runtime)\n- **autoAck**\n   Boolean denotes whether or not the framework will automatically acknowledge messages\n- **timeoutMs**\n   Long denotes the message timeout in milliseconds\n- **cleanupSubscription**\n   Boolean denotes whether the subscriptions the functions created/used should be deleted when the functions is deleted\n- **runtimeFlags**\n   Any flags that you want to pass to the runtime as a single string\n",
+                        "description": "A JSON value presenting configuration payload of a Pulsar Source. An example of the expected functions can be found here.\n- **classname**\n  The class name of a Pulsar Source if archive is file-url-path (file://).\n- **topicName**\n  The Pulsar topic to which data is sent.\n- **serdeClassName**\n  The SerDe classname for the Pulsar Source.\n- **schemaType**\n  The schema type (either a builtin schema like 'avro', 'json', etc.. or    custom Schema class name to be used to encode messages emitted from the Pulsar Source\n- **configs**\n  Source config key/values\n- **secrets**\n  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the  SecretProviderConfigurator.getSecretObjectType() method. \n- **parallelism**\n  The parallelism factor of a Pulsar Source (i.e. the number of a Pulsar Source instances to run).\n- **processingGuarantees**\n  The processing guarantees (aka delivery semantics) applied to the Pulsar Source.    Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]\n- **resources**\n  The size of the system resources allowed by the Pulsar Source runtime. The resources include: cpu, ram, disk.\n- **archive**\n  The path to the NAR archive for the Pulsar Source. It also supports url-path   [http/https/file (file protocol assumes that file already exists on worker host)]   from which worker can download the package.\n- **runtimeFlags**\n  Any flags that you want to pass to the runtime.\n",
                         "required": false,
                         "schema": {
-                            "$ref": "#/definitions/SinkConfig"
+                            "$ref": "#/definitions/SourceConfig"
                         },
                         "x-examples": {
-                            "application/json": "{\n\t\"classname\": \"org.example.MySinkTest\",\n\t\"inputs\": [\"persistent://public/default/sink-input\"],\n\t\"processingGuarantees\": \"EFFECTIVELY_ONCE\",\n\t\"parallelism\": 10\n}"
+                            "application/json": "{\n  \"tenant\": public\n  \"namespace\": default\n  \"name\": pulsar-io-mysql\n  \"className\": TestSourceMysql\n  \"topicName\": pulsar-io-mysql\n  \"parallelism\": 1\n  \"archive\": /connectors/pulsar-io-mysql-0.0.1.nar\n  \"schemaType\": avro\n}"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Pulsar Sink successfully created"
+                        "description": "Pulsar Function successfully created"
                     },
                     "400": {
-                        "description": "Invalid request (The Pulsar Sink already exists, etc.)"
+                        "description": "Invalid request (Function already exists or Tenant, Namespace or Name is not provided, etc.)"
                     },
                     "401": {
-                        "description": "Client is not authorized to perform operation"
+                        "description": "Client is not authorize to perform operation"
                     },
                     "500": {
-                        "description": "Internal server error (failed to authorize, failed to get tenant data, failed to process package, etc.)"
+                        "description": "Internal Server Error"
                     },
                     "503": {
                         "description": "Function worker service is now initializing. Please try again later."
@@ -297,11 +309,11 @@
             },
             "put": {
                 "tags": [
-                    "sinks"
+                    "sources"
                 ],
-                "summary": "Updates a Pulsar Sink currently running in cluster mode",
+                "summary": "Updates a Pulsar Source currently running in cluster mode",
                 "description": "",
-                "operationId": "updateSink",
+                "operationId": "updateSource",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -312,40 +324,40 @@
                     {
                         "name": "tenant",
                         "in": "path",
-                        "description": "The tenant of a Pulsar Sink",
+                        "description": "The tenant of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
                         "name": "namespace",
                         "in": "path",
-                        "description": "The namespace of a Pulsar Sink",
+                        "description": "The namespace of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
-                        "name": "sinkName",
+                        "name": "sourceName",
                         "in": "path",
-                        "description": "The name of a Pulsar Sink",
+                        "description": "The name of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
                         "in": "body",
                         "name": "body",
-                        "description": "A JSON value presenting config payload of a Pulsar Sink. All available configuration options are:\n- **classname**\n   The class name of a Pulsar Sink if archive is file-url-path (file://)\n- **sourceSubscriptionName**\n   Pulsar source subscription name if user wants a specific\n   subscription-name for input-topic consumer\n- **inputs**\n   The input topic or topics of a Pulsar Sink (specified as a JSON array)\n- **topicsPattern**\n   TopicsPattern to consume from list of topics under a namespace that    match the pattern. [input] and [topicsPattern] are mutually    exclusive. Add SerDe class name for a pattern in customSerdeInputs    (supported for java fun only)- **topicToSerdeClassName**\n   The map of input topics to SerDe class names (specified as a JSON object)\n- **topicToSchemaType**\n   The map of input topics to Schema types or class names (specified as a JSON object)\n- **inputSpecs**\n   The map of input topics to its consumer configuration, each configuration has schema of    {\"schemaType\": \"type-x\", \"serdeClassName\": \"name-x\", \"isRegexPattern\": true, \"receiverQueueSize\": 5}\n- **configs**\n   The map of configs (specified as a JSON object)\n- **secrets**\n   a map of secretName(aka how the secret is going to be \n   accessed in the function via context) to an object that \n   encapsulates how the secret is fetched by the underlying \n   secrets provider. The type of an value here can be found by the \n   SecretProviderConfigurator.getSecretObjectType() method. (specified as a JSON object)\n- **parallelism**\n   The parallelism factor of a Pulsar Sink (i.e. the number of a Pulsar Sink instances to run \n- **processingGuarantees**\n   The processing guarantees (aka delivery semantics) applied to the Pulsar Sink. Possible Values: \"ATLEAST_ONCE\", \"ATMOST_ONCE\", \"EFFECTIVELY_ONCE\"\n- **retainOrdering**\n   Boolean denotes whether the Pulsar Sink consumes and processes messages in order\n- **resources**\n   {\"cpu\": 1, \"ram\": 2, \"disk\": 3} The CPU (in cores), RAM (in bytes) and disk (in bytes) that needs to be allocated per Pulsar Sink instance (applicable only to Docker runtime)\n- **autoAck**\n   Boolean denotes whether or not the framework will automatically acknowledge messages\n- **timeoutMs**\n   Long denotes the message timeout in milliseconds\n- **cleanupSubscription**\n   Boolean denotes whether the subscriptions the functions created/used should be deleted when the functions is deleted\n- **runtimeFlags**\n   Any flags that you want to pass to the runtime as a single string\n",
+                        "description": "A JSON value presenting configuration payload of a Pulsar Source. An example of the expected functions can be found here.\n- **classname**\n  The class name of a Pulsar Source if archive is file-url-path (file://).\n- **topicName**\n  The Pulsar topic to which data is sent.\n- **serdeClassName**\n  The SerDe classname for the Pulsar Source.\n- **schemaType**\n  The schema type (either a builtin schema like 'avro', 'json', etc.. or    custom Schema class name to be used to encode messages emitted from the Pulsar Source\n- **configs**\n  Pulsar Source config key/values\n- **secrets**\n  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the  SecretProviderConfigurator.getSecretObjectType() method.\n- **parallelism**\n  The parallelism factor of a Pulsar Source (i.e. the number of a Pulsar Source instances to run).\n- **processingGuarantees**\n  The processing guarantees (aka delivery semantics) applied to the Pulsar Source.    Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]\n- **resources**\n  The size of the system resources allowed by the Pulsar Source runtime. The resources include: cpu, ram, disk.\n- **archive**\n  The path to the NAR archive for the Pulsar Source. It also supports url-path   [http/https/file (file protocol assumes that file already exists on worker host)]   from which worker can download the package.\n- **runtimeFlags**\n  Any flags that you want to pass to the runtime.\n",
                         "required": false,
                         "schema": {
-                            "$ref": "#/definitions/SinkConfig"
+                            "$ref": "#/definitions/SourceConfig"
                         },
                         "x-examples": {
-                            "application/json": "{\n\t\"classname\": \"org.example.SinkStressTest\",\n\t\"inputs\": [\"persistent://public/default/sink-input\"],\n\t\"processingGuarantees\": \"EFFECTIVELY_ONCE\",\n\t\"parallelism\": 5\n}"
+                            "application/json": "{\n  \"tenant\": public\n  \"namespace\": default\n  \"name\": pulsar-io-mysql\n  \"className\": TestSourceMysql\n  \"topicName\": pulsar-io-mysql\n  \"parallelism\": 1\n  \"archive\": /connectors/pulsar-io-mysql-0.0.1.nar\n  \"schemaType\": avro\n}"
                         }
                     },
                     {
                         "in": "body",
                         "name": "body",
-                        "description": "Update options for the Pulsar Sink",
+                        "description": "Update options for Pulsar Source",
                         "required": false,
                         "schema": {
                             "$ref": "#/definitions/UpdateOptions"
@@ -354,19 +366,22 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Pulsar Sink successfully updated"
+                        "description": "Pulsar Function successfully updated"
                     },
                     "400": {
-                        "description": "Invalid request (The Pulsar Sink doesn't exist, update contains no change, etc.)"
+                        "description": "Invalid request (Function already exists or Tenant, Namespace or Name is not provided, etc.)"
                     },
                     "401": {
-                        "description": "Client is not authorized to perform operation"
+                        "description": "Client is not authorize to perform operation"
+                    },
+                    "403": {
+                        "description": "The requester doesn't have admin permissions"
                     },
                     "404": {
-                        "description": "The Pulsar Sink doesn't exist"
+                        "description": "Not Found(The Pulsar Source doesn't exist)"
                     },
                     "500": {
-                        "description": "Internal server error (failed to authorize, failed to process package, etc.)"
+                        "description": "Internal Server Error"
                     },
                     "503": {
                         "description": "Function worker service is now initializing. Please try again later."
@@ -375,11 +390,11 @@
             },
             "delete": {
                 "tags": [
-                    "sinks"
+                    "sources"
                 ],
-                "summary": "Deletes a Pulsar Sink currently running in cluster mode",
+                "summary": "Deletes a Pulsar Source currently running in cluster mode",
                 "description": "",
-                "operationId": "deregisterSink",
+                "operationId": "deregisterSource",
                 "consumes": [
                     "application/json"
                 ],
@@ -390,43 +405,43 @@
                     {
                         "name": "tenant",
                         "in": "path",
-                        "description": "The tenant of a Pulsar Sink",
+                        "description": "The tenant of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
                         "name": "namespace",
                         "in": "path",
-                        "description": "The namespace of a Pulsar Sink",
+                        "description": "The namespace of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
-                        "name": "sinkName",
+                        "name": "sourceName",
                         "in": "path",
-                        "description": "The name of a Pulsar Sink",
+                        "description": "The name of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "The Pulsar Sink was successfully deleted"
+                        "description": "The function was successfully deleted"
                     },
                     "400": {
-                        "description": "Invalid deregister request"
+                        "description": "Invalid request"
                     },
                     "401": {
-                        "description": "Client is not authorized to perform operation"
+                        "description": "Client is not authorize to perform operation"
                     },
                     "404": {
-                        "description": "The Pulsar Sink does not exist"
+                        "description": "Not Found(The Pulsar Source doesn't exist)"
                     },
                     "408": {
-                        "description": "Got InterruptedException while deregistering the Pulsar Sink"
+                        "description": "Request timeout"
                     },
                     "500": {
-                        "description": "Internal server error (failed to authorize, failed to deregister, etc.)"
+                        "description": "Internal Server Error"
                     },
                     "503": {
                         "description": "Function worker service is now initializing. Please try again later."
@@ -434,14 +449,14 @@
                 }
             }
         },
-        "/sinks/{tenant}/{namespace}/{sinkName}/restart": {
+        "/sources/{tenant}/{namespace}/{sourceName}/restart": {
             "post": {
                 "tags": [
-                    "sinks"
+                    "sources"
                 ],
-                "summary": "Restart all instances of a Pulsar Sink",
+                "summary": "Restart all instances of a Pulsar Source",
                 "description": "",
-                "operationId": "restartSink",
+                "operationId": "restartSource",
                 "consumes": [
                     "application/json"
                 ],
@@ -452,37 +467,37 @@
                     {
                         "name": "tenant",
                         "in": "path",
-                        "description": "The tenant of a Pulsar Sink",
+                        "description": "The tenant of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
                         "name": "namespace",
                         "in": "path",
-                        "description": "The namespace of a Pulsar Sink",
+                        "description": "The namespace of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
-                        "name": "sinkName",
+                        "name": "sourceName",
                         "in": "path",
-                        "description": "The name of a Pulsar Sink",
+                        "description": "The name of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     }
                 ],
                 "responses": {
                     "400": {
-                        "description": "Invalid restart request"
+                        "description": "Invalid request"
                     },
                     "401": {
-                        "description": "The client is not authorized to perform this operation"
+                        "description": "Client is not authorize to perform operation"
                     },
                     "404": {
-                        "description": "The Pulsar Sink does not exist"
+                        "description": "Not Found(The Pulsar Source doesn't exist)"
                     },
                     "500": {
-                        "description": "Internal server error (failed to restart the Pulsar Sink, failed to authorize, etc.)"
+                        "description": "Internal server error"
                     },
                     "503": {
                         "description": "Function worker service is now initializing. Please try again later."
@@ -490,14 +505,14 @@
                 }
             }
         },
-        "/sinks/{tenant}/{namespace}/{sinkName}/start": {
+        "/sources/{tenant}/{namespace}/{sourceName}/start": {
             "post": {
                 "tags": [
-                    "sinks"
+                    "sources"
                 ],
-                "summary": "Start all instances of a Pulsar Sink",
+                "summary": "Start all instances of a Pulsar Source",
                 "description": "",
-                "operationId": "startSink",
+                "operationId": "startSource",
                 "consumes": [
                     "application/json"
                 ],
@@ -508,37 +523,37 @@
                     {
                         "name": "tenant",
                         "in": "path",
-                        "description": "The tenant of a Pulsar Sink",
+                        "description": "The tenant of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
                         "name": "namespace",
                         "in": "path",
-                        "description": "The namespace of a Pulsar Sink",
+                        "description": "The namespace of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
-                        "name": "sinkName",
+                        "name": "sourceName",
                         "in": "path",
-                        "description": "The name of a Pulsar Sink",
+                        "description": "The name of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     }
                 ],
                 "responses": {
                     "400": {
-                        "description": "Invalid start request"
+                        "description": "Invalid request"
                     },
                     "401": {
-                        "description": "The client is not authorized to perform this operation"
+                        "description": "Client is not authorize to perform operation"
                     },
                     "404": {
-                        "description": "The Pulsar Sink does not exist"
+                        "description": "Not Found(The Pulsar Source doesn't exist)"
                     },
                     "500": {
-                        "description": "Internal server error (failed to start the Pulsar Sink, failed to authorize, etc.)"
+                        "description": "Internal server error"
                     },
                     "503": {
                         "description": "Function worker service is now initializing. Please try again later."
@@ -546,14 +561,14 @@
                 }
             }
         },
-        "/sinks/{tenant}/{namespace}/{sinkName}/status": {
+        "/sources/{tenant}/{namespace}/{sourceName}/status": {
             "get": {
                 "tags": [
-                    "sinks"
+                    "sources"
                 ],
-                "summary": "Displays the status of a Pulsar Sink running in cluster mode",
+                "summary": "Displays the status of a Pulsar Source running in cluster mode",
                 "description": "",
-                "operationId": "getSinkStatus",
+                "operationId": "getSourceStatus",
                 "consumes": [
                     "application/json"
                 ],
@@ -564,21 +579,21 @@
                     {
                         "name": "tenant",
                         "in": "path",
-                        "description": "The tenant of a Pulsar Sink",
+                        "description": "The tenant of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
                         "name": "namespace",
                         "in": "path",
-                        "description": "The namespace of a Pulsar Sink",
+                        "description": "The namespace of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
-                        "name": "sinkName",
+                        "name": "sourceName",
                         "in": "path",
-                        "description": "The name of a Pulsar Sink",
+                        "description": "The name of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     }
@@ -587,20 +602,14 @@
                     "200": {
                         "description": "successful operation",
                         "schema": {
-                            "$ref": "#/definitions/SinkStatus"
+                            "$ref": "#/definitions/SourceStatus"
                         }
                     },
                     "307": {
-                        "description": "Current broker doesn't serve the namespace of this sink"
+                        "description": "Current broker doesn't serve the namespace of this source"
                     },
-                    "400": {
-                        "description": "Invalid get status request"
-                    },
-                    "401": {
-                        "description": "The client is not authorized to perform this operation"
-                    },
-                    "404": {
-                        "description": "The Pulsar Sink does not exist"
+                    "500": {
+                        "description": "Internal Server Error"
                     },
                     "503": {
                         "description": "Function worker service is now initializing. Please try again later."
@@ -608,14 +617,14 @@
                 }
             }
         },
-        "/sinks/{tenant}/{namespace}/{sinkName}/stop": {
+        "/sources/{tenant}/{namespace}/{sourceName}/stop": {
             "post": {
                 "tags": [
-                    "sinks"
+                    "sources"
                 ],
-                "summary": "Stop all instances of a Pulsar Sink",
+                "summary": "Stop all instances of a Pulsar Source",
                 "description": "",
-                "operationId": "stopSink",
+                "operationId": "stopSource",
                 "consumes": [
                     "application/json"
                 ],
@@ -626,37 +635,37 @@
                     {
                         "name": "tenant",
                         "in": "path",
-                        "description": "The tenant of a Pulsar Sink",
+                        "description": "The tenant of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
                         "name": "namespace",
                         "in": "path",
-                        "description": "The namespace of a Pulsar Sink",
+                        "description": "The namespace of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
-                        "name": "sinkName",
+                        "name": "sourceName",
                         "in": "path",
-                        "description": "The name of a Pulsar Sink",
+                        "description": "The name of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     }
                 ],
                 "responses": {
                     "400": {
-                        "description": "Invalid stop request"
+                        "description": "Invalid request"
                     },
                     "401": {
-                        "description": "The client is not authorized to perform this operation"
+                        "description": "Client is not authorize to perform operation"
                     },
                     "404": {
-                        "description": "The Pulsar Sink does not exist"
+                        "description": "Not Found(The Pulsar Source doesn't exist)"
                     },
                     "500": {
-                        "description": "Internal server error (failed to stop the Pulsar Sink, failed to authorize, etc.)"
+                        "description": "Internal server error"
                     },
                     "503": {
                         "description": "Function worker service is now initializing. Please try again later."
@@ -664,14 +673,14 @@
                 }
             }
         },
-        "/sinks/{tenant}/{namespace}/{sinkName}/{instanceId}/restart": {
+        "/sources/{tenant}/{namespace}/{sourceName}/{instanceId}/restart": {
             "post": {
                 "tags": [
-                    "sinks"
+                    "sources"
                 ],
-                "summary": "Restart an instance of a Pulsar Sink",
+                "summary": "Restart an instance of a Pulsar Source",
                 "description": "",
-                "operationId": "restartSink",
+                "operationId": "restartSource",
                 "consumes": [
                     "application/json"
                 ],
@@ -682,47 +691,47 @@
                     {
                         "name": "tenant",
                         "in": "path",
-                        "description": "The tenant of a Pulsar Sink",
+                        "description": "The tenant of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
                         "name": "namespace",
                         "in": "path",
-                        "description": "The namespace of a Pulsar Sink",
+                        "description": "The namespace of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
-                        "name": "sinkName",
+                        "name": "sourceName",
                         "in": "path",
-                        "description": "The name of a Pulsar Sink",
+                        "description": "The name of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
                         "name": "instanceId",
                         "in": "path",
-                        "description": "The instanceId of a Pulsar Sink",
+                        "description": "The instanceId of a Pulsar Source (if instance-id is not provided, the stats of all instances is returned).",
                         "required": true,
                         "type": "string"
                     }
                 ],
                 "responses": {
                     "307": {
-                        "description": "Current broker doesn't serve the namespace of this sink"
+                        "description": "Current broker doesn't serve the namespace of this source"
                     },
                     "400": {
-                        "description": "Invalid restart request"
+                        "description": "Invalid request"
                     },
                     "401": {
-                        "description": "The client is not authorized to perform this operation"
+                        "description": "Client is not authorize to perform operation"
                     },
                     "404": {
-                        "description": "The Pulsar Sink does not exist"
+                        "description": "Not Found(The Pulsar Source doesn't exist)"
                     },
                     "500": {
-                        "description": "Internal server error (failed to restart the instance of a Pulsar Sink, failed to authorize, etc.)"
+                        "description": "Internal server error"
                     },
                     "503": {
                         "description": "Function worker service is now initializing. Please try again later."
@@ -730,14 +739,14 @@
                 }
             }
         },
-        "/sinks/{tenant}/{namespace}/{sinkName}/{instanceId}/start": {
+        "/sources/{tenant}/{namespace}/{sourceName}/{instanceId}/start": {
             "post": {
                 "tags": [
-                    "sinks"
+                    "sources"
                 ],
-                "summary": "Start an instance of a Pulsar Sink",
+                "summary": "Start an instance of a Pulsar Source",
                 "description": "",
-                "operationId": "startSink",
+                "operationId": "startSource",
                 "consumes": [
                     "application/json"
                 ],
@@ -748,44 +757,44 @@
                     {
                         "name": "tenant",
                         "in": "path",
-                        "description": "The tenant of a Pulsar Sink",
+                        "description": "The tenant of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
                         "name": "namespace",
                         "in": "path",
-                        "description": "The namespace of a Pulsar Sink",
+                        "description": "The namespace of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
-                        "name": "sinkName",
+                        "name": "sourceName",
                         "in": "path",
-                        "description": "The name of a Pulsar Sink",
+                        "description": "The name of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
                         "name": "instanceId",
                         "in": "path",
-                        "description": "The instanceId of a Pulsar Sink",
+                        "description": "The instanceId of a Pulsar Source (if instance-id is not provided, the stats of all instances is returned).",
                         "required": true,
                         "type": "string"
                     }
                 ],
                 "responses": {
                     "400": {
-                        "description": "Invalid start request"
+                        "description": "Invalid request"
                     },
                     "401": {
-                        "description": "The client is not authorized to perform this operation"
+                        "description": "Client is not authorize to perform operation"
                     },
                     "404": {
-                        "description": "The Pulsar Sink does not exist"
+                        "description": "Not Found(The Pulsar Source doesn't exist)"
                     },
                     "500": {
-                        "description": "Internal server error (failed to start the Pulsar Sink, failed to authorize, etc.)"
+                        "description": "Internal server error"
                     },
                     "503": {
                         "description": "Function worker service is now initializing. Please try again later."
@@ -793,14 +802,14 @@
                 }
             }
         },
-        "/sinks/{tenant}/{namespace}/{sinkName}/{instanceId}/status": {
+        "/sources/{tenant}/{namespace}/{sourceName}/{instanceId}/status": {
             "get": {
                 "tags": [
-                    "sinks"
+                    "sources"
                 ],
-                "summary": "Displays the status of a Pulsar Sink instance",
+                "summary": "Displays the status of a Pulsar Source instance",
                 "description": "",
-                "operationId": "getSinkInstanceStatus",
+                "operationId": "getSourceInstanceStatus",
                 "consumes": [
                     "application/json"
                 ],
@@ -811,28 +820,28 @@
                     {
                         "name": "tenant",
                         "in": "path",
-                        "description": "The tenant of a Pulsar Sink",
+                        "description": "The tenant of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
                         "name": "namespace",
                         "in": "path",
-                        "description": "The namespace of a Pulsar Sink",
+                        "description": "The namespace of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
-                        "name": "sinkName",
+                        "name": "sourceName",
                         "in": "path",
-                        "description": "The name of a Pulsar Sink",
+                        "description": "The name of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
                         "name": "instanceId",
                         "in": "path",
-                        "description": "The instanceId of a Pulsar Sink",
+                        "description": "The instanceId of a Pulsar Source (if instance-id is not provided, the stats of all instances is returned).",
                         "required": true,
                         "type": "string"
                     }
@@ -841,20 +850,14 @@
                     "200": {
                         "description": "successful operation",
                         "schema": {
-                            "$ref": "#/definitions/SinkInstanceStatusData"
+                            "$ref": "#/definitions/SourceInstanceStatusData"
                         }
                     },
                     "307": {
-                        "description": "Current broker doesn't serve the namespace of this sink"
-                    },
-                    "400": {
-                        "description": "The Pulsar Sink instance does not exist"
-                    },
-                    "404": {
-                        "description": "The Pulsar Sink does not exist"
+                        "description": "Current broker doesn't serve the namespace of this source"
                     },
                     "500": {
-                        "description": "Internal Server Error (got exception while getting status, etc.)"
+                        "description": "Internal Server Error"
                     },
                     "503": {
                         "description": "Function worker service is now initializing. Please try again later."
@@ -862,14 +865,14 @@
                 }
             }
         },
-        "/sinks/{tenant}/{namespace}/{sinkName}/{instanceId}/stop": {
+        "/sources/{tenant}/{namespace}/{sourceName}/{instanceId}/stop": {
             "post": {
                 "tags": [
-                    "sinks"
+                    "sources"
                 ],
-                "summary": "Stop an instance of a Pulsar Sink",
+                "summary": "Stop instance of a Pulsar Source",
                 "description": "",
-                "operationId": "stopSink",
+                "operationId": "stopSource",
                 "consumes": [
                     "application/json"
                 ],
@@ -880,44 +883,44 @@
                     {
                         "name": "tenant",
                         "in": "path",
-                        "description": "The tenant of a Pulsar Sink",
+                        "description": "The tenant of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
                         "name": "namespace",
                         "in": "path",
-                        "description": "The namespace of a Pulsar Sink",
+                        "description": "The namespace of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
-                        "name": "sinkName",
+                        "name": "sourceName",
                         "in": "path",
-                        "description": "The name of a Pulsar Sink",
+                        "description": "The name of a Pulsar Source",
                         "required": true,
                         "type": "string"
                     },
                     {
                         "name": "instanceId",
                         "in": "path",
-                        "description": "The instanceId of a Pulsar Sink",
+                        "description": "The instanceId of a Pulsar Source (if instance-id is not provided, the stats of all instances is returned).",
                         "required": true,
                         "type": "string"
                     }
                 ],
                 "responses": {
                     "400": {
-                        "description": "Invalid stop request"
+                        "description": "Invalid request"
                     },
                     "401": {
-                        "description": "The client is not authorized to perform this operation"
+                        "description": "Client is not authorize to perform operation"
                     },
                     "404": {
-                        "description": "The Pulsar Sink instance does not exist"
+                        "description": "Not Found(The Pulsar Source doesn't exist)"
                     },
                     "500": {
-                        "description": "Internal server error (failed to stop the Pulsar Sink, failed to authorize, etc.)"
+                        "description": "Internal server error"
                     },
                     "503": {
                         "description": "Function worker service is now initializing. Please try again later."
@@ -985,19 +988,33 @@
         "Base64Variant": {
             "type": "object",
             "properties": {
+                "paddingByte": {
+                    "type": "string",
+                    "format": "byte"
+                },
+                "paddingChar": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
                 "maxLineLength": {
                     "type": "integer",
                     "format": "int32"
-                },
-                "paddingChar": {
+                }
+            }
+        },
+        "BatchSourceConfig": {
+            "type": "object",
+            "properties": {
+                "discoveryTriggererClassName": {
                     "type": "string"
                 },
-                "paddingByte": {
-                    "type": "string",
-                    "format": "byte"
+                "discoveryTriggererConfig": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "object"
+                    }
                 }
             }
         },
@@ -1121,42 +1138,6 @@
                 }
             }
         },
-        "ConsumerConfig": {
-            "type": "object",
-            "properties": {
-                "schemaType": {
-                    "type": "string"
-                },
-                "serdeClassName": {
-                    "type": "string"
-                },
-                "schemaProperties": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "consumerProperties": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "receiverQueueSize": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "cryptoConfig": {
-                    "$ref": "#/definitions/CryptoConfig"
-                },
-                "poolMessages": {
-                    "type": "boolean"
-                },
-                "regexPattern": {
-                    "type": "boolean"
-                }
-            }
-        },
         "ContextAttributes": {
             "type": "object"
         },
@@ -1209,13 +1190,13 @@
                     "type": "integer",
                     "format": "int32"
                 },
-                "numericCodeAsString": {
+                "symbol": {
                     "type": "string"
                 },
                 "displayName": {
                     "type": "string"
                 },
-                "symbol": {
+                "numericCodeAsString": {
                     "type": "string"
                 }
             }
@@ -1241,12 +1222,6 @@
         "DeserializationConfig": {
             "type": "object",
             "properties": {
-                "nodeFactory": {
-                    "$ref": "#/definitions/JsonNodeFactory"
-                },
-                "annotationIntrospector": {
-                    "$ref": "#/definitions/AnnotationIntrospector"
-                },
                 "defaultPropertyInclusion": {
                     "$ref": "#/definitions/Value"
                 },
@@ -1257,35 +1232,26 @@
                 "problemHandlers": {
                     "$ref": "#/definitions/LinkedNodeDeserializationProblemHandler"
                 },
-                "attributes": {
-                    "$ref": "#/definitions/ContextAttributes"
+                "annotationIntrospector": {
+                    "$ref": "#/definitions/AnnotationIntrospector"
                 },
-                "rootName": {
-                    "type": "string"
-                },
-                "defaultVisibilityChecker": {
-                    "$ref": "#/definitions/VisibilityCheckerObject"
-                },
-                "subtypeResolver": {
-                    "$ref": "#/definitions/SubtypeResolver"
+                "nodeFactory": {
+                    "$ref": "#/definitions/JsonNodeFactory"
                 },
                 "fullRootName": {
                     "$ref": "#/definitions/PropertyName"
                 },
-                "timeZone": {
-                    "$ref": "#/definitions/TimeZone"
+                "rootName": {
+                    "type": "string"
                 },
-                "locale": {
-                    "$ref": "#/definitions/Locale"
+                "attributes": {
+                    "$ref": "#/definitions/ContextAttributes"
                 },
-                "dateFormat": {
-                    "$ref": "#/definitions/DateFormat"
+                "subtypeResolver": {
+                    "$ref": "#/definitions/SubtypeResolver"
                 },
-                "propertyNamingStrategy": {
-                    "$ref": "#/definitions/PropertyNamingStrategy"
-                },
-                "typeFactory": {
-                    "$ref": "#/definitions/TypeFactory"
+                "defaultVisibilityChecker": {
+                    "$ref": "#/definitions/VisibilityCheckerObject"
                 },
                 "handlerInstantiator": {
                     "$ref": "#/definitions/HandlerInstantiator"
@@ -1298,36 +1264,27 @@
                 },
                 "classIntrospector": {
                     "$ref": "#/definitions/ClassIntrospector"
+                },
+                "locale": {
+                    "$ref": "#/definitions/Locale"
+                },
+                "timeZone": {
+                    "$ref": "#/definitions/TimeZone"
+                },
+                "propertyNamingStrategy": {
+                    "$ref": "#/definitions/PropertyNamingStrategy"
+                },
+                "typeFactory": {
+                    "$ref": "#/definitions/TypeFactory"
+                },
+                "dateFormat": {
+                    "$ref": "#/definitions/DateFormat"
                 }
             }
         },
         "DeserializationContext": {
             "type": "object",
             "properties": {
-                "timeZone": {
-                    "$ref": "#/definitions/TimeZone"
-                },
-                "factory": {
-                    "$ref": "#/definitions/DeserializerFactory"
-                },
-                "locale": {
-                    "$ref": "#/definitions/Locale"
-                },
-                "config": {
-                    "$ref": "#/definitions/DeserializationConfig"
-                },
-                "parser": {
-                    "$ref": "#/definitions/JsonParser"
-                },
-                "nodeFactory": {
-                    "$ref": "#/definitions/JsonNodeFactory"
-                },
-                "typeFactory": {
-                    "$ref": "#/definitions/TypeFactory"
-                },
-                "annotationIntrospector": {
-                    "$ref": "#/definitions/AnnotationIntrospector"
-                },
                 "contextualType": {
                     "$ref": "#/definitions/JavaType"
                 },
@@ -1340,6 +1297,30 @@
                 },
                 "arrayBuilders": {
                     "$ref": "#/definitions/ArrayBuilders"
+                },
+                "annotationIntrospector": {
+                    "$ref": "#/definitions/AnnotationIntrospector"
+                },
+                "config": {
+                    "$ref": "#/definitions/DeserializationConfig"
+                },
+                "locale": {
+                    "$ref": "#/definitions/Locale"
+                },
+                "factory": {
+                    "$ref": "#/definitions/DeserializerFactory"
+                },
+                "parser": {
+                    "$ref": "#/definitions/JsonParser"
+                },
+                "timeZone": {
+                    "$ref": "#/definitions/TimeZone"
+                },
+                "typeFactory": {
+                    "$ref": "#/definitions/TypeFactory"
+                },
+                "nodeFactory": {
+                    "$ref": "#/definitions/JsonNodeFactory"
                 }
             }
         },
@@ -1390,8 +1371,29 @@
         "JavaType": {
             "type": "object",
             "properties": {
-                "contentType": {
+                "containerType": {
+                    "type": "boolean"
+                },
+                "mapLikeType": {
+                    "type": "boolean"
+                },
+                "collectionLikeType": {
+                    "type": "boolean"
+                },
+                "referencedType": {
                     "$ref": "#/definitions/JavaType"
+                },
+                "contentValueHandler": {
+                    "type": "object"
+                },
+                "contentTypeHandler": {
+                    "type": "object"
+                },
+                "erasedSignature": {
+                    "type": "string"
+                },
+                "concrete": {
+                    "type": "boolean"
                 },
                 "interface": {
                     "type": "boolean"
@@ -1417,8 +1419,14 @@
                 "bindings": {
                     "$ref": "#/definitions/TypeBindings"
                 },
-                "concrete": {
+                "keyType": {
+                    "$ref": "#/definitions/JavaType"
+                },
+                "javaLangObject": {
                     "type": "boolean"
+                },
+                "contentType": {
+                    "$ref": "#/definitions/JavaType"
                 },
                 "arrayType": {
                     "type": "boolean"
@@ -1426,44 +1434,17 @@
                 "throwable": {
                     "type": "boolean"
                 },
-                "javaLangObject": {
-                    "type": "boolean"
-                },
-                "keyType": {
-                    "$ref": "#/definitions/JavaType"
-                },
-                "enumType": {
-                    "type": "boolean"
-                },
-                "containerType": {
-                    "type": "boolean"
+                "typeHandler": {
+                    "type": "object"
                 },
                 "valueHandler": {
                     "type": "object"
                 },
-                "typeHandler": {
-                    "type": "object"
-                },
-                "referencedType": {
-                    "$ref": "#/definitions/JavaType"
+                "enumType": {
+                    "type": "boolean"
                 },
                 "superClass": {
                     "$ref": "#/definitions/JavaType"
-                },
-                "contentValueHandler": {
-                    "type": "object"
-                },
-                "contentTypeHandler": {
-                    "type": "object"
-                },
-                "erasedSignature": {
-                    "type": "string"
-                },
-                "collectionLikeType": {
-                    "type": "boolean"
-                },
-                "mapLikeType": {
-                    "type": "boolean"
                 },
                 "typeName": {
                     "type": "string"
@@ -1476,12 +1457,6 @@
         "JsonFactory": {
             "type": "object",
             "properties": {
-                "codec": {
-                    "$ref": "#/definitions/ObjectCodec"
-                },
-                "rootValueSeparator": {
-                    "type": "string"
-                },
                 "formatName": {
                     "type": "string"
                 },
@@ -1493,26 +1468,46 @@
                 },
                 "outputDecorator": {
                     "$ref": "#/definitions/OutputDecorator"
+                },
+                "rootValueSeparator": {
+                    "type": "string"
+                },
+                "codec": {
+                    "$ref": "#/definitions/ObjectCodec"
                 }
             }
         },
         "JsonGenerator": {
             "type": "object",
             "properties": {
-                "closed": {
-                    "type": "boolean"
+                "characterEscapes": {
+                    "$ref": "#/definitions/CharacterEscapes"
+                },
+                "outputContext": {
+                    "$ref": "#/definitions/JsonStreamContext"
+                },
+                "outputTarget": {
+                    "type": "object"
+                },
+                "highestEscapedChar": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "outputBuffered": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "currentValue": {
+                    "type": "object"
+                },
+                "schema": {
+                    "$ref": "#/definitions/FormatSchema"
                 },
                 "codec": {
                     "$ref": "#/definitions/ObjectCodec"
                 },
                 "prettyPrinter": {
                     "$ref": "#/definitions/PrettyPrinter"
-                },
-                "schema": {
-                    "$ref": "#/definitions/FormatSchema"
-                },
-                "characterEscapes": {
-                    "$ref": "#/definitions/CharacterEscapes"
                 },
                 "featureMask": {
                     "type": "integer",
@@ -1522,22 +1517,8 @@
                     "type": "integer",
                     "format": "int32"
                 },
-                "highestEscapedChar": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "outputTarget": {
-                    "type": "object"
-                },
-                "outputBuffered": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "currentValue": {
-                    "type": "object"
-                },
-                "outputContext": {
-                    "$ref": "#/definitions/JsonStreamContext"
+                "closed": {
+                    "type": "boolean"
                 }
             }
         },
@@ -1571,9 +1552,24 @@
         "JsonParser": {
             "type": "object",
             "properties": {
-                "textLength": {
-                    "type": "integer",
-                    "format": "int32"
+                "objectId": {
+                    "type": "object"
+                },
+                "binaryValue": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
+                },
+                "currentValue": {
+                    "type": "object"
+                },
+                "parsingContext": {
+                    "$ref": "#/definitions/JsonStreamContext"
+                },
+                "tokenLocation": {
+                    "$ref": "#/definitions/JsonLocation"
                 },
                 "text": {
                     "type": "string"
@@ -1583,6 +1579,19 @@
                     "items": {
                         "type": "string"
                     }
+                },
+                "schema": {
+                    "$ref": "#/definitions/FormatSchema"
+                },
+                "textLength": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "codec": {
+                    "$ref": "#/definitions/ObjectCodec"
+                },
+                "currentLocation": {
+                    "$ref": "#/definitions/JsonLocation"
                 },
                 "booleanValue": {
                     "type": "boolean"
@@ -1607,16 +1616,18 @@
                     "type": "integer",
                     "format": "int32"
                 },
-                "closed": {
-                    "type": "boolean"
+                "intValue": {
+                    "type": "integer",
+                    "format": "int32"
                 },
-                "objectId": {
+                "typeId": {
                     "type": "object"
                 },
-                "codec": {
-                    "$ref": "#/definitions/ObjectCodec"
+                "featureMask": {
+                    "type": "integer",
+                    "format": "int32"
                 },
-                "intValue": {
+                "formatFeatures": {
                     "type": "integer",
                     "format": "int32"
                 },
@@ -1638,29 +1649,61 @@
                         "VALUE_NULL"
                     ]
                 },
-                "typeId": {
-                    "type": "object"
+                "currentTokenId": {
+                    "type": "integer",
+                    "format": "int32"
                 },
-                "schema": {
-                    "$ref": "#/definitions/FormatSchema"
+                "expectedStartArrayToken": {
+                    "type": "boolean"
+                },
+                "expectedStartObjectToken": {
+                    "type": "boolean"
+                },
+                "valueAsInt": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "valueAsLong": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "valueAsDouble": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "valueAsBoolean": {
+                    "type": "boolean"
+                },
+                "valueAsString": {
+                    "type": "string"
+                },
+                "lastClearedToken": {
+                    "type": "string",
+                    "enum": [
+                        "NOT_AVAILABLE",
+                        "START_OBJECT",
+                        "END_OBJECT",
+                        "START_ARRAY",
+                        "END_ARRAY",
+                        "FIELD_NAME",
+                        "VALUE_EMBEDDED_OBJECT",
+                        "VALUE_STRING",
+                        "VALUE_NUMBER_INT",
+                        "VALUE_NUMBER_FLOAT",
+                        "VALUE_TRUE",
+                        "VALUE_FALSE",
+                        "VALUE_NULL"
+                    ]
                 },
                 "currentName": {
                     "type": "string"
                 },
-                "featureMask": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "formatFeatures": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "currentValue": {
-                    "type": "object"
-                },
                 "textOffset": {
                     "type": "integer",
                     "format": "int32"
+                },
+                "numberValue": {
+                    "$ref": "#/definitions/Number"
                 },
                 "numberType": {
                     "type": "string",
@@ -1682,70 +1725,8 @@
                 "embeddedObject": {
                     "type": "object"
                 },
-                "tokenLocation": {
-                    "$ref": "#/definitions/JsonLocation"
-                },
-                "currentTokenId": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "parsingContext": {
-                    "$ref": "#/definitions/JsonStreamContext"
-                },
-                "currentLocation": {
-                    "$ref": "#/definitions/JsonLocation"
-                },
-                "expectedStartArrayToken": {
+                "closed": {
                     "type": "boolean"
-                },
-                "expectedStartObjectToken": {
-                    "type": "boolean"
-                },
-                "lastClearedToken": {
-                    "type": "string",
-                    "enum": [
-                        "NOT_AVAILABLE",
-                        "START_OBJECT",
-                        "END_OBJECT",
-                        "START_ARRAY",
-                        "END_ARRAY",
-                        "FIELD_NAME",
-                        "VALUE_EMBEDDED_OBJECT",
-                        "VALUE_STRING",
-                        "VALUE_NUMBER_INT",
-                        "VALUE_NUMBER_FLOAT",
-                        "VALUE_TRUE",
-                        "VALUE_FALSE",
-                        "VALUE_NULL"
-                    ]
-                },
-                "numberValue": {
-                    "$ref": "#/definitions/Number"
-                },
-                "binaryValue": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
-                },
-                "valueAsInt": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "valueAsLong": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "valueAsDouble": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "valueAsBoolean": {
-                    "type": "boolean"
-                },
-                "valueAsString": {
-                    "type": "string"
                 },
                 "inputSource": {
                     "type": "object"
@@ -1763,36 +1744,36 @@
         "JsonSerializerObject": {
             "type": "object",
             "properties": {
-                "delegatee": {
-                    "$ref": "#/definitions/JsonSerializerObject"
-                },
                 "unwrappingSerializer": {
                     "type": "boolean"
+                },
+                "delegatee": {
+                    "$ref": "#/definitions/JsonSerializerObject"
                 }
             }
         },
         "JsonStreamContext": {
             "type": "object",
             "properties": {
-                "typeDesc": {
-                    "type": "string"
-                },
-                "currentIndex": {
+                "entryCount": {
                     "type": "integer",
                     "format": "int32"
                 },
-                "parent": {
-                    "$ref": "#/definitions/JsonStreamContext"
-                },
-                "currentName": {
+                "typeDesc": {
                     "type": "string"
                 },
                 "currentValue": {
                     "type": "object"
                 },
-                "entryCount": {
+                "parent": {
+                    "$ref": "#/definitions/JsonStreamContext"
+                },
+                "currentIndex": {
                     "type": "integer",
                     "format": "int32"
+                },
+                "currentName": {
+                    "type": "string"
                 }
             }
         },
@@ -1806,9 +1787,6 @@
             "type": "object",
             "properties": {
                 "language": {
-                    "type": "string"
-                },
-                "displayName": {
                     "type": "string"
                 },
                 "script": {
@@ -1857,6 +1835,9 @@
                     "type": "string"
                 },
                 "displayVariant": {
+                    "type": "string"
+                },
+                "displayName": {
                     "type": "string"
                 }
             }
@@ -1945,6 +1926,9 @@
                     "type": "integer",
                     "format": "int32"
                 },
+                "currency": {
+                    "$ref": "#/definitions/Currency"
+                },
                 "roundingMode": {
                     "type": "string",
                     "enum": [
@@ -1957,19 +1941,16 @@
                         "HALF_EVEN",
                         "UNNECESSARY"
                     ]
-                },
-                "currency": {
-                    "$ref": "#/definitions/Currency"
                 }
             }
         },
         "ObjectCodec": {
             "type": "object",
             "properties": {
-                "factory": {
+                "jsonFactory": {
                     "$ref": "#/definitions/JsonFactory"
                 },
-                "jsonFactory": {
+                "factory": {
                     "$ref": "#/definitions/JsonFactory"
                 }
             }
@@ -1977,29 +1958,11 @@
         "ObjectMapper": {
             "type": "object",
             "properties": {
-                "factory": {
-                    "$ref": "#/definitions/JsonFactory"
-                },
-                "typeFactory": {
-                    "$ref": "#/definitions/TypeFactory"
-                },
-                "nodeFactory": {
-                    "$ref": "#/definitions/JsonNodeFactory"
-                },
                 "jsonFactory": {
                     "$ref": "#/definitions/JsonFactory"
                 },
-                "dateFormat": {
-                    "$ref": "#/definitions/DateFormat"
-                },
-                "injectableValues": {
-                    "$ref": "#/definitions/InjectableValues"
-                },
-                "serializerProvider": {
-                    "$ref": "#/definitions/SerializerProvider"
-                },
-                "serializerProviderInstance": {
-                    "$ref": "#/definitions/SerializerProvider"
+                "factory": {
+                    "$ref": "#/definitions/JsonFactory"
                 },
                 "visibilityChecker": {
                     "$ref": "#/definitions/VisibilityCheckerObject"
@@ -2009,6 +1972,12 @@
                 },
                 "propertyNamingStrategy": {
                     "$ref": "#/definitions/PropertyNamingStrategy"
+                },
+                "serializerProvider": {
+                    "$ref": "#/definitions/SerializerProvider"
+                },
+                "serializerProviderInstance": {
+                    "$ref": "#/definitions/SerializerProvider"
                 },
                 "serializationConfig": {
                     "$ref": "#/definitions/SerializationConfig"
@@ -2021,6 +1990,18 @@
                 },
                 "serializerFactory": {
                     "$ref": "#/definitions/SerializerFactory"
+                },
+                "dateFormat": {
+                    "$ref": "#/definitions/DateFormat"
+                },
+                "typeFactory": {
+                    "$ref": "#/definitions/TypeFactory"
+                },
+                "nodeFactory": {
+                    "$ref": "#/definitions/JsonNodeFactory"
+                },
+                "injectableValues": {
+                    "$ref": "#/definitions/InjectableValues"
                 }
             }
         },
@@ -2079,16 +2060,38 @@
                 }
             }
         },
+        "ProducerConfig": {
+            "type": "object",
+            "properties": {
+                "maxPendingMessages": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "maxPendingMessagesAcrossPartitions": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "useThreadLocalProducers": {
+                    "type": "boolean"
+                },
+                "cryptoConfig": {
+                    "$ref": "#/definitions/CryptoConfig"
+                },
+                "batchBuilder": {
+                    "type": "string"
+                }
+            }
+        },
         "PropertyName": {
             "type": "object",
             "properties": {
+                "namespace": {
+                    "type": "string"
+                },
                 "empty": {
                     "type": "boolean"
                 },
                 "simpleName": {
-                    "type": "string"
-                },
-                "namespace": {
                     "type": "string"
                 }
             }
@@ -2099,6 +2102,9 @@
         "PublicKey": {
             "type": "object",
             "properties": {
+                "format": {
+                    "type": "string"
+                },
                 "algorithm": {
                     "type": "string"
                 },
@@ -2108,9 +2114,6 @@
                         "type": "string",
                         "format": "byte"
                     }
-                },
-                "format": {
-                    "type": "string"
                 }
             }
         },
@@ -2134,8 +2137,8 @@
         "SerializationConfig": {
             "type": "object",
             "properties": {
-                "annotationIntrospector": {
-                    "$ref": "#/definitions/AnnotationIntrospector"
+                "defaultPrettyPrinter": {
+                    "$ref": "#/definitions/PrettyPrinter"
                 },
                 "defaultPropertyInclusion": {
                     "$ref": "#/definitions/Value"
@@ -2143,8 +2146,8 @@
                 "filterProvider": {
                     "$ref": "#/definitions/FilterProvider"
                 },
-                "defaultPrettyPrinter": {
-                    "$ref": "#/definitions/PrettyPrinter"
+                "annotationIntrospector": {
+                    "$ref": "#/definitions/AnnotationIntrospector"
                 },
                 "serializationInclusion": {
                     "type": "string",
@@ -2161,35 +2164,20 @@
                     "type": "integer",
                     "format": "int32"
                 },
-                "attributes": {
-                    "$ref": "#/definitions/ContextAttributes"
+                "fullRootName": {
+                    "$ref": "#/definitions/PropertyName"
                 },
                 "rootName": {
                     "type": "string"
                 },
-                "defaultVisibilityChecker": {
-                    "$ref": "#/definitions/VisibilityCheckerObject"
+                "attributes": {
+                    "$ref": "#/definitions/ContextAttributes"
                 },
                 "subtypeResolver": {
                     "$ref": "#/definitions/SubtypeResolver"
                 },
-                "fullRootName": {
-                    "$ref": "#/definitions/PropertyName"
-                },
-                "timeZone": {
-                    "$ref": "#/definitions/TimeZone"
-                },
-                "locale": {
-                    "$ref": "#/definitions/Locale"
-                },
-                "dateFormat": {
-                    "$ref": "#/definitions/DateFormat"
-                },
-                "propertyNamingStrategy": {
-                    "$ref": "#/definitions/PropertyNamingStrategy"
-                },
-                "typeFactory": {
-                    "$ref": "#/definitions/TypeFactory"
+                "defaultVisibilityChecker": {
+                    "$ref": "#/definitions/VisibilityCheckerObject"
                 },
                 "handlerInstantiator": {
                     "$ref": "#/definitions/HandlerInstantiator"
@@ -2202,6 +2190,21 @@
                 },
                 "classIntrospector": {
                     "$ref": "#/definitions/ClassIntrospector"
+                },
+                "locale": {
+                    "$ref": "#/definitions/Locale"
+                },
+                "timeZone": {
+                    "$ref": "#/definitions/TimeZone"
+                },
+                "propertyNamingStrategy": {
+                    "$ref": "#/definitions/PropertyNamingStrategy"
+                },
+                "typeFactory": {
+                    "$ref": "#/definitions/TypeFactory"
+                },
+                "dateFormat": {
+                    "$ref": "#/definitions/DateFormat"
                 }
             }
         },
@@ -2211,24 +2214,6 @@
         "SerializerProvider": {
             "type": "object",
             "properties": {
-                "generator": {
-                    "$ref": "#/definitions/JsonGenerator"
-                },
-                "timeZone": {
-                    "$ref": "#/definitions/TimeZone"
-                },
-                "locale": {
-                    "$ref": "#/definitions/Locale"
-                },
-                "config": {
-                    "$ref": "#/definitions/SerializationConfig"
-                },
-                "typeFactory": {
-                    "$ref": "#/definitions/TypeFactory"
-                },
-                "annotationIntrospector": {
-                    "$ref": "#/definitions/AnnotationIntrospector"
-                },
                 "defaultNullValueSerializer": {
                     "$ref": "#/definitions/JsonSerializerObject"
                 },
@@ -2237,13 +2222,34 @@
                 },
                 "defaultNullKeySerializer": {
                     "$ref": "#/definitions/JsonSerializerObject"
+                },
+                "annotationIntrospector": {
+                    "$ref": "#/definitions/AnnotationIntrospector"
+                },
+                "config": {
+                    "$ref": "#/definitions/SerializationConfig"
+                },
+                "locale": {
+                    "$ref": "#/definitions/Locale"
+                },
+                "timeZone": {
+                    "$ref": "#/definitions/TimeZone"
+                },
+                "generator": {
+                    "$ref": "#/definitions/JsonGenerator"
+                },
+                "typeFactory": {
+                    "$ref": "#/definitions/TypeFactory"
                 }
             }
         },
         "ShortBuilder": {
             "type": "object"
         },
-        "SinkConfig": {
+        "SocketAddress": {
+            "type": "object"
+        },
+        "SourceConfig": {
             "type": "object",
             "properties": {
                 "tenant": {
@@ -2258,54 +2264,16 @@
                 "className": {
                     "type": "string"
                 },
-                "sourceSubscriptionName": {
+                "topicName": {
                     "type": "string"
                 },
-                "sourceSubscriptionPosition": {
-                    "type": "string",
-                    "enum": [
-                        "Latest",
-                        "Earliest"
-                    ]
+                "producerConfig": {
+                    "$ref": "#/definitions/ProducerConfig"
                 },
-                "inputs": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "topicToSerdeClassName": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "topicsPattern": {
+                "serdeClassName": {
                     "type": "string"
                 },
-                "topicToSchemaType": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "topicToSchemaProperties": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "inputSpecs": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "$ref": "#/definitions/ConsumerConfig"
-                    }
-                },
-                "maxMessageRetries": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "deadLetterTopic": {
+                "schemaType": {
                     "type": "string"
                 },
                 "configs": {
@@ -2332,38 +2300,27 @@
                         "EFFECTIVELY_ONCE"
                     ]
                 },
-                "retainOrdering": {
-                    "type": "boolean"
-                },
                 "resources": {
                     "$ref": "#/definitions/Resources"
                 },
-                "autoAck": {
-                    "type": "boolean"
-                },
-                "timeoutMs": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "negativeAckRedeliveryDelayMs": {
-                    "type": "integer",
-                    "format": "int64"
-                },
                 "archive": {
                     "type": "string"
-                },
-                "cleanupSubscription": {
-                    "type": "boolean"
                 },
                 "runtimeFlags": {
                     "type": "string"
                 },
                 "customRuntimeOptions": {
                     "type": "string"
+                },
+                "batchSourceConfig": {
+                    "$ref": "#/definitions/BatchSourceConfig"
+                },
+                "batchBuilder": {
+                    "type": "string"
                 }
             }
         },
-        "SinkInstanceStatus": {
+        "SourceInstanceStatus": {
             "type": "object",
             "properties": {
                 "instanceId": {
@@ -2371,11 +2328,11 @@
                     "format": "int32"
                 },
                 "status": {
-                    "$ref": "#/definitions/SinkInstanceStatusData"
+                    "$ref": "#/definitions/SourceInstanceStatusData"
                 }
             }
         },
-        "SinkInstanceStatusData": {
+        "SourceInstanceStatusData": {
             "type": "object",
             "properties": {
                 "running": {
@@ -2388,7 +2345,7 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "numReadFromPulsar": {
+                "numReceivedFromSource": {
                     "type": "integer",
                     "format": "int64"
                 },
@@ -2402,17 +2359,17 @@
                         "$ref": "#/definitions/ExceptionInformation"
                     }
                 },
-                "numSinkExceptions": {
+                "numSourceExceptions": {
                     "type": "integer",
                     "format": "int64"
                 },
-                "latestSinkExceptions": {
+                "latestSourceExceptions": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/ExceptionInformation"
                     }
                 },
-                "numWrittenToSink": {
+                "numWritten": {
                     "type": "integer",
                     "format": "int64"
                 },
@@ -2425,7 +2382,7 @@
                 }
             }
         },
-        "SinkStatus": {
+        "SourceStatus": {
             "type": "object",
             "properties": {
                 "numInstances": {
@@ -2439,13 +2396,10 @@
                 "instances": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/SinkInstanceStatus"
+                        "$ref": "#/definitions/SourceInstanceStatus"
                     }
                 }
             }
-        },
-        "SocketAddress": {
-            "type": "object"
         },
         "SubtypeResolver": {
             "type": "object"
@@ -2453,12 +2407,6 @@
         "TimeZone": {
             "type": "object",
             "properties": {
-                "displayName": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
                 "dstsavings": {
                     "type": "integer",
                     "format": "int32"
@@ -2466,6 +2414,12 @@
                 "rawOffset": {
                     "type": "integer",
                     "format": "int32"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "displayName": {
+                    "type": "string"
                 }
             }
         },
@@ -2561,12 +2515,6 @@
                 "issuerX500Principal": {
                     "$ref": "#/definitions/X500Principal"
                 },
-                "keyUsage": {
-                    "type": "array",
-                    "items": {
-                        "type": "boolean"
-                    }
-                },
                 "sigAlgName": {
                     "type": "string"
                 },
@@ -2616,6 +2564,24 @@
                         "type": "string"
                     }
                 },
+                "subjectAlternativeNames": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    }
+                },
+                "issuerAlternativeNames": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    }
+                },
                 "signature": {
                     "type": "array",
                     "items": {
@@ -2637,32 +2603,20 @@
                 "subjectDN": {
                     "$ref": "#/definitions/Principal"
                 },
-                "subjectAlternativeNames": {
+                "keyUsage": {
                     "type": "array",
                     "items": {
-                        "type": "array",
-                        "items": {
-                            "type": "object"
-                        }
+                        "type": "boolean"
                     }
                 },
-                "issuerAlternativeNames": {
-                    "type": "array",
-                    "items": {
-                        "type": "array",
-                        "items": {
-                            "type": "object"
-                        }
-                    }
-                },
-                "criticalExtensionOIDs": {
+                "nonCriticalExtensionOIDs": {
                     "type": "array",
                     "uniqueItems": true,
                     "items": {
                         "type": "string"
                     }
                 },
-                "nonCriticalExtensionOIDs": {
+                "criticalExtensionOIDs": {
                     "type": "array",
                     "uniqueItems": true,
                     "items": {
