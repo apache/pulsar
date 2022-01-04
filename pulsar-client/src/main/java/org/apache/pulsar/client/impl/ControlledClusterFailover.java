@@ -34,6 +34,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.Data;
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.client.api.Authentication;
@@ -42,6 +43,7 @@ import org.apache.pulsar.client.api.ControlledClusterFailoverBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 @Slf4j
 public class ControlledClusterFailover implements ServiceUrlProvider {
@@ -50,7 +52,7 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
     private volatile ControlledConfiguration currentControlledConfiguration;
     private final URL pulsarUrlProvider;
     private final ScheduledExecutorService executor;
-    private final int interval = 30_000;
+    private long interval;
     private ObjectMapper objectMapper = null;
 
     private static final String AUTH_SASL = "org.apache.pulsar.client.impl.auth.AuthenticationSasl";
@@ -60,9 +62,10 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
     private static final String AUTH_TOKEN = "org.apache.pulsar.client.impl.auth.AuthenticationToken";
     private static final String AUTH_KEY_STORE_TLS = "org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls";
 
-    private ControlledClusterFailover(String defaultServiceUrl, String urlProvider) throws IOException {
+    private ControlledClusterFailover(String defaultServiceUrl, String urlProvider, long interval) throws IOException {
         this.currentPulsarServiceUrl = defaultServiceUrl;
         this.pulsarUrlProvider = new URL(urlProvider);
+        this.interval = interval;
         this.executor = Executors.newSingleThreadScheduledExecutor(
                 new DefaultThreadFactory("pulsar-service-provider"));
     }
@@ -135,11 +138,7 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
                 log.error("Failed to switch new Pulsar url, current: {}, new: {}",
                         currentControlledConfiguration, controlledConfiguration, e);
             }
-        }), getInterval(), getInterval(), TimeUnit.MILLISECONDS);
-    }
-
-    public int getInterval() {
-        return this.interval;
+        }), interval, interval, TimeUnit.MILLISECONDS);
     }
 
     public String getCurrentPulsarServiceUrl() {
@@ -236,19 +235,39 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
     public static class ControlledClusterFailoverBuilderImpl implements ControlledClusterFailoverBuilder {
         private String defaultServiceUrl;
         private String urlProvider;
+        private long interval = 30_000;
 
-        public ControlledClusterFailoverBuilder defaultServiceUrl(String serviceUrl) {
+        @Override
+        public ControlledClusterFailoverBuilder defaultServiceUrl(@NonNull String serviceUrl) {
             this.defaultServiceUrl = serviceUrl;
             return this;
         }
 
-        public ControlledClusterFailoverBuilder urlProvider(String urlProvider) {
+        @Override
+        public ControlledClusterFailoverBuilder urlProvider(@NonNull String urlProvider) {
             this.urlProvider = urlProvider;
             return this;
         }
 
+        @Override
+        public ControlledClusterFailoverBuilder checkInterval(long interval, @NonNull TimeUnit timeUnit) {
+            this.interval = timeUnit.toMillis(interval);
+            return this;
+        }
+
+        @Override
         public ServiceUrlProvider build() throws IOException {
-            return new ControlledClusterFailover(defaultServiceUrl, urlProvider);
+            Objects.requireNonNull(defaultServiceUrl, "default service url shouldn't be null");
+            Objects.requireNonNull(urlProvider, "urlProvider shouldn't be null");
+            checkArgument(interval >= 0, "checkInterval should >= 0");
+
+            return new ControlledClusterFailover(defaultServiceUrl, urlProvider, interval);
+        }
+
+        public static void checkArgument(boolean expression, @Nullable Object errorMessage) {
+            if (!expression) {
+                throw new IllegalArgumentException(String.valueOf(errorMessage));
+            }
         }
     }
 

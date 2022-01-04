@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
@@ -56,6 +57,7 @@ public class ControlledClusterFailoverTest {
         String tlsTrustCertsFilePath = "backup/path";
         String authPluginClassName = "org.apache.pulsar.client.impl.auth.AuthenticationToken";
         String token = "xxxaaabbee";
+        long interval = 1_000;
 
         ControlledClusterFailover.ControlledConfiguration controlledConfiguration =
                 new ControlledClusterFailover.ControlledConfiguration();
@@ -67,11 +69,11 @@ public class ControlledClusterFailoverTest {
         ServiceUrlProvider provider = ControlledClusterFailover.builder()
                 .defaultServiceUrl(defaultServiceUrl)
                 .urlProvider(urlProvider)
+                .checkInterval(interval, TimeUnit.MILLISECONDS)
                 .build();
 
         ControlledClusterFailover controlledClusterFailover = Mockito.spy((ControlledClusterFailover) provider);
         PulsarClient pulsarClient = PowerMockito.mock(PulsarClientImpl.class);
-        Mockito.doReturn(1_000).when(controlledClusterFailover).getInterval();
 
         controlledClusterFailover.initialize(pulsarClient);
 

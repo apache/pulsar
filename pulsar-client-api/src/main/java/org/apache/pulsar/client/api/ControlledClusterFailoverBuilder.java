@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -45,6 +46,14 @@ public interface ControlledClusterFailoverBuilder {
      * @return
      */
     ControlledClusterFailoverBuilder urlProvider(String urlProvider);
+
+    /**
+     * Set the probe check interval.
+     * @param interval
+     * @param timeUnit
+     * @return
+     */
+    ControlledClusterFailoverBuilder checkInterval(long interval, TimeUnit timeUnit);
 
     /**
      * Build the ServiceUrlProvider instance.

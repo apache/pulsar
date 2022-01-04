@@ -30,6 +30,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.Data;
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AutoClusterFailoverBuilder;
@@ -302,13 +303,13 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         private long checkIntervalMs = 30_000;
 
         @Override
-        public AutoClusterFailoverBuilder primary(String primary) {
+        public AutoClusterFailoverBuilder primary(@NonNull String primary) {
             this.primary = primary;
             return this;
         }
 
         @Override
-        public AutoClusterFailoverBuilder secondary(List<String> secondary) {
+        public AutoClusterFailoverBuilder secondary(@NonNull List<String> secondary) {
             this.secondary = secondary;
             return this;
         }
@@ -382,7 +383,8 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         @Override
         public ServiceUrlProvider build() {
             Objects.requireNonNull(primary, "primary service url shouldn't be null");
-            Objects.requireNonNull(secondary, "secondary service url shouldn't be null");
+            checkArgument(secondary != null && secondary.size() > 0,
+                    "secondary cluster service url shouldn't be null and should set at least one");
             checkArgument(failoverDelayNs >= 0, "failoverDelay should >= 0");
             checkArgument(switchBackDelayNs >= 0, "switchBackDelay should >= 0");
             checkArgument(checkIntervalMs >= 0, "checkInterval should >= 0");
