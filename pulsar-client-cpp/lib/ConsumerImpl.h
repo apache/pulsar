@@ -158,7 +158,8 @@ class ConsumerImpl : public ConsumerImplBase,
    private:
     bool waitingForZeroQueueSizeMessage;
     bool uncompressMessageIfNeeded(const ClientConnectionPtr& cnx, const proto::MessageIdData& messageIdData,
-                                   const proto::MessageMetadata& metadata, SharedBuffer& payload);
+                                   const proto::MessageMetadata& metadata, SharedBuffer& payload,
+                                   bool checkMaxMessageSize);
     void discardCorruptedMessage(const ClientConnectionPtr& cnx, const proto::MessageIdData& messageId,
                                  proto::CommandAck::ValidationError validationError);
     void increaseAvailablePermits(const ClientConnectionPtr& currentCnx, int delta = 1);

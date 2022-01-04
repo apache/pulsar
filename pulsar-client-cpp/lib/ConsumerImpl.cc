@@ -362,7 +362,7 @@ Optional<SharedBuffer> ConsumerImpl::processMessageChunk(const SharedBuffer& pay
 
     removeChunkMessage(uuid, false);
     auto wholePayload = chunkedMsgCtx.getBuffer();
-    if (uncompressMessageIfNeeded(cnx, messageIdData, metadata, wholePayload)) {
+    if (uncompressMessageIfNeeded(cnx, messageIdData, metadata, wholePayload, false)) {
         return Optional<SharedBuffer>::of(wholePayload);
     } else {
         return Optional<SharedBuffer>::empty();
@@ -430,7 +430,7 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
                                   config_.getConsumerType() != ConsumerType::ConsumerShared &&
                                   config_.getConsumerType() != ConsumerType::ConsumerKeyShared;
     if (isMessageDecryptable && !isChunkedMessage) {
-        if (!uncompressMessageIfNeeded(cnx, msg.message_id(), metadata, payload)) {
+        if (!uncompressMessageIfNeeded(cnx, msg.message_id(), metadata, payload, true)) {
             // Message was discarded on decompression error
             return;
         }
@@ -650,7 +650,8 @@ bool ConsumerImpl::decryptMessageIfNeeded(const ClientConnectionPtr& cnx, const 
 
 bool ConsumerImpl::uncompressMessageIfNeeded(const ClientConnectionPtr& cnx,
                                              const proto::MessageIdData& messageIdData,
-                                             const proto::MessageMetadata& metadata, SharedBuffer& payload) {
+                                             const proto::MessageMetadata& metadata, SharedBuffer& payload,
+                                             bool checkMaxMessageSize) {
     if (!metadata.has_compression()) {
         return true;
     }
@@ -660,7 +661,7 @@ bool ConsumerImpl::uncompressMessageIfNeeded(const ClientConnectionPtr& cnx,
     uint32_t uncompressedSize = metadata.uncompressed_size();
     uint32_t payloadSize = payload.readableBytes();
     if (cnx) {
-        if (payloadSize > ClientConnection::getMaxMessageSize()) {
+        if (checkMaxMessageSize && payloadSize > ClientConnection::getMaxMessageSize()) {
             // Uncompressed size is itself corrupted since it cannot be bigger than the MaxMessageSize
             LOG_ERROR(getName() << "Got corrupted payload message size " << payloadSize  //
                                 << " at  " << messageIdData.ledgerid() << ":" << messageIdData.entryid());

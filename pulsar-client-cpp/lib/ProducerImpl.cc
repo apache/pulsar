@@ -426,7 +426,7 @@ void ProducerImpl::sendAsyncWithStatsUpdate(const Message& msg, const SendCallba
 
     const bool compressed = !canAddToBatch(msg);
     const auto payload =
-        compressed ? uncompressedPayload : applyCompression(uncompressedPayload, conf_.getCompressionType());
+        compressed ? applyCompression(uncompressedPayload, conf_.getCompressionType()) : uncompressedPayload;
     const auto compressedSize = static_cast<uint32_t>(payload.readableBytes());
     const auto maxMessageSize = static_cast<uint32_t>(ClientConnection::getMaxMessageSize());
 
@@ -445,7 +445,7 @@ void ProducerImpl::sendAsyncWithStatsUpdate(const Message& msg, const SendCallba
     }
 
     const int totalChunks =
-        canAddToBatch(msg) ? 1 : getNumOfChunks(uncompressedSize, ClientConnection::getMaxMessageSize());
+        canAddToBatch(msg) ? 1 : getNumOfChunks(compressedSize, ClientConnection::getMaxMessageSize());
     // Each chunk should be sent individually, so try to acquire extra permits for chunks.
     for (int i = 0; i < (totalChunks - 1); i++) {
         const auto result = canEnqueueRequest(0);  // size is 0 because the memory has already reserved

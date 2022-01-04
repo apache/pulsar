@@ -107,7 +107,9 @@ TEST_P(MessageChunkingTest, testEndToEnd) {
     ASSERT_EQ(msg.getMessageId(), sendMessageId);
 }
 
-INSTANTIATE_TEST_SUITE_P(Pulsar, MessageChunkingTest, ::testing::Values(CompressionNone),
+INSTANTIATE_TEST_SUITE_P(Pulsar, MessageChunkingTest,
+                         ::testing::Values(CompressionNone, CompressionLZ4, CompressionZLib, CompressionZSTD,
+                                           CompressionSNAPPY),
                          [](const ::testing::TestParamInfo<MessageChunkingTest::ParamType>& info) {
                              return toString(info.param);
                          });
