@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
@@ -44,7 +45,7 @@ public interface AutoClusterFailoverBuilder {
      * @param secondary
      * @return
      */
-    AutoClusterFailoverBuilder secondary(String secondary);
+    AutoClusterFailoverBuilder secondary(List<String> secondary);
 
     /**
      * Set primary authentication.
@@ -60,7 +61,7 @@ public interface AutoClusterFailoverBuilder {
      * @param authentication
      * @return
      */
-    AutoClusterFailoverBuilder secondaryAuthentication(Authentication authentication);
+    AutoClusterFailoverBuilder secondaryAuthentication(List<Authentication> authentication);
 
     /**
      * Set primary tlsTrustCertsFilePath.
@@ -76,7 +77,7 @@ public interface AutoClusterFailoverBuilder {
      * @param tlsTrustCertsFilePath
      * @return
      */
-    AutoClusterFailoverBuilder secondaryTlsTrustCertsFilePath(String tlsTrustCertsFilePath);
+    AutoClusterFailoverBuilder secondaryTlsTrustCertsFilePath(List<String> tlsTrustCertsFilePath);
 
     /**
      * Set primary tlsTrustStorePath.
@@ -92,7 +93,7 @@ public interface AutoClusterFailoverBuilder {
      * @param tlsTrustStorePath
      * @return
      */
-    AutoClusterFailoverBuilder secondaryTlsTrustStorePath(String tlsTrustStorePath);
+    AutoClusterFailoverBuilder secondaryTlsTrustStorePath(List<String> tlsTrustStorePath);
 
     /**
      * Set primary tlsTrustStorePassword.
@@ -108,7 +109,7 @@ public interface AutoClusterFailoverBuilder {
      * @param tlsTrustStorePassword
      * @return
      */
-    AutoClusterFailoverBuilder secondaryTlsTrustStorePassword(String tlsTrustStorePassword);
+    AutoClusterFailoverBuilder secondaryTlsTrustStorePassword(List<String> tlsTrustStorePassword);
     /**
      * Set the switch failoverDelay. When one cluster failed longer than failoverDelay, it will trigger cluster switch.
      *
@@ -127,6 +128,15 @@ public interface AutoClusterFailoverBuilder {
      * @return
      */
     AutoClusterFailoverBuilder switchBackDelay(long switchBackDelay, TimeUnit timeUnit);
+
+    /**
+     * Set the checkInterval for probe.
+     *
+     * @param interval
+     * @param timeUnit
+     * @return
+     */
+    AutoClusterFailoverBuilder checkInterval(long interval, TimeUnit timeUnit);
 
     /**
      * Build the ServiceUrlProvider instance.
