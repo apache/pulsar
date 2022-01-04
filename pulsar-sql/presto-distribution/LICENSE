@@ -485,12 +485,12 @@ MIT License
    - pcollections-2.1.2.jar
  * SLF4J
    - slf4j-jdk14-1.7.29.jar
-   - slf4j-api-1.7.25.jar
+   - slf4j-api-1.7.32.jar
    - slf4j-jdk14-1.7.30.jar
  * JCL 1.2 Implemented Over SLF4J
-   - jcl-over-slf4j-1.7.25.jar
+   - jcl-over-slf4j-1.7.32.jar
  * JUL to SLF4J Bridge
-   - jul-to-slf4j-1.7.25.jar
+   - jul-to-slf4j-1.7.32.jar
  * Checker Qual
    - checker-qual-3.5.0.jar
 
