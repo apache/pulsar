@@ -119,7 +119,6 @@ module.exports = {
           position: "left",
           label: "Docs",
         },
-        // { to: "/versions", label: "Versions", position: "left" },
         { to: "/download", label: "Download", position: "left" },
         { to: "/blog", label: "Blog", position: "left" },
         {
@@ -148,13 +147,6 @@ module.exports = {
             },
           ],
         },
-        // { page: "download", label: "Download" },
-        // { doc: "client-libraries", label: "Clients" },
-        // { href: "#restapis", label: "REST APIs" },
-        // { href: "#cli", label: "Cli" },
-        // // { blog: true, label: "Blog" },
-        // { href: "#community", label: "Community" },
-        // { href: "#apache", label: "Apache" },
         {
           href: "https://github.com/apache/pulsar",
           label: "GitHub",

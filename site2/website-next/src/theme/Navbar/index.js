@@ -301,7 +301,7 @@ function Navbar() {
               setVersion(latestStableVersion);
             }}
           />
-          <a className="font-bold underline" href="/versions/">
+          <a className="font-bold underline mr-4 -ml-4" href="/versions/">
             {getVersion()}
           </a>
           {leftItems.map((item, i) => {
