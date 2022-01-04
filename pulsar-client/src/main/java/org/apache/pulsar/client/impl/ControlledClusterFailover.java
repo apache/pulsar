@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
@@ -26,24 +28,37 @@ import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ControlledClusterFailoverBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 @Slf4j
-@Data
 public class ControlledClusterFailover implements ServiceUrlProvider {
     private PulsarClient pulsarClient;
     private volatile String currentPulsarServiceUrl;
+    private volatile ControlledConfiguration currentControlledConfiguration;
     private final URL pulsarUrlProvider;
     private final ScheduledExecutorService executor;
     private final int interval = 30_000;
+    private ObjectMapper objectMapper = null;
+
+    private static final String AUTH_SASL = "org.apache.pulsar.client.impl.auth.AuthenticationSasl";
+    private static final String AUTH_ATHENZ = "org.apache.pulsar.client.impl.auth.AuthenticationAthenz";
+    private static final String AUTH_OAUTH2 = "org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2";
+    private static final String AUTH_TLS = "org.apache.pulsar.client.impl.auth.AuthenticationTls";
+    private static final String AUTH_TOKEN = "org.apache.pulsar.client.impl.auth.AuthenticationToken";
+    private static final String AUTH_KEY_STORE_TLS = "org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls";
 
     private ControlledClusterFailover(String defaultServiceUrl, String urlProvider) throws IOException {
         this.currentPulsarServiceUrl = defaultServiceUrl;
@@ -58,33 +73,153 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
 
         // start to check service url every 30 seconds
         this.executor.scheduleAtFixedRate(catchingAndLoggingThrowables(() -> {
-            String newPulsarUrl = null;
+            ControlledConfiguration controlledConfiguration = null;
             try {
-                newPulsarUrl = fetchServiceUrl();
-                if (!Strings.isNullOrEmpty(newPulsarUrl) &&
-                        !currentPulsarServiceUrl.equals(newPulsarUrl)) {
-                    log.info("Switch Pulsar service url from {} to {}", currentPulsarServiceUrl, newPulsarUrl);
-                    pulsarClient.updateServiceUrl(newPulsarUrl);
-                    currentPulsarServiceUrl = newPulsarUrl;
+                controlledConfiguration = fetchControlledConfiguration();
+                if (controlledConfiguration != null
+                        && !Strings.isNullOrEmpty(controlledConfiguration.getServiceUrl())
+                        && !controlledConfiguration.equals(currentControlledConfiguration)) {
+                    log.info("Switch Pulsar service url from {} to {}",
+                            currentControlledConfiguration, controlledConfiguration.toString());
+
+                    Authentication authentication = null;
+                    if (!Strings.isNullOrEmpty(controlledConfiguration.authPluginClassName)) {
+                        String authPluginClassName = controlledConfiguration.authPluginClassName;
+                        Map<String, String> authParams = controlledConfiguration.getAuthParams();
+                        String authParamsString = controlledConfiguration.getAuthParamsString();
+                        String token = controlledConfiguration.getToken();
+
+                        switch (authPluginClassName) {
+                            case AUTH_SASL:
+                            case AUTH_ATHENZ:
+                                if (authParams != null && !authParams.isEmpty()) {
+                                    authentication =
+                                            AuthenticationFactory.create(authPluginClassName, authParams);
+                                }
+                                break;
+
+                            case AUTH_TOKEN:
+                                if (!Strings.isNullOrEmpty(token)) {
+                                    authentication = AuthenticationFactory.token(token);
+                                }
+                                break;
+
+                            case AUTH_OAUTH2:
+                            case AUTH_TLS:
+                            case AUTH_KEY_STORE_TLS:
+                            default:
+                                if (!Strings.isNullOrEmpty(authParamsString)) {
+                                    authentication =
+                                            AuthenticationFactory.create(authPluginClassName, authParamsString);
+                                }
+                                break;
+                        }
+                    }
+
+                    String tlsTrustCertsFilePath = controlledConfiguration.getTlsTrustCertsFilePath();
+                    String serviceUrl = controlledConfiguration.getServiceUrl();
+
+                    if (authentication != null) {
+                        pulsarClient.updateAuthentication(authentication);
+                    }
+
+                    if (!Strings.isNullOrEmpty(tlsTrustCertsFilePath)) {
+                        pulsarClient.updateTlsTrustCertsFilePath(tlsTrustCertsFilePath);
+                    }
+
+                    pulsarClient.updateServiceUrl(serviceUrl);
+                    currentPulsarServiceUrl = serviceUrl;
+                    currentControlledConfiguration = controlledConfiguration;
                 }
             } catch (IOException e) {
-                log.error("Failed to switch new Pulsar URL, current: {}, new: {}",
-                        currentPulsarServiceUrl, newPulsarUrl, e);
+                log.error("Failed to switch new Pulsar url, current: {}, new: {}",
+                        currentControlledConfiguration, controlledConfiguration, e);
             }
         }), getInterval(), getInterval(), TimeUnit.MILLISECONDS);
     }
 
-    String fetchServiceUrl() throws IOException {
+    public int getInterval() {
+        return this.interval;
+    }
+
+    public String getCurrentPulsarServiceUrl() {
+        return this.currentPulsarServiceUrl;
+    }
+
+    public URL getPulsarUrlProvider() {
+        return this.pulsarUrlProvider;
+    }
+
+    protected ControlledConfiguration fetchControlledConfiguration() throws IOException {
         // call the service to get service URL
         InputStream inputStream = null;
         try {
             URLConnection conn = pulsarUrlProvider.openConnection();
             inputStream = conn.getInputStream();
-            return new String(IOUtils.toByteArray(inputStream), StandardCharsets.UTF_8);
+            String jsonStr = new String(IOUtils.toByteArray(inputStream), StandardCharsets.UTF_8);
+            ObjectMapper objectMapper = getObjectMapper();
+            return objectMapper.readValue(jsonStr, ControlledConfiguration.class);
+        } catch (IOException e) {
+            log.warn("Failed to fetch controlled configuration. ", e);
+            return null;
         } finally {
             if (inputStream != null) {
                 inputStream.close();
             }
+        }
+    }
+
+    private ObjectMapper getObjectMapper() {
+        if (objectMapper == null) {
+            objectMapper = new ObjectMapper();
+        }
+        return objectMapper;
+    }
+
+    @Data
+    protected static class ControlledConfiguration {
+        private String serviceUrl;
+        private String tlsTrustCertsFilePath;
+
+        private String authPluginClassName;
+
+        private String authParamsString;
+        private String token;
+        private Map<String, String> authParams;
+
+        public String toJson() {
+            ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
+            try {
+                return objectMapper.writeValueAsString(this);
+            } catch (JsonProcessingException e) {
+                log.warn("Failed to write as json. ", e);
+                return null;
+            }
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj instanceof ControlledConfiguration) {
+                ControlledConfiguration other = (ControlledConfiguration) obj;
+                return Objects.equals(serviceUrl, other.serviceUrl)
+                        && Objects.equals(tlsTrustCertsFilePath, other.tlsTrustCertsFilePath)
+                        && Objects.equals(authPluginClassName, other.authPluginClassName)
+                        && Objects.equals(authParamsString, other.authParamsString)
+                        && Objects.equals(token, other.token)
+                        && Objects.equals(authParams, other.authParams);
+            }
+
+            return false;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(serviceUrl,
+                    tlsTrustCertsFilePath,
+                    authPluginClassName,
+                    authParamsString,
+                    token,
+                    authParams);
         }
     }
 

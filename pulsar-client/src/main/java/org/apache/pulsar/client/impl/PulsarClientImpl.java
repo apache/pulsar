@@ -27,6 +27,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.io.IOException;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -865,14 +866,24 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     @Override
-    public synchronized void updateServiceUrlAndAuthentication(String serviceUrl, Authentication authentication)
-            throws PulsarClientException {
-        log.info("Updating service URL to {} and authentication to {}", serviceUrl, authentication);
-
-        conf.setServiceUrl(serviceUrl);
+    public void updateAuthentication(Authentication authentication) throws IOException {
+        log.info("Updating authentication to {}", authentication);
+        conf.getAuthentication().close();
         conf.setAuthentication(authentication);
-        lookup.updateServiceUrl(serviceUrl);
-        cnxPool.closeAllConnections();
+        conf.getAuthentication().start();
+    }
+
+    @Override
+    public void updateTlsTrustCertsFilePath(String tlsTrustCertsFilePath) {
+        log.info("Updating tlsTrustCertsFilePath to {}", tlsTrustCertsFilePath);
+        conf.setTlsTrustCertsFilePath(tlsTrustCertsFilePath);
+    }
+
+    @Override
+    public void updateTlsTrustStorePathAndPassword(String tlsTrustStorePath, String tlsTrustStorePassword) {
+        log.info("Updating tlsTrustStorePath to {}, tlsTrustStorePassword to *****", tlsTrustStorePath);
+        conf.setTlsTrustStorePath(tlsTrustStorePath);
+        conf.setTlsTrustStorePassword(tlsTrustStorePassword);
     }
 
     public CompletableFuture<ClientCnx> getConnection(final String topic) {

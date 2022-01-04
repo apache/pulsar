@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.base.Strings;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.Objects;
@@ -32,7 +33,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AutoClusterFailoverBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -45,20 +45,35 @@ public class AutoClusterFailover implements ServiceUrlProvider {
     private final String secondary;
     private final Authentication primaryAuthentication;
     private final Authentication secondaryAuthentication;
+    private final String primaryTlsTrustCertsFilePath;
+    private final String secondaryTlsTrustCertsFilePath;
+    private String primaryTlsTrustStorePath;
+    private String secondaryTlsTrustStorePath;
+    private String primaryTlsTrustStorePassword;
+    private String secondaryTlsTrustStorePassword;
     private final long failoverDelayNs;
     private final long switchBackDelayNs;
     private final ScheduledExecutorService executor;
     private long recoverTimestamp;
     private long failedTimestamp;
     private final int interval = 30_000;
-    private final int TIMEOUT = 30_000;
+    private static final int TIMEOUT = 30_000;
 
     private AutoClusterFailover(String primary, String secondary, long failoverDelayNs, long switchBackDelayNs,
-                                Authentication primaryAuthentication, Authentication secondaryAuthentication) {
+                                Authentication primaryAuthentication, Authentication secondaryAuthentication,
+                                String primaryTlsTrustCertsFilePath, String secondaryTlsTrustCertsFilePath,
+                                String primaryTlsTrustStorePath, String secondaryTlsTrustStorePath,
+                                String primaryTlsTrustStorePassword, String secondaryTlsTrustStorePassword) {
         this.primary = primary;
         this.secondary = secondary;
         this.primaryAuthentication = primaryAuthentication;
         this.secondaryAuthentication = secondaryAuthentication;
+        this.primaryTlsTrustCertsFilePath = primaryTlsTrustCertsFilePath;
+        this.secondaryTlsTrustCertsFilePath = secondaryTlsTrustCertsFilePath;
+        this.primaryTlsTrustStorePath = primaryTlsTrustStorePath;
+        this.secondaryTlsTrustStorePath = secondaryTlsTrustStorePath;
+        this.primaryTlsTrustStorePassword = primaryTlsTrustStorePassword;
+        this.secondaryTlsTrustStorePassword = secondaryTlsTrustStorePassword;
         this.failoverDelayNs = failoverDelayNs;
         this.switchBackDelayNs = switchBackDelayNs;
         this.currentPulsarServiceUrl = primary;
@@ -76,12 +91,15 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         this.executor.scheduleAtFixedRate(catchingAndLoggingThrowables(() -> {
             if (currentPulsarServiceUrl.equals(primary)) {
                 // current service url is primary, probe whether it is down
-                probeAndUpdateServiceUrl(secondary, secondaryAuthentication);
+                probeAndUpdateServiceUrl(secondary, secondaryAuthentication, secondaryTlsTrustCertsFilePath,
+                        secondaryTlsTrustStorePath, secondaryTlsTrustStorePassword);
             } else {
                 // current service url is secondary, probe whether it is down
-                probeAndUpdateServiceUrl(primary, primaryAuthentication);
+                probeAndUpdateServiceUrl(primary, primaryAuthentication, primaryTlsTrustCertsFilePath,
+                        primaryTlsTrustStorePath, primaryTlsTrustStorePassword);
                 // secondary cluster is up, check whether need to switch back to primary
-                probeAndCheckSwitchBack(primary, primaryAuthentication);
+                probeAndCheckSwitchBack(primary, primaryAuthentication, primaryTlsTrustCertsFilePath,
+                        primaryTlsTrustStorePath, primaryTlsTrustStorePassword);
             }
         }), getInterval(), getInterval(), TimeUnit.MILLISECONDS);
 
@@ -109,7 +127,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
             socket.close();
             return true;
         } catch (Exception e) {
-            log.error("Failed to probe available, url: {}", url, e);
+            log.warn("Failed to probe available, url: {}", url, e);
             return false;
         }
     }
@@ -146,17 +164,37 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         return Math.max(0L, Math.round(nanos / 1_000_000.0d));
     }
 
-    private void updateServiceUrl(String target, Authentication authentication) {
+    private void updateServiceUrl(String target,
+                                  Authentication authentication,
+                                  String tlsTrustCertsFilePath,
+                                  String tlsTrustStorePath,
+                                  String tlsTrustStorePassword) {
         try {
-            pulsarClient.updateServiceUrlAndAuthentication(target, authentication);
+            if (!Strings.isNullOrEmpty(tlsTrustCertsFilePath)) {
+                pulsarClient.updateTlsTrustCertsFilePath(tlsTrustCertsFilePath);
+            }
+
+            if (authentication != null) {
+                pulsarClient.updateAuthentication(authentication);
+            }
+
+            if (!Strings.isNullOrEmpty(tlsTrustStorePath)) {
+                pulsarClient.updateTlsTrustStorePathAndPassword(tlsTrustStorePath, tlsTrustStorePassword);
+            }
+
+            pulsarClient.updateServiceUrl(target);
             currentPulsarServiceUrl = target;
-        } catch (PulsarClientException e) {
+        } catch (IOException e) {
             log.error("Current Pulsar service is {}, "
                     + "failed to switch back to {} ", currentPulsarServiceUrl, target, e);
         }
     }
 
-    private void probeAndUpdateServiceUrl(String targetServiceUrl, Authentication authentication) {
+    private void probeAndUpdateServiceUrl(String targetServiceUrl,
+                                          Authentication authentication,
+                                          String tlsTrustCertsFilePath,
+                                          String tlsTrustStorePath,
+                                          String tlsTrustStorePassword) {
         if (probeAvailable(currentPulsarServiceUrl)) {
             failedTimestamp = -1;
             return;
@@ -171,7 +209,8 @@ public class AutoClusterFailover implements ServiceUrlProvider {
                                 + "switch to the service {}. The current service down at {}",
                         currentPulsarServiceUrl, nanosToMillis(currentTimestamp - failedTimestamp),
                         targetServiceUrl, failedTimestamp);
-                updateServiceUrl(targetServiceUrl, authentication);
+                updateServiceUrl(targetServiceUrl, authentication, tlsTrustCertsFilePath,
+                        tlsTrustStorePath, tlsTrustStorePassword);
                 failedTimestamp = -1;
             } else {
                 log.error("Current Pulsar service is {}, it has been down for {} ms. "
@@ -183,7 +222,11 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         }
     }
 
-    private void probeAndCheckSwitchBack(String target, Authentication authentication) {
+    private void probeAndCheckSwitchBack(String target,
+                                         Authentication authentication,
+                                         String tlsTrustCertsFilePath,
+                                         String tlsTrustStorePath,
+                                         String tlsTrustStorePassword) {
         long currentTimestamp = System.nanoTime();
         if (!probeAvailable(target)) {
             recoverTimestamp = -1;
@@ -197,7 +240,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
                             + "the primary service: {} has been recover for {} ms, "
                             + "switch back to the primary service",
                     currentPulsarServiceUrl, target, nanosToMillis(currentTimestamp - recoverTimestamp));
-            updateServiceUrl(target, authentication);
+            updateServiceUrl(target, authentication, tlsTrustCertsFilePath, tlsTrustStorePath, tlsTrustStorePassword);
             recoverTimestamp = -1;
         }
     }
@@ -207,6 +250,12 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         private String secondary;
         private Authentication primaryAuthentication = null;
         private Authentication secondaryAuthentication = null;
+        private String primaryTlsTrustCertsFilePath = null;
+        private String secondaryTlsTrustCertsFilePath = null;
+        private String primaryTlsTrustStorePath = null;
+        private String secondaryTlsTrustStorePath = null;
+        private String primaryTlsTrustStorePassword = null;
+        private String secondaryTlsTrustStorePassword = null;
         private long failoverDelayNs;
         private long switchBackDelayNs;
 
@@ -231,6 +280,36 @@ public class AutoClusterFailover implements ServiceUrlProvider {
             return this;
         }
 
+        public AutoClusterFailoverBuilder primaryTlsTrustCertsFilePath(String tlsTrustCertsFilePath) {
+            this.primaryTlsTrustCertsFilePath = tlsTrustCertsFilePath;
+            return this;
+        }
+
+        public AutoClusterFailoverBuilder secondaryTlsTrustCertsFilePath(String tlsTrustCertsFilePath) {
+            this.secondaryTlsTrustCertsFilePath = tlsTrustCertsFilePath;
+            return this;
+        }
+
+        public AutoClusterFailoverBuilder primaryTlsTrustStorePath(String tlsTrustStorePath) {
+            this.primaryTlsTrustStorePath = tlsTrustStorePath;
+            return this;
+        }
+
+        public AutoClusterFailoverBuilder secondaryTlsTrustStorePath(String tlsTrustStorePath) {
+            this.secondaryTlsTrustStorePath = tlsTrustStorePath;
+            return this;
+        }
+
+        public AutoClusterFailoverBuilder primaryTlsTrustStorePassword(String tlsTrustStorePassword) {
+            this.primaryTlsTrustStorePassword = tlsTrustStorePassword;
+            return this;
+        }
+
+        public AutoClusterFailoverBuilder secondaryTlsTrustStorePassword(String tlsTrustStorePassword) {
+            this.secondaryTlsTrustStorePassword = tlsTrustStorePassword;
+            return this;
+        }
+
         public AutoClusterFailoverBuilder failoverDelay(long failoverDelay, TimeUnit timeUnit) {
             this.failoverDelayNs = timeUnit.toNanos(failoverDelay);
             return this;
@@ -248,7 +327,10 @@ public class AutoClusterFailover implements ServiceUrlProvider {
             checkArgument(switchBackDelayNs >= 0, "switchBackDelayMs should >= 0");
 
             return new AutoClusterFailover(primary, secondary, failoverDelayNs, switchBackDelayNs,
-                    primaryAuthentication, secondaryAuthentication);
+                    primaryAuthentication, secondaryAuthentication,
+                    primaryTlsTrustCertsFilePath, secondaryTlsTrustCertsFilePath,
+                    primaryTlsTrustStorePath, secondaryTlsTrustStorePath,
+                    primaryTlsTrustStorePassword, secondaryTlsTrustStorePassword);
         }
 
         public static void checkArgument(boolean expression, @Nullable Object errorMessage) {

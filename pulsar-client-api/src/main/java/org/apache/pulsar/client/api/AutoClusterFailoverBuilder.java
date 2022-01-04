@@ -47,7 +47,7 @@ public interface AutoClusterFailoverBuilder {
     AutoClusterFailoverBuilder secondary(String secondary);
 
     /**
-     * set primary authentication.
+     * Set primary authentication.
      *
      * @param authentication
      * @return
@@ -55,13 +55,60 @@ public interface AutoClusterFailoverBuilder {
     AutoClusterFailoverBuilder primaryAuthentication(Authentication authentication);
 
     /**
-     * set secondary authentication.
+     * Set secondary authentication.
      *
      * @param authentication
      * @return
      */
     AutoClusterFailoverBuilder secondaryAuthentication(Authentication authentication);
 
+    /**
+     * Set primary tlsTrustCertsFilePath.
+     *
+     * @param tlsTrustCertsFilePath
+     * @return
+     */
+    AutoClusterFailoverBuilder primaryTlsTrustCertsFilePath(String tlsTrustCertsFilePath);
+
+    /**
+     * Set secondary tlsTrustCertsFilePath.
+     *
+     * @param tlsTrustCertsFilePath
+     * @return
+     */
+    AutoClusterFailoverBuilder secondaryTlsTrustCertsFilePath(String tlsTrustCertsFilePath);
+
+    /**
+     * Set primary tlsTrustStorePath.
+     *
+     * @param tlsTrustStorePath
+     * @return
+     */
+    AutoClusterFailoverBuilder primaryTlsTrustStorePath(String tlsTrustStorePath);
+
+    /**
+     * Set secondary tlsTrustStorePath.
+     *
+     * @param tlsTrustStorePath
+     * @return
+     */
+    AutoClusterFailoverBuilder secondaryTlsTrustStorePath(String tlsTrustStorePath);
+
+    /**
+     * Set primary tlsTrustStorePassword.
+     *
+     * @param tlsTrustStorePassword
+     * @return
+     */
+    AutoClusterFailoverBuilder primaryTlsTrustStorePassword(String tlsTrustStorePassword);
+
+    /**
+     * Set secondary tlsTrustStorePassword.
+     *
+     * @param tlsTrustStorePassword
+     * @return
+     */
+    AutoClusterFailoverBuilder secondaryTlsTrustStorePassword(String tlsTrustStorePassword);
     /**
      * Set the switch failoverDelay. When one cluster failed longer than failoverDelay, it will trigger cluster switch.
      *
