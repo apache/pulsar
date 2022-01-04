@@ -58,10 +58,10 @@ public abstract class AbstractReplicator {
 
     protected static final AtomicReferenceFieldUpdater<AbstractReplicator, State> STATE_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(AbstractReplicator.class, State.class, "state");
-    private volatile State state = State.Init;
+    private volatile State state = State.Stopped;
 
     protected enum State {
-        Init, Starting, Started, Stopping, Stopped
+        Stopped, Starting, Started, Stopping
     }
 
     public AbstractReplicator(String topicName, String replicatorPrefix, String localCluster, String remoteCluster,
@@ -85,7 +85,7 @@ public abstract class AbstractReplicator {
                 .maxPendingMessages(producerQueueSize) //
                 .producerName(String.format("%s%s%s", getReplicatorName(replicatorPrefix, localCluster),
                         REPL_PRODUCER_NAME_DELIMITER, remoteCluster));
-        STATE_UPDATER.set(this, State.Init);
+        STATE_UPDATER.set(this, State.Stopped);
     }
 
     protected abstract void readEntries(org.apache.pulsar.client.api.Producer<byte[]> producer);
@@ -115,7 +115,7 @@ public abstract class AbstractReplicator {
             return;
         }
         State state = STATE_UPDATER.get(this);
-        if (!STATE_UPDATER.compareAndSet(this, State.Init, State.Starting)) {
+        if (!STATE_UPDATER.compareAndSet(this, State.Stopped, State.Starting)) {
             if (state == State.Started) {
                 // Already running
                 if (log.isDebugEnabled()) {
@@ -133,7 +133,7 @@ public abstract class AbstractReplicator {
         producerBuilder.createAsync().thenAccept(producer -> {
             readEntries(producer);
         }).exceptionally(ex -> {
-            if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Init)) {
+            if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopped)) {
                 long waitTimeMs = backOff.next();
                 log.warn("[{}][{} -> {}] Failed to create remote producer ({}), retrying in {} s", topicName,
                         localCluster, remoteCluster, ex.getMessage(), waitTimeMs / 1000.0);
