@@ -107,6 +107,14 @@ function DefaultNavbarItemMobile({
   isDropdownItem: _isDropdownItem,
   ...props
 }) {
+  let { link, label } = props;
+  if (link) {
+    return (
+      <a href={link} rel="noopener noreferrer" className="menu__link">
+        <span>{label}</span>
+      </a>
+    );
+  }
   return (
     <li className="menu__list-item">
       <NavLink className={clsx("menu__link", className)} {...props} />

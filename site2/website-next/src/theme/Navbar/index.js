@@ -204,9 +204,34 @@ function NavbarMobileSidebar({ sidebarShown, toggleSidebar }) {
       >
         <div className="navbar-sidebar__item menu">
           <ul className="menu__list">
-            {items.map((item, i) => (
-              <NavbarItem mobile {...item} onClick={toggleSidebar} key={i} />
-            ))}
+            {items.map((item, i) => {
+              if (item.label == "REST APIs") {
+                item.items = item.items.map((e) => {
+                  let param = "swagger";
+                  if (e.to.indexOf("functions") > -1) {
+                    param = "swaggerfunctions";
+                  } else if (e.to.indexOf("source") > -1) {
+                    param = "swaggersource";
+                  } else if (e.to.indexOf("sink") > -1) {
+                    param = "swaggersink";
+                  } else if (e.to.indexOf("packages") > -1) {
+                    param = "swaggerpackages";
+                  }
+                  return {
+                    ...e,
+                    link:
+                      e.to +
+                      "?version=" +
+                      getVersion() +
+                      "&apiversion=" +
+                      getApiVersion(param),
+                  };
+                });
+              }
+              return (
+                <NavbarItem mobile {...item} onClick={toggleSidebar} key={i} />
+              );
+            })}
           </ul>
         </div>
 
@@ -279,62 +304,32 @@ function Navbar() {
           <a className="font-bold underline" href="/versions/">
             {getVersion()}
           </a>
-          {leftItems.map((item, i) => (
-            <NavbarItem {...item} key={i} />
-          ))}
-          <NavbarItem
-            {...{
-              label: "REST APIs",
-              position: "left",
-              items: [
-                {
-                  label: "Admin REST API",
+          {leftItems.map((item, i) => {
+            if (item.label == "REST APIs") {
+              item.items = item.items.map((e) => {
+                let param = "swagger";
+                if (e.to.indexOf("functions") > -1) {
+                  param = "swaggerfunctions";
+                } else if (e.to.indexOf("source") > -1) {
+                  param = "swaggersource";
+                } else if (e.to.indexOf("sink") > -1) {
+                  param = "swaggersink";
+                } else if (e.to.indexOf("packages") > -1) {
+                  param = "swaggerpackages";
+                }
+                return {
+                  ...e,
                   link:
-                    location.origin +
-                    "/admin-rest-api?version=" +
+                    e.to +
+                    "?version=" +
                     getVersion() +
                     "&apiversion=" +
-                    getApiVersion("swagger"),
-                },
-                {
-                  label: "Functions",
-                  link:
-                    location.origin +
-                    "/functions-rest-api?version=" +
-                    getVersion() +
-                    "&apiversion=" +
-                    getApiVersion("swaggerfunctions"),
-                },
-                {
-                  label: "Sources",
-                  link:
-                    location.origin +
-                    "/source-rest-api?version=" +
-                    getVersion() +
-                    "&apiversion=" +
-                    getApiVersion("swaggersource"),
-                },
-                {
-                  label: "Sinks",
-                  link:
-                    location.origin +
-                    "/sink-rest-api?version=" +
-                    getVersion() +
-                    "&apiversion=" +
-                    getApiVersion("swaggersink"),
-                },
-                {
-                  label: "Packages",
-                  link:
-                    location.origin +
-                    "/packages-rest-api?version=" +
-                    getVersion() +
-                    "&apiversion=" +
-                    getApiVersion("swaggerpackages"),
-                },
-              ],
-            }}
-          />
+                    getApiVersion(param),
+                };
+              });
+            }
+            return <NavbarItem {...item} key={i} />;
+          })}
         </div>
         <div className="navbar__items navbar__items--right">
           {rightItems.map((item, i) => (

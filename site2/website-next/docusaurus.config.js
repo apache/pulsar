@@ -122,16 +122,32 @@ module.exports = {
         // { to: "/versions", label: "Versions", position: "left" },
         { to: "/download", label: "Download", position: "left" },
         { to: "/blog", label: "Blog", position: "left" },
-        // {
-        //   label: "REST APIs",
-        //   position: "left",
-        //   items: [
-        //     {
-        //       label: "Admin REST API",
-        //       to: "admin-rest-api",
-        //     },
-        //   ],
-        // },
+        {
+          label: "REST APIs",
+          position: "left",
+          items: [
+            {
+              label: "Admin REST API",
+              to: "/admin-rest-api",
+            },
+            {
+              label: "Functions",
+              to: "/functions-rest-api",
+            },
+            {
+              label: "Sources",
+              to: "/source-rest-api",
+            },
+            {
+              label: "Sinks",
+              to: "/sink-rest-api",
+            },
+            {
+              label: "Packages",
+              to: "/packages-rest-api",
+            },
+          ],
+        },
         // { page: "download", label: "Download" },
         // { doc: "client-libraries", label: "Clients" },
         // { href: "#restapis", label: "REST APIs" },
