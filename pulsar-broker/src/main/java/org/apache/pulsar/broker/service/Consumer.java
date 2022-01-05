@@ -754,7 +754,7 @@ public class Consumer {
         return priorityLevel;
     }
 
-    public void redeliverUnacknowledgedMessages(long epoch) {
+    public void redeliverUnacknowledgedMessages() {
         // cleanup unackedMessage bucket and redeliver those unack-msgs again
         clearUnAckedMsgs();
         blockedConsumerOnUnackedMsgs = false;
@@ -777,7 +777,7 @@ public class Consumer {
             msgRedeliver.recordMultipleEvents(totalRedeliveryMessages.intValue(), totalRedeliveryMessages.intValue());
             subscription.redeliverUnacknowledgedMessages(this, pendingPositions);
         } else {
-            subscription.redeliverUnacknowledgedMessages(this, epoch);
+            subscription.redeliverUnacknowledgedMessages(this);
         }
 
         flowConsumerBlockedPermits(this);

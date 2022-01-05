@@ -712,7 +712,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     @Override
-    public synchronized CompletableFuture<Void> redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
+    public synchronized void redeliverUnacknowledgedMessages(Consumer consumer) {
         consumer.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
             addMessageToReplay(ledgerId, entryId, stickyKeyHash);
         });
@@ -721,7 +721,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     redeliveryMessages);
         }
         readMoreEntries();
-        return CompletableFuture.completedFuture(null);
     }
 
     @Override

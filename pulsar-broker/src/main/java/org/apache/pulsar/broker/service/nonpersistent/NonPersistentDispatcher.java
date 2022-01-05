@@ -56,9 +56,8 @@ public interface NonPersistentDispatcher extends Dispatcher {
     boolean hasPermits();
 
     @Override
-    default CompletableFuture<Void> redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
+    default void redeliverUnacknowledgedMessages(Consumer consumer) {
         // No-op
-        return CompletableFuture.completedFuture(null);
     }
 
     @Override
