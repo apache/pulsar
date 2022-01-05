@@ -49,8 +49,20 @@ static std::string toString(CompressionType compressionType) {
     }
 }
 
+inline std::string createLargeMessage() {
+    std::string largeMessage(maxMessageSize * 3, 'a');
+    std::default_random_engine e(time(nullptr));
+    std::uniform_int_distribution<unsigned> u(0, 25);
+    for (size_t i = 0; i < largeMessage.size(); i++) {
+        largeMessage[i] = 'a' + u(e);
+    }
+    return largeMessage;
+}
+
 class MessageChunkingTest : public ::testing::TestWithParam<CompressionType> {
    public:
+    static std::string largeMessage;
+
     void TearDown() override { client_.close(); }
 
     void createProducer(const std::string& topic, Producer& producer) {
@@ -71,6 +83,8 @@ class MessageChunkingTest : public ::testing::TestWithParam<CompressionType> {
     Client client_{lookupUrl};
 };
 
+std::string MessageChunkingTest::largeMessage = createLargeMessage();
+
 TEST_F(MessageChunkingTest, testInvalidConfig) {
     Client client(lookupUrl);
     ProducerConfiguration conf;
@@ -89,22 +103,27 @@ TEST_P(MessageChunkingTest, testEndToEnd) {
     Producer producer;
     createProducer(topic, producer);
 
-    std::string largeMessage(maxMessageSize * 3, 'a');
-    std::default_random_engine e(time(nullptr));
-    std::uniform_int_distribution<unsigned> u(0, 25);
-    for (auto& ch : largeMessage) {
-        ch = 'a' + u(e);
+    constexpr int numMessages = 10;
+
+    std::vector<MessageId> sendMessageIds;
+    for (int i = 0; i < numMessages; i++) {
+        MessageId messageId;
+        ASSERT_EQ(ResultOk, producer.send(MessageBuilder().setContent(largeMessage).build(), messageId));
+        LOG_INFO("Send " << i << " to " << messageId);
+        sendMessageIds.emplace_back(messageId);
     }
 
-    MessageId sendMessageId;
-    ASSERT_EQ(ResultOk, producer.send(MessageBuilder().setContent(largeMessage).build(), sendMessageId));
-    LOG_INFO("Send to " << sendMessageId);
-
     Message msg;
-    ASSERT_EQ(ResultOk, consumer.receive(msg, 3000));
-    LOG_INFO("Receive " << msg.getLength() << " bytes from " << msg.getMessageId());
-    ASSERT_EQ(msg.getDataAsString(), largeMessage);
-    ASSERT_EQ(msg.getMessageId(), sendMessageId);
+    std::vector<MessageId> receivedMessageIds;
+    for (int i = 0; i < numMessages; i++) {
+        ASSERT_EQ(ResultOk, consumer.receive(msg, 3000));
+        LOG_INFO("Receive " << msg.getLength() << " bytes from " << msg.getMessageId());
+        ASSERT_EQ(msg.getDataAsString(), largeMessage);
+        receivedMessageIds.emplace_back(msg.getMessageId());
+    }
+    ASSERT_EQ(receivedMessageIds, sendMessageIds);
+    ASSERT_EQ(receivedMessageIds.front().ledgerId(), receivedMessageIds.front().ledgerId());
+    ASSERT_GT(receivedMessageIds.back().entryId(), numMessages);
 }
 
 INSTANTIATE_TEST_SUITE_P(Pulsar, MessageChunkingTest,

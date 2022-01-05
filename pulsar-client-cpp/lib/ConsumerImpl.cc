@@ -322,33 +322,40 @@ Optional<SharedBuffer> ConsumerImpl::processMessageChunk(const SharedBuffer& pay
                                                  << payload.readableBytes() << " bytes");
 
     Lock lock(chunkProcessMutex_);
-    auto it = chunkedMessagesMap_.find(uuid);
+    auto it = chunkedMessageCache_.find(uuid);
 
     if (chunkId == 0) {
-        if (it == chunkedMessagesMap_.end()) {
-            chunkedMessagesMap_.emplace(
+        if (it == chunkedMessageCache_.end()) {
+            it = chunkedMessageCache_.putIfAbsent(
                 uuid, ChunkedMessageCtx{metadata.num_chunks_from_msg(), metadata.total_chunk_msg_size()});
-            it = chunkedMessagesMap_.find(uuid);
         }
-        if (maxPendingChunkedMessage_ > 0 &&
-            pendingChunkedMessageUuidQueue_.size() >= maxPendingChunkedMessage_) {
-            removeOldestPendingChunkedMessage(pendingChunkedMessageUuidQueue_.size() -
-                                              maxPendingChunkedMessage_ + 1);
+        if (maxPendingChunkedMessage_ > 0 && chunkedMessageCache_.size() >= maxPendingChunkedMessage_) {
+            chunkedMessageCache_.removeOldestValues(
+                chunkedMessageCache_.size() - maxPendingChunkedMessage_ + 1,
+                [this, messageId](const std::string& uuid, const ChunkedMessageCtx& ctx) {
+                    if (autoAckOldestChunkedMessageOnQueueFull_) {
+                        doAcknowledgeIndividual(messageId, [uuid, messageId](Result result) {
+                            if (result != ResultOk) {
+                                LOG_WARN("Failed to acknowledge discarded chunk, uuid: "
+                                         << uuid << ", messageId: " << messageId);
+                            }
+                        });
+                    } else {
+                        trackMessage(messageId);
+                    }
+                });
         }
-        pendingChunkedMessageUuidQueue_.emplace_back(uuid);
     }
 
     auto& chunkedMsgCtx = it->second;
-    if (it == chunkedMessagesMap_.end() || !chunkedMsgCtx.validateChunkId(chunkId)) {
-        if (it == chunkedMessagesMap_.end()) {
+    if (it == chunkedMessageCache_.end() || !chunkedMsgCtx.validateChunkId(chunkId)) {
+        if (it == chunkedMessageCache_.end()) {
             LOG_ERROR("Received an uncached chunk (uuid: " << uuid << " chunkId: " << chunkId
                                                            << ", messageId: " << messageId << ")");
         } else {
             LOG_ERROR("Received a chunk whose chunk id is invalid (uuid: "
                       << uuid << " chunkId: " << chunkId << ", messageId: " << messageId << ")");
         }
-        removeChunkMessage(uuid, false);
-        removeUuidFromQueue(uuid);
         lock.unlock();
         increaseAvailablePermits(cnx);
         trackMessage(messageId);
@@ -366,54 +373,11 @@ Optional<SharedBuffer> ConsumerImpl::processMessageChunk(const SharedBuffer& pay
                                                     << ", sequenceId: " << metadata.sequence_id());
 
     auto wholePayload = chunkedMsgCtx.getBuffer();
-    removeChunkMessage(uuid, false);
+    chunkedMessageCache_.remove(uuid);
     if (uncompressMessageIfNeeded(cnx, messageIdData, metadata, wholePayload, false)) {
         return Optional<SharedBuffer>::of(wholePayload);
     } else {
         return Optional<SharedBuffer>::empty();
-    }
-}
-
-void ConsumerImpl::removeUuidFromQueue(const std::string& uuid) {
-    for (auto it = pendingChunkedMessageUuidQueue_.cbegin(); it != pendingChunkedMessageUuidQueue_.cend();
-         ++it) {
-        if (*it == uuid) {
-            pendingChunkedMessageUuidQueue_.erase(it);
-            break;
-        }
-    }
-}
-
-void ConsumerImpl::removeOldestPendingChunkedMessage(size_t numChunksToRemove) {
-    auto it = pendingChunkedMessageUuidQueue_.begin();
-    for (size_t i = 0; i < numChunksToRemove; i++) {
-        it = pendingChunkedMessageUuidQueue_.erase(it);
-        removeChunkMessage(*it, true);
-    }
-}
-
-void ConsumerImpl::removeChunkMessage(const std::string& uuid, bool processMessageId) {
-    auto it = chunkedMessagesMap_.find(uuid);
-    if (it == chunkedMessagesMap_.end()) {
-        return;
-    }
-    auto chunkedMsgCtx = std::move(it->second);
-    chunkedMessagesMap_.erase(it);
-
-    if (!processMessageId) {
-        return;
-    }
-    for (const auto& messageId : chunkedMsgCtx.getChunkedMessageIds()) {
-        if (autoAckOldestChunkedMessageOnQueueFull_) {
-            doAcknowledgeIndividual(messageId, [uuid, messageId](Result result) {
-                if (result != ResultOk) {
-                    LOG_WARN("Failed to acknowledge discarded chunk, uuid: " << uuid
-                                                                             << ", messageId: " << messageId);
-                }
-            });
-        } else {
-            trackMessage(messageId);
-        }
     }
 }
 

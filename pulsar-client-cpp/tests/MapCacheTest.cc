@@ -32,21 +32,11 @@ struct MoveOnlyInt {
     bool operator=(const MoveOnlyInt& rhs) const { return x == rhs.x; }
 };
 
-using VecInt = std::vector<int>;
-
-inline VecInt toIntVec(const std::vector<MoveOnlyInt>& v) {
-    VecInt result;
-    for (const auto& i : v) {
-        result.emplace_back(i.x);
-    }
-    return result;
-}
-
 TEST(MapCacheTest, testPutIfAbsent) {
     MapCache<int, MoveOnlyInt> cache;
 
-    ASSERT_TRUE(cache.putIfAbsent(1, {100}));
-    ASSERT_FALSE(cache.putIfAbsent(1, {200}));
+    ASSERT_NE(cache.putIfAbsent(1, {100}), cache.end());
+    ASSERT_EQ(cache.putIfAbsent(1, {200}), cache.end());
     auto it = cache.find(1);
     ASSERT_NE(it, cache.end());
     ASSERT_EQ(it->second.x, 100);
@@ -57,14 +47,18 @@ TEST(MapCacheTest, testPutIfAbsent) {
 
 TEST(MapCacheTest, testRemoveOldestValues) {
     MapCache<int, MoveOnlyInt> cache;
-    ASSERT_TRUE(cache.putIfAbsent(1, {200}));
-    ASSERT_TRUE(cache.putIfAbsent(2, {210}));
-    ASSERT_TRUE(cache.putIfAbsent(3, {220}));
-    ASSERT_EQ(cache.getKeys(), (VecInt{1, 2, 3}));
+    cache.putIfAbsent(1, {200});
+    cache.putIfAbsent(2, {210});
+    cache.putIfAbsent(3, {220});
+    ASSERT_EQ(cache.getKeys(), (std::vector<int>{1, 2, 3}));
 
-    ASSERT_EQ(toIntVec(cache.removeOldestValues(2)), (VecInt{200, 210}));
+    std::vector<int> removedValues;
+    cache.removeOldestValues(2, [&removedValues](const int& key, const MoveOnlyInt& value) {
+        removedValues.emplace_back(value.x);
+    });
+    ASSERT_EQ(removedValues, (std::vector<int>{200, 210}));
 
-    ASSERT_EQ(cache.getKeys(), (VecInt{3}));
+    ASSERT_EQ(cache.getKeys(), (std::vector<int>{3}));
     ASSERT_EQ(cache.size(), 1);
     auto it = cache.find(3);
     ASSERT_NE(it, cache.end());
@@ -73,12 +67,12 @@ TEST(MapCacheTest, testRemoveOldestValues) {
 
 TEST(MapCacheTest, testRemoveAllValues) {
     MapCache<int, MoveOnlyInt> cache;
-    ASSERT_TRUE(cache.putIfAbsent(1, {300}));
-    ASSERT_TRUE(cache.putIfAbsent(2, {310}));
-    ASSERT_TRUE(cache.putIfAbsent(3, {320}));
+    cache.putIfAbsent(1, {300});
+    cache.putIfAbsent(2, {310});
+    cache.putIfAbsent(3, {320});
 
     // removeOldestValues works well even if the argument is greater than the size of keys
-    ASSERT_EQ(toIntVec(cache.removeOldestValues(10000)), (VecInt{300, 310, 320}));
+    cache.removeOldestValues(10000, nullptr);
     ASSERT_TRUE(cache.getKeys().empty());
     ASSERT_EQ(cache.size(), 0);
 }

@@ -40,6 +40,7 @@
 #include "BatchAcknowledgementTracker.h"
 #include <limits>
 #include <lib/BrokerConsumerStatsImpl.h>
+#include <lib/MapCache.h>
 #include <lib/stats/ConsumerStatsImpl.h>
 #include <lib/stats/ConsumerStatsDisabled.h>
 #include <queue>
@@ -271,13 +272,16 @@ class ConsumerImpl : public ConsumerImplBase,
     // concurrently on the topic) then it guards against broken chunked message which was not fully published
     const bool autoAckOldestChunkedMessageOnQueueFull_;
 
-    mutable std::mutex chunkProcessMutex_;
     // The key is UUID, value is the associated ChunkedMessageCtx of the chunked message.
     std::unordered_map<std::string, ChunkedMessageCtx> chunkedMessagesMap_;
     // This list contains all the keys of `chunkedMessagesMap_`, each key is an UUID that identifies a pending
     // chunked message. Once the number of pending chunked messages exceeds the limit, the oldest UUIDs and
     // the associated ChunkedMessageCtx will be removed.
     std::list<std::string> pendingChunkedMessageUuidQueue_;
+
+    // The key is UUID, value is the associated ChunkedMessageCtx of the chunked message.
+    MapCache<std::string, ChunkedMessageCtx> chunkedMessageCache_;
+    mutable std::mutex chunkProcessMutex_;
 
     /**
      * Process a chunk. If the chunk is the last chunk of a message, concatenate all buffered chunks into the
@@ -297,11 +301,6 @@ class ConsumerImpl : public ConsumerImplBase,
                                                const MessageId& messageId,
                                                const proto::MessageIdData& messageIdData,
                                                const ClientConnectionPtr& cnx);
-
-    // Following methods must be called when `chunkProcessMutex_` is acquired
-    void removeUuidFromQueue(const std::string& uuid);
-    void removeOldestPendingChunkedMessage(size_t numChunksToRemove);
-    void removeChunkMessage(const std::string& uuid, bool processMessageId);
 
     friend class PulsarFriend;
 
