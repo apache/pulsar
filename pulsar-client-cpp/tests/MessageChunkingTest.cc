@@ -22,6 +22,7 @@
 #include <pulsar/Client.h>
 #include <gtest/gtest.h>
 #include "lib/LogUtils.h"
+#include "PulsarFriend.h"
 
 DECLARE_LOG_OBJECT()
 
@@ -124,6 +125,10 @@ TEST_P(MessageChunkingTest, testEndToEnd) {
     ASSERT_EQ(receivedMessageIds, sendMessageIds);
     ASSERT_EQ(receivedMessageIds.front().ledgerId(), receivedMessageIds.front().ledgerId());
     ASSERT_GT(receivedMessageIds.back().entryId(), numMessages);
+
+    // Verify the cache has been cleared
+    auto& chunkedMessageCache = PulsarFriend::getChunkedMessageCache(consumer);
+    ASSERT_EQ(chunkedMessageCache.size(), 0);
 }
 
 INSTANTIATE_TEST_SUITE_P(Pulsar, MessageChunkingTest,
