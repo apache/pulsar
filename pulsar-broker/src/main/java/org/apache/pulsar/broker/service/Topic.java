@@ -330,7 +330,7 @@ public interface Topic {
     BrokerService getBrokerService();
 
     /**
-     * Get HierarchyTopicPolicies
+     * Get HierarchyTopicPolicies.
      * @return
      */
     HierarchyTopicPolicies getHierarchyTopicPolicies();
