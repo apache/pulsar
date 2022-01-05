@@ -755,7 +755,7 @@ public class PulsarClientImpl implements PulsarClient {
             }
 
             // close the service url provider allocated resource.
-            if (conf.getServiceUrlProvider() != null) {
+            if (conf != null && conf.getServiceUrlProvider() != null) {
                 conf.getServiceUrlProvider().close();
             }
 
@@ -786,7 +786,7 @@ public class PulsarClientImpl implements PulsarClient {
             } catch (PulsarClientException e) {
                 throwable = e;
             }
-            if (conf.getAuthentication() != null) {
+            if (conf != null && conf.getAuthentication() != null) {
                 try {
                     conf.getAuthentication().close();
                 } catch (Throwable t) {
@@ -868,7 +868,9 @@ public class PulsarClientImpl implements PulsarClient {
     @Override
     public void updateAuthentication(Authentication authentication) throws IOException {
         log.info("Updating authentication to {}", authentication);
-        conf.getAuthentication().close();
+        if (conf.getAuthentication() != null) {
+            conf.getAuthentication().close();
+        }
         conf.setAuthentication(authentication);
         conf.getAuthentication().start();
     }
