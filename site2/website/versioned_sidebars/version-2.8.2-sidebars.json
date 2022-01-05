@@ -117,7 +117,8 @@
       "version-2.8.2-client-libraries-cpp",
       "version-2.8.2-client-libraries-node",
       "version-2.8.2-client-libraries-websocket",
-      "version-2.8.2-client-libraries-dotnet"
+      "version-2.8.2-client-libraries-dotnet",
+      "version-2.8.2-client-libraries-rest"
     ],
     "Admin API": [
       "version-2.8.2-admin-api-overview",

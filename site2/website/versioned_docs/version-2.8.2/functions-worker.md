@@ -58,7 +58,7 @@ If you want to use Stateful-Functions related functions (for example,  `putState
    After starting bookie, use the following methods to check whether the streamStorage service is started correctly.
 
    Input:
-
+   
     ```shell
     telnet localhost 4181
     ```
@@ -70,7 +70,6 @@ If you want to use Stateful-Functions related functions (for example,  `putState
     ```
 
 2. Turn on this function in `functions_worker.yml`.
-
 
     ```text
     stateStorageServiceUrl: bk://<bk-service-url>:4181

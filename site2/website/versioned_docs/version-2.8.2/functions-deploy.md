@@ -172,7 +172,7 @@ packagesManagementLedgerRootPath=/ledgers
 
 With Package management service enabled, you can upload your function packages by [upload a package](admin-api-packages.md#upload-a-package) to the service and get the [package URL](admin-api-packages.md#package-url).
 
-When you have a ready to use package URL, you can create the function with package URL by setting `--jar`, `--py`, or `--go` to the package URL with `pulsar-admin functions create`.
+When you have a ready to use package URL, you can create the function with package URL by setting `--jar`, `--py`, or `--go` to the package URL with `pulsar-admin functions create`. 
 
 ## Trigger Pulsar Functions
 

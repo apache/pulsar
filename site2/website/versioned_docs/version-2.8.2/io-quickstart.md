@@ -415,18 +415,18 @@ This example uses the PostgreSQL 12 docker image to start a single-node PostgreS
 
     #### Tip
     
-    Flag | Description | This example
-    ---|---|---|
-    `-d` | To start a container in detached mode. | /
-    `-it` | Keep STDIN open even if not attached and allocate a terminal. | /
-    `--rm` | Remove the container automatically when it exits. | /
-    `-name` | Assign a name to the container. | This example specifies _pulsar-postgres_ for the container.
-    `-p` | Publish the port of the container to the host. | This example publishes the port _5432_ of the container to the host.
-    `-e` | Set environment variables. | This example sets the following variables:<br>- The password for the user is _password_.<br>- The name for the user is _postgres_.
+     Flag | Description | This example
+     ---|---|---|
+     `-d` | To start a container in detached mode. | /
+     `-it` | Keep STDIN open even if not attached and allocate a terminal. | /
+     `--rm` | Remove the container automatically when it exits. | /
+     `-name` | Assign a name to the container. | This example specifies _pulsar-postgres_ for the container.
+     `-p` | Publish the port of the container to the host. | This example publishes the port _5432_ of the container to the host.
+     `-e` | Set environment variables. | This example sets the following variables:<br>- The password for the user is _password_.<br>- The name for the user is _postgres_.
 
-    > #### Tip
-    >
-    > For more information about Docker commands, see [Docker CLI](https://docs.docker.com/engine/reference/commandline/run/).
+     > #### Tip
+     >
+     > For more information about Docker commands, see [Docker CLI](https://docs.docker.com/engine/reference/commandline/run/).
 
 3. Check if PostgreSQL has been started successfully.
 
@@ -481,7 +481,7 @@ In this section, you need to configure a JDBC sink connector.
     configs:
       userName: "postgres"
       password: "password"
-      jdbcUrl: "jdbc:postgresql://localhost:5432/pulsar_postgres_jdbc_sink"
+      jdbcUrl: "jdbc:postgresql://localhost:5432/postgres"
       tableName: "pulsar_postgres_jdbc_sink"
     ```
 
@@ -559,7 +559,7 @@ This sink connector runs as a Pulsar Function and writes the messages produced i
 The sink has been created successfully if the following message appears.
 
 ```bash
-"Created successfully"
+Created successfully
 ```
 
 ### Inspect a JDBC sink
@@ -683,7 +683,7 @@ $ bin/pulsar-admin sinks stop \
 The sink instance has been stopped successfully if the following message disappears.
 
 ```bash
-"Stopped successfully"
+Stopped successfully
 ```
 
 ### Restart a JDBC sink
@@ -705,7 +705,7 @@ $ bin/pulsar-admin sinks restart \
 The sink instance has been started successfully if the following message disappears.
 
 ```bash
-"Started successfully"
+Started successfully
 ```
 
 > #### Tip
@@ -736,7 +736,7 @@ $ bin/pulsar-admin sinks update \
 The sink connector has been updated successfully if the following message disappears.
 
 ```bash
-"Updated successfully"
+Updated successfully
 ```
 
 This example double-checks the information.
@@ -795,7 +795,7 @@ $ bin/pulsar-admin sinks delete \
 The sink connector has been deleted successfully if the following message appears.
 
 ```text
-"Deleted successfully"
+Deleted successfully
 ```
 
 This example double-checks the status of the sink connector.

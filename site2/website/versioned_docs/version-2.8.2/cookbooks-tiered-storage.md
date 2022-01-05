@@ -7,9 +7,13 @@ original_id: cookbooks-tiered-storage
 
 Pulsar's **Tiered Storage** feature allows older backlog data to be offloaded to long term storage, thereby freeing up space in BookKeeper and reducing storage costs. This cookbook walks you through using tiered storage in your Pulsar cluster.
 
-* Tiered storage uses [Apache jclouds](https://jclouds.apache.org) to support [Amazon S3](https://aws.amazon.com/s3/) and [Google Cloud Storage](https://cloud.google.com/storage/)(GCS for short) for long term storage. With Jclouds, it is easy to add support for more [cloud storage providers](https://jclouds.apache.org/reference/providers/#blobstore-providers) in the future.
+* Tiered storage uses [Apache jclouds](https://jclouds.apache.org) to support
+[Amazon S3](https://aws.amazon.com/s3/) and [Google Cloud Storage](https://cloud.google.com/storage/)(GCS for short)
+for long term storage. With Jclouds, it is easy to add support for more
+[cloud storage providers](https://jclouds.apache.org/reference/providers/#blobstore-providers) in the future.
 
-* Tiered storage uses [Apache Hadoop](http://hadoop.apache.org/) to support filesystem for long term storage. With Hadoop, it is easy to add support for more filesystem in the future.
+* Tiered storage uses [Apache Hadoop](http://hadoop.apache.org/) to support filesystem for long term storage. 
+With Hadoop, it is easy to add support for more filesystem in the future.
 
 ## When should I use Tiered Storage?
 

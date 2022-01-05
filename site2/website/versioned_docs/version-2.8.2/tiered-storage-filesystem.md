@@ -90,6 +90,7 @@ You can configure the filesystem offloader driver in the `broker.conf` or `stand
     `offloadersDirectory` | Offloader directory | offloaders
     `fileSystemProfilePath` | Hadoop profile path. The configuration file is stored in the Hadoop profile path. It contains various settings for Hadoop performance tuning. | ../conf/filesystem_offload_core_site.xml
 
+
 - **Optional** configurations are as below.
 
     Parameter| Description | Example value
@@ -99,8 +100,7 @@ You can configure the filesystem offloader driver in the `broker.conf` or `stand
 
 <!--NFS-->
 
-- **Required** configurations are as below.
-    
+- **Required** configurations are as below. 
     Parameter | Description | Example value
     |---|---|---
     `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. | filesystem

@@ -5,7 +5,7 @@ sidebar_label: Python
 original_id: client-libraries-python
 ---
 
-Pulsar Python client library is a wrapper over the existing [C++ client library](client-libraries-cpp.md) and exposes all of the [same features](/api/cpp). You can find the code in the [`python` subdirectory](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) of the C++ client code.
+Pulsar Python client library is a wrapper over the existing [C++ client library](client-libraries-cpp.md) and exposes all of the [same features](/api/cpp). You can find the code in the [Python directory](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) of the C++ client code.
 
 All the methods in producer, consumer, and reader of a Python client are thread-safe.
 
@@ -13,7 +13,7 @@ All the methods in producer, consumer, and reader of a Python client are thread-
 
 ## Install
 
-You can install the [`pulsar-client`](https://pypi.python.org/pypi/pulsar-client) library either via [PyPi](https://pypi.python.org/pypi), using [pip](#installation-using-pip), or by building the library from source.
+You can install the [`pulsar-client`](https://pypi.python.org/pypi/pulsar-client) library either via [PyPi](https://pypi.python.org/pypi), using [pip](#installation-using-pip), or by building the library from [source](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp).
 
 ### Install using pip
 
@@ -24,8 +24,7 @@ $ pip install pulsar-client=={{pulsar:version_number}}
 ```
 
 ### Optional dependencies
-
-To support aspects like pulsar functions or Avro serialization, additional optional components can be installed alongside the  `pulsar-client` library
+If you install the client libraries on Linux to support services like Pulsar functions or Avro serialization, you can install optional components alongside the  `pulsar-client` library.
 
 ```shell
 # avro serialization
@@ -63,7 +62,7 @@ The complete Python API reference is available at [api/python](/api/python).
 
 ## Examples
 
-You can find a variety of Python code examples for the `pulsar-client` library.
+You can find a variety of Python code examples for the [pulsar-client](/pulsar-client-cpp/python) library.
 
 ### Producer example
 
@@ -152,7 +151,7 @@ while True:
 
 In addition to subscribing a consumer to a single Pulsar topic, you can also subscribe to multiple topics simultaneously. To use multi-topic subscriptions, you can supply a regular expression (regex) or a `List` of topics. If you select topics via regex, all topics must be within the same Pulsar namespace.
 
-The following is an example. 
+The following is an example: 
 
 ```python
 import re
@@ -170,61 +169,6 @@ client.close()
 ```
 
 ## Schema
-
-### Declare and validate schema
-
-You can declare a schema by passing a class that inherits
-from `pulsar.schema.Record` and defines the fields as
-class variables. For example:
-
-```python
-from pulsar.schema import *
-
-class Example(Record):
-    a = String()
-    b = Integer()
-    c = Boolean()
-```
-
-With this simple schema definition, you can create producers, consumers and readers instances that refer to that.
-
-```python
-producer = client.create_producer(
-                    topic='my-topic',
-                    schema=AvroSchema(Example) )
-
-producer.send(Example(a='Hello', b=1))
-```
-
-After creating the producer, the Pulsar broker validates that the existing topic schema is indeed of "Avro" type and that the format is compatible with the schema definition of the `Example` class.
-
-If there is a mismatch, an exception occurs in the producer creation.
-
-Once a producer is created with a certain schema definition,
-it will only accept objects that are instances of the declared
-schema class.
-
-Similarly, for a consumer/reader, the consumer will return an
-object, instance of the schema record class, rather than the raw
-bytes:
-
-```python
-consumer = client.subscribe(
-                  topic='my-topic',
-                  subscription_name='my-subscription',
-                  schema=AvroSchema(Example) )
-
-while True:
-    msg = consumer.receive()
-    ex = msg.value()
-    try:
-        print("Received message a={} b={} c={}".format(ex.a, ex.b, ex.c))
-        # Acknowledge successful processing of the message
-        consumer.acknowledge(msg)
-    except:
-        # Message failed to be processed
-        consumer.negative_acknowledge(msg)
-```
 
 ### Supported schema types
 
@@ -308,6 +252,218 @@ class Example(Record):
     a = String()
     sub = MySubRecord()
 ```
+
+##### Set namespace for Avro schema
+
+Set the namespace for Avro Record schema using the special field `_avro_namespace`.
+```python
+class NamespaceDemo(Record):
+   _avro_namespace = 'xxx.xxx.xxx'
+   x = String()
+   y = Integer()
+```
+
+The schema definition is like this.
+```
+{
+  'name': 'NamespaceDemo', 'namespace': 'xxx.xxx.xxx', 'type': 'record', 'fields': [
+    {'name': 'x', 'type': ['null', 'string']}, 
+    {'name': 'y', 'type': ['null', 'int']}
+  ]
+}
+```
+
+### Declare and validate schema
+
+You can send messages using `BytesSchema`, `StringSchema`, `AvroSchema`, and `JsonSchema`.
+
+Before the producer is created, the Pulsar broker validates that the existing topic schema is the correct type and that the format is compatible with the schema definition of a class. If the format of the topic schema is incompatible with the schema definition, an exception occurs in the producer creation.
+
+Once a producer is created with a certain schema definition, it only accepts objects that are instances of the declared schema class.
+
+Similarly, for a consumer or reader, the consumer returns an object (which is an instance of the schema record class) rather than raw bytes.
+
+**Example**
+
+```python
+consumer = client.subscribe(
+                  topic='my-topic',
+                  subscription_name='my-subscription',
+                  schema=AvroSchema(Example) )
+
+while True:
+    msg = consumer.receive()
+    ex = msg.value()
+    try:
+        print("Received message a={} b={} c={}".format(ex.a, ex.b, ex.c))
+        # Acknowledge successful processing of the message
+        consumer.acknowledge(msg)
+    except:
+        # Message failed to be processed
+        consumer.negative_acknowledge(msg)
+```
+
+<!--DOCUSAURUS_CODE_TABS-->
+
+<!--BytesSchema-->
+
+You can send byte data using a `BytesSchema`.
+
+**Example**
+
+```python
+producer = client.create_producer(
+                'bytes-schema-topic',
+                schema=BytesSchema())
+producer.send(b"Hello")
+
+consumer = client.subscribe(
+				'bytes-schema-topic',
+				'sub',
+				schema=BytesSchema())
+msg = consumer.receive()
+data = msg.value()
+```
+
+<!--StringSchema-->
+
+You can send string data using a `StringSchema`.
+
+**Example**
+
+```python
+producer = client.create_producer(
+                'string-schema-topic',
+                schema=StringSchema())
+producer.send("Hello")
+
+consumer = client.subscribe(
+				'string-schema-topic',
+				'sub',
+				schema=StringSchema())
+msg = consumer.receive()
+str = msg.value()
+```
+
+<!--AvroSchema-->
+
+You can declare an `AvroSchema` using one of the following methods.
+
+#### Method 1: Record
+
+You can declare an `AvroSchema` by passing a class that inherits
+from `pulsar.schema.Record` and defines the fields as
+class variables. 
+
+**Example**
+
+```python
+class Example(Record):
+    a = Integer()
+    b = Integer()
+
+producer = client.create_producer(
+                'avro-schema-topic',
+                schema=AvroSchema(Example))
+r = Example(a=1, b=2)
+producer.send(r)
+
+consumer = client.subscribe(
+				'avro-schema-topic',
+				'sub',
+				schema=AvroSchema(Example))
+msg = consumer.receive()
+e = msg.value()
+```
+
+#### Method 2: JSON definition
+
+You can declare an `AvroSchema` using JSON. In this case, Avro schemas are defined using JSON.
+
+**Example**
+
+Below is an `AvroSchema` defined using a JSON file (_company.avsc_). 
+
+```json
+{
+    "doc": "this is doc",
+    "namespace": "example.avro",
+    "type": "record",
+    "name": "Company",
+    "fields": [
+        {"name": "name", "type": ["null", "string"]},
+        {"name": "address", "type": ["null", "string"]},
+        {"name": "employees", "type": ["null", {"type": "array", "items": {
+            "type": "record",
+            "name": "Employee",
+            "fields": [
+                {"name": "name", "type": ["null", "string"]},
+                {"name": "age", "type": ["null", "int"]}
+            ]
+        }}]},
+        {"name": "labels", "type": ["null", {"type": "map", "values": "string"}]}
+    ]
+}
+```
+
+You can load a schema definition from file by using [`avro.schema`]((http://avro.apache.org/docs/current/gettingstartedpython.html) or [`fastavro.schema`](https://fastavro.readthedocs.io/en/latest/schema.html#fastavro._schema_py.load_schema).
+
+If you use the "JSON definition" method to declare an `AvroSchema`, pay attention to the following points:
+
+- You need to use [Python dict](https://developers.google.com/edu/python/dict-files) to produce and consume messages, which is different from using the "Record" method.
+
+- When generating an `AvroSchema` object, set `_record_cls` parameter to `None`.
+
+**Example**
+
+```
+from fastavro.schema import load_schema
+from pulsar.schema import *
+schema_definition = load_schema("examples/company.avsc")
+avro_schema = AvroSchema(None, schema_definition=schema_definition)
+producer = client.create_producer(
+    topic=topic,
+    schema=avro_schema)
+consumer = client.subscribe(topic, 'test', schema=avro_schema)
+company = {
+    "name": "company-name" + str(i),
+    "address": 'xxx road xxx street ' + str(i),
+    "employees": [
+        {"name": "user" + str(i), "age": 20 + i},
+        {"name": "user" + str(i), "age": 30 + i},
+        {"name": "user" + str(i), "age": 35 + i},
+    ],
+    "labels": {
+        "industry": "software" + str(i),
+        "scale": ">100",
+        "funds": "1000000.0"
+    }
+}
+producer.send(company)
+msg = consumer.receive()
+# Users could get a dict object by `value()` method.
+msg.value()
+```
+
+<!--JsonSchema-->
+
+#### Record
+
+You can declare a `JsonSchema` by passing a class that inherits
+from `pulsar.schema.Record` and defines the fields as class variables. This is similar to using `AvroSchema`. The only difference is to use  `JsonSchema` instead of `AvroSchema` when defining schema type as shown below. For how to use `AvroSchema` via record, see [here](client-libraries-python.md#method-1-record).
+
+```
+producer = client.create_producer(
+                'avro-schema-topic',
+                schema=JsonSchema(Example))
+
+consumer = client.subscribe(
+				'avro-schema-topic',
+				'sub',
+				schema=JsonSchema(Example))
+```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ## End-to-end encryption
 
@@ -406,5 +562,5 @@ This section provides step-by-step instructions on how to use the end-to-end enc
     This is from the consumer side.
 
     ```
-    Received msg 'b'encryption message'' id = '(0,0,-1,-1)'
+    Received msg 'encryption message' id = '(0,0,-1,-1)'
     ```

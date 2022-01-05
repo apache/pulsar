@@ -9,7 +9,7 @@ original_id: admin-api-clusters
 >
 > This page only shows **some frequently used operations**.
 >
-> - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more information, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/).
+> - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/)
 > 
 > - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
 > 
@@ -20,9 +20,9 @@ servers (aka [bookies](reference-terminology.md#bookie)), and a [ZooKeeper](http
 
 Clusters can be managed via:
 
-* The [`clusters`](reference-pulsar-admin.md#clusters) command of the [`pulsar-admin`](reference-pulsar-admin.md) tool
+* The `clusters` command of the [`pulsar-admin`]([reference-pulsar-admin.md](https://pulsar.apache.org/tools/pulsar-admin/)) tool
 * The `/admin/v2/clusters` endpoint of the admin {@inject: rest:REST:/} API
-* The `clusters` method of the {@inject: javadoc:PulsarAdmin:/admin/org/apache/pulsar/client/admin/PulsarAdmin} object in the [Java API](client-libraries-java.md)
+* The `clusters` method of the `PulsarAdmin` object in the [Java API](client-libraries-java.md)
 
 ## Clusters resources
 

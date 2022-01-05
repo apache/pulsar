@@ -856,3 +856,4 @@ You can set schema compatibility check strategy at broker level by setting `sche
 ```
 schemaCompatibilityStrategy=ALWAYS_INCOMPATIBLE
 ```
+

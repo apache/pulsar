@@ -37,12 +37,14 @@ Before using the HDFS2 sink connector, you need to create a configuration file t
 
     ```json
     {
-        "hdfsConfigResources": "core-site.xml",
-        "directory": "/foo/bar",
-        "filenamePrefix": "prefix",
-        "fileExtension": ".log",
-        "compression": "SNAPPY",
-        "subdirectoryPattern": "yyyy-MM-dd"
+       "configs": {
+          "hdfsConfigResources": "core-site.xml",
+          "directory": "/foo/bar",
+          "filenamePrefix": "prefix",
+          "fileExtension": ".log",
+          "compression": "SNAPPY",
+          "subdirectoryPattern": "yyyy-MM-dd"
+       }
     }
     ```
 

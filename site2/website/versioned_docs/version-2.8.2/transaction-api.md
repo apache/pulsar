@@ -8,7 +8,6 @@ original_id: transactions-api
 All messages in a transaction are available only to consumers after the transaction has been committed. If a transaction has been aborted, all the writes and acknowledgments in this transaction roll back. 
 
 ## Prerequisites
-
 1. To enable transactions in Pulsar, you need to configure the parameter in `broker.conf` file or `standalone.conf` file.
 
 ```
@@ -108,6 +107,7 @@ Consumer<String> sourceConsumer = pulsarClient
 Producer<String> sinkProducer = pulsarClient
         .newProducer(Schema.STRING)
         .topic(sinkTopic)
+        .sendTimeout(0, TimeUnit.MILLISECONDS)
         .create();
 
 Transaction txn = pulsarClient

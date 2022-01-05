@@ -71,7 +71,6 @@ Reader<byte[]> reader = pulsarClient.newReader()
 ```
 
 <!--C++-->
-
 ```c++
 Client client("pulsar://localhost:6650");
 std::string topic = "persistent://my-tenant/my-ns/my-topic";
@@ -96,7 +95,6 @@ client.createReader(topic, MessageId::earliest(), readerConf, reader);
 ```
 
 <!--Python-->
-
 ```python
 from pulsar import Client, CryptoKeyReader
 
@@ -127,7 +125,6 @@ client.close()
 ```
 
 <!--Node.JS-->
-
 ```nodejs
 const Pulsar = require('pulsar-client');
 

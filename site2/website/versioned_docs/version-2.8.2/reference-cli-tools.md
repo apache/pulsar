@@ -16,8 +16,12 @@ All Pulsar command-line tools can be run from the `bin` directory of your [insta
 * [`bookkeeper`](#bookkeeper)
 * [`broker-tool`](#broker-tool)
 
-> ### Getting help
-> You can get help for any CLI tool, command, or subcommand using the `--help` flag, or `-h` for short. Here's an example:
+> **Important** 
+>
+> - This page only shows **some frequently used commands**. For the latest information about `pulsar`, `pulsar-client`, and `pulsar-perf`, including commands, flags, descriptions, and more information, see [Pulsar tools](https://pulsar.apache.org/tools/).
+>  
+> - You can get help for any CLI tool, command, or subcommand using the `--help` flag, or `-h` for short. Here's an example:
+> 
 > ```shell
 > $ bin/pulsar broker --help
 > ```
@@ -36,7 +40,6 @@ Commands:
 * `bookie`
 * `broker`
 * `compact-topic`
-* `discovery`
 * `configuration-store`
 * `initialize-cluster-metadata`
 * `proxy`
@@ -44,6 +47,7 @@ Commands:
 * `websocket`
 * `zookeeper`
 * `zookeeper-shell`
+* `autorecovery`
 
 Example:
 ```bash
@@ -59,14 +63,13 @@ The table below lists the environment variables that you can use to configure th
 |`PULSAR_BOOKKEEPER_CONF`|description: Configuration file for bookie|`conf/bookkeeper.conf`|
 |`PULSAR_ZK_CONF`|Configuration file for zookeeper|`conf/zookeeper.conf`|
 |`PULSAR_CONFIGURATION_STORE_CONF`|Configuration file for the configuration store|`conf/global_zookeeper.conf`|
-|`PULSAR_DISCOVERY_CONF`|Configuration file for discovery service|`conf/discovery.conf`|
 |`PULSAR_WEBSOCKET_CONF`|Configuration file for websocket proxy|`conf/websocket.conf`|
 |`PULSAR_STANDALONE_CONF`|Configuration file for standalone|`conf/standalone.conf`|
 |`PULSAR_EXTRA_OPTS`|Extra options to be passed to the jvm||
 |`PULSAR_EXTRA_CLASSPATH`|Extra paths for Pulsar's classpath||
 |`PULSAR_PID_DIR`|Folder where the pulsar server PID file should be stored||
 |`PULSAR_STOP_TIMEOUT`|Wait time before forcefully killing the Bookie server instance if attempts to stop it are not successful||
-
+|`PULSAR_GC_LOG`|Gc options to be passed to the jvm||
 
 
 ### `bookie`
@@ -132,20 +135,6 @@ Options
 Example
 ```bash
 $ pulsar compact-topic --topic topic-to-compact
-```
-
-### `discovery`
-
-Run a discovery server
-
-Usage
-```bash
-$ pulsar discovery
-```
-
-Example
-```bash
-$ PULSAR_DISCOVERY_CONF=/path/to/discovery.conf pulsar discovery
 ```
 
 ### `configuration-store`
@@ -283,6 +272,21 @@ Options
 |`-c`, `--conf`|Configuration file for ZooKeeper||
 |`-server`|Configuration zk address, eg: `127.0.0.1:2181`||
 
+### `autorecovery`
+
+Runs an auto-recovery service.
+
+Usage
+
+```bash
+$ pulsar autorecovery options
+```
+
+Options
+
+|Flag|Description|Default|
+|---|---|---|
+|`-c`, `--conf`|Configuration for the autorecovery|N/A|
 
 
 ## `pulsar-client`
@@ -329,6 +333,7 @@ Options
 |`-m`, `--messages`|Comma-separated string of messages to send; either -m or -f must be specified|[]|
 |`-n`, `--num-produce`|The number of times to send the message(s); the count of messages/files * num-produce should be below 1000|1|
 |`-r`, `--rate`|Rate (in messages per second) at which to produce; a value 0 means to produce messages as fast as possible|0.0|
+|`-db`, `--disable-batching`|Disable batch sending of messages|false|
 |`-c`, `--chunking`|Split the message and publish in chunks if the message size is larger than the allowed max size|false|
 |`-s`, `--separator`|Character to split messages string with.|","|
 |`-k`, `--key`|Message key to add|key=value string, like k1=v1,k2=v2.|
@@ -378,6 +383,7 @@ $ pulsar-daemon command
 Commands
 * `start`
 * `stop`
+* `restart`
 
 
 ### `start`
@@ -402,7 +408,11 @@ Options
 |---|---|---|
 |-force|Stop the service forcefully if not stopped by normal shutdown.|false|
 
-
+### `restart`
+Restart a service that has already been started.
+```bash
+$ pulsar-daemon restart service
+```
 
 ## `pulsar-perf`
 A tool for performance testing a Pulsar broker.
@@ -421,6 +431,7 @@ Commands
 * `monitor-brokers`
 * `simulation-client`
 * `simulation-controller`
+* `transaction`
 * `help`
 
 Environment variables
@@ -433,6 +444,7 @@ The table below lists the environment variables that you can use to configure th
 |`PULSAR_CLIENT_CONF`|Configuration file for the client|conf/client.conf|
 |`PULSAR_EXTRA_OPTS`|Extra options to be passed to the JVM||
 |`PULSAR_EXTRA_CLASSPATH`|Extra paths for Pulsar's classpath||
+|`PULSAR_GC_LOG`|Gc options to be passed to the jvm||
 
 
 ### `consume`
@@ -448,7 +460,7 @@ Options
 |Flag|Description|Default|
 |---|---|---|
 |`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
-|`--auth_plugin`|Authentication plugin class name||
+|`--auth-plugin`|Authentication plugin class name||
 |`-ac`, `--auto_ack_chunk_q_full`|Auto ack for the oldest message in consumer's receiver queue if the queue full|false|
 |`--listener-name`|Listener name for the broker||
 |`--acks-delay-millis`|Acknowledgements grouping delay in millis|100|
@@ -457,11 +469,13 @@ Options
 |`-v`, `--encryption-key-value-file`|The file which contains the private key to decrypt payload||
 |`-h`, `--help`|Help message|false|
 |`--conf-file`|Configuration file||
+|`-m`, `--num-messages`|Number of messages to consume in total. If the value is equal to or smaller than 0, it keeps consuming messages.|0|
 |`-e`, `--expire_time_incomplete_chunked_messages`|The expiration time for incomplete chunk messages (in milliseconds)|0|
 |`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
 |`-mc`, `--max_chunked_msg`|Max pending chunk messages|0|
 |`-n`, `--num-consumers`|Number of consumers (per topic)|1|
 |`-ioThreads`, `--num-io-threads`|Set the number of threads to be used for handling connections to brokers|1|
+|`-lt`, `--num-listener-threads`|Set the number of threads to be used for message listeners|1|
 |`-ns`, `--num-subscriptions`|Number of subscriptions (per topic)|1|
 |`-t`, `--num-topics`|The number of topics|1|
 |`-pm`, `--pool-messages`|Use the pooled message|true|
@@ -475,10 +489,21 @@ Options
 |`-ss`, `--subscriptions`|A list of subscriptions to consume on (e.g. sub1,sub2)|sub|
 |`-st`, `--subscription-type`|Subscriber type. Possible values are Exclusive, Shared, Failover, Key_Shared.|Exclusive|
 |`-sp`, `--subscription-position`|Subscriber position. Possible values are Latest, Earliest.|Latest|
-|`-time`, `--test-duration`|Test duration (in seconds). If the value is 0 or smaller than 0, it keeps consuming messages|0|
+|`-time`, `--test-duration`|Test duration (in seconds). If this value is less than or equal to 0, it keeps consuming messages.|0|
 |`--trust-cert-file`|Path for the trusted TLS certificate file||
 |`--tls-allow-insecure`|Allow insecure TLS connection||
 
+Below are **transaction** related options.
+
+If you want `--txn-timeout`, `--numMessage-perTransaction`, `-nmt`, `-ntxn`, or `-abort` take effect, set `--txn-enable` to true.
+
+|Flag|Description|Default|
+|---|---|---|
+`-tto`, `--txn-timeout`|Set the time of transaction timeout (in second). |10
+`-nmt`, `--numMessage-perTransaction`|The number of messages acknowledged by a transaction. |50
+`-txn`, `--txn-enable`|Enable or disable a transaction.|false
+`-ntxn`|The number of opened transactions. 0 means the number of transactions is unlimited. |0
+`-abort`|Abort a transaction. |true
 
 ### `produce`
 Run a producer
@@ -495,7 +520,7 @@ Options
 |`-am`, `--access-mode`|Producer access mode. Valid values are `Shared`, `Exclusive` and `WaitForExclusive`|Shared|
 |`-au`, `--admin-url`|Pulsar admin URL||
 |`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
-|`--auth_plugin`|Authentication plugin class name||
+|`--auth-plugin`|Authentication plugin class name||
 |`--listener-name`|Listener name for the broker||
 |`-b`, `--batch-time-window`|Batch messages in a window of the specified number of milliseconds|1|
 |`-bb`, `--batch-max-bytes`|Maximum number of bytes per batch|4194304|
@@ -514,9 +539,9 @@ Options
 |`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
 |`-o`, `--max-outstanding`|Max number of outstanding messages|1000|
 |`-p`, `--max-outstanding-across-partitions`|Max number of outstanding messages across partitions|50000|
+|`-m`, `--num-messages`|Number of messages to publish in total. If this value is less than or equal to 0, it keeps publishing messages.|0|
 |`-mk`, `--message-key-generation-mode`|The generation mode of message key. Valid options are `autoIncrement`, `random`||
 |`-ioThreads`, `--num-io-threads`|Set the number of threads to be used for handling connections to brokers|1|
-|`-m`, `--num-messages`|Number of messages to publish in total. If the value is 0 or smaller than 0, it keeps publishing messages.|0|
 |`-n`, `--num-producers`|The number of producers (per topic)|1|
 |`-threads`, `--num-test-threads`|Number of test threads|1|
 |`-t`, `--num-topic`|The number of topics|1|
@@ -530,11 +555,21 @@ Options
 |`-u`, `--service-url`|Pulsar service URL||
 |`-s`, `--size`|Message size (in bytes)|1024|
 |`-i`, `--stats-interval-seconds`|Statistics interval seconds. If 0, statistics will be disabled.|0|
-|`-time`, `--test-duration`|Test duration (in seconds). If the value is 0 or smaller than 0, it keeps publishing messages.|0|
+|`-time`, `--test-duration`|Test duration (in seconds). If this value is less than or equal to 0, it keeps publishing messages.|0|
 |`--trust-cert-file`|Path for the trusted TLS certificate file||
 |`--warmup-time`|Warm-up time in seconds|1|
 |`--tls-allow-insecure`|Allow insecure TLS connection||
 
+Below are **transaction** related options.
+
+If you want `--txn-timeout`, `--numMessage-perTransaction`, or `-abort` take effect, set `--txn-enable` to true.
+
+|Flag|Description|Default|
+|---|---|---|
+`-tto`, `--txn-timeout`|Set the time of transaction timeout (in second). |5
+`-nmt`, `--numMessage-perTransaction`|The number of messages acknowledged by a transaction. |50
+`-txn`, `--txn-enable`|Enable or disable a transaction.|true
+`-abort`|Abort a transaction. |true
 
 ### `read`
 Run a topic reader
@@ -549,19 +584,21 @@ Options
 |Flag|Description|Default|
 |---|---|---|
 |`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
-|`--auth_plugin`|Authentication plugin class name||
+|`--auth-plugin`|Authentication plugin class name||
 |`--listener-name`|Listener name for the broker||
 |`--conf-file`|Configuration file||
 |`-h`, `--help`|Help message|false|
+|`-n`, `--num-messages`|Number of messages to consume in total. If the value is equal to or smaller than 0, it keeps consuming messages.|0|
 |`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
 |`-ioThreads`, `--num-io-threads`|Set the number of threads to be used for handling connections to brokers|1|
+|`-lt`, `--num-listener-threads`|Set the number of threads to be used for message listeners|1|
 |`-t`, `--num-topics`|The number of topics|1|
 |`-r`, `--rate`|Simulate a slow message reader (rate in msg/s)|0|
 |`-q`, `--receiver-queue-size`|Size of the receiver queue|1000|
 |`-u`, `--service-url`|Pulsar service URL||
 |`-m`, `--start-message-id`|Start message id. This can be either 'earliest', 'latest' or a specific message id by using 'lid:eid'|earliest|
 |`-i`, `--stats-interval-seconds`|Statistics interval seconds. If 0, statistics will be disabled.|0|
-|`-time`, `--test-duration`|Test duration (in seconds). If the value is 0 or smaller than 0, it keeps consuming messages.|0|
+|`-time`, `--test-duration`|Test duration (in seconds). If this value is less than or equal to 0, it keeps consuming messages.|0|
 |`--trust-cert-file`|Path for the trusted TLS certificate file||
 |`--use-tls`|Use TLS encryption on the connection|false|
 |`--tls-allow-insecure`|Allow insecure TLS connection||
@@ -579,16 +616,19 @@ Options
 |Flag|Description|Default|
 |---|---|---|
 |`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
-|`--auth_plugin`|Authentication plugin class name||
+|`--auth-plugin`|Authentication plugin class name||
 |`--conf-file`|Configuration file||
 |`-h`, `--help`|Help message|false|
-|`-m`, `--num-messages`|Number of messages to publish in total. If the value is 0 or smaller than 0, it keeps publishing messages|0|
+|`-m`, `--num-messages`|Number of messages to publish in total. If this value is less than or equal to 0, it keeps publishing messages.|0|
 |`-t`, `--num-topic`|The number of topics|1|
 |`-f`, `--payload-file`|Use payload from a file instead of empty buffer||
+|`-e`, `--payload-delimiter`|The delimiter used to split lines when using payload from a file|\n|
+|`-fp`, `--format-payload`|Format %i as a message index in the stream from producer and/or %t as the timestamp nanoseconds|false|
+|`-fc`, `--format-class`|Custom formatter class name|`org.apache.pulsar.testclient.DefaultMessageFormatter`|
 |`-u`, `--proxy-url`|Pulsar Proxy URL, e.g., "ws://localhost:8080/"||
 |`-r`, `--rate`|Publish rate msg/s across topics|100|
 |`-s`, `--size`|Message size in byte|1024|
-|`-time`, `--test-duration`|Test duration (in seconds). If the value is 0 or smaller than 0, it keeps publishing messages|0|
+|`-time`, `--test-duration`|Test duration (in seconds). If this value is less than or equal to 0, it keeps publishing messages.|0|
 
 
 ### `managed-ledger`
@@ -609,11 +649,11 @@ Options
 |`-h`, `--help`|Help message|false|
 |`-c`, `--max-connections`|Max number of TCP connections to a single bookie|1|
 |`-o`, `--max-outstanding`|Max number of outstanding requests|1000|
-|`-m`, `--num-messages`|Number of messages to publish in total. If the value is 0 or smaller than 0, it keeps publishing messages|0|
+|`-m`, `--num-messages`|Number of messages to publish in total. If this value is less than or equal to 0, it keeps publishing messages.|0|
 |`-t`, `--num-topic`|Number of managed ledgers|1|
 |`-r`, `--rate`|Write rate msg/s across managed ledgers|100|
 |`-s`, `--size`|Message size in byte|1024|
-|`-time`, `--test-duration`|Test duration (in seconds). If the value is 0 or smaller than 0, it keeps publishing messages|0|
+|`-time`, `--test-duration`|Test duration (in seconds). If this value is less than or equal to 0, it keeps publishing messages.|0|
 |`--threads`|Number of threads writing|1|
 |`-w`, `--write-quorum`|Ledger write quorum|1|
 |`-zk`, `--zookeeperServers`|ZooKeeper connection string||
@@ -668,6 +708,43 @@ Options
 |`--cluster`|The cluster to test on||
 |`-h`, `--help`|Help message|false|
 
+### `transaction`
+
+Run a transaction. For more information, see [Pulsar transactions](txn-why.md).
+
+**Usage**
+
+```bash
+$ pulsar-perf transaction options
+```
+
+**Options**
+
+|Flag|Description|Default|
+|---|---|---|
+`-au`, `--admin-url`|Pulsar admin URL.|N/A
+`--conf-file`|Configuration file.|N/A
+`-h`, `--help`|Help messages.|N/A
+`-c`, `--max-connections`|Maximum number of TCP connections to a single broker.|100
+`-ioThreads`, `--num-io-threads`|Set the number of threads to be used for handling connections to brokers. |1
+`-ns`, `--num-subscriptions`|Number of subscriptions per topic.|1
+`-threads`, `--num-test-threads`|Number of test threads. <br /><br />This thread is for a new transaction to ack messages from consumer topics, produce messages to producer topics, and commit or abort this transaction. <br /><br /> Increasing the number of threads increases the parallelism of the performance test, consequently, it increases the intensity of the stress test.|1
+`-nmc`, `--numMessage-perTransaction-consume`|Set the number of messages consumed in a transaction. <br /><br /> If transaction is disabled, it means the number of messages consumed in a task instead of in a transaction.|1
+`-nmp`, `--numMessage-perTransaction-produce`|Set the number of messages produced in a transaction. <br /><br />If transaction is disabled, it means the number of messages produced in a task instead of in a transaction.|1
+`-ntxn`, `--number-txn`|Set the number of transactions. <br /><br /> 0 means the number of transactions is unlimited. <br /><br /> If transaction is disabled, it means the number of tasks instead of transactions. |0
+`-np`, `--partitions`|Create partitioned topics with a given number of partitions. <br /><br /> 0 means not trying to create a topic.
+`-q`, `--receiver-queue-size`|Size of the receiver queue.|1000
+`-u`, `--service-url`|Pulsar service URL.|N/A
+`-sp`, `--subscription-position`|Subscription position.|Earliest
+`-st`, `--subscription-type`|Subscription type.|Shared
+`-ss`, `--subscriptions`|A list of subscriptions to consume. <br /><br /> For example, sub1,sub2.|[sub]
+`-time`, `--test-duration`|Test duration (in second). <br /><br /> 0 means keeping publishing messages.|0
+`--topics-c`|All topics assigned to consumers.|[test-consume]
+`--topics-p`|All topics assigned to producers . |[test-produce]
+`--txn-disEnable`|Disable transaction.|true
+`-tto`, `--txn-timeout`|Set the time of transaction timeout (in second). <br /><br /> If you want `--txn-timeout` takes effect, set `--txn-enable` to true.|5
+`-abort`|Abort the transaction. <br /><br /> If you want `-abort` takes effect, set `--txn-disEnable` to false.|true
+`-txnRate`|Set the rate of opened transactions or tasks. <br /><br /> 0 means no limit.|0
 
 ### `help`
 This help message
@@ -707,9 +784,10 @@ The table below lists the environment variables that you can use to configure th
 |ENTRY_FORMATTER_CLASS|The Java class used to format entries||
 |BOOKIE_PID_DIR|Folder where the BookKeeper server PID file should be stored||
 |BOOKIE_STOP_TIMEOUT|Wait time before forcefully killing the Bookie server instance if attempts to stop it are not successful||
+|BOOKIE_GC_LOG|Gc options to be passed to the jvm||
 
 
-### `auto-recovery`
+### `autorecovery`
 Runs an auto-recovery service
 
 Usage
