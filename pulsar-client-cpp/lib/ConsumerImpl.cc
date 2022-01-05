@@ -344,6 +344,8 @@ Optional<SharedBuffer> ConsumerImpl::processMessageChunk(const SharedBuffer& pay
                         trackMessage(messageId);
                     }
                 });
+            it = chunkedMessageCache_.putIfAbsent(
+                uuid, ChunkedMessageCtx{metadata.num_chunks_from_msg(), metadata.total_chunk_msg_size()});
         }
     }
 
@@ -355,6 +357,7 @@ Optional<SharedBuffer> ConsumerImpl::processMessageChunk(const SharedBuffer& pay
         } else {
             LOG_ERROR("Received a chunk whose chunk id is invalid (uuid: "
                       << uuid << " chunkId: " << chunkId << ", messageId: " << messageId << ")");
+            chunkedMessageCache_.remove(uuid);
         }
         lock.unlock();
         increaseAvailablePermits(cnx);
