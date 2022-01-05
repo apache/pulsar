@@ -131,9 +131,10 @@ TEST_P(MessageChunkingTest, testEndToEnd) {
     ASSERT_EQ(chunkedMessageCache.size(), 0);
 }
 
-INSTANTIATE_TEST_SUITE_P(Pulsar, MessageChunkingTest,
-                         ::testing::Values(CompressionNone, CompressionLZ4, CompressionZLib, CompressionZSTD,
-                                           CompressionSNAPPY),
-                         [](const ::testing::TestParamInfo<MessageChunkingTest::ParamType>& info) {
-                             return toString(info.param);
-                         });
+// The CI env is Ubuntu 16.04, the gtest-dev version is 1.8.0 that doesn't have INSTANTIATE_TEST_SUITE_P
+INSTANTIATE_TEST_CASE_P(Pulsar, MessageChunkingTest,
+                        ::testing::Values(CompressionNone, CompressionLZ4, CompressionZLib, CompressionZSTD,
+                                          CompressionSNAPPY),
+                        [](const ::testing::TestParamInfo<MessageChunkingTest::ParamType>& info) {
+                            return toString(info.param);
+                        });
