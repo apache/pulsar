@@ -326,14 +326,14 @@ Optional<SharedBuffer> ConsumerImpl::processMessageChunk(const SharedBuffer& pay
 
     if (chunkId == 0) {
         if (it == chunkedMessagesMap_.end()) {
-            it = chunkedMessagesMap_
-                     .emplace(uuid, ChunkedMessageCtx{metadata.num_chunks_from_msg(),
-                                                      metadata.total_chunk_msg_size()})
-                     .first;
+            chunkedMessagesMap_.emplace(
+                uuid, ChunkedMessageCtx{metadata.num_chunks_from_msg(), metadata.total_chunk_msg_size()});
+            it = chunkedMessagesMap_.find(uuid);
         }
-        pendingChunkedMessage_++;
-        if (maxPendingChunkedMessage_ > 0 && pendingChunkedMessage_ > maxPendingChunkedMessage_) {
-            removeOldestPendingChunkedMessage();
+        if (maxPendingChunkedMessage_ > 0 &&
+            pendingChunkedMessageUuidQueue_.size() >= maxPendingChunkedMessage_) {
+            removeOldestPendingChunkedMessage(pendingChunkedMessageUuidQueue_.size() -
+                                              maxPendingChunkedMessage_ + 1);
         }
         pendingChunkedMessageUuidQueue_.emplace_back(uuid);
     }
@@ -348,13 +348,14 @@ Optional<SharedBuffer> ConsumerImpl::processMessageChunk(const SharedBuffer& pay
                       << uuid << " chunkId: " << chunkId << ", messageId: " << messageId << ")");
         }
         removeChunkMessage(uuid, false);
+        removeUuidFromQueue(uuid);
         lock.unlock();
         increaseAvailablePermits(cnx);
         trackMessage(messageId);
         return Optional<SharedBuffer>::empty();
     }
 
-    chunkedMsgCtx.appendChunk(chunkId, messageId, payload);
+    chunkedMsgCtx.appendChunk(messageId, payload);
     if (!chunkedMsgCtx.isCompleted()) {
         lock.unlock();
         increaseAvailablePermits(cnx);
@@ -364,8 +365,8 @@ Optional<SharedBuffer> ConsumerImpl::processMessageChunk(const SharedBuffer& pay
     LOG_DEBUG("Chunked message completed chunkId: " << chunkId << ", ChunkedMessageCtx: " << chunkedMsgCtx
                                                     << ", sequenceId: " << metadata.sequence_id());
 
-    removeChunkMessage(uuid, false);
     auto wholePayload = chunkedMsgCtx.getBuffer();
+    removeChunkMessage(uuid, false);
     if (uncompressMessageIfNeeded(cnx, messageIdData, metadata, wholePayload, false)) {
         return Optional<SharedBuffer>::of(wholePayload);
     } else {
@@ -373,29 +374,35 @@ Optional<SharedBuffer> ConsumerImpl::processMessageChunk(const SharedBuffer& pay
     }
 }
 
-// It must be called when `chunkProcessMutex_` is acquired
-void ConsumerImpl::removeOldestPendingChunkedMessage() {
-    const int numChunksToRemove = pendingChunkedMessage_ - maxPendingChunkedMessage_;
+void ConsumerImpl::removeUuidFromQueue(const std::string& uuid) {
+    for (auto it = pendingChunkedMessageUuidQueue_.cbegin(); it != pendingChunkedMessageUuidQueue_.cend();
+         ++it) {
+        if (*it == uuid) {
+            pendingChunkedMessageUuidQueue_.erase(it);
+            break;
+        }
+    }
+}
+
+void ConsumerImpl::removeOldestPendingChunkedMessage(size_t numChunksToRemove) {
     auto it = pendingChunkedMessageUuidQueue_.begin();
-    for (int i = 0; i < numChunksToRemove; i++) {
+    for (size_t i = 0; i < numChunksToRemove; i++) {
         it = pendingChunkedMessageUuidQueue_.erase(it);
         removeChunkMessage(*it, true);
     }
 }
 
-// It must be called when `chunkProcessMutex_` is acquired
 void ConsumerImpl::removeChunkMessage(const std::string& uuid, bool processMessageId) {
-    pendingChunkedMessage_--;
     auto it = chunkedMessagesMap_.find(uuid);
     if (it == chunkedMessagesMap_.end()) {
         return;
     }
-    it = chunkedMessagesMap_.erase(it);
+    auto chunkedMsgCtx = std::move(it->second);
+    chunkedMessagesMap_.erase(it);
 
     if (!processMessageId) {
         return;
     }
-    const auto& chunkedMsgCtx = it->second;
     for (const auto& messageId : chunkedMsgCtx.getChunkedMessageIds()) {
         if (autoAckOldestChunkedMessageOnQueueFull_) {
             doAcknowledgeIndividual(messageId, [uuid, messageId](Result result) {

@@ -239,43 +239,43 @@ class ConsumerImpl : public ConsumerImplBase,
         ChunkedMessageCtx(const ChunkedMessageCtx&) = delete;
         ChunkedMessageCtx(ChunkedMessageCtx&& rhs) noexcept = default;
 
-        bool validateChunkId(int chunkId) const noexcept {
-            return (chunkId == lastChunkedId_ + 1) && chunkId >= 0 && chunkId < totalChunks_;
-        }
+        bool validateChunkId(int chunkId) const noexcept { return chunkId == numChunks(); }
 
-        void appendChunk(int chunkId, const MessageId& messageId, const SharedBuffer& payload) {
-            lastChunkedId_ = chunkId;
+        void appendChunk(const MessageId& messageId, const SharedBuffer& payload) {
             chunkedMessageIds_.emplace_back(messageId);
             chunkedMsgBuffer_.write(payload.data(), payload.readableBytes());
         }
 
-        bool isCompleted() const noexcept { return lastChunkedId_ + 1 == totalChunks_; }
+        bool isCompleted() const noexcept { return totalChunks_ == numChunks(); }
 
         const SharedBuffer& getBuffer() const noexcept { return chunkedMsgBuffer_; }
 
         const std::vector<MessageId>& getChunkedMessageIds() const noexcept { return chunkedMessageIds_; }
 
         friend std::ostream& operator<<(std::ostream& os, const ChunkedMessageCtx& ctx) {
-            return os << "total chunks: " << ctx.totalChunks_ << ", last chunk id: " << ctx.lastChunkedId_;
+            return os << "ChunkedMessageCtx " << ctx.chunkedMsgBuffer_.readableBytes() << " of "
+                      << ctx.chunkedMsgBuffer_.writerIndex() << " bytes, " << ctx.numChunks() << " of "
+                      << ctx.totalChunks_ << " chunks";
         }
 
        private:
         const int totalChunks_;
         SharedBuffer chunkedMsgBuffer_;
         std::vector<MessageId> chunkedMessageIds_;
-        int lastChunkedId_{-1};
+
+        int numChunks() const noexcept { return static_cast<int>(chunkedMessageIds_.size()); }
     };
 
-    mutable std::mutex chunkProcessMutex_;
-    std::unordered_map<std::string, ChunkedMessageCtx> chunkedMessagesMap_;
     const size_t maxPendingChunkedMessage_;
-    size_t pendingChunkedMessage_{0};
-    // use list here for removing uuid of expired chunks quickly
-    std::list<std::string> pendingChunkedMessageUuidQueue_;
-
     // if queue size is reasonable (most of the time equal to number of producers try to publish messages
     // concurrently on the topic) then it guards against broken chunked message which was not fully published
     const bool autoAckOldestChunkedMessageOnQueueFull_;
+
+    mutable std::mutex chunkProcessMutex_;
+    std::unordered_map<std::string, ChunkedMessageCtx> chunkedMessagesMap_;
+    // This list contains all the keys of `chunkedMessagesMap_`.
+    // Here we use list for removing uuid of expired chunks quickly
+    std::list<std::string> pendingChunkedMessageUuidQueue_;
 
     /**
      * Process a chunk. If the chunk is the last chunk of a message, concatenate all buffered chunks into the
@@ -296,8 +296,9 @@ class ConsumerImpl : public ConsumerImplBase,
                                                const proto::MessageIdData& messageIdData,
                                                const ClientConnectionPtr& cnx);
 
-    void removeOldestPendingChunkedMessage();
-
+    // Following methods must be called when `chunkProcessMutex_` is acquired
+    void removeUuidFromQueue(const std::string& uuid);
+    void removeOldestPendingChunkedMessage(size_t numChunksToRemove);
     void removeChunkMessage(const std::string& uuid, bool processMessageId);
 
     friend class PulsarFriend;
