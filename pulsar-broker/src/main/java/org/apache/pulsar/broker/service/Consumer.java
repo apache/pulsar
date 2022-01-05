@@ -215,6 +215,14 @@ public class Consumer {
         return readCompacted;
     }
 
+    public Future<Void> sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes,
+                                     EntryBatchIndexesAcks batchIndexesAcks,
+                                     int totalMessages, long totalBytes, long totalChunkedMessages,
+                                     RedeliveryTracker redeliveryTracker) {
+        return sendMessages(entries, batchSizes, batchIndexesAcks, totalMessages, totalBytes,
+                totalChunkedMessages, redeliveryTracker, DEFAULT_READ_EPOCH);
+    }
+
     /**
      * Dispatch a list of entries to the consumer. <br/>
      * <b>It is also responsible to release entries data and recycle entries object.</b>
@@ -746,16 +754,13 @@ public class Consumer {
         return priorityLevel;
     }
 
-    public CompletableFuture<Void> redeliverUnacknowledgedMessages(long epoch) {
+    public void redeliverUnacknowledgedMessages(long epoch) {
         // cleanup unackedMessage bucket and redeliver those unack-msgs again
-
         clearUnAckedMsgs();
         blockedConsumerOnUnackedMsgs = false;
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] consumer {} received redelivery", topicName, subscription, consumerId);
         }
-
-        CompletableFuture<Void> completableFuture;
 
         if (pendingAcks != null) {
             List<PositionImpl> pendingPositions = new ArrayList<>((int) pendingAcks.size());
@@ -771,14 +776,11 @@ public class Consumer {
 
             msgRedeliver.recordMultipleEvents(totalRedeliveryMessages.intValue(), totalRedeliveryMessages.intValue());
             subscription.redeliverUnacknowledgedMessages(this, pendingPositions);
-            completableFuture = new CompletableFuture<>();
-            completableFuture.complete(null);
         } else {
-            completableFuture = subscription.redeliverUnacknowledgedMessages(this, epoch);
+            subscription.redeliverUnacknowledgedMessages(this, epoch);
         }
 
         flowConsumerBlockedPermits(this);
-        return completableFuture;
     }
 
     public void redeliverUnacknowledgedMessages(List<MessageIdData> messageIds) {

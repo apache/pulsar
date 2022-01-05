@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
-import static org.apache.pulsar.broker.service.Consumer.DEFAULT_READ_EPOCH;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -191,7 +190,7 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
             filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false);
             consumer.sendMessages(entries, batchSizes, null, sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(),
-                    sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker(), DEFAULT_READ_EPOCH);
+                    sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker());
 
             TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -sendMessageInfo.getTotalMessages());
         } else {

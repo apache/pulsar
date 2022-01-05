@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
-import static org.apache.pulsar.broker.service.Consumer.DEFAULT_READ_EPOCH;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
@@ -148,7 +147,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
             if (consumer.getAvailablePermits() > 0 && consumer.isWritable()) {
                 consumer.sendMessages(entriesForConsumer, batchSizes, null, sendMessageInfo.getTotalMessages(),
                         sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
-                        getRedeliveryTracker(), DEFAULT_READ_EPOCH);
+                        getRedeliveryTracker());
                 TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -sendMessageInfo.getTotalMessages());
             } else {
                 entriesForConsumer.forEach(e -> {

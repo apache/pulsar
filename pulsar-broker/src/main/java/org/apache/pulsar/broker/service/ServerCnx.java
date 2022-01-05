@@ -939,6 +939,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 subscriptionName,
                 TopicOperation.CONSUME
         );
+
+        // move this because we should make the sub in this channel use one consumer future and do such as redeliver op
+        CompletableFuture<Consumer> consumerFuture = new CompletableFuture<>();
+        CompletableFuture<Consumer> existingConsumerFuture = consumers.putIfAbsent(consumerId,
+                consumerFuture);
         isAuthorizedFuture.thenApply(isAuthorized -> {
             if (isAuthorized) {
                 if (log.isDebugEnabled()) {
@@ -951,12 +956,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     Metadata.validateMetadata(metadata);
                 } catch (IllegalArgumentException iae) {
                     final String msg = iae.getMessage();
+                    consumers.remove(consumerId, existingConsumerFuture);
                     commandSender.sendErrorResponse(requestId, ServerError.MetadataError, msg);
                     return null;
                 }
-                CompletableFuture<Consumer> consumerFuture = new CompletableFuture<>();
-                CompletableFuture<Consumer> existingConsumerFuture = consumers.putIfAbsent(consumerId,
-                        consumerFuture);
 
                 if (existingConsumerFuture != null) {
                     if (existingConsumerFuture.isDone() && !existingConsumerFuture.isCompletedExceptionally()) {
@@ -1084,11 +1087,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             } else {
                 String msg = "Client is not authorized to subscribe";
                 log.warn("[{}] {} with role {}", remoteAddress, msg, getPrincipal());
+                consumers.remove(consumerId, existingConsumerFuture);
                 ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
             }
             return null;
         }).exceptionally(ex -> {
             logAuthException(remoteAddress, "subscribe", getPrincipal(), Optional.of(topicName), ex);
+            consumers.remove(consumerId, existingConsumerFuture);
             commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, ex.getMessage());
             return null;
         });
@@ -1471,27 +1476,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             if (redeliver.getMessageIdsCount() > 0 && Subscription.isIndividualAckMode(consumer.subType())) {
                 consumer.redeliverUnacknowledgedMessages(redeliver.getMessageIdsList());
             } else {
-                consumer.redeliverUnacknowledgedMessages(redeliver.getConsumerEpoch()).whenComplete((v, e) -> {
-                    if (hasRequestId) {
-                        if (e != null) {
-                            log.error("redeliverUnacknowledgedMessages error! "
-                                    + "consumerId : {}, requestId: {}", consumerId, requestId, e);
-                            ctx.writeAndFlush(Commands.newError(requestId,
-                                    BrokerServiceException.getClientErrorCode(e), e.getMessage()));
-                        } else {
-                            ctx.writeAndFlush(Commands.newSuccess(requestId));
-                        }
-                    }
-                });
-            }
-        } else {
-            if (hasRequestId) {
-                log.error("redeliverUnacknowledgedMessages error! "
-                                + "consumerId : {}, requestId: {}", consumerId, requestId,
-                        new ServiceUnitNotReadyException("Consumer don't init complete!"));
-                ctx.writeAndFlush(Commands.newError(requestId,
-                        ServerError.ServiceNotReady,
-                        consumerId + " not init complete!"));
+                consumer.redeliverUnacknowledgedMessages(redeliver.getConsumerEpoch());
             }
         }
     }

@@ -471,9 +471,8 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     @Override
-    public synchronized CompletableFuture<Void> redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
+    public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
      // No-op
-        return CompletableFuture.completedFuture(null);
     }
 
     @Override

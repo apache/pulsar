@@ -385,6 +385,9 @@ message CommandSubscribe {
     optional KeySharedMeta keySharedMeta = 17;
 
     repeated KeyValue subscription_properties = 18;
+
+    // The consumer epoch, when exclusive and failover consumer redeliver unack message will increase the epoch
+    optional uint64 epoch = 19 [default = 0];
 }
 
 message CommandPartitionedTopicMetadata {
@@ -616,7 +619,6 @@ message CommandRedeliverUnacknowledgedMessages {
     required uint64 consumer_id = 1;
     repeated MessageIdData message_ids = 2;
     optional uint64 consumer_epoch = 3 [default = 0];
-    optional uint64 request_id = 4;
 }
 
 message CommandSuccess {

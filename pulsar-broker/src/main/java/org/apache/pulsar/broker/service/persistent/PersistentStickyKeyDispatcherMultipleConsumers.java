@@ -268,7 +268,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 consumer.sendMessages(entriesWithSameKey, batchSizes, batchIndexesAcks,
                         sendMessageInfo.getTotalMessages(),
                         sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
-                        getRedeliveryTracker(), DEFAULT_READ_EPOCH).addListener(future -> {
+                        getRedeliveryTracker()).addListener(future -> {
                     if (future.isDone() && keyNumbers.decrementAndGet() == 0) {
                         readMoreEntries();
                     }

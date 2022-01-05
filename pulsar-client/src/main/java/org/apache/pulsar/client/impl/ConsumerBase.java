@@ -729,7 +729,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return true;
     }
 
-    protected boolean enqueueMessageAndCheckBatchReceive(Message<T> message) {
+    protected boolean enqueueMessageAndCheckBatchReceive(MessageImpl<T> message) {
         int messageSize = message.size();
         if (canEnqueueMessage(message) && incomingMessages.offer(message)) {
             // After we have enqueued the messages on `incomingMessages` queue, we cannot touch the message instance

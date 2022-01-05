@@ -97,6 +97,8 @@ public class CompactedTopicImpl implements CompactedTopic {
             } else {
                 cursorPosition = (PositionImpl) cursor.getReadPosition();
             }
+
+            // TODO: redeliver epoch
             ReadEntriesCallBackWrapper wrapper = ReadEntriesCallBackWrapper.create(consumer, DEFAULT_READ_EPOCH);
             if (compactionHorizon == null
                 || compactionHorizon.compareTo(cursorPosition) < 0) {

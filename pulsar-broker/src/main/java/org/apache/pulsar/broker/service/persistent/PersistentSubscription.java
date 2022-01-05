@@ -1114,13 +1114,11 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
-    public CompletableFuture<Void> redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
+    public void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
         Dispatcher dispatcher = getDispatcher();
         if (dispatcher != null) {
-            return dispatcher.redeliverUnacknowledgedMessages(consumer, consumerEpoch);
+            dispatcher.redeliverUnacknowledgedMessages(consumer, consumerEpoch);
         }
-        return FutureUtil.failedFuture(
-                new BrokerServiceException.ServiceUnitNotReadyException("Dispatcher not init complete!"));
     }
 
     @Override

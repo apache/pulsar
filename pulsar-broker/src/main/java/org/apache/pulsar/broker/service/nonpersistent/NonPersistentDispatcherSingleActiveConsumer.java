@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
-import static org.apache.pulsar.broker.service.Consumer.DEFAULT_READ_EPOCH;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
@@ -61,7 +60,7 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
             filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false);
             currentConsumer.sendMessages(entries, batchSizes, null, sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(),
-                    sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker(), DEFAULT_READ_EPOCH);
+                    sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker());
         } else {
             entries.forEach(entry -> {
                 int totalMsgs = Commands.getNumberOfMessagesInBatch(entry.getDataBuffer(), subscription.toString(), -1);
