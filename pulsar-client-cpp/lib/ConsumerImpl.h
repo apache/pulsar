@@ -272,9 +272,11 @@ class ConsumerImpl : public ConsumerImplBase,
     const bool autoAckOldestChunkedMessageOnQueueFull_;
 
     mutable std::mutex chunkProcessMutex_;
+    // The key is UUID, value is the associated ChunkedMessageCtx of the chunked message.
     std::unordered_map<std::string, ChunkedMessageCtx> chunkedMessagesMap_;
-    // This list contains all the keys of `chunkedMessagesMap_`.
-    // Here we use list for removing uuid of expired chunks quickly
+    // This list contains all the keys of `chunkedMessagesMap_`, each key is an UUID that identifies a pending
+    // chunked message. Once the number of pending chunked messages exceeds the limit, the oldest UUIDs and
+    // the associated ChunkedMessageCtx will be removed.
     std::list<std::string> pendingChunkedMessageUuidQueue_;
 
     /**
