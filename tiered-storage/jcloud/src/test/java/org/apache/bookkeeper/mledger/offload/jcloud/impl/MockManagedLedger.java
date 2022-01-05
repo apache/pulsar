@@ -20,7 +20,9 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import com.google.common.base.Predicate;
 import io.netty.buffer.ByteBuf;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -359,6 +361,21 @@ public class MockManagedLedger implements ManagedLedger {
 
     @Override
     public void checkInactiveLedgerAndRollOver() {
+
+    }
+
+    @Override
+    public void markDeletableLedger(long ledgerId) {
+
+    }
+
+    @Override
+    public Set<String> getAllDeletableLedgers() {
+        return new HashSet<>();
+    }
+
+    @Override
+    public void removeAllDeletableLedgers() {
 
     }
 }

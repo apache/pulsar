@@ -2560,6 +2560,20 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 log.debug("[{}] Updating of ledgers list after trimming", name);
             }
 
+            // mark deletable ledgers
+            for (LedgerInfo ls : ledgersToDelete) {
+                log.info("[{}] Mark deletable ledger {} - size: {}", name, ls.getLedgerId(), ls.getSize());
+                if (!ls.getOffloadContext().getBookkeeperDeleted()) {
+                    // only delete if it hasn't been previously deleted for offload
+                    markDeletableLedger(ls.getLedgerId());
+                }
+            }
+            for (LedgerInfo ls : offloadedLedgersToDelete) {
+                log.info("[{}] Mark deletable offloaded ledger {} from bookkeeper - size: {}", name, ls.getLedgerId(),
+                        ls.getSize());
+                asyncDeleteLedgerFromBookKeeper(ls.getLedgerId());
+            }
+
             store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat, new MetaStoreCallback<Void>() {
                 @Override
                 public void operationComplete(Void result, Stat stat) {
@@ -2572,11 +2586,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     for (LedgerInfo ls : ledgersToDelete) {
                         log.info("[{}] Removing ledger {} - size: {}", name, ls.getLedgerId(), ls.getSize());
                         asyncDeleteLedger(ls.getLedgerId(), ls);
-                    }
-                    for (LedgerInfo ls : offloadedLedgersToDelete) {
-                        log.info("[{}] Deleting offloaded ledger {} from bookkeeper - size: {}", name, ls.getLedgerId(),
-                                ls.getSize());
-                        asyncDeleteLedgerFromBookKeeper(ls.getLedgerId());
                     }
                     removeAllDeletableLedgers();
                     promise.complete(null);
@@ -2730,11 +2739,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void asyncDeleteLedger(long ledgerId, LedgerInfo info) {
-        if (!info.getOffloadContext().getBookkeeperDeleted()) {
-            // only delete if it hasn't been previously deleted for offload
-            markDeletableLedger(ledgerId);
-        }
-
         if (info.getOffloadContext().hasUidMsb()) {
             UUID uuid = new UUID(info.getOffloadContext().getUidMsb(), info.getOffloadContext().getUidLsb());
             cleanupOffloaded(ledgerId, uuid,
