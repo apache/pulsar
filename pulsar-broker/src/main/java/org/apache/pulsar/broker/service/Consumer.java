@@ -392,7 +392,7 @@ public class Consumer {
         for (int i = 0; i < ack.getMessageIdsCount(); i++) {
             MessageIdData msgId = ack.getMessageIdAt(i);
             PositionImpl position;
-            long ackedCount = 1;
+            long ackedCount = 0;
             long batchSize = getBatchSize(msgId);
             Consumer ackOwnerConsumer = getAckOwnerConsumer(msgId.getLedgerId(), msgId.getEntryId());
             if (msgId.getAckSetsCount() > 0) {
@@ -401,7 +401,7 @@ public class Consumer {
                     ackSets[j] = msgId.getAckSetAt(j);
                 }
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), ackSets);
-                ackedCount = getAckedCount(position, batchSize, ackSets);
+                ackedCount = getAckedCountForBatchIndexLevelEnabled(position, batchSize, ackSets);
                 if (isTransactionEnabled()) {
                     //sync the batch position bit set point, in order to delete the position in pending acks
                     if (Subscription.isIndividualAckMode(subType)) {
@@ -517,8 +517,8 @@ public class Consumer {
         return batchSize;
     }
 
-    private long getAckedCount(PositionImpl position, long batchSize, long[] ackSets) {
-        long ackedCount;
+    private long getAckedCountForBatchIndexLevelEnabled(PositionImpl position, long batchSize, long[] ackSets) {
+        long ackedCount = 0;
         if (isDeletionAtBatchIndexLevelEnabled()) {
             long[] cursorAckSet = getCursorAckSet(position);
             if (cursorAckSet != null) {
@@ -530,11 +530,9 @@ public class Consumer {
                 int currentCardinality = cursorBitSet.cardinality();
                 ackedCount = lastCardinality - currentCardinality;
                 cursorBitSet.recycle();
-            } else {
+            } else if (pendingAcks.get(position.getLedgerId(), position.getEntryId()) == null){
                 ackedCount = batchSize - BitSet.valueOf(ackSets).cardinality();
             }
-        } else {
-            ackedCount = batchSize - BitSet.valueOf(ackSets).cardinality();
         }
         return ackedCount;
     }
