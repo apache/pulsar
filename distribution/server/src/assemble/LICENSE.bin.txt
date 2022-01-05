@@ -325,7 +325,7 @@ The Apache Software License, Version 2.0
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-1.17.0.jar
  * Bitbucket -- org.bitbucket.b_c-jose4j-0.7.6.jar
  * Gson
-    - com.google.code.gson-gson-2.8.6.jar
+    - com.google.code.gson-gson-2.8.9.jar
     - io.gsonfire-gson-fire-1.8.5.jar
  * Guava
     - com.google.guava-guava-30.1-jre.jar
