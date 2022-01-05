@@ -56,7 +56,7 @@ public class ControlledClusterFailoverTest {
         String urlProvider = "http://localhost:8080";
         String tlsTrustCertsFilePath = "backup/path";
         String authPluginClassName = "org.apache.pulsar.client.impl.auth.AuthenticationToken";
-        String token = "xxxaaabbee";
+        String authParamsString = "token:xxxaaabbee";
         long interval = 1_000;
 
         ControlledClusterFailover.ControlledConfiguration controlledConfiguration =
@@ -64,7 +64,7 @@ public class ControlledClusterFailoverTest {
         controlledConfiguration.setServiceUrl(backupServiceUrl);
         controlledConfiguration.setTlsTrustCertsFilePath(tlsTrustCertsFilePath);
         controlledConfiguration.setAuthPluginClassName(authPluginClassName);
-        controlledConfiguration.setToken(token);
+        controlledConfiguration.setAuthParamsString(authParamsString);
 
         ServiceUrlProvider provider = ControlledClusterFailover.builder()
                 .defaultServiceUrl(defaultServiceUrl)
@@ -95,13 +95,13 @@ public class ControlledClusterFailoverTest {
         String backupServiceUrlV1 = "pulsar+ssl://localhost:6662";
         String tlsTrustCertsFilePathV1 = "backup/pathV1";
         String authPluginClassNameV1 = "org.apache.pulsar.client.impl.auth.AuthenticationToken";
-        String tokenV1 = "xxxaaabbeev1";
+        String authParamsStringV1 = "token:xxxaaabbeev1";
         ControlledClusterFailover.ControlledConfiguration controlledConfiguration1 =
                 new ControlledClusterFailover.ControlledConfiguration();
         controlledConfiguration1.setServiceUrl(backupServiceUrlV1);
         controlledConfiguration1.setTlsTrustCertsFilePath(tlsTrustCertsFilePathV1);
         controlledConfiguration1.setAuthPluginClassName(authPluginClassNameV1);
-        controlledConfiguration1.setToken(tokenV1);
+        controlledConfiguration1.setAuthParamsString(authParamsStringV1);
         Mockito.doReturn(controlledConfiguration1).when(controlledClusterFailover)
                 .fetchControlledConfiguration();
 

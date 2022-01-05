@@ -28,7 +28,6 @@ import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -55,13 +54,6 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
     private long interval;
     private ObjectMapper objectMapper = null;
 
-    private static final String AUTH_SASL = "org.apache.pulsar.client.impl.auth.AuthenticationSasl";
-    private static final String AUTH_ATHENZ = "org.apache.pulsar.client.impl.auth.AuthenticationAthenz";
-    private static final String AUTH_OAUTH2 = "org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2";
-    private static final String AUTH_TLS = "org.apache.pulsar.client.impl.auth.AuthenticationTls";
-    private static final String AUTH_TOKEN = "org.apache.pulsar.client.impl.auth.AuthenticationToken";
-    private static final String AUTH_KEY_STORE_TLS = "org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls";
-
     private ControlledClusterFailover(String defaultServiceUrl, String urlProvider, long interval) throws IOException {
         this.currentPulsarServiceUrl = defaultServiceUrl;
         this.pulsarUrlProvider = new URL(urlProvider);
@@ -86,37 +78,10 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
                             currentControlledConfiguration, controlledConfiguration.toString());
 
                     Authentication authentication = null;
-                    if (!Strings.isNullOrEmpty(controlledConfiguration.authPluginClassName)) {
-                        String authPluginClassName = controlledConfiguration.authPluginClassName;
-                        Map<String, String> authParams = controlledConfiguration.getAuthParams();
-                        String authParamsString = controlledConfiguration.getAuthParamsString();
-                        String token = controlledConfiguration.getToken();
-
-                        switch (authPluginClassName) {
-                            case AUTH_SASL:
-                            case AUTH_ATHENZ:
-                                if (authParams != null && !authParams.isEmpty()) {
-                                    authentication =
-                                            AuthenticationFactory.create(authPluginClassName, authParams);
-                                }
-                                break;
-
-                            case AUTH_TOKEN:
-                                if (!Strings.isNullOrEmpty(token)) {
-                                    authentication = AuthenticationFactory.token(token);
-                                }
-                                break;
-
-                            case AUTH_OAUTH2:
-                            case AUTH_TLS:
-                            case AUTH_KEY_STORE_TLS:
-                            default:
-                                if (!Strings.isNullOrEmpty(authParamsString)) {
-                                    authentication =
-                                            AuthenticationFactory.create(authPluginClassName, authParamsString);
-                                }
-                                break;
-                        }
+                    if (!Strings.isNullOrEmpty(controlledConfiguration.authPluginClassName)
+                            && !Strings.isNullOrEmpty(controlledConfiguration.getAuthParamsString())) {
+                        authentication = AuthenticationFactory.create(controlledConfiguration.getAuthPluginClassName(),
+                                controlledConfiguration.getAuthParamsString());
                     }
 
                     String tlsTrustCertsFilePath = controlledConfiguration.getTlsTrustCertsFilePath();
@@ -181,10 +146,7 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
         private String tlsTrustCertsFilePath;
 
         private String authPluginClassName;
-
         private String authParamsString;
-        private String token;
-        private Map<String, String> authParams;
 
         public String toJson() {
             ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
@@ -203,9 +165,7 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
                 return Objects.equals(serviceUrl, other.serviceUrl)
                         && Objects.equals(tlsTrustCertsFilePath, other.tlsTrustCertsFilePath)
                         && Objects.equals(authPluginClassName, other.authPluginClassName)
-                        && Objects.equals(authParamsString, other.authParamsString)
-                        && Objects.equals(token, other.token)
-                        && Objects.equals(authParams, other.authParams);
+                        && Objects.equals(authParamsString, other.authParamsString);
             }
 
             return false;
@@ -216,9 +176,7 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
             return Objects.hash(serviceUrl,
                     tlsTrustCertsFilePath,
                     authPluginClassName,
-                    authParamsString,
-                    token,
-                    authParams);
+                    authParamsString);
         }
     }
 

@@ -20,6 +20,8 @@ package org.apache.pulsar.client.impl;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -72,6 +74,12 @@ public class AutoClusterFailoverTest {
                 "org.apache.pulsar.client.impl.auth.AuthenticationTls",
                 "tlsCertFile:/path/to/secondary-my-role.cert.pem,"
                         + "tlsKeyFile:/path/to/secondary-role.key-pk8.pem");
+        Map<String, String> secondaryTlsTrustCertsFilePaths = new HashMap<>();
+        secondaryTlsTrustCertsFilePaths.put(secondary, secondaryTlsTrustCertsFilePath);
+
+        Map<String, Authentication> secondaryAuthentications = new HashMap<>();
+        secondaryAuthentications.put(secondary, secondaryAuthentication);
+
         ServiceUrlProvider provider1 = AutoClusterFailover.builder()
                 .primary(primary)
                 .secondary(Collections.singletonList(secondary))
@@ -79,17 +87,17 @@ public class AutoClusterFailoverTest {
                 .switchBackDelay(switchBackDelay, TimeUnit.SECONDS)
                 .checkInterval(checkInterval, TimeUnit.MILLISECONDS)
                 .primaryTlsTrustCertsFilePath(primaryTlsTrustCertsFilePath)
-                .secondaryTlsTrustCertsFilePath(Collections.singletonList(secondaryTlsTrustCertsFilePath))
+                .secondaryTlsTrustCertsFilePath(secondaryTlsTrustCertsFilePaths)
                 .primaryAuthentication(primaryAuthentication)
-                .secondaryAuthentication(Collections.singletonList(secondaryAuthentication))
+                .secondaryAuthentication(secondaryAuthentications)
                 .build();
 
         AutoClusterFailover autoClusterFailover1 = (AutoClusterFailover) provider1;
         Assert.assertEquals(primaryTlsTrustCertsFilePath, autoClusterFailover1.getPrimaryTlsTrustCertsFilePath());
         Assert.assertEquals(primaryAuthentication, autoClusterFailover1.getPrimaryAuthentication());
         Assert.assertEquals(secondaryTlsTrustCertsFilePath,
-                autoClusterFailover1.getSecondaryTlsTrustCertsFilePaths().get(0));
-        Assert.assertEquals(secondaryAuthentication, autoClusterFailover1.getSecondaryAuthentications().get(0));
+                autoClusterFailover1.getSecondaryTlsTrustCertsFilePaths().get(secondary));
+        Assert.assertEquals(secondaryAuthentication, autoClusterFailover1.getSecondaryAuthentications().get(secondary));
     }
 
     @Test
@@ -142,6 +150,12 @@ public class AutoClusterFailoverTest {
                 "tlsCertFile:/path/to/secondary-my-role.cert.pem,"
                         + "tlsKeyFile:/path/to/secondary-role.key-pk8.pem");
 
+        Map<String, String> secondaryTlsTrustCertsFilePaths = new HashMap<>();
+        secondaryTlsTrustCertsFilePaths.put(secondary, secondaryTlsTrustCertsFilePath);
+
+        Map<String, Authentication> secondaryAuthentications = new HashMap<>();
+        secondaryAuthentications.put(secondary, secondaryAuthentication);
+
         ServiceUrlProvider provider = AutoClusterFailover.builder()
                 .primary(primary)
                 .secondary(Collections.singletonList(secondary))
@@ -149,9 +163,9 @@ public class AutoClusterFailoverTest {
                 .failoverDelay(failoverDelay, TimeUnit.SECONDS)
                 .switchBackDelay(switchBackDelay, TimeUnit.SECONDS)
                 .primaryTlsTrustCertsFilePath(primaryTlsTrustCertsFilePath)
-                .secondaryTlsTrustCertsFilePath(Collections.singletonList(secondaryTlsTrustCertsFilePath))
+                .secondaryTlsTrustCertsFilePath(secondaryTlsTrustCertsFilePaths)
                 .primaryAuthentication(primaryAuthentication)
-                .secondaryAuthentication(Collections.singletonList(secondaryAuthentication))
+                .secondaryAuthentication(secondaryAuthentications)
                 .build();
 
         AutoClusterFailover autoClusterFailover = Mockito.spy((AutoClusterFailover) provider);
@@ -187,6 +201,11 @@ public class AutoClusterFailoverTest {
         String primaryTlsTrustStorePassword = "primaryPassword";
         String secondaryTlsTrustStorePassword = "secondaryPassword";
 
+        Map<String, String> secondaryTlsTrustStorePaths = new HashMap<>();
+        secondaryTlsTrustStorePaths.put(secondary, secondaryTlsTrustStorePath);
+        Map<String, String> secondaryTlsTrustStorePasswords = new HashMap<>();
+        secondaryTlsTrustStorePasswords.put(secondary, secondaryTlsTrustStorePassword);
+
         ServiceUrlProvider provider = AutoClusterFailover.builder()
                 .primary(primary)
                 .secondary(Collections.singletonList(secondary))
@@ -195,8 +214,8 @@ public class AutoClusterFailoverTest {
                 .checkInterval(checkInterval, TimeUnit.MILLISECONDS)
                 .primaryTlsTrustStorePath(primaryTlsTrustStorePath)
                 .primaryTlsTrustStorePassword(primaryTlsTrustStorePassword)
-                .secondaryTlsTrustStorePath(Collections.singletonList(secondaryTlsTrustStorePath))
-                .secondaryTlsTrustStorePassword(Collections.singletonList(secondaryTlsTrustStorePassword))
+                .secondaryTlsTrustStorePath(secondaryTlsTrustStorePaths)
+                .secondaryTlsTrustStorePassword(secondaryTlsTrustStorePasswords)
                 .build();
 
         AutoClusterFailover autoClusterFailover = Mockito.spy((AutoClusterFailover) provider);

@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
@@ -61,7 +62,7 @@ public interface AutoClusterFailoverBuilder {
      * @param authentication
      * @return
      */
-    AutoClusterFailoverBuilder secondaryAuthentication(List<Authentication> authentication);
+    AutoClusterFailoverBuilder secondaryAuthentication(Map<String, Authentication> authentication);
 
     /**
      * Set primary tlsTrustCertsFilePath.
@@ -77,7 +78,7 @@ public interface AutoClusterFailoverBuilder {
      * @param tlsTrustCertsFilePath
      * @return
      */
-    AutoClusterFailoverBuilder secondaryTlsTrustCertsFilePath(List<String> tlsTrustCertsFilePath);
+    AutoClusterFailoverBuilder secondaryTlsTrustCertsFilePath(Map<String, String> tlsTrustCertsFilePath);
 
     /**
      * Set primary tlsTrustStorePath.
@@ -93,7 +94,7 @@ public interface AutoClusterFailoverBuilder {
      * @param tlsTrustStorePath
      * @return
      */
-    AutoClusterFailoverBuilder secondaryTlsTrustStorePath(List<String> tlsTrustStorePath);
+    AutoClusterFailoverBuilder secondaryTlsTrustStorePath(Map<String, String> tlsTrustStorePath);
 
     /**
      * Set primary tlsTrustStorePassword.
@@ -109,7 +110,7 @@ public interface AutoClusterFailoverBuilder {
      * @param tlsTrustStorePassword
      * @return
      */
-    AutoClusterFailoverBuilder secondaryTlsTrustStorePassword(List<String> tlsTrustStorePassword);
+    AutoClusterFailoverBuilder secondaryTlsTrustStorePassword(Map<String, String> tlsTrustStorePassword);
     /**
      * Set the switch failoverDelay. When one cluster failed longer than failoverDelay, it will trigger cluster switch.
      *
