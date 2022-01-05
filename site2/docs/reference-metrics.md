@@ -49,6 +49,9 @@ in the `bookkeeper.conf` configuration file.
 | bookie_READ_BYTES | Counter | The total number of bytes read from the bookie. |
 | bookkeeper_server_ADD_ENTRY_REQUEST | Summary | The summary of request latency of ADD_ENTRY requests at the bookie. The `success` label is used to distinguish successes and failures. |
 | bookkeeper_server_READ_ENTRY_REQUEST | Summary | The summary of request latency of READ_ENTRY requests at the bookie. The `success` label is used to distinguish successes and failures. |
+| bookkeeper_server_BookieReadThreadPool_queue_{thread_id}|Gauge|The number of requests to be processed in a read thread queue.|
+| bookkeeper_server_BookieReadThreadPool_task_queued|Summary | The waiting time of a task to be processed in a read thread queue. |
+| bookkeeper_server_BookieReadThreadPool_task_execution|Summary | The execution time of a task in a read thread queue.|
 
 ### Journal metrics
 
@@ -60,6 +63,7 @@ in the `bookkeeper.conf` configuration file.
 | bookie_journal_JOURNAL_CB_QUEUE_SIZE | Gauge | The total number of callbacks pending in the callback queue. |
 | bookie_journal_JOURNAL_ADD_ENTRY | Summary | The summary of request latency of adding entries to the journal. |
 | bookie_journal_JOURNAL_SYNC | Summary | The summary of fsync latency of syncing data to the journal disk. |
+| bookie_journal_JOURNAL_CREATION_LATENCY| Summary | The latency created by a journal log file. |
 
 ### Storage metrics
 
@@ -71,6 +75,8 @@ in the `bookkeeper.conf` configuration file.
 | bookie_read_cache_size | Gauge | The bookie read cache size (in bytes). |
 | bookie_DELETED_LEDGER_COUNT | Counter | The total number of ledgers deleted since the bookie has started. |
 | bookie_ledger_writable_dirs | Gauge | The number of writable directories in the bookie. |
+| bookie_flush | Gauge| The table flush latency of bookie memory. |
+| bookie_throttled_write_requests | Counter | The number of write requests to be throttled. |
 
 ## Broker
 
@@ -109,6 +115,16 @@ The following metrics are available for broker:
 - [Proxy](#proxy)
 - [Pulsar SQL Worker](#pulsar-sql-worker)
 - [Pulsar transaction](#pulsar-transaction)
+
+### BookKeeper client metrics
+
+All the BookKeeper client metric are labelled with the following label:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
+
+| Name | Type | Description |
+|---|---|---|
+| bookkeeper_server_BOOKIE_QUARANTINE_count | Counter | The number of bookie clients to be quarantined. |
 
 ### Namespace metrics
 
@@ -233,10 +249,10 @@ All the ManagedLedgerCache metrics are labelled with the following labels:
 | Name | Type | Description |
 | --- | --- | --- |
 | pulsar_ml_cache_evictions | Gauge | The number of cache evictions during the last minute. |
-| pulsar_ml_cache_hits_rate | Gauge | The number of cache hits per second. |
-| pulsar_ml_cache_hits_throughput | Gauge | The amount of data is retrieved from the cache in byte/s |
-| pulsar_ml_cache_misses_rate | Gauge | The number of cache misses per second |
-| pulsar_ml_cache_misses_throughput | Gauge | The amount of data is retrieved from the cache in byte/s |
+| pulsar_ml_cache_hits_rate | Gauge | The number of cache hits per second on the broker side. |
+| pulsar_ml_cache_hits_throughput | Gauge | The amount of data is retrieved from the cache on the broker side (in byte/s).  |
+| pulsar_ml_cache_misses_rate | Gauge | The number of cache misses per second on the broker side. |
+| pulsar_ml_cache_misses_throughput | Gauge | The amount of data is not retrieved from the cache on the broker side (in byte/s). |
 | pulsar_ml_cache_pool_active_allocations | Gauge | The number of currently active allocations in direct arena |
 | pulsar_ml_cache_pool_active_allocations_huge | Gauge | The number of currently active huge allocation in direct arena |
 | pulsar_ml_cache_pool_active_allocations_normal | Gauge | The number of currently active normal allocations in direct arena |

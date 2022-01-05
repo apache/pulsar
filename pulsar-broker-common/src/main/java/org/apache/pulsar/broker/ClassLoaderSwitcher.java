@@ -16,14 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.stats;
+package org.apache.pulsar.broker;
 
-import lombok.experimental.UtilityClass;
+/**
+ * Help to switch the class loader of current thread to the NarClassLoader, and change it back when it's done.
+ * With the help of try-with-resources statement, the code would be cleaner than using try finally every time.
+ */
+public class ClassLoaderSwitcher implements AutoCloseable {
+    private final ClassLoader prevClassLoader;
 
-@UtilityClass
-public class CacheMetricsCollector {
+    public ClassLoaderSwitcher(ClassLoader classLoader) {
+        prevClassLoader = Thread.currentThread().getContextClassLoader();
+        Thread.currentThread().setContextClassLoader(classLoader);
+    }
 
-    public static final io.prometheus.client.cache.caffeine.CacheMetricsCollector CAFFEINE =
-            new io.prometheus.client.cache.caffeine.CacheMetricsCollector()
-            .register();
+    @Override
+    public void close() {
+        Thread.currentThread().setContextClassLoader(prevClassLoader);
+    }
 }

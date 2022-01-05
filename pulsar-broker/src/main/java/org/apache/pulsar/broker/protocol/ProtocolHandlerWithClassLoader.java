@@ -26,6 +26,7 @@ import java.util.Map;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.ClassLoaderSwitcher;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -93,24 +94,6 @@ class ProtocolHandlerWithClassLoader implements ProtocolHandler {
             classLoader.close();
         } catch (IOException e) {
             log.warn("Failed to close the protocol handler class loader", e);
-        }
-    }
-
-    /**
-     * Help to switch the class loader of current thread to the NarClassLoader, and change it back when it's done.
-     * With the help of try-with-resources statement, the code would be cleaner than using try finally every time.
-     */
-    private static class ClassLoaderSwitcher implements AutoCloseable {
-        private final ClassLoader prevClassLoader;
-
-        ClassLoaderSwitcher(ClassLoader classLoader) {
-            prevClassLoader = Thread.currentThread().getContextClassLoader();
-            Thread.currentThread().setContextClassLoader(classLoader);
-        }
-
-        @Override
-        public void close() {
-            Thread.currentThread().setContextClassLoader(prevClassLoader);
         }
     }
 }
