@@ -1150,13 +1150,10 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    /**
-     * Fix issue 13573
-     */
     @Test
-    public void testTopicReferenceNPEReturn404(){
-        String topicName = "notFoundTopic";
-        String exceptionDetail = "testTopicReferenceNPEReturn404";
+    public void testTopicReferenceCommonExceptionWillReturnRestException() {
+        String topicName = "topicName";
+        String exceptionDetail = "exceptionDetail";
         doThrow(new RuntimeException(exceptionDetail)).when(pulsar).getBrokerService();
         try{
             persistentTopics.getTopicReference(TopicName.get(topicName));
