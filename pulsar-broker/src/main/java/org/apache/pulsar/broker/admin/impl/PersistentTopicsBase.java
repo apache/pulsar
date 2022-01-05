@@ -2546,7 +2546,7 @@ public class PersistentTopicsBase extends AdminResource {
         } catch (Exception exception) {
             exception.printStackTrace();
             log.error("[{}] Failed to examine message at position {} from {} due to {}", clientAppId(), messagePosition,
-                    topicName , exception);
+                    topicName, exception);
             throw new RestException(exception);
         }
     }
@@ -4239,7 +4239,7 @@ public class PersistentTopicsBase extends AdminResource {
                 }));
     }
 
-    protected CompletableFuture<Void> internalSetCompactionThreshold(Long compactionThreshold , boolean isGlobal) {
+    protected CompletableFuture<Void> internalSetCompactionThreshold(Long compactionThreshold, boolean isGlobal) {
         if (compactionThreshold != null && compactionThreshold < 0) {
             throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for compactionThreshold");
         }

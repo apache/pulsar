@@ -660,7 +660,7 @@ public class PulsarFunctionLocalRunTest {
             }
         }, 20, 150);
 
-        //change the schema ,the function should not run, resulting in no messages to consume
+        //change the schema, the function should not run, resulting in no messages to consume
         schemaInput.put(sourceTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"__jsr310ConversionEnabled\":\"false\",\"__alwaysAllowNull\":\"false\"}}");
         localRunner = LocalRunner.builder()
                 .functionConfig(functionConfig)

@@ -285,7 +285,7 @@ public class MLPendingAckStore implements PendingAckStore {
                 buf.release();
                 completableFuture.completeExceptionally(new PersistenceException(exception));
             }
-        } , null);
+        }, null);
         return completableFuture;
     }
 

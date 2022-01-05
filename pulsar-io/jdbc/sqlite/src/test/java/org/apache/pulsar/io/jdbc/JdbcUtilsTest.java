@@ -108,7 +108,7 @@ public class JdbcUtilsTest {
         Assert.assertEquals(insertStatement, expctedInsertStatement);
         log.info("verify buildUpdateSql");
         String expectedUpdateStatement = "UPDATE " + tableName +
-                " SET age=? ,long=?  WHERE firstName=? AND lastName=?";
+                " SET age=?, long=?  WHERE firstName=? AND lastName=?";
         String updateStatement = JdbcUtils.buildUpdateSql(table);
         Assert.assertEquals(updateStatement, expectedUpdateStatement);
         log.info("verify buildDeleteSql");

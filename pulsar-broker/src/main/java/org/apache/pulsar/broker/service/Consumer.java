@@ -235,7 +235,7 @@ public class Consumer {
         }
 
         // Note
-        // Must ensure that the message is written to the pendingAcks before sent is first , because this consumer
+        // Must ensure that the message is written to the pendingAcks before sent is first, because this consumer
         // is possible to disconnect at this time.
         if (pendingAcks != null) {
             for (int i = 0; i < entries.size(); i++) {

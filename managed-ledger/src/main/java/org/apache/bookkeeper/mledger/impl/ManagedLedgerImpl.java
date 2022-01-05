@@ -551,7 +551,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     // Lazily recover cursors by put them to uninitializedCursors map.
                     for (final String cursorName : consumers) {
                         if (log.isDebugEnabled()) {
-                            log.debug("[{}] Recovering cursor {} lazily" , name, cursorName);
+                            log.debug("[{}] Recovering cursor {} lazily", name, cursorName);
                         }
                         final ManagedCursorImpl cursor;
                         cursor = new ManagedCursorImpl(bookKeeper, config, ManagedLedgerImpl.this, cursorName);

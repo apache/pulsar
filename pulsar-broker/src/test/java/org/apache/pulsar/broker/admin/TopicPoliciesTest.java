@@ -1210,7 +1210,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertNull(admin.topicPolicies().getDispatchRate(topic)));
 
-        //2 Remove level policy ,DispatchRateLimiter should us ns level policy
+        //2 Remove level policy, DispatchRateLimiter should us ns level policy
         Awaitility.await()
                 .untilAsserted(() -> {
                     DispatchRateLimiter limiter = pulsar.getBrokerService().getTopicIfExists(topic).get().get().getDispatchRateLimiter().get();

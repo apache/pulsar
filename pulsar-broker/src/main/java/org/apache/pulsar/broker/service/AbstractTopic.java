@@ -890,7 +890,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         //both namespace-level and topic-level policy are not set, try to use broker-level policy
         ServiceConfiguration serviceConfiguration = brokerService.pulsar().getConfiguration();
         if (publishRate != null) {
-            //publishRate is not null , use namespace-level policy
+            //publishRate is not null, use namespace-level policy
             updatePublishDispatcher(publishRate);
         } else {
             PublishRate brokerPublishRate = new PublishRate(serviceConfiguration.getMaxPublishRatePerTopicInMessages()

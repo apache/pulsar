@@ -391,7 +391,7 @@ public class ManagedLedgerConfig {
      * <p>
      * A retention time of 0 (default) will make data to be deleted immediately.
      * <p>
-     * A retention time of -1 , means to have an unlimited retention time.
+     * A retention time of -1, means to have an unlimited retention time.
      *
      * @param retentionTime
      *            duration for which messages should be retained
@@ -421,7 +421,7 @@ public class ManagedLedgerConfig {
      * <p>
      * A retention size of 0 (default) will make data to be deleted immediately.
      * <p>
-     * A retention size of -1 , means to have an unlimited retention size.
+     * A retention size of -1, means to have an unlimited retention size.
      *
      * @param retentionSizeInMB
      *            quota for message retention
