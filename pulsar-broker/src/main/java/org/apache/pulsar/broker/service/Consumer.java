@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.client.impl.ConsumerImpl.DEFAULT_CONSUMER_EPOCH;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 import io.netty.util.concurrent.Future;
@@ -131,14 +132,13 @@ public class Consumer {
 
     @Getter
     @Setter
-    private volatile long consumerEpoch = DEFAULT_READ_EPOCH;
-    public static final long DEFAULT_READ_EPOCH = 0L;
+    private volatile long consumerEpoch = DEFAULT_CONSUMER_EPOCH;
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
                     int maxUnackedMessages, TransportCnx cnx, String appId,
                     Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition,
-                    KeySharedMeta keySharedMeta, MessageId startMessageId) {
+                    KeySharedMeta keySharedMeta, MessageId startMessageId, long consumerEpoch) {
 
         this.subscription = subscription;
         this.subType = subType;
@@ -189,6 +189,7 @@ public class Consumer {
         }
 
         this.clientAddress = cnx.clientSourceAddress();
+        this.consumerEpoch = consumerEpoch;
     }
 
     public SubType subType() {
@@ -220,7 +221,7 @@ public class Consumer {
                                      int totalMessages, long totalBytes, long totalChunkedMessages,
                                      RedeliveryTracker redeliveryTracker) {
         return sendMessages(entries, batchSizes, batchIndexesAcks, totalMessages, totalBytes,
-                totalChunkedMessages, redeliveryTracker, DEFAULT_READ_EPOCH);
+                totalChunkedMessages, redeliveryTracker, DEFAULT_CONSUMER_EPOCH);
     }
 
     /**

@@ -35,9 +35,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import lombok.Getter;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerEventListener;
@@ -86,6 +88,13 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected volatile Timeout batchReceiveTimeout = null;
     protected final Lock reentrantLock = new ReentrantLock();
     private final AtomicInteger executorQueueSize = new AtomicInteger(0);
+
+    @Getter
+    protected final AtomicLong consumerEpoch = new AtomicLong(0);
+
+    // this present broker version don't have consumerEpoch feature,
+    // so client don't need to think about consumerEpoch feature
+    public static final long DEFAULT_CONSUMER_EPOCH = -1L;
 
     protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                            int receiverQueueSize, ExecutorProvider executorProvider,
@@ -729,7 +738,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return true;
     }
 
-    protected boolean enqueueMessageAndCheckBatchReceive(MessageImpl<T> message) {
+    protected boolean enqueueMessageAndCheckBatchReceive(Message<T> message) {
         int messageSize = message.size();
         if (canEnqueueMessage(message) && incomingMessages.offer(message)) {
             // After we have enqueued the messages on `incomingMessages` queue, we cannot touch the message instance

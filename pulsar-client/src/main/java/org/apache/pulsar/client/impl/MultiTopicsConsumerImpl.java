@@ -39,6 +39,7 @@ import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.CompletableFutureCancellationHandler;
@@ -64,6 +65,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
@@ -108,7 +110,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     private volatile BatchMessageIdImpl startMessageId = null;
     private final long startMessageRollbackDurationInSec;
-
     MultiTopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf,
             ExecutorProvider executorProvider, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
             ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist) {
@@ -284,35 +285,21 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     // Must be called from the internalPinnedExecutor thread
     private void messageReceived(ConsumerImpl<T> consumer, Message<T> message) {
         checkArgument(message instanceof MessageImpl);
+        TopicMessageImpl<T> topicMessage = new TopicMessageImpl<>(consumer.getTopic(),
+                consumer.getTopicNameWithoutPartition(), message, consumer);
 
-        // Mutually exclusive with redeliver to prevent the message
-        //from being cleared after being added to the incomingMessages
-        lock.readLock().lock();
+        if (log.isDebugEnabled()) {
+            log.debug("[{}][{}] Received message from topics-consumer {}",
+                    topic, subscription, message.getMessageId());
+        }
 
-        try {
-            // message consumer epoch < consumer.getConsumerEpoch().get() represents this message have been received
-            // before redeliverUnacknowledgedMessages
-            if (((MessageImpl) message).getConsumerEpoch() < consumer.getConsumerEpoch().get()) {
-                return;
-            }
-            TopicMessageImpl<T> topicMessage = new TopicMessageImpl<>(consumer.getTopic(),
-                    consumer.getTopicNameWithoutPartition(), message, consumer);
-
-            if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Received message from topics-consumer {}",
-                        topic, subscription, message.getMessageId());
-            }
-
-            // if asyncReceive is waiting : return message to callback without adding to incomingMessages queue
-            CompletableFuture<Message<T>> receivedFuture = nextPendingReceive();
-            if (receivedFuture != null) {
-                unAckedMessageTracker.add(topicMessage.getMessageId());
-                completePendingReceive(receivedFuture, topicMessage);
-            } else if (enqueueMessageAndCheckBatchReceive(topicMessage) && hasPendingBatchReceive()) {
-                notifyPendingBatchReceivedCallBack();
-            }
-        } finally {
-            lock.readLock().unlock();
+        // if asyncReceive is waiting : return message to callback without adding to incomingMessages queue
+        CompletableFuture<Message<T>> receivedFuture = nextPendingReceive();
+        if (receivedFuture != null) {
+            unAckedMessageTracker.add(topicMessage.getMessageId());
+            completePendingReceive(receivedFuture, topicMessage);
+        } else if (enqueueMessageAndCheckBatchReceive(topicMessage) && hasPendingBatchReceive()) {
+            notifyPendingBatchReceivedCallBack();
         }
 
         if (listener != null) {
@@ -341,6 +328,22 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
     }
 
+    // If message consumer epoch is smaller than consumer epoch present that
+    // it has been sent to the client before the user calls redeliverUnacknowledgedMessages, this message is invalid.
+    // so we should release this message and receive again
+    private boolean checkMessageConsumerEpochIsSmallerThanConsumer(Message<T> message) {
+        long messageConsumerEpoch = (((MessageImpl<T>) (((TopicMessageImpl<T>) message))
+                .getMessage()).getConsumerEpoch());
+        if ((getSubType() == CommandSubscribe.SubType.Failover
+                || getSubType() == CommandSubscribe.SubType.Exclusive)
+                && messageConsumerEpoch != DEFAULT_CONSUMER_EPOCH
+                && messageConsumerEpoch < consumerEpoch.get()) {
+            message.release();
+            return false;
+        }
+        return true;
+    }
+
     @Override
     protected Message<T> internalReceive() throws PulsarClientException {
         Message<T> message;
@@ -348,6 +351,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             message = incomingMessages.take();
             decreaseIncomingMessageSize(message);
             checkState(message instanceof TopicMessageImpl);
+            if (checkMessageConsumerEpochIsSmallerThanConsumer(message)) {
+                resumeReceivingFromPausedConsumersIfNeeded();
+                message.release();
+                return internalReceive();
+            }
             unAckedMessageTracker.add(message.getMessageId());
             resumeReceivingFromPausedConsumersIfNeeded();
             return message;
@@ -359,11 +367,22 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     @Override
     protected Message<T> internalReceive(int timeout, TimeUnit unit) throws PulsarClientException {
         Message<T> message;
+
+        long callTime = System.currentTimeMillis();
         try {
             message = incomingMessages.poll(timeout, unit);
             if (message != null) {
                 decreaseIncomingMessageSize(message);
                 checkArgument(message instanceof TopicMessageImpl);
+                if (checkMessageConsumerEpochIsSmallerThanConsumer(message)) {
+                    long executionTime = System.currentTimeMillis() - callTime;
+                    if (executionTime >= unit.toMillis(timeout)) {
+                        return null;
+                    } else {
+                        resumeReceivingFromPausedConsumersIfNeeded();
+                        return internalReceive((int) (timeout - executionTime), TimeUnit.MILLISECONDS);
+                    }
+                }
                 unAckedMessageTracker.add(message.getMessageId());
             }
             resumeReceivingFromPausedConsumersIfNeeded();
@@ -401,6 +420,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     Message<T> msg = incomingMessages.poll();
                     if (msg != null) {
                         decreaseIncomingMessageSize(msg);
+                        if (checkMessageConsumerEpochIsSmallerThanConsumer(msg)) {
+                            msgPeeked = incomingMessages.peek();
+                            continue;
+                        }
                         Message<T> interceptMsg = beforeConsume(msg);
                         messages.add(interceptMsg);
                     }
@@ -424,7 +447,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     protected CompletableFuture<Message<T>> internalReceiveAsync() {
         CompletableFutureCancellationHandler cancellationHandler = new CompletableFutureCancellationHandler();
         CompletableFuture<Message<T>> result = cancellationHandler.createFuture();
-        externalPinnedExecutor.execute(() -> {
+        internalPinnedExecutor.execute(() -> {
             Message<T> message = incomingMessages.poll();
             if (message == null) {
                 pendingReceives.add(result);
@@ -656,6 +679,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     public void redeliverUnacknowledgedMessages() {
         lock.writeLock().lock();
         try {
+            this.consumerEpoch.incrementAndGet();
             consumers.values().stream().forEach(consumer -> {
                 consumer.redeliverUnacknowledgedMessages();
                 consumer.unAckedChunkedMessageIdSequenceMap.clear();

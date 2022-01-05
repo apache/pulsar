@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.compaction;
 
-import static org.apache.pulsar.broker.service.Consumer.DEFAULT_READ_EPOCH;
+import static org.apache.pulsar.client.impl.ConsumerImpl.DEFAULT_CONSUMER_EPOCH;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
@@ -44,7 +44,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer.ReadEntriesCallBackWrapper;
+import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.impl.RawMessageImpl;
@@ -99,7 +99,7 @@ public class CompactedTopicImpl implements CompactedTopic {
             }
 
             // TODO: redeliver epoch
-            ReadEntriesCallBackWrapper wrapper = ReadEntriesCallBackWrapper.create(consumer, DEFAULT_READ_EPOCH);
+            ReadEntriesCtx wrapper = ReadEntriesCtx.create(consumer, DEFAULT_CONSUMER_EPOCH);
             if (compactionHorizon == null
                 || compactionHorizon.compareTo(cursorPosition) < 0) {
                 cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, wrapper, PositionImpl.latest);

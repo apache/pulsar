@@ -201,14 +201,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final AtomicReference<ClientCnx> clientCnxUsedForConsumerRegistration = new AtomicReference<>();
     private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<Throwable>();
-
-    @Getter
-    private final AtomicLong consumerEpoch = new AtomicLong(0);
-
-    // this present broker version don't have consumerEpoch feature,
-    // so client don't need to think about consumerEpoch feature
-    public static final long DEFAULT_CONSUMER_EPOCH = -1L;
-
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
                                                String topic,
                                                ConsumerConfigurationData<T> conf,
@@ -436,15 +428,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     // so we should release this message and receive again
     private boolean checkMessageConsumerEpochIsSmallerThanConsumer(Message<T> message) {
         if ((getSubType() == CommandSubscribe.SubType.Failover
-                || getSubType() == CommandSubscribe.SubType.Exclusive) &&
-                message instanceof MessageImpl &&
-                ((MessageImpl<T>) message).getConsumerEpoch() < consumerEpoch.get()) {
+                || getSubType() == CommandSubscribe.SubType.Exclusive)
+                && message instanceof MessageImpl
+                && ((MessageImpl<T>) message).getConsumerEpoch() != DEFAULT_CONSUMER_EPOCH
+                && ((MessageImpl<T>) message).getConsumerEpoch() < consumerEpoch.get()) {
             message.release();
             ((MessageImpl<T>) message).recycle();
             return false;
         }
         return true;
     }
+
     @Override
     protected CompletableFuture<Message<T>> internalReceiveAsync() {
         CompletableFutureCancellationHandler cancellationHandler = new CompletableFutureCancellationHandler();

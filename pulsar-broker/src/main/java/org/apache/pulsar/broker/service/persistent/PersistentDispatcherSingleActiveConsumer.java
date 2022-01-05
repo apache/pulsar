@@ -116,18 +116,15 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         }
 
         readOnActiveConsumerTask = topic.getBrokerService().executor().schedule(() -> {
-            // in order to prevent redeliverUnacknowledgedMessages rewind cursor again
-            synchronized (PersistentDispatcherSingleActiveConsumer.this) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Rewind cursor and read more entries after {} ms delay", name,
-                            serviceConfig.getActiveConsumerFailoverDelayTimeMillis());
-                }
-                cursor.rewind();
-                Consumer activeConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
-                notifyActiveConsumerChanged(activeConsumer);
-                readMoreEntries(activeConsumer);
-                readOnActiveConsumerTask = null;
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Rewind cursor and read more entries after {} ms delay", name,
+                        serviceConfig.getActiveConsumerFailoverDelayTimeMillis());
             }
+            cursor.rewind();
+            Consumer activeConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
+            notifyActiveConsumerChanged(activeConsumer);
+            readMoreEntries(activeConsumer);
+            readOnActiveConsumerTask = null;
         }, serviceConfig.getActiveConsumerFailoverDelayTimeMillis(), TimeUnit.MILLISECONDS);
     }
 
@@ -151,10 +148,10 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     public synchronized void internalReadEntriesComplete(final List<Entry> entries, Object obj) {
-        ReadEntriesCallBackWrapper readEntriesCallBackWrapper = (ReadEntriesCallBackWrapper) obj;
-        Consumer readConsumer = readEntriesCallBackWrapper.getConsumer();
-        long epoch = readEntriesCallBackWrapper.getEpoch();
-        readEntriesCallBackWrapper.recycle();
+        ReadEntriesCtx readEntriesCtx = (ReadEntriesCtx) obj;
+        Consumer readConsumer = readEntriesCtx.getConsumer();
+        long epoch = readEntriesCtx.getEpoch();
+        readEntriesCtx.recycle();
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] Got messages: {}", name, readConsumer, entries.size());
         }
@@ -285,26 +282,21 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
     @Override
     public void redeliverUnacknowledgedMessages(Consumer consumer) {
-        final CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topicName, SafeRun.safeRun(() -> {
-            internalRedeliverUnacknowledgedMessages(consumer, completableFuture);
+            internalRedeliverUnacknowledgedMessages(consumer);
         }));
     }
 
-    private synchronized void internalRedeliverUnacknowledgedMessages(Consumer consumer,
-                                                                      CompletableFuture<Void> completableFuture) {
+    private synchronized void internalRedeliverUnacknowledgedMessages(Consumer consumer) {
         if (consumer != ACTIVE_CONSUMER_UPDATER.get(this)) {
             log.info("[{}-{}] Ignoring reDeliverUnAcknowledgedMessages: Only the active consumer can call resend",
                     name, consumer);
-            completableFuture.complete(null);
             return;
         }
 
         if (readOnActiveConsumerTask != null) {
             log.info("[{}-{}] Ignoring reDeliverUnAcknowledgedMessages: consumer is waiting for cursor to be rewinded",
                     name, consumer);
-
-            completableFuture.complete(null);
             return;
         }
 
@@ -321,7 +313,6 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                     consumer);
         }
 
-        completableFuture.complete(null);
     }
 
     @Override
@@ -358,10 +349,10 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, isFirstRead,
                         this, consumer);
             } else {
-                ReadEntriesCallBackWrapper readEntriesCallBackWrapper =
-                        ReadEntriesCallBackWrapper.create(consumer, consumer.getConsumerEpoch());
+                ReadEntriesCtx readEntriesCtx =
+                        ReadEntriesCtx.create(consumer, consumer.getConsumerEpoch());
                 cursor.asyncReadEntriesOrWait(messagesToRead,
-                        bytesToRead, this, readEntriesCallBackWrapper, topic.getMaxReadPosition());
+                        bytesToRead, this, readEntriesCtx, topic.getMaxReadPosition());
             }
         } else {
             if (log.isDebugEnabled()) {
@@ -472,9 +463,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
     private synchronized void internalReadEntriesFailed(ManagedLedgerException exception, Object ctx) {
         havePendingRead = false;
-        ReadEntriesCallBackWrapper readEntriesCallBackWrapper = (ReadEntriesCallBackWrapper) ctx;
-        Consumer c = readEntriesCallBackWrapper.getConsumer();
-        readEntriesCallBackWrapper.recycle();
+        ReadEntriesCtx readEntriesCtx = (ReadEntriesCtx) ctx;
+        Consumer c = readEntriesCtx.getConsumer();
+        readEntriesCtx.recycle();
 
         long waitTimeMillis = readFailureBackoff.next();
 
@@ -592,26 +583,26 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherSingleActiveConsumer.class);
 
-    public static class ReadEntriesCallBackWrapper {
+    public static class ReadEntriesCtx {
 
         private Consumer consumer;
         private long epoch;
 
-        private final Recycler.Handle<ReadEntriesCallBackWrapper> recyclerHandle;
+        private final Recycler.Handle<ReadEntriesCtx> recyclerHandle;
 
-        private ReadEntriesCallBackWrapper(Recycler.Handle<ReadEntriesCallBackWrapper> recyclerHandle) {
+        private ReadEntriesCtx(Recycler.Handle<ReadEntriesCtx> recyclerHandle) {
             this.recyclerHandle = recyclerHandle;
         }
-        private static final Recycler<ReadEntriesCallBackWrapper> RECYCLER =
-                new Recycler<ReadEntriesCallBackWrapper>() {
+        private static final Recycler<ReadEntriesCtx> RECYCLER =
+                new Recycler<ReadEntriesCtx>() {
             @Override
-            protected ReadEntriesCallBackWrapper newObject(Recycler.Handle<ReadEntriesCallBackWrapper> recyclerHandle) {
-                return new ReadEntriesCallBackWrapper(recyclerHandle);
+            protected ReadEntriesCtx newObject(Recycler.Handle<ReadEntriesCtx> recyclerHandle) {
+                return new ReadEntriesCtx(recyclerHandle);
             }
         };
 
-        public static ReadEntriesCallBackWrapper create(Consumer consumer, long epoch) {
-            ReadEntriesCallBackWrapper wrapper = RECYCLER.get();
+        public static ReadEntriesCtx create(Consumer consumer, long epoch) {
+            ReadEntriesCtx wrapper = RECYCLER.get();
             wrapper.consumer = consumer;
             wrapper.epoch = epoch;
             if (log.isDebugEnabled()) {
