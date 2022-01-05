@@ -171,5 +171,9 @@ public class FileSourceConfig implements Serializable {
         if (numWorkers != null && numWorkers <= 0) {
             throw new IllegalArgumentException("The property numWorkers must be greater than zero");
         }
+
+        if (processedFileSuffix != null && keepFile) {
+            throw new IllegalArgumentException("The property keepFile must be false if the property processedFileSuffix is set");
+        }
     }
 }
