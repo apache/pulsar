@@ -446,7 +446,7 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
         PulsarAdmin pulsarAdmin = Mockito.mock(PulsarAdmin.class);
         Schemas schemas = Mockito.mock(Schemas.class);
         Mockito.when(pulsarAdmin.schemas()).thenReturn(schemas);
-        PulsarConnectorConfig connectorConfig = spy(new PulsarConnectorConfig());
+        PulsarConnectorConfig connectorConfig = spy(PulsarConnectorConfig.class);
         Mockito.when(connectorConfig.getPulsarAdmin()).thenReturn(pulsarAdmin);
         PulsarRecordCursor pulsarRecordCursor = spy(new PulsarRecordCursor(
                 new ArrayList<>(), pulsarSplit, connectorConfig, Mockito.mock(ManagedLedgerFactory.class),

@@ -52,7 +52,7 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest  {
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
-        resourcegroups = spy(new ResourceGroups());
+        resourcegroups = spy(ResourceGroups.class);
         resourcegroups.setServletContext(new MockServletContext());
         resourcegroups.setPulsar(pulsar);
         doReturn(mockZooKeeper).when(resourcegroups).localZk();

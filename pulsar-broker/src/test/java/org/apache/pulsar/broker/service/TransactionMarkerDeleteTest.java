@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -87,8 +88,8 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase{
         doReturn(false).when(configuration).isTransactionCoordinatorEnabled();
         doReturn(managedLedger).when(topic).getManagedLedger();
         ManagedCursor cursor = managedLedger.openCursor("test");
-        PersistentSubscription persistentSubscription = spy(new PersistentSubscription(topic, "test",
-                cursor, false));
+        PersistentSubscription persistentSubscription = spyWithClassAndConstructorArgs(PersistentSubscription.class, topic, "test",
+                cursor, false);
         Position position = managedLedger.addEntry("test".getBytes());
         persistentSubscription.acknowledgeMessage(Collections.singletonList(position),
                 AckType.Individual, Collections.emptyMap());

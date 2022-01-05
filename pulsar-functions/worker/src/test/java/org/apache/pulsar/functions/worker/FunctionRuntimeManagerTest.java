@@ -946,7 +946,7 @@ public class FunctionRuntimeManagerTest {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setKubernetesContainerFactory(kubernetesContainerFactory);
 
-        KubernetesRuntimeFactory mockedKubernetesRuntimeFactory = spy(new KubernetesRuntimeFactory());
+        KubernetesRuntimeFactory mockedKubernetesRuntimeFactory = spy(KubernetesRuntimeFactory.class);
         doNothing().when(mockedKubernetesRuntimeFactory).initialize(
             any(WorkerConfig.class),
             any(AuthenticationConfig.class),
@@ -1111,7 +1111,7 @@ public class FunctionRuntimeManagerTest {
         WorkerConfig.KubernetesContainerFactory kubernetesContainerFactory
                 = new WorkerConfig.KubernetesContainerFactory();
         workerConfig.setKubernetesContainerFactory(kubernetesContainerFactory);
-        KubernetesRuntimeFactory mockedKubernetesRuntimeFactory = spy(new KubernetesRuntimeFactory());
+        KubernetesRuntimeFactory mockedKubernetesRuntimeFactory = spy(KubernetesRuntimeFactory.class);
         doNothing().when(mockedKubernetesRuntimeFactory).initialize(
                 any(WorkerConfig.class),
                 any(AuthenticationConfig.class),

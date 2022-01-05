@@ -347,7 +347,7 @@ public abstract class TestPulsarConnector {
 
     public static PulsarMetadata mockColumnMetadata() {
         ConnectorContext prestoConnectorContext = new TestingConnectorContext();
-        PulsarConnectorConfig pulsarConnectorConfig = spy(new PulsarConnectorConfig());
+        PulsarConnectorConfig pulsarConnectorConfig = spy(PulsarConnectorConfig.class);
         pulsarConnectorConfig.setMaxEntryReadBatchSize(1);
         pulsarConnectorConfig.setMaxSplitEntryQueueSize(10);
         pulsarConnectorConfig.setMaxSplitMessageQueueSize(100);
@@ -436,7 +436,7 @@ public abstract class TestPulsarConnector {
 
     @BeforeMethod
     public void setup() throws Exception {
-        this.pulsarConnectorConfig = spy(new PulsarConnectorConfig());
+        this.pulsarConnectorConfig = spy(PulsarConnectorConfig.class);
         this.pulsarConnectorConfig.setMaxEntryReadBatchSize(1);
         this.pulsarConnectorConfig.setMaxSplitEntryQueueSize(10);
         this.pulsarConnectorConfig.setMaxSplitMessageQueueSize(100);

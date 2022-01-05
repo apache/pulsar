@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.UUID.randomUUID;
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.apache.pulsar.broker.service.BrokerService.BROKER_SERVICE_CONFIGURATION_PATH;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeastOnce;
@@ -890,8 +891,9 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     public void testJsonSchemaProducerConsumerWithSpecifiedReaderAndWriter() throws PulsarClientException {
         final String topicName = "persistent://my-property/my-ns/my-topic1";
         ObjectMapper mapper = new ObjectMapper();
-        SchemaReader<TestMessageObject> reader = Mockito.spy(new JacksonJsonReader<>(mapper, TestMessageObject.class));
-        SchemaWriter<TestMessageObject> writer = Mockito.spy(new JacksonJsonWriter<>(mapper));
+        SchemaReader<TestMessageObject> reader =
+                spyWithClassAndConstructorArgs(JacksonJsonReader.class, mapper, TestMessageObject.class);
+        SchemaWriter<TestMessageObject> writer = spyWithClassAndConstructorArgs(JacksonJsonWriter.class, mapper);
 
         SchemaDefinition<TestMessageObject> schemaDefinition = new SchemaDefinitionBuilderImpl<TestMessageObject>()
                 .withPojo(TestMessageObject.class)
@@ -926,10 +928,10 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     private static final class TestMessageObject{
         private String value;
     }
-    
+
     /**
      * It validates pooled message consumption for batch and non-batch messages.
-     * 
+     *
      * @throws Exception
      */
     @Test(dataProvider = "booleanFlagProvider")
@@ -980,10 +982,10 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         consumer.close();
         producer.close();
     }
-    
+
     /**
      * It verifies that expiry/redelivery of messages relesaes the messages without leak.
-     * 
+     *
      * @param isBatchingEnabled
      * @throws Exception
      */

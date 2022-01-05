@@ -158,7 +158,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         conf.setClusterName(testLocalCluster);
         super.internalSetup();
 
-        namespaces = spy(new Namespaces());
+        namespaces = spy(Namespaces.class);
         namespaces.setServletContext(new MockServletContext());
         namespaces.setPulsar(pulsar);
         doReturn(mockZooKeeper).when(namespaces).localZk();
@@ -1102,7 +1102,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         ownership.setAccessible(true);
         ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
         TopicName topicName = TopicName.get(testNs.getPersistentTopicName("my-topic"));
-        PersistentTopics topics = spy(new PersistentTopics());
+        PersistentTopics topics = spy(PersistentTopics.class);
         topics.setServletContext(new MockServletContext());
         topics.setPulsar(pulsar);
         doReturn(false).when(topics).isRequestHttps();
@@ -1267,7 +1267,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.tenants().deleteTenant("my-tenants");
     }
 
-    class MockLedgerOffloader implements LedgerOffloader {
+    public static class MockLedgerOffloader implements LedgerOffloader {
         ConcurrentHashMap<Long, UUID> offloads = new ConcurrentHashMap<Long, UUID>();
         ConcurrentHashMap<Long, UUID> deletes = new ConcurrentHashMap<Long, UUID>();
 

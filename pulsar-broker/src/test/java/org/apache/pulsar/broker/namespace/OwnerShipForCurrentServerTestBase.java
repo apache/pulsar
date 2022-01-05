@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.namespace;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.channel.EventLoopGroup;
@@ -120,7 +121,7 @@ public class OwnerShipForCurrentServerTestBase {
             conf.setWebServicePortTls(Optional.of(0));
             serviceConfigurationList.add(conf);
 
-            PulsarService pulsar = spy(new PulsarService(conf));
+            PulsarService pulsar = spyWithClassAndConstructorArgs(PulsarService.class, conf);
 
             setupBrokerMocks(pulsar);
             pulsar.start();
@@ -135,7 +136,7 @@ public class OwnerShipForCurrentServerTestBase {
         MockZooKeeperSession mockZooKeeperSession = MockZooKeeperSession.newInstance(mockZooKeeper);
         doReturn(new ZKMetadataStore(mockZooKeeperSession)).when(pulsar).createLocalMetadataStore();
         doReturn(new ZKMetadataStore(mockZooKeeperSession)).when(pulsar).createConfigurationMetadataStore();
-        Supplier<NamespaceService> namespaceServiceSupplier = () -> spy(new NamespaceService(pulsar));
+        Supplier<NamespaceService> namespaceServiceSupplier = () -> spyWithClassAndConstructorArgs(NamespaceService.class, pulsar);
         doReturn(namespaceServiceSupplier).when(pulsar).getNamespaceServiceProvider();
 
         SameThreadOrderedSafeExecutor executor = new SameThreadOrderedSafeExecutor();
@@ -159,7 +160,7 @@ public class OwnerShipForCurrentServerTestBase {
     }
 
     public static NonClosableMockBookKeeper createMockBookKeeper(OrderedExecutor executor) throws Exception {
-        return spy(new NonClosableMockBookKeeper(executor));
+        return spyWithClassAndConstructorArgs(NonClosableMockBookKeeper.class, executor);
     }
 
     // Prevent the MockBookKeeper instance from being closed when the broker is restarted within a test

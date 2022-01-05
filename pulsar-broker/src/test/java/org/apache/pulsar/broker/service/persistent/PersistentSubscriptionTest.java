@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockBookKeeper;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.mockito.ArgumentMatchers.any;
@@ -115,10 +116,10 @@ public class PersistentSubscriptionTest {
         executor = OrderedExecutor.newBuilder().numThreads(1).name("persistent-subscription-test").build();
         eventLoopGroup = new NioEventLoopGroup();
 
-        ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
+        ServiceConfiguration svcConfig = spy(ServiceConfiguration.class);
         svcConfig.setBrokerShutdownTimeoutMs(0L);
         svcConfig.setTransactionCoordinatorEnabled(true);
-        pulsarMock = spy(new PulsarService(svcConfig));
+        pulsarMock = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
         doReturn(new InMemTransactionBufferProvider()).when(pulsarMock).getTransactionBufferProvider();
         doReturn(new TransactionPendingAckStoreProvider() {
             @Override
@@ -192,7 +193,7 @@ public class PersistentSubscriptionTest {
         doReturn(zkPoliciesDataCacheMock).when(zkCacheMock).policiesCache();
         doReturn(zkCacheMock).when(pulsarMock).getLocalZkCacheService();
 
-        brokerMock = spy(new BrokerService(pulsarMock, eventLoopGroup));
+        brokerMock = spyWithClassAndConstructorArgs(BrokerService.class, pulsarMock, eventLoopGroup);
         doNothing().when(brokerMock).unloadNamespaceBundlesGracefully();
         doReturn(brokerMock).when(pulsarMock).getBrokerService();
 

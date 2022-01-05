@@ -18,19 +18,16 @@
  */
 package org.apache.pulsar.websocket.proxy;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
 import com.google.common.collect.Sets;
-
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.Set;
-
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.common.naming.TopicName;
@@ -68,7 +65,7 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
         config.setClusterName("c1");
         config.setWebServicePort(Optional.of(0));
         config.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
-        service = spy(new WebSocketService(config));
+        service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
         doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service).createMetadataStore(anyString(), anyInt());
         service.start();
     }

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -110,7 +111,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     protected void setup() throws Exception {
         super.internalSetup();
-        persistentTopics = spy(new PersistentTopics());
+        persistentTopics = spy(PersistentTopics.class);
         persistentTopics.setServletContext(new MockServletContext());
         persistentTopics.setPulsar(pulsar);
         doReturn(mockZooKeeper).when(persistentTopics).localZk();
@@ -121,7 +122,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         doNothing().when(persistentTopics).validateAdminAccessForTenant(this.testTenant);
         doReturn(mock(AuthenticationDataHttps.class)).when(persistentTopics).clientAuthData();
 
-        nonPersistentTopic = spy(new NonPersistentTopics());
+        nonPersistentTopic = spy(NonPersistentTopics.class);
         nonPersistentTopic.setServletContext(new MockServletContext());
         nonPersistentTopic.setPulsar(pulsar);
         doReturn(mockZooKeeper).when(nonPersistentTopic).localZk();

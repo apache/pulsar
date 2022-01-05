@@ -88,7 +88,7 @@ public class HttpTopicLookupv2Test {
         clustersListCache = mock(ZooKeeperChildrenCache.class);
         clustersCache = mock(ZooKeeperDataCache.class);
         policiesCache = mock(ZooKeeperDataCache.class);
-        config = spy(new ServiceConfiguration());
+        config = spy(ServiceConfiguration.class);
         config.setClusterName("use");
         clusters = new TreeSet<>();
         clusters.add("use");
@@ -119,7 +119,7 @@ public class HttpTopicLookupv2Test {
     @Test
     public void crossColoLookup() throws Exception {
 
-        TopicLookup destLookup = spy(new TopicLookup());
+        TopicLookup destLookup = spy(TopicLookup.class);
         doReturn(false).when(destLookup).isRequestHttps();
         destLookup.setPulsar(pulsar);
         doReturn("null").when(destLookup).clientAppId();
@@ -141,7 +141,7 @@ public class HttpTopicLookupv2Test {
         WebApplicationException wae = (WebApplicationException) arg.getValue();
         assertEquals(wae.getResponse().getStatus(), Status.TEMPORARY_REDIRECT.getStatusCode());
     }
-    
+
     
     @Test
     public void testNotEnoughLookupPermits() throws Exception {
@@ -149,7 +149,7 @@ public class HttpTopicLookupv2Test {
         BrokerService brokerService = pulsar.getBrokerService();
         doReturn(new Semaphore(0)).when(brokerService).getLookupRequestSemaphore();
 
-        TopicLookup destLookup = spy(new TopicLookup());
+        TopicLookup destLookup = spy(TopicLookup.class);
         doReturn(false).when(destLookup).isRequestHttps();
         destLookup.setPulsar(pulsar);
         doReturn("null").when(destLookup).clientAppId();
@@ -187,7 +187,7 @@ public class HttpTopicLookupv2Test {
         doReturn(Optional.of(policies2)).when(policiesCache)
                 .get(AdminResource.path(POLICIES, property, cluster, ns2));
 
-        TopicLookup destLookup = spy(new TopicLookup());
+        TopicLookup destLookup = spy(TopicLookup.class);
         doReturn(false).when(destLookup).isRequestHttps();
         destLookup.setPulsar(pulsar);
         doReturn("null").when(destLookup).clientAppId();

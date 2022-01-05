@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.auth;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -316,7 +317,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         doReturn(createLocalMetadataStore()).when(pulsar).createLocalMetadataStore();
         doReturn(createConfigurationMetadataStore()).when(pulsar).createConfigurationMetadataStore();
 
-        Supplier<NamespaceService> namespaceServiceSupplier = () -> spy(new NamespaceService(pulsar));
+        Supplier<NamespaceService> namespaceServiceSupplier = () -> spyWithClassAndConstructorArgs(NamespaceService.class, pulsar);
         doReturn(namespaceServiceSupplier).when(pulsar).getNamespaceServiceProvider();
 
         doReturn(sameThreadOrderedSafeExecutor).when(pulsar).getOrderedExecutor();
@@ -380,7 +381,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     public static NonClosableMockBookKeeper createMockBookKeeper(OrderedExecutor executor) throws Exception {
-        return spy(new NonClosableMockBookKeeper(executor));
+        return spyWithClassAndConstructorArgs(NonClosableMockBookKeeper.class, executor);
     }
 
     // Prevent the MockBookKeeper instance from being closed when the broker is restarted within a test
