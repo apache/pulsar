@@ -971,6 +971,13 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("remove-subscribe-rate persistent://myprop/clust/ns1/ds1"));
         verify(mockTopicsPolicies).removeSubscribeRate("persistent://myprop/clust/ns1/ds1");
 
+        cmdTopics.run(split("get-max-message-size persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopicsPolicies).getMaxMessageSize("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("set-max-message-size persistent://myprop/clust/ns1/ds1 -m 1000"));
+        verify(mockTopicsPolicies).setMaxMessageSize("persistent://myprop/clust/ns1/ds1", 1000);
+        cmdTopics.run(split("remove-max-message-size persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopicsPolicies).removeMaxMessageSize("persistent://myprop/clust/ns1/ds1");
+
         cmdTopics.run(split("get-max-consumers persistent://myprop/clust/ns1/ds1"));
         verify(mockTopicsPolicies).getMaxConsumers("persistent://myprop/clust/ns1/ds1", false);
         cmdTopics.run(split("remove-max-consumers persistent://myprop/clust/ns1/ds1"));
@@ -1139,6 +1146,13 @@ public class PulsarAdminToolTest {
                 DelayedDeliveryPolicies.builder().tickTime(10000).active(true).build());
         cmdTopics.run(split("remove-delayed-delivery persistent://myprop/clust/ns1/ds1 -g"));
         verify(mockGlobalTopicsPolicies).removeDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1") ;
+
+        cmdTopics.run(split("get-max-message-size persistent://myprop/clust/ns1/ds1 -g"));
+        verify(mockGlobalTopicsPolicies).getMaxMessageSize("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("set-max-message-size persistent://myprop/clust/ns1/ds1 -m 1000 -g"));
+        verify(mockGlobalTopicsPolicies).setMaxMessageSize("persistent://myprop/clust/ns1/ds1", 1000);
+        cmdTopics.run(split("remove-max-message-size persistent://myprop/clust/ns1/ds1 -g"));
+        verify(mockGlobalTopicsPolicies).removeMaxMessageSize("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("get-deduplication persistent://myprop/clust/ns1/ds1 -g"));
         verify(mockGlobalTopicsPolicies).getDeduplicationStatus("persistent://myprop/clust/ns1/ds1");

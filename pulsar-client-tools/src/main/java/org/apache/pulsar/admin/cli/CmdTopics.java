@@ -290,6 +290,10 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("set-maxProducers");
             cmdUsageFormatter.addDeprecatedCommand("remove-maxProducers");
 
+            cmdUsageFormatter.addDeprecatedCommand("get-max-message-size");
+            cmdUsageFormatter.addDeprecatedCommand("set-max-message-size");
+            cmdUsageFormatter.addDeprecatedCommand("remove-max-message-size");
+
             cmdUsageFormatter.addDeprecatedCommand("get-retention");
             cmdUsageFormatter.addDeprecatedCommand("set-retention");
             cmdUsageFormatter.addDeprecatedCommand("remove-retention");
