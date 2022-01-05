@@ -46,9 +46,6 @@ import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
  */
 @Slf4j
 public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
-    private final ScheduledExecutorService executorService;
-    private final int hostUsageCheckIntervalMin;
-
     private long lastCollection;
     private double lastTotalNicUsageTx;
     private double lastTotalNicUsageRx;
@@ -87,12 +84,11 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
             log.warn("Failed to check cgroup CPU usage file: {}", e.getMessage());
         }
         this.isCGroupsEnabled = isCGroupsEnabled;
-        this.executorService = executorService;
-        this.hostUsageCheckIntervalMin = hostUsageCheckIntervalMin;
 
         // Call now to initialize values before the constructor returns
         calculateBrokerHostUsage();
-        this.executorService.schedule(catchingAndLoggingThrowables(this::calculateBrokerHostUsage),
+        executorService.scheduleWithFixedDelay(catchingAndLoggingThrowables(this::calculateBrokerHostUsage),
+                hostUsageCheckIntervalMin,
                 hostUsageCheckIntervalMin, TimeUnit.MINUTES);
     }
 
@@ -112,9 +108,13 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         SystemResourceUsage usage = new SystemResourceUsage();
         long now = System.currentTimeMillis();
         double elapsedSeconds = (now - lastCollection) / 1000d;
-        double cpuUsage = (elapsedSeconds <= 0) ? 0 : getTotalCpuUsage(elapsedSeconds);
+        double cpuUsage = getTotalCpuUsage(elapsedSeconds);
 
-        if (lastCollection == 0L || elapsedSeconds <= 0) {
+        if (elapsedSeconds <= 0) {
+            log.warn("elapsedSeconds {} is not expected,skip this round of calculateBrokerHostUsage", elapsedSeconds);
+            return;
+        }
+        if (lastCollection == 0L) {
             usage.setMemory(getMemUsage());
             usage.setBandwidthIn(new ResourceUsage(0d, totalNicLimit));
             usage.setBandwidthOut(new ResourceUsage(0d, totalNicLimit));
@@ -132,9 +132,6 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         lastCollection = System.currentTimeMillis();
         this.usage = usage;
         usage.setCpu(new ResourceUsage(cpuUsage, totalCpuLimit));
-
-        executorService.schedule(catchingAndLoggingThrowables(this::calculateBrokerHostUsage),
-                hostUsageCheckIntervalMin, TimeUnit.MINUTES);
     }
 
     private double getTotalCpuLimit() {
