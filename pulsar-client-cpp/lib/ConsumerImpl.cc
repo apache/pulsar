@@ -317,6 +317,9 @@ Optional<SharedBuffer> ConsumerImpl::processMessageChunk(const SharedBuffer& pay
                                                          const ClientConnectionPtr& cnx) {
     const auto chunkId = metadata.chunk_id();
     const auto uuid = metadata.uuid();
+    LOG_DEBUG("Process message chunk (chunkId: " << chunkId << ", uuid: " << uuid
+                                                 << ", messageId: " << messageId << ") of "
+                                                 << payload.readableBytes() << " bytes");
 
     Lock lock(chunkProcessMutex_);
     auto it = chunkedMessagesMap_.find(uuid);
@@ -338,12 +341,13 @@ Optional<SharedBuffer> ConsumerImpl::processMessageChunk(const SharedBuffer& pay
     auto& chunkedMsgCtx = it->second;
     if (it == chunkedMessagesMap_.end() || !chunkedMsgCtx.validateChunkId(chunkId)) {
         if (it == chunkedMessagesMap_.end()) {
-            LOG_ERROR("Received unexpected chunk, messageId: " << messageId << ", chunkId: " << chunkId);
+            LOG_ERROR("Received an uncached chunk (uuid: " << uuid << " chunkId: " << chunkId
+                                                           << ", messageId: " << messageId << ")");
         } else {
-            LOG_ERROR("Received unexpected chunk, messageId: " << messageId << ", chunkId: " << chunkId
-                                                               << ", ChunkedMessageCtx: " << chunkedMsgCtx);
+            LOG_ERROR("Received a chunk whose chunk id is invalid (uuid: "
+                      << uuid << " chunkId: " << chunkId << ", messageId: " << messageId << ")");
         }
-        chunkedMessagesMap_.erase(uuid);
+        removeChunkMessage(uuid, false);
         lock.unlock();
         increaseAvailablePermits(cnx);
         trackMessage(messageId);
