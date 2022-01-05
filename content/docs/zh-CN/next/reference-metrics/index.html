@@ -115,7 +115,7 @@
 <li>1: bookie 正运行于可写入模式。</li>
 <li>0: bookie 正运行于只读模式。</li>
 </ul>
-<p>| | bookkeeper_server_ADD_ENTRY_count | 计数器 | bookie 收到的 ADD_ENTRY 请求数总数。 <code>success</code> 标签会被用于区分成功与失败。 | | bookkeeper_server_READ_ENTRY_count | 计数器 | bookie 收到的 READ_ENTRY 请求数总数。 <code>success</code> 标签会被用于区分成功与失败。 | | bookie_WRITE_BYTES | 计数器 | 写入 bookie 的总字节数。 | | bookie_READ_BYTES | 计数器 | 从 bookie 读取的总字节数。 | | bookkeeper_server_ADD_ENTRY_REQUEST | Summary | The summary of request latency of ADD_ENTRY requests at the bookie. <code>success</code> 标签会被用于区分成功与失败。 | | bookkeeper_server_READ_ENTRY_REQUEST | 总数| 本书中 READ_ENTRY 请求的延迟总数。 <code>success</code> 标签会被用于区分成功与失败。 |</p>
+<p>| | bookkeeper_server_ADD_ENTRY_count | 计数器 | bookie 收到的 ADD_ENTRY 请求数总数。 <code>success</code> 标签会被用于区分成功与失败。 | | bookkeeper_server_READ_ENTRY_count | 计数器 | bookie 收到的 READ_ENTRY 请求数总数。 <code>success</code> 标签会被用于区分成功与失败。 | | bookie_WRITE_BYTES | 计数器 | 写入 bookie 的总字节数。 | | bookie_READ_BYTES | 计数器 | 从 bookie 读取的总字节数。 | | bookkeeper_server_ADD_ENTRY_REQUEST | Summary | The summary of request latency of ADD_ENTRY requests at the bookie. <code>success</code> 标签会被用于区分成功与失败。 | | bookkeeper_server_READ_ENTRY_REQUEST | 总数| 本书中 READ_ENTRY 请求的延迟总数。 <code>success</code> 标签会被用于区分成功与失败。 | | bookkeeper_server_BookieReadThreadPool_queue_{thread_id}|Gauge|The number of requests to be processed in a read thread queue.| | bookkeeper_server_BookieReadThreadPool_task_queued|Summary | The waiting time of a task to be processed in a read thread queue. | | bookkeeper_server_BookieReadThreadPool_task_execution|Summary | The execution time of a task in a read thread queue.|</p>
 <h3><a class="anchor" aria-hidden="true" id="日志度量值"></a><a href="#日志度量值" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>日志度量值</h3>
 <table>
 <thead>
@@ -128,6 +128,7 @@
 <tr><td>bookie_journal_JOURNAL_CB_QUEUE_SIZE</td><td>计量表</td><td>回调队列中待处理的回调总数。</td></tr>
 <tr><td>bookie_journal_JOURNAL_ADD_ENTRY</td><td>总结</td><td>在日志中添加条目的请求延迟的总数。</td></tr>
 <tr><td>bookie_journal_JOURNAL_SYNC</td><td>总结</td><td>同步数据到日志磁盘的 fsync 延迟的总数。</td></tr>
+<tr><td>bookie_journal_JOURNAL_CREATION_LATENCY</td><td>总结</td><td>The latency created by a journal log file.</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="存储度量值"></a><a href="#存储度量值" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>存储度量值</h3>
@@ -142,6 +143,8 @@
 <tr><td>bookie_read_cache_size</td><td>计量表</td><td>bookie 的读缓存大小（以字节为单位）。</td></tr>
 <tr><td>bookie_DELETED_LEDGER_COUNT</td><td>计数器</td><td>bookie 被启动以来被删除的 ledger 总数。</td></tr>
 <tr><td>bookie_ledger_writable_dirs</td><td>计量表</td><td>bookie 中可写入目录的数量。</td></tr>
+<tr><td>bookie_flush</td><td>计量表</td><td>The table flush latency of bookie memory.</td></tr>
+<tr><td>bookie_throttled_write_requests</td><td>计数器</td><td>The number of write requests to be throttled.</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="broker"></a><a href="#broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h2>
@@ -190,6 +193,19 @@
 <li><a href="#pulsar-sql-worker">Pulsar SQL Worker</a></li>
 <li><a href="#pulsar-transaction">Pulsar transaction</a></li>
 </ul>
+<h3><a class="anchor" aria-hidden="true" id="bookkeeper-client-metrics"></a><a href="#bookkeeper-client-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BookKeeper client metrics</h3>
+<p>All the BookKeeper client metric are labelled with the following label:</p>
+<ul>
+<li><em>集群</em>: <code>cluster=${pulsar_cluster}</code>。 <code>${pulsar_cluster}</code> 就是你在 <code>broker.conf</code> 中配置的集群名称。</li>
+</ul>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>bookkeeper_server_BOOKIE_QUARANTINE_count</td><td>计数器</td><td>The number of bookie clients to be quarantined.</td></tr>
+</tbody>
+</table>
 <h3><a class="anchor" aria-hidden="true" id="命名空间度量值"></a><a href="#命名空间度量值" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>命名空间度量值</h3>
 <blockquote>
 <p>命名空间度量值只有在 <code>exposeTopicLevelMetricsInPrometheus</code> 被设为 <code>false</code> 时才暴露。</p>
@@ -382,10 +398,10 @@ Available thresholds:</p>
 </thead>
 <tbody>
 <tr><td>pulsar_ml_cache_evictions</td><td>计量表</td><td>在过去 1 分钟内的缓存驱逐数。</td></tr>
-<tr><td>pulsar_ml_cache_hits_rate</td><td>计量表</td><td>每秒缓存命中数。</td></tr>
-<tr><td>pulsar_ml_cache_hits_throughput</td><td>计量表</td><td>从缓存中取出的数据量，以字节/秒为单位</td></tr>
-<tr><td>pulsar_ml_cache_misses_rate</td><td>计量表</td><td>每秒缓存失效数</td></tr>
-<tr><td>pulsar_ml_cache_misses_throughput</td><td>计量表</td><td>从缓存中取出的数据量，以字节/秒为单位</td></tr>
+<tr><td>pulsar_ml_cache_hits_rate</td><td>计量表</td><td>The number of cache hits per second on the broker side.</td></tr>
+<tr><td>pulsar_ml_cache_hits_throughput</td><td>计量表</td><td>The amount of data is retrieved from the cache on the broker side (in byte/s).</td></tr>
+<tr><td>pulsar_ml_cache_misses_rate</td><td>计量表</td><td>The number of cache misses per second on the broker side.</td></tr>
+<tr><td>pulsar_ml_cache_misses_throughput</td><td>计量表</td><td>The amount of data is not retrieved from the cache on the broker side (in byte/s).</td></tr>
 <tr><td>pulsar_ml_cache_pool_active_allocations</td><td>计量表</td><td>直接场地（direct arena）中当前活动的分配数</td></tr>
 <tr><td>pulsar_ml_cache_pool_active_allocations_huge</td><td>计量表</td><td>直接场地（direct arena）中当前活动的大型（huge）分配数</td></tr>
 <tr><td>pulsar_ml_cache_pool_active_allocations_normal</td><td>计量表</td><td>直接场地（direct arena）中当前活动的正常（normal）分配数</td></tr>
@@ -844,7 +860,7 @@ Available quantile:</p>
 <li><p>latency=&quot;overflow&quot; 是 (30m, ∞] 之间的事务执行延迟</p></li>
 </ul>
 <p>|</p>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/reference-configuration"><span class="arrow-prev">← </span><span>Pulsar configuration</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#zookeeper">ZooKeeper</a></li><li><a href="#bookkeeper">BookKeeper</a><ul class="toc-headings"><li><a href="#服务器度量值">服务器度量值</a></li><li><a href="#日志度量值">日志度量值</a></li><li><a href="#存储度量值">存储度量值</a></li></ul></li><li><a href="#broker">Broker</a><ul class="toc-headings"><li><a href="#命名空间度量值">命名空间度量值</a></li><li><a href="#主题度量值">主题度量值</a></li><li><a href="#managedledgercache-度量值">ManagedLedgerCache 度量值</a></li><li><a href="#managedledger-度量值">ManagedLedger 度量值</a></li><li><a href="#托管游标确认状态的统计信息">托管游标确认状态的统计信息</a></li><li><a href="#loadbalancing-度量值">LoadBalancing 度量值</a></li><li><a href="#subscription-metrics">Subscription metrics</a></li><li><a href="#consumer-metrics">Consumer metrics</a></li><li><a href="#托管的-ledger-bookie-客户端度量值">托管的 ledger bookie 客户端度量值</a></li><li><a href="#token-metrics">Token metrics</a></li><li><a href="#authentication-metrics">Authentication metrics</a></li><li><a href="#连接指标">连接指标</a></li><li><a href="#jetty-metrics">Jetty metrics</a></li></ul></li><li><a href="#pulsar-functions">Pulsar Functions</a></li><li><a href="#连接器">连接器</a></li><li><a href="#代理">代理</a></li><li><a href="#pulsar-sql-worker">Pulsar SQL Worker</a></li><li><a href="#pulsar-transaction">Pulsar transaction</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/reference-configuration"><span class="arrow-prev">← </span><span>Pulsar configuration</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#zookeeper">ZooKeeper</a></li><li><a href="#bookkeeper">BookKeeper</a><ul class="toc-headings"><li><a href="#服务器度量值">服务器度量值</a></li><li><a href="#日志度量值">日志度量值</a></li><li><a href="#存储度量值">存储度量值</a></li></ul></li><li><a href="#broker">Broker</a><ul class="toc-headings"><li><a href="#bookkeeper-client-metrics">BookKeeper client metrics</a></li><li><a href="#命名空间度量值">命名空间度量值</a></li><li><a href="#主题度量值">主题度量值</a></li><li><a href="#managedledgercache-度量值">ManagedLedgerCache 度量值</a></li><li><a href="#managedledger-度量值">ManagedLedger 度量值</a></li><li><a href="#托管游标确认状态的统计信息">托管游标确认状态的统计信息</a></li><li><a href="#loadbalancing-度量值">LoadBalancing 度量值</a></li><li><a href="#subscription-metrics">Subscription metrics</a></li><li><a href="#consumer-metrics">Consumer metrics</a></li><li><a href="#托管的-ledger-bookie-客户端度量值">托管的 ledger bookie 客户端度量值</a></li><li><a href="#token-metrics">Token metrics</a></li><li><a href="#authentication-metrics">Authentication metrics</a></li><li><a href="#连接指标">连接指标</a></li><li><a href="#jetty-metrics">Jetty metrics</a></li></ul></li><li><a href="#pulsar-functions">Pulsar Functions</a></li><li><a href="#连接器">连接器</a></li><li><a href="#代理">代理</a></li><li><a href="#pulsar-sql-worker">Pulsar SQL Worker</a></li><li><a href="#pulsar-transaction">Pulsar transaction</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

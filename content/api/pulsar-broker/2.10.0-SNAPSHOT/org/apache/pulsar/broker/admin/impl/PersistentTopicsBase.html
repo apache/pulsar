@@ -422,7 +422,7 @@ extends <a href="../AdminResource.html" title="class in org.apache.pulsar.broker
 </tr>
 <tr id="i32" class="altColor">
 <td class="colFirst"><code>protected java.util.concurrent.CompletableFuture&lt;java.util.Optional&lt;java.lang.Integer&gt;&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalGetMaxMessageSize()">internalGetMaxMessageSize</a></span>()</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalGetMaxMessageSize(boolean)">internalGetMaxMessageSize</a></span>&#8203;(boolean&nbsp;isGlobal)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i33" class="rowColor">
@@ -724,7 +724,8 @@ extends <a href="../AdminResource.html" title="class in org.apache.pulsar.broker
 </tr>
 <tr id="i83" class="rowColor">
 <td class="colFirst"><code>protected java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalSetMaxMessageSize(java.lang.Integer)">internalSetMaxMessageSize</a></span>&#8203;(java.lang.Integer&nbsp;maxMessageSize)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalSetMaxMessageSize(java.lang.Integer,boolean)">internalSetMaxMessageSize</a></span>&#8203;(java.lang.Integer&nbsp;maxMessageSize,
+                         boolean&nbsp;isGlobal)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i84" class="altColor">
@@ -1626,22 +1627,23 @@ extends <a href="../AdminResource.html" title="class in org.apache.pulsar.broker
 <pre class="methodSignature">protected&nbsp;java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;internalRemovePersistence&#8203;(boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
-<a id="internalSetMaxMessageSize(java.lang.Integer)">
+<a id="internalSetMaxMessageSize(java.lang.Integer,boolean)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalSetMaxMessageSize</h4>
-<pre class="methodSignature">protected&nbsp;java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;internalSetMaxMessageSize&#8203;(java.lang.Integer&nbsp;maxMessageSize)</pre>
+<pre class="methodSignature">protected&nbsp;java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;internalSetMaxMessageSize&#8203;(java.lang.Integer&nbsp;maxMessageSize,
+                                                                                           boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
-<a id="internalGetMaxMessageSize()">
+<a id="internalGetMaxMessageSize(boolean)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalGetMaxMessageSize</h4>
-<pre class="methodSignature">protected&nbsp;java.util.concurrent.CompletableFuture&lt;java.util.Optional&lt;java.lang.Integer&gt;&gt;&nbsp;internalGetMaxMessageSize()</pre>
+<pre class="methodSignature">protected&nbsp;java.util.concurrent.CompletableFuture&lt;java.util.Optional&lt;java.lang.Integer&gt;&gt;&nbsp;internalGetMaxMessageSize&#8203;(boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
 <a id="internalGetMaxProducers(boolean,boolean)">
