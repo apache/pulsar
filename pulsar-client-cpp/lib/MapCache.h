@@ -37,7 +37,8 @@ class MapCache {
     using iterator = typename decltype(map_)::iterator;
 
     MapCache() = default;
-    MapCache(MapCache&&) noexcept = default;
+    // Here we don't use =default to be compatible with GCC 4.8
+    MapCache(MapCache&& rhs) noexcept : map_(std::move(rhs.map_)), keys_(std::move(rhs.keys_)) {}
 
     size_t size() const noexcept { return map_.size(); }
 
@@ -91,7 +92,7 @@ class MapCache {
 
    private:
     void removeKeyFromKeys(const Key& key) {
-        for (auto it = keys_.cbegin(); it != keys_.end(); ++it) {
+        for (auto it = keys_.begin(); it != keys_.end(); ++it) {
             if (*it == key) {
                 keys_.erase(it);
             }

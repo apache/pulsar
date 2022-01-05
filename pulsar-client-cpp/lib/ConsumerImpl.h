@@ -238,7 +238,11 @@ class ConsumerImpl : public ConsumerImplBase,
         }
 
         ChunkedMessageCtx(const ChunkedMessageCtx&) = delete;
-        ChunkedMessageCtx(ChunkedMessageCtx&& rhs) noexcept = default;
+        // Here we don't use =default to be compatible with GCC 4.8
+        ChunkedMessageCtx(ChunkedMessageCtx&& rhs) noexcept
+            : totalChunks_(rhs.totalChunks_),
+              chunkedMsgBuffer_(std::move(rhs.chunkedMsgBuffer_)),
+              chunkedMessageIds_(std::move(rhs.chunkedMessageIds_)) {}
 
         bool validateChunkId(int chunkId) const noexcept { return chunkId == numChunks(); }
 
