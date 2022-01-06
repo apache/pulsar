@@ -241,7 +241,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
                 .create();
 
         for (int i = 0 ; i < NUM_OF_STOCKS; ++i) {
-            final Stock stock = new Stock(i,"STOCK_" + i, 100.0 + i * 10);
+            final Stock stock = new Stock(i, "STOCK_" + i, 100.0 + i * 10);
             producer.send(stock);
         }
         producer.flush();

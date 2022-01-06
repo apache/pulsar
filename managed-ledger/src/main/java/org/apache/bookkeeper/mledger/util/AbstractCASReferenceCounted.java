@@ -23,16 +23,14 @@ package org.apache.bookkeeper.mledger.util;
  * The semantic was changed in https://github.com/netty/netty/commit/83a19d565064ee36998eb94f946e5a4264001065#diff-b9443e2689a46b3647fe6a8de0fdf3b2
  */
 
-import static io.netty.util.internal.ObjectUtil.checkPositive;
-
 import io.netty.util.IllegalReferenceCountException;
 import io.netty.util.ReferenceCounted;
-
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 /**
  * Abstract base class for classes wants to implement {@link ReferenceCounted}.
  */
+
 public abstract class AbstractCASReferenceCounted implements ReferenceCounted {
     private static final AtomicIntegerFieldUpdater<AbstractCASReferenceCounted> refCntUpdater =
             AtomicIntegerFieldUpdater.newUpdater(AbstractCASReferenceCounted.class, "refCnt");
@@ -45,7 +43,7 @@ public abstract class AbstractCASReferenceCounted implements ReferenceCounted {
     }
 
     /**
-     * An unsafe operation intended for use by a subclass that sets the reference count of the buffer directly
+     * An unsafe operation intended for use by a subclass that sets the reference count of the buffer directly.
      */
     protected final void setRefCnt(int refCnt) {
         refCntUpdater.set(this, refCnt);
@@ -58,7 +56,7 @@ public abstract class AbstractCASReferenceCounted implements ReferenceCounted {
 
     @Override
     public ReferenceCounted retain(int increment) {
-        return retain0(checkPositive(increment, "increment"));
+        return retain0(io.netty.util.internal.ObjectUtil.checkPositive(increment, "increment"));
     }
 
     private ReferenceCounted retain0(int increment) {
@@ -89,7 +87,7 @@ public abstract class AbstractCASReferenceCounted implements ReferenceCounted {
 
     @Override
     public boolean release(int decrement) {
-        return release0(checkPositive(decrement, "decrement"));
+        return release0(io.netty.util.internal.ObjectUtil.checkPositive(decrement, "decrement"));
     }
 
     private boolean release0(int decrement) {

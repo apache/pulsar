@@ -147,7 +147,7 @@ public class ManagedLedgerFactoryShutdownTest {
             }
         }, null);
 
-        factory.asyncOpenReadOnlyCursor(ledgerName, PositionImpl.earliest, new ManagedLedgerConfig(),
+        factory.asyncOpenReadOnlyCursor(ledgerName, PositionImpl.EARLIEST, new ManagedLedgerConfig(),
                 new AsyncCallbacks.OpenReadOnlyCursorCallback() {
                     @Override
                     public void openReadOnlyCursorComplete(ReadOnlyCursor cursor, Object ctx) {
@@ -174,6 +174,6 @@ public class ManagedLedgerFactoryShutdownTest {
         Assert.assertThrows(ManagedLedgerException.ManagedLedgerFactoryClosedException.class,
                 () -> factory.open(ledgerName));
         Assert.assertThrows(ManagedLedgerException.ManagedLedgerFactoryClosedException.class,
-                () -> factory.openReadOnlyCursor(ledgerName, PositionImpl.earliest, new ManagedLedgerConfig()));
+                () -> factory.openReadOnlyCursor(ledgerName, PositionImpl.EARLIEST, new ManagedLedgerConfig()));
     }
 }
