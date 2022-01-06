@@ -165,28 +165,28 @@ public class FunctionsBase extends AdminResource {
                             + "  Whether the subscriptions of a Pulsar Function created or used should be deleted"
                             + " when the Pulsar Function is deleted.\n",
                     examples = @Example(
-                                value = {
-                                    @ExampleProperty(
-                                        mediaType = MediaType.APPLICATION_JSON,
-                                        value = "{\n"
-                                                + "  \"inputs\": persistent://public/default/input-topic,\n"
-                                                + "  \"parallelism\": 4\n"
-                                                + "  \"output\": persistent://public/default/output-topic\n"
-                                                + "  \"log-topic\": persistent://public/default/log-topic\n"
-                                                + "  \"classname\": org.example.test.ExclamationFunction\n"
-                                                + "  \"jar\": java-function-1.0-SNAPSHOT.jar\n"
-                                                + "}\n"
-                                    ), 
-                                    @ExampleProperty(
-                                        mediaType = MediaType.APPLICATION_JSON,
-                                        value = "{\n"
-                                                    + "  config = {\n"
-                                                    + "      'inputs': ['persistent://public/default/pulsar-mysql-jdbc-sink-topic'],\n"
-                                                    + "      'parallelism': 1,\n"
-                                                    + "      'sinkType': 'jdbc',\n"
-                                                    + "      'archive': \"builtin://jdbc\"\n"
-                                                    + "}\n"
-                            )}
+                            value = {
+                                @ExampleProperty(
+                                    mediaType = MediaType.APPLICATION_JSON,
+                                    value = "{\n"
+                                            + "  \"inputs\": persistent://public/default/input-topic,\n"
+                                            + "  \"parallelism\": 4\n"
+                                            + "  \"output\": persistent://public/default/output-topic\n"
+                                            + "  \"log-topic\": persistent://public/default/log-topic\n"
+                                            + "  \"classname\": org.example.test.ExclamationFunction\n"
+                                            + "  \"jar\": java-function-1.0-SNAPSHOT.jar\n"
+                                            + "}\n"
+                                ),
+                                @ExampleProperty(
+                                    mediaType = MediaType.APPLICATION_JSON,
+                                    value = "{\n"
+                                                + "  \"inputs\": [persistent://public/default/sink-topic],\n"
+                                                + "  \"parallelism\":1,\n"
+                                                + "  \"sinkType\":\"jdbc\",\n"
+                                                + "  \"archive\":\"builtin://jdbc\"\n"
+                                                + "}"
+                                )
+                            }
                     )
             )
             final @FormDataParam("functionConfig") FunctionConfig functionConfig) {
