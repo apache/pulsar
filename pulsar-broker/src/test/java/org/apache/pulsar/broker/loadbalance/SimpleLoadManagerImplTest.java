@@ -472,8 +472,6 @@ public class SimpleLoadManagerImplTest {
         double usageLimit = 10.0;
         usage.setBandwidthIn(new ResourceUsage(usageLimit, usageLimit));
         assertEquals(usage.getBandwidthIn().usage, usageLimit);
-        usage.reset();
-        assertNotEquals(usage.getBandwidthIn().usage, usageLimit);
     }
 
 }
