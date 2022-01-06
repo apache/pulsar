@@ -42,6 +42,8 @@ public class HierarchyTopicPolicies {
     final PolicyHierarchyValue<Integer> topicMaxMessageSize;
     final PolicyHierarchyValue<Integer> messageTTLInSeconds;
     final PolicyHierarchyValue<Integer> maxConsumerPerTopic;
+    final PolicyHierarchyValue<Boolean> delayedDeliveryEnabled;
+    final PolicyHierarchyValue<Long> delayedDeliveryTickTimeMillis;
 
     public HierarchyTopicPolicies() {
         replicationClusters = new PolicyHierarchyValue<>();
@@ -57,5 +59,7 @@ public class HierarchyTopicPolicies {
                 .build();
         topicMaxMessageSize = new PolicyHierarchyValue<>();
         messageTTLInSeconds = new PolicyHierarchyValue<>();
+        delayedDeliveryEnabled = new PolicyHierarchyValue<>();
+        delayedDeliveryTickTimeMillis = new PolicyHierarchyValue<>();
     }
 }
