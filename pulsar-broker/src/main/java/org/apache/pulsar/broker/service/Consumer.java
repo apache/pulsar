@@ -347,7 +347,7 @@ public class Consumer {
                 log.warn("[{}] [{}] Received cumulative ack on shared subscription, ignoring",
                         subscription, consumerId);
             }
-            PositionImpl position = PositionImpl.earliest;
+            PositionImpl position = PositionImpl.EARLIEST;
             if (ack.getMessageIdsCount() == 1) {
                 MessageIdData msgId = ack.getMessageIdAt(0);
                 if (msgId.getAckSetsCount() > 0) {
