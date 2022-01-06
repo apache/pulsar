@@ -39,8 +39,8 @@
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
     <surefire.version>3.0.0-M3</surefire.version>
-    <log4j2.version>2.14.0</log4j2.version>
-    <slf4j.version>1.7.25</slf4j.version>
+    <log4j2.version>2.17.1</log4j2.version>
+    <slf4j.version>1.7.32</slf4j.version>
     <testng.version>7.3.0</testng.version>
     <commons-lang3.version>3.11</commons-lang3.version>
     <maven-shade-plugin.version>3.2.4</maven-shade-plugin.version>
@@ -105,7 +105,7 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-common</artifactId>
-      <version>4.1.68.Final</version>
+      <version>4.1.72.Final</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -180,6 +180,24 @@
             <!-- This is generated during maven build -->
             <exclude>dependency-reduced-pom.xml</exclude>
           </excludes>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <dependencies>
+          <dependency>
+            <groupId>com.puppycrawl.tools</groupId>
+            <artifactId>checkstyle</artifactId>
+            <version>8.37</version>
+          </dependency>
+        </dependencies>
+        <configuration>
+          <configLocation>${project.basedir}/src/main/resources/pulsar/checkstyle.xml</configLocation>
+          <suppressionsLocation>${project.basedir}/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
+          <includeTestSourceDirectory>true</includeTestSourceDirectory>
+          <encoding>UTF-8</encoding>
+          <excludes>**/proto/*</excludes>
         </configuration>
       </plugin>
     </plugins>

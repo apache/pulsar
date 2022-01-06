@@ -150,6 +150,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         this.allTopicPartitionsNumber = new AtomicInteger(0);
         this.startMessageId = startMessageId != null ? new BatchMessageIdImpl(MessageIdImpl.convertToMessageIdImpl(startMessageId)) : null;
         this.startMessageRollbackDurationInSec = startMessageRollbackDurationInSec;
+        this.paused = conf.isStartPaused();
 
         if (conf.getAckTimeoutMillis() != 0) {
             if (conf.getTickDurationMillis() > 0) {
@@ -339,9 +340,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 && messageConsumerEpoch != DEFAULT_CONSUMER_EPOCH
                 && messageConsumerEpoch < consumerEpoch.get()) {
             message.release();
-            return false;
+            return true;
         }
-        return true;
+        return false;
     }
 
     @Override
@@ -522,7 +523,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     protected CompletableFuture<Void> doReconsumeLater(Message<?> message, AckType ackType,
-                                                       Map<String,Long> properties,
+                                                       Map<String, String> customProperties,
                                                        long delayTime,
                                                        TimeUnit unit) {
         MessageId messageId = message.getMessageId();
@@ -545,7 +546,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             }
         } else {
             ConsumerImpl<T> consumer = consumers.get(topicMessageId.getTopicPartitionName());
-            return consumer.doReconsumeLater(message, ackType, properties, delayTime, unit)
+            return consumer.doReconsumeLater(message, ackType, customProperties, delayTime, unit)
                      .thenRun(() ->unAckedMessageTracker.remove(topicMessageId));
         }
     }
@@ -802,6 +803,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     public CompletableFuture<Boolean> hasMessageAvailableAsync() {
+        if (numMessagesInQueue() > 0) {
+            return CompletableFuture.completedFuture(true);
+        }
         List<CompletableFuture<Void>> futureList = new ArrayList<>();
         final AtomicBoolean hasMessageAvailable = new AtomicBoolean(false);
         for (ConsumerImpl<T> consumer : consumers.values()) {

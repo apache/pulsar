@@ -837,6 +837,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    @Override
     public boolean isClosed() {
         return state == State.Closed || state == State.Closing;
     }
@@ -1103,7 +1104,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     }
                 }
                 callback.resetComplete(newPosition);
-
+                updateLastActive();
             }
 
             @Override

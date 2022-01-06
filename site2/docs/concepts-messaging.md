@@ -8,7 +8,7 @@ Pulsar is built on the [publish-subscribe](https://en.wikipedia.org/wiki/Publish
 
 When a subscription is created, Pulsar [retains](concepts-architecture-overview.md#persistent-storage) all messages, even if the consumer is disconnected. The retained messages are discarded only when a consumer acknowledges that all these messages are processed successfully. 
 
-If the consumption of a message fails and you want this message to be consumed again, then you can enable the automatic redelivery of this message by sending a [negative acknowledgement](negative-acknowledgement) to the broker or enabling the [acknowledgement timeout](acknowledgement-timeout) for unacknowledged messages.
+If the consumption of a message fails and you want this message to be consumed again, then you can enable the automatic redelivery of this message by sending a [negative acknowledgement](#negative-acknowledgement) to the broker or enabling the [acknowledgement timeout](#acknowledgement-timeout) for unacknowledged messages.
 
 ## Messages
 
@@ -273,13 +273,36 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 .subscribe();
 ```
 
+Retry letter message contains some special properties created by a client automatically.
+
+Special property | Description
+:--------------------|:-----------
+`REAL_TOPIC` | The real topic name.
+`ORIGIN_MESSAGE_ID` | The origin message ID. It is crucial for message tracking.
+`RECONSUMETIMES`   | The retry consume times.
+`DELAY_TIME`      | Message delay timeMs.
+**Example**
+```
+REAL_TOPIC = persistent://public/default/my-topic
+ORIGIN_MESSAGE_ID = 1:0:-1:0
+RECONSUMETIMES = 6
+DELAY_TIME = 3000
+```
+
 If you want to put messages into a retrial queue, you can use the following API.
 
 ```java
-consumer.reconsumeLater(msg,3,TimeUnit.SECONDS);
+consumer.reconsumeLater(msg, 3, TimeUnit.SECONDS);
 ```
 
+If you want to add custom properties for the `reconsumeLater`, you can use the following API.
 
+```java
+Map<String, String> customProperties = new HashMap<String, String>();
+customProperties.put("custom-key-1", "custom-value-1");
+customProperties.put("custom-key-2", "custom-value-2");
+consumer.reconsumeLater(msg, customProperties, 3, TimeUnit.SECONDS);
+```
 
 ## Topics
 

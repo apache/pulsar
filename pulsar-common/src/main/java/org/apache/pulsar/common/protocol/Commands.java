@@ -48,7 +48,6 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
-import org.apache.pulsar.common.api.proto.KeyLongValue;
 import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.api.proto.AuthMethod;
@@ -1020,17 +1019,12 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
-    public static ByteBuf newRedeliverUnacknowledgedMessages(long consumerId, long requestId, long consumerEpoch) {
+    public static ByteBuf newRedeliverUnacknowledgedMessages(long consumerId, long consumerEpoch) {
         BaseCommand cmd = localCmd(Type.REDELIVER_UNACKNOWLEDGED_MESSAGES);
         cmd.setRedeliverUnacknowledgedMessages()
                 .setConsumerId(consumerId)
                 .setConsumerEpoch(consumerEpoch);
         return serializeWithSize(cmd);
-    }
-
-    public static ByteBuf newRedeliverUnacknowledgedMessages(long consumerId) {
-
-        return newRedeliverUnacknowledgedMessages(consumerId, 0L, 0L);
     }
 
     public static ByteBuf newRedeliverUnacknowledgedMessages(long consumerId, List<MessageIdData> messageIds) {

@@ -1,5 +1,5 @@
-const lightCodeTheme = require("prism-react-renderer/themes/github");
-const darkCodeTheme = require("prism-react-renderer/themes/dracula");
+// const lightCodeTheme = require("prism-react-renderer/themes/github");
+// const darkCodeTheme = require("prism-react-renderer/themes/dracula");
 
 const linkifyRegex = require("./plugins/remark-linkify-regex");
 
@@ -119,8 +119,34 @@ module.exports = {
           position: "left",
           label: "Docs",
         },
-        { to: "/versions", label: "Versions", position: "left" },
+        { to: "/download", label: "Download", position: "left" },
         { to: "/blog", label: "Blog", position: "left" },
+        {
+          label: "REST APIs",
+          position: "left",
+          items: [
+            {
+              label: "Admin REST API",
+              to: "/admin-rest-api",
+            },
+            {
+              label: "Functions",
+              to: "/functions-rest-api",
+            },
+            {
+              label: "Sources",
+              to: "/source-rest-api",
+            },
+            {
+              label: "Sinks",
+              to: "/sink-rest-api",
+            },
+            {
+              label: "Packages",
+              to: "/packages-rest-api",
+            },
+          ],
+        },
         {
           href: "https://github.com/apache/pulsar",
           label: "GitHub",
@@ -130,83 +156,124 @@ module.exports = {
         //   type: "localeDropdown",
         //   position: "left",
         // },
-        {
-          label: "Version",
-          to: "docs",
-          position: "right",
-          items: [
-            {
-              label: "2.8.0",
-              to: "docs/",
-            },
-            {
-              label: "2.7.3",
-              to: "docs/2.7.3/",
-            },
-            {
-              label: "2.7.2",
-              to: "docs/2.7.2/",
-            },
-            {
-              label: "2.7.1",
-              to: "docs/2.7.1/",
-            },
-            {
-              label: "2.7.0",
-              to: "docs/2.7.0/",
-            },
-            {
-              label: "2.6.4",
-              to: "docs/2.6.4/",
-            },
-            {
-              label: "2.6.3",
-              to: "docs/2.6.3/",
-            },
-            {
-              label: "2.6.2",
-              to: "docs/2.6.2/",
-            },
-            {
-              label: "2.6.1",
-              to: "docs/2.6.1/",
-            },
-            {
-              label: "2.6.0",
-              to: "docs/2.6.0/",
-            },
-            {
-              label: "2.5.2",
-              to: "docs/2.5.2/",
-            },
-            {
-              label: "2.5.1",
-              to: "docs/2.5.1/"
-            },
-            {
-              label: "2.5.0",
-              to: "docs/2.5.0/"
-            },
-            {
-              label: "2.4.2",
-              to: "docs/2.4.2/"
-            },
-            {
-              label: "2.4.1",
-              to: "docs/2.4.1/"
-            },
-            {
-              label: "2.4.0",
-              to: "docs/2.4.0/"
-            },
-            {
-              label: "2.2.0",
-              to: "docs/2.2.0/",
-            },
-          ],
-        },
+        // {
+        //   label: "Version",
+        //   to: "docs",
+        //   position: "right",
+        //   items: [
+        //     {
+        //       label: "2.9.1",
+        //       to: "docs/2.9.1/",
+        //     },
+        //     {
+        //       label: "2.9.0",
+        //       to: "docs/2.9.0/",
+        //     },
+        //     {
+        //       label: "2.8.2",
+        //       to: "docs/2.8.2/",
+        //     },
+        //     {
+        //       label: "2.8.1",
+        //       to: "docs/2.8.1/",
+        //     },
+        //     {
+        //       label: "2.8.0",
+        //       to: "docs/2.8.0/",
+        //     },
+        //     {
+        //       label: "2.7.3",
+        //       to: "docs/2.7.3/",
+        //     },
+        //     {
+        //       label: "2.7.2",
+        //       to: "docs/2.7.2/",
+        //     },
+        //     {
+        //       label: "2.7.1",
+        //       to: "docs/2.7.1/",
+        //     },
+        //     {
+        //       label: "2.7.0",
+        //       to: "docs/2.7.0/",
+        //     },
+        //     {
+        //       label: "2.6.4",
+        //       to: "docs/2.6.4/",
+        //     },
+        //     {
+        //       label: "2.6.3",
+        //       to: "docs/2.6.3/",
+        //     },
+        //     {
+        //       label: "2.6.2",
+        //       to: "docs/2.6.2/",
+        //     },
+        //     {
+        //       label: "2.6.1",
+        //       to: "docs/2.6.1/",
+        //     },
+        //     {
+        //       label: "2.6.0",
+        //       to: "docs/2.6.0/",
+        //     },
+        //     {
+        //       label: "2.5.2",
+        //       to: "docs/2.5.2/",
+        //     },
+        //     {
+        //       label: "2.5.1",
+        //       to: "docs/2.5.1/",
+        //     },
+        //     {
+        //       label: "2.5.0",
+        //       to: "docs/2.5.0/",
+        //     },
+        //     {
+        //       label: "2.4.2",
+        //       to: "docs/2.4.2/",
+        //     },
+        //     {
+        //       label: "2.4.1",
+        //       to: "docs/2.4.1/",
+        //     },
+        //     {
+        //       label: "2.4.0",
+        //       to: "docs/2.4.0/",
+        //     },
+        //     {
+        //       label: "2.3.2",
+        //       to: "docs/2.3.2/",
+        //     },
+        //     {
+        //       label: "2.3.1",
+        //       to: "docs/2.3.1/",
+        //     },
+        //     {
+        //       label: "2.3.0",
+        //       to: "docs/2.3.0/",
+        //     },
+        //     {
+        //       label: "2.2.1",
+        //       to: "docs/2.2.1/",
+        //     },
+        //     {
+        //       label: "2.2.0",
+        //       to: "docs/2.2.0/",
+        //     },
+        //     {
+        //       label: "2.1.1-incubating",
+        //       to: "docs/2.1.1-incubating/",
+        //     },
+        //   ],
+        // },
       ],
     },
+    // scripts: [
+    //   "https://buttons.github.io/buttons.js",
+    //   "https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js",
+    //   `${baseUrl}js/custom.js`,
+    // ],
     footer: {
       style: "dark",
       copyright: `Inc.Copyright © ${new Date().getFullYear()} The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.`,
@@ -257,4 +324,8 @@ module.exports = {
     ],
     "./postcss-tailwind-loader",
   ],
+  // clientModules: [
+  //   require.resolve("./mySiteGlobalJs.js"),
+  //   require.resolve("./mySiteGlobalCss.css"),
+  // ],
 };

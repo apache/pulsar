@@ -17,6 +17,7 @@ on:
 
 jobs:
   labeling:
+    if: ${{ github.repository == 'apache/pulsar' }}
     permissions:
       pull-requests: write 
     runs-on: ubuntu-latest

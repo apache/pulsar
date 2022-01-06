@@ -430,6 +430,7 @@ Commands
 * `monitor-brokers`
 * `simulation-client`
 * `simulation-controller`
+* `transaction`
 * `help`
 
 Environment variables
@@ -491,6 +492,17 @@ Options
 |`--trust-cert-file`|Path for the trusted TLS certificate file||
 |`--tls-allow-insecure`|Allow insecure TLS connection||
 
+Below are **transaction** related options.
+
+If you want `--txn-timeout`, `--numMessage-perTransaction`, `-nmt`, `-ntxn`, or `-abort` take effect, set `--txn-enable` to true.
+
+|Flag|Description|Default|
+|---|---|---|
+`-tto`, `--txn-timeout`|Set the time of transaction timeout (in second). |10
+`-nmt`, `--numMessage-perTransaction`|The number of messages acknowledged by a transaction. |50
+`-txn`, `--txn-enable`|Enable or disable a transaction.|false
+`-ntxn`|The number of opened transactions. 0 means the number of transactions is unlimited. |0
+`-abort`|Abort a transaction. |true
 
 ### `produce`
 Run a producer
@@ -547,6 +559,16 @@ Options
 |`--warmup-time`|Warm-up time in seconds|1|
 |`--tls-allow-insecure`|Allow insecure TLS connection||
 
+Below are **transaction** related options.
+
+If you want `--txn-timeout`, `--numMessage-perTransaction`, or `-abort` take effect, set `--txn-enable` to true.
+
+|Flag|Description|Default|
+|---|---|---|
+`-tto`, `--txn-timeout`|Set the time of transaction timeout (in second). |5
+`-nmt`, `--numMessage-perTransaction`|The number of messages acknowledged by a transaction. |50
+`-txn`, `--txn-enable`|Enable or disable a transaction.|true
+`-abort`|Abort a transaction. |true
 
 ### `read`
 Run a topic reader
@@ -685,6 +707,43 @@ Options
 |`--cluster`|The cluster to test on||
 |`-h`, `--help`|Help message|false|
 
+### `transaction`
+
+Run a transaction. For more information, see [Pulsar transactions](txn-why.md).
+
+**Usage**
+
+```bash
+$ pulsar-perf transaction options
+```
+
+**Options**
+
+|Flag|Description|Default|
+|---|---|---|
+`-au`, `--admin-url`|Pulsar admin URL.|N/A
+`--conf-file`|Configuration file.|N/A
+`-h`, `--help`|Help messages.|N/A
+`-c`, `--max-connections`|Maximum number of TCP connections to a single broker.|100
+`-ioThreads`, `--num-io-threads`|Set the number of threads to be used for handling connections to brokers. |1
+`-ns`, `--num-subscriptions`|Number of subscriptions per topic.|1
+`-threads`, `--num-test-threads`|Number of test threads. <br /><br />This thread is for a new transaction to ack messages from consumer topics, produce messages to producer topics, and commit or abort this transaction. <br /><br /> Increasing the number of threads increases the parallelism of the performance test, consequently, it increases the intensity of the stress test.|1
+`-nmc`, `--numMessage-perTransaction-consume`|Set the number of messages consumed in a transaction. <br /><br /> If transaction is disabled, it means the number of messages consumed in a task instead of in a transaction.|1
+`-nmp`, `--numMessage-perTransaction-produce`|Set the number of messages produced in a transaction. <br /><br />If transaction is disabled, it means the number of messages produced in a task instead of in a transaction.|1
+`-ntxn`, `--number-txn`|Set the number of transactions. <br /><br /> 0 means the number of transactions is unlimited. <br /><br /> If transaction is disabled, it means the number of tasks instead of transactions. |0
+`-np`, `--partitions`|Create partitioned topics with a given number of partitions. <br /><br /> 0 means not trying to create a topic.
+`-q`, `--receiver-queue-size`|Size of the receiver queue.|1000
+`-u`, `--service-url`|Pulsar service URL.|N/A
+`-sp`, `--subscription-position`|Subscription position.|Earliest
+`-st`, `--subscription-type`|Subscription type.|Shared
+`-ss`, `--subscriptions`|A list of subscriptions to consume. <br /><br /> For example, sub1,sub2.|[sub]
+`-time`, `--test-duration`|Test duration (in second). <br /><br /> 0 means keeping publishing messages.|0
+`--topics-c`|All topics assigned to consumers.|[test-consume]
+`--topics-p`|All topics assigned to producers . |[test-produce]
+`--txn-disEnable`|Disable transaction.|true
+`-tto`, `--txn-timeout`|Set the time of transaction timeout (in second). <br /><br /> If you want `--txn-timeout` takes effect, set `--txn-enable` to true.|5
+`-abort`|Abort the transaction. <br /><br /> If you want `-abort` takes effect, set `--txn-disEnable` to false.|true
+`-txnRate`|Set the rate of opened transactions or tasks. <br /><br /> 0 means no limit.|0
 
 ### `help`
 This help message

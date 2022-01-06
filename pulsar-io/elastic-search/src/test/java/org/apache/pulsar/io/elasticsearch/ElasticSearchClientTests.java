@@ -37,7 +37,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;

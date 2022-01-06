@@ -32,13 +32,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public class PulsarAdminTool {
 
@@ -90,7 +90,7 @@ public class PulsarAdminTool {
 
     PulsarAdminTool(Properties properties) throws Exception {
         // fallback to previous-version serviceUrl property to maintain backward-compatibility
-        serviceUrl = StringUtils.isNotBlank(properties.getProperty("webServiceUrl"))
+        serviceUrl = isNotBlank(properties.getProperty("webServiceUrl"))
                 ? properties.getProperty("webServiceUrl")
                 : properties.getProperty("serviceUrl");
         authPluginClassName = properties.getProperty("authPlugin");
@@ -101,7 +101,7 @@ public class PulsarAdminTool {
         boolean tlsEnableHostnameVerification = this.tlsEnableHostnameVerification != null
                 ? this.tlsEnableHostnameVerification
                 : Boolean.parseBoolean(properties.getProperty("tlsEnableHostnameVerification", "false"));
-        final String tlsTrustCertsFilePath = StringUtils.isNotBlank(this.tlsTrustCertsFilePath)
+        final String tlsTrustCertsFilePath = isNotBlank(this.tlsTrustCertsFilePath)
                 ? this.tlsTrustCertsFilePath
                 : properties.getProperty("tlsTrustCertsFilePath");
 
@@ -133,6 +133,7 @@ public class PulsarAdminTool {
         commandMap.put("properties", CmdTenants.CmdProperties.class); // deprecated, doesn't show in usage()
         commandMap.put("namespaces", CmdNamespaces.class);
         commandMap.put("topics", CmdTopics.class);
+        commandMap.put("topicPolicies", CmdTopicPolicies.class);
         commandMap.put("schemas", CmdSchemas.class);
         commandMap.put("bookies", CmdBookies.class);
 
@@ -159,6 +160,7 @@ public class PulsarAdminTool {
         commandMap.put("sink", CmdSinks.class);
 
         commandMap.put("packages", CmdPackages.class);
+        commandMap.put("transactions", CmdTransactions.class);
     }
 
     private static class PulsarAdminSupplier implements Supplier<PulsarAdmin> {

@@ -48,7 +48,11 @@ public class MultiVersionGenericProtobufNativeReader
         super(new GenericProtobufNativeReader(parseProtobufSchema(schemaInfo)));
         this.useProvidedSchemaAsReaderSchema = useProvidedSchemaAsReaderSchema;
         this.schemaInfo = schemaInfo;
-        this.descriptor = parseProtobufSchema(schemaInfo);
+        this.descriptor = (Descriptors.Descriptor) providerSchemaReader.getNativeSchema()
+                .orElseThrow(()->{
+                    log.error("No protobuf native reader found.");
+                    return new IllegalArgumentException("No protobuf native reader found.");
+                });
     }
 
     @Override

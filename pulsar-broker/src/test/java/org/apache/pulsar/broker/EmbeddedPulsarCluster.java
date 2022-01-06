@@ -27,8 +27,6 @@ import lombok.Builder;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.bookkeeper.BKCluster;
 
 
@@ -53,22 +51,6 @@ public class EmbeddedPulsarCluster implements AutoCloseable {
 
     private final PulsarAdmin admin;
 
-    private class EmbeddedPulsarService extends PulsarService {
-        EmbeddedPulsarService(ServiceConfiguration conf) {
-            super(conf);
-        }
-
-        @Override
-        public MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
-            return bkCluster.getStore();
-        }
-
-        @Override
-        protected void closeLocalMetadataStore() {
-            // Do nothing as the store instance is managed by BKCluster
-        }
-    }
-
     @Builder
     private EmbeddedPulsarCluster(int numBrokers, int numBookies, String metadataStoreUrl) throws Exception {
         this.numBrokers = numBrokers;
@@ -77,7 +59,7 @@ public class EmbeddedPulsarCluster implements AutoCloseable {
         this.bkCluster = new BKCluster(metadataStoreUrl, numBookies);
 
         for (int i = 0; i < numBrokers; i++) {
-            PulsarService s = new EmbeddedPulsarService(getConf());
+            PulsarService s = new PulsarService(getConf());
             s.start();
             brokers.add(s);
         }

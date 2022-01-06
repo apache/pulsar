@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.tests;
 
-import org.apache.logging.log4j.core.util.datetime.FixedDateFormat;
-
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.management.LockInfo;
@@ -33,14 +31,14 @@ import java.util.Date;
 import java.util.Map;
 import javax.management.JMException;
 import javax.management.ObjectName;
+import org.apache.logging.log4j.core.util.datetime.FixedDateFormat;
 
 /**
- * Adapted from Hadoop TimedOutTestsListener
+ * Adapted from Hadoop TimedOutTestsListener.
  *
  * https://raw.githubusercontent.com/apache/hadoop/master/hadoop-common-project/hadoop-common/src/test/java/org/apache/hadoop/test/TimedOutTestsListener.java
  */
 public class ThreadDumpUtil {
-    static final String TEST_TIMED_OUT_PREFIX = "test timed out after";
 
     private static final String INDENT = "    ";
 

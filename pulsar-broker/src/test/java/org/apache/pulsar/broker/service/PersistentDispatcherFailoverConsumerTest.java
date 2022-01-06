@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.apache.pulsar.client.impl.ConsumerBase.DEFAULT_CONSUMER_EPOCH;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.matches;
@@ -113,9 +114,9 @@ public class PersistentDispatcherFailoverConsumerTest {
     @BeforeMethod
     public void setup() throws Exception {
         executor = OrderedExecutor.newBuilder().numThreads(1).name("persistent-dispatcher-failover-test").build();
-        ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
+        ServiceConfiguration svcConfig = spy(ServiceConfiguration.class);
         svcConfig.setBrokerShutdownTimeoutMs(0L);
-        pulsar = spy(new PulsarService(svcConfig));
+        pulsar = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
         doReturn(svcConfig).when(pulsar).getConfiguration();
 
         mlFactoryMock = mock(ManagedLedgerFactory.class);
@@ -132,7 +133,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         PulsarResources pulsarResources = new PulsarResources(store, store);
         doReturn(pulsarResources).when(pulsar).getPulsarResources();
 
-        brokerService = spy(new BrokerService(pulsar, eventLoopGroup));
+        brokerService = spyWithClassAndConstructorArgs(BrokerService.class, pulsar, eventLoopGroup);
         doReturn(brokerService).when(pulsar).getBrokerService();
 
         consumerChanges = new LinkedBlockingQueue<>();
@@ -158,7 +159,7 @@ public class PersistentDispatcherFailoverConsumerTest {
             return null;
         }).when(channelCtx).writeAndFlush(any(), any());
 
-        serverCnx = spy(new ServerCnx(pulsar));
+        serverCnx = spyWithClassAndConstructorArgs(ServerCnx.class, pulsar);
         doReturn(true).when(serverCnx).isActive();
         doReturn(true).when(serverCnx).isWritable();
         doReturn(new InetSocketAddress("localhost", 1234)).when(serverCnx).clientAddress();
@@ -167,7 +168,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         doReturn(new PulsarCommandSenderImpl(null, serverCnx))
                 .when(serverCnx).getCommandSender();
 
-        serverCnxWithOldVersion = spy(new ServerCnx(pulsar));
+        serverCnxWithOldVersion = spyWithClassAndConstructorArgs(ServerCnx.class, pulsar);
         doReturn(true).when(serverCnxWithOldVersion).isActive();
         doReturn(true).when(serverCnxWithOldVersion).isWritable();
         doReturn(new InetSocketAddress("localhost", 1234))

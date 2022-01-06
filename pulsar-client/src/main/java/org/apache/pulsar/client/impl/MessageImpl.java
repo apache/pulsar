@@ -297,7 +297,6 @@ public class MessageImpl<T> implements Message<T> {
         msg.messageId = null;
         msg.topic = null;
         msg.cnx = null;
-        msg.properties = Collections.emptyMap();
         msg.brokerEntryMetadata = brokerEntryMetadata;
         msg.consumerEpoch = DEFAULT_CONSUMER_EPOCH;
         return msg;
@@ -722,7 +721,7 @@ public class MessageImpl<T> implements Message<T> {
         return msgMetadata.hasReplicatedFrom();
     }
 
-    void setMessageId(MessageIdImpl messageId) {
+    void setMessageId(MessageId messageId) {
         this.messageId = messageId;
     }
 

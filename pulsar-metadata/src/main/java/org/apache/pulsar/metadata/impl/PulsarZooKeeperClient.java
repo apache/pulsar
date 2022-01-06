@@ -20,7 +20,6 @@ package org.apache.pulsar.metadata.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -1440,9 +1439,11 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
             elapsedTimeMs = MathUtils.elapsedMSec(startTimeNanos);
             if (!ZooWorker.isRecoverableException(rc)) {
                 if (KeeperException.Code.OK.intValue() == rc) {
-                    statsLogger.registerSuccessfulEvent(MathUtils.elapsedMicroSec(startTimeNanos), TimeUnit.MICROSECONDS);
+                    statsLogger.registerSuccessfulEvent(MathUtils.elapsedMicroSec(startTimeNanos),
+                            TimeUnit.MICROSECONDS);
                 } else {
-                    statsLogger.registerFailedEvent(MathUtils.elapsedMicroSec(startTimeNanos), TimeUnit.MICROSECONDS);
+                    statsLogger.registerFailedEvent(MathUtils.elapsedMicroSec(startTimeNanos),
+                            TimeUnit.MICROSECONDS);
                 }
                 return false;
             }
@@ -1526,7 +1527,8 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                     }
                     result = proc.call();
                     isDone = true;
-                    statsLogger.registerSuccessfulEvent(MathUtils.elapsedMicroSec(startTimeNanos), TimeUnit.MICROSECONDS);
+                    statsLogger.registerSuccessfulEvent(MathUtils.elapsedMicroSec(startTimeNanos),
+                            TimeUnit.MICROSECONDS);
                 } catch (KeeperException e) {
                     ++attempts;
                     boolean rethrow = true;
@@ -1536,7 +1538,8 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                         rethrow = false;
                     }
                     if (rethrow) {
-                        statsLogger.registerFailedEvent(MathUtils.elapsedMicroSec(startTimeNanos), TimeUnit.MICROSECONDS);
+                        statsLogger.registerFailedEvent(MathUtils.elapsedMicroSec(startTimeNanos),
+                                TimeUnit.MICROSECONDS);
                         log.debug("Stopped executing {} after {} attempts.", proc, attempts);
                         throw e;
                     }

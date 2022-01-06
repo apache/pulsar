@@ -524,7 +524,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                     sinkInstanceStatusData = getComponentInstanceStatus(tenant,
                             namespace, name, assignment.getInstance().getInstanceId(), null);
                 } else {
-                    sinkInstanceStatusData = worker().getFunctionAdmin().sink().getSinkStatus(
+                    sinkInstanceStatusData = worker().getFunctionAdmin().sinks().getSinkStatus(
                             assignment.getInstance().getFunctionMetaData().getFunctionDetails().getTenant(),
                             assignment.getInstance().getFunctionMetaData().getFunctionDetails().getNamespace(),
                             assignment.getInstance().getFunctionMetaData().getFunctionDetails().getName(),

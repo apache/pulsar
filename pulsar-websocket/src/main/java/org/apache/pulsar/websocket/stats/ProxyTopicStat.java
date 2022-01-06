@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.websocket.stats;
 
+import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.pulsar.client.api.SubscriptionMode;
@@ -25,8 +26,6 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.websocket.ConsumerHandler;
 import org.apache.pulsar.websocket.ProducerHandler;
 import org.apache.pulsar.websocket.ReaderHandler;
-
-import com.google.common.collect.Sets;
 
 /**
  * Stats of topic served by web-socket proxy. It shows current stats of producers and consumers connected to proxy for a
@@ -38,8 +37,8 @@ public class ProxyTopicStat {
     public final Set<ConsumerStats> consumerStats;
 
     public ProxyTopicStat() {
-        this.producerStats = Sets.newHashSet();
-        this.consumerStats = Sets.newHashSet();
+        this.producerStats = new HashSet<>();
+        this.consumerStats = new HashSet<>();
     }
 
     public static class ProducerStats {

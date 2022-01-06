@@ -782,10 +782,6 @@ public class ClientCnx extends PulsarHandler {
         return sendRequestAndHandleTimeout(request, requestId, RequestType.AckResponse,true);
     }
 
-    public CompletableFuture<Void> newRedeliverUnacknowledgedMessages(ByteBuf request, long requestId) {
-        return sendRequestAndHandleTimeout(request, requestId, RequestType.RedeliverUnacknowledgedMessages,true);
-    }
-
     public void newAckForReceiptWithFuture(ByteBuf request, long requestId,
                                            TimedCompletableFuture<Void> future) {
         sendRequestAndHandleTimeout(request, requestId, RequestType.AckResponse, false, future);
