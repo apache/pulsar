@@ -66,7 +66,7 @@ import org.testng.annotations.Test;
 public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
     @Test
     public void testOffloadRead() throws Exception {
-        MockLedgerOffloader offloader = spy(new MockLedgerOffloader());
+        MockLedgerOffloader offloader = spy(MockLedgerOffloader.class);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
@@ -122,7 +122,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testBookkeeperFirstOffloadRead() throws Exception {
-        MockLedgerOffloader offloader = spy(new MockLedgerOffloader());
+        MockLedgerOffloader offloader = spy(MockLedgerOffloader.class);
         MockClock clock = new MockClock();
         offloader.getOffloadPolicies()
                 .setManagedLedgerOffloadedReadPriority(OffloadedReadPriority.BOOKKEEPER_FIRST);

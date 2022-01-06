@@ -608,7 +608,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                         return;
                     }
 
-                    log.info("[Overload shedder] Unloading bundle: {} from broker {}", bundle, broker);
+                    log.info("[{}] Unloading bundle: {} from broker {}",
+                            strategy.getClass().getSimpleName(), bundle, broker);
                     try {
                         pulsar.getAdminClient().namespaces().unloadNamespaceBundle(namespaceName, bundleRange);
                         loadData.getRecentlyUnloadedBundles().put(bundle, System.currentTimeMillis());
