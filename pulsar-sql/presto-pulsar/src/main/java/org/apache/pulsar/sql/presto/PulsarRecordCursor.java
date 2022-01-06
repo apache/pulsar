@@ -554,7 +554,7 @@ public class PulsarRecordCursor implements RecordCursor {
                     currentRowValuesMap.put(columnHandle, longValueProvider(this.partition));
                 } else if (PulsarInternalColumn.EVENT_TIME.getName().equals(columnHandle.getName())) {
                     currentRowValuesMap.put(columnHandle, PulsarFieldValueProviders.timeValueProvider(
-                            this.currentMessage.getEventTime(), this.currentMessage.getPublishTime() == 0));
+                            this.currentMessage.getEventTime(), this.currentMessage.getEventTime() == 0));
                 } else if (PulsarInternalColumn.PUBLISH_TIME.getName().equals(columnHandle.getName())) {
                     currentRowValuesMap.put(columnHandle, PulsarFieldValueProviders.timeValueProvider(
                             this.currentMessage.getPublishTime(), this.currentMessage.getPublishTime() == 0));
