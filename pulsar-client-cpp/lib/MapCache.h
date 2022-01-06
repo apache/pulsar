@@ -95,6 +95,7 @@ class MapCache {
         for (auto it = keys_.begin(); it != keys_.end(); ++it) {
             if (*it == key) {
                 keys_.erase(it);
+                break;
             }
         }
     }
