@@ -291,6 +291,13 @@ const consumer = await client.subscribe({
 });
 ```
 
+> #### Note
+> Pulsar Node.js client uses [AsyncWorker](https://github.com/nodejs/node-addon-api/blob/main/doc/async_worker.md); asynchronous operations such as creating consumers/producers and receiving/sending messages are performed in worker threads.
+> Until completion of these operations, worker threads are blocked.
+> Since there are only 4 worker threads by default, a called method may never complete.
+>
+> To avoid this situation, you can set `UV_THREADPOOL_SIZE` to increase the number of worker threads, or define `listener` instead of calling `receive()` many times.
+
 ## Readers
 
 Pulsar readers process messages from Pulsar topics. Readers are different from consumers because with readers you need to explicitly specify which message in the stream you want to begin with (consumers, on the other hand, automatically begin with the most recently unacked message). You can [configure](#reader-configuration) Node.js readers using a reader configuration object.
