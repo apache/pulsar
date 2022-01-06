@@ -406,7 +406,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS TrustStore password for proxy"
+            doc = "TLS TrustStore password for proxy, null means empty password."
     )
     private String tlsTrustStorePassword = null;
 

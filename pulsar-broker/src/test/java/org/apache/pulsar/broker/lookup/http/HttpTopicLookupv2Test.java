@@ -75,7 +75,7 @@ public class HttpTopicLookupv2Test {
         pulsar = mock(PulsarService.class);
         ns = mock(NamespaceService.class);
         auth = mock(AuthorizationService.class);
-        config = spy(new ServiceConfiguration());
+        config = spy(ServiceConfiguration.class);
         config.setClusterName("use");
         clusters = new TreeSet<>();
         clusters.add("use");
@@ -104,7 +104,7 @@ public class HttpTopicLookupv2Test {
     @Test
     public void crossColoLookup() throws Exception {
 
-        TopicLookup destLookup = spy(new TopicLookup());
+        TopicLookup destLookup = spy(TopicLookup.class);
         doReturn(false).when(destLookup).isRequestHttps();
         destLookup.setPulsar(pulsar);
         doReturn("null").when(destLookup).clientAppId();
@@ -130,7 +130,7 @@ public class HttpTopicLookupv2Test {
     @Test
     public void testLookupTopicNotExist() throws Exception {
 
-        MockTopicLookup destLookup = spy(new MockTopicLookup());
+        MockTopicLookup destLookup = spy(MockTopicLookup.class);
         doReturn(false).when(destLookup).isRequestHttps();
         destLookup.setPulsar(pulsar);
         doReturn("null").when(destLookup).clientAppId();
@@ -158,7 +158,7 @@ public class HttpTopicLookupv2Test {
         assertEquals(restException.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
     }
 
-    static class MockTopicLookup extends TopicLookup {
+    public static class MockTopicLookup extends TopicLookup {
         @Override
         protected void validateClusterOwnership(String s) {
             // do nothing
@@ -171,7 +171,7 @@ public class HttpTopicLookupv2Test {
         BrokerService brokerService = pulsar.getBrokerService();
         doReturn(new Semaphore(0)).when(brokerService).getLookupRequestSemaphore();
 
-        TopicLookup destLookup = spy(new TopicLookup());
+        TopicLookup destLookup = spy(TopicLookup.class);
         doReturn(false).when(destLookup).isRequestHttps();
         destLookup.setPulsar(pulsar);
         doReturn("null").when(destLookup).clientAppId();
@@ -209,7 +209,7 @@ public class HttpTopicLookupv2Test {
 //        doReturn(Optional.of(policies2)).when(policiesCache)
 //                .get(AdminResource.path(POLICIES, property, cluster, ns2));
 
-        TopicLookup destLookup = spy(new TopicLookup());
+        TopicLookup destLookup = spy(TopicLookup.class);
         doReturn(false).when(destLookup).isRequestHttps();
         destLookup.setPulsar(pulsar);
         doReturn("null").when(destLookup).clientAppId();
