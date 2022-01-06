@@ -100,6 +100,7 @@ import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.GracefulExecutorServicesShutdown;
+import org.apache.pulsar.broker.service.MetadataStoreSynchronizer;
 import org.apache.pulsar.broker.service.SystemTopicBaseTxnBufferSnapshotService;
 import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.Topic;
@@ -258,6 +259,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private boolean shouldShutdownConfigurationMetadataStore;
 
     private PulsarResources pulsarResources;
+    private MetadataStoreSynchronizer metadataSyncer;
 
     private TransactionPendingAckStoreProvider transactionPendingAckStoreProvider;
     private final ExecutorProvider transactionExecutorProvider;
@@ -818,6 +820,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 this.resourceUsageTransportManager = (ResourceUsageTopicTransportManager) object;
             }
             this.resourceGroupServiceManager = new ResourceGroupService(this);
+            this.metadataSyncer = new MetadataStoreSynchronizer(this);
 
             long currentTimestamp = System.currentTimeMillis();
             final long bootstrapTimeSeconds = TimeUnit.MILLISECONDS.toSeconds(currentTimestamp - startTimestamp);

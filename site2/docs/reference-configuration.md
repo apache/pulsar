@@ -235,6 +235,8 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 | metadataStoreBatchingMaxDelayMillis | Maximum delay to impose on batching grouping. | 5 |
 | metadataStoreBatchingMaxOperations | Maximum number of operations to include in a singular batch. | 1000 |
 | metadataStoreBatchingMaxSizeKb | Maximum size of a batch. | 128 |
+| metadataSyncEventTopic | Event topic to sync metadata between separate pulsar clusters on different cloud platforms. | |
+| metadataSyncSnapshotDurationSecond | Snapshot duration to sync metadata using event topic. (Default 0 to disable it). | 0 |
 |ttlDurationDefaultInSeconds|The default Time to Live (TTL) for namespaces if the TTL is not configured at namespace policies. When the value is set to `0`, TTL is disabled. By default, TTL is disabled. |0|
 |tokenSettingPrefix| Configure the prefix of the token-related settings, such as `tokenSecretKey`, `tokenPublicKey`, `tokenAuthClaim`, `tokenPublicAlg`, `tokenAudienceClaim`, and `tokenAudience`. ||
 |tokenSecretKey| Configure the secret key to be used to validate auth tokens. The key can be specified like: `tokenSecretKey=data:;base64,xxxxxxxxx` or `tokenSecretKey=file:///my/secret.key`.  Note: key file must be DER-encoded.||
@@ -558,6 +560,8 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 | metadataStoreBatchingMaxDelayMillis | Maximum delay to impose on batching grouping. | 5 |
 | metadataStoreBatchingMaxOperations | Maximum number of operations to include in a singular batch. | 1000 |
 | metadataStoreBatchingMaxSizeKb | Maximum size of a batch. | 128 |
+| metadataSyncEventTopic | Event topic to sync metadata between separate pulsar clusters on different cloud platforms. | |
+| metadataSyncSnapshotDurationSecond | Snapshot duration to sync metadata using event topic. (Default 0 to disable it). | 0 |
 | tlsCertRefreshCheckDurationSec | TLS certificate refresh duration in seconds. When the value is set to 0, check the TLS certificate on every new connection. | 300 |
 | tlsCertificateFilePath | Path for the TLS certificate file. | |
 | tlsKeyFilePath | Path for the TLS private key file. | |

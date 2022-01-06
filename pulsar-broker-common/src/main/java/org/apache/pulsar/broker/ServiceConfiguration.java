@@ -460,6 +460,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String metadataStoreConfigPath = null;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Event topic to sync metadata between separate pulsar clusters on different cloud platforms."
+    )
+    private String metadataSyncEventTopic = null;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Snapshot duration to sync metadata using event topic. (Default 0 to disable it)"
+    )
+    private long metadataSyncSnapshotDurationSecond = 0;
+
+    @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Enable backlog quota check. Enforces actions on topic when the quota is reached"
     )

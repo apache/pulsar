@@ -1220,7 +1220,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // partitioned internal stats
         PartitionedTopicInternalStats partitionedInternalStats = admin.topics().getPartitionedInternalStats(partitionedTopicName);
-
+        expectedInternalStats.metadata.lastUpdatedTimestamp = 0;
+        partitionedInternalStats.metadata.lastUpdatedTimestamp = 0;
         String expectedResult = ObjectMapperFactory.getThreadLocal().writeValueAsString(expectedInternalStats);
         String result = ObjectMapperFactory.getThreadLocal().writeValueAsString(partitionedInternalStats);
 

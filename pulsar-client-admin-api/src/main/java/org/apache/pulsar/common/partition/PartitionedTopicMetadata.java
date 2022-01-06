@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.partition;
 
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Metadata of a partitioned topic.
@@ -28,6 +29,7 @@ public class PartitionedTopicMetadata {
 
     /* Number of partitions for the topic */
     public int partitions;
+    public long lastUpdatedTimestamp;;
 
     /* Topic properties */
     public Map<String, String> properties;
@@ -44,6 +46,20 @@ public class PartitionedTopicMetadata {
     public PartitionedTopicMetadata(int partitions, Map<String, String> properties) {
         this.partitions = partitions;
         this.properties = properties;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(partitions, properties);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof PartitionedTopicMetadata) {
+            PartitionedTopicMetadata other = (PartitionedTopicMetadata) obj;
+            return Objects.equals(partitions, other.partitions) && Objects.equals(properties, other.properties);
+        }
+        return false;
     }
 
     /**

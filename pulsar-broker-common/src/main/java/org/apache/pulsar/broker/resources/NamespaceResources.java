@@ -19,12 +19,14 @@
 package org.apache.pulsar.broker.resources;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.Getter;
@@ -40,6 +42,7 @@ import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Notification;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,6 +81,10 @@ public class NamespaceResources extends BaseResources<Policies> {
         return super.existsAsync(POLICIES_READONLY_FLAG_PATH);
     }
 
+    public static String getPath(String namespace) {
+        return joinPath(BASE_POLICIES_PATH, namespace);
+    }
+
     public boolean getPoliciesReadOnly() throws MetadataStoreException {
         try {
             return getPoliciesReadOnlyAsync().get(getOperationTimeoutSec(), TimeUnit.SECONDS);
@@ -90,7 +97,17 @@ public class NamespaceResources extends BaseResources<Policies> {
     }
 
     public void createPolicies(NamespaceName ns, Policies policies) throws MetadataStoreException{
+        policies.lastUpdatedTimestamp = Instant.now().toEpochMilli();
         create(joinPath(BASE_POLICIES_PATH, ns.toString()), policies);
+    }
+
+    public CompletableFuture<Void> createPoliciesAsync(NamespaceName ns, Policies policies) {
+        policies.lastUpdatedTimestamp = Instant.now().toEpochMilli();
+        return createAsync(joinPath(BASE_POLICIES_PATH, ns.toString()), policies);
+    }
+
+    public void registerListener(Consumer<Notification> listener) {
+        registerListener(BASE_POLICIES_PATH, listener);
     }
 
     public boolean namespaceExists(NamespaceName ns) throws MetadataStoreException {
@@ -131,11 +148,21 @@ public class NamespaceResources extends BaseResources<Policies> {
     }
 
     public void setPolicies(NamespaceName ns, Function<Policies, Policies> function) throws MetadataStoreException {
-        set(joinPath(BASE_POLICIES_PATH, ns.toString()), function);
+        set(joinPath(BASE_POLICIES_PATH, ns.toString()), (p1) -> {
+            Policies p2 = function.apply(p1);
+            p2.lastUpdatedTimestamp = p2.lastUpdatedTimestamp > 0 ? p2.lastUpdatedTimestamp
+                    : Instant.now().toEpochMilli();
+            return p2;
+        });
     }
 
     public CompletableFuture<Void> setPoliciesAsync(NamespaceName ns, Function<Policies, Policies> function) {
-        return setAsync(joinPath(BASE_POLICIES_PATH, ns.toString()), function);
+        return setAsync(joinPath(BASE_POLICIES_PATH, ns.toString()), (p1) -> {
+            Policies p2 = function.apply(p1);
+            p2.lastUpdatedTimestamp = p2.lastUpdatedTimestamp > 0 ? p2.lastUpdatedTimestamp
+                    : Instant.now().toEpochMilli();
+            return p2;
+        });
     }
 
     public static boolean pathIsFromNamespace(String path) {
@@ -214,18 +241,30 @@ public class NamespaceResources extends BaseResources<Policies> {
             super(configurationStore, PartitionedTopicMetadata.class, operationTimeoutSec);
         }
 
-        public CompletableFuture<Void> updatePartitionedTopicAsync(TopicName tn, Function<PartitionedTopicMetadata,
-                PartitionedTopicMetadata> f) {
+        public static String getPath(TopicName tn) throws MetadataStoreException {
+            return joinPath(PARTITIONED_TOPIC_PATH, tn.getNamespace(), tn.getDomain().value(),
+                    tn.getEncodedLocalName());
+        }
+
+        public CompletableFuture<Void> updatePartitionedTopicAsync(TopicName tn,
+                Function<PartitionedTopicMetadata, PartitionedTopicMetadata> f) {
             return setAsync(joinPath(PARTITIONED_TOPIC_PATH, tn.getNamespace(), tn.getDomain().value(),
-                    tn.getEncodedLocalName()), f);
+                    tn.getEncodedLocalName()), (t) -> {
+                        PartitionedTopicMetadata t2 = f.apply(t);
+                        t2.lastUpdatedTimestamp = t2.lastUpdatedTimestamp > 0 ? t2.lastUpdatedTimestamp
+                                : Instant.now().toEpochMilli();
+                        return t2;
+                    });
         }
 
         public void createPartitionedTopic(TopicName tn, PartitionedTopicMetadata tm) throws MetadataStoreException {
+            tm.lastUpdatedTimestamp = Instant.now().toEpochMilli();
             create(joinPath(PARTITIONED_TOPIC_PATH, tn.getNamespace(), tn.getDomain().value(),
                     tn.getEncodedLocalName()), tm);
         }
 
         public CompletableFuture<Void> createPartitionedTopicAsync(TopicName tn, PartitionedTopicMetadata tm) {
+            tm.lastUpdatedTimestamp = Instant.now().toEpochMilli();
             return createAsync(joinPath(PARTITIONED_TOPIC_PATH, tn.getNamespace(), tn.getDomain().value(),
                     tn.getEncodedLocalName()), tm);
         }

@@ -21,6 +21,7 @@ package org.apache.pulsar.common.policies.data;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -51,7 +52,12 @@ public class TenantInfoImpl implements TenantInfo {
             name = "allowedClusters"
     )
     private Set<String> allowedClusters;
+    private long lastUpdatedTimestamp;
 
+    public TenantInfoImpl(Set<String> adminRoles, Set<String> allowedClusters) {
+        this.adminRoles = adminRoles;
+        this.allowedClusters = allowedClusters;
+    }
 
     public static TenantInfoImplBuilder builder() {
         return new TenantInfoImplBuilder();
@@ -60,6 +66,7 @@ public class TenantInfoImpl implements TenantInfo {
     public static class TenantInfoImplBuilder implements TenantInfo.Builder {
         private Set<String> adminRoles;
         private Set<String> allowedClusters;
+        private long lastUpdatedTimestamp;
 
         TenantInfoImplBuilder() {
         }
@@ -81,7 +88,22 @@ public class TenantInfoImpl implements TenantInfo {
             if (allowedClusters == null) {
                 allowedClusters = new HashSet<>();
             }
-            return new TenantInfoImpl(adminRoles, allowedClusters);
+            return new TenantInfoImpl(adminRoles, allowedClusters, lastUpdatedTimestamp);
         }
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(adminRoles, allowedClusters);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof TenantInfoImpl) {
+            TenantInfoImpl other = (TenantInfoImpl) obj;
+            return Objects.equals(adminRoles, other.adminRoles)
+                    && Objects.equals(allowedClusters, other.allowedClusters);
+        }
+        return false;
     }
 }

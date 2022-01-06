@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.resources;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -27,6 +28,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -66,15 +68,22 @@ public class TenantResources extends BaseResources<TenantInfo> {
     }
 
     public void createTenant(String tenantName, TenantInfo ti) throws MetadataStoreException {
+        ((TenantInfoImpl) ti).setLastUpdatedTimestamp(Instant.now().toEpochMilli());
         create(joinPath(BASE_POLICIES_PATH, tenantName), ti);
     }
 
     public CompletableFuture<Void> createTenantAsync(String tenantName, TenantInfo ti) {
+        ((TenantInfoImpl) ti).setLastUpdatedTimestamp(Instant.now().toEpochMilli());
         return createAsync(joinPath(BASE_POLICIES_PATH, tenantName), ti);
     }
 
     public CompletableFuture<Void> updateTenantAsync(String tenantName, Function<TenantInfo, TenantInfo> f) {
-        return setAsync(joinPath(BASE_POLICIES_PATH, tenantName), f);
+        return setAsync(joinPath(BASE_POLICIES_PATH, tenantName), (p1) -> {
+            TenantInfoImpl p2 = (TenantInfoImpl) f.apply(p1);
+            p2.setLastUpdatedTimestamp(
+                    p2.getLastUpdatedTimestamp() > 0 ? p2.getLastUpdatedTimestamp() : Instant.now().toEpochMilli());
+            return p2;
+        });
     }
 
     public CompletableFuture<Boolean> tenantExistsAsync(String tenantName) {
@@ -112,6 +121,10 @@ public class TenantResources extends BaseResources<TenantInfo> {
 
     public CompletableFuture<List<String>> getActiveNamespaces(String tenant, String cluster) {
         return getChildrenAsync(joinPath(BASE_POLICIES_PATH, tenant, cluster));
+    }
+
+    public static String getPath(String tenant) {
+        return joinPath(BASE_POLICIES_PATH, tenant);
     }
 
     public CompletableFuture<Void> hasActiveNamespace(String tenant) {
