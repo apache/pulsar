@@ -806,7 +806,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             consumerName);
                 } else if (ex.getCause() instanceof SubscriptionBusyException) {
                     log.warn("[{}][{}] {}", topic, subscriptionName, ex.getMessage());
-                } else if (ex.getCause() instanceof TransactionPendingAckException.TransactionPendingAckStoreProviderException) {
+                } else if (ex.getCause() instanceof
+                        TransactionPendingAckException.TransactionPendingAckStoreProviderException) {
                     log.error("[{}] Failed to create subscription: {} because PendingAckHandleImpl init failed", topic,
                             subscriptionName, ex);
                 } else {
