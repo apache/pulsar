@@ -39,6 +39,9 @@ export default function VersionsTable(props) {
                   row.name == latestStableVersion ? "" : row.name
                 )}
                 underline="none"
+                onClick={() => {
+                  localStorage.setItem("version", row.name);
+                }}
               >
                 <Translate>Documentation</Translate>
               </Link>
