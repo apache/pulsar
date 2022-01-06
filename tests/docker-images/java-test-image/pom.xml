@@ -110,7 +110,7 @@
                   <overwrite>true</overwrite>
                   <resources>
                     <resource>
-                      <directory>${pulsar.basedir}/docker/pulsar/scripts</directory>
+                      <directory>/Users/teenie/code/java/pulsar/docker/pulsar/scripts</directory>
                       <targetPath>scripts</targetPath>
                       <filtering>false</filtering>
                     </resource>
