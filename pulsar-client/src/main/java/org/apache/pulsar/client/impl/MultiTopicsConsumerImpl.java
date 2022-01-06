@@ -782,7 +782,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             if (exception != null) {
                 completableFuture.completeExceptionally(exception);
             } else {
-                completableFuture.complete(hasMessageAvailable.get());
+                completableFuture.complete(hasMessageAvailable.get() || numMessagesInQueue() > 0);
             }
         });
         return completableFuture;

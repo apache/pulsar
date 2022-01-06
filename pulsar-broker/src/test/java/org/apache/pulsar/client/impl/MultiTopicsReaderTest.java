@@ -61,17 +61,17 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Test(groups = "flaky")
 @Slf4j
+@Test(groups = "flaky")
 public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
 
     private static final String subscription = "reader-multi-topics-sub";
 
-    @BeforeMethod(alwaysRun = true)
+    @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -87,7 +87,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("my-property/my-ns", policies);
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -169,15 +169,15 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
     private static <T> void readMessageUseAsync(Reader<T> reader, List<Message<T>> msgs, CountDownLatch latch) {
         reader.hasMessageAvailableAsync().thenAccept(hasMessageAvailable -> {
             if (hasMessageAvailable) {
-                try {
-                    Message<T> msg = reader.readNext();
+                reader.readNextAsync().whenComplete((msg, ex) -> {
+                    if (ex != null) {
+                        log.error("Read message failed.", ex);
+                        latch.countDown();
+                        return;
+                    }
                     msgs.add(msg);
-                } catch (PulsarClientException e) {
-                    log.error("Read message failed.", e);
-                    latch.countDown();
-                    return;
-                }
-                readMessageUseAsync(reader, msgs, latch);
+                    readMessageUseAsync(reader, msgs, latch);
+                });
             } else {
                 latch.countDown();
             }
