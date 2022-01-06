@@ -105,15 +105,16 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         double totalNicUsageRx = getTotalNicUsageRxKb(nics);
         double totalCpuLimit = getTotalCpuLimit();
 
-        SystemResourceUsage usage = new SystemResourceUsage();
         long now = System.currentTimeMillis();
         double elapsedSeconds = (now - lastCollection) / 1000d;
-        double cpuUsage = getTotalCpuUsage(elapsedSeconds);
-
         if (elapsedSeconds <= 0) {
             log.warn("elapsedSeconds {} is not expected,skip this round of calculateBrokerHostUsage", elapsedSeconds);
             return;
         }
+
+        SystemResourceUsage usage = new SystemResourceUsage();
+        double cpuUsage = getTotalCpuUsage(elapsedSeconds);
+
         if (lastCollection == 0L) {
             usage.setMemory(getMemUsage());
             usage.setBandwidthIn(new ResourceUsage(0d, totalNicLimit));
