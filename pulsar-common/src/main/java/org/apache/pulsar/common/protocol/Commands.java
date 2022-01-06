@@ -548,7 +548,7 @@ public class Commands {
         return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
                 isDurable, startMessageId, metadata, readCompacted, isReplicated, subscriptionInitialPosition,
                 startMessageRollbackDurationInSec, schemaInfo, createTopicIfDoesNotExist, null,
-                Collections.emptyMap());
+                Collections.emptyMap(), -1L);
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
@@ -570,7 +570,8 @@ public class Commands {
                 .setReadCompacted(readCompacted)
                 .setInitialPosition(subscriptionInitialPosition)
                 .setReplicateSubscriptionState(isReplicated)
-                .setForceTopicCreation(createTopicIfDoesNotExist);
+                .setForceTopicCreation(createTopicIfDoesNotExist)
+                .setEpoch(epoch);
 
         if (subscriptionProperties != null && !subscriptionProperties.isEmpty()) {
             List<KeyValue> keyValues = new ArrayList<>();
@@ -1023,7 +1024,6 @@ public class Commands {
         BaseCommand cmd = localCmd(Type.REDELIVER_UNACKNOWLEDGED_MESSAGES);
         cmd.setRedeliverUnacknowledgedMessages()
                 .setConsumerId(consumerId)
-                .setRequestId(requestId)
                 .setConsumerEpoch(consumerEpoch);
         return serializeWithSize(cmd);
     }

@@ -121,6 +121,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                         serviceConfig.getActiveConsumerFailoverDelayTimeMillis());
             }
             cursor.rewind();
+
             Consumer activeConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
             notifyActiveConsumerChanged(activeConsumer);
             readMoreEntries(activeConsumer);
