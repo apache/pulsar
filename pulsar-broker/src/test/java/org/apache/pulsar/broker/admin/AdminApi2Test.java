@@ -105,7 +105,7 @@ import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker-admin")
-public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
+public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
     private MockedPulsarService mockPulsarSetup;
 
