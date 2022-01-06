@@ -1369,7 +1369,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 30000)
     private void testCloseReplicatorBeforeConnected() throws Exception {
         String cluster = "tmp-cluster";
         String tenant = "tmp-tenant";
@@ -1395,14 +1395,13 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // 3.Disconnect replicator.
         Field field = AbstractReplicator.class.getDeclaredField("backOff");
         Backoff backOff = (Backoff) field.get(replicator);
-        while (backOff.getNext() == 100) {
-            Thread.sleep(10);
-        }
+
+        Awaitility.await().until(() -> backOff.getNext() > 100);
         replicator.disconnect();
 
         // 4.Check if start task canceled.
         long lastNum = backOff.getNext();
-        Thread.sleep(10000);
+        Awaitility.waitAtMost(10, TimeUnit.SECONDS).until(() -> backOff.getNext() != lastNum);
         long curNum = backOff.getNext();
         assert(lastNum == curNum);
     }
