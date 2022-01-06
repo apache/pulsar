@@ -391,7 +391,9 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
     auto self = shared_from_this();
     sendAsyncWithStatsUpdate(msg, [this, self, now, callback](Result result, const MessageId& messageId) {
         producerStatsBasePtr_->messageReceived(result, now);
-        callback(result, messageId);
+        if (callback) {
+            callback(result, messageId);
+        }
     });
 }
 
@@ -430,7 +432,7 @@ void ProducerImpl::sendAsyncWithStatsUpdate(const Message& msg, const SendCallba
     const auto compressedSize = static_cast<uint32_t>(payload.readableBytes());
     const auto maxMessageSize = static_cast<uint32_t>(ClientConnection::getMaxMessageSize());
 
-    if (compressedSize > ClientConnection::getMaxMessageSize() && !chunkingEnabled_) {
+    if (compressed && compressedSize > ClientConnection::getMaxMessageSize() && !chunkingEnabled_) {
         LOG_WARN(getName() << " - compressed Message payload size " << payload.readableBytes()
                            << " cannot exceed " << ClientConnection::getMaxMessageSize()
                            << " bytes unless chunking is enabled");

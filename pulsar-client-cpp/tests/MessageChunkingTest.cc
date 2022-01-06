@@ -31,7 +31,7 @@ using namespace pulsar;
 static const std::string lookupUrl = "pulsar://localhost:6650";
 
 // See the `maxMessageSize` config in test-conf/standalone-ssl.conf
-static constexpr size_t maxMessageSize = 10240;
+static constexpr size_t maxMessageSize = 1024000;
 
 static std::string toString(CompressionType compressionType) {
     switch (compressionType) {
