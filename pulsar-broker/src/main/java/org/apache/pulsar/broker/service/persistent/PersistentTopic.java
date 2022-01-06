@@ -2016,7 +2016,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.state = ml.getState().toString();
 
         stats.ledgers = Lists.newArrayList();
-        List<CompletableFuture<String>> futures = includeLedgerMetadata ? Lists.newArrayList() : null;
+        List<CompletableFuture<String>> futures = Lists.newArrayList();
         CompletableFuture<Set<String>> availableBookiesFuture =
                 brokerService.pulsar().getPulsarResources().getBookieResources().listAvailableBookiesAsync();
         availableBookiesFuture.whenComplete((bookies, e) -> {
@@ -2031,7 +2031,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     info.size = li.getSize();
                     info.offloaded = li.hasOffloadContext() && li.getOffloadContext().getComplete();
                     stats.ledgers.add(info);
-                    if (futures != null) {
+                    if (includeLedgerMetadata) {
                         futures.add(ml.getLedgerMetadata(li.getLedgerId()).handle((lMetadata, ex) -> {
                             if (ex == null) {
                                 info.metadata = lMetadata;
@@ -2049,6 +2049,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 });
             }
         });
+        futures.add(availableBookiesFuture.handle((strings, throwable) -> null));
 
         // Add ledger info for compacted topic ledger if exist.
         LedgerInfo info = new LedgerInfo();
