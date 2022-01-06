@@ -48,6 +48,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
     private volatile String currentPulsarServiceUrl;
     private final String primary;
     private final List<String> secondary;
+    private final AutoClusterFailoverBuilder.SecondaryChoosePolicy secondaryChoosePolicy;
     private final Authentication primaryAuthentication;
     private final Map<String, Authentication> secondaryAuthentications;
     private final String primaryTlsTrustCertsFilePath;
@@ -67,6 +68,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
     private AutoClusterFailover(AutoClusterFailoverBuilderImpl builder) {
         this.primary = builder.primary;
         this.secondary = builder.secondary;
+        this.secondaryChoosePolicy = builder.secondaryChoosePolicy;
         this.primaryAuthentication = builder.primaryAuthentication;
         this.secondaryAuthentications = builder.secondaryAuthentications;
         this.primaryTlsTrustCertsFilePath = builder.primaryTlsTrustCertsFilePath;
@@ -263,6 +265,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         private Map<String, String> secondaryTlsTrustStorePaths = null;
         private String primaryTlsTrustStorePassword = null;
         private Map<String, String> secondaryTlsTrustStorePasswords = null;
+        private SecondaryChoosePolicy secondaryChoosePolicy = SecondaryChoosePolicy.ORDER;
         private long failoverDelayNs;
         private long switchBackDelayNs;
         private long checkIntervalMs = 30_000;
@@ -276,6 +279,12 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         @Override
         public AutoClusterFailoverBuilder secondary(@NonNull List<String> secondary) {
             this.secondary = secondary;
+            return this;
+        }
+
+        @Override
+        public AutoClusterFailoverBuilder secondaryChoosePolicy(@NonNull SecondaryChoosePolicy policy) {
+            this.secondaryChoosePolicy = policy;
             return this;
         }
 

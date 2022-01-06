@@ -32,6 +32,11 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 @InterfaceAudience.Public
 @InterfaceStability.Evolving
 public interface AutoClusterFailoverBuilder {
+
+    @SuppressWarnings("checkstyle:javadoctype")
+    enum SecondaryChoosePolicy {
+        ORDER
+    }
     /**
      * Set the primary service url.
      *
@@ -47,6 +52,13 @@ public interface AutoClusterFailoverBuilder {
      * @return
      */
     AutoClusterFailoverBuilder secondary(List<String> secondary);
+
+    /**
+     * Set secondary choose policy
+     * @param policy
+     * @return
+     */
+    AutoClusterFailoverBuilder secondaryChoosePolicy(SecondaryChoosePolicy policy);
 
     /**
      * Set primary authentication.
