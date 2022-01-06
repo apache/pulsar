@@ -530,7 +530,7 @@ public class Consumer {
                 int currentCardinality = cursorBitSet.cardinality();
                 ackedCount = lastCardinality - currentCardinality;
                 cursorBitSet.recycle();
-            } else if (pendingAcks.get(position.getLedgerId(), position.getEntryId()) == null){
+            } else if (pendingAcks.get(position.getLedgerId(), position.getEntryId()) != null) {
                 ackedCount = batchSize - BitSet.valueOf(ackSets).cardinality();
             }
         }
