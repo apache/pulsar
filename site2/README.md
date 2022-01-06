@@ -328,5 +328,5 @@ The translated docs are downloaded to the `site2/website/translated_docs` direct
 
 ### Check issues, fix and verify
 
-After download the translated documents, you can open the target markdown file, check issues and fix them.
+After downloading the translated documents, you can open the target markdown file, check issues and fix them.
 To verify if you have fixed the issues correctly, [run the site locally](#run-the-site-locally).
