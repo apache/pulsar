@@ -18,10 +18,11 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.google.common.annotations.VisibleForTesting;
-
 import java.io.FileInputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
@@ -31,14 +32,10 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
-
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
-
-import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public class PulsarAdminTool {
 
@@ -62,9 +59,9 @@ public class PulsarAdminTool {
 
     @Parameter(
         names = { "--auth-params" },
-        description = "Authentication parameters, whose format is determined by the implementation " +
-            "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" " +
-            "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
+            description = "Authentication parameters, whose format is determined by the implementation "
+                    + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
+                    + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
     String authParams = null;
 
     @Parameter(names = { "--tls-allow-insecure" }, description = "Allow TLS insecure connection")
@@ -168,7 +165,8 @@ public class PulsarAdminTool {
         private final PulsarAdminBuilder pulsarAdminBuilder;
         private final Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory;
         private PulsarAdmin admin;
-        private PulsarAdminSupplier(PulsarAdminBuilder pulsarAdminBuilder, Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory) {
+        private PulsarAdminSupplier(PulsarAdminBuilder pulsarAdminBuilder,
+                                    Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory) {
             this.pulsarAdminBuilder = pulsarAdminBuilder;
             this.adminFactory = adminFactory;
         }
@@ -352,7 +350,7 @@ public class PulsarAdminTool {
             // they are only slowing down the tool
             Runtime.getRuntime().halt(code);
         } else {
-            System.out.println("Exit code is " + code+" (System.exit not called, as we are in test mode)");
+            System.out.println("Exit code is " + code + " (System.exit not called, as we are in test mode)");
         }
     }
 
