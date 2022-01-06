@@ -2020,11 +2020,9 @@ public class ManagedCursorImpl implements ManagedCursor {
             callback.deleteFailed(getManagedLedgerException(e), ctx);
             return;
         } finally {
+            lock.writeLock().unlock();
             if (individualDeletedMessages.isEmpty()) {
-                lock.writeLock().unlock();
                 callback.deleteComplete(ctx);
-            } else {
-                lock.writeLock().unlock();
             }
         }
 
