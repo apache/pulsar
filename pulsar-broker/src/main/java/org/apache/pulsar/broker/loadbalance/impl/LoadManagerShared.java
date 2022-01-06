@@ -23,7 +23,6 @@ import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 import com.beust.jcommander.internal.Lists;
 import com.google.common.collect.Maps;
 import io.netty.util.concurrent.FastThreadLocal;
-import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashSet;
