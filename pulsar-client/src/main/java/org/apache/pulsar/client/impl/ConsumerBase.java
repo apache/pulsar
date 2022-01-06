@@ -56,6 +56,7 @@ import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -1049,6 +1050,21 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 ? receivedConsumer.internalPinnedExecutor
                 : internalPinnedExecutor;
         return executor;
+    }
+
+    // If message consumer epoch is smaller than consumer epoch present that
+    // it has been sent to the client before the user calls redeliverUnacknowledgedMessages, this message is invalid.
+    // so we should release this message and receive again
+    protected boolean checkMessageConsumerEpochIsSmallerThanConsumer(MessageImpl<T> message) {
+        if ((getSubType() == CommandSubscribe.SubType.Failover
+                || getSubType() == CommandSubscribe.SubType.Exclusive)
+                && (message).getConsumerEpoch() != DEFAULT_CONSUMER_EPOCH
+                && (message).getConsumerEpoch() < consumerEpoch.get()) {
+            message.release();
+            message.recycle();
+            return true;
+        }
+        return false;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerBase.class);

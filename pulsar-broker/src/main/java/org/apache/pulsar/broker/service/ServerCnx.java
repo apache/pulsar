@@ -1487,12 +1487,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @Override
     protected void handleRedeliverUnacknowledged(CommandRedeliverUnacknowledgedMessages redeliver) {
         checkArgument(state == State.Connected);
-        CompletableFuture<Consumer> consumerFuture = consumers.get(redeliver.getConsumerId());
-
         if (log.isDebugEnabled()) {
             log.debug("[{}] redeliverUnacknowledged from consumer {}, consumerEpoch {}",
                     remoteAddress, redeliver.getConsumerId(), redeliver.getConsumerEpoch());
         }
+
+        CompletableFuture<Consumer> consumerFuture = consumers.get(redeliver.getConsumerId());
 
         if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
             Consumer consumer = consumerFuture.getNow(null);

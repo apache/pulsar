@@ -603,13 +603,10 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         };
 
         public static ReadEntriesCtx create(Consumer consumer, long epoch) {
-            ReadEntriesCtx wrapper = RECYCLER.get();
-            wrapper.consumer = consumer;
-            wrapper.epoch = epoch;
-            if (log.isDebugEnabled()) {
-                log.debug("Created new ReadEntriesCallBackWrapper {}", wrapper);
-            }
-            return wrapper;
+            ReadEntriesCtx readEntriesCtx = RECYCLER.get();
+            readEntriesCtx.consumer = consumer;
+            readEntriesCtx.epoch = epoch;
+            return readEntriesCtx;
         }
 
         Consumer getConsumer() {

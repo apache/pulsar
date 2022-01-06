@@ -179,8 +179,7 @@ public class ClientCnx extends PulsarHandler {
         GetSchema,
         GetOrCreateSchema,
         AckResponse,
-        Lookup,
-        RedeliverUnacknowledgedMessages;
+        Lookup;
 
         String getDescription() {
             if (this == Command) {

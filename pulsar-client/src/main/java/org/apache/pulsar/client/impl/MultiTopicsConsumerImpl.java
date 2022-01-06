@@ -39,7 +39,6 @@ import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.CompletableFutureCancellationHandler;
@@ -65,7 +64,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
@@ -271,7 +269,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 // thenAcceptAsync, there is no chance for recursion that would lead to stack overflow.
                 receiveMessageFromConsumer(consumer);
             }
-        }, externalPinnedExecutor).exceptionally(ex -> {
+        }, internalPinnedExecutor).exceptionally(ex -> {
             if (ex instanceof PulsarClientException.AlreadyClosedException
                     || ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
                 // ignore the exception that happens when the consumer is closed
@@ -332,17 +330,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     // If message consumer epoch is smaller than consumer epoch present that
     // it has been sent to the client before the user calls redeliverUnacknowledgedMessages, this message is invalid.
     // so we should release this message and receive again
-    private boolean checkMessageConsumerEpochIsSmallerThanConsumer(Message<T> message) {
-        long messageConsumerEpoch = (((MessageImpl<T>) (((TopicMessageImpl<T>) message))
-                .getMessage()).getConsumerEpoch());
-        if ((getSubType() == CommandSubscribe.SubType.Failover
-                || getSubType() == CommandSubscribe.SubType.Exclusive)
-                && messageConsumerEpoch != DEFAULT_CONSUMER_EPOCH
-                && messageConsumerEpoch < consumerEpoch.get()) {
-            message.release();
-            return true;
-        }
-        return false;
+    private boolean checkTopicMessageConsumerEpochIsSmallerThanConsumer(Message<T> message) {
+        return checkMessageConsumerEpochIsSmallerThanConsumer(((MessageImpl<T>) (((TopicMessageImpl<T>) message))
+                .getMessage()));
     }
 
     @Override
@@ -352,7 +342,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             message = incomingMessages.take();
             decreaseIncomingMessageSize(message);
             checkState(message instanceof TopicMessageImpl);
-            if (checkMessageConsumerEpochIsSmallerThanConsumer(message)) {
+            if (checkTopicMessageConsumerEpochIsSmallerThanConsumer(message)) {
                 resumeReceivingFromPausedConsumersIfNeeded();
                 message.release();
                 return internalReceive();
@@ -375,7 +365,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             if (message != null) {
                 decreaseIncomingMessageSize(message);
                 checkArgument(message instanceof TopicMessageImpl);
-                if (checkMessageConsumerEpochIsSmallerThanConsumer(message)) {
+                if (checkTopicMessageConsumerEpochIsSmallerThanConsumer(message)) {
                     long executionTime = System.currentTimeMillis() - callTime;
                     if (executionTime >= unit.toMillis(timeout)) {
                         return null;
@@ -421,7 +411,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     Message<T> msg = incomingMessages.poll();
                     if (msg != null) {
                         decreaseIncomingMessageSize(msg);
-                        if (checkMessageConsumerEpochIsSmallerThanConsumer(msg)) {
+                        if (checkTopicMessageConsumerEpochIsSmallerThanConsumer(msg)) {
                             msgPeeked = incomingMessages.peek();
                             continue;
                         }

@@ -58,7 +58,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import lombok.Getter;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
@@ -84,12 +84,10 @@ import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
-import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandAck.ValidationError;
 import org.apache.pulsar.common.api.proto.CommandMessage;
-import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CompressionType;
 import org.apache.pulsar.common.api.proto.EncryptionKeys;
@@ -413,7 +411,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         try {
             message = incomingMessages.take();
             messageProcessed(message);
-            if (checkMessageConsumerEpochIsSmallerThanConsumer(message)) {
+            if (checkMessageImplConsumerEpochIsSmallerThanConsumer(message)) {
                 return internalReceive();
             }
             return beforeConsume(message);
@@ -423,20 +421,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
-    // If message consumer epoch is smaller than consumer epoch present that
-    // it has been sent to the client before the user calls redeliverUnacknowledgedMessages, this message is invalid.
-    // so we should release this message and receive again
-    private boolean checkMessageConsumerEpochIsSmallerThanConsumer(Message<T> message) {
-        if ((getSubType() == CommandSubscribe.SubType.Failover
-                || getSubType() == CommandSubscribe.SubType.Exclusive)
-                && message instanceof MessageImpl
-                && ((MessageImpl<T>) message).getConsumerEpoch() != DEFAULT_CONSUMER_EPOCH
-                && ((MessageImpl<T>) message).getConsumerEpoch() < consumerEpoch.get()) {
-            message.release();
-            ((MessageImpl<T>) message).recycle();
-            return true;
-        }
-        return false;
+    private boolean checkMessageImplConsumerEpochIsSmallerThanConsumer(Message<T> message) {
+        return checkMessageConsumerEpochIsSmallerThanConsumer((MessageImpl<T>) message);
     }
 
     @Override
@@ -450,7 +436,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
             } else {
                 messageProcessed(message);
-                if (checkMessageConsumerEpochIsSmallerThanConsumer(message)) {
+                if (checkMessageImplConsumerEpochIsSmallerThanConsumer(message)) {
                     pendingReceives.add(result);
                     cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
                     return;
@@ -472,7 +458,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return null;
             }
             messageProcessed(message);
-            if (checkMessageConsumerEpochIsSmallerThanConsumer(message)) {
+            if (checkMessageImplConsumerEpochIsSmallerThanConsumer(message)) {
                 long executionTime = System.currentTimeMillis() - callTime;
                 if (executionTime >= unit.toMillis(timeout)) {
                     return null;
@@ -519,7 +505,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     Message<T> msg = incomingMessages.poll();
                     if (msg != null) {
                         messageProcessed(msg);
-                        if (checkMessageConsumerEpochIsSmallerThanConsumer(msg)) {
+                        if (checkMessageImplConsumerEpochIsSmallerThanConsumer(msg)) {
                             msgPeeked = incomingMessages.peek();
                             continue;
                         }
@@ -1829,10 +1815,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         incomingMessages.forEach(Message::release);
         clearIncomingMessages();
         unAckedMessageTracker.clear();
-        BaseCommand.Type type = BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN;
-        switch (type) {
-            case ADD_SUBSCRIPTION_TO_TXN:
-        }
         return messagesNumber;
     }
 

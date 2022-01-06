@@ -1728,7 +1728,6 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         redeliveryMessagesField.set(dispatcher, redeliveryMessages);
         // (a) redelivery with all acked-message should clear messageReply bucket
-
         dispatcher.redeliverUnacknowledgedMessages(dispatcher.getConsumers().get(0));
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> {
             return redeliveryMessages.isEmpty();
