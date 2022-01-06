@@ -54,7 +54,7 @@ public interface AutoClusterFailoverBuilder {
     AutoClusterFailoverBuilder secondary(List<String> secondary);
 
     /**
-     * Set secondary choose policy
+     * Set secondary choose policy. The default secondary choose policy is `ORDER`.
      * @param policy
      * @return
      */
