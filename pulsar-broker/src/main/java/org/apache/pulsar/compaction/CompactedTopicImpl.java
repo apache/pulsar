@@ -59,7 +59,7 @@ public class CompactedTopicImpl implements CompactedTopic {
     private final BookKeeper bk;
 
     protected PositionImpl compactionHorizon = null;
-    private CompletableFuture<CompactedTopicContext> compactedTopicContext = null;
+    protected CompletableFuture<CompactedTopicContext> compactedTopicContext = null;
 
     public CompactedTopicImpl(BookKeeper bk) {
         this.bk = bk;

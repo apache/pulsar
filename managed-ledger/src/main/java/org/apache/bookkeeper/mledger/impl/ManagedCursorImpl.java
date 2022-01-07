@@ -2600,29 +2600,6 @@ public class ManagedCursorImpl implements ManagedCursor {
                             lh1.getId());
                 }
 
-                if (!mdEntry.properties.isEmpty()) {
-                    persistPositionMetaStore(-1, position, mdEntry.properties, new MetaStoreCallback<Void>() {
-                        @Override
-                        public void operationComplete(Void result, Stat stat) {
-                            if (log.isDebugEnabled()) {
-                                log.debug(
-                                        "[{}][{}] Updated cursor in meta store after previous failure in ledger at position {}",
-                                        ledger.getName(), name, position);
-                            }
-                            mbean.persistToZookeeper(true);
-                            callback.operationComplete();
-                        }
-
-                        @Override
-                        public void operationFailed(MetaStoreException e) {
-                            log.warn("[{}][{}] Failed to update cursor in meta store after previous failure in ledger: {}",
-                                    ledger.getName(), name, e.getMessage());
-                            mbean.persistToZookeeper(false);
-                            callback.operationFailed(createManagedLedgerException(rc));
-                        }
-                    }, true);
-                }
-
                 if (shouldCloseLedger(lh1)) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Need to create new metadata ledger for consumer {}", ledger.getName(), name);

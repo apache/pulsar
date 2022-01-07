@@ -37,8 +37,6 @@ public class OffloadCompactedTopicImpl extends CompactedTopicImpl {
     private final UUID uid;
     private final Map<String, String> offloadDriverMetadata;
 
-    private CompletableFuture<CompactedTopicContext> compactedTopicContext = null;
-
     public OffloadCompactedTopicImpl(LedgerOffloader ledgerOffloader,
             UUID uid, Map<String, String> offloadDriverMetadata) {
         super(null);
