@@ -292,7 +292,7 @@ const consumer = await client.subscribe({
 ```
 
 > #### Note
-> Pulsar Node.js client uses [AsyncWorker](https://github.com/nodejs/node-addon-api/blob/main/doc/async_worker.md); asynchronous operations such as creating consumers/producers and receiving/sending messages are performed in worker threads.
+> Pulsar Node.js client uses [AsyncWorker](https://github.com/nodejs/node-addon-api/blob/main/doc/async_worker.md). Asynchronous operations such as creating consumers/producers and receiving/sending messages are performed in worker threads.
 > Until completion of these operations, worker threads are blocked.
 > Since there are only 4 worker threads by default, a called method may never complete.
 >
