@@ -75,7 +75,9 @@ public class SinksBase extends AdminResource {
                              final @FormDataParam("data") FormDataContentDisposition fileDetail,
                              final @FormDataParam("url") String sinkPkgUrl,
                              @ApiParam(value =
-                                     "A JSON value presenting config payload of a Pulsar Sink."
+                                     "You can create a sink in Java, Python, and Go. Follow the steps below.\n"
+                                             + "1. Create a JSON object using some of the following parameters.\n"
+                                             + "A JSON value presenting config payload of a Pulsar Sink."
                                              + " All available configuration options are:\n"
                                              + "- **classname**\n"
                                              + "   The class name of a Pulsar Sink if"
@@ -136,7 +138,8 @@ public class SinksBase extends AdminResource {
                                              + "   Boolean denotes whether the subscriptions the functions"
                                              + " created/used should be deleted when the functions is deleted\n"
                                              + "- **runtimeFlags**\n"
-                                             + "   Any flags that you want to pass to the runtime as a single string\n",
+                                             + "   Any flags that you want to pass to the runtime as a single string\n"
+                                             + "2. Encapsulate the JSON object to a multipart object.",
                                      examples = @Example(
                                              value = @ExampleProperty(
                                                      mediaType = MediaType.APPLICATION_JSON,
