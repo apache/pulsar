@@ -1615,21 +1615,22 @@ public class PersistentTopicsBase extends AdminResource {
                     log.info("[{}][{}] Deleted subscription forcefully {}", clientAppId(), topicName, subName);
                     asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(e -> {
-                    if (e instanceof WebApplicationException) {
+                    Throwable cause = e.getCause();
+                    if (cause instanceof WebApplicationException) {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] Failed to delete subscription forcefully from topic {},"
                                             + " redirecting to other brokers.",
-                                    clientAppId(), topicName, e);
+                                    clientAppId(), topicName, cause);
                         }
                         asyncResponse.resume(e);
-                    } else if (e.getCause() instanceof RestException) {
+                    } else if (cause instanceof RestException) {
                         log.error("[{}] Failed to delete subscription forcefully {} {}",
-                                clientAppId(), topicName, subName, e);
-                        asyncResponse.resume(e.getCause());
+                                clientAppId(), topicName, subName, cause);
+                        asyncResponse.resume(cause);
                     } else {
                         log.error("[{}] Failed to delete subscription forcefully {} {}",
-                                clientAppId(), topicName, subName, e);
-                        asyncResponse.resume(new RestException(e));
+                                clientAppId(), topicName, subName, cause);
+                        asyncResponse.resume(new RestException(cause));
                     }
                     return null;
                 });
