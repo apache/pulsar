@@ -303,6 +303,8 @@ public class MLPendingAckStore implements PendingAckStore {
         public void run() {
             try {
                 if (cursor.isClosed()) {
+                    pendingAckReplyCallBack.replayFailed(new ManagedLedgerException
+                            .CursorAlreadyClosedException("MLPendingAckStore cursor have been closed."));
                     log.warn("[{}] MLPendingAckStore cursor have been closed, close replay thread.",
                             cursor.getManagedLedger().getName());
                     return;
@@ -350,6 +352,7 @@ public class MLPendingAckStore implements PendingAckStore {
                     }
                 }
             } catch (Exception e) {
+                pendingAckReplyCallBack.replayFailed(e);
                 log.error("[{}] Pending ack recover fail!", subManagedCursor.getManagedLedger().getName(), e);
                 return;
             }

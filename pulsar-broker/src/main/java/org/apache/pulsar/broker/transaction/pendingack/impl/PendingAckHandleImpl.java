@@ -43,7 +43,6 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotRea
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.broker.transaction.exception.pendingack.TransactionPendingAckException;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
@@ -142,9 +141,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                     }).exceptionally(e -> {
                         acceptQueue.clear();
                         changeToErrorState();
-                        pendingAckHandleCompletableFuture.completeExceptionally(
-                                new TransactionPendingAckException.TransactionPendingAckStoreProviderException(
-                                        e.getMessage()));
+                        exceptionHandleFuture(e.getCause());
                         log.error("PendingAckHandleImpl init fail! TopicName : {}, SubName: {}", topicName, subName, e);
                         return null;
                     });
@@ -890,6 +887,12 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     public synchronized void completeHandleFuture() {
         if (!this.pendingAckHandleCompletableFuture.isDone()) {
             this.pendingAckHandleCompletableFuture.complete(PendingAckHandleImpl.this);
+        }
+    }
+
+    public synchronized void exceptionHandleFuture(Throwable t) {
+        if (!this.pendingAckHandleCompletableFuture.isDone()) {
+            this.pendingAckHandleCompletableFuture.completeExceptionally(t);
         }
     }
 
