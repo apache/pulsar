@@ -227,7 +227,6 @@ function NavbarMobileSidebar({ sidebarShown, toggleSidebar }) {
                       getApiVersion(param),
                   };
                 });
-                console.log(item);
               } else if (item.label == "CLI") {
                 item.items = item.items.map((e) => {
                   return {
@@ -235,7 +234,6 @@ function NavbarMobileSidebar({ sidebarShown, toggleSidebar }) {
                     link: e.to + "?version=" + getVersion(),
                   };
                 });
-                console.log(item);
               }
               return (
                 <NavbarItem mobile {...item} onClick={toggleSidebar} key={i} />
@@ -334,6 +332,13 @@ function Navbar() {
                     getVersion() +
                     "&apiversion=" +
                     getApiVersion(param),
+                };
+              });
+            } else if (item.label == "CLI") {
+              item.items = item.items.map((e) => {
+                return {
+                  ...e,
+                  link: e.to + "?version=" + getVersion(),
                 };
               });
             }
