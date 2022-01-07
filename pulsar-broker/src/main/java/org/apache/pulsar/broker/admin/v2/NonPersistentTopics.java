@@ -537,8 +537,7 @@ public class NonPersistentTopics extends PersistentTopics {
         validateTopicOwnership(topicName, authoritative);
     }
 
-    @VisibleForTesting
-    public Topic getTopicReference(TopicName topicName) {
+    private Topic getTopicReference(TopicName topicName) {
         try {
             return pulsar().getBrokerService().getTopicIfExists(topicName.toString())
                     .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS)
