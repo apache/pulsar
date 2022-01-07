@@ -26,7 +26,6 @@ import java.io.File;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.function.Supplier;
-
 import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -121,8 +120,7 @@ public class CmdSchemas extends CmdBase {
         private boolean alwaysAllowNull = true;
 
         @Parameter(names = { "-n", "--dry-run"},
-                   description = "dost not apply to schema registry, " +
-                                 "just prints the post schema payload")
+                   description = "dost not apply to schema registry, just prints the post schema payload")
         private boolean dryRun = false;
 
         @Override
@@ -145,8 +143,7 @@ public class CmdSchemas extends CmdBase {
             } else if (type.equalsIgnoreCase("json")){
                 input.setType("JSON");
                 input.setSchema(SchemaExtractor.getJsonSchemaInfo(schemaDefinition));
-            }
-            else {
+            } else {
                 throw new Exception("Unknown schema type specified as type");
             }
             input.setProperties(schemaDefinition.getProperties());
