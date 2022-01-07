@@ -57,6 +57,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -1151,15 +1152,16 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testTopicReferenceCommonExceptionWillReturnRestException() {
-        String topicName = "topicName";
-        String exceptionDetail = "exceptionDetail";
-        doThrow(new RuntimeException(exceptionDetail)).when(pulsar).getBrokerService();
-        try{
-            persistentTopics.getTopicReference(TopicName.get(topicName));
-        }catch (Exception ex){
-            Assert.assertTrue(ex instanceof RestException);
-            Assert.assertTrue(((String)((RestException) ex).getResponse().getEntity()).contains(exceptionDetail));
+    public void testResetCursorReturnTimeoutWhenZKTimeout() {
+        String topic = "persistent://"+testTenant + "/"+ testNamespace + "/" + "topic-2";
+        BrokerService brokerService = spy(pulsar.getBrokerService());
+        doReturn(brokerService).when(pulsar).getBrokerService();
+        CompletableFuture<Optional<Topic>> completableFuture = new CompletableFuture<>();
+        doReturn(completableFuture).when(brokerService).getTopicIfExists(topic);
+        try {
+            admin.topics().resetCursor(topic, "my-sub", System.currentTimeMillis());
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 504);
         }
     }
 
