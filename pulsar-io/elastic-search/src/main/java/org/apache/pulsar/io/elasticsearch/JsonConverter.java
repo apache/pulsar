@@ -197,7 +197,7 @@ public class JsonConverter {
                 new Conversions.UUIDConversion()) {
             @Override
             JsonNode toJson(Schema schema, Object value) {
-                return jsonNodeFactory.textNode(value.toString());
+                return jsonNodeFactory.textNode(value == null ? null : value.toString());
             }
         });
     }
