@@ -1524,8 +1524,8 @@ public class PersistentTopicsBase extends AdminResource {
                     asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
                             "Subscription has active connected consumers"));
                 } else if (e instanceof WebApplicationException) {
-                    if (log.isDebugEnabled() && ((WebApplicationException) e).getResponse().getStatus() ==
-                            Status.TEMPORARY_REDIRECT.getStatusCode()) {
+                    if (log.isDebugEnabled() && ((WebApplicationException) e).getResponse().getStatus()
+                            == Status.TEMPORARY_REDIRECT.getStatusCode()) {
                         log.debug("[{}] Failed to delete subscription from topic {}, redirecting to other brokers.",
                                 clientAppId(), topicName, e);
                     }
