@@ -1505,35 +1505,37 @@ public class PersistentTopicsBase extends AdminResource {
 
     private void internalDeleteSubscriptionForNonPartitionedTopic(AsyncResponse asyncResponse,
                                                                   String subName, boolean authoritative) {
-        try {
-            validateTopicOwnership(topicName, authoritative);
-            validateTopicOperation(topicName, TopicOperation.UNSUBSCRIBE);
-
-            Topic topic = getTopicReference(topicName);
-            Subscription sub = topic.getSubscription(subName);
-            if (sub == null) {
-                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Subscription not found"));
-                return;
-            }
-            sub.delete().get();
-            log.info("[{}][{}] Deleted subscription {}", clientAppId(), topicName, subName);
-            asyncResponse.resume(Response.noContent().build());
-        } catch (Exception e) {
-            if (e.getCause() instanceof SubscriptionBusyException) {
-                log.error("[{}] Failed to delete subscription {} from topic {}", clientAppId(), subName, topicName, e);
-                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
-                    "Subscription has active connected consumers"));
-            } else if (e instanceof WebApplicationException) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Failed to delete subscription from topic {}, redirecting to other brokers.",
-                            clientAppId(), topicName, e);
+        validateTopicOwnershipAsync(topicName, authoritative)
+            .thenRun(() -> validateTopicOperation(topicName, TopicOperation.UNSUBSCRIBE))
+            .thenCompose(__ -> {
+                Topic topic = getTopicReference(topicName);
+                Subscription sub = topic.getSubscription(subName);
+                if (sub == null) {
+                    throw new RestException(Status.NOT_FOUND, "Subscription not found");
                 }
-                asyncResponse.resume(e);
-            } else {
-                log.error("[{}] Failed to delete subscription {} {}", clientAppId(), topicName, subName, e);
-                asyncResponse.resume(new RestException(e));
-            }
-        }
+                return sub.delete();
+            }).thenRun(() -> {
+                log.info("[{}][{}] Deleted subscription {}", clientAppId(), topicName, subName);
+                asyncResponse.resume(Response.noContent().build());
+            }).exceptionally(e -> {
+                if (e.getCause() instanceof SubscriptionBusyException) {
+                    log.error("[{}] Failed to delete subscription {} from topic {}", clientAppId(), subName,
+                            topicName, e);
+                    asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                            "Subscription has active connected consumers"));
+                } else if (e instanceof WebApplicationException) {
+                    if (log.isDebugEnabled() && ((WebApplicationException) e).getResponse().getStatus() ==
+                            Status.TEMPORARY_REDIRECT.getStatusCode()) {
+                        log.debug("[{}] Failed to delete subscription from topic {}, redirecting to other brokers.",
+                                clientAppId(), topicName, e);
+                    }
+                    asyncResponse.resume(e);
+                } else {
+                    log.error("[{}] Failed to delete subscription {} {}", clientAppId(), topicName, subName, e);
+                    asyncResponse.resume(new RestException(e));
+                }
+                return null;
+            });
     }
 
     protected void internalDeleteSubscriptionForcefully(AsyncResponse asyncResponse,
