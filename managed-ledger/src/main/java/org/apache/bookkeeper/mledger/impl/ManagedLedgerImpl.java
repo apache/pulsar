@@ -3216,10 +3216,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         metadataMap.putAll(offloadDriverMetadata);
         metadataMap.put("ManagedLedgerName", name);
 
-        Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1), TimeUnit.SECONDS.toHours(1)).limit(10),
-                Retries.NonFatalPredicate,
-                () -> config.getLedgerOffloader().deleteOffloaded(ledgerId, uuid, metadataMap),
-                scheduledExecutor, name).whenComplete((ignored, exception) -> {
+        Retries
+                // The purpose of not specifying the scheduler's key explicitly here is to avoid deadlock.
+                // Otherwise when the caller of this method and the retry task are both running in the same
+                // ordering thread, there will be a risk of race-condition.
+                .run(
+                        Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1), TimeUnit.SECONDS.toHours(1)).limit(10),
+                        Retries.NonFatalPredicate,
+                        () -> config.getLedgerOffloader().deleteOffloaded(ledgerId, uuid, metadataMap),
+                        scheduledExecutor)
+                .whenComplete((ignored, exception) -> {
                     if (exception != null) {
                         log.warn("[{}] Error cleaning up offload for {}, (cleanup reason: {})",
                                 name, ledgerId, cleanupReason, exception);
@@ -4169,6 +4175,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         final CountDownLatch counter = new CountDownLatch(deletableLedgers.size() + deletableOffloadedLedgers.size());
 
         Set<Long> finishedDeletedLedgers = ConcurrentHashMap.newKeySet();
+        Set<Long> finishedDeletedOffloadedLedgers = ConcurrentHashMap.newKeySet();
         Set<Long> timeoutDeletedLedgers = ConcurrentHashMap.newKeySet();
 
         Set<Long> succeedDeletedLedgers = ConcurrentHashMap.newKeySet();
@@ -4205,7 +4212,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         public void deleteLedgerComplete(Object ctx) {
                             ledgers.remove(deletableOffloadedLedger);
                             counter.countDown();
-                            finishedDeletedLedgers.add(deletableOffloadedLedger);
+                            finishedDeletedOffloadedLedgers.add(deletableOffloadedLedger);
                             succeedDeletedOffloadedLedgers.add(deletableOffloadedLedger);
                         }
 
@@ -4214,7 +4221,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             log.warn("[{}] Failed to delete offloaded ledger:{} due to",
                                     name, deletableOffloadedLedger, exception);
                             counter.countDown();
-                            finishedDeletedLedgers.add(deletableOffloadedLedger);
+                            finishedDeletedOffloadedLedgers.add(deletableOffloadedLedger);
                             failDeletedOffloadedLedgers.add(deletableOffloadedLedger);
                         }
                     });
@@ -4222,11 +4229,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         try {
             if (!counter.await(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS)) {
-                for (Long ledgerId : Stream.concat(deletableLedgers.stream(), deletableOffloadedLedgers.stream())
-                        .collect(Collectors.toSet())) {
-                    if (!finishedDeletedLedgers.contains(ledgerId)) {
-                        log.warn("[{}] Failed to delete ledger:{} due to operation timeout", name, ledgerId);
-                        timeoutDeletedLedgers.add(ledgerId);
+                for (Long deletableLedger : deletableLedgers) {
+                    if (!finishedDeletedLedgers.contains(deletableLedger)) {
+                        log.warn("[{}] Failed to delete ledger:{} due to operation timeout", name, deletableLedger);
+                        timeoutDeletedLedgers.add(deletableLedger);
+                    }
+                }
+                for (Long deletableOffloadedLedger : deletableOffloadedLedgers) {
+                    if (!finishedDeletedOffloadedLedgers.contains(deletableOffloadedLedger)) {
+                        log.warn("[{}] Failed to delete offloaded ledger:{} due to operation timeout",
+                                name, deletableOffloadedLedger);
+                        timeoutDeletedLedgers.add(deletableOffloadedLedger);
                     }
                 }
             }
