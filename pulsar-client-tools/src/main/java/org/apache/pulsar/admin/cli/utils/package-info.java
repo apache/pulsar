@@ -16,23 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.cli;
-
-import com.beust.jcommander.converters.IParameterSplitter;
-import java.util.LinkedList;
-import java.util.List;
-
-public class NoSplitter implements IParameterSplitter {
-
-    /*
-     * (non-Javadoc)
-     *
-     * @see com.beust.jcommander.converters.IParameterSplitter#split(java.lang.String)
-     */
-    @Override
-    public List<String> split(final String value) {
-        final List<String> result = new LinkedList<>();
-        result.add(value);
-        return result;
-    }
-}
+package org.apache.pulsar.admin.cli.utils;
