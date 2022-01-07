@@ -105,4 +105,24 @@ public class BacklogQuotaCompatibilityTest {
                 BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
     }
 
+    @Test
+    public void testBackwardCompatibilityNullLimitAndLimitSize() throws IOException {
+        String oldPolicyStr = "{\"auth_policies\":{\"namespace_auth\":{},\"destination_auth\":{},"
+                + "\"subscription_auth_roles\":{}},\"replication_clusters\":[],\"backlog_quota_map\":"
+                + "{\"destination_storage\":{\"policy\":\"consumer_backlog_eviction\"}},"
+                + "\"clusterDispatchRate\":{},\"topicDispatchRate\":{},\"subscriptionDispatchRate\":{},"
+                + "\"replicatorDispatchRate\":{},\"clusterSubscribeRate\":{},\"publishMaxMessageRate\":{},"
+                + "\"latency_stats_sample_rate\":{},\"subscription_expiration_time_minutes\":0,\"deleted\":false,"
+                + "\"encryption_required\":false,\"subscription_auth_mode\":\"None\","
+                + "\"max_consumers_per_subscription\":0,\"offload_threshold\":-1,"
+                + "\"schema_auto_update_compatibility_strategy\":\"Full\",\"schema_compatibility_strategy\":"
+                + "\"UNDEFINED\",\"is_allow_auto_update_schema\":true,\"schema_validation_enforced\":false,"
+                + "\"subscription_types_enabled\":[]}\n";
+        Policies policies = simpleType.deserialize(null, oldPolicyStr.getBytes(), null);
+        assertEquals(policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage).getLimitSize(),
+                0);
+        assertEquals(policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage).getLimitTime(),
+                0);
+    }
+
 }
