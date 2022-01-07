@@ -30,11 +30,10 @@ import java.util.function.Supplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.TopicPolicies;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
-import org.apache.pulsar.common.policies.data.DispatchRate;
-import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -74,6 +73,10 @@ public class CmdTopicPolicies extends CmdBase {
         jcommander.addCommand("set-max-producers", new SetMaxProducers());
         jcommander.addCommand("remove-max-producers", new RemoveMaxProducers());
 
+        jcommander.addCommand("get-max-message-size", new GetMaxMessageSize());
+        jcommander.addCommand("set-max-message-size", new SetMaxMessageSize());
+        jcommander.addCommand("remove-max-message-size", new RemoveMaxMessageSize());
+
         jcommander.addCommand("set-deduplication", new SetDeduplicationStatus());
         jcommander.addCommand("get-deduplication", new GetDeduplicationStatus());
         jcommander.addCommand("remove-deduplication", new RemoveDeduplicationStatus());
@@ -89,7 +92,7 @@ public class CmdTopicPolicies extends CmdBase {
         jcommander.addCommand("get-replicator-dispatch-rate", new GetReplicatorDispatchRate());
         jcommander.addCommand("set-replicator-dispatch-rate", new SetReplicatorDispatchRate());
         jcommander.addCommand("remove-replicator-dispatch-rate", new RemoveReplicatorDispatchRate());
-      
+
         jcommander.addCommand("get-publish-rate", new GetPublishRate());
         jcommander.addCommand("set-publish-rate", new SetPublishRate());
         jcommander.addCommand("remove-publish-rate", new RemovePublishRate());
@@ -116,11 +119,12 @@ public class CmdTopicPolicies extends CmdBase {
 
         jcommander.addCommand("get-max-unacked-messages-per-subscription", new GetMaxUnackedMessagesPerSubscription());
         jcommander.addCommand("set-max-unacked-messages-per-subscription", new SetMaxUnackedMessagesPerSubscription());
-        jcommander.addCommand("remove-max-unacked-messages-per-subscription", new RemoveMaxUnackedMessagesPerSubscription());
+        jcommander.addCommand("remove-max-unacked-messages-per-subscription",
+                new RemoveMaxUnackedMessagesPerSubscription());
 
-        jcommander.addCommand("get-inactive-topic-policies",new GetInactiveTopicPolicies());
-        jcommander.addCommand("set-inactive-topic-policies",new SetInactiveTopicPolicies());
-        jcommander.addCommand("remove-inactive-topic-policies",new RemoveInactiveTopicPolicies());
+        jcommander.addCommand("get-inactive-topic-policies", new GetInactiveTopicPolicies());
+        jcommander.addCommand("set-inactive-topic-policies", new SetInactiveTopicPolicies());
+        jcommander.addCommand("remove-inactive-topic-policies", new RemoveInactiveTopicPolicies());
 
     }
 
@@ -145,7 +149,8 @@ public class CmdTopicPolicies extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--max-consumers-per-subscription", "-c" }, description = "maxConsumersPerSubscription for a namespace", required = true)
+        @Parameter(names = { "--max-consumers-per-subscription", "-c" },
+                description = "maxConsumersPerSubscription for a namespace", required = true)
         private int maxConsumersPerSubscription;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
@@ -253,7 +258,8 @@ public class CmdTopicPolicies extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-t", "--ttl" }, description = "Message TTL for topic in second, allowed range from 1 to Integer.MAX_VALUE", required = true)
+        @Parameter(names = { "-t", "--ttl" }, description = "Message TTL for topic in second, "
+                + "allowed range from 1 to Integer.MAX_VALUE", required = true)
         private int messageTTLInSecond;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
@@ -522,7 +528,8 @@ public class CmdTopicPolicies extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = {"-m", "--maxNum"}, description = "max unacked messages num on subscription", required = true)
+        @Parameter(names = {"-m", "--maxNum"},
+                description = "max unacked messages num on subscription", required = true)
         private int maxNum;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
@@ -604,8 +611,9 @@ public class CmdTopicPolicies extends CmdBase {
         @Parameter(names = { "--disable", "-d" }, description = "Disable delayed delivery messages")
         private boolean disable = false;
 
-        @Parameter(names = { "--time", "-t" }, description = "The tick time for when retrying on delayed delivery messages, " +
-                "affecting the accuracy of the delivery time compared to the scheduled time. (eg: 1s, 10s, 1m, 5h, 3d)")
+        @Parameter(names = { "--time", "-t" }, description = "The tick time for when retrying on "
+                + "delayed delivery messages, affecting the accuracy of the delivery time compared to "
+                + "the scheduled time. (eg: 1s, 10s, 1m, 5h, 3d)")
         private String delayedDeliveryTimeStr = "1s";
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
@@ -663,6 +671,55 @@ public class CmdTopicPolicies extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             getTopicPolicies(isGlobal).removeMaxProducers(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Get max message size for a topic")
+    private class GetMaxMessageSize extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--global", "-g"}, description = "Whether to get this policy globally. "
+                + "If set to true, broker returns global topic policies")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(getTopicPolicies(isGlobal).getMaxMessageSize(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Set max message size for a topic")
+    private class SetMaxMessageSize extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--max-message-size", "-m"}, description = "Max message size for a topic", required = true)
+        private int maxMessageSize;
+
+        @Parameter(names = {"--global", "-g"}, description = "Whether to set this policy globally.")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopicPolicies(isGlobal).setMaxMessageSize(persistentTopic, maxMessageSize);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove max message size for a topic")
+    private class RemoveMaxMessageSize extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--global", "-g"}, description = "Whether to remove this policy globally. ")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopicPolicies(isGlobal).removeMaxMessageSize(persistentTopic);
         }
     }
 
@@ -750,18 +807,20 @@ public class CmdTopicPolicies extends CmdBase {
         @Parameter(names = { "-l", "--limit" }, description = "Size limit (eg: 10M, 16G)")
         private String limitStr = "-1";
 
-        @Parameter(names = { "-lt", "--limitTime" }, description = "Time limit in second, non-positive number for disabling time limit.")
+        @Parameter(names = { "-lt", "--limitTime" },
+                description = "Time limit in second, non-positive number for disabling time limit.")
         private int limitTime = -1;
 
         @Parameter(names = { "-p", "--policy" }, description = "Retention policy to enforce when the limit is reached. "
-                + "Valid options are: [producer_request_hold, producer_exception, consumer_backlog_eviction]", required = true)
+                + "Valid options are: [producer_request_hold, producer_exception, consumer_backlog_eviction]",
+                required = true)
         private String policyStr;
 
-        @Parameter(names = {"-t", "--type"}, description = "Backlog quota type to set. Valid options are: " +
-                "destination_storage and message_age. " +
-                "destination_storage limits backlog by size (in bytes). " +
-                "message_age limits backlog by time, that is, message timestamp (broker or publish timestamp). " +
-                "You can set size or time to control the backlog, or combine them together to control the backlog. ")
+        @Parameter(names = {"-t", "--type"}, description = "Backlog quota type to set. Valid options are: "
+                + "destination_storage and message_age. "
+                + "destination_storage limits backlog by size (in bytes). "
+                + "message_age limits backlog by time, that is, message timestamp (broker or publish timestamp). "
+                + "You can set size or time to control the backlog, or combine them together to control the backlog. ")
         private String backlogQuotaTypeStr = BacklogQuota.BacklogQuotaType.destination_storage.name();
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
@@ -816,7 +875,8 @@ public class CmdTopicPolicies extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getTopicPolicies(isGlobal).removeBacklogQuota(persistentTopic, BacklogQuota.BacklogQuotaType.valueOf(backlogQuotaType));
+            getTopicPolicies(isGlobal)
+                    .removeBacklogQuota(persistentTopic, BacklogQuota.BacklogQuotaType.valueOf(backlogQuotaType));
         }
     }
 
@@ -904,7 +964,8 @@ public class CmdTopicPolicies extends CmdBase {
         private int subscribeRate = -1;
 
         @Parameter(names = { "--subscribe-rate-period",
-                "-st" }, description = "subscribe-rate-period in second type (default 30 second will be overwrite if not passed)", required = false)
+                "-st" }, description = "subscribe-rate-period in second type "
+                + "(default 30 second will be overwrite if not passed)", required = false)
         private int subscribeRatePeriodSec = 30;
 
         @Parameter(names = {"--global", "-g"}, description = "Whether to set this policy globally.")
@@ -962,12 +1023,12 @@ public class CmdTopicPolicies extends CmdBase {
                 "--bookkeeper-write-quorum" }, description = "How many writes to make of each entry", required = true)
         private int bookkeeperWriteQuorum;
 
-        @Parameter(names = { "-a",
-                "--bookkeeper-ack-quorum" }, description = "Number of acks (guaranteed copies) to wait for each entry", required = true)
+        @Parameter(names = { "-a", "--bookkeeper-ack-quorum" },
+                description = "Number of acks (guaranteed copies) to wait for each entry", required = true)
         private int bookkeeperAckQuorum;
 
-        @Parameter(names = { "-r",
-                "--ml-mark-delete-max-rate" }, description = "Throttling rate of mark-delete operation (0 means no throttle)", required = true)
+        @Parameter(names = { "-r", "--ml-mark-delete-max-rate" },
+                description = "Throttling rate of mark-delete operation (0 means no throttle)", required = true)
         private double managedLedgerMaxMarkDeleteRate;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
@@ -1078,19 +1139,23 @@ public class CmdTopicPolicies extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "--msg-dispatch-rate",
-                "-md" }, description = "message-dispatch-rate (default -1 will be overwrite if not passed)", required = false)
+                "-md" }, description = "message-dispatch-rate "
+                + "(default -1 will be overwrite if not passed)", required = false)
         private int msgDispatchRate = -1;
 
         @Parameter(names = { "--byte-dispatch-rate",
-                "-bd" }, description = "byte-dispatch-rate (default -1 will be overwrite if not passed)", required = false)
+                "-bd" }, description = "byte-dispatch-rate "
+                + "(default -1 will be overwrite if not passed)", required = false)
         private long byteDispatchRate = -1;
 
         @Parameter(names = { "--dispatch-rate-period",
-                "-dt" }, description = "dispatch-rate-period in second type (default 1 second will be overwrite if not passed)", required = false)
+                "-dt" }, description = "dispatch-rate-period in second type "
+                + "(default 1 second will be overwrite if not passed)", required = false)
         private int dispatchRatePeriodSec = 1;
 
         @Parameter(names = { "--relative-to-publish-rate",
-                "-rp" }, description = "dispatch rate relative to publish-rate (if publish-relative flag is enabled then broker will apply throttling value to (publish-rate + dispatch rate))", required = false)
+                "-rp" }, description = "dispatch rate relative to publish-rate (if publish-relative flag is enabled "
+                + "then broker will apply throttling value to (publish-rate + dispatch rate))", required = false)
         private boolean relativeToPublishRate = false;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
@@ -1156,12 +1221,13 @@ public class CmdTopicPolicies extends CmdBase {
         @Parameter(names = { "--disable-delete-while-inactive", "-d" }, description = "Disable delete while inactive")
         private boolean disableDeleteWhileInactive = false;
 
-        @Parameter(names = {"--max-inactive-duration", "-t"}, description = "Max duration of topic inactivity in seconds" +
-                ",topics that are inactive for longer than this value will be deleted (eg: 1s, 10s, 1m, 5h, 3d)", required = true)
+        @Parameter(names = {"--max-inactive-duration", "-t"},
+                description = "Max duration of topic inactivity in seconds, topics that are inactive for longer than "
+                        + "this value will be deleted (eg: 1s, 10s, 1m, 5h, 3d)", required = true)
         private String deleteInactiveTopicsMaxInactiveDuration;
 
-        @Parameter(names = { "--delete-mode", "-m" }, description = "Mode of delete inactive topic" +
-                ",Valid options are: [delete_when_no_subscriptions, delete_when_subscriptions_caught_up]", required = true)
+        @Parameter(names = { "--delete-mode", "-m" }, description = "Mode of delete inactive topic, Valid options are: "
+                + "[delete_when_no_subscriptions, delete_when_subscriptions_caught_up]", required = true)
         private String inactiveTopicDeleteMode;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
@@ -1180,16 +1246,18 @@ public class CmdTopicPolicies extends CmdBase {
             }
 
             if (enableDeleteWhileInactive == disableDeleteWhileInactive) {
-                throw new ParameterException("Need to specify either enable-delete-while-inactive or disable-delete-while-inactive");
+                throw new ParameterException("Need to specify either enable-delete-while-inactive or "
+                        + "disable-delete-while-inactive");
             }
             InactiveTopicDeleteMode deleteMode;
             try {
                 deleteMode = InactiveTopicDeleteMode.valueOf(inactiveTopicDeleteMode);
             } catch (IllegalArgumentException e) {
-                throw new ParameterException("delete mode can only be set to delete_when_no_subscriptions or delete_when_subscriptions_caught_up");
+                throw new ParameterException("delete mode can only be set to delete_when_no_subscriptions or "
+                        + "delete_when_subscriptions_caught_up");
             }
-            getTopicPolicies(isGlobal).setInactiveTopicPolicies(persistentTopic,
-                    new InactiveTopicPolicies(deleteMode, (int) maxInactiveDurationInSeconds, enableDeleteWhileInactive));
+            getTopicPolicies(isGlobal).setInactiveTopicPolicies(persistentTopic, new InactiveTopicPolicies(deleteMode,
+                    (int) maxInactiveDurationInSeconds, enableDeleteWhileInactive));
         }
     }
 
@@ -1314,11 +1382,13 @@ public class CmdTopicPolicies extends CmdBase {
         private long byteDispatchRate = -1;
 
         @Parameter(names = { "--dispatch-rate-period",
-                "-dt" }, description = "dispatch-rate-period in second type (default 1 second will be overwrite if not passed)")
+                "-dt" }, description = "dispatch-rate-period in second type "
+                + "(default 1 second will be overwrite if not passed)")
         private int dispatchRatePeriodSec = 1;
 
         @Parameter(names = { "--relative-to-publish-rate",
-                "-rp" }, description = "dispatch rate relative to publish-rate (if publish-relative flag is enabled then broker will apply throttling value to (publish-rate + dispatch rate))")
+                "-rp" }, description = "dispatch rate relative to publish-rate (if publish-relative flag is enabled "
+                + "then broker will apply throttling value to (publish-rate + dispatch rate))")
         private boolean relativeToPublishRate = false;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "

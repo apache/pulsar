@@ -105,7 +105,11 @@ public class KeyStoreSSLContext {
                 ? DEFAULT_KEYSTORE_TYPE
                 : trustStoreTypeString;
         this.trustStorePath = trustStorePath;
-        this.trustStorePassword = trustStorePassword;
+        if (trustStorePassword == null) {
+            this.trustStorePassword = "";
+        } else {
+            this.trustStorePassword = trustStorePassword;
+        }
         this.needClientAuth = requireTrustedClientCertOnConnect;
 
         if (protocols != null && protocols.size() > 0) {

@@ -899,7 +899,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         }
 
         // attach the resource-group level rate limiters, if set
-        String rgName = policies != null && policies.resource_group_name != null
+        String rgName = policies.resource_group_name != null
           ? policies.resource_group_name
           : null;
         if (rgName != null) {
