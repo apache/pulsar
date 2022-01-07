@@ -253,8 +253,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         this.ledger = ledger;
         this.subscriptions = new ConcurrentOpenHashMap<>(16, 1);
         this.replicators = new ConcurrentOpenHashMap<>(16, 1);
-        this.delayedDeliveryTickTimeMillis =
-                brokerService.pulsar().getConfiguration().getDelayedDeliveryTickTimeMillis();
         this.backloggedCursorThresholdEntries =
                 brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
         initializeRateLimiterIfNeeded(Optional.empty());
