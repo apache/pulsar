@@ -8,9 +8,11 @@ You can develop various plugins for Pulsar, such as entry filters, protocol hand
 
 ## Entry filter
 
+This chapter describes what the entry filter is and shows how to use the entry filter.
+
 ### What is an entry filter?
 
-The entry filter is an extension point for implementing a custom message entry strategy. With this implementation, you can decide **whether to send messages to consumers** (brokers can use the return values of entry filters to determine whether the messages need to be sent or discarded) or **send messages to specific target consumers.** 
+The entry filter is an extension point for implementing a custom message entry strategy. With an entry filter, you can decide **whether to send messages to consumers** (brokers can use the return values of entry filters to determine whether the messages need to be sent or discarded) or **send messages to specific consumers.** 
 
 To implement features such as tagged messages or custom delayed messages, use [`subscriptionProperties`](https://github.com/apache/pulsar/blob/ec0a44058d249a7510bb3d05685b2ee5e0874eb6/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/ConsumerBuilder.java?_pjax=%23js-repo-pjax-container%2C%20div%5Bitemtype%3D%22http%3A%2F%2Fschema.org%2FSoftwareSourceCode%22%5D%20main%2C%20%5Bdata-pjax-container%5D#L174), [`​​properties`](https://github.com/apache/pulsar/blob/ec0a44058d249a7510bb3d05685b2ee5e0874eb6/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/ConsumerBuilder.java?_pjax=%23js-repo-pjax-container%2C%20div%5Bitemtype%3D%22http%3A%2F%2Fschema.org%2FSoftwareSourceCode%22%5D%20main%2C%20%5Bdata-pjax-container%5D#L533), and entry filters.
 
@@ -18,17 +20,17 @@ To implement features such as tagged messages or custom delayed messages, use [`
 
 Follow the steps below:
 
-1. Create a maven project.
+1. Create a Maven project.
    
 2. Implement the `EntryFilter` interface.
    
-3. Package the implementation class into NAR.
+3. Package the implementation class into a NAR file.
 
-4. Configure broker.conf and restart broker.
+4. Configure the `broker.conf` file (or the `standalone.conf` file) and restart your broker.
 
-#### Step 1: Create a maven project
+#### Step 1: Create a Maven project
 
-For how to create a maven project, see [here](https://maven.apache.org/guides/getting-started/maven-in-five-minutes.html).
+For how to create a Maven project, see [here](https://maven.apache.org/guides/getting-started/maven-in-five-minutes.html).
 
 #### Step 2: Implement the `EntryFilter` interface
 
@@ -43,7 +45,7 @@ For how to create a maven project, see [here](https://maven.apache.org/guides/ge
     </dependency>
     ```
 
-2. Implement the  [`FilterResult filterEntry(Entry entry, FilterContext context);` method](https://github.com/apache/pulsar/blob/2adb6661d5b82c5705ee00ce3ebc9941c99635d5/pulsar-broker/src/main/java/org/apache/pulsar/broker/service/plugin/EntryFilter.java#L34).
+2. Implement the [`FilterResult filterEntry(Entry entry, FilterContext context);` method](https://github.com/apache/pulsar/blob/2adb6661d5b82c5705ee00ce3ebc9941c99635d5/pulsar-broker/src/main/java/org/apache/pulsar/broker/service/plugin/EntryFilter.java#L34).
 
    - If the method returns `ACCEPT` or NULL, this message is sent to consumers.
 
@@ -55,7 +57,7 @@ For how to create a maven project, see [here](https://maven.apache.org/guides/ge
 
 3. Describe a NAR file.
 
-    Create an `entry_filter.yaml` file in the `resources/META-INF/services` directory to describe NAR.
+    Create an `entry_filter.yaml` file in the `resources/META-INF/services` directory to describe a NAR file.
 
     ```conf
     # Entry filter name, which should be configured in the broker.conf file later
@@ -66,7 +68,7 @@ For how to create a maven project, see [here](https://maven.apache.org/guides/ge
     entryFilterClass: com.xxxx.xxxx.xxxx.DefaultEntryFilterImpl
     ```
 
-#### Step 3: package implementation class of entry filter into NAR
+#### Step 3: package implementation class of entry filter into a NAR file
 
 1. Add the compiled plugin of the NAR file to your `pom.xml` file.
 
@@ -104,7 +106,7 @@ For how to create a maven project, see [here](https://maven.apache.org/guides/ge
 
 #### Step 4: configure and restart broker
 
-1. Configure the following parameters in the `broker.conf` file.
+1. Configure the following parameters in the `broker.conf` file (or the `standalone.conf` file).
 
     ```conf
     # Class name of pluggable entry filters
