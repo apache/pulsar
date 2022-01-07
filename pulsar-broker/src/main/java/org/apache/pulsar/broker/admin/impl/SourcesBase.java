@@ -76,8 +76,10 @@ public class SourcesBase extends AdminResource {
             final @FormDataParam("data") InputStream uploadedInputStream,
             final @FormDataParam("data") FormDataContentDisposition fileDetail,
             final @FormDataParam("url") String sourcePkgUrl,
-            @ApiParam(
-                    value = "A JSON value presenting configuration payload of a Pulsar Source."
+            @ApiParam(value =
+                    "You can create a source in Java, Python, and Go. Follow the steps below.\n"
+                            + "1. Create a JSON object using some of the following parameters.\n"
+                            + "A JSON value presenting configuration payload of a Pulsar Source."
                             + " An example of the expected functions can be found here.\n"
                             + "- **classname**\n"
                             + "  The class name of a Pulsar Source if archive is file-url-path (file://).\n"
@@ -111,11 +113,13 @@ public class SourcesBase extends AdminResource {
                             + "  [http/https/file (file protocol assumes that file already exists on worker host)] "
                             + "  from which worker can download the package.\n"
                             + "- **runtimeFlags**\n"
-                            + "  Any flags that you want to pass to the runtime.\n",
+                            + "  Any flags that you want to pass to the runtime.\n"
+                            + "2. Encapsulate the JSON object to a multipart object.",
                     examples = @Example(
-                            value = @ExampleProperty(
+                            value = {
+                                @ExampleProperty(
                                     mediaType = MediaType.APPLICATION_JSON,
-                                    value = "{\n"
+                                    value = "Example 1 \n{ \n"
                                             + "  \"tenant\": public\n"
                                             + "  \"namespace\": default\n"
                                             + "  \"name\": pulsar-io-mysql\n"
@@ -125,7 +129,21 @@ public class SourcesBase extends AdminResource {
                                             + "  \"archive\": /connectors/pulsar-io-mysql-0.0.1.nar\n"
                                             + "  \"schemaType\": avro\n"
                                             + "}\n"
-                            )
+                                            + "Example 2 \n{\n"
+                                            + "\"inputs\": ["
+                                            + "\"persistent://public/default/source-topic\"],\n"
+                                            + "\"parallelism\":1,\n"
+                                            + "\"sourceType\":\"jdbc\",\n"
+                                            + "\"archive\":\"builtin://jdbc\",\n"
+                                            + "\"configs\": {\n"
+                                            + "\t\"userName\": \"root\",\n"
+                                            + "\t\"password\": \"jdbc\",\n"
+                                            + "\t\"jdbcUrl\": \"jdbc:mysql://127.0.0.1:3306/"
+                                            + "pulsar_mysql_jdbc_source\",\n"
+                                            + "\t\"tableName\": \"pulsar_mysql_jdbc_source\"\n"
+                                            + "}"
+                                    )
+                            }
                     )
             )
             final @FormDataParam("sourceConfig") SourceConfig sourceConfig) {

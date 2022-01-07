@@ -141,17 +141,32 @@ public class SinksBase extends AdminResource {
                                              + "   Any flags that you want to pass to the runtime as a single string\n"
                                              + "2. Encapsulate the JSON object to a multipart object.",
                                      examples = @Example(
-                                             value = @ExampleProperty(
+                                             value = {
+                                                 @ExampleProperty(
                                                      mediaType = MediaType.APPLICATION_JSON,
-                                                     value = "{\n"
+                                                     value = "Example 1 \n{ \n"
                                                              + "\t\"classname\": \"org.example.MySinkTest\",\n"
                                                              + "\t\"inputs\": ["
                                                              + "\"persistent://public/default/sink-input\"],\n"
                                                              + "\t\"processingGuarantees\": \"EFFECTIVELY_ONCE\",\n"
                                                              + "\t\"parallelism\": 10\n"
+                                                             + "}\n"
+                                                             + "Example 2 \n{\n"
+                                                             + "\"inputs\": ["
+                                                             + "\"persistent://public/default/sink-topic\"],\n"
+                                                             + "\"parallelism\":1,\n"
+                                                             + "\"sinkType\":\"jdbc\",\n"
+                                                             + "\"archive\":\"builtin://jdbc\",\n"
+                                                             + "\"configs\": {\n"
+                                                             + "\t\"userName\": \"root\",\n"
+                                                             + "\t\"password\": \"jdbc\",\n"
+                                                             + "\t\"jdbcUrl\": \"jdbc:mysql://127.0.0.1:3306/"
+                                                             + "pulsar_mysql_jdbc_sink\",\n"
+                                                             + "\t\"tableName\": \"pulsar_mysql_jdbc_sink\"\n"
                                                              + "}"
-                                             )
-                                 )
+                                                  )
+                                            }
+                                    )
                              )
                              final @FormDataParam("sinkConfig") SinkConfig sinkConfig) {
         sinks().registerSink(tenant, namespace, sinkName, uploadedInputStream, fileDetail,

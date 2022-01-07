@@ -171,7 +171,7 @@ public class FunctionsBase extends AdminResource {
                             value = {
                                 @ExampleProperty(
                                     mediaType = MediaType.APPLICATION_JSON,
-                                    value = "Example 1: \n{\n"
+                                    value = "Example 1 \n{\n"
                                             + "  \"inputs\": persistent://public/default/input-topic,\n"
                                             + "  \"parallelism\": 4,\n"
                                             + "  \"output\": persistent://public/default/output-topic,\n"
@@ -179,7 +179,7 @@ public class FunctionsBase extends AdminResource {
                                             + "  \"classname\": org.example.test.ExclamationFunction,\n"
                                             + "  \"jar\": java-function-1.0-SNAPSHOT.jar\n"
                                             + "}\n"
-                                            + "Example 2: \n{\n"
+                                            + "Example 2 \n{\n"
                                             + "  \"inputs\": [persistent://public/default/sink-topic],\n"
                                             + "  \"parallelism\":1,\n"
                                             + "  \"sinkType\":\"jdbc\",\n"
