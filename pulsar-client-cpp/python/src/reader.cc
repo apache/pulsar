@@ -90,9 +90,7 @@ void Reader_seek_timestamp(Reader& reader, uint64_t timestamp) {
         CHECK_RESULT(res);
 }
 
-bool Reader_is_connected(Reader& reader) {
-    return reader.isConnected();
-}
+bool Reader_is_connected(Reader& reader) { return reader.isConnected(); }
 
 void export_reader() {
     using namespace boost::python;

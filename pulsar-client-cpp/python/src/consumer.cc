@@ -111,9 +111,7 @@ void Consumer_seek_timestamp(Consumer& consumer, uint64_t timestamp) {
         CHECK_RESULT(res);
 }
 
-bool Consumer_is_connected(Consumer& consumer) {
-    return consumer.isConnected();
-}
+bool Consumer_is_connected(Consumer& consumer) { return consumer.isConnected(); }
 
 void export_consumer() {
     using namespace boost::python;

@@ -75,9 +75,7 @@ void Producer_close(Producer& producer) {
         CHECK_RESULT(res);
 }
 
-bool Producer_is_connected(Producer& producer) {
-    return producer.isConnected();
-}
+bool Producer_is_connected(Producer& producer) { return producer.isConnected(); }
 
 void export_producer() {
     using namespace boost::python;
