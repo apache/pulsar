@@ -1622,10 +1622,6 @@ public class PersistentTopicsBase extends AdminResource {
                                             + " redirecting to other brokers.",
                                     clientAppId(), topicName, cause);
                         }
-                        asyncResponse.resume(e);
-                    } else if (cause instanceof RestException) {
-                        log.error("[{}] Failed to delete subscription forcefully {} {}",
-                                clientAppId(), topicName, subName, cause);
                         asyncResponse.resume(cause);
                     } else {
                         log.error("[{}] Failed to delete subscription forcefully {} {}",
