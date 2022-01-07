@@ -19,6 +19,8 @@
 package org.apache.bookkeeper.mledger;
 
 import io.netty.buffer.ByteBuf;
+
+import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -658,18 +660,26 @@ public interface ManagedLedger {
     void checkInactiveLedgerAndRollOver();
 
     /**
-     * Mark deletable ledgers
+     * Mark deletable ledgers for bookkeeper and offload storage
      *
-     * @param ledgerId
+     * @param deletableLedgerIds
+     * @param deletableOffloadedLedgerIds
      */
-    void markDeletableLedger(long ledgerId);
+    void markDeletableLedgers(Collection<Long> deletableLedgerIds, Collection<Long> deletableOffloadedLedgerIds);
 
     /**
      * Get all deletable ledgers
      *
      * @return all the deletable ledgers of the managed-ledger
      */
-    Set<String> getAllDeletableLedgers();
+    Set<Long> getAllDeletableLedgers();
+
+    /**
+     * Get all deletable offloaded ledgers
+     *
+     * @return all the deletable offloaded ledgers of the managed-ledger
+     */
+    Set<Long> getAllDeletableOffloadedLedgers();
 
     /**
      * Check and remove all the deletable ledgers
