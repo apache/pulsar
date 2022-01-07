@@ -19,7 +19,6 @@
 
 package org.apache.pulsar.broker.admin.v1;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
