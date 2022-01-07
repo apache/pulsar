@@ -35,8 +35,6 @@ import org.testng.annotations.Test;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-import java.net.URL;
-
 @Test(groups = "broker")
 @Slf4j
 public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
@@ -126,11 +124,6 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
                         .collect(Collectors.toList())
                 ))
         );
-    }
-
-    @Test(expectedExceptions = PulsarAdminException.class)
-    public void testHealthCheckupV2Error() throws Exception {
-        admin.brokers().healthcheck(TopicVersion.V2);
     }
 
     @Test

@@ -710,6 +710,11 @@ public abstract class PulsarWebResource {
         if (!namespace.isGlobal()) {
             return CompletableFuture.completedFuture(null);
         }
+        NamespaceName heartbeatNamespace = pulsarService.getHeartbeatNamespaceV2();
+        if (namespace.equals(heartbeatNamespace)) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         final CompletableFuture<ClusterDataImpl> validationFuture = new CompletableFuture<>();
         final String localCluster = pulsarService.getConfiguration().getClusterName();
 
