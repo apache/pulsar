@@ -1034,13 +1034,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public ManagedCursor newNonDurableCursor(Position startPosition, String subscriptionName) throws ManagedLedgerException {
+    public ManagedCursor newNonDurableCursor(Position startPosition, String subscriptionName)
+            throws ManagedLedgerException {
         return newNonDurableCursor(startPosition, subscriptionName, InitialPosition.Latest, false);
     }
 
     @Override
-    public ManagedCursor newNonDurableCursor(Position startCursorPosition, String cursorName, InitialPosition initialPosition,
-                                             boolean isReadCompacted)
+    public ManagedCursor newNonDurableCursor(Position startCursorPosition, String cursorName,
+                                             InitialPosition initialPosition, boolean isReadCompacted)
             throws ManagedLedgerException {
         Objects.requireNonNull(cursorName, "cursor name can't be null");
         checkManagedLedgerIsOpen();
