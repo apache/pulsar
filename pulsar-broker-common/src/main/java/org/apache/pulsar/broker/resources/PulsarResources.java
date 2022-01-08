@@ -19,13 +19,11 @@
 package org.apache.pulsar.broker.resources;
 
 import java.util.Optional;
-
+import lombok.Getter;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-
-import lombok.Getter;
 
 public class PulsarResources {
 
@@ -91,7 +89,18 @@ public class PulsarResources {
 
     public static MetadataStoreExtended createMetadataStore(String serverUrls, int sessionTimeoutMs)
             throws MetadataStoreException {
-        return MetadataStoreExtended.create(serverUrls, MetadataStoreConfig.builder()
-                .sessionTimeoutMillis(sessionTimeoutMs).allowReadOnlyOperations(false).build());
+        return createMetadataStore(serverUrls, sessionTimeoutMs, 0);
+    }
+
+    public static MetadataStoreExtended createMetadataStore(String serverUrls, int sessionTimeoutMs,
+                                                            int operationTimeoutSeconds)
+            throws MetadataStoreException {
+        MetadataStoreConfig.MetadataStoreConfigBuilder configBuilder = MetadataStoreConfig.builder()
+                .sessionTimeoutMillis(sessionTimeoutMs).allowReadOnlyOperations(false);
+        if (operationTimeoutSeconds > 0) {
+            configBuilder.operationTimeoutSeconds(operationTimeoutSeconds);
+        }
+
+        return MetadataStoreExtended.create(serverUrls, configBuilder.build());
     }
 }

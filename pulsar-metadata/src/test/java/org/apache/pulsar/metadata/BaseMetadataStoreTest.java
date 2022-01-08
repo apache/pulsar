@@ -24,6 +24,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
 import org.apache.pulsar.tests.TestRetrySupport;
+import org.apache.zookeeper.ZooKeeper;
 import org.assertj.core.util.Files;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -31,12 +32,14 @@ import org.testng.annotations.DataProvider;
 
 public abstract class BaseMetadataStoreTest extends TestRetrySupport {
     protected TestZKServer zks;
+    protected ZooKeeper zkc;
 
     @BeforeClass(alwaysRun = true)
     @Override
     public final void setup() throws Exception {
         incrementSetupNumber();
         zks = new TestZKServer();
+        zkc = new ZooKeeper(zks.getConnectionString(), 30_000, null);
     }
 
     @AfterClass(alwaysRun = true)

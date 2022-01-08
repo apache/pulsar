@@ -69,4 +69,10 @@ public class MetadataStoreConfig {
      */
     @Builder.Default
     private final int batchingMaxSizeKb = 128;
+
+    /**
+     * The operation timeout in seconds.
+     */
+    @Builder.Default
+    private final int operationTimeoutSeconds = 30;
 }

@@ -27,6 +27,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import lombok.SneakyThrows;
@@ -69,7 +71,6 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         implements MetadataStoreExtended, MetadataStoreLifecycle {
 
     private final String metadataURL;
-    private final MetadataStoreConfig metadataStoreConfig;
     private final boolean isZkManaged;
     private final ZooKeeper zkc;
     private Optional<ZKSessionWatcher> sessionWatcher;
@@ -80,7 +81,6 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
 
         try {
             this.metadataURL = metadataURL;
-            this.metadataStoreConfig = metadataStoreConfig;
             isZkManaged = true;
             zkc = PulsarZooKeeperClient.newBuilder().connectString(metadataURL)
                     .connectRetryPolicy(new BoundExponentialBackoffRetryPolicy(100, 60_000, Integer.MAX_VALUE))
@@ -109,7 +109,6 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         super(MetadataStoreConfig.builder().build());
 
         this.metadataURL = null;
-        this.metadataStoreConfig = null;
         this.isZkManaged = false;
         this.zkc = zkc;
         this.sessionWatcher = Optional.of(new ZKSessionWatcher(zkc, this::receivedSessionEvent));
@@ -145,7 +144,10 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
     @Override
     protected void batchOperation(List<MetadataOp> ops) {
         try {
+            AtomicBoolean callback = new AtomicBoolean(false);
+
             zkc.multi(ops.stream().map(this::convertOp).collect(Collectors.toList()), (rc, path, ctx, results) -> {
+                callback.set(true);
                 if (results == null) {
                     Code code = Code.get(rc);
                     if (code == Code.CONNECTIONLOSS) {
@@ -186,6 +188,12 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                     }
                 }
             }, null);
+
+            executor.schedule(() -> {
+                if (!callback.get()) {
+                    ops.forEach(n -> n.getFuture().completeExceptionally(new TimeoutException()));
+                }
+            }, getMetadataStoreConfig().getOperationTimeoutSeconds(), TimeUnit.SECONDS);
         } catch (Throwable t) {
             ops.forEach(o -> o.getFuture().completeExceptionally(new MetadataStoreException(t)));
         }
@@ -501,7 +509,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         if (this.metadataURL == null) {
             return FutureUtil.failedFuture(new MetadataStoreException("metadataURL is not set"));
         }
-        if (this.metadataStoreConfig == null) {
+        if (this.getMetadataStoreConfig() == null) {
             return FutureUtil.failedFuture(new MetadataStoreException("metadataStoreConfig is not set"));
         }
         int chrootIndex = metadataURL.indexOf("/");
@@ -510,10 +518,10 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
             String zkConnectForChrootCreation = metadataURL.substring(0, chrootIndex);
             try (ZooKeeper chrootZk = PulsarZooKeeperClient.newBuilder()
                     .connectString(zkConnectForChrootCreation)
-                    .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis())
+                    .sessionTimeoutMs(getMetadataStoreConfig().getSessionTimeoutMillis())
                     .connectRetryPolicy(
-                            new BoundExponentialBackoffRetryPolicy(metadataStoreConfig.getSessionTimeoutMillis(),
-                                    metadataStoreConfig.getSessionTimeoutMillis(), 0))
+                            new BoundExponentialBackoffRetryPolicy(getMetadataStoreConfig().getSessionTimeoutMillis(),
+                                    getMetadataStoreConfig().getSessionTimeoutMillis(), 0))
                     .build()) {
                 if (chrootZk.exists(chrootPath, false) == null) {
                     createFullPathOptimistic(chrootZk, chrootPath, new byte[0], CreateMode.PERSISTENT);

@@ -64,7 +64,8 @@ public class ProxyConfigurationTest extends ProducerConsumerBase {
         config.setWebSocketNumIoThreads(numIoThreads);
         config.setWebSocketConnectionsPerBroker(connectionsPerBroker);
         WebSocketService service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service).createMetadataStore(anyString(), anyInt());
+        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service)
+                .createMetadataStore(anyString(), anyInt(), anyInt());
         service.start();
 
         PulsarClientImpl client = (PulsarClientImpl) service.getPulsarClient();

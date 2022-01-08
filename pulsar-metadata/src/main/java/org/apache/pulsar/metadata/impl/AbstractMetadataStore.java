@@ -44,6 +44,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataSerde;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
@@ -64,6 +65,8 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     private final AsyncLoadingCache<String, List<String>> childrenCache;
     private final AsyncLoadingCache<String, Boolean> existsCache;
     private final CopyOnWriteArrayList<MetadataCacheImpl<?>> metadataCaches = new CopyOnWriteArrayList<>();
+    @Getter
+    private final MetadataStoreConfig metadataStoreConfig;
 
     // We don't strictly need to use 'volatile' here because we don't need the precise consistent semantic. Instead,
     // we want to avoid the overhead of 'volatile'.
@@ -75,6 +78,11 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     protected abstract CompletableFuture<Boolean> existsFromStore(String path);
 
     protected AbstractMetadataStore() {
+        this(null);
+    }
+
+    protected AbstractMetadataStore(MetadataStoreConfig metadataStoreConfig) {
+        this.metadataStoreConfig = metadataStoreConfig;
         this.executor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("metadata-store"));
         registerListener(this);

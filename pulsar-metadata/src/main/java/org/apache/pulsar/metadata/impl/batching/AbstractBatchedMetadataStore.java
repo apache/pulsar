@@ -27,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -50,8 +51,8 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     private final int maxOperations;
     private final int maxSize;
 
-    protected AbstractBatchedMetadataStore(MetadataStoreConfig conf) {
-        super();
+    protected AbstractBatchedMetadataStore(@NonNull MetadataStoreConfig conf) {
+        super(conf);
 
         this.enabled = conf.isBatchingEnabled();
         this.maxDelayMillis = conf.getBatchingMaxDelayMillis();
