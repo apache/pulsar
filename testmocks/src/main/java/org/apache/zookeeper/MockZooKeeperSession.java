@@ -34,7 +34,7 @@ import org.objenesis.ObjenesisStd;
 import org.objenesis.instantiator.ObjectInstantiator;
 
 /**
- * mock zookeeper with different session based on {@link MockZooKeeper}
+ * mock zookeeper with different session based on {@link MockZooKeeper}.
  */
 public class MockZooKeeperSession extends ZooKeeper {
 
@@ -250,8 +250,6 @@ public class MockZooKeeperSession extends ZooKeeper {
 
     @Override
     public String toString() {
-        return "MockZooKeeperSession{" +
-                "sessionId=" + sessionId +
-                '}';
+        return "MockZooKeeperSession{" + "sessionId=" + sessionId + '}';
     }
 }

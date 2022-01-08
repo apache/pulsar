@@ -1077,6 +1077,12 @@ class Producer:
 
         return mb.build()
 
+    def is_connected(self):
+        """
+        Check if the producer is connected or not.
+        """
+        return self._producer.is_connected()
+
 
 class Consumer:
     """
@@ -1233,6 +1239,13 @@ class Consumer:
         self._consumer.close()
         self._client._consumers.remove(self)
 
+    def is_connected(self):
+        """
+        Check if the consumer is connected or not.
+        """
+        return self._consumer.is_connected()
+
+
 
 class Reader:
     """
@@ -1295,6 +1308,13 @@ class Reader:
         """
         self._reader.close()
         self._client._consumers.remove(self)
+
+    def is_connected(self):
+        """
+        Check if the reader is connected or not.
+        """
+        return self._reader.is_connected()
+
 
 class CryptoKeyReader:
     """

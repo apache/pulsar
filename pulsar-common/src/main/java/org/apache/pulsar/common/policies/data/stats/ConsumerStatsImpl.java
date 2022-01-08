@@ -45,7 +45,7 @@ public class ConsumerStatsImpl implements ConsumerStats {
     /** Total rate of messages redelivered by this consumer (msg/s). */
     public double msgRateRedeliver;
 
-    /** Total chunked messages dispatched. */
+    /** The total rate of chunked messages delivered to this consumer. */
     public double chunkedMessageRate;
 
     /** Name of the consumer. */

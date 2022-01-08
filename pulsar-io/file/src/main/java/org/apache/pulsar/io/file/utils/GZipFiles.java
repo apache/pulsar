@@ -32,8 +32,6 @@ import java.nio.file.Path;
 import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 
-import org.apache.commons.io.IOUtils;
-
 /**
  * Helper class that provides helper methods for working with
  * gzip-formatted files.

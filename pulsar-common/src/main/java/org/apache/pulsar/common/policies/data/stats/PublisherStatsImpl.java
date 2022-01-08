@@ -43,7 +43,7 @@ public class PublisherStatsImpl implements PublisherStats {
     /** Average message size published by this publisher. */
     public double averageMsgSize;
 
-    /** total chunked message count received. **/
+    /** The total rate of chunked messages published by this publisher. **/
     public double chunkedMessageRate;
 
     /** Id of this publisher. */

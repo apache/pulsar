@@ -1,10 +1,5 @@
 import * as React from "react";
 import Layout from "@theme/Layout";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableRow from "@mui/material/TableRow";
-import Link from "@mui/material/Link";
 import VersionsTable from "../components/VersionsTable";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import Translate, { translate } from "@docusaurus/Translate";

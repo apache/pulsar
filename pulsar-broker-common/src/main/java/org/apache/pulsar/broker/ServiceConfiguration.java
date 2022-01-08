@@ -179,6 +179,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Optional<Integer> webServicePortTls = Optional.empty();
 
     @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "Specify the tls protocols the proxy's web service will use to negotiate during TLS Handshake.\n\n"
+                    + "Example:- [TLSv1.3, TLSv1.2]"
+    )
+    private Set<String> webServiceTlsProtocols = new TreeSet<>();
+
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "Specify the tls cipher the proxy's web service will use to negotiate during TLS Handshake.\n\n"
+                    + "Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]"
+    )
+    private Set<String> webServiceTlsCiphers = new TreeSet<>();
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Hostname or IP address the service binds on"
     )
@@ -2230,7 +2244,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_METRICS,
             doc = "Enable expose the broker bundles metrics."
     )
-    private boolean exposeBunlesMetricsInPrometheus = false;
+    private boolean exposeBundlesMetricsInPrometheus = false;
 
     /**** --- Functions --- ****/
     @FieldContext(
@@ -2389,7 +2403,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS TrustStore password for broker"
+            doc = "TLS TrustStore password for broker, null means empty password."
     )
     private String tlsTrustStorePassword = null;
 

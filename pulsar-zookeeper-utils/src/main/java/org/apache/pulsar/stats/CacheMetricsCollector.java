@@ -23,6 +23,7 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 public class CacheMetricsCollector {
 
-    public static final io.prometheus.client.cache.caffeine.CacheMetricsCollector CAFFEINE = new io.prometheus.client.cache.caffeine.CacheMetricsCollector()
+    public static final io.prometheus.client.cache.caffeine.CacheMetricsCollector CAFFEINE =
+            new io.prometheus.client.cache.caffeine.CacheMetricsCollector()
             .register();
 }

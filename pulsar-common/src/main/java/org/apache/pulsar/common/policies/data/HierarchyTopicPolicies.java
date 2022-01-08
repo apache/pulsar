@@ -21,6 +21,7 @@ package org.apache.pulsar.common.policies.data;
 
 import com.google.common.collect.ImmutableMap;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import lombok.Getter;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
@@ -31,6 +32,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
  */
 @Getter
 public class HierarchyTopicPolicies {
+    final PolicyHierarchyValue<List<String>> replicationClusters;
     final PolicyHierarchyValue<Boolean> deduplicationEnabled;
     final PolicyHierarchyValue<InactiveTopicPolicies> inactiveTopicPolicies;
     final PolicyHierarchyValue<EnumSet<SubType>> subscriptionTypesEnabled;
@@ -42,6 +44,7 @@ public class HierarchyTopicPolicies {
     final PolicyHierarchyValue<Integer> maxConsumerPerTopic;
 
     public HierarchyTopicPolicies() {
+        replicationClusters = new PolicyHierarchyValue<>();
         deduplicationEnabled = new PolicyHierarchyValue<>();
         inactiveTopicPolicies = new PolicyHierarchyValue<>();
         subscriptionTypesEnabled = new PolicyHierarchyValue<>();

@@ -19,13 +19,12 @@
 package org.apache.pulsar.io.debezium.mssql;
 
 import java.util.Map;
-
 import org.apache.kafka.connect.runtime.TaskConfig;
 import org.apache.pulsar.io.debezium.DebeziumSource;
 
 
 /**
- * A pulsar source that runs debezium mssql source
+ * A pulsar source that runs debezium mssql source.
  */
 public class DebeziumMsSqlSource extends DebeziumSource {
     private static final String DEFAULT_TASK = "io.debezium.connector.sqlserver.SqlServerConnectorTask";

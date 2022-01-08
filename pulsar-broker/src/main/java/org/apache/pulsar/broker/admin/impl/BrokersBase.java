@@ -24,6 +24,7 @@ import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -181,7 +182,7 @@ public class BrokersBase extends PulsarWebResource {
     public Map<String, String> getAllDynamicConfigurations() throws Exception {
         validateSuperUserAccess();
         try {
-            return dynamicConfigurationResources().getDynamicConfiguration();
+            return dynamicConfigurationResources().getDynamicConfiguration().orElseGet(Collections::emptyMap);
         } catch (RestException e) {
             LOG.error("[{}] couldn't find any configuration in zk {}", clientAppId(), e.getMessage(), e);
             throw e;

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import com.google.common.collect.Sets;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -74,7 +75,7 @@ public class LeaderElectionServiceTest {
         config.setAdvertisedAddress("localhost");
         config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
         @Cleanup
-        PulsarService pulsar = Mockito.spy(new MockPulsarService(config));
+        PulsarService pulsar = spyWithClassAndConstructorArgs(MockPulsarService.class, config);
         pulsar.start();
 
         // mock pulsar.getLeaderElectionService() in a thread safe way
@@ -134,7 +135,7 @@ public class LeaderElectionServiceTest {
         }
     }
 
-    private static class MockPulsarService extends PulsarService {
+    public static class MockPulsarService extends PulsarService {
 
         public MockPulsarService(ServiceConfiguration config) {
             super(config);

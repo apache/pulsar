@@ -20,7 +20,6 @@ package org.apache.pulsar.io.twitter.endpoint;
 
 import com.twitter.hbc.core.endpoint.StatusesSampleEndpoint;
 import com.twitter.hbc.core.endpoint.StreamingEndpoint;
-
 import java.io.Serializable;
 
 /**

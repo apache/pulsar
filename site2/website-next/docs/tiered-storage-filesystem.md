@@ -469,7 +469,7 @@ Execute the following commands in the repository where you download Pulsar tarba
 
    ```
    
-   ./bin/pulsar standalone -a 127.0.0.1
+   bin/pulsar standalone -a 127.0.0.1
    
    ```
 
@@ -477,7 +477,7 @@ Execute the following commands in the repository where you download Pulsar tarba
 
    ```
    
-   ./bin/pulsarctl namespaces set-retention public/default --size 100M --time 2d
+   bin/pulsar-admin namespaces set-retention public/default --size 100M --time 2d
    
    ```
 
@@ -491,7 +491,7 @@ Execute the following commands in the repository where you download Pulsar tarba
 
    ```
    
-   ./bin/pulsar-client produce -m "Hello FileSystem Offloader" -n 1000 public/default/fs-test
+   bin/pulsar-client produce -m "Hello FileSystem Offloader" -n 1000 public/default/fs-test
    
    ```
 
@@ -499,7 +499,7 @@ Execute the following commands in the repository where you download Pulsar tarba
 
    ```
    
-   ./bin/pulsarctl topics internal-stats public/default/fs-test
+   bin/pulsar-admin topics stats-internal public/default/fs-test
    
    ```
 
@@ -528,7 +528,7 @@ Execute the following commands in the repository where you download Pulsar tarba
 
    ```
    
-   ./bin/pulsar-client produce -m "Hello FileSystem Offloader" -n 1000 public/default/fs-test
+   bin/pulsar-client produce -m "Hello FileSystem Offloader" -n 1000 public/default/fs-test
    
    ```
 
@@ -536,7 +536,7 @@ Execute the following commands in the repository where you download Pulsar tarba
 
    ```
    
-   ./bin/pulsarctl topics internal-stats public/default/fs-test
+   bin/pulsar-admin topics stats-internal public/default/fs-test
    
    ```
 
@@ -571,7 +571,7 @@ Execute the following commands in the repository where you download Pulsar tarba
 
    ```
    
-   ./bin/pulsarctl topic offload -s 0 public/default/fs-test
+   bin/pulsar-admin topics offload -s 0 public/default/fs-test
    
    ```
 
@@ -590,7 +590,7 @@ Execute the following commands in the repository where you download Pulsar tarba
 
    ```
    
-   ./bin/pulsarctl topic internal-info public/default/fs-test
+   bin/pulsar-admin topics stats-internal public/default/fs-test
    
    ```
 
