@@ -108,7 +108,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         long now = System.currentTimeMillis();
         double elapsedSeconds = (now - lastCollection) / 1000d;
         if (elapsedSeconds <= 0) {
-            log.warn("elapsedSeconds {} is not expected,skip this round of calculateBrokerHostUsage", elapsedSeconds);
+            log.warn("elapsedSeconds {} is not expected, skip this round of calculateBrokerHostUsage", elapsedSeconds);
             return;
         }
 
