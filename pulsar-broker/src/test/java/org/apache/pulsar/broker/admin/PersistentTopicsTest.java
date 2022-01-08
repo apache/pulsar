@@ -1159,6 +1159,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         doReturn(completableFuture).when(brokerService).getTopicIfExists(topic);
         try {
             admin.topics().resetCursor(topic, "my-sub", System.currentTimeMillis());
+            Assert.fail();
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 504);
         }
