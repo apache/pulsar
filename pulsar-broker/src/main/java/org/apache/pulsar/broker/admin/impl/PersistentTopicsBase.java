@@ -1617,10 +1617,10 @@ public class PersistentTopicsBase extends AdminResource {
                 }).exceptionally(e -> {
                     Throwable cause = e.getCause();
                     if (cause instanceof WebApplicationException) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] Failed to delete subscription forcefully from topic {},"
-                                            + " redirecting to other brokers.",
-                                    clientAppId(), topicName, cause);
+                        if (log.isDebugEnabled() && ((WebApplicationException) e).getResponse().getStatus()
+                                == Status.TEMPORARY_REDIRECT.getStatusCode()) {
+                            log.debug("[{}] Failed to delete subscription from topic {}, redirecting to other brokers.",
+                                    clientAppId(), topicName, e);
                         }
                         asyncResponse.resume(cause);
                     } else {
