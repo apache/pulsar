@@ -412,7 +412,7 @@ engine=innodb;
 <ol>
 <li><p>Add a configuration file.</p>
 <p>To run a JDBC sink connector, you need to prepare a yaml config file including the information that Pulsar IO runtime needs to know. For example, how Pulsar IO can find the MySQL cluster, what is the JDBCURL and the table that Pulsar IO will use for writing messages to.</p>
-<p>Create a <em>pulsar-mysql-jdbc-sink.yaml</em> file , copy the following contents to this file, and place the file in the <code>pulsar/connectors</code> folder.</p>
+<p>Create a <em>pulsar-mysql-jdbc-sink.yaml</em> file, copy the following contents to this file, and place the file in the <code>pulsar/connectors</code> folder.</p>
 <pre><code class="hljs css language-text">configs:
   userName: "root"
   password: "jdbc"

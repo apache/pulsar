@@ -216,8 +216,9 @@ producer, err := client.CreateProducer(ProducerOptions{
 <span class="hljs-keyword">defer</span> client.Close()
 
 topicName := newTopicName()
-producer, err := client.CreateProducer(ProducerOptions{
-    Topic: topicName,
+producer, err := client.CreateProducer(pulsar.ProducerOptions{
+    Topic:           topicName,
+    DisableBatching: <span class="hljs-literal">true</span>,
 })
 <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> {
     log.Fatal(err)

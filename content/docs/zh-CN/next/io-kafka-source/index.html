@@ -39,7 +39,7 @@
 <tr><td><code>consumerConfigProperties</code></td><td>Map</td><td>false</td><td>&quot; &quot;（空字符串）</td><td>要传递给消费者的消费者配置属性。 <br /><br /><strong>注意：连接器配置文件中指定的其他属性优先于此配置</strong>。</td></tr>
 <tr><td><code>keyDeserializationClass</code></td><td>String</td><td>false</td><td>valueDeserializationClass</td><td>供Kafka使用者反序列化密钥的反序列化器类。<br />反序列化器由&lt;a href =“ https://github.com/apache/pulsar/blob/master的特定实现设置/pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaAbstractSource.java“&gt; <code>KafkaAbstractSource</code> </a>。</td></tr>
 <tr><td><code>valueDeserializationClass</code></td><td>String</td><td>false</td><td>org.apache.kafka.common.serialization.ByteArrayDeserializer</td><td>Kafka 消费者反序列化价值。</td></tr>
-<tr><td><code>autoOffsetReset</code></td><td>String</td><td>false</td><td>&quot;earliest&quot;</td><td>The default offset reset policy.</td></tr>
+<tr><td><code>autoOffsetReset</code></td><td>String</td><td>false</td><td>&quot;earliest&quot;</td><td>默认偏移重置策略。</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="schema-管理"></a><a href="#schema-管理" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema 管理</h3>
@@ -47,7 +47,7 @@
 <p>如果<code>valueDeserializationClass</code>是<code>org.apache.kafka.common.serialization. stringdeserializalizer</code>，你可以在Pulsar主题上设置schema. string()为schema类型。</p>
 <p>如果<code>valueDeserializationClass</code> is <code>io.confluent.kafka.serializer. value</code> is <code>KafkaAvroDeserializer</code>， Pulsar从Confluent schema Registry®下载AVRO模式 把它正确地放在Pulsar Topic上。</p>
 <p>在本例中，您需要设置<code>schema.registry.url</code>在<code>consumerConfigProperties</code>配置条目内的来源。</p>
-<p>If <code>keyDeserializationClass</code> is not <code>org.apache.kafka.common.serialization.StringDeserializer</code>, it means that you do not have a String as key and the Kafka Source uses the KeyValue schema type with the SEPARATED encoding.</p>
+<p>如果 keyDeserializationClass 不是 org.apache.kafka.common.serialization.StringDeserializer，则意味着您没有 String 作为Key，并且 Kafka Source 使用带有 SEPARATED 编码的 KeyValue 模式类型。</p>
 <p>Pulsar 支持AVRO 格式的键值。</p>
 <p>在这种情况下，您可以使用具有以下配置的 Pulsar Topic：</p>
 <ul>
@@ -57,8 +57,8 @@
 <li>KeySchema：chema中可以使用<code>keyDeserializationClass</code> 的KeySchema</li>
 <li>ValueSchema：chema中可以使用<code>keyDeserializationClass</code> 的ValueSchema</li>
 </ul>
-<p>Topic compaction and partition routing use the Pulsar key, that contains the Kafka key, and so they are driven by the same value that you have on Kafka.</p>
-<p>When you consume data from Pulsar topics, you can use the <code>KeyValue</code> schema. In this way, you can decode the data properly. If you want to access the raw key, you can use the <code>Message#getKeyBytes()</code> API.</p>
+<p>Topic compaction 和partition routing 使用包含 Kafka 密钥的 Pulsar 密钥，因此它们由与 Kafka 相同的值驱动</p>
+<p>当您消费来自 Pulsar Topic 数据时，您可以使用 KeyValue 模式。 这样您就可以正确解码数据。 如果您想访问原始密钥，您可以使用<code>Message#getKeyBytes()</code> API。</p>
 <h3><a class="anchor" aria-hidden="true" id="示例"></a><a href="#示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>示例</h3>
 <p>在使用 Kafka 源连接器之前，您需要通过以下方法之一创建一个配置文件。</p>
 <ul>

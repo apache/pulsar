@@ -772,18 +772,8 @@
 </thead>
 <tbody>
 <tr>
-<td><code>--hostname_verification_enabled</code></td>
-<td>Enable hostname verification</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--custom-schema-outputs</code></td>
 <td>The map of input topics to Schema properties (as a JSON string)</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--processingGuarantees</code></td>
-<td>The processing guarantees (aka delivery semantics) applied to the function</td>
 <td>null</td>
 </tr>
 <tr>
@@ -792,8 +782,23 @@
 <td>null</td>
 </tr>
 <tr>
+<td><code>--customSerdeInputs</code></td>
+<td>The map of input topics to SerDe class names (as a JSON string)</td>
+<td>null</td>
+</tr>
+<tr>
 <td><code>--batch-builder</code></td>
 <td>BatcherBuilder provides two types of batch construction methods, DEFAULT and KEY_BASED. The default value is: DEFAULT</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--slidingIntervalCount</code></td>
+<td>The number of messages after which the window slides</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--tls_trust_cert_path</code></td>
+<td>tls trust cert file path</td>
 <td>null</td>
 </tr>
 <tr>
@@ -812,13 +817,13 @@
 <td>true</td>
 </tr>
 <tr>
-<td><code>--brokerServiceUrl</code></td>
-<td>The URL for Pulsar broker</td>
+<td><code>--metrics-port-start</code></td>
+<td>The starting port range for metrics server</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>--metrics-port-start</code></td>
-<td>The starting port range for metrics server</td>
+<td><code>--windowLengthDurationMs</code></td>
+<td>The time duration of the window in milliseconds</td>
 <td>null</td>
 </tr>
 <tr>
@@ -827,13 +832,8 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--tls_allow_insecure</code></td>
-<td>Allow insecure tls connection</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--instanceIdOffset</code></td>
-<td>Start the instanceIds from this offset</td>
+<td><code>--userConfig</code></td>
+<td>User-defined config key/values</td>
 <td>null</td>
 </tr>
 <tr>
@@ -842,8 +842,8 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--use_tls</code></td>
-<td>Use tls connection</td>
+<td><code>--hostname_verification_enabled</code></td>
+<td>Enable hostname verification</td>
 <td>null</td>
 </tr>
 <tr>
@@ -852,13 +852,28 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--topicsPattern</code></td>
-<td>TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)</td>
+<td><code>--instanceIdOffset</code></td>
+<td>Start the instanceIds from this offset</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>--tls_trust_cert_path</code></td>
-<td>tls trust cert file path</td>
+<td><code>--autoAck</code></td>
+<td>Whether or not the framework acknowledges messages automatically</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--brokerServiceUrl</code></td>
+<td>The URL for Pulsar broker</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--retainOrdering</code></td>
+<td>Function consumes and processes messages in order</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--tls_allow_insecure</code></td>
+<td>Allow insecure tls connection</td>
 <td>null</td>
 </tr>
 <tr>
@@ -867,8 +882,8 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--clientAuthPlugin</code></td>
-<td>Client authentication plugin using which function-process can connect to broker</td>
+<td><code>--slidingIntervalDurationMs</code></td>
+<td>The time duration after which the window slides</td>
 <td>null</td>
 </tr>
 <tr>
@@ -882,8 +897,18 @@
 <td>null</td>
 </tr>
 <tr>
+<td><code>--clientAuthParams</code></td>
+<td>Client authentication param</td>
+<td>null</td>
+</tr>
+<tr>
 <td><code>-i, --inputs</code></td>
 <td>The input topic or topics (multiple topics can be specified as a comma-separated list) of a Pulsar Function</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--clientAuthPlugin</code></td>
+<td>Client authentication plugin using which function-process can connect to broker</td>
 <td>null</td>
 </tr>
 <tr>
@@ -917,23 +942,23 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--functionConfigFile</code></td>
-<td>The path to a YAML config file that specifies the configuration of a Pulsar Function</td>
+<td><code>--topicsPattern</code></td>
+<td>TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>--clientAuthParams</code></td>
-<td>Client authentication param</td>
+<td><code>--processingGuarantees</code></td>
+<td>The processing guarantees (aka delivery semantics) applied to the function</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>--retainOrdering</code></td>
-<td>Function consumes and processes messages in order</td>
+<td><code>--className</code></td>
+<td>The class name of a Pulsar Function</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>--slidingIntervalDurationMs</code></td>
-<td>The time duration after which the window slides</td>
+<td><code>--stateStorageServiceUrl</code></td>
+<td>The URL for the state storage service (the default is Apache BookKeeper)</td>
 <td>null</td>
 </tr>
 <tr>
@@ -972,13 +997,13 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--input-specs</code></td>
-<td>The map of inputs to custom configuration (as a JSON string)</td>
+<td><code>--use_tls</code></td>
+<td>Use tls connection</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>--className</code></td>
-<td>The class name of a Pulsar Function</td>
+<td><code>--input-specs</code></td>
+<td>The map of inputs to custom configuration (as a JSON string)</td>
 <td>null</td>
 </tr>
 <tr>
@@ -987,13 +1012,13 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--jar</code></td>
-<td>Path to the JAR file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td>
+<td><code>--windowLengthCount</code></td>
+<td>The number of messages per window</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>--autoAck</code></td>
-<td>Whether or not the framework acknowledges messages automatically</td>
+<td><code>--jar</code></td>
+<td>Path to the JAR file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td>
 <td>null</td>
 </tr>
 <tr>
@@ -1012,14 +1037,14 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--logTopic</code></td>
-<td>The topic to which the logs of a Pulsar Function are produced</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>-st, --schema-type</code></td>
 <td>The builtin schema type or custom schema class name to be used for messages output by the function</td>
 <td></td>
+</tr>
+<tr>
+<td><code>--timeoutMs</code></td>
+<td>The message timeout in milliseconds</td>
+<td>null</td>
 </tr>
 <tr>
 <td><code>--client-auth-plugin</code></td>
@@ -1052,8 +1077,8 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--windowLengthDurationMs</code></td>
-<td>The time duration of the window in milliseconds</td>
+<td><code>--functionConfigFile</code></td>
+<td>The path to a YAML config file that specifies the configuration of a Pulsar Function</td>
 <td>null</td>
 </tr>
 <tr>
@@ -1077,11 +1102,6 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--userConfig</code></td>
-<td>User-defined config key/values</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--topics-pattern</code></td>
 <td>The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)</td>
 <td>null</td>
@@ -1092,18 +1112,8 @@
 <td>false</td>
 </tr>
 <tr>
-<td><code>--slidingIntervalCount</code></td>
-<td>The number of messages after which the window slides</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--secrets-provider-config</code></td>
 <td>Config that needs to be passed to secrets provider</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--outputSerdeClassName</code></td>
-<td>The SerDe class to be used for messages output by the function</td>
 <td>null</td>
 </tr>
 <tr>
@@ -1117,18 +1127,8 @@
 <td>0</td>
 </tr>
 <tr>
-<td><code>--customSerdeInputs</code></td>
-<td>The map of input topics to SerDe class names (as a JSON string)</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--name</code></td>
 <td>The name of a Pulsar Function</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--stateStorageServiceUrl</code></td>
-<td>The URL for the state storage service (the default is Apache BookKeeper)</td>
 <td>null</td>
 </tr>
 <tr>
@@ -1142,23 +1142,18 @@
 <td>null</td>
 </tr>
 <tr>
+<td><code>--logTopic</code></td>
+<td>The topic to which the logs of a Pulsar Function are produced</td>
+<td>null</td>
+</tr>
+<tr>
 <td><code>--disk</code></td>
 <td>The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>--timeoutMs</code></td>
-<td>The message timeout in milliseconds</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--output-serde-classname</code></td>
 <td>The SerDe class to be used for messages output by the function</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--windowLengthCount</code></td>
-<td>The number of messages per window</td>
 <td>null</td>
 </tr>
 <tr>
@@ -1169,6 +1164,11 @@
 <tr>
 <td><code>--namespace</code></td>
 <td>The namespace of a Pulsar Function</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--outputSerdeClassName</code></td>
+<td>The SerDe class to be used for messages output by the function</td>
 <td>null</td>
 </tr>
 </tbody>
@@ -1195,18 +1195,23 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--processingGuarantees</code></td>
-<td>The processing guarantees (aka delivery semantics) applied to the function</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--window-length-duration-ms</code></td>
 <td>The time duration of the window in milliseconds</td>
 <td>null</td>
 </tr>
 <tr>
+<td><code>--customSerdeInputs</code></td>
+<td>The map of input topics to SerDe class names (as a JSON string)</td>
+<td>null</td>
+</tr>
+<tr>
 <td><code>--batch-builder</code></td>
 <td>BatcherBuilder provides two types of batch construction methods, DEFAULT and KEY_BASED. The default value is: DEFAULT</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--slidingIntervalCount</code></td>
+<td>The number of messages after which the window slides</td>
 <td>null</td>
 </tr>
 <tr>
@@ -1225,8 +1230,18 @@
 <td>true</td>
 </tr>
 <tr>
+<td><code>--windowLengthDurationMs</code></td>
+<td>The time duration of the window in milliseconds</td>
+<td>null</td>
+</tr>
+<tr>
 <td><code>--secrets</code></td>
 <td>The map of secretName to an object that encapsulates how the secret is fetched by the underlying secrets provider</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--userConfig</code></td>
+<td>User-defined config key/values</td>
 <td>null</td>
 </tr>
 <tr>
@@ -1240,13 +1255,23 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--topicsPattern</code></td>
-<td>TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)</td>
+<td><code>--autoAck</code></td>
+<td>Whether or not the framework acknowledges messages automatically</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--retainOrdering</code></td>
+<td>Function consumes and processes messages in order</td>
 <td>null</td>
 </tr>
 <tr>
 <td><code>--subs-name</code></td>
 <td>Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--slidingIntervalDurationMs</code></td>
+<td>The time duration after which the window slides</td>
 <td>null</td>
 </tr>
 <tr>
@@ -1280,18 +1305,18 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--functionConfigFile</code></td>
-<td>The path to a YAML config file that specifies the configuration of a Pulsar Function</td>
+<td><code>--topicsPattern</code></td>
+<td>TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>--retainOrdering</code></td>
-<td>Function consumes and processes messages in order</td>
+<td><code>--processingGuarantees</code></td>
+<td>The processing guarantees (aka delivery semantics) applied to the function</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>--slidingIntervalDurationMs</code></td>
-<td>The time duration after which the window slides</td>
+<td><code>--className</code></td>
+<td>The class name of a Pulsar Function</td>
 <td>null</td>
 </tr>
 <tr>
@@ -1330,13 +1355,13 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--className</code></td>
-<td>The class name of a Pulsar Function</td>
+<td><code>-o, --output</code></td>
+<td>The output topic of a Pulsar Function (If none is specified, no output is written)</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>-o, --output</code></td>
-<td>The output topic of a Pulsar Function (If none is specified, no output is written)</td>
+<td><code>--windowLengthCount</code></td>
+<td>The number of messages per window</td>
 <td>null</td>
 </tr>
 <tr>
@@ -1345,24 +1370,19 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--autoAck</code></td>
-<td>Whether or not the framework acknowledges messages automatically</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--retain-ordering</code></td>
 <td>Function consumes and processes messages in order</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--logTopic</code></td>
-<td>The topic to which the logs of a Pulsar Function are produced</td>
 <td>null</td>
 </tr>
 <tr>
 <td><code>-st, --schema-type</code></td>
 <td>The builtin schema type or custom schema class name to be used for messages output by the function</td>
 <td></td>
+</tr>
+<tr>
+<td><code>--timeoutMs</code></td>
+<td>The message timeout in milliseconds</td>
+<td>null</td>
 </tr>
 <tr>
 <td><code>--fqfn</code></td>
@@ -1390,8 +1410,8 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--windowLengthDurationMs</code></td>
-<td>The time duration of the window in milliseconds</td>
+<td><code>--functionConfigFile</code></td>
+<td>The path to a YAML config file that specifies the configuration of a Pulsar Function</td>
 <td>null</td>
 </tr>
 <tr>
@@ -1410,28 +1430,8 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--userConfig</code></td>
-<td>User-defined config key/values</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--topics-pattern</code></td>
 <td>The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--slidingIntervalCount</code></td>
-<td>The number of messages after which the window slides</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--outputSerdeClassName</code></td>
-<td>The SerDe class to be used for messages output by the function</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--customSerdeInputs</code></td>
-<td>The map of input topics to SerDe class names (as a JSON string)</td>
 <td>null</td>
 </tr>
 <tr>
@@ -1445,23 +1445,18 @@
 <td>null</td>
 </tr>
 <tr>
+<td><code>--logTopic</code></td>
+<td>The topic to which the logs of a Pulsar Function are produced</td>
+<td>null</td>
+</tr>
+<tr>
 <td><code>--disk</code></td>
 <td>The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>--timeoutMs</code></td>
-<td>The message timeout in milliseconds</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--output-serde-classname</code></td>
 <td>The SerDe class to be used for messages output by the function</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--windowLengthCount</code></td>
-<td>The number of messages per window</td>
 <td>null</td>
 </tr>
 <tr>
@@ -1472,6 +1467,11 @@
 <tr>
 <td><code>--namespace</code></td>
 <td>The namespace of a Pulsar Function</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--outputSerdeClassName</code></td>
+<td>The SerDe class to be used for messages output by the function</td>
 <td>null</td>
 </tr>
 </tbody>
@@ -1536,18 +1536,23 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--processingGuarantees</code></td>
-<td>The processing guarantees (aka delivery semantics) applied to the function</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--window-length-duration-ms</code></td>
 <td>The time duration of the window in milliseconds</td>
 <td>null</td>
 </tr>
 <tr>
+<td><code>--customSerdeInputs</code></td>
+<td>The map of input topics to SerDe class names (as a JSON string)</td>
+<td>null</td>
+</tr>
+<tr>
 <td><code>--batch-builder</code></td>
 <td>BatcherBuilder provides two types of batch construction methods, DEFAULT and KEY_BASED. The default value is: DEFAULT</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--slidingIntervalCount</code></td>
+<td>The number of messages after which the window slides</td>
 <td>null</td>
 </tr>
 <tr>
@@ -1566,8 +1571,18 @@
 <td>true</td>
 </tr>
 <tr>
+<td><code>--windowLengthDurationMs</code></td>
+<td>The time duration of the window in milliseconds</td>
+<td>null</td>
+</tr>
+<tr>
 <td><code>--secrets</code></td>
 <td>The map of secretName to an object that encapsulates how the secret is fetched by the underlying secrets provider</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--userConfig</code></td>
+<td>User-defined config key/values</td>
 <td>null</td>
 </tr>
 <tr>
@@ -1581,13 +1596,23 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--topicsPattern</code></td>
-<td>TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)</td>
+<td><code>--autoAck</code></td>
+<td>Whether or not the framework acknowledges messages automatically</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--retainOrdering</code></td>
+<td>Function consumes and processes messages in order</td>
 <td>null</td>
 </tr>
 <tr>
 <td><code>--subs-name</code></td>
 <td>Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--slidingIntervalDurationMs</code></td>
+<td>The time duration after which the window slides</td>
 <td>null</td>
 </tr>
 <tr>
@@ -1626,18 +1651,18 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--functionConfigFile</code></td>
-<td>The path to a YAML config file that specifies the configuration of a Pulsar Function</td>
+<td><code>--topicsPattern</code></td>
+<td>TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>--retainOrdering</code></td>
-<td>Function consumes and processes messages in order</td>
+<td><code>--processingGuarantees</code></td>
+<td>The processing guarantees (aka delivery semantics) applied to the function</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>--slidingIntervalDurationMs</code></td>
-<td>The time duration after which the window slides</td>
+<td><code>--className</code></td>
+<td>The class name of a Pulsar Function</td>
 <td>null</td>
 </tr>
 <tr>
@@ -1676,13 +1701,13 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--className</code></td>
-<td>The class name of a Pulsar Function</td>
+<td><code>-o, --output</code></td>
+<td>The output topic of a Pulsar Function (If none is specified, no output is written)</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>-o, --output</code></td>
-<td>The output topic of a Pulsar Function (If none is specified, no output is written)</td>
+<td><code>--windowLengthCount</code></td>
+<td>The number of messages per window</td>
 <td>null</td>
 </tr>
 <tr>
@@ -1691,24 +1716,19 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--autoAck</code></td>
-<td>Whether or not the framework acknowledges messages automatically</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--retain-ordering</code></td>
 <td>Function consumes and processes messages in order</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--logTopic</code></td>
-<td>The topic to which the logs of a Pulsar Function are produced</td>
 <td>null</td>
 </tr>
 <tr>
 <td><code>-st, --schema-type</code></td>
 <td>The builtin schema type or custom schema class name to be used for messages output by the function</td>
 <td></td>
+</tr>
+<tr>
+<td><code>--timeoutMs</code></td>
+<td>The message timeout in milliseconds</td>
+<td>null</td>
 </tr>
 <tr>
 <td><code>--fqfn</code></td>
@@ -1736,8 +1756,8 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--windowLengthDurationMs</code></td>
-<td>The time duration of the window in milliseconds</td>
+<td><code>--functionConfigFile</code></td>
+<td>The path to a YAML config file that specifies the configuration of a Pulsar Function</td>
 <td>null</td>
 </tr>
 <tr>
@@ -1756,28 +1776,8 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--userConfig</code></td>
-<td>User-defined config key/values</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--topics-pattern</code></td>
 <td>The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--slidingIntervalCount</code></td>
-<td>The number of messages after which the window slides</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--outputSerdeClassName</code></td>
-<td>The SerDe class to be used for messages output by the function</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--customSerdeInputs</code></td>
-<td>The map of input topics to SerDe class names (as a JSON string)</td>
 <td>null</td>
 </tr>
 <tr>
@@ -1791,23 +1791,18 @@
 <td>null</td>
 </tr>
 <tr>
+<td><code>--logTopic</code></td>
+<td>The topic to which the logs of a Pulsar Function are produced</td>
+<td>null</td>
+</tr>
+<tr>
 <td><code>--disk</code></td>
 <td>The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>--timeoutMs</code></td>
-<td>The message timeout in milliseconds</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--output-serde-classname</code></td>
 <td>The SerDe class to be used for messages output by the function</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--windowLengthCount</code></td>
-<td>The number of messages per window</td>
 <td>null</td>
 </tr>
 <tr>
@@ -1818,6 +1813,11 @@
 <tr>
 <td><code>--namespace</code></td>
 <td>The namespace of a Pulsar Function</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--outputSerdeClassName</code></td>
+<td>The SerDe class to be used for messages output by the function</td>
 <td>null</td>
 </tr>
 </tbody>
@@ -2322,13 +2322,13 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--destinationFile</code></td>
-<td>The file to store downloaded content</td>
+<td><code>--path</code></td>
+<td>Path to store the content</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>--path</code></td>
-<td>Path to store the content</td>
+<td><code>--destinationFile</code></td>
+<td>The file to store downloaded content</td>
 <td>null</td>
 </tr>
 <tr>
@@ -3728,7 +3728,7 @@
 <tbody>
 <tr>
 <td><code>--max-inactive-duration, -t</code></td>
-<td>Max duration of topic inactivity in seconds,topics that are inactive for longer than this value will be deleted (eg: 1s, 10s, 1m, 5h, 3d)</td>
+<td>Max duration of topic inactivity in seconds, topics that are inactive for longer than this value will be deleted (eg: 1s, 10s, 1m, 5h, 3d)</td>
 <td>null</td>
 </tr>
 <tr>
@@ -3743,7 +3743,7 @@
 </tr>
 <tr>
 <td><code>--delete-mode, -m</code></td>
-<td>Mode of delete inactive topic,Valid options are: [delete_when_no_subscriptions, delete_when_subscriptions_caught_up]</td>
+<td>Mode of delete inactive topic, Valid options are: [delete_when_no_subscriptions, delete_when_subscriptions_caught_up]</td>
 <td>null</td>
 </tr>
 </tbody>
@@ -5190,11 +5190,6 @@
 </thead>
 <tbody>
 <tr>
-<td><code>--customSerdeInputs</code></td>
-<td>The map of input topics to SerDe class names (as a JSON string)</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--name</code></td>
 <td>The sink&#39;s name</td>
 <td>null</td>
@@ -5202,11 +5197,6 @@
 <tr>
 <td><code>--topics-pattern</code></td>
 <td>TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs  (supported for java fun only)</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--retainOrdering</code></td>
-<td>Sink consumes and sinks messages in order</td>
 <td>null</td>
 </tr>
 <tr>
@@ -5225,11 +5215,6 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--sinkConfigFile</code></td>
-<td>The path to a YAML config file specifying the sink&#39;s configuration</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--cpu</code></td>
 <td>The CPU (in cores) that needs to be allocated per sink instance (applicable only to Docker runtime)</td>
 <td>null</td>
@@ -5240,13 +5225,23 @@
 <td>null</td>
 </tr>
 <tr>
+<td><code>--className</code></td>
+<td>The sink&#39;s class name if archive is file-url-path (file://)</td>
+<td>null</td>
+</tr>
+<tr>
 <td><code>--disk</code></td>
 <td>The disk (in bytes) that need to be allocated per sink instance (applicable only to Docker runtime)</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>--sinkConfig</code></td>
-<td>User defined configs key/values</td>
+<td><code>--retainOrdering</code></td>
+<td>Sink consumes and sinks messages in order</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--customSerdeInputs</code></td>
+<td>The map of input topics to SerDe class names (as a JSON string)</td>
 <td>null</td>
 </tr>
 <tr>
@@ -5265,11 +5260,6 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--className</code></td>
-<td>The sink&#39;s class name if archive is file-url-path (file://)</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--subs-position</code></td>
 <td>Pulsar source subscription position if user wants to consume messages from the specified location</td>
 <td>null</td>
@@ -5285,13 +5275,13 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>-t, --sink-type</code></td>
-<td>The sinks&#39;s connector provider</td>
+<td><code>--processingGuarantees</code></td>
+<td>The processing guarantees (aka delivery semantics) applied to the sink</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>--subsName</code></td>
-<td>Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer</td>
+<td><code>-t, --sink-type</code></td>
+<td>The sinks&#39;s connector provider</td>
 <td>null</td>
 </tr>
 <tr>
@@ -5325,11 +5315,6 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--processingGuarantees</code></td>
-<td>The processing guarantees (aka delivery semantics) applied to the sink</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--classname</code></td>
 <td>The sink&#39;s class name if archive is file-url-path (file://)</td>
 <td>null</td>
@@ -5355,13 +5340,28 @@
 <td>null</td>
 </tr>
 <tr>
+<td><code>--sinkConfigFile</code></td>
+<td>The path to a YAML config file specifying the sink&#39;s configuration</td>
+<td>null</td>
+</tr>
+<tr>
 <td><code>--auto-ack</code></td>
 <td>Whether or not the framework will automatically acknowledge messages</td>
 <td>null</td>
 </tr>
 <tr>
+<td><code>--subsName</code></td>
+<td>Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer</td>
+<td>null</td>
+</tr>
+<tr>
 <td><code>--max-redeliver-count</code></td>
 <td>Maximum number of times that a message will be redelivered before being sent to the dead letter queue</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--sinkConfig</code></td>
+<td>User defined configs key/values</td>
 <td>null</td>
 </tr>
 <tr>
@@ -5388,11 +5388,6 @@
 </thead>
 <tbody>
 <tr>
-<td><code>--customSerdeInputs</code></td>
-<td>The map of input topics to SerDe class names (as a JSON string)</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--name</code></td>
 <td>The sink&#39;s name</td>
 <td>null</td>
@@ -5400,11 +5395,6 @@
 <tr>
 <td><code>--topics-pattern</code></td>
 <td>TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs  (supported for java fun only)</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--retainOrdering</code></td>
-<td>Sink consumes and sinks messages in order</td>
 <td>null</td>
 </tr>
 <tr>
@@ -5423,11 +5413,6 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--sinkConfigFile</code></td>
-<td>The path to a YAML config file specifying the sink&#39;s configuration</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--cpu</code></td>
 <td>The CPU (in cores) that needs to be allocated per sink instance (applicable only to Docker runtime)</td>
 <td>null</td>
@@ -5435,6 +5420,11 @@
 <tr>
 <td><code>--tenant</code></td>
 <td>The sink&#39;s tenant</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--className</code></td>
+<td>The sink&#39;s class name if archive is file-url-path (file://)</td>
 <td>null</td>
 </tr>
 <tr>
@@ -5448,8 +5438,13 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--sinkConfig</code></td>
-<td>User defined configs key/values</td>
+<td><code>--retainOrdering</code></td>
+<td>Sink consumes and sinks messages in order</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--customSerdeInputs</code></td>
+<td>The map of input topics to SerDe class names (as a JSON string)</td>
 <td>null</td>
 </tr>
 <tr>
@@ -5468,11 +5463,6 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--className</code></td>
-<td>The sink&#39;s class name if archive is file-url-path (file://)</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--subs-position</code></td>
 <td>Pulsar source subscription position if user wants to consume messages from the specified location</td>
 <td>null</td>
@@ -5488,13 +5478,13 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>-t, --sink-type</code></td>
-<td>The sinks&#39;s connector provider</td>
+<td><code>--processingGuarantees</code></td>
+<td>The processing guarantees (aka delivery semantics) applied to the sink</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>--subsName</code></td>
-<td>Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer</td>
+<td><code>-t, --sink-type</code></td>
+<td>The sinks&#39;s connector provider</td>
 <td>null</td>
 </tr>
 <tr>
@@ -5528,11 +5518,6 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--processingGuarantees</code></td>
-<td>The processing guarantees (aka delivery semantics) applied to the sink</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--classname</code></td>
 <td>The sink&#39;s class name if archive is file-url-path (file://)</td>
 <td>null</td>
@@ -5558,13 +5543,28 @@
 <td>null</td>
 </tr>
 <tr>
+<td><code>--sinkConfigFile</code></td>
+<td>The path to a YAML config file specifying the sink&#39;s configuration</td>
+<td>null</td>
+</tr>
+<tr>
 <td><code>--auto-ack</code></td>
 <td>Whether or not the framework will automatically acknowledge messages</td>
 <td>null</td>
 </tr>
 <tr>
+<td><code>--subsName</code></td>
+<td>Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer</td>
+<td>null</td>
+</tr>
+<tr>
 <td><code>--max-redeliver-count</code></td>
 <td>Maximum number of times that a message will be redelivered before being sent to the dead letter queue</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--sinkConfig</code></td>
+<td>User defined configs key/values</td>
 <td>null</td>
 </tr>
 <tr>
@@ -5837,11 +5837,6 @@
 </thead>
 <tbody>
 <tr>
-<td><code>--customSerdeInputs</code></td>
-<td>The map of input topics to SerDe class names (as a JSON string)</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--tls-allow-insecure</code></td>
 <td>Allow insecure tls connection</td>
 <td>false</td>
@@ -5862,11 +5857,6 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--topicsPattern</code></td>
-<td>TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs  (supported for java fun only)</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--cpu</code></td>
 <td>The CPU (in cores) that needs to be allocated per sink instance (applicable only to Docker runtime)</td>
 <td>null</td>
@@ -5877,18 +5867,28 @@
 <td>null</td>
 </tr>
 <tr>
+<td><code>--className</code></td>
+<td>The sink&#39;s class name if archive is file-url-path (file://)</td>
+<td>null</td>
+</tr>
+<tr>
 <td><code>--disk</code></td>
 <td>The disk (in bytes) that need to be allocated per sink instance (applicable only to Docker runtime)</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>--tls_trust_cert_path</code></td>
-<td>tls trust cert file path</td>
+<td><code>--retainOrdering</code></td>
+<td>Sink consumes and sinks messages in order</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>--sinkConfig</code></td>
-<td>User defined configs key/values</td>
+<td><code>--clientAuthPlugin</code></td>
+<td>Client authentication plugin using which function-process can connect to broker</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--customSerdeInputs</code></td>
+<td>The map of input topics to SerDe class names (as a JSON string)</td>
 <td>null</td>
 </tr>
 <tr>
@@ -5902,8 +5902,8 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--className</code></td>
-<td>The sink&#39;s class name if archive is file-url-path (file://)</td>
+<td><code>--subs-position</code></td>
+<td>Pulsar source subscription position if user wants to consume messages from the specified location</td>
 <td>null</td>
 </tr>
 <tr>
@@ -5912,8 +5912,8 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--subs-position</code></td>
-<td>Pulsar source subscription position if user wants to consume messages from the specified location</td>
+<td><code>--processingGuarantees</code></td>
+<td>The processing guarantees (aka delivery semantics) applied to the sink</td>
 <td>null</td>
 </tr>
 <tr>
@@ -5925,16 +5925,6 @@
 <td><code>--hostname-verification-enabled</code></td>
 <td>Enable hostname verification</td>
 <td>false</td>
-</tr>
-<tr>
-<td><code>--clientAuthParams</code></td>
-<td>Client authentication param</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--subsName</code></td>
-<td>Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer</td>
-<td>null</td>
 </tr>
 <tr>
 <td><code>--retain-ordering</code></td>
@@ -5957,11 +5947,6 @@
 <td>false</td>
 </tr>
 <tr>
-<td><code>--processingGuarantees</code></td>
-<td>The processing guarantees (aka delivery semantics) applied to the sink</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--classname</code></td>
 <td>The sink&#39;s class name if archive is file-url-path (file://)</td>
 <td>null</td>
@@ -5974,21 +5959,6 @@
 <tr>
 <td><code>--subs-name</code></td>
 <td>Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--brokerServiceUrl</code></td>
-<td>The URL for the Pulsar broker</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--hostname_verification_enabled</code></td>
-<td>Enable hostname verification</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--use_tls</code></td>
-<td>Use tls connection</td>
 <td>null</td>
 </tr>
 <tr>
@@ -6007,18 +5977,18 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--retainOrdering</code></td>
-<td>Sink consumes and sinks messages in order</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--sink-config</code></td>
 <td>User defined configs key/values</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>--sinkConfigFile</code></td>
-<td>The path to a YAML config file specifying the sink&#39;s configuration</td>
+<td><code>--topicsPattern</code></td>
+<td>TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs  (supported for java fun only)</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--clientAuthParams</code></td>
+<td>Client authentication param</td>
 <td>null</td>
 </tr>
 <tr>
@@ -6032,13 +6002,13 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--clientAuthPlugin</code></td>
-<td>Client authentication plugin using which function-process can connect to broker</td>
+<td><code>--processing-guarantees</code></td>
+<td>The processing guarantees (aka delivery semantics) applied to the sink</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>--processing-guarantees</code></td>
-<td>The processing guarantees (aka delivery semantics) applied to the sink</td>
+<td><code>--brokerServiceUrl</code></td>
+<td>The URL for the Pulsar broker</td>
 <td>null</td>
 </tr>
 <tr>
@@ -6067,6 +6037,11 @@
 <td>null</td>
 </tr>
 <tr>
+<td><code>--hostname_verification_enabled</code></td>
+<td>Enable hostname verification</td>
+<td>null</td>
+</tr>
+<tr>
 <td><code>--namespace</code></td>
 <td>The sink&#39;s namespace</td>
 <td>null</td>
@@ -6079,6 +6054,11 @@
 <tr>
 <td><code>--custom-runtime-options</code></td>
 <td>A string that encodes options to customize the runtime, see docs for configured runtime for details</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--tls_trust_cert_path</code></td>
+<td>tls trust cert file path</td>
 <td>null</td>
 </tr>
 <tr>
@@ -6097,6 +6077,11 @@
 <td>null</td>
 </tr>
 <tr>
+<td><code>--sinkConfigFile</code></td>
+<td>The path to a YAML config file specifying the sink&#39;s configuration</td>
+<td>null</td>
+</tr>
+<tr>
 <td><code>--metrics-port-start</code></td>
 <td>The starting port range for metrics server</td>
 <td>null</td>
@@ -6104,6 +6089,21 @@
 <tr>
 <td><code>--auto-ack</code></td>
 <td>Whether or not the framework will automatically acknowledge messages</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--use_tls</code></td>
+<td>Use tls connection</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--subsName</code></td>
+<td>Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--sinkConfig</code></td>
+<td>User defined configs key/values</td>
 <td>null</td>
 </tr>
 </tbody>
@@ -6184,13 +6184,13 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--className</code></td>
-<td>The source&#39;s class name if archive is file-url-path (file://)</td>
+<td><code>-o, --destinationTopicName</code></td>
+<td>The Pulsar topic to which data is sent</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>--sourceConfigFile</code></td>
-<td>The path to a YAML config file specifying the source&#39;s configuration</td>
+<td><code>--processingGuarantees</code></td>
+<td>The processing guarantees (aka delivery semantics) applied to the Source</td>
 <td>null</td>
 </tr>
 <tr>
@@ -6209,21 +6209,6 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--deserializationClassName</code></td>
-<td>The SerDe classname for the source</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--processingGuarantees</code></td>
-<td>The processing guarantees (aka delivery semantics) applied to the Source</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--sourceConfig</code></td>
-<td>Source config key/values</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>-st, --schema-type</code></td>
 <td>The schema type (either a builtin schema like &#39;avro&#39;, &#39;json&#39;, etc.. or custom Schema class name to be used to encode messages emitted from the source</td>
 <td>null</td>
@@ -6236,6 +6221,11 @@
 <tr>
 <td><code>--deserialization-classname</code></td>
 <td>The SerDe classname for the source</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--sourceConfig</code></td>
+<td>Source config key/values</td>
 <td>null</td>
 </tr>
 <tr>
@@ -6274,11 +6264,6 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>-o, --destinationTopicName</code></td>
-<td>The Pulsar topic to which data is sent</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>-t, --source-type</code></td>
 <td>The source&#39;s connector provider</td>
 <td>null</td>
@@ -6291,6 +6276,21 @@
 <tr>
 <td><code>--tenant</code></td>
 <td>The source&#39;s tenant</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--deserializationClassName</code></td>
+<td>The SerDe classname for the source</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--className</code></td>
+<td>The source&#39;s class name if archive is file-url-path (file://)</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--sourceConfigFile</code></td>
+<td>The path to a YAML config file specifying the source&#39;s configuration</td>
 <td>null</td>
 </tr>
 </tbody>
@@ -6337,13 +6337,13 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--className</code></td>
-<td>The source&#39;s class name if archive is file-url-path (file://)</td>
+<td><code>-o, --destinationTopicName</code></td>
+<td>The Pulsar topic to which data is sent</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>--sourceConfigFile</code></td>
-<td>The path to a YAML config file specifying the source&#39;s configuration</td>
+<td><code>--processingGuarantees</code></td>
+<td>The processing guarantees (aka delivery semantics) applied to the Source</td>
 <td>null</td>
 </tr>
 <tr>
@@ -6359,21 +6359,6 @@
 <tr>
 <td><code>--secrets</code></td>
 <td>The map of secretName to an object that encapsulates how the secret is fetched by the underlying secrets provider</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--deserializationClassName</code></td>
-<td>The SerDe classname for the source</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--processingGuarantees</code></td>
-<td>The processing guarantees (aka delivery semantics) applied to the Source</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--sourceConfig</code></td>
-<td>Source config key/values</td>
 <td>null</td>
 </tr>
 <tr>
@@ -6394,6 +6379,11 @@
 <tr>
 <td><code>--deserialization-classname</code></td>
 <td>The SerDe classname for the source</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--sourceConfig</code></td>
+<td>Source config key/values</td>
 <td>null</td>
 </tr>
 <tr>
@@ -6432,11 +6422,6 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>-o, --destinationTopicName</code></td>
-<td>The Pulsar topic to which data is sent</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>-t, --source-type</code></td>
 <td>The source&#39;s connector provider</td>
 <td>null</td>
@@ -6449,6 +6434,21 @@
 <tr>
 <td><code>--tenant</code></td>
 <td>The source&#39;s tenant</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--deserializationClassName</code></td>
+<td>The SerDe classname for the source</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--className</code></td>
+<td>The source&#39;s class name if archive is file-url-path (file://)</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--sourceConfigFile</code></td>
+<td>The path to a YAML config file specifying the source&#39;s configuration</td>
 <td>null</td>
 </tr>
 </tbody>
@@ -6741,18 +6741,18 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--className</code></td>
-<td>The source&#39;s class name if archive is file-url-path (file://)</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--sourceConfigFile</code></td>
-<td>The path to a YAML config file specifying the source&#39;s configuration</td>
+<td><code>-o, --destinationTopicName</code></td>
+<td>The Pulsar topic to which data is sent</td>
 <td>null</td>
 </tr>
 <tr>
 <td><code>--broker-service-url</code></td>
 <td>The URL for the Pulsar broker</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--processingGuarantees</code></td>
+<td>The processing guarantees (aka delivery semantics) applied to the Source</td>
 <td>null</td>
 </tr>
 <tr>
@@ -6763,11 +6763,6 @@
 <tr>
 <td><code>--secrets-provider-classname</code></td>
 <td>Whats the classname for secrets provider</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--clientAuthParams</code></td>
-<td>Client authentication param</td>
 <td>null</td>
 </tr>
 <tr>
@@ -6791,38 +6786,23 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--tls_allow_insecure</code></td>
-<td>Allow insecure tls connection</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--deserializationClassName</code></td>
-<td>The SerDe classname for the source</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--processingGuarantees</code></td>
-<td>The processing guarantees (aka delivery semantics) applied to the Source</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--use_tls</code></td>
-<td>Use tls connection</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--use-tls</code></td>
 <td>Use tls connection</td>
 <td>false</td>
 </tr>
 <tr>
-<td><code>--sourceConfig</code></td>
-<td>Source config key/values</td>
+<td><code>-st, --schema-type</code></td>
+<td>The schema type (either a builtin schema like &#39;avro&#39;, &#39;json&#39;, etc.. or custom Schema class name to be used to encode messages emitted from the source</td>
 <td>null</td>
 </tr>
 <tr>
-<td><code>-st, --schema-type</code></td>
-<td>The schema type (either a builtin schema like &#39;avro&#39;, &#39;json&#39;, etc.. or custom Schema class name to be used to encode messages emitted from the source</td>
+<td><code>--brokerServiceUrl</code></td>
+<td>The URL for the Pulsar broker</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--clientAuthParams</code></td>
+<td>Client authentication param</td>
 <td>null</td>
 </tr>
 <tr>
@@ -6833,6 +6813,16 @@
 <tr>
 <td><code>--deserialization-classname</code></td>
 <td>The SerDe classname for the source</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--sourceConfig</code></td>
+<td>Source config key/values</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--tls_allow_insecure</code></td>
+<td>Allow insecure tls connection</td>
 <td>null</td>
 </tr>
 <tr>
@@ -6851,11 +6841,6 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--tls_trust_cert_path</code></td>
-<td>tls trust cert file path</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--state-storage-service-url</code></td>
 <td>The URL for the state storage service (the default is Apache BookKeeper)</td>
 <td>null</td>
@@ -6866,12 +6851,27 @@
 <td>null</td>
 </tr>
 <tr>
+<td><code>--hostname_verification_enabled</code></td>
+<td>Enable hostname verification</td>
+<td>null</td>
+</tr>
+<tr>
 <td><code>--source-config-file</code></td>
 <td>The path to a YAML config file specifying the source&#39;s configuration</td>
 <td>null</td>
 </tr>
 <tr>
+<td><code>--clientAuthPlugin</code></td>
+<td>Client authentication plugin using which function-process can connect to broker</td>
+<td>null</td>
+</tr>
+<tr>
 <td><code>--tls-trust-cert-path</code></td>
+<td>tls trust cert file path</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--tls_trust_cert_path</code></td>
 <td>tls trust cert file path</td>
 <td>null</td>
 </tr>
@@ -6891,11 +6891,6 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--brokerServiceUrl</code></td>
-<td>The URL for the Pulsar broker</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--name</code></td>
 <td>The source&#39;s name</td>
 <td>null</td>
@@ -6911,23 +6906,8 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--clientAuthPlugin</code></td>
-<td>Client authentication plugin using which function-process can connect to broker</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>-o, --destinationTopicName</code></td>
-<td>The Pulsar topic to which data is sent</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>-t, --source-type</code></td>
 <td>The source&#39;s connector provider</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--hostname_verification_enabled</code></td>
-<td>Enable hostname verification</td>
 <td>null</td>
 </tr>
 <tr>
@@ -6936,8 +6916,28 @@
 <td>null</td>
 </tr>
 <tr>
+<td><code>--use_tls</code></td>
+<td>Use tls connection</td>
+<td>null</td>
+</tr>
+<tr>
 <td><code>--tenant</code></td>
 <td>The source&#39;s tenant</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--deserializationClassName</code></td>
+<td>The SerDe classname for the source</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--className</code></td>
+<td>The source&#39;s class name if archive is file-url-path (file://)</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--sourceConfigFile</code></td>
+<td>The path to a YAML config file specifying the source&#39;s configuration</td>
 <td>null</td>
 </tr>
 </tbody>
@@ -7862,7 +7862,7 @@
 </tr>
 <tr>
 <td><code>--time, -t</code></td>
-<td>time in minutes to reset back to (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w)</td>
+<td>time in minutes to reset back to (or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w)</td>
 <td>null</td>
 </tr>
 <tr>
@@ -9266,7 +9266,7 @@
 <tbody>
 <tr>
 <td><code>--delete-mode, -m</code></td>
-<td>Mode of delete inactive topic,Valid options are: [delete_when_no_subscriptions, delete_when_subscriptions_caught_up]</td>
+<td>Mode of delete inactive topic, Valid options are: [delete_when_no_subscriptions, delete_when_subscriptions_caught_up]</td>
 <td>null</td>
 </tr>
 <tr>
@@ -9281,7 +9281,7 @@
 </tr>
 <tr>
 <td><code>--max-inactive-duration, -t</code></td>
-<td>Max duration of topic inactivity in seconds,topics that are inactive for longer than this value will be deleted (eg: 1s, 10s, 1m, 5h, 3d)</td>
+<td>Max duration of topic inactivity in seconds, topics that are inactive for longer than this value will be deleted (eg: 1s, 10s, 1m, 5h, 3d)</td>
 <td>null</td>
 </tr>
 </tbody>
