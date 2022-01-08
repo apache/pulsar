@@ -63,16 +63,16 @@ public abstract class ResourceGroupsBase extends AdminResource {
             /*
              * assuming read-modify-write
              */
-            if (rgConfig.getPublishRateInMsgs() != -1) {
+            if (rgConfig.getPublishRateInMsgs() != null) {
                 resourceGroup.setPublishRateInMsgs(rgConfig.getPublishRateInMsgs());
             }
-            if (rgConfig.getPublishRateInBytes() != -1) {
+            if (rgConfig.getPublishRateInBytes() != null) {
                 resourceGroup.setPublishRateInBytes(rgConfig.getPublishRateInBytes());
             }
-            if (rgConfig.getDispatchRateInMsgs() != -1) {
+            if (rgConfig.getDispatchRateInMsgs() != null) {
                 resourceGroup.setDispatchRateInMsgs(rgConfig.getDispatchRateInMsgs());
             }
-            if (rgConfig.getDispatchRateInBytes() != -1) {
+            if (rgConfig.getDispatchRateInBytes() != null) {
                 resourceGroup.setDispatchRateInBytes(rgConfig.getDispatchRateInBytes());
             }
 
@@ -88,6 +88,14 @@ public abstract class ResourceGroupsBase extends AdminResource {
     }
 
     protected void internalCreateResourceGroup(String rgName, ResourceGroup rgConfig) {
+        rgConfig.setPublishRateInMsgs(rgConfig.getPublishRateInMsgs() == null
+                ? -1 : rgConfig.getPublishRateInMsgs());
+        rgConfig.setPublishRateInBytes(rgConfig.getPublishRateInBytes() == null
+                ? -1 : rgConfig.getPublishRateInBytes());
+        rgConfig.setDispatchRateInMsgs(rgConfig.getDispatchRateInMsgs() == null
+                ? -1 : rgConfig.getDispatchRateInMsgs());
+        rgConfig.setDispatchRateInBytes(rgConfig.getDispatchRateInBytes() == null
+                ? -1 : rgConfig.getDispatchRateInBytes());
         try {
             resourceGroupResources().createResourceGroup(rgName, rgConfig);
             log.info("[{}] Created ResourceGroup {}", clientAppId(), rgName);

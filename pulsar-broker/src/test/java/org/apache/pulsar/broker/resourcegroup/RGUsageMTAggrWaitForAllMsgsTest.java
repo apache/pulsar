@@ -901,9 +901,9 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
         final int NumProducerMessages = NUM_MESSAGES_PER_PRODUCER * NUM_PRODUCERS;
         Assert.assertTrue(NUM_MESSAGES_PER_CONSUMER > 0 && NumConsumerMessages == NumProducerMessages);
 
-        rgConfig.setPublishRateInBytes(1500);
+        rgConfig.setPublishRateInBytes(1500L);
         rgConfig.setPublishRateInMsgs(100);
-        rgConfig.setDispatchRateInBytes(4000);
+        rgConfig.setDispatchRateInBytes(4000L);
         rgConfig.setDispatchRateInMsgs(500);
 
         // Set up the RG names; creation of RGs will be done elsewhere.
