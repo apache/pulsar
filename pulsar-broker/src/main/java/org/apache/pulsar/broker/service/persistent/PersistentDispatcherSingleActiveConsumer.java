@@ -214,7 +214,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
                     redeliveryTracker)
             .addListener(future -> {
-                topic.recordAddLatency(System.currentTimeMillis() - startTimeNs, TimeUnit.MILLISECONDS);
+                topic.recordAddLatency(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS);
                 if (future.isSuccess()) {
                     int permits = dispatchThrottlingOnBatchMessageEnabled ? entries.size()
                             : sendMessageInfo.getTotalMessages();
@@ -328,7 +328,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         if (null == consumer) {
             return;
         }
-        startTimeNs = System.currentTimeMillis();
+        startTimeNs = System.nanoTime();
 
         if (consumer.getAvailablePermits() > 0) {
             Pair<Integer, Long> calculateResult = calculateToRead(consumer);

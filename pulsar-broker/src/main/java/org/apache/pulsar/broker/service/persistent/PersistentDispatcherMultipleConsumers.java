@@ -224,7 +224,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     public synchronized void readMoreEntries() {
-        startTimeNs = System.currentTimeMillis();
+        startTimeNs = System.nanoTime();
         // totalAvailablePermits may be updated by other threads
         int firstAvailableConsumerPermits = getFirstAvailableConsumerPermits();
         int currentTotalAvailablePermits = Math.max(totalAvailablePermits, firstAvailableConsumerPermits);
@@ -554,7 +554,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
                         sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker)
                         .addListener(future -> {
-                    topic.recordAddLatency(System.currentTimeMillis() - startTimeNs, TimeUnit.MILLISECONDS);
+                    topic.recordReadLatency(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS);
                 });
 
                 int msgSent = sendMessageInfo.getTotalMessages();
