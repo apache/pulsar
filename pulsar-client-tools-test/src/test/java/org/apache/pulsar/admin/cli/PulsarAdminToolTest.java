@@ -101,6 +101,7 @@ import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class PulsarAdminToolTest {
@@ -1810,6 +1811,23 @@ public class PulsarAdminToolTest {
                         .rack("rack-1")
                         .hostname("host-1")
                         .build());
+        // test invalid rack name ""
+
+        try {
+            BookieInfo.builder().rack("").hostname("host-1").build();
+            Assert.fail();
+        } catch (IllegalArgumentException e) {
+            assertEquals(e.getMessage(), "rack name is invalid, it should not be null, empty or '/'");
+        }
+
+        // test invalid rack name "/"
+        try {
+            BookieInfo.builder().rack("/").hostname("host-1").build();
+            Assert.fail();
+        } catch (IllegalArgumentException e) {
+            assertEquals(e.getMessage(), "rack name is invalid, it should not be null, empty or '/'");
+        }
+
     }
 
     @Test
