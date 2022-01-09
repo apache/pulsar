@@ -3738,8 +3738,6 @@ public class PersistentTopicsBase extends AdminResource {
                     .orElseThrow(() -> topicNotFoundReason(topicName));
         } catch (RestException e) {
             throw e;
-        } catch (TimeoutException e){
-            throw new RestException(Status.GATEWAY_TIMEOUT, "Timeout when get topic reference.");
         } catch (Exception e) {
             if (e.getCause() instanceof NotAllowedException) {
                 throw new RestException(Status.CONFLICT, e.getCause());

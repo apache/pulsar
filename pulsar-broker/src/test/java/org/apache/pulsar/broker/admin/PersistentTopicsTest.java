@@ -43,6 +43,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
@@ -1152,7 +1153,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testResetCursorReturnTimeoutWhenZKTimeout() {
-        String topic = "persistent://"+testTenant + "/"+ testNamespace + "/" + "topic-2";
+        String topic = "persistent://" + testTenant + "/" + testNamespace + "/" + "topic-2";
         BrokerService brokerService = spy(pulsar.getBrokerService());
         doReturn(brokerService).when(pulsar).getBrokerService();
         CompletableFuture<Optional<Topic>> completableFuture = new CompletableFuture<>();
@@ -1161,7 +1162,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
             admin.topics().resetCursor(topic, "my-sub", System.currentTimeMillis());
             Assert.fail();
         } catch (PulsarAdminException e) {
-            Assert.assertEquals(e.getStatusCode(), 504);
+            String errorMsg = ((InternalServerErrorException) e.getCause()).getResponse().readEntity(String.class);
+            Assert.assertTrue(errorMsg.contains("TimeoutException"));
         }
     }
 
