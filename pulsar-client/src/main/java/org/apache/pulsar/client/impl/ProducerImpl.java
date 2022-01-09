@@ -266,11 +266,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     protected void semaphoreRelease(final int releaseCountRequest) {
         if (semaphore.isPresent()) {
             if (!errorState) {
-                final int availablePermits = semaphore.get().availablePermits();
-                if (availablePermits - releaseCountRequest < 0) {
+                final int availableReleasePermits =
+                        conf.getMaxPendingMessages() - this.semaphore.get().availablePermits();
+                if (availableReleasePermits - releaseCountRequest < 0) {
                     log.error("Semaphore permit release count request greater then availablePermits" +
                                     " : availablePermits={}, releaseCountRequest={}",
-                            availablePermits, releaseCountRequest);
+                            availableReleasePermits, releaseCountRequest);
                     errorState = true;
                 }
             }
