@@ -608,6 +608,11 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         PUBLISH_LATENCY.observe(latency, unit);
     }
 
+    @Override
+    public void recordReadLatency(long latency, TimeUnit unit) {
+        DISPATCH_LATENCY.observe(latency, unit);
+    }
+
     protected void setSchemaCompatibilityStrategy(Policies policies) {
         if (SystemTopicClient.isSystemTopic(TopicName.get(this.topic))) {
             schemaCompatibilityStrategy =
@@ -624,6 +629,15 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         }
     }
     private static final Summary PUBLISH_LATENCY = Summary.build("pulsar_broker_publish_latency", "-")
+            .quantile(0.0)
+            .quantile(0.50)
+            .quantile(0.95)
+            .quantile(0.99)
+            .quantile(0.999)
+            .quantile(0.9999)
+            .quantile(1.0)
+            .register();
+    private static final Summary DISPATCH_LATENCY = Summary.build("pulsar_broker_dispatch_latency", "-")
             .quantile(0.0)
             .quantile(0.50)
             .quantile(0.95)

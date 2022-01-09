@@ -106,6 +106,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class,
                     "blockedDispatcherOnUnackedMsgs");
     protected Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
+    private long startTimeNs;
 
     protected enum ReadType {
         Normal, Replay
@@ -223,6 +224,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     public synchronized void readMoreEntries() {
+        startTimeNs = System.currentTimeMillis();
         // totalAvailablePermits may be updated by other threads
         int firstAvailableConsumerPermits = getFirstAvailableConsumerPermits();
         int currentTotalAvailablePermits = Math.max(totalAvailablePermits, firstAvailableConsumerPermits);
@@ -550,7 +552,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                         readType == ReadType.Replay);
 
                 c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
-                        sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
+                        sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker)
+                        .addListener(future -> {
+                    topic.recordAddLatency(System.currentTimeMillis() - startTimeNs, TimeUnit.MILLISECONDS);
+                });
 
                 int msgSent = sendMessageInfo.getTotalMessages();
                 remainingMessages -= msgSent;

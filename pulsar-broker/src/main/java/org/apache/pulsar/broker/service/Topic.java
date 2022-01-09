@@ -136,6 +136,11 @@ public interface Topic {
      */
     void recordAddLatency(long latency, TimeUnit unit);
 
+    /**
+     * record read-latency
+     */
+    void recordReadLatency(long latency, TimeUnit unit);
+
     @Deprecated
     CompletableFuture<Consumer> subscribe(TransportCnx cnx, String subscriptionName, long consumerId, SubType subType,
                                           int priorityLevel, String consumerName, boolean isDurable,
