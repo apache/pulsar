@@ -269,8 +269,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 final int availableReleasePermits =
                         conf.getMaxPendingMessages() - this.semaphore.get().availablePermits();
                 if (availableReleasePermits - releaseCountRequest < 0) {
-                    log.error("Semaphore permit release count request greater then availablePermits" +
-                                    " : availablePermits={}, releaseCountRequest={}",
+                    log.error("Semaphore permit release count request greater then availableReleasePermits" +
+                                    " : availableReleasePermits={}, releaseCountRequest={}",
                             availableReleasePermits, releaseCountRequest);
                     errorState = true;
                 }
