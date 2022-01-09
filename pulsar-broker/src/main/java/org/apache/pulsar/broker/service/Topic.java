@@ -137,7 +137,7 @@ public interface Topic {
     void recordAddLatency(long latency, TimeUnit unit);
 
     /**
-     * record read-latency
+     * record read-latency.
      */
     void recordReadLatency(long latency, TimeUnit unit);
 
