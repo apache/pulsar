@@ -25,6 +25,7 @@ import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -34,6 +35,7 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -56,7 +58,7 @@ public class CompactedTopicImpl implements CompactedTopic {
 
     private final BookKeeper bk;
 
-    private PositionImpl compactionHorizon = null;
+    protected PositionImpl compactionHorizon = null;
     private CompletableFuture<CompactedTopicContext> compactedTopicContext = null;
 
     public CompactedTopicImpl(BookKeeper bk) {
@@ -185,42 +187,64 @@ public class CompactedTopicImpl implements CompactedTopic {
                     });
     }
 
-    static AsyncLoadingCache<Long, MessageIdData> createCache(LedgerHandle lh,
+    static AsyncLoadingCache<Long, MessageIdData> createCache(ReadHandle lh,
                                                               long maxSize) {
         return Caffeine.newBuilder()
                 .maximumSize(maxSize)
                 .buildAsync((entryId, executor) -> readOneMessageId(lh, entryId));
     }
 
-
-    private static CompletableFuture<MessageIdData> readOneMessageId(LedgerHandle lh, long entryId) {
+    static CompletableFuture<MessageIdData> readOneMessageId(ReadHandle rh, long entryId) {
         CompletableFuture<MessageIdData> promise = new CompletableFuture<>();
 
-        lh.asyncReadEntries(entryId, entryId,
-                            (rc, _lh, seq, ctx) -> {
-                                if (rc != BKException.Code.OK) {
-                                    promise.completeExceptionally(BKException.create(rc));
-                                } else {
-                                    // Need to release buffers for all entries in the sequence
-                                    if (seq.hasMoreElements()) {
-                                        LedgerEntry entry = seq.nextElement();
-                                        try (RawMessage m = RawMessageImpl.deserializeFrom(entry.getEntryBuffer())) {
-                                            entry.getEntryBuffer().release();
-                                            while (seq.hasMoreElements()) {
-                                                seq.nextElement().getEntryBuffer().release();
-                                            }
-                                            promise.complete(m.getMessageIdData());
-                                        }
-                                    } else {
-                                        promise.completeExceptionally(new NoSuchElementException(
-                                                String.format("No such entry %d in ledger %d", entryId, lh.getId())));
+        if (!(rh instanceof LedgerHandle)) {
+            rh.readAsync(entryId, entryId).whenComplete((entries, ex) -> {
+                if (ex != null) {
+                    promise.completeExceptionally(ex);
+                } else {
+                    Iterator<org.apache.bookkeeper.client.api.LedgerEntry> iterator = entries.iterator();
+                    if (iterator.hasNext()) {
+                        org.apache.bookkeeper.client.api.LedgerEntry entry = iterator.next();
+                        try (RawMessage m = RawMessageImpl.deserializeFrom(entry.getEntryBuffer())) {
+                            entry.getEntryBuffer().release();
+                            while (iterator.hasNext()) {
+                                iterator.next().getEntryBuffer().release();
+                            }
+                            promise.complete(m.getMessageIdData());
+                        }
+                    } else {
+                        promise.completeExceptionally(new NoSuchElementException(
+                                String.format("No such entry %d in ReadHandle %d", entryId, rh.getId())));
+                    }
+                }
+            });
+        } else {
+            ((LedgerHandle)rh).asyncReadEntries(entryId, entryId,
+                    (rc, _lh, seq, ctx) -> {
+                        if (rc != BKException.Code.OK) {
+                            promise.completeExceptionally(BKException.create(rc));
+                        } else {
+                            // Need to release buffers for all entries in the sequence
+                            if (seq.hasMoreElements()) {
+                                LedgerEntry entry = seq.nextElement();
+                                try (RawMessage m = RawMessageImpl.deserializeFrom(entry.getEntryBuffer())) {
+                                    entry.getEntryBuffer().release();
+                                    while (seq.hasMoreElements()) {
+                                        seq.nextElement().getEntryBuffer().release();
                                     }
+                                    promise.complete(m.getMessageIdData());
                                 }
-                            }, null);
+                            } else {
+                                promise.completeExceptionally(new NoSuchElementException(
+                                        String.format("No such entry %d in LedgerHandle %d", entryId, rh.getId())));
+                            }
+                        }
+                    }, null);
+        }
         return promise;
     }
 
-    private static CompletableFuture<CompactedTopicContext> openCompactedLedger(BookKeeper bk, long id) {
+    private CompletableFuture<CompactedTopicContext> openCompactedLedger(BookKeeper bk, long id) {
         CompletableFuture<LedgerHandle> promise = new CompletableFuture<>();
         bk.asyncOpenLedger(id,
                            Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
@@ -239,52 +263,83 @@ public class CompactedTopicImpl implements CompactedTopic {
     private static CompletableFuture<Void> tryDeleteCompactedLedger(BookKeeper bk, long id) {
         CompletableFuture<Void> promise = new CompletableFuture<>();
         bk.asyncDeleteLedger(id,
-                             (rc, ctx) -> {
-                                 if (rc != BKException.Code.OK) {
-                                     log.warn("Error deleting compacted topic ledger {}",
-                                              id, BKException.create(rc));
-                                 } else {
-                                     log.debug("Compacted topic ledger deleted successfully");
-                                 }
-                                 promise.complete(null); // don't propagate any error
-                             }, null);
+                (rc, ctx) -> {
+                    if (rc != BKException.Code.OK) {
+                        log.warn("Error deleting compacted topic ledger {}",
+                                id, BKException.create(rc));
+                    } else {
+                        log.debug("Compacted topic ledger deleted successfully");
+                    }
+                    promise.complete(null); // don't propagate any error
+                }, null);
         return promise;
     }
 
-    private static CompletableFuture<List<Entry>> readEntries(LedgerHandle lh, long from, long to) {
-        CompletableFuture<Enumeration<LedgerEntry>> promise = new CompletableFuture<>();
+    protected CompletableFuture<List<Entry>> readEntries(ReadHandle rh, long from, long to) {
 
-        lh.asyncReadEntries(from, to,
-                            (rc, _lh, seq, ctx) -> {
-                                if (rc != BKException.Code.OK) {
-                                    promise.completeExceptionally(BKException.create(rc));
-                                } else {
-                                    promise.complete(seq);
-                                }
-                            }, null);
-        return promise.thenApply(
-                (seq) -> {
-                    List<Entry> entries = new ArrayList<Entry>();
-                    while (seq.hasMoreElements()) {
-                        ByteBuf buf = seq.nextElement().getEntryBuffer();
-                        try (RawMessage m = RawMessageImpl.deserializeFrom(buf)) {
-                            entries.add(EntryImpl.create(m.getMessageIdData().getLedgerId(),
-                                                         m.getMessageIdData().getEntryId(),
-                                                         m.getHeadersAndPayload()));
+        if (!(rh instanceof LedgerHandle)) {
+            CompletableFuture<List<Entry>> promise = new CompletableFuture<>();
+
+            rh.readAsync(from, to).whenComplete((entries, ex) -> {
+                if (ex != null) {
+                    promise.completeExceptionally(ex);
+                } else {
+                    List<Entry> entryList = new ArrayList<>();
+                    for (org.apache.bookkeeper.client.api.LedgerEntry entry : entries) {
+                        ByteBuf buffer = entry.getEntryBuffer();
+                        try (RawMessage m = RawMessageImpl.deserializeFrom(buffer)) {
+                            entryList.add(EntryImpl.create(m.getMessageIdData().getLedgerId(),
+                                    m.getMessageIdData().getEntryId(),
+                                    m.getHeadersAndPayload()));
                         } finally {
-                            buf.release();
+                            buffer.release();
                         }
                     }
-                    return entries;
-                });
+                    promise.complete(entryList);
+                }
+            });
+            return promise;
+        } else {
+            CompletableFuture<Enumeration<LedgerEntry>> promise = new CompletableFuture<>();
+            ((LedgerHandle)rh).asyncReadEntries(from, to,
+                    (rc, _lh, seq, ctx) -> {
+                        if (rc != BKException.Code.OK) {
+                            promise.completeExceptionally(BKException.create(rc));
+                        } else {
+                            promise.complete(seq);
+                        }
+                    }, null);
+            return promise.thenApply(
+                    (seq) -> {
+                        List<Entry> entries = new ArrayList<Entry>();
+                        while (seq.hasMoreElements()) {
+                            ByteBuf buf = seq.nextElement().getEntryBuffer();
+                            try (RawMessage m = RawMessageImpl.deserializeFrom(buf)) {
+                                entries.add(EntryImpl.create(m.getMessageIdData().getLedgerId(),
+                                        m.getMessageIdData().getEntryId(),
+                                        m.getHeadersAndPayload()));
+                            } finally {
+                                buf.release();
+                            }
+                        }
+                        return entries;
+                    });
+        }
     }
 
     /**
      * Getter for CompactedTopicContext.
      * @return CompactedTopicContext
      */
-    public Optional<CompactedTopicContext> getCompactedTopicContext() throws ExecutionException, InterruptedException {
-        return compactedTopicContext == null ? Optional.empty() : Optional.of(compactedTopicContext.get());
+    public Optional<CompactedTopicContext> getCompactedTopicContext() {
+        if (compactedTopicContext != null) {
+            try {
+                return Optional.of(compactedTopicContext.get());
+            } catch (InterruptedException | ExecutionException e) {
+                log.warn("Error fetch compacted topic context failed", e);
+            }
+        }
+        return Optional.empty();
     }
 
     @Override
@@ -293,18 +348,18 @@ public class CompactedTopicImpl implements CompactedTopic {
             return CompletableFuture.completedFuture(null);
         }
         return compactedTopicContext.thenCompose(context -> {
-            if (context.ledger.getLastAddConfirmed() == -1) {
+            if (context.getLedger().getLastAddConfirmed() == -1) {
                 return CompletableFuture.completedFuture(null);
             }
             return readEntries(
-                    context.ledger, context.ledger.getLastAddConfirmed(), context.ledger.getLastAddConfirmed())
+                    context.getLedger(), context.getLedger().getLastAddConfirmed(), context.getLedger().getLastAddConfirmed())
                     .thenCompose(entries -> entries.size() > 0
                             ? CompletableFuture.completedFuture(entries.get(0))
                             : CompletableFuture.completedFuture(null));
         });
     }
 
-    private static int comparePositionAndMessageId(PositionImpl p, MessageIdData m) {
+    protected static int comparePositionAndMessageId(PositionImpl p, MessageIdData m) {
         return ComparisonChain.start()
             .compare(p.getLedgerId(), m.getLedgerId())
             .compare(p.getEntryId(), m.getEntryId()).result();

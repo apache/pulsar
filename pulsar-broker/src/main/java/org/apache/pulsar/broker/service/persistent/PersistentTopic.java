@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -62,6 +63,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
@@ -156,6 +158,7 @@ import org.apache.pulsar.compaction.CompactedTopicContext;
 import org.apache.pulsar.compaction.CompactedTopicImpl;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.CompactorMXBean;
+import org.apache.pulsar.compaction.OffloadCompactedTopicImpl;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
@@ -193,7 +196,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private static final long COMPACTION_NEVER_RUN = -0xfebecffeL;
     private CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(COMPACTION_NEVER_RUN);
-    private final CompactedTopic compactedTopic;
+    private CompactedTopic compactedTopic;
 
     private CompletableFuture<MessageIdImpl> currentOffload = CompletableFuture.completedFuture(
             (MessageIdImpl) MessageId.earliest);
@@ -271,6 +274,19 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     || cursor.getName().startsWith(replicatorPrefix)) {
                 // This is not a regular subscription, we are going to
                 // ignore it for now and let the message dedup logic to take care of it
+            } else if(cursor.getName().equals(Compactor.COMPACTION_SUBSCRIPTION)){
+                Map<String, Long> properties = cursor.getProperties();
+                if (properties != null && properties.containsKey(OffloadCompactedTopicImpl.UUID_LSB_NAME)
+                        && properties.containsKey(OffloadCompactedTopicImpl.UUID_MSB_NAME)) {
+
+                    // Properties contain uuid, compactedTopic is offloaded.
+                    UUID uuid = new UUID(properties.get(OffloadCompactedTopicImpl.UUID_MSB_NAME),
+                            properties.get(OffloadCompactedTopicImpl.UUID_LSB_NAME));
+                    Map<String, String> offloadDriverMetadata = ledger.getConfig().getLedgerOffloader().getOffloadDriverMetadata();
+
+                    this.compactedTopic = new OffloadCompactedTopicImpl(ledger.getConfig().getLedgerOffloader(),
+                            uuid, offloadDriverMetadata);
+                }
             } else {
                 final String subscriptionName = Codec.decode(cursor.getName());
                 subscriptions.put(subscriptionName, createPersistentSubscription(subscriptionName, cursor,
@@ -2069,6 +2085,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             info.ledgerId = ledgerContext.getLedger().getId();
             info.entries = ledgerContext.getLedger().getLastAddConfirmed() + 1;
             info.size = ledgerContext.getLedger().getLength();
+            if (compactedTopic instanceof OffloadCompactedTopicImpl) {
+                info.offloaded = true;
+            }
         }
 
         stats.compactedLedger = info;
@@ -2188,12 +2207,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     public Optional<CompactedTopicContext> getCompactedTopicContext() {
-        try {
-            return ((CompactedTopicImpl) compactedTopic).getCompactedTopicContext();
-        } catch (ExecutionException | InterruptedException e) {
-            log.warn("[{}]Fail to get ledger information for compacted topic.", topic);
-        }
-        return Optional.empty();
+        return compactedTopic.getCompactedTopicContext();
     }
 
     public long getBacklogSize() {
