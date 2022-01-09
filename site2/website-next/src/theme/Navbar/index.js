@@ -227,6 +227,13 @@ function NavbarMobileSidebar({ sidebarShown, toggleSidebar }) {
                       getApiVersion(param),
                   };
                 });
+              } else if (item.label == "CLI") {
+                item.items = item.items.map((e) => {
+                  return {
+                    ...e,
+                    link: e.to + "?version=" + getVersion(),
+                  };
+                });
               }
               return (
                 <NavbarItem mobile {...item} onClick={toggleSidebar} key={i} />
@@ -325,6 +332,13 @@ function Navbar() {
                     getVersion() +
                     "&apiversion=" +
                     getApiVersion(param),
+                };
+              });
+            } else if (item.label == "CLI") {
+              item.items = item.items.map((e) => {
+                return {
+                  ...e,
+                  link: e.to + "?version=" + getVersion(),
                 };
               });
             }

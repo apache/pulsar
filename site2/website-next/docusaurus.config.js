@@ -148,6 +148,28 @@ module.exports = {
           ],
         },
         {
+          label: "CLI",
+          position: "left",
+          items: [
+            {
+              label: "Pulsar Admin",
+              to: "/pulsar-admin-cli",
+            },
+            {
+              label: "Pulsar Client",
+              to: "/pulsar-client-cli",
+            },
+            {
+              label: "Pulsar Perf",
+              to: "/pulsar-perf-cli",
+            },
+            {
+              label: "Pulsar",
+              to: "/pulsar-cli",
+            },
+          ],
+        },
+        {
           href: "https://github.com/apache/pulsar",
           label: "GitHub",
           position: "right",
