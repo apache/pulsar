@@ -31,6 +31,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
+import com.google.common.io.BaseEncoding;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
@@ -2567,16 +2568,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
 
                 invalidateReadHandle(ls.getLedgerId());
-
-                // Retain the offloaded ledger info until actual delete
-                if (!deletableOffloadedLedgers.contains(ls.getLedgerId())) {
-                    ledgers.remove(ls.getLedgerId());
-                }
+                ledgers.remove(ls.getLedgerId());
+                entryCache.invalidateAllEntries(ls.getLedgerId());
 
                 NUMBER_OF_ENTRIES_UPDATER.addAndGet(this, -ls.getEntries());
                 TOTAL_SIZE_UPDATER.addAndGet(this, -ls.getSize());
-
-                entryCache.invalidateAllEntries(ls.getLedgerId());
             }
             for (LedgerInfo ls : offloadedLedgersToDelete) {
                 LedgerInfo.Builder newInfoBuilder = ls.toBuilder();
@@ -4146,7 +4142,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         for (Long ledgerId : deletableOffloadedLedgerIds) {
             final String deletableOffloadedLedgerMarker = DELETABLE_OFFLOADED_LEDGER_MARKER_PREFIX + ledgerId;
-            propertiesMap.put(deletableOffloadedLedgerMarker, DELETABLE_LEDGER_PLACEHOLDER);
+            // Offload context info is required in ledger cleanup, therefore the serialized info object
+            // is kept in the propertiesMap until the ledger deletion is done
+            final String offloadedLedgerInfo = BaseEncoding.base64().encode(ledgers.get(ledgerId).toByteArray());
+            propertiesMap.put(deletableOffloadedLedgerMarker, offloadedLedgerInfo);
         }
     }
 
@@ -4223,26 +4222,38 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         for (Long deletableOffloadedLedger : deletableOffloadedLedgers) {
-            asyncDeleteOffloadedLedger(deletableOffloadedLedger,
-                    ledgers.get(deletableOffloadedLedger), DEFAULT_LEDGER_DELETE_RETRIES,
-                    new DeleteLedgerCallback() {
-                        @Override
-                        public void deleteLedgerComplete(Object ctx) {
-                            ledgers.remove(deletableOffloadedLedger);
-                            counter.countDown();
-                            finishedDeletedOffloadedLedgers.add(deletableOffloadedLedger);
-                            succeedDeletedOffloadedLedgers.add(deletableOffloadedLedger);
-                        }
+            final String deletableOffloadedLedgerMarker =
+                    DELETABLE_OFFLOADED_LEDGER_MARKER_PREFIX + deletableOffloadedLedger;
 
-                        @Override
-                        public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                            log.warn("[{}] Failed to delete offloaded ledger:{} due to",
-                                    name, deletableOffloadedLedger, exception);
-                            counter.countDown();
-                            finishedDeletedOffloadedLedgers.add(deletableOffloadedLedger);
-                            failDeletedOffloadedLedgers.add(deletableOffloadedLedger);
-                        }
-                    });
+            try {
+                final LedgerInfo deletableOffloadedLedgerInfo = LedgerInfo.parseFrom(
+                        BaseEncoding.base64().decode(propertiesMap.get(deletableOffloadedLedgerMarker)));
+                asyncDeleteOffloadedLedger(deletableOffloadedLedger, deletableOffloadedLedgerInfo,
+                        DEFAULT_LEDGER_DELETE_RETRIES,
+                        new DeleteLedgerCallback() {
+                            @Override
+                            public void deleteLedgerComplete(Object ctx) {
+                                counter.countDown();
+                                finishedDeletedOffloadedLedgers.add(deletableOffloadedLedger);
+                                succeedDeletedOffloadedLedgers.add(deletableOffloadedLedger);
+                            }
+
+                            @Override
+                            public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                                log.warn("[{}] Failed to delete offloaded ledger:{} due to",
+                                        name, deletableOffloadedLedger, exception);
+                                counter.countDown();
+                                finishedDeletedOffloadedLedgers.add(deletableOffloadedLedger);
+                                failDeletedOffloadedLedgers.add(deletableOffloadedLedger);
+                            }
+                        });
+            } catch (Exception e) {
+                log.warn("[{}] Failed to retrieve offloaded ledger info of {} due to",
+                        name, deletableOffloadedLedger, e);
+                counter.countDown();
+                finishedDeletedOffloadedLedgers.add(deletableOffloadedLedger);
+                failDeletedOffloadedLedgers.add(deletableOffloadedLedger);
+            }
         }
 
         try {
