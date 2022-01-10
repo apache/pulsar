@@ -937,13 +937,10 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         retryStrategically((test) -> consumer.incomingMessages.peek() != null, 5, 500);
         MessageImpl<ByteBuffer> msg = (MessageImpl) consumer.incomingMessages.peek();
         assertNotNull(msg);
-        ByteBuf payload = msg.getPayload();
+        ByteBuf payload = ((MessageImpl) msg).getPayload();
         assertNotEquals(payload.refCnt(), 0);
         consumer.redeliverUnacknowledgedMessages();
-        consumer.clearIncomingMessagesAndGetMessageNumber();
-        if (payload.refCnt() != 0) {
-            assertNotNull(msg.getMessageId());
-        }
+        assertEquals(payload.refCnt(), 0);
         consumer.close();
         producer.close();
     }

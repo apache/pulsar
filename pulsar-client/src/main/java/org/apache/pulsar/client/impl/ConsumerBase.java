@@ -90,8 +90,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final Lock reentrantLock = new ReentrantLock();
     private volatile boolean isListenerHandlingMessage = false;
 
-    @Getter
-    protected final AtomicLong consumerEpoch = new AtomicLong(0);
+    protected static final AtomicLongFieldUpdater<ConsumerBase> CONSUMER_EPOCH =
+            AtomicLongFieldUpdater.newUpdater(ConsumerBase.class, "consumerEpoch");
+
+    protected volatile long consumerEpoch;
 
     // this present broker version don't have consumerEpoch feature,
     // so client don't need to think about consumerEpoch feature
@@ -1055,11 +1057,13 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     // If message consumer epoch is smaller than consumer epoch present that
     // it has been sent to the client before the user calls redeliverUnacknowledgedMessages, this message is invalid.
     // so we should release this message and receive again
-    protected boolean checkMessageConsumerEpochIsSmallerThanConsumer(MessageImpl<T> message) {
+    protected boolean isValidConsumerEpoch(MessageImpl<T> message) {
         if ((getSubType() == CommandSubscribe.SubType.Failover
                 || getSubType() == CommandSubscribe.SubType.Exclusive)
-                && (message).getConsumerEpoch() != DEFAULT_CONSUMER_EPOCH
-                && (message).getConsumerEpoch() < consumerEpoch.get()) {
+                && message.getConsumerEpoch() != DEFAULT_CONSUMER_EPOCH
+                && message.getConsumerEpoch() < CONSUMER_EPOCH.get(this)) {
+            log.warn("Consumer filter old epoch message, topic : [{}], messageId : [{}], consumerEpoch : [{}]",
+                    topic, message.getMessageId(), consumerEpoch);
             message.release();
             message.recycle();
             return true;

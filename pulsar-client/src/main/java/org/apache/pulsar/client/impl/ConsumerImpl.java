@@ -411,7 +411,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         try {
             message = incomingMessages.take();
             messageProcessed(message);
-            if (checkMessageImplConsumerEpochIsSmallerThanConsumer(message)) {
+            if (isValidConsumerEpoch(message)) {
                 return internalReceive();
             }
             return beforeConsume(message);
@@ -421,8 +421,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
-    private boolean checkMessageImplConsumerEpochIsSmallerThanConsumer(Message<T> message) {
-        return checkMessageConsumerEpochIsSmallerThanConsumer((MessageImpl<T>) message);
+    private boolean isValidConsumerEpoch(Message<T> message) {
+        return isValidConsumerEpoch((MessageImpl<T>) message);
     }
 
     @Override
@@ -436,7 +436,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
             } else {
                 messageProcessed(message);
-                if (checkMessageImplConsumerEpochIsSmallerThanConsumer(message)) {
+                if (isValidConsumerEpoch(message)) {
                     pendingReceives.add(result);
                     cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
                     return;
@@ -458,7 +458,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return null;
             }
             messageProcessed(message);
-            if (checkMessageImplConsumerEpochIsSmallerThanConsumer(message)) {
+            if (isValidConsumerEpoch(message)) {
                 long executionTime = System.currentTimeMillis() - callTime;
                 if (executionTime >= unit.toMillis(timeout)) {
                     return null;
@@ -505,7 +505,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     Message<T> msg = incomingMessages.poll();
                     if (msg != null) {
                         messageProcessed(msg);
-                        if (checkMessageImplConsumerEpochIsSmallerThanConsumer(msg)) {
+                        if (isValidConsumerEpoch(msg)) {
                             msgPeeked = incomingMessages.peek();
                             continue;
                         }
@@ -796,7 +796,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     InitialPosition.valueOf(subscriptionInitialPosition.getValue()),
                     startMessageRollbackDuration, si, createTopicIfDoesNotExist, conf.getKeySharedPolicy(),
                     // this.consumerEpoch will increase
-                    conf.getSubscriptionProperties(), this.consumerEpoch.get());
+                    conf.getSubscriptionProperties(), CONSUMER_EPOCH.get(this));
 
             cnx.sendRequestWithId(request, requestId).thenRun(() -> {
                 synchronized (ConsumerImpl.this) {
@@ -1792,10 +1792,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             if (isConnected(cnx) && cnx != null) {
                 if (conf.getSubscriptionType() == SubscriptionType.Failover
                         || conf.getSubscriptionType() == SubscriptionType.Exclusive) {
-                    this.consumerEpoch.getAndIncrement();
+                    CONSUMER_EPOCH.incrementAndGet(this);
                 }
                 cnx.ctx().writeAndFlush(Commands.newRedeliverUnacknowledgedMessages(
-                        consumerId, consumerEpoch.get()), cnx.ctx().voidPromise());
+                        consumerId, CONSUMER_EPOCH.get(this)), cnx.ctx().voidPromise());
                 if (currentSize > 0) {
                     increaseAvailablePermits(cnx, currentSize);
                 }

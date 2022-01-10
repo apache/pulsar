@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
+import static org.apache.pulsar.client.impl.ConsumerBase.DEFAULT_CONSUMER_EPOCH;
 import io.netty.util.Recycler;
 import java.util.Iterator;
 import java.util.List;
@@ -282,13 +283,13 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     @Override
-    public void redeliverUnacknowledgedMessages(Consumer consumer) {
+    public void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
         topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topicName, SafeRun.safeRun(() -> {
-            internalRedeliverUnacknowledgedMessages(consumer);
+            internalRedeliverUnacknowledgedMessages(consumer, consumerEpoch);
         }));
     }
 
-    private synchronized void internalRedeliverUnacknowledgedMessages(Consumer consumer) {
+    private synchronized void internalRedeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
         if (consumer != ACTIVE_CONSUMER_UPDATER.get(this)) {
             log.info("[{}-{}] Ignoring reDeliverUnAcknowledgedMessages: Only the active consumer can call resend",
                     name, consumer);
@@ -304,6 +305,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         cancelPendingRead();
 
         if (!havePendingRead) {
+            if (consumerEpoch > consumer.getConsumerEpoch()) {
+                consumer.setConsumerEpoch(consumerEpoch);
+            }
             cursor.rewind();
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] Cursor rewinded, redelivering unacknowledged messages. ", name, consumer);
@@ -320,7 +324,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     public void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
         // We cannot redeliver single messages to single consumers to preserve ordering.
         positions.forEach(redeliveryTracker::addIfAbsent);
-        redeliverUnacknowledgedMessages(consumer);
+        redeliverUnacknowledgedMessages(consumer, DEFAULT_CONSUMER_EPOCH);
     }
 
     @Override

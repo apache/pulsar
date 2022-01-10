@@ -132,7 +132,7 @@ public class Consumer {
 
     @Getter
     @Setter
-    private volatile long consumerEpoch = DEFAULT_CONSUMER_EPOCH;
+    private volatile long consumerEpoch;
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
@@ -755,7 +755,7 @@ public class Consumer {
         return priorityLevel;
     }
 
-    public void redeliverUnacknowledgedMessages() {
+    public void redeliverUnacknowledgedMessages(long consumerEpoch) {
         // cleanup unackedMessage bucket and redeliver those unack-msgs again
         clearUnAckedMsgs();
         blockedConsumerOnUnackedMsgs = false;
@@ -778,7 +778,7 @@ public class Consumer {
             msgRedeliver.recordMultipleEvents(totalRedeliveryMessages.intValue(), totalRedeliveryMessages.intValue());
             subscription.redeliverUnacknowledgedMessages(this, pendingPositions);
         } else {
-            subscription.redeliverUnacknowledgedMessages(this);
+            subscription.redeliverUnacknowledgedMessages(this, consumerEpoch);
         }
 
         flowConsumerBlockedPermits(this);

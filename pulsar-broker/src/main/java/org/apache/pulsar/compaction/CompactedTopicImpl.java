@@ -97,7 +97,7 @@ public class CompactedTopicImpl implements CompactedTopic {
                 cursorPosition = (PositionImpl) cursor.getReadPosition();
             }
 
-            // TODO: redeliver epoch
+            // TODO: redeliver epoch link https://github.com/apache/pulsar/issues/13690
             ReadEntriesCtx readEntriesCtx = ReadEntriesCtx.create(consumer, DEFAULT_CONSUMER_EPOCH);
             if (compactionHorizon == null
                 || compactionHorizon.compareTo(cursorPosition) < 0) {

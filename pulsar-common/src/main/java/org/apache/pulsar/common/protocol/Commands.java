@@ -555,7 +555,7 @@ public class Commands {
                Map<String, String> metadata, boolean readCompacted, boolean isReplicated,
                InitialPosition subscriptionInitialPosition, long startMessageRollbackDurationInSec,
                SchemaInfo schemaInfo, boolean createTopicIfDoesNotExist, KeySharedPolicy keySharedPolicy,
-               Map<String, String> subscriptionProperties, long epoch) {
+               Map<String, String> subscriptionProperties, long consumerEpoch) {
         BaseCommand cmd = localCmd(Type.SUBSCRIBE);
         CommandSubscribe subscribe = cmd.setSubscribe()
                 .setTopic(topic)
@@ -570,7 +570,7 @@ public class Commands {
                 .setInitialPosition(subscriptionInitialPosition)
                 .setReplicateSubscriptionState(isReplicated)
                 .setForceTopicCreation(createTopicIfDoesNotExist)
-                .setEpoch(epoch);
+                .setConsumerEpoch(consumerEpoch);
 
         if (subscriptionProperties != null && !subscriptionProperties.isEmpty()) {
             List<KeyValue> keyValues = new ArrayList<>();

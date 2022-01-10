@@ -712,7 +712,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     @Override
-    public synchronized void redeliverUnacknowledgedMessages(Consumer consumer) {
+    public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
         consumer.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
             addMessageToReplay(ledgerId, entryId, stickyKeyHash);
         });

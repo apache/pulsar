@@ -30,7 +30,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -285,8 +284,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
 
         Field field = ConsumerBase.class.getDeclaredField("consumerEpoch");
         field.setAccessible(true);
-        AtomicLong epoch = (AtomicLong) field.get(consumer);
-        epoch.set(1);
+        field.set(consumer, 1);
         Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
         assertNull(message);
         consumer.redeliverUnacknowledgedMessages();
@@ -295,7 +293,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         consumer.acknowledgeCumulativeAsync(message).get();
         assertEquals(message.getValue(), test1);
 
-        epoch.set(3);
+        field.set(consumer, 3);
 
         producer.send(test2);
         message = consumer.receive(3, TimeUnit.SECONDS);
@@ -308,7 +306,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         assertNotNull(message);
         assertEquals(message.getValue(), test2);
 
-        epoch.set(6);
+        field.set(consumer, 6);
         producer.send(test3);
         message = consumer.receive(3, TimeUnit.SECONDS);
         assertNull(message);

@@ -389,7 +389,7 @@ message CommandSubscribe {
     repeated KeyValue subscription_properties = 18;
 
     // The consumer epoch, when exclusive and failover consumer redeliver unack message will increase the epoch
-    optional uint64 epoch = 19 [default = 0];
+    optional uint64 consumer_epoch = 19;
 }
 
 message CommandPartitionedTopicMetadata {
@@ -529,7 +529,7 @@ message CommandMessage {
     required MessageIdData message_id = 2;
     optional uint32 redelivery_count  = 3 [default = 0];
     repeated int64 ack_set = 4;
-    optional uint64 consumer_epoch = 5 [default = 0];
+    optional uint64 consumer_epoch = 5;
 }
 
 message CommandAck {
@@ -620,7 +620,7 @@ message CommandCloseConsumer {
 message CommandRedeliverUnacknowledgedMessages {
     required uint64 consumer_id = 1;
     repeated MessageIdData message_ids = 2;
-    optional uint64 consumer_epoch = 3 [default = 0];
+    optional uint64 consumer_epoch = 3;
 }
 
 message CommandSuccess {

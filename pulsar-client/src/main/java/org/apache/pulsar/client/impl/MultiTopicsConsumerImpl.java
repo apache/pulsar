@@ -331,7 +331,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     // it has been sent to the client before the user calls redeliverUnacknowledgedMessages, this message is invalid.
     // so we should release this message and receive again
     private boolean checkTopicMessageConsumerEpochIsSmallerThanConsumer(Message<T> message) {
-        return checkMessageConsumerEpochIsSmallerThanConsumer(((MessageImpl<T>) (((TopicMessageImpl<T>) message))
+        return isValidConsumerEpoch(((MessageImpl<T>) (((TopicMessageImpl<T>) message))
                 .getMessage()));
     }
 
@@ -670,7 +670,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     public void redeliverUnacknowledgedMessages() {
         lock.writeLock().lock();
         try {
-            this.consumerEpoch.incrementAndGet();
+            CONSUMER_EPOCH.incrementAndGet(this);
             consumers.values().stream().forEach(consumer -> {
                 consumer.redeliverUnacknowledgedMessages();
                 consumer.unAckedChunkedMessageIdSequenceMap.clear();

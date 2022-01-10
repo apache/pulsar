@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.unsafeGetPartitionedTopicMetadataAsync;
 import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
+import static org.apache.pulsar.client.impl.ConsumerBase.DEFAULT_CONSUMER_EPOCH;
 import static org.apache.pulsar.common.api.proto.ProtocolVersion.v5;
 import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
 import com.google.common.annotations.VisibleForTesting;
@@ -950,10 +951,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 TopicOperation.CONSUME
         );
 
-        // move this because we should make the sub in this channel use one consumer future and do such as redeliver op
-        CompletableFuture<Consumer> consumerFuture = new CompletableFuture<>();
+        // Make sure the consumer future is put into the consumers map first to avoid the same consumer
+        //ID using different consumer futures, and only remove the consumer future from the map if subscribe failed .
         CompletableFuture<Consumer> existingConsumerFuture = consumers.putIfAbsent(consumerId,
-                consumerFuture);
+                new CompletableFuture<>());
         isAuthorizedFuture.thenApply(isAuthorized -> {
             if (isAuthorized) {
                 if (log.isDebugEnabled()) {
@@ -1023,6 +1024,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                 new SubscriptionNotFoundException(
                                                         "Subscription does not exist"));
                             }
+                            long consumerEpoch = DEFAULT_CONSUMER_EPOCH;
+                            if (subscribe.hasConsumerEpoch()) {
+                                consumerEpoch = subscribe.getConsumerEpoch();
+                            }
                             SubscriptionOption option = SubscriptionOption.builder().cnx(ServerCnx.this)
                                     .subscriptionName(subscriptionName)
                                     .consumerId(consumerId).subType(subType).priorityLevel(priorityLevel)
@@ -1033,7 +1038,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     .replicatedSubscriptionStateArg(isReplicated).keySharedMeta(keySharedMeta)
                                     .subscriptionProperties(SubscriptionOption.getPropertiesMap(
                                             subscribe.getSubscriptionPropertiesList()))
-                                    .consumerEpoch(subscribe.getEpoch())
+                                    .consumerEpoch(consumerEpoch)
                                     .build();
                             if (schema != null) {
                                 return topic.addSchemaIfIdleOrCheckCompatible(schema)
@@ -1500,7 +1505,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 consumer.redeliverUnacknowledgedMessages(redeliver.getMessageIdsList());
             } else {
                 consumer.setConsumerEpoch(redeliver.getConsumerEpoch());
-                consumer.redeliverUnacknowledgedMessages();
+                if (redeliver.hasConsumerEpoch()) {
+                    consumer.redeliverUnacknowledgedMessages(redeliver.getConsumerEpoch());
+                } else {
+                    consumer.redeliverUnacknowledgedMessages(DEFAULT_CONSUMER_EPOCH);
+                }
             }
         }
     }
