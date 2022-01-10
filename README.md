@@ -270,7 +270,7 @@ required plugins.
     3. Reopen IntelliJ.
   * If that still doesn't work:
     1. Verify Maven is using a supported version. Currently, the supported version of Maven is 3.6.1.
-    * Try "restart and clear caches" in IntelliJ and repeat the above steps to reload projects and generate sources.
+    2. Try "restart and clear caches" in IntelliJ and repeat the above steps to reload projects and generate sources.
 
 ### Eclipse
 
