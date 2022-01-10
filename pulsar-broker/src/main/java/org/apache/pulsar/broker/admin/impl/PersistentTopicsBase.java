@@ -3643,7 +3643,7 @@ public class PersistentTopicsBase extends AdminResource {
             if (e.getCause() instanceof NotAllowedException) {
                 throw new RestException(Status.BAD_REQUEST, e.getCause());
             }
-            throw new RestException(e.getCause());
+            throw new RestException(e.getCause() == null ? e : e.getCause());
         }
     }
 
