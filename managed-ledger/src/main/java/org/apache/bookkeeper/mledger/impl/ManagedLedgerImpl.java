@@ -2751,13 +2751,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    private void asyncDeleteOffloadedLedger(long ledgerId, LedgerInfo info, DeleteLedgerCallback callback) {
+    private void asyncDeleteOffloadedLedger(long ledgerId, LedgerInfo info, int retry, DeleteLedgerCallback callback) {
         if (info.getOffloadContext().hasUidMsb()) {
             UUID uuid = new UUID(info.getOffloadContext().getUidMsb(), info.getOffloadContext().getUidLsb());
             cleanupOffloaded(ledgerId, uuid,
                     OffloadUtils.getOffloadDriverName(info, config.getLedgerOffloader().getOffloadDriverName()),
                     OffloadUtils.getOffloadDriverMetadata(info, config.getLedgerOffloader().getOffloadDriverMetadata()),
-                    "Trimming", callback);
+                    "Trimming", retry, callback);
         }
     }
 
@@ -3192,44 +3192,61 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private void cleanupOffloaded(long ledgerId, UUID uuid, String offloadDriverName,
                                   Map<String, String> offloadDriverMetadata, String cleanupReason) {
-        cleanupOffloaded(ledgerId, uuid, offloadDriverName, offloadDriverMetadata, cleanupReason, new DeleteLedgerCallback() {
-            @Override
-            public void deleteLedgerComplete(Object ctx) {
+        cleanupOffloaded(
+                ledgerId,
+                uuid,
+                offloadDriverName,
+                offloadDriverMetadata,
+                cleanupReason,
+                DEFAULT_LEDGER_DELETE_RETRIES,
+                new DeleteLedgerCallback() {
+                    @Override
+                    public void deleteLedgerComplete(Object ctx) {
 
-            }
+                    }
 
-            @Override
-            public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                    @Override
+                    public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
 
-            }
-        });
+                    }
+                });
     }
 
     private void cleanupOffloaded(long ledgerId, UUID uuid, String offloadDriverName, /*
                                                                                        * TODO: use driver name to
                                                                                        * identify offloader
                                                                                        */
-            Map<String, String> offloadDriverMetadata, String cleanupReason, DeleteLedgerCallback callback) {
+            Map<String, String> offloadDriverMetadata, String cleanupReason, int retry, DeleteLedgerCallback callback) {
+        if (retry <= 0) {
+            log.warn("[{}] Failed to delete offloaded ledger after retries {} / {}", name, ledgerId, uuid);
+            callback.deleteLedgerFailed(
+                    new ManagedLedgerException("Failed to delete offloaded ledger after retries"), null);
+            return;
+        }
+
         log.info("[{}] Cleanup offload for ledgerId {} uuid {} because of the reason {}.",
                 name, ledgerId, uuid.toString(), cleanupReason);
         Map<String, String> metadataMap = Maps.newHashMap();
         metadataMap.putAll(offloadDriverMetadata);
         metadataMap.put("ManagedLedgerName", name);
 
-        Retries
-                // The purpose of not specifying the scheduler's key explicitly here is to avoid deadlock.
-                // Otherwise when the caller of this method and the retry task are both running in the same
-                // ordering thread, there will be a risk of race-condition.
-                .run(
-                        Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1), TimeUnit.SECONDS.toHours(1)).limit(10),
-                        Retries.NonFatalPredicate,
-                        () -> config.getLedgerOffloader().deleteOffloaded(ledgerId, uuid, metadataMap),
-                        scheduledExecutor)
+        config.getLedgerOffloader()
+                .deleteOffloaded(ledgerId, uuid, metadataMap)
                 .whenComplete((ignored, exception) -> {
                     if (exception != null) {
                         log.warn("[{}] Error cleaning up offload for {}, (cleanup reason: {})",
                                 name, ledgerId, cleanupReason, exception);
-                        callback.deleteLedgerFailed(createManagedLedgerException(exception), null);
+                        scheduledExecutor.schedule(
+                                safeRun(() -> cleanupOffloaded(
+                                        ledgerId,
+                                        uuid,
+                                        offloadDriverName,
+                                        offloadDriverMetadata,
+                                        cleanupReason,
+                                        retry - 1,
+                                        callback)),
+                                DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC, TimeUnit.SECONDS);
+                        return;
                     }
                     callback.deleteLedgerComplete(null);
                 });
@@ -4206,7 +4223,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         for (Long deletableOffloadedLedger : deletableOffloadedLedgers) {
-            asyncDeleteOffloadedLedger(deletableOffloadedLedger, ledgers.get(deletableOffloadedLedger),
+            asyncDeleteOffloadedLedger(deletableOffloadedLedger,
+                    ledgers.get(deletableOffloadedLedger), DEFAULT_LEDGER_DELETE_RETRIES,
                     new DeleteLedgerCallback() {
                         @Override
                         public void deleteLedgerComplete(Object ctx) {
