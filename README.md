@@ -269,7 +269,7 @@ required plugins.
     2. Run `mvn clean install -DskipTests` on the command line.
     3. Reopen IntelliJ.
   * If that still doesn't work:
-    * Verify maven is using a supported version. Currently, the supported version of Maven is 3.6.1
+    1. Verify Maven is using a supported version. Currently, the supported version of Maven is 3.6.1.
     * Try "restart and clear caches" in IntelliJ and repeat the above steps to reload projects and generate sources.
 
 ### Eclipse
