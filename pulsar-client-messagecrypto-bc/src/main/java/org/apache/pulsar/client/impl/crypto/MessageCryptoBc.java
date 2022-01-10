@@ -389,6 +389,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             return;
         }
 
+        msgMetadata.clearEncryptionKeys();
         // Update message metadata with encrypted data key
         for (String keyName : encKeys) {
             if (encryptedDataKeyMap.get(keyName) == null) {
