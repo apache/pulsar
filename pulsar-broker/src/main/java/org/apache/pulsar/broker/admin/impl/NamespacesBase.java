@@ -60,6 +60,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -265,12 +266,15 @@ public abstract class NamespacesBase extends AdminResource {
         // remove system topics first.
         if (!topics.isEmpty()) {
             for (String topic : topics) {
-                pulsar().getBrokerService().getTopicIfExists(topic).whenComplete((topicOptional, ex) -> {
-                    topicOptional.ifPresent(systemTopic -> {
-                        futures.add(((PersistentTopic) systemTopic).terminate()
-                                .thenAccept(__ -> systemTopic.deleteForcefully()));
-                    });
-                });
+                try {
+                    Topics cli = pulsar().getAdminClient().topics();
+                    futures.add(cli.terminateTopicAsync(topic).thenCompose(__ ->
+                            cli.deleteAsync(topic, true, true)));
+                } catch (Exception ex) {
+                    log.error("[{}] Failed to delete system topic {}", topic, clientAppId(), ex);
+                    asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, ex));
+                    return;
+                }
             }
         }
         FutureUtil.waitForAll(futures).thenAccept(r -> {
