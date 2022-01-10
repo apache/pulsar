@@ -2108,5 +2108,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return semaphore;
     }
 
+    @VisibleForTesting
+    boolean isErrorStat() {
+        return errorState;
+    }
+
     private static final Logger log = LoggerFactory.getLogger(ProducerImpl.class);
 }
