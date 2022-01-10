@@ -22,6 +22,11 @@
 --  [TOTAL_SIZE] [CMD_SIZE][CMD] [MAGIC_NUMBER][CHECKSUM] [METADATA_SIZE][METADATA] [PAYLOAD]
 do
     local protobuf_dissector = Dissector.get("protobuf")
+
+    -- Create protobuf dissector based on UDP or TCP.
+    -- The UDP dissector will take the whole tvb as a message.
+    -- The TCP dissector will parse tvb as format:
+    --         [4bytes length][a message][4bytes length][a message]...
     -- @param name  The name of the new dissector.
     -- @param desc  The description of the new dissector.
     -- @param for_udp  Register the new dissector to UDP table.(Enable 'Decode as')
@@ -29,8 +34,10 @@ do
     -- @param msgtype  Message type. This must be the root message defined in your .proto file.
     local function create_protobuf_dissector(name, desc, for_udp, for_tcp, msgtype)
         local proto = Proto(name, desc)
-        local f_payload = ProtoField.bytes(name .. ".PayLoad", "PayLoad", base.Dec)
-        proto.fields = {f_payload}
+
+        local f_proto = ProtoField.bytes(name .. ".PayLoad", "PayLoad", base.Dec)
+        local f_length = ProtoField.uint32(name .. ".length", "Length", base.DEC)
+        proto.fields = {f_length, f_proto}
 
         proto.dissector = function(tvb, pinfo, tree)
             local subtree = tree:add(proto, tvb())
@@ -40,8 +47,14 @@ do
                 end
                 pcall(Dissector.call, protobuf_dissector, tvb, pinfo, subtree)
             elseif for_tcp and pinfo.port_type == 2 then -- TCP
+                if 4 > tvb:len() then
+                    return
+                end
                 local offset = 0
                 local totalLength = tvb(offset, 4):uint()
+                if totalLength + 4 > tvb:len() then
+                    return
+                end
                 offset = offset + 4
                 local commandLenth = tvb(offset, 4):uint()
                 offset = offset + 4
@@ -54,12 +67,15 @@ do
                     local checkSum = tvb(offset, 2):bytes():tohex()
                     -- has not checksum ,but has payload
                     if checkSum ~= '0E01' then
+                        print(checkSum)
                         local metaSize = tvb(offset, 4):uint()
+                        print(metaSize)
+                        print(tvb(offset, metaSize):tvb())
                         pinfo.private["pb_msg_type"] = "message,pulsar.proto.MessageMetadata"
                         offset = offset + 4
                         pcall(Dissector.call, protobuf_dissector, tvb(offset, metaSize):tvb(), pinfo, subtree)
-                        offset=offset+metaSize
-                        subtree:add(f_payload, tvb(offset, totalLength-offset+4))
+                        offset = offset + metaSize
+                        subtree:add(f_proto, tvb(offset, totalLength - offset))
                     end
                     -- has checksum , has payload
                     if checkSum == '0E01' then
@@ -68,8 +84,8 @@ do
                         pinfo.private["pb_msg_type"] = "message,pulsar.proto.MessageMetadata"
                         offset = offset + 4
                         pcall(Dissector.call, protobuf_dissector, tvb(offset, metaSize):tvb(), pinfo, subtree)
-                        offset=offset+metaSize
-                        subtree:add(f_payload, tvb(offset, totalLength-offset+4))
+                        offset = offset + metaSize
+                        subtree:add(f_proto, tvb(offset, totalLength - offset + 4))
                     end
 
                 end
