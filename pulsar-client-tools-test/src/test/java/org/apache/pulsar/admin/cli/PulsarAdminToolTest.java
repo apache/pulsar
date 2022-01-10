@@ -1811,8 +1811,8 @@ public class PulsarAdminToolTest {
                         .rack("rack-1")
                         .hostname("host-1")
                         .build());
-        // test invalid rack name ""
 
+        // test invalid rack name ""
         try {
             BookieInfo.builder().rack("").hostname("host-1").build();
             fail();
