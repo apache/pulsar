@@ -34,6 +34,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -131,6 +132,23 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         // remove global topic policy
         admin1.topicPolicies(true).removeSubscribeRate(topic);
         untilRemoteClustersAsserted(admin -> assertNull(admin.topicPolicies(true).getSubscribeRate(topic)));
+    }
+
+    @Test
+    public void testReplicateMaxMessageSizePolicies() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+        init(namespace, topic);
+        // set global topic policy
+        admin1.topicPolicies(true).setMaxMessageSize(topic, 1000);
+
+        // get global topic policy
+        untilRemoteClustersAsserted(
+                admin -> assertEquals(admin.topicPolicies(true).getMaxMessageSize(topic), Integer.valueOf(1000)));
+
+        // remove global topic policy
+        admin1.topicPolicies(true).removeMaxMessageSize(topic);
+        untilRemoteClustersAsserted(admin -> assertNull(admin.topicPolicies(true).getMaxMessageSize(topic)));
     }
 
     @Test
@@ -367,6 +385,26 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
     }
 
     @Test
+    public void testReplicateDelayedDelivery() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+        init(namespace, topic);
+        DelayedDeliveryPolicies policies = DelayedDeliveryPolicies.builder().active(true).tickTime(10000L).build();
+        // set delayed delivery
+        admin1.topicPolicies(true).setDelayedDeliveryPolicy(topic, policies);
+        Awaitility.await().ignoreExceptions().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true).getDelayedDeliveryPolicy(topic), policies));
+        Awaitility.await().ignoreExceptions().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true).getDelayedDeliveryPolicy(topic), policies));
+        // remove delayed delivery
+        admin1.topicPolicies(true).removeDelayedDeliveryPolicy(topic);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin2.topicPolicies(true).getDelayedDeliveryPolicy(topic)));
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin3.topicPolicies(true).getDelayedDeliveryPolicy(topic)));
+    }
+
+    @Test
     public void testReplicatorInactiveTopicPolicies() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();
@@ -436,6 +474,30 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin2.topicPolicies(true).getMaxUnackedMessagesOnSubscription(topic)));
         Awaitility.await().untilAsserted(() ->
                 assertNull(admin3.topicPolicies(true).getMaxUnackedMessagesOnSubscription(topic)));
+    }
+
+    @Test
+    public void testReplicatorCompactionThresholdPolicies() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+
+        init(namespace, persistentTopicName);
+        // set compaction threshold
+        admin1.topicPolicies(true).setCompactionThreshold(persistentTopicName, 1);
+        // get compaction threshold
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true)
+                        .getCompactionThreshold(persistentTopicName), Long.valueOf(1)));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true)
+                        .getCompactionThreshold(persistentTopicName), Long.valueOf(1)));
+
+        //remove compaction threshold
+        admin1.topicPolicies(true).removeCompactionThreshold(persistentTopicName);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin2.topicPolicies(true).getCompactionThreshold(persistentTopicName)));
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin3.topicPolicies(true).getCompactionThreshold(persistentTopicName)));
     }
 
     private void init(String namespace, String topic)

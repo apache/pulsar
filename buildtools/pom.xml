@@ -40,10 +40,12 @@
     <maven.compiler.target>1.8</maven.compiler.target>
     <surefire.version>3.0.0-M3</surefire.version>
     <log4j2.version>2.17.1</log4j2.version>
-    <slf4j.version>1.7.25</slf4j.version>
+    <slf4j.version>1.7.32</slf4j.version>
     <testng.version>7.3.0</testng.version>
     <commons-lang3.version>3.11</commons-lang3.version>
     <maven-shade-plugin.version>3.2.4</maven-shade-plugin.version>
+    <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
+    <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
   </properties>
 
   <dependencyManagement>
@@ -185,11 +187,12 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
+        <version>${maven-checkstyle-plugin.version}</version>
         <dependencies>
           <dependency>
             <groupId>com.puppycrawl.tools</groupId>
             <artifactId>checkstyle</artifactId>
-            <version>8.37</version>
+            <version>${puppycrawl.checkstyle.version}</version>
           </dependency>
         </dependencies>
         <configuration>

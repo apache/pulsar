@@ -111,6 +111,8 @@ void Consumer_seek_timestamp(Consumer& consumer, uint64_t timestamp) {
         CHECK_RESULT(res);
 }
 
+bool Consumer_is_connected(Consumer& consumer) { return consumer.isConnected(); }
+
 void export_consumer() {
     using namespace boost::python;
 
@@ -132,5 +134,6 @@ void export_consumer() {
         .def("resume_message_listener", &Consumer_resumeMessageListener)
         .def("redeliver_unacknowledged_messages", &Consumer::redeliverUnacknowledgedMessages)
         .def("seek", &Consumer_seek)
-        .def("seek", &Consumer_seek_timestamp);
+        .def("seek", &Consumer_seek_timestamp)
+        .def("is_connected", &Consumer_is_connected);
 }
