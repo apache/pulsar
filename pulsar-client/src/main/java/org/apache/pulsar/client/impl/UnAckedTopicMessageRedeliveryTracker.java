@@ -20,14 +20,13 @@ package org.apache.pulsar.client.impl;
 
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 
 import java.util.Iterator;
 
-public class UnAckedTopicMessageTracker extends UnAckedMessageTracker {
+public class UnAckedTopicMessageRedeliveryTracker extends UnAckedMessageRedeliveryTracker {
 
-    public UnAckedTopicMessageTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase,
-                                       ConsumerConfigurationData<?> conf) {
+    public UnAckedTopicMessageRedeliveryTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase,
+                                                ConsumerConfigurationData<?> conf) {
         super(client, consumerBase, conf);
     }
 
@@ -35,17 +34,13 @@ public class UnAckedTopicMessageTracker extends UnAckedMessageTracker {
         writeLock.lock();
         try {
             int removed = 0;
-            Iterator<MessageId> iterator = messageIdPartitionMap.keySet().iterator();
+            Iterator<MessageId> iterator = ackTimeoutMessages.keySet().iterator();
             while (iterator.hasNext()) {
                 MessageId messageId = iterator.next();
                 if (messageId instanceof TopicMessageIdImpl &&
-                        ((TopicMessageIdImpl)messageId).getTopicPartitionName().contains(topicName)) {
-                    ConcurrentOpenHashSet<MessageId> exist = messageIdPartitionMap.get(messageId);
-                    if (exist != null) {
-                        exist.remove(messageId);
-                    }
+                        ((TopicMessageIdImpl) messageId).getTopicPartitionName().contains(topicName)) {
                     iterator.remove();
-                    removed ++;
+                    removed++;
                 }
             }
             return removed;

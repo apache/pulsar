@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.NotSupportedException;
+import org.apache.pulsar.client.api.RedeliveryBackoff;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -152,10 +153,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         this.paused = conf.isStartPaused();
 
         if (conf.getAckTimeoutMillis() != 0) {
-            if (conf.getTickDurationMillis() > 0) {
-                this.unAckedMessageTracker = new UnAckedTopicMessageTracker(client, this, conf.getAckTimeoutMillis(), conf.getTickDurationMillis());
+            if (conf.getAckTimeoutRedeliveryBackoff() != null) {
+                this.unAckedMessageTracker = new UnAckedTopicMessageRedeliveryTracker(client, this, conf);
             } else {
-                this.unAckedMessageTracker = new UnAckedTopicMessageTracker(client, this, conf.getAckTimeoutMillis());
+                this.unAckedMessageTracker = new UnAckedTopicMessageTracker(client, this, conf);
             }
         } else {
             this.unAckedMessageTracker = UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED;
@@ -296,7 +297,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         // if asyncReceive is waiting : return message to callback without adding to incomingMessages queue
         CompletableFuture<Message<T>> receivedFuture = nextPendingReceive();
         if (receivedFuture != null) {
-            unAckedMessageTracker.add(topicMessage.getMessageId());
+            unAckedMessageTracker.add(topicMessage.getMessageId(), topicMessage.getRedeliveryCount());
             completePendingReceive(receivedFuture, topicMessage);
         } else if (enqueueMessageAndCheckBatchReceive(topicMessage) && hasPendingBatchReceive()) {
             notifyPendingBatchReceivedCallBack();
@@ -309,7 +310,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     protected synchronized void messageProcessed(Message<?> msg) {
-        unAckedMessageTracker.add(msg.getMessageId());
+        unAckedMessageTracker.add(msg.getMessageId(), msg.getRedeliveryCount());
         decreaseIncomingMessageSize(msg);
     }
 
@@ -335,7 +336,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             message = incomingMessages.take();
             decreaseIncomingMessageSize(message);
             checkState(message instanceof TopicMessageImpl);
-            unAckedMessageTracker.add(message.getMessageId());
+            unAckedMessageTracker.add(message.getMessageId(), message.getRedeliveryCount());
             resumeReceivingFromPausedConsumersIfNeeded();
             return message;
         } catch (Exception e) {
@@ -351,7 +352,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             if (message != null) {
                 decreaseIncomingMessageSize(message);
                 checkArgument(message instanceof TopicMessageImpl);
-                unAckedMessageTracker.add(message.getMessageId());
+                unAckedMessageTracker.add(message.getMessageId(), message.getRedeliveryCount());
             }
             resumeReceivingFromPausedConsumersIfNeeded();
             return message;
@@ -419,7 +420,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             } else {
                 decreaseIncomingMessageSize(message);
                 checkState(message instanceof TopicMessageImpl);
-                unAckedMessageTracker.add(message.getMessageId());
+                unAckedMessageTracker.add(message.getMessageId(), message.getRedeliveryCount());
                 resumeReceivingFromPausedConsumersIfNeeded();
                 result.complete(message);
             }

@@ -29,7 +29,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.NegativeAckRedeliveryBackoff;
+import org.apache.pulsar.client.api.RedeliveryBackoff;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import static org.apache.pulsar.client.impl.UnAckedMessageTracker.addChunkedMessageIdsAndRemoveFromSequenceMap;
 
@@ -41,7 +41,7 @@ class NegativeAcksTracker implements Closeable {
     private final Timer timer;
     private final long nackDelayNanos;
     private final long timerIntervalNanos;
-    private final NegativeAckRedeliveryBackoff negativeAckRedeliveryBackoff;
+    private final RedeliveryBackoff negativeAckRedeliveryBackoff;
 
     private Timeout timeout;
 
