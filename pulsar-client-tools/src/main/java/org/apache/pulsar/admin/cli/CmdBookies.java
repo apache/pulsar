@@ -93,7 +93,7 @@ public class CmdBookies extends CmdBase {
 
         @Override
         void run() throws Exception {
-            checkArgument(!Strings.isNullOrEmpty(bookieRack) && !bookieRack.equals(PATH_SEPARATOR),
+            checkArgument(!Strings.isNullOrEmpty(bookieRack) && !bookieRack.trim().equals(PATH_SEPARATOR),
                     "rack name is invalid, it should not be null, empty or '/'");
 
             getAdmin().bookies().updateBookieRackInfo(bookieAddress, group,
