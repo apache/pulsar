@@ -295,8 +295,8 @@ public abstract class NamespacesBase extends AdminResource {
                 return;
             }
         }).exceptionally(e -> {
-            log.error("[{}] Failed to remove owned namespace {}", clientAppId(), namespaceName, e);
-            asyncResponse.resume(new RestException(e));
+            log.error("[{}] Failed to remove owned namespace {}", clientAppId(), namespaceName, e.getCause());
+            asyncResponse.resume(new RestException(e.getCause()));
             return null;
         });
 
