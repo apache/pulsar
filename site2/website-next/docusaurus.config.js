@@ -177,14 +177,14 @@ module.exports = {
               label: "Contact",
               to: "/:locale/contact",
             },
-            // {
-            //   label: "Contributing",
-            //   to: "/:locale/contributing",
-            // },
-            // {
-            //   label: "Coding guide",
-            //   to: "/:locale/coding-guide",
-            // },
+            {
+              label: "Contributing",
+              to: "/:locale/contributing",
+            },
+            {
+              label: "Coding guide",
+              to: "/:locale/coding-guide",
+            },
             // {
             //   label: "Events",
             //   to: "/:locale/events",
