@@ -52,7 +52,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.metadata.api.GetResult;
@@ -69,10 +68,6 @@ import org.apache.pulsar.metadata.impl.batching.OpDelete;
 import org.apache.pulsar.metadata.impl.batching.OpGet;
 import org.apache.pulsar.metadata.impl.batching.OpGetChildren;
 import org.apache.pulsar.metadata.impl.batching.OpPut;
-import org.apache.zookeeper.AddWatchMode;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.WatchedEvent;
-import org.apache.zookeeper.Watcher;
 
 @Slf4j
 public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
@@ -330,11 +325,12 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
                 if (ops.size() > 1 && cause instanceof StatusRuntimeException) {
                     Status.Code code = ((StatusRuntimeException) cause).getStatus().getCode();
                     if (
-                        // This could be caused by having repeated keys in the batch, retry individually
-                            code == Status.Code.INVALID_ARGUMENT ||
-
-                                    // We might have exceeded the max-frame size for the respons
-                                    code == Status.Code.RESOURCE_EXHAUSTED
+                            code == Status.Code.INVALID_ARGUMENT /* This could be caused by having repeated keys
+                                    in the batch, retry individually */
+                                    ||
+                                    code
+                                            == Status.Code.RESOURCE_EXHAUSTED /* We might have exceeded the max-frame
+                                             size for the response */
                     ) {
                         ops.forEach(o -> batchOperation(Collections.singletonList(o)));
                     }

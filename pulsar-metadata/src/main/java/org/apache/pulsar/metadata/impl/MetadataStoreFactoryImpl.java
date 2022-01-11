@@ -48,10 +48,9 @@ public class MetadataStoreFactoryImpl {
 
         if (metadataURL.startsWith("memory://")) {
             return new LocalMemoryMetadataStore(metadataURL, metadataStoreConfig);
-        }
-        if (metadataURL.startsWith("rocksdb://")) {
+        } else if (metadataURL.startsWith("rocksdb://")) {
             return RocksdbMetadataStore.get(metadataURL, metadataStoreConfig);
-        } if (metadataURL.startsWith(EtcdMetadataStore.ETCD_SCHEME_IDENTIFIER)) {
+        } else if (metadataURL.startsWith(EtcdMetadataStore.ETCD_SCHEME_IDENTIFIER)) {
             return new EtcdMetadataStore(metadataURL, metadataStoreConfig, enableSessionWatcher);
         } else {
             return new ZKMetadataStore(metadataURL, metadataStoreConfig, enableSessionWatcher);

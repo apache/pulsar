@@ -35,7 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 
 /**
- * Monitor the ETCd session state every few seconds and send notifications
+ * Monitor the ETCd session state every few seconds and send notifications.
  */
 @Slf4j
 public class EtcdSessionWatcher implements AutoCloseable {

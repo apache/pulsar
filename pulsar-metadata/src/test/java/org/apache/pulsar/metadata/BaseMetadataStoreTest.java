@@ -21,7 +21,6 @@ package org.apache.pulsar.metadata;
 import static org.testng.Assert.assertTrue;
 import io.etcd.jetcd.launcher.EtcdCluster;
 import io.etcd.jetcd.launcher.EtcdClusterFactory;
-import io.etcd.jetcd.test.EtcdClusterExtension;
 import java.io.File;
 import java.util.UUID;
 import java.util.concurrent.CompletionException;
