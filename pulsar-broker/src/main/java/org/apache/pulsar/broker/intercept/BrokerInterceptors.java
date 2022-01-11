@@ -167,6 +167,27 @@ public class BrokerInterceptors implements BrokerInterceptor {
     }
 
     @Override
+    public void beginTxn(long tcId, String txnID) {
+        if (interceptors == null || interceptors.isEmpty()) {
+            return;
+        }
+        for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
+            value.beginTxn(tcId, txnID);
+        }
+    }
+
+    @Override
+    public void endTxn(String txnID, long txnAction) {
+        if (interceptors == null || interceptors.isEmpty()) {
+            return;
+        }
+        for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
+            value.endTxn(txnID, txnAction);
+        }
+    }
+
+
+    @Override
     public void onConnectionCreated(ServerCnx cnx) {
         if (interceptors == null || interceptors.isEmpty()) {
             return;

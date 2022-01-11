@@ -124,6 +124,23 @@ public interface BrokerInterceptor extends AutoCloseable {
     }
 
     /**
+     * Intercept when a transaction begins.
+     *
+     * @param tcId Transaction Coordinator Id
+     * @param txnID Transaction ID
+     */
+    default void beginTxn(long tcId, String txnID) {
+    }
+
+    /**
+     * Intercept when a transaction ends.
+     *
+     * @param txnID Transaction ID
+     * @param txnAction Transaction Action
+     */
+    default void endTxn(String txnID, long txnAction) {
+    }
+    /**
      * Called by the broker while new command incoming.
      */
     void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws InterceptException;

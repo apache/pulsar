@@ -93,6 +93,16 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
     }
 
     @Override
+    public void beginTxn(long tcId, String txnID) {
+        this.interceptor.beginTxn(tcId, txnID);
+    }
+
+    @Override
+    public void endTxn(String txnID, long txnAction) {
+        this.interceptor.endTxn(txnID, txnAction);
+    }
+
+    @Override
     public void onConnectionCreated(ServerCnx cnx) {
         this.interceptor.onConnectionCreated(cnx);
     }
