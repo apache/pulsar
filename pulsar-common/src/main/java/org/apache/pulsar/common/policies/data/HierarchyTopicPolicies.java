@@ -44,6 +44,8 @@ public class HierarchyTopicPolicies {
     final PolicyHierarchyValue<Integer> maxConsumerPerTopic;
     final PolicyHierarchyValue<Boolean> delayedDeliveryEnabled;
     final PolicyHierarchyValue<Long> delayedDeliveryTickTimeMillis;
+    final PolicyHierarchyValue<Integer> maxConsumersPerSubscription;
+
 
     public HierarchyTopicPolicies() {
         replicationClusters = new PolicyHierarchyValue<>();
@@ -53,6 +55,7 @@ public class HierarchyTopicPolicies {
         maxSubscriptionsPerTopic = new PolicyHierarchyValue<>();
         maxProducersPerTopic = new PolicyHierarchyValue<>();
         maxConsumerPerTopic = new PolicyHierarchyValue<>();
+        maxConsumersPerSubscription = new PolicyHierarchyValue<>();
         backLogQuotaMap = new ImmutableMap.Builder<BacklogQuotaType, PolicyHierarchyValue<BacklogQuota>>()
                 .put(BacklogQuotaType.destination_storage, new PolicyHierarchyValue<>())
                 .put(BacklogQuotaType.message_age, new PolicyHierarchyValue<>())

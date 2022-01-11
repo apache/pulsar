@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.admin.cli.utils;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.ParameterException;
+import java.util.HashMap;
+import java.util.Map;
 
 public class NameValueParameterSplitter implements IStringConverter<Map<String, String>> {
 
