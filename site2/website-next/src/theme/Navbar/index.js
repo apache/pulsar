@@ -50,6 +50,10 @@ function getApiVersion(anchor) {
   return apiVersion;
 }
 
+function getLauguage() {
+  return "";
+}
+
 function useNavbarItems() {
   // TODO temporary casting until ThemeConfig type is improved
   return useThemeConfig().navbar.items;
@@ -340,6 +344,16 @@ function Navbar() {
                   ...e,
                   link: e.to + "?version=" + getVersion(),
                 };
+              });
+            } else if (item.label == "Community") {
+              item.items = item.items.map((e) => {
+                if (e.to) {
+                  return {
+                    ...e,
+                    to: e.to.replace(/\/:locale/g, getLauguage()),
+                  };
+                }
+                return e;
               });
             }
             return <NavbarItem {...item} key={i} />;
