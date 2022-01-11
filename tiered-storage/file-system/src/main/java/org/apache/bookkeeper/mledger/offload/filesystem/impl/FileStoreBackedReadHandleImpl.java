@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.offload.filesystem.impl;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
+import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -29,6 +30,7 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 
+import org.apache.bookkeeper.mledger.impl.LedgerOffloaderMXBeanImpl;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.MapFile;
@@ -50,16 +52,25 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
     private final MapFile.Reader reader;
     private final long ledgerId;
     private final LedgerMetadata ledgerMetadata;
+    private final LedgerOffloaderMXBeanImpl mxBean;
+    private final String managedLedgerName;
 
-    private FileStoreBackedReadHandleImpl(ExecutorService executor, MapFile.Reader reader, long ledgerId) throws IOException {
+    private FileStoreBackedReadHandleImpl(ExecutorService executor, MapFile.Reader reader, long ledgerId,
+                                          LedgerOffloaderMXBeanImpl mxBean,
+                                          String managedLedgerName) throws IOException {
         this.ledgerId = ledgerId;
         this.executor = executor;
         this.reader = reader;
+        this.mxBean = mxBean;
+        this.managedLedgerName = managedLedgerName;
         LongWritable key = new LongWritable();
         BytesWritable value = new BytesWritable();
         try {
             key.set(FileSystemManagedLedgerOffloader.METADATA_KEY_INDEX);
+            long startReadIndexTime = System.nanoTime();
             reader.get(key, value);
+            mxBean.recordReadOffloadIndexLatency(managedLedgerName,
+                    System.nanoTime() - startReadIndexTime, TimeUnit.NANOSECONDS);
             this.ledgerMetadata = parseLedgerMetadata(ledgerId, value.copyBytes());
         } catch (IOException e) {
             log.error("Fail to read LedgerMetadata for ledgerId {}",
@@ -114,7 +125,9 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
                 key.set(nextExpectedId - 1);
                 reader.seek(key);
                 while (entriesToRead > 0) {
+                    long startReadTime = System.nanoTime();
                     reader.next(key, value);
+                    mxBean.recordReadOffloadDataLatency(managedLedgerName, System.nanoTime() - startReadTime, TimeUnit.NANOSECONDS);
                     int length = value.getLength();
                     long entryId = key.get();
                     if (entryId == nextExpectedId) {
@@ -123,6 +136,7 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
                         buf.writeBytes(value.copyBytes());
                         entriesToRead--;
                         nextExpectedId++;
+                        this.mxBean.recordReadOffloadRate(managedLedgerName, length);
                     } else if (entryId > lastEntry) {
                         log.info("Expected to read {}, but read {}, which is greater than last entry {}",
                                 nextExpectedId, entryId, lastEntry);
@@ -131,6 +145,7 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
             }
                 promise.complete(LedgerEntriesImpl.create(entries));
             } catch (Throwable t) {
+                this.mxBean.recordReadOffloadError(managedLedgerName);
                 promise.completeExceptionally(t);
                 entries.forEach(LedgerEntry::close);
             }
@@ -177,7 +192,8 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
         return promise;
     }
 
-    public static ReadHandle open(ScheduledExecutorService executor, MapFile.Reader reader, long ledgerId) throws IOException {
-            return new FileStoreBackedReadHandleImpl(executor, reader, ledgerId);
+    public static ReadHandle open(ScheduledExecutorService executor, MapFile.Reader reader, long ledgerId,
+                                  LedgerOffloaderMXBeanImpl mxBean, String managedLedgerName) throws IOException {
+        return new FileStoreBackedReadHandleImpl(executor, reader, ledgerId, mxBean, managedLedgerName);
     }
 }

@@ -24,6 +24,7 @@ import java.util.concurrent.CompletableFuture;
 
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.bookkeeper.mledger.LedgerOffloaderMXBean;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 
 /**
@@ -35,6 +36,11 @@ public class NullLedgerOffloader implements LedgerOffloader {
     @Override
     public String getOffloadDriverName() {
         return "NullLedgerOffloader";
+    }
+
+    @Override
+    public LedgerOffloaderMXBean getStats() {
+        return new LedgerOffloaderMXBeanImpl(getOffloadDriverName());
     }
 
     @Override

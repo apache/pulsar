@@ -26,8 +26,10 @@ import com.google.common.collect.Maps;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -50,6 +52,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenReadOnlyCursorCallback;
+import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -240,15 +243,24 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         long period = now - lastStatTimestamp;
 
         mbean.refreshStats(period, TimeUnit.NANOSECONDS);
+        Set<LedgerOffloader> offloaders = new HashSet<>();
         ledgers.values().forEach(mlfuture -> {
             if (mlfuture.isDone() && !mlfuture.isCompletedExceptionally()) {
                 ManagedLedgerImpl ml = mlfuture.getNow(null);
                 if (ml != null) {
                     ml.mbean.refreshStats(period, TimeUnit.NANOSECONDS);
+
+                    // do metrics refresh for each offloader
+                    LedgerOffloader offloader = ml.getConfig().getLedgerOffloader();
+                    if (offloader != null && offloader != NullLedgerOffloader.INSTANCE && !offloaders.contains(offloader)) {
+                        offloaders.add(offloader);
+                        offloader.getStats().refreshStats(period, TimeUnit.NANOSECONDS);
+                    }
                 }
             }
         });
 
+        offloaders.clear();
         lastStatTimestamp = now;
     }
 
