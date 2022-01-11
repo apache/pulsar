@@ -185,10 +185,10 @@ module.exports = {
               label: "Coding guide",
               to: "/:locale/coding-guide",
             },
-            // {
-            //   label: "Events",
-            //   to: "/:locale/events",
-            // },
+            {
+              label: "Events",
+              to: "/:locale/events",
+            },
             {
               label: "Twitter",
               href: "https://twitter.com/Apache_Pulsar",
