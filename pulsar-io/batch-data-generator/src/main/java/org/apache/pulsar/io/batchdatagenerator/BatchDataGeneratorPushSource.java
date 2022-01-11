@@ -20,16 +20,15 @@
 package org.apache.pulsar.io.batchdatagenerator;
 
 import io.codearte.jfairy.Fairy;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.BatchPushSource;
-import org.apache.pulsar.io.core.SourceContext;
-
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.core.BatchPushSource;
+import org.apache.pulsar.io.core.SourceContext;
 
 @Slf4j
 public class BatchDataGeneratorPushSource extends BatchPushSource<Person> implements Runnable {

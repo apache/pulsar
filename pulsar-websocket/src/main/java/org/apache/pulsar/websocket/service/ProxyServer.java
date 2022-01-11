@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.websocket.service;
 
-import com.google.common.collect.Lists;
-
 import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -54,7 +52,7 @@ import org.slf4j.LoggerFactory;
 
 public class ProxyServer {
     private final Server server;
-    private final List<Handler> handlers = Lists.newArrayList();
+    private final List<Handler> handlers = new ArrayList<>();
     private final WebSocketProxyConfiguration conf;
     private final WebExecutorThreadPool executorService;
 

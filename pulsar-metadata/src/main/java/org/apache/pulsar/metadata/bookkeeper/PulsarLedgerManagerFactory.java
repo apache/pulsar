@@ -96,7 +96,7 @@ public class PulsarLedgerManagerFactory implements LedgerManagerFactory {
     @Override
     public void format(AbstractConfiguration<?> abstractConfiguration, LayoutManager layoutManager)
             throws InterruptedException, IOException {
-        // TODO: XXX
+        // TODO: format
     }
 
     @Override

@@ -86,7 +86,6 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyExcep
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
-import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionNotFoundException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
@@ -126,6 +125,7 @@ import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.events.EventsTopicNames;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
@@ -756,7 +756,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     getDurableSubscription(subscriptionName, initialPosition, startMessageRollbackDurationSec,
                             replicatedSubscriptionState, subscriptionProperties)
                     : getNonDurableSubscription(subscriptionName, startMessageId, initialPosition,
-                    startMessageRollbackDurationSec);
+                    startMessageRollbackDurationSec, readCompacted);
 
             int maxUnackedMessages = isDurable
                     ? getMaxUnackedMessagesOnConsumer()
@@ -922,7 +922,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private CompletableFuture<? extends Subscription> getNonDurableSubscription(String subscriptionName,
-            MessageId startMessageId, InitialPosition initialPosition, long startMessageRollbackDurationSec) {
+            MessageId startMessageId, InitialPosition initialPosition, long startMessageRollbackDurationSec,
+            boolean isReadCompacted) {
         log.info("[{}][{}] Creating non-durable subscription at msg id {}", topic, subscriptionName, startMessageId);
 
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
@@ -955,7 +956,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 Position startPosition = new PositionImpl(ledgerId, entryId);
                 ManagedCursor cursor = null;
                 try {
-                    cursor = ledger.newNonDurableCursor(startPosition, subscriptionName, initialPosition);
+                    cursor = ledger.newNonDurableCursor(startPosition, subscriptionName, initialPosition,
+                            isReadCompacted);
                 } catch (ManagedLedgerException e) {
                     return FutureUtil.failedFuture(e);
                 }
@@ -1372,97 +1374,62 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (!name.isGlobal()) {
             return CompletableFuture.completedFuture(null);
         }
+        NamespaceName heartbeatNamespace = brokerService.pulsar().getHeartbeatNamespaceV2();
+        if (name.getNamespaceObject().equals(heartbeatNamespace)) {
+            return CompletableFuture.completedFuture(null);
+        }
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Checking replication status", name);
         }
 
-        CompletableFuture<List<String>> replicationClustersFuture = getReplicationClusters(name);
+        List<String> configuredClusters = topicPolicies.getReplicationClusters().get();
+        int newMessageTTLinSeconds = topicPolicies.getMessageTTLInSeconds().get();
 
-        CompletableFuture<Integer> ttlFuture = getMessageTTL();
+        String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
 
-        return CompletableFuture.allOf(replicationClustersFuture, ttlFuture)
-                .thenCompose(__ -> {
-                    List<String> configuredClusters = replicationClustersFuture.join();
-                    int newMessageTTLinSeconds = ttlFuture.join();
+        // if local cluster is removed from global namespace cluster-list : then delete topic forcefully
+        // because pulsar doesn't serve global topic without local repl-cluster configured.
+        if (TopicName.get(topic).isGlobal() && !configuredClusters.contains(localCluster)) {
+            log.info("Deleting topic [{}] because local cluster is not part of "
+                    + " global namespace repl list {}", topic, configuredClusters);
+            return deleteForcefully();
+        }
 
-                    String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
+        List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
-                    // if local cluster is removed from global namespace cluster-list : then delete topic forcefully
-                    // because pulsar doesn't serve global topic without local repl-cluster configured.
-                    if (TopicName.get(topic).isGlobal() && !configuredClusters.contains(localCluster)) {
-                        log.info("Deleting topic [{}] because local cluster is not part of "
-                                + " global namespace repl list {}", topic, configuredClusters);
-                        return deleteForcefully();
-                    }
+        // Check for missing replicators
+        for (String cluster : configuredClusters) {
+            if (cluster.equals(localCluster)) {
+                continue;
+            }
+            if (!replicators.containsKey(cluster)) {
+                futures.add(startReplicator(cluster));
+            }
+        }
 
-                    List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        // Check for replicators to be stopped
+        replicators.forEach((cluster, replicator) -> {
+            // Update message TTL
+            ((PersistentReplicator) replicator).updateMessageTTL(newMessageTTLinSeconds);
+            if (!cluster.equals(localCluster)) {
+                if (!configuredClusters.contains(cluster)) {
+                    futures.add(removeReplicator(cluster));
+                }
+            }
+        });
 
-                    // Check for missing replicators
-                    for (String cluster : configuredClusters) {
-                        if (cluster.equals(localCluster)) {
-                            continue;
-                        }
-
-                        if (!replicators.containsKey(cluster)) {
-                            futures.add(startReplicator(cluster));
-                        }
-                    }
-
-                    // Check for replicators to be stopped
-                    replicators.forEach((cluster, replicator) -> {
-                        // Update message TTL
-                        ((PersistentReplicator) replicator).updateMessageTTL(newMessageTTLinSeconds);
-
-                        if (!cluster.equals(localCluster)) {
-                            if (!configuredClusters.contains(cluster)) {
-                                futures.add(removeReplicator(cluster));
-                            }
-                        }
-
-                    });
-
-                    return FutureUtil.waitForAll(futures);
-                });
-    }
-
-    @VisibleForTesting
-    public CompletableFuture<List<String>> getReplicationClusters(TopicName topicName) {
-        return brokerService.pulsar()
-                .getTopicPoliciesService()
-                .getTopicPoliciesAsyncWithRetry(topicName, null, brokerService.pulsar().getExecutor())
-                .thenCompose(topicPolicies -> {
-                    if (!topicPolicies.isPresent() || topicPolicies.get().getReplicationClusters() == null) {
-                        return brokerService.pulsar().getPulsarResources()
-                                .getNamespaceResources()
-                                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
-                                .thenCompose(optPolicies -> {
-                                    if (!optPolicies.isPresent()) {
-                                        return FutureUtil.failedFuture(
-                                                new ServerMetadataException(
-                                                        new MetadataStoreException.NotFoundException()));
-                                    }
-
-                                    return CompletableFuture.completedFuture(
-                                            Lists.newArrayList(optPolicies.get().replication_clusters));
-                                });
-                    } else {
-                        return CompletableFuture.completedFuture(topicPolicies.get().getReplicationClusters());
-                    }
-                });
+        return FutureUtil.waitForAll(futures);
     }
 
     @Override
     public void checkMessageExpiry() {
-        getMessageTTL().thenAccept(messageTtlInSeconds -> {
-            //If topic level policy or message ttl is not set, fall back to namespace level config.
-
-            if (messageTtlInSeconds != 0) {
-                subscriptions.forEach((__, sub) -> sub.expireMessages(messageTtlInSeconds));
-                replicators.forEach((__, replicator)
-                        -> ((PersistentReplicator) replicator).expireMessages(messageTtlInSeconds));
-            }
-        });
+        int messageTtlInSeconds = topicPolicies.getMessageTTLInSeconds().get();
+        if (messageTtlInSeconds != 0) {
+            subscriptions.forEach((__, sub) -> sub.expireMessages(messageTtlInSeconds));
+            replicators.forEach((__, replicator)
+                    -> ((PersistentReplicator) replicator).expireMessages(messageTtlInSeconds));
+        }
     }
 
     @Override
@@ -2880,31 +2847,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 return OffloadProcessStatus.forError(e.getMessage());
             }
         }
-    }
-
-    /**
-     * Get message TTL for this topic.
-     * @return Message TTL in second.
-     */
-    private CompletableFuture<Integer> getMessageTTL() {
-        //Return Topic level message TTL if exist. If topic level policy or message ttl is not set,
-        //fall back to namespace level message ttl then message ttl set for current broker.
-        Optional<Integer> messageTtl = getTopicPolicies().map(TopicPolicies::getMessageTTLInSeconds);
-        if (messageTtl.isPresent()) {
-            return CompletableFuture.completedFuture(messageTtl.get());
-        }
-
-        return brokerService.pulsar().getPulsarResources().getNamespaceResources()
-                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
-                .thenApply(optPolicies -> {
-                    if (optPolicies.isPresent()) {
-                        if (optPolicies.get().message_ttl_in_seconds != null) {
-                            return optPolicies.get().message_ttl_in_seconds;
-                        }
-                    }
-
-                    return brokerService.getPulsar().getConfiguration().getTtlDurationDefaultInSeconds();
-                });
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentTopic.class);

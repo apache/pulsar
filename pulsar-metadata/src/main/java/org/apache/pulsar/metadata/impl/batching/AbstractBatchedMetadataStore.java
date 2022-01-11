@@ -143,7 +143,7 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
         return op.getFuture();
     }
 
-    private void enqueue(MessagePassingQueue queue, MetadataOp op) {
+    private void enqueue(MessagePassingQueue<MetadataOp> queue, MetadataOp op) {
         if (enabled) {
             if (!queue.offer(op)) {
                 // Execute individually if we're failing to enqueue

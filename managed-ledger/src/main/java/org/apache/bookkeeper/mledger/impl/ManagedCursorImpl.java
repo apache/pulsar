@@ -837,6 +837,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    @Override
     public boolean isClosed() {
         return state == State.Closed || state == State.Closing;
     }
@@ -1103,7 +1104,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     }
                 }
                 callback.resetComplete(newPosition);
-
+                updateLastActive();
             }
 
             @Override
@@ -1992,7 +1993,6 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             if (individualDeletedMessages.isEmpty()) {
                 // No changes to individually deleted messages, so nothing to do at this point
-                callback.deleteComplete(ctx);
                 return;
             }
 
@@ -2024,6 +2024,9 @@ public class ManagedCursorImpl implements ManagedCursor {
             return;
         } finally {
             lock.writeLock().unlock();
+            if (individualDeletedMessages.isEmpty()) {
+                callback.deleteComplete(ctx);
+            }
         }
 
         // Apply rate limiting to mark-delete operations

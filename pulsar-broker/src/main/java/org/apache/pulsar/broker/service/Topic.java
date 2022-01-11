@@ -98,6 +98,13 @@ public interface Topic {
         default boolean isMarkerMessage() {
             return false;
         }
+
+        default void setProperty(String propertyName, Object value) {
+        }
+
+        default Object getProperty(String propertyName) {
+            return null;
+        }
     }
 
     CompletableFuture<Void> initialize();

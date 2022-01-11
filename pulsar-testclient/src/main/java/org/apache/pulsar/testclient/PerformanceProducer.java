@@ -28,7 +28,6 @@ import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.RateLimiter;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -41,6 +40,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
@@ -51,7 +51,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
@@ -74,7 +73,6 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_BATCHING_MAX_MESSAGES;
-import static org.apache.pulsar.testclient.utils.PerformanceUtils.buildTransaction;
 
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -314,7 +312,7 @@ public class PerformanceProducer {
             // keep compatibility with the previous version
             if (arguments.topics.size() == 1) {
                 String prefixTopicName = arguments.topics.get(0);
-                List<String> defaultTopics = Lists.newArrayList();
+                List<String> defaultTopics = new ArrayList<>();
                 for (int i = 0; i < arguments.numTopics; i++) {
                     defaultTopics.add(String.format("%s%s%d", prefixTopicName, arguments.separator, i));
                 }
@@ -379,7 +377,7 @@ public class PerformanceProducer {
         // Read payload data from file if needed
         final byte[] payloadBytes = new byte[arguments.msgSize];
         Random random = new Random(0);
-        List<byte[]> payloadByteList = Lists.newArrayList();
+        List<byte[]> payloadByteList = new ArrayList<>();
         if (arguments.payloadFilename != null) {
             Path payloadFilePath = Paths.get(arguments.payloadFilename);
             if (Files.notExists(payloadFilePath) || Files.size(payloadFilePath) == 0)  {
@@ -422,7 +420,7 @@ public class PerformanceProducer {
                 clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
             }
 
-            try (PulsarAdmin client = clientBuilder.build();) {
+            try (PulsarAdmin client = clientBuilder.build()) {
                 for (String topic : arguments.topics) {
                     log.info("Creating partitioned topic {} with {} partitions", topic, arguments.partitions);
                     try {
@@ -509,7 +507,7 @@ public class PerformanceProducer {
                 totalTxnOpSuccess = totalEndTxnOpSuccessNum.sum();
                 totalTxnOpFail = totalEndTxnOpFailNum.sum();
                 rateOpenTxn = numTxnOpSuccess.sumThenReset() / elapsed;
-                log.info("--- Transaction : {} transaction end successfully ---{} transaction end failed "
+                log.info("--- Transaction : {} transaction end successfully --- {} transaction end failed "
                                 + "--- {} Txn/s",
                         totalTxnOpSuccess, totalTxnOpFail, totalFormat.format(rateOpenTxn));
             }
@@ -559,7 +557,7 @@ public class PerformanceProducer {
         PulsarClient client = null;
         try {
             // Now processing command line arguments
-            List<Future<Producer<byte[]>>> futures = Lists.newArrayList();
+            List<Future<Producer<byte[]>>> futures = new ArrayList<>();
 
             ClientBuilder clientBuilder = PulsarClient.builder() //
                     .enableTransaction(arguments.isEnableTransaction)//
@@ -592,8 +590,15 @@ public class PerformanceProducer {
                     // enable round robin message routing if it is a partitioned topic
                     .messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
 
+            AtomicReference<Transaction> transactionAtomicReference;
             if (arguments.isEnableTransaction) {
                 producerBuilder.sendTimeout(0, TimeUnit.SECONDS);
+                transactionAtomicReference = new AtomicReference<>(client.newTransaction()
+                        .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS)
+                        .build()
+                        .get());
+            } else {
+                transactionAtomicReference = new AtomicReference<>(null);
             }
             if (arguments.producerName != null) {
                 String producerName = String.format("%s%s%d", arguments.producerName, arguments.separator, producerId);
@@ -636,7 +641,7 @@ public class PerformanceProducer {
                 }
             }
 
-            final List<Producer<byte[]>> producers = Lists.newArrayListWithCapacity(futures.size());
+            final List<Producer<byte[]>> producers = new ArrayList<>(futures.size());
             for (Future<Producer<byte[]>> future : futures) {
                 producers.add(future.get());
             }
@@ -659,8 +664,6 @@ public class PerformanceProducer {
             }
             // Send messages on all topics/producers
             long totalSent = 0;
-            AtomicReference<Transaction> transactionAtomicReference = buildTransaction(client,
-                    arguments.isEnableTransaction, arguments.transactionTimeout);
             AtomicLong numMessageSend = new AtomicLong(0);
             Semaphore numMsgPerTxnLimit = new Semaphore(arguments.numMessagesPerTransaction);
             while (true) {
@@ -668,7 +671,6 @@ public class PerformanceProducer {
                     if (arguments.testTime > 0) {
                         if (System.nanoTime() > testEndTime) {
                             log.info("------------- DONE (reached the maximum duration: [{} seconds] of production) --------------", arguments.testTime);
-                            printAggregatedStats();
                             doneLatch.countDown();
                             Thread.sleep(5000);
                             PerfClientUtils.exit(0);
@@ -678,7 +680,6 @@ public class PerformanceProducer {
                     if (numMessages > 0) {
                         if (totalSent++ >= numMessages) {
                             log.info("------------- DONE (reached the maximum number: {} of production) --------------", numMessages);
-                            printAggregatedStats();
                             doneLatch.countDown();
                             Thread.sleep(5000);
                             PerfClientUtils.exit(0);
@@ -728,6 +729,7 @@ public class PerformanceProducer {
                     PulsarClient pulsarClient = client;
                     messageBuilder.sendAsync().thenRun(() -> {
                         bytesSent.add(payloadData.length);
+                        messagesSent.increment();
 
                         totalMessagesSent.increment();
                         totalBytesSent.add(payloadData.length);

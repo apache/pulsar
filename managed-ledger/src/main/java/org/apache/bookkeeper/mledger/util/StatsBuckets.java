@@ -110,7 +110,7 @@ public class StatsBuckets {
             buckets[i].add(other.values[i]);
         }
 
-        sumCounter.add(other.count);
+        sumCounter.add(other.sum);
     }
 
     private boolean isSorted(long[] array) {

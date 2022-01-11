@@ -21,18 +21,17 @@ package org.apache.pulsar.io.kafka.connect.schema;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Preconditions;
-import org.apache.avro.generic.GenericData;
-import org.apache.kafka.connect.data.Field;
-import org.apache.kafka.connect.data.Schema;
-import org.apache.kafka.connect.data.Struct;
-import org.apache.kafka.connect.errors.DataException;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import org.apache.avro.generic.GenericData;
+import org.apache.kafka.connect.data.Field;
+import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.Struct;
+import org.apache.kafka.connect.errors.DataException;
 
 public class KafkaConnectData {
     public static Object getKafkaConnectData(Object nativeObject, Schema kafkaSchema) {
@@ -91,8 +90,8 @@ public class KafkaConnectData {
                 case STRING:
                     jsonNode.textValue();
                 default:
-                    throw new DataException("Don't know how to convert " + jsonNode +
-                            " to Connect data (schema is null).");
+                    throw new DataException("Don't know how to convert " + jsonNode
+                            + " to Connect data (schema is null).");
             }
         }
 
@@ -102,7 +101,7 @@ public class KafkaConnectData {
 
         switch (kafkaSchema.type()) {
             case INT8:
-                return (byte)jsonNode.shortValue();
+                return (byte) jsonNode.shortValue();
             case INT16:
                 return jsonNode.shortValue();
             case INT32:

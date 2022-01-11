@@ -127,6 +127,9 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
 
     public CompletableFuture<Boolean> authorize(AuthenticationDataSource authenticationData, Function<String, CompletableFuture<Boolean>> authorizeFunc) {
         List<String> roles = getRoles(authenticationData);
+        if (roles.isEmpty()) {
+            return CompletableFuture.completedFuture(false);
+        }
         List<CompletableFuture<Boolean>> futures = new ArrayList<>(roles.size());
         roles.forEach(r -> futures.add(authorizeFunc.apply(r)));
         return CompletableFuture.supplyAsync(() -> {

@@ -21,14 +21,13 @@ package org.apache.pulsar.io.solr;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.base.Preconditions;
-import lombok.Data;
-import lombok.experimental.Accessors;
-import org.apache.pulsar.io.core.annotations.FieldDoc;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
+import lombok.Data;
+import lombok.experimental.Accessors;
+import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 /**
  * Configuration class for the Solr Sink Connector.
@@ -42,8 +41,9 @@ public class SolrSinkConfig implements Serializable {
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "Comma separated zookeeper hosts with chroot used in SolrCloud mode (eg: localhost:2181,localhost:2182/chroot)"
-            + " or Url to connect to solr used in Standalone mode (e.g. localhost:8983/solr)"
+        help = "Comma separated zookeeper hosts with chroot used in SolrCloud mode"
+                + " (eg: localhost:2181,localhost:2182/chroot)"
+                + " or Url to connect to solr used in Standalone mode (e.g. localhost:8983/solr)"
     )
     private String solrUrl;
 

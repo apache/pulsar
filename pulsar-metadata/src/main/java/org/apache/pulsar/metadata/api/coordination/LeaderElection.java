@@ -35,13 +35,12 @@ public interface LeaderElection<T> extends AutoCloseable {
      * @param proposedValue
      *            the value to set for the leader, in the case this instance succeeds in becoming leader
      * @return a future that will track the completion of the operation
-     * @throws MetadataStoreException
      *             if there's a failure in the leader election
      */
     CompletableFuture<LeaderElectionState> elect(T proposedValue);
 
     /**
-     * Get the current leader election state
+     * Get the current leader election state.
      */
     LeaderElectionState getState();
 

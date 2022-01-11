@@ -160,6 +160,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     @JsonIgnore
     private transient MessagePayloadProcessor payloadProcessor = null;
 
+    private boolean startPaused = false;
+
     public void setAutoUpdatePartitionsIntervalSeconds(int interval, TimeUnit timeUnit) {
         checkArgument(interval > 0, "interval needs to be > 0");
         this.autoUpdatePartitionsIntervalSeconds = timeUnit.toSeconds(interval);

@@ -70,4 +70,15 @@ public class ClientBuilderImplTest {
         }).build();
     }
 
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testClientBuilderWithIllegalMinusPort() throws PulsarClientException {
+        PulsarClient.builder().dnsLookupBind("localhost", -1).build();
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testClientBuilderWithIllegalLargePort() throws PulsarClientException {
+        PulsarClient.builder().dnsLookupBind("localhost", 65536).build();
+    }
+
+
 }

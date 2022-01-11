@@ -27,7 +27,7 @@ find . -name CMakeCache.txt | xargs -r rm
 find . -name CMakeFiles | xargs -r rm -rf
 rm -f lib/*.pb.*
 
-cmake . -DBUILD_TESTS=OFF -DLINK_STATIC=ON \
+cmake . -DBUILD_TESTS=OFF -DBUILD_WIRESHARK=OFF -DLINK_STATIC=ON \
         -DPYTHON_INCLUDE_DIR=/opt/python/$PYTHON_SPEC/include/python$PYTHON_VERSION \
         -DPYTHON_LIBRARY=/opt/python/$PYTHON_SPEC/lib \
 

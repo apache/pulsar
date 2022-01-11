@@ -57,9 +57,15 @@ TEST(ClientTest, testSwHwChecksum) {
     // (b) SW
     uint32_t swChecksum1 = crc32cSw(0, (char *)data.c_str(), data.length());
     uint32_t swChecksum2 = crc32cSw(0, (char *)doubleData.c_str() + 4, 4);
+    // (c) HW ARM
+    uint32_t hwArmChecksum1 = crc32cHwArm(0, (char *)data.c_str(), data.length());
+    uint32_t hwArmChecksum2 = crc32cHwArm(0, (char *)doubleData.c_str() + 4, 4);
+
     ASSERT_EQ(hwChecksum1, hwChecksum2);
     ASSERT_EQ(hwChecksum1, swChecksum1);
     ASSERT_EQ(hwChecksum2, swChecksum2);
+    ASSERT_EQ(hwArmChecksum1, swChecksum1);
+    ASSERT_EQ(hwArmChecksum2, swChecksum2);
 
     //(2) compute incremental checksum
     // (a.1) hw: checksum on full data
@@ -73,9 +79,16 @@ TEST(ClientTest, testSwHwChecksum) {
     // (b.2) sw: incremental checksum on multiple partial data
     swChecksum1 = crc32cHw(0, (char *)data.c_str(), data.length());
     uint32_t swIncrementalChecksum = crc32cSw(swChecksum1, (char *)data.c_str(), data.length());
-
     ASSERT_EQ(hwIncrementalChecksum, hwDoubleChecksum);
     ASSERT_EQ(hwIncrementalChecksum, swIncrementalChecksum);
+    // (c.1) hw arm: checksum on full data
+    uint32_t hwArmDoubleChecksum = crc32cHwArm(0, (char *)doubleData.c_str(), doubleData.length());
+    // (c.2) hw arm: incremental checksum on multiple partial data
+    hwArmChecksum1 = crc32cHwArm(0, (char *)data.c_str(), data.length());
+    uint32_t hwArmIncrementalChecksum = crc32cHw(hwArmChecksum1, (char *)data.c_str(), data.length());
+    ASSERT_EQ(swDoubleChecksum, hwArmDoubleChecksum);
+    ASSERT_EQ(hwArmIncrementalChecksum, hwArmDoubleChecksum);
+    ASSERT_EQ(hwArmIncrementalChecksum, swIncrementalChecksum);
 }
 
 TEST(ClientTest, testServerConnectError) {

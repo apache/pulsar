@@ -136,6 +136,7 @@ import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
+import org.apache.pulsar.common.intercept.ManagedLedgerPayloadProcessor;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -273,6 +274,7 @@ public class BrokerService implements Closeable {
     private ImmutableMap<String, EntryFilterWithClassLoader> entryFilters;
 
     private Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors;
+    private Set<ManagedLedgerPayloadProcessor> brokerEntryPayloadProcessors;
 
     public BrokerService(PulsarService pulsar, EventLoopGroup eventLoopGroup) throws Exception {
         this.pulsar = pulsar;
@@ -369,6 +371,9 @@ public class BrokerService implements Closeable {
         this.brokerEntryMetadataInterceptors = BrokerEntryMetadataUtils
                 .loadBrokerEntryMetadataInterceptors(pulsar.getConfiguration().getBrokerEntryMetadataInterceptors(),
                         BrokerService.class.getClassLoader());
+
+        this.brokerEntryPayloadProcessors = BrokerEntryMetadataUtils.loadInterceptors(pulsar.getConfiguration()
+                        .getBrokerEntryPayloadProcessors(), BrokerService.class.getClassLoader());
 
         this.bundlesQuotas = new BundlesQuotas(pulsar.getLocalMetadataStore());
     }
@@ -869,17 +874,18 @@ public class BrokerService implements Closeable {
             // unload all namespace-bundles gracefully
             long closeTopicsStartTime = System.nanoTime();
             Set<NamespaceBundle> serviceUnits = pulsar.getNamespaceService().getOwnedServiceUnits();
-            serviceUnits.forEach(su -> {
-                if (su instanceof NamespaceBundle) {
-                    try {
-                        pulsar.getNamespaceService().unloadNamespaceBundle(su,
-                                pulsar.getConfiguration().getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS)
-                                .get();
-                    } catch (Exception e) {
-                        log.warn("Failed to unload namespace bundle {}", su, e);
+            if (serviceUnits != null) {
+                serviceUnits.forEach(su -> {
+                    if (su instanceof NamespaceBundle) {
+                        try {
+                            pulsar.getNamespaceService().unloadNamespaceBundle(su, pulsar.getConfiguration()
+                                    .getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS).get();
+                        } catch (Exception e) {
+                            log.warn("Failed to unload namespace bundle {}", su, e);
+                        }
                     }
-                }
-            });
+                });
+            }
 
             double closeTopicsTimeSeconds = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - closeTopicsStartTime))
                     / 1000.0;
@@ -1339,7 +1345,7 @@ public class BrokerService implements Closeable {
                 : CompletableFuture.completedFuture(null);
 
         maxTopicsCheck.thenCompose(__ -> getManagedLedgerConfig(topicName)).thenAccept(managedLedgerConfig -> {
-            if (isBrokerEntryMetadataEnabled()) {
+            if (isBrokerEntryMetadataEnabled() || isBrokerPayloadProcessorEnabled()) {
                 // init managedLedger interceptor
                 Set<BrokerEntryMetadataInterceptor> interceptors = new HashSet<>();
                 for (BrokerEntryMetadataInterceptor interceptor : brokerEntryMetadataInterceptors) {
@@ -1350,9 +1356,9 @@ public class BrokerService implements Closeable {
                         interceptors.add(interceptor);
                     }
                 }
-                managedLedgerConfig.setManagedLedgerInterceptor(new ManagedLedgerInterceptorImpl(interceptors));
+                managedLedgerConfig.setManagedLedgerInterceptor(
+                        new ManagedLedgerInterceptorImpl(interceptors, brokerEntryPayloadProcessors));
             }
-
             managedLedgerConfig.setCreateIfMissing(createIfMissing);
 
             // Once we have the configuration, we can proceed with the async open operation
@@ -2291,9 +2297,16 @@ public class BrokerService implements Closeable {
      */
     private void updateDynamicServiceConfiguration() {
         Optional<Map<String, String>> configCache = Optional.empty();
+
         try {
-            configCache =
-                    Optional.of(pulsar().getPulsarResources().getDynamicConfigResources().getDynamicConfiguration());
+            configCache  =
+                    pulsar().getPulsarResources().getDynamicConfigResources().getDynamicConfiguration();
+
+            // create dynamic-config if not exist.
+            if (!configCache.isPresent()) {
+                pulsar().getPulsarResources().getDynamicConfigResources()
+                        .setDynamicConfigurationWithCreate(n -> Maps.newHashMap());
+            }
         } catch (Exception e) {
             log.warn("Failed to read dynamic broker configuration", e);
         }
@@ -2786,6 +2799,10 @@ public class BrokerService implements Closeable {
 
     public boolean isBrokerEntryMetadataEnabled() {
         return !brokerEntryMetadataInterceptors.isEmpty();
+    }
+
+    public boolean isBrokerPayloadProcessorEnabled() {
+        return !brokerEntryPayloadProcessors.isEmpty();
     }
 
     public void pausedConnections(int numberOfConnections) {

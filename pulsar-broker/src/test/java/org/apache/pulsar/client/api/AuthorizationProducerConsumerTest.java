@@ -22,8 +22,10 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import java.io.IOException;
@@ -53,8 +55,14 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.PublishRate;
+import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TenantOperation;
@@ -170,6 +178,128 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @Test
+    public void testNamespacePoliciesPermission() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
+        setup();
+
+        final String tenantRole = "tenant-role";
+        final String namespace = "my-property/my-ns-sub-auth";
+        Authentication adminAuthentication = new ClientAuthentication("superUser");
+
+        @Cleanup
+        PulsarAdmin superAdmin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
+                .authentication(adminAuthentication).build());
+
+        Authentication tenantAdminAuthentication = new ClientAuthentication(tenantRole);
+        @Cleanup
+        PulsarAdmin tenantAdmin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
+                .authentication(tenantAdminAuthentication).build());
+
+        superAdmin.clusters().createCluster("test",
+                ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        superAdmin.tenants().createTenant("my-property",
+                new TenantInfoImpl(Sets.newHashSet(tenantRole), Sets.newHashSet("test")));
+        superAdmin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+
+        // verify super-user and tenant-administrator are able to perform all namespace-policies admin api
+        // test for `publish-rate`
+        PublishRate publishRate = new PublishRate(10, 100);
+        superAdmin.namespaces().setPublishRate(namespace, publishRate);
+        assertEquals(superAdmin.namespaces().getPublishRate(namespace), publishRate);
+        superAdmin.namespaces().removePublishRate(namespace);
+        assertNull(superAdmin.namespaces().getPublishRate(namespace));
+        tenantAdmin.namespaces().setPublishRate(namespace, publishRate);
+        assertEquals(tenantAdmin.namespaces().getPublishRate(namespace), publishRate);
+        tenantAdmin.namespaces().removePublishRate(namespace);
+        assertNull(tenantAdmin.namespaces().getPublishRate(namespace));
+
+        // test for `topic-dispatch-rate`
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInByte(4096)
+                .dispatchThrottlingRateInMsg(1000)
+                .build();
+        superAdmin.namespaces().setDispatchRate(namespace, dispatchRate);
+        assertEquals(superAdmin.namespaces().getDispatchRate(namespace), dispatchRate);
+        superAdmin.namespaces().removeDispatchRate(namespace);
+        assertNull(superAdmin.namespaces().getDispatchRate(namespace));
+        tenantAdmin.namespaces().setDispatchRate(namespace, dispatchRate);
+        assertEquals(tenantAdmin.namespaces().getDispatchRate(namespace), dispatchRate);
+        tenantAdmin.namespaces().removeDispatchRate(namespace);
+        assertNull(tenantAdmin.namespaces().getDispatchRate(namespace));
+
+        // test for `subscription-dispatch-rate`
+        superAdmin.namespaces().setSubscriptionDispatchRate(namespace, dispatchRate);
+        assertEquals(superAdmin.namespaces().getSubscriptionDispatchRate(namespace), dispatchRate);
+        superAdmin.namespaces().removeSubscriptionDispatchRate(namespace);
+        assertNull(superAdmin.namespaces().getSubscriptionDispatchRate(namespace));
+        tenantAdmin.namespaces().setSubscriptionDispatchRate(namespace, dispatchRate);
+        assertEquals(tenantAdmin.namespaces().getSubscriptionDispatchRate(namespace), dispatchRate);
+        tenantAdmin.namespaces().removeSubscriptionDispatchRate(namespace);
+        assertNull(tenantAdmin.namespaces().getSubscriptionDispatchRate(namespace));
+
+        // test for `subscribe-rate`
+        SubscribeRate subscribeRate = new SubscribeRate(10, 60);
+        superAdmin.namespaces().setSubscribeRate(namespace, subscribeRate);
+        assertEquals(superAdmin.namespaces().getSubscribeRate(namespace), subscribeRate);
+        superAdmin.namespaces().removeSubscribeRate(namespace);
+        assertNull(superAdmin.namespaces().getSubscribeRate(namespace));
+        tenantAdmin.namespaces().setSubscribeRate(namespace, subscribeRate);
+        assertEquals(tenantAdmin.namespaces().getSubscribeRate(namespace), subscribeRate);
+        tenantAdmin.namespaces().removeSubscribeRate(namespace);
+        assertNull(tenantAdmin.namespaces().getSubscribeRate(namespace));
+
+        // test for `replicator-dispatch-rate`
+        superAdmin.namespaces().setReplicatorDispatchRate(namespace, dispatchRate);
+        assertEquals(superAdmin.namespaces().getReplicatorDispatchRate(namespace), dispatchRate);
+        superAdmin.namespaces().removeReplicatorDispatchRate(namespace);
+        assertNull(superAdmin.namespaces().getReplicatorDispatchRate(namespace));
+        tenantAdmin.namespaces().setReplicatorDispatchRate(namespace, dispatchRate);
+        assertEquals(tenantAdmin.namespaces().getReplicatorDispatchRate(namespace), dispatchRate);
+        tenantAdmin.namespaces().removeReplicatorDispatchRate(namespace);
+        assertNull(tenantAdmin.namespaces().getReplicatorDispatchRate(namespace));
+
+        // test for `inactive-topic`
+        InactiveTopicPolicies inactiveTopicPolicies = new InactiveTopicPolicies(
+                InactiveTopicDeleteMode.delete_when_no_subscriptions, 30, true);
+        superAdmin.namespaces().setInactiveTopicPolicies(namespace, inactiveTopicPolicies);
+        assertEquals(superAdmin.namespaces().getInactiveTopicPolicies(namespace), inactiveTopicPolicies);
+        superAdmin.namespaces().removeInactiveTopicPolicies(namespace);
+        assertNull(superAdmin.namespaces().getInactiveTopicPolicies(namespace));
+        tenantAdmin.namespaces().setInactiveTopicPolicies(namespace, inactiveTopicPolicies);
+        assertEquals(tenantAdmin.namespaces().getInactiveTopicPolicies(namespace), inactiveTopicPolicies);
+        tenantAdmin.namespaces().removeInactiveTopicPolicies(namespace);
+        assertNull(tenantAdmin.namespaces().getInactiveTopicPolicies(namespace));
+
+        // test for `delayed-delivery`
+        DelayedDeliveryPolicies delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()
+                .tickTime(60)
+                .active(true)
+                .build();
+        superAdmin.namespaces().setDelayedDeliveryMessages(namespace, delayedDeliveryPolicies);
+        assertEquals(superAdmin.namespaces().getDelayedDelivery(namespace), delayedDeliveryPolicies);
+        superAdmin.namespaces().removeDelayedDeliveryMessages(namespace);
+        assertNull(superAdmin.namespaces().getDelayedDelivery(namespace));
+        tenantAdmin.namespaces().setDelayedDeliveryMessages(namespace, delayedDeliveryPolicies);
+        assertEquals(tenantAdmin.namespaces().getDelayedDelivery(namespace), delayedDeliveryPolicies);
+        tenantAdmin.namespaces().removeDelayedDeliveryMessages(namespace);
+        assertNull(tenantAdmin.namespaces().getDelayedDelivery(namespace));
+
+        // test for `max-subscriptions-per-topic`
+        superAdmin.namespaces().setMaxSubscriptionsPerTopic(namespace, 10);
+        assertEquals(superAdmin.namespaces().getMaxSubscriptionsPerTopic(namespace).intValue(), 10);
+        superAdmin.namespaces().removeMaxSubscriptionsPerTopic(namespace);
+        assertNull(superAdmin.namespaces().getMaxSubscriptionsPerTopic(namespace));
+        tenantAdmin.namespaces().setMaxSubscriptionsPerTopic(namespace, 20);
+        assertEquals(tenantAdmin.namespaces().getMaxSubscriptionsPerTopic(namespace).intValue(), 20);
+        tenantAdmin.namespaces().removeMaxSubscriptionsPerTopic(namespace);
+        assertNull(tenantAdmin.namespaces().getMaxSubscriptionsPerTopic(namespace));
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test
     public void testSubscriberPermission() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -209,6 +339,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         superAdmin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet(tenantRole), Sets.newHashSet("test")));
         superAdmin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+        assertNull(superAdmin.namespaces().getPublishRate(namespace));
 
         // subscriptionRole doesn't have topic-level authorization, so it will fail to get topic stats-internal info
         try {
@@ -365,6 +496,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
         setup();
 
+        final String tenantRole = "tenant-role";
         final String subscriptionRole = "sub-role";
         final String subscriptionName = "sub1";
         final String namespace = "my-property/my-ns-sub-auth";
@@ -377,6 +509,11 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         PulsarAdmin superAdmin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
                 .authentication(adminAuthentication).build());
 
+        Authentication tenantAdminAuthentication = new ClientAuthentication(tenantRole);
+        @Cleanup
+        PulsarAdmin tenantAdmin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
+                .authentication(tenantAdminAuthentication).build());
+
         Authentication subAdminAuthentication = new ClientAuthentication(subscriptionRole);
         @Cleanup
         PulsarAdmin sub1Admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
@@ -385,9 +522,11 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         superAdmin.clusters().createCluster("test",
                 ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         superAdmin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet("test")));
+                new TenantInfoImpl(Sets.newHashSet(tenantRole), Sets.newHashSet("test")));
         superAdmin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         superAdmin.topics().createPartitionedTopic(topicName, 1);
+        assertEquals(tenantAdmin.topics().getPartitionedTopicList(namespace),
+                Lists.newArrayList(topicName));
 
         // grant topic consume&produce authorization to the subscriptionRole
         superAdmin.topics().grantPermission(topicName, subscriptionRole,
@@ -417,6 +556,13 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
 
         // subscriptionRole doesn't have namespace-level authorization, so it will fail to clear backlog
         try {
+            sub1Admin.topics().getPartitionedTopicList(namespace);
+            fail("should have failed with authorization exception");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().startsWith(
+                    "Unauthorized to validateNamespaceOperation for operation [GET_TOPICS]"));
+        }
+        try {
             sub1Admin.namespaces().clearNamespaceBundleBacklog(namespace, "0x00000000_0xffffffff");
             fail("should have failed with authorization exception");
         } catch (Exception e) {
@@ -427,6 +573,8 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         superAdmin.namespaces().grantPermissionOnNamespace(namespace, subscriptionRole,
                 Sets.newHashSet(AuthAction.consume));
         // now, subscriptionRole have consume authorization on namespace, so it will successfully clear backlog
+        assertEquals(sub1Admin.topics().getPartitionedTopicList(namespace),
+                Lists.newArrayList(topicName));
         sub1Admin.namespaces().clearNamespaceBundleBacklog(namespace, "0x00000000_0xffffffff");
         assertEquals(sub1Admin.topics().getStats(topicName + "-partition-0").getSubscriptions()
                 .get(subscriptionName).getMsgBacklog(), 0);

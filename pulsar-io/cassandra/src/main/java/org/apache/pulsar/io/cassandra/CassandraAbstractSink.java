@@ -28,16 +28,14 @@ import com.datastax.driver.core.Session;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
-
 import java.util.Map;
-
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 
 /**
- * A Simple abstract class for Cassandra sink
+ * A Simple abstract class for Cassandra sink.
  * Users need to implement extractKeyValue function to use this sink
  */
 public abstract class CassandraAbstractSink<K, V> implements Sink<byte[]> {

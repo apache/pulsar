@@ -19,39 +19,12 @@
 package org.apache.pulsar.common.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.stats.Metrics;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class ObjectMapperFactoryTest {
-    @Test
-    public void testBacklogQuotaMixIn() {
-        ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
-        String json = "{\"limit\":10,\"limitTime\":0,\"policy\":\"producer_request_hold\"}";
-        try {
-            BacklogQuota backlogQuota = objectMapper.readValue(json, BacklogQuota.class);
-            Assert.assertEquals(backlogQuota.getLimitSize(), 10);
-            Assert.assertEquals(backlogQuota.getLimitTime(), 0);
-            Assert.assertEquals(backlogQuota.getPolicy(), BacklogQuota.RetentionPolicy.producer_request_hold);
-        } catch (Exception ex) {
-            Assert.fail("shouldn't have thrown exception", ex);
-        }
-
-        try {
-            String expectJson = "{\"limitSize\":10,\"limitTime\":0,\"policy\":\"producer_request_hold\"}";
-            BacklogQuota backlogQuota = BacklogQuota.builder()
-                    .limitSize(10)
-                    .limitTime(0)
-                    .retentionPolicy(BacklogQuota.RetentionPolicy.producer_request_hold)
-                    .build();
-            String writeJson = objectMapper.writeValueAsString(backlogQuota);
-            Assert.assertEquals(expectJson, writeJson);
-        } catch (Exception ex) {
-            Assert.fail("shouldn't have thrown exception", ex);
-        }
-    }
 
     @Test
     public void testResourceQuotaMixIn() {

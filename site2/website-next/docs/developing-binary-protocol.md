@@ -43,7 +43,7 @@ Payload commands have this basic structure:
 | `totalSize`                        | Required  | The size of the frame, counting everything that comes after it (in bytes)                   | 4               |
 | `commandSize`                      | Required  | The size of the protobuf-serialized command                                                 | 4               |
 | `message`                          | Required  | The protobuf message serialized in a raw binary format (rather than in protobuf format)     |                 |
-| `magicNumberOfBrokerEntryMetadata` | Optional  | A 2-byte byte array (`0x0e02`) identifying the broker entry metadata   <br /> **Note**: `magicNumberOfBrokerEntryMetadata` , `brokerEntryMetadataSize`, and `brokerEntryMetadata` should be used **together**.                     | 2               |
+| `magicNumberOfBrokerEntryMetadata` | Optional  | A 2-byte byte array (`0x0e02`) identifying the broker entry metadata   <br /> **Note**: `magicNumberOfBrokerEntryMetadata`, `brokerEntryMetadataSize`, and `brokerEntryMetadata` should be used **together**.                     | 2               |
 | `brokerEntryMetadataSize`          | Optional  | The size of the broker entry metadata                                                       | 4               |
 | `brokerEntryMetadata`              | Optional  | The broker entry metadata stored as a binary protobuf message                               |                 |
 | `magicNumber`                      | Required  | A 2-byte byte array (`0x0e01`) identifying the current format                               | 2               |

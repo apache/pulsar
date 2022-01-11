@@ -61,7 +61,7 @@ public class StatsBuckets {
         for (int i = 0; i < buckets.length; i++) {
             buckets[i].add(other.values[i]);
         }
-        sumCounter.add(other.count);
+        sumCounter.add(other.sum);
     }
     
     

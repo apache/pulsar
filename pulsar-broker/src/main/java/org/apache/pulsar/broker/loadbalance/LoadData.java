@@ -20,8 +20,11 @@ package org.apache.pulsar.broker.loadbalance;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import org.apache.pulsar.broker.BrokerData;
 import org.apache.pulsar.broker.BundleData;
+import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.common.naming.NamespaceBundle;
 
 /**
  * This class represents all data that could be relevant when making a load management decision.
@@ -57,6 +60,13 @@ public class LoadData {
 
     public Map<String, BundleData> getBundleData() {
         return bundleData;
+    }
+
+    public Map<String, BundleData> getBundleDataForLoadShedding() {
+        return bundleData.entrySet().stream()
+                .filter(e -> !NamespaceService.isSystemServiceNamespace(
+                        NamespaceBundle.getBundleNamespace(e.getKey())))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
     public Map<String, Long> getRecentlyUnloadedBundles() {

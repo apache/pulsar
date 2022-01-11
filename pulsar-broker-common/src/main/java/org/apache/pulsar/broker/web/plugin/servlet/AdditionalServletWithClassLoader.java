@@ -19,9 +19,11 @@
 package org.apache.pulsar.broker.web.plugin.servlet;
 
 import java.io.IOException;
+
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.ClassLoaderSwitcher;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -39,22 +41,30 @@ public class AdditionalServletWithClassLoader implements AdditionalServlet {
 
     @Override
     public void loadConfig(PulsarConfiguration pulsarConfiguration) {
-        servlet.loadConfig(pulsarConfiguration);
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            servlet.loadConfig(pulsarConfiguration);
+        }
     }
 
     @Override
     public String getBasePath() {
-        return servlet.getBasePath();
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            return servlet.getBasePath();
+        }
     }
 
     @Override
     public ServletHolder getServletHolder() {
-        return servlet.getServletHolder();
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            return servlet.getServletHolder();
+        }
     }
 
     @Override
     public void close() {
-        servlet.close();
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            servlet.close();
+        }
         try {
             classLoader.close();
         } catch (IOException e) {

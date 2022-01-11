@@ -37,7 +37,6 @@ import java.util.concurrent.TimeUnit;
 import javax.security.auth.login.Configuration;
 
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.curator.shaded.com.google.common.collect.Maps;
@@ -228,7 +227,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
