@@ -1457,20 +1457,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public void checkCompaction() {
         TopicName name = TopicName.get(topic);
         try {
-            Long compactionThreshold = getTopicPolicies()
-                .map(TopicPolicies::getCompactionThreshold)
-                .orElse(null);
-            if (compactionThreshold == null) {
-                Policies policies = brokerService.pulsar().getPulsarResources().getNamespaceResources()
-                        .getPolicies(name.getNamespaceObject())
-                        .orElseThrow(() -> new MetadataStoreException.NotFoundException());
-                compactionThreshold = policies.compaction_threshold;
-            }
-            if (compactionThreshold == null) {
-                compactionThreshold = brokerService.pulsar().getConfiguration()
-                        .getBrokerServiceCompactionThresholdInBytes();
-            }
-
+            long compactionThreshold = topicPolicies.getCompactionThreshold().get();
             if (isSystemTopic() || compactionThreshold != 0
                 && currentCompaction.isDone()) {
 
