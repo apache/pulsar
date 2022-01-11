@@ -2348,7 +2348,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         }
                         ctx.writeAndFlush(Commands.newAddSubscriptionToTxnResponse(requestId,
                                 txnID.getLeastSigBits(), txnID.getMostSigBits()));
-                        log.info("handle add partition to txn finish.");
                     } else {
                         ex = handleTxnException(ex, BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(), requestId);
 
