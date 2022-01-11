@@ -2019,6 +2019,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         List<CompletableFuture<String>> futures = Lists.newArrayList();
         CompletableFuture<Set<String>> availableBookiesFuture =
                 brokerService.pulsar().getPulsarResources().getBookieResources().listAvailableBookiesAsync();
+        futures.add(availableBookiesFuture.handle((strings, throwable) -> null));
         availableBookiesFuture.whenComplete((bookies, e) -> {
             if (e != null) {
                 log.error("[{}] Failed to fetch available bookies.", topic, e);
@@ -2049,7 +2050,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 });
             }
         });
-        futures.add(availableBookiesFuture.handle((strings, throwable) -> null));
 
         // Add ledger info for compacted topic ledger if exist.
         LedgerInfo info = new LedgerInfo();
