@@ -161,7 +161,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
 
         if (bi != null
                 && !Strings.isNullOrEmpty(bi.getRack())
-                && !bi.getRack().equals("/")) {
+                && !bi.getRack().trim().equals("/")) {
             String rack = bi.getRack();
             if (!rack.startsWith("/")) {
                 rack = "/" + rack;
