@@ -461,20 +461,20 @@ The Apache Software License, Version 2.0
      - org.jetbrains.kotlin-kotlin-stdlib-jdk8-1.4.32.jar
      - org.jetbrains-annotations-13.0.jar
  * gRPC
-    - io.grpc-grpc-all-1.33.0.jar
-    - io.grpc-grpc-auth-1.33.0.jar
-    - io.grpc-grpc-context-1.33.0.jar
-    - io.grpc-grpc-core-1.33.0.jar
-    - io.grpc-grpc-netty-1.33.0.jar
-    - io.grpc-grpc-protobuf-1.33.0.jar
-    - io.grpc-grpc-protobuf-lite-1.33.0.jar
-    - io.grpc-grpc-stub-1.33.0.jar
-    - io.grpc-grpc-alts-1.33.0.jar
-    - io.grpc-grpc-api-1.33.0.jar
-    - io.grpc-grpc-grpclb-1.33.0.jar
-    - io.grpc-grpc-netty-shaded-1.33.0.jar
-    - io.grpc-grpc-services-1.33.0.jar
-    - io.grpc-grpc-xds-1.33.0.jar
+    - io.grpc-grpc-all-1.42.1.jar
+    - io.grpc-grpc-auth-1.42.1.jar
+    - io.grpc-grpc-context-1.42.1.jar
+    - io.grpc-grpc-core-1.42.1.jar
+    - io.grpc-grpc-netty-1.42.1.jar
+    - io.grpc-grpc-protobuf-1.42.1.jar
+    - io.grpc-grpc-protobuf-lite-1.42.1.jar
+    - io.grpc-grpc-stub-1.42.1.jar
+    - io.grpc-grpc-alts-1.42.1.jar
+    - io.grpc-grpc-api-1.42.1.jar
+    - io.grpc-grpc-grpclb-1.42.1.jar
+    - io.grpc-grpc-netty-shaded-1.42.1.jar
+    - io.grpc-grpc-services-1.42.1.jar
+    - io.grpc-grpc-xds-1.42.1.jar
   * Perfmark
     - io.perfmark-perfmark-api-0.19.0.jar
   * OpenCensus
