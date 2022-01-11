@@ -537,6 +537,18 @@ public class Consumer {
         return ackedCount;
     }
 
+    private long getUnAckedCountForBatchIndexLevelEnabled(PositionImpl position, long batchSize) {
+        long unAckedCount = batchSize;
+        if (isDeletionAtBatchIndexLevelEnabled()) {
+            long[] cursorAckSet = getCursorAckSet(position);
+            if (cursorAckSet != null) {
+                BitSetRecyclable cursorBitSet = BitSetRecyclable.create().resetWords(cursorAckSet);
+                unAckedCount = cursorBitSet.cardinality();
+            }
+        }
+        return unAckedCount;
+    }
+
     private void checkAckValidationError(CommandAck ack, PositionImpl position) {
         if (ack.hasValidationError()) {
             log.error("[{}] [{}] Received ack for corrupted message at {} - Reason: {}", subscription,
@@ -836,7 +848,9 @@ public class Consumer {
             List<PositionImpl> pendingPositions = new ArrayList<>((int) pendingAcks.size());
             MutableInt totalRedeliveryMessages = new MutableInt(0);
             pendingAcks.forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
-                totalRedeliveryMessages.add((int) batchSize);
+                int unAckedCount = (int) getUnAckedCountForBatchIndexLevelEnabled(PositionImpl.get(ledgerId, entryId),
+                        batchSize);
+                totalRedeliveryMessages.add(unAckedCount);
                 pendingPositions.add(new PositionImpl(ledgerId, entryId));
             });
 
