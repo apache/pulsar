@@ -19,19 +19,18 @@
 package org.apache.pulsar.admin.cli;
 
 import com.beust.jcommander.Parameters;
+import java.util.function.Supplier;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClientException;
-
-import java.util.function.Supplier;
 
 @Slf4j
 @Parameters(commandDescription = "Operations to collect function-worker statistics")
 public class CmdFunctionWorker extends CmdBase {
 
     /**
-     * Base command
+     * Base command.
      */
     @Getter
     abstract class BaseCommand extends CliCommand {

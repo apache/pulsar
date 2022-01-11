@@ -16,6 +16,7 @@
     { "filename": "sources.md" },
     { "filename": "tenants.md" },
     { "filename": "topics.md" },
+    { "filename": "topicPolicies.md" },
     { "filename": "transactions.md" }
   ],
   "title": "Docs",

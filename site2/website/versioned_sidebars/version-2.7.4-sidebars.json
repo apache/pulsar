@@ -1,0 +1,163 @@
+{
+  "version-2.7.4-docs": {
+    "Get Started": [
+      "version-2.7.4-standalone",
+      "version-2.7.4-standalone-docker",
+      "version-2.7.4-kubernetes-helm"
+    ],
+    "Concepts and Architecture": [
+      "version-2.7.4-concepts-overview",
+      "version-2.7.4-concepts-messaging",
+      "version-2.7.4-concepts-architecture-overview",
+      "version-2.7.4-concepts-clients",
+      "version-2.7.4-concepts-replication",
+      "version-2.7.4-concepts-multi-tenancy",
+      "version-2.7.4-concepts-authentication",
+      "version-2.7.4-concepts-topic-compaction",
+      "version-2.7.4-concepts-proxy-sni-routing",
+      "version-2.7.4-concepts-multiple-advertised-listeners"
+    ],
+    "Pulsar Schema": [
+      "version-2.7.4-schema-get-started",
+      "version-2.7.4-schema-understand",
+      "version-2.7.4-schema-evolution-compatibility",
+      "version-2.7.4-schema-manage"
+    ],
+    "Pulsar Functions": [
+      "version-2.7.4-functions-overview",
+      "version-2.7.4-functions-worker",
+      "version-2.7.4-functions-runtime",
+      "version-2.7.4-functions-develop",
+      "version-2.7.4-functions-package",
+      "version-2.7.4-functions-debug",
+      "version-2.7.4-functions-deploy",
+      "version-2.7.4-functions-cli",
+      "version-2.7.4-window-functions-context"
+    ],
+    "Pulsar IO": [
+      "version-2.7.4-io-overview",
+      "version-2.7.4-io-quickstart",
+      "version-2.7.4-io-use",
+      "version-2.7.4-io-debug",
+      "version-2.7.4-io-connectors",
+      "version-2.7.4-io-cdc",
+      "version-2.7.4-io-develop",
+      "version-2.7.4-io-cli"
+    ],
+    "Pulsar SQL": [
+      "version-2.7.4-sql-overview",
+      "version-2.7.4-sql-getting-started",
+      "version-2.7.4-sql-deployment-configurations",
+      "version-2.7.4-sql-rest-api"
+    ],
+    "Tiered Storage": [
+      "version-2.7.4-tiered-storage-overview",
+      "version-2.7.4-tiered-storage-aws",
+      "version-2.7.4-tiered-storage-gcs",
+      "version-2.7.4-tiered-storage-filesystem",
+      "version-2.7.4-tiered-storage-azure"
+    ],
+    "Transactions": [
+      "version-2.7.4-transactions",
+      "version-2.7.4-transactions-guarantee",
+      "version-2.7.4-transactions-api"
+    ],
+    "Kubernetes (Helm)": [
+      "version-2.7.4-helm-overview",
+      "version-2.7.4-helm-prepare",
+      "version-2.7.4-helm-install",
+      "version-2.7.4-helm-deploy",
+      "version-2.7.4-helm-upgrade",
+      "version-2.7.4-helm-tools"
+    ],
+    "Deployment": [
+      "version-2.7.4-deploy-aws",
+      "version-2.7.4-deploy-kubernetes",
+      "version-2.7.4-deploy-bare-metal",
+      "version-2.7.4-deploy-bare-metal-multi-cluster",
+      "version-2.7.4-deploy-dcos",
+      "version-2.7.4-deploy-docker",
+      "version-2.7.4-deploy-monitoring"
+    ],
+    "Administration": [
+      "version-2.7.4-administration-zk-bk",
+      "version-2.7.4-administration-geo",
+      "version-2.7.4-administration-pulsar-manager",
+      "version-2.7.4-administration-stats",
+      "version-2.7.4-administration-load-balance",
+      "version-2.7.4-administration-proxy",
+      "version-2.7.4-administration-upgrade",
+      "version-2.7.4-administration-isolation"
+    ],
+    "Security": [
+      "version-2.7.4-security-overview",
+      "version-2.7.4-security-tls-transport",
+      "version-2.7.4-security-tls-authentication",
+      "version-2.7.4-security-tls-keystore",
+      "version-2.7.4-security-jwt",
+      "version-2.7.4-security-athenz",
+      "version-2.7.4-security-kerberos",
+      "version-2.7.4-security-oauth2",
+      "version-2.7.4-security-authorization",
+      "version-2.7.4-security-encryption",
+      "version-2.7.4-security-extending",
+      "version-2.7.4-security-bouncy-castle"
+    ],
+    "Performance": [
+      "version-2.7.4-performance-pulsar-perf"
+    ],
+    "Client Libraries": [
+      "version-2.7.4-client-libraries",
+      "version-2.7.4-client-libraries-java",
+      "version-2.7.4-client-libraries-go",
+      "version-2.7.4-client-libraries-python",
+      "version-2.7.4-client-libraries-cpp",
+      "version-2.7.4-client-libraries-node",
+      "version-2.7.4-client-libraries-websocket",
+      "version-2.7.4-client-libraries-dotnet"
+    ],
+    "Admin API": [
+      "version-2.7.4-admin-api-overview",
+      "version-2.7.4-admin-api-clusters",
+      "version-2.7.4-admin-api-tenants",
+      "version-2.7.4-admin-api-brokers",
+      "version-2.7.4-admin-api-namespaces",
+      "version-2.7.4-admin-api-permissions",
+      "version-2.7.4-admin-api-topics",
+      "version-2.7.4-admin-api-functions"
+    ],
+    "Adaptors": [
+      "version-2.7.4-adaptors-kafka",
+      "version-2.7.4-adaptors-spark",
+      "version-2.7.4-adaptors-storm"
+    ],
+    "Cookbooks": [
+      "version-2.7.4-cookbooks-compaction",
+      "version-2.7.4-cookbooks-deduplication",
+      "version-2.7.4-cookbooks-non-persistent",
+      "version-2.7.4-cookbooks-retention-expiry",
+      "version-2.7.4-cookbooks-encryption",
+      "version-2.7.4-cookbooks-message-queue",
+      "version-2.7.4-cookbooks-bookkeepermetadata"
+    ],
+    "Development": [
+      "version-2.7.4-develop-tools",
+      "version-2.7.4-develop-binary-protocol",
+      "version-2.7.4-develop-schema",
+      "version-2.7.4-develop-load-manager",
+      "version-2.7.4-develop-cpp"
+    ],
+    "Reference": [
+      "version-2.7.4-reference-terminology",
+      "version-2.7.4-reference-cli-tools",
+      "version-2.7.4-reference-configuration",
+      "version-2.7.4-reference-metrics"
+    ]
+  },
+  "version-2.7.4-docs-other": {
+    "First Category": [
+      "version-2.7.4-doc4",
+      "version-2.7.4-doc5"
+    ]
+  }
+}

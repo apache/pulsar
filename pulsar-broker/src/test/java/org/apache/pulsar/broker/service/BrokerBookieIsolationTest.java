@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.fail;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -54,7 +55,6 @@ import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -494,12 +494,7 @@ public class BrokerBookieIsolationTest {
         // (3) delete affinity-group
         admin.namespaces().deleteBookieAffinityGroup(ns2);
 
-        try {
-            admin.namespaces().getBookieAffinityGroup(ns2);
-            fail("should have fail due to affinity-group not present");
-        } catch (NotFoundException e) {
-            // Ok
-        }
+        assertNull(admin.namespaces().getBookieAffinityGroup(ns2));
 
         assertEquals(admin.namespaces().getBookieAffinityGroup(ns3),
                 BookieAffinityGroupData.builder()

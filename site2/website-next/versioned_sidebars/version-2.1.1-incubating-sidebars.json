@@ -1,0 +1,402 @@
+{
+  "version-2.1.1-incubating/docsSidebar": [
+    {
+      "type": "category",
+      "label": "Getting Started",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/pulsar-2.0"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/standalone"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/standalone-docker"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/client-libraries"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Concepts and Architecture",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/concepts-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/concepts-messaging"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/concepts-architecture-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/concepts-clients"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/concepts-replication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/concepts-multi-tenancy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/concepts-authentication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/concepts-topic-compaction"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/concepts-tiered-storage"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/concepts-schema-registry"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar Functions",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/functions-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/functions-quickstart"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/functions-api"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/functions-deploying"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/functions-guarantees"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/functions-state"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/functions-metrics"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar IO",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/io-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/io-quickstart"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/io-managing"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/io-connectors"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/io-develop"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Deployment",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/deploy-aws"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/deploy-kubernetes"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/deploy-bare-metal"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/deploy-bare-metal-multi-cluster"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/deploy-dcos"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/deploy-monitoring"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Administration",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/administration-zk-bk"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/administration-geo"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/administration-dashboard"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/administration-stats"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/administration-load-distribution"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/administration-proxy"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Security",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/security-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/security-tls-transport"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/security-tls-authentication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/security-athenz"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/security-authorization"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/security-encryption"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/security-extending"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Client Libraries",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/client-libraries-java"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/client-libraries-go"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/client-libraries-python"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/client-libraries-cpp"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/client-libraries-websocket"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Admin API",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/admin-api-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/admin-api-clusters"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/admin-api-tenants"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/admin-api-brokers"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/admin-api-namespaces"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/admin-api-permissions"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/admin-api-persistent-topics"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/admin-api-non-persistent-topics"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/admin-api-partitioned-topics"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/admin-api-schemas"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Adaptors",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/adaptors-kafka"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/adaptors-spark"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/adaptors-storm"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Cookbooks",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/cookbooks-tiered-storage"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/cookbooks-compaction"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/cookbooks-deduplication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/cookbooks-non-persistent"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/cookbooks-partitioned"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/cookbooks-retention-expiry"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/cookbooks-encryption"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/cookbooks-message-queue"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Development",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/develop-tools"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/develop-binary-protocol"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/develop-schema"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/develop-load-manager"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/develop-cpp"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Reference",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/reference-terminology"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/reference-cli-tools"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/pulsar-admin"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.1.1-incubating/reference-configuration"
+        }
+      ]
+    }
+  ]
+}

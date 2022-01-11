@@ -20,6 +20,32 @@ package org.apache.pulsar.io.elasticsearch;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import java.io.File;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.security.KeyManagementException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.SSLContext;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -76,37 +102,10 @@ import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
-import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.SSLContext;
-import java.io.File;
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.security.KeyManagementException;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.UnrecoverableKeyException;
-import java.security.cert.CertificateException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-
 @Slf4j
 public class ElasticSearchClient implements AutoCloseable {
 
-    static final String[] malformedErrors = {
+    static final String[] MALFORMED_ERRORS = {
             "mapper_parsing_exception",
             "action_request_validation_exception",
             "illegal_argument_exception"
@@ -133,7 +132,8 @@ public class ElasticSearchClient implements AutoCloseable {
             bulkProcessor = null;
         } else {
             BulkProcessor.Builder builder = BulkProcessor.builder(
-                    (bulkRequest, bulkResponseActionListener) -> client.bulkAsync(bulkRequest, RequestOptions.DEFAULT, bulkResponseActionListener),
+                    (bulkRequest, bulkResponseActionListener)
+                            -> client.bulkAsync(bulkRequest, RequestOptions.DEFAULT, bulkResponseActionListener),
                     new BulkProcessor.Listener() {
                         @Override
                         public void beforeBulk(long l, BulkRequest bulkRequest) {
@@ -150,7 +150,7 @@ public class ElasticSearchClient implements AutoCloseable {
                                     record.fail();
                                     try {
                                         hasIrrecoverableError(bulkItemResponse);
-                                    } catch(Exception e) {
+                                    } catch (Exception e) {
                                         log.warn("Unrecoverable error:", e);
                                     }
                                 } else {
@@ -185,14 +185,11 @@ public class ElasticSearchClient implements AutoCloseable {
 
         // idle+expired connection evictor thread
         this.executorService = Executors.newSingleThreadScheduledExecutor();
-        this.executorService.scheduleAtFixedRate(new Runnable() {
-                                                     @Override
-                                                     public void run() {
-                                                         configCallback.connectionManager.closeExpiredConnections();
-                                                         configCallback.connectionManager.closeIdleConnections(
-                                                                 config.getConnectionIdleTimeoutInMs(), TimeUnit.MILLISECONDS);
-                                                     }
-                                                 },
+        this.executorService.scheduleAtFixedRate(() -> {
+            configCallback.connectionManager.closeExpiredConnections();
+            configCallback.connectionManager.closeIdleConnections(
+                    config.getConnectionIdleTimeoutInMs(), TimeUnit.MILLISECONDS);
+        },
                 config.getConnectionIdleTimeoutInMs(),
                 config.getConnectionIdleTimeoutInMs(),
                 TimeUnit.MILLISECONDS
@@ -231,7 +228,7 @@ public class ElasticSearchClient implements AutoCloseable {
     }
 
     void hasIrrecoverableError(BulkItemResponse bulkItemResponse) throws Exception {
-        for (String error : malformedErrors) {
+        for (String error : MALFORMED_ERRORS) {
             if (bulkItemResponse.getFailureMessage().contains(error)) {
                 switch (config.getMalformedDocAction()) {
                     case IGNORE:
@@ -256,8 +253,9 @@ public class ElasticSearchClient implements AutoCloseable {
 
     IndexRequest makeIndexRequest(Record<GenericObject> record, Pair<String, String> idAndDoc) throws IOException {
         IndexRequest indexRequest = Requests.indexRequest(indexName(record.getTopicName()));
-        if (!Strings.isNullOrEmpty(idAndDoc.getLeft()))
+        if (!Strings.isNullOrEmpty(idAndDoc.getLeft())) {
             indexRequest.id(idAndDoc.getLeft());
+        }
         indexRequest.type(config.getTypeName());
         indexRequest.source(idAndDoc.getRight(), XContentType.JSON);
         return indexRequest;
@@ -277,7 +275,7 @@ public class ElasticSearchClient implements AutoCloseable {
             IndexRequest indexRequest = makeIndexRequest(record, idAndDoc);
             records.put(indexRequest, record);
             bulkProcessor.add(indexRequest);
-        } catch(Exception e) {
+        } catch (Exception e) {
             log.debug("index failed id=" + idAndDoc.getLeft(), e);
             record.fail();
             throw e;
@@ -296,8 +294,8 @@ public class ElasticSearchClient implements AutoCloseable {
             checkNotFailed();
             checkIndexExists(record.getTopicName());
             IndexResponse indexResponse = client.index(makeIndexRequest(record, idAndDoc), RequestOptions.DEFAULT);
-            if (indexResponse.getResult().equals(DocWriteResponse.Result.CREATED) ||
-                    indexResponse.getResult().equals(DocWriteResponse.Result.UPDATED)) {
+            if (indexResponse.getResult().equals(DocWriteResponse.Result.CREATED)
+                    || indexResponse.getResult().equals(DocWriteResponse.Result.UPDATED)) {
                 record.ack();
                 return true;
             } else {
@@ -318,7 +316,7 @@ public class ElasticSearchClient implements AutoCloseable {
             DeleteRequest deleteRequest = makeDeleteRequest(record, id);
             records.put(deleteRequest, record);
             bulkProcessor.add(deleteRequest);
-        } catch(Exception e) {
+        } catch (Exception e) {
             log.debug("delete failed id=" + id, e);
             record.fail();
             throw e;
@@ -338,8 +336,8 @@ public class ElasticSearchClient implements AutoCloseable {
             checkIndexExists(record.getTopicName());
             DeleteResponse deleteResponse = client.delete(makeDeleteRequest(record, id), RequestOptions.DEFAULT);
             log.debug("delete result=" + deleteResponse.getResult());
-            if (deleteResponse.getResult().equals(DocWriteResponse.Result.DELETED) ||
-                    deleteResponse.getResult().equals(DocWriteResponse.Result.NOT_FOUND)) {
+            if (deleteResponse.getResult().equals(DocWriteResponse.Result.DELETED)
+                    || deleteResponse.getResult().equals(DocWriteResponse.Result.NOT_FOUND)) {
                 record.ack();
                 return true;
             }
@@ -419,7 +417,7 @@ public class ElasticSearchClient implements AutoCloseable {
             // remove the pulsar topic info persistent://tenant/namespace/topic
             String[] parts = indexName.split("/");
             if (parts.length > 1) {
-                indexName = parts[parts.length-1];
+                indexName = parts[parts.length - 1];
             }
 
             // truncate to the max bytes length
@@ -427,7 +425,8 @@ public class ElasticSearchClient implements AutoCloseable {
                 indexName = indexName.substring(0, indexName.length() - 1);
             }
             if (indexName.length() <= 0 || !indexName.matches("[a-zA-Z\\.0-9][a-zA-Z_\\.\\-\\+0-9]*")) {
-                throw new RuntimeException(new IOException("Cannot convert the topic name='" + topicName + "' to a valid elasticsearch index name"));
+                throw new RuntimeException(new IOException("Cannot convert the topic name='"
+                        + topicName + "' to a valid elasticsearch index name"));
             }
             if (log.isDebugEnabled()) {
                 log.debug("Translate topic={} to index={}", k, indexName);
@@ -472,11 +471,6 @@ public class ElasticSearchClient implements AutoCloseable {
                         .indices(indexName)
                         .source(new SearchSourceBuilder().query(QueryBuilders.matchAllQuery())),
                 RequestOptions.DEFAULT);
-    }
-
-    @VisibleForTesting
-    protected org.elasticsearch.action.admin.indices.refresh.RefreshResponse refresh(String indexName) throws IOException {
-        return client.indices().refresh(new RefreshRequest(indexName), RequestOptions.DEFAULT);
     }
 
     @VisibleForTesting
@@ -548,12 +542,14 @@ public class ElasticSearchClient implements AutoCloseable {
                     connManager = new PoolingNHttpClientConnectionManager(ioReactor);
                 }
                 return connManager;
-            } catch(Exception e) {
+            } catch (Exception e) {
                 throw new ElasticSearchConnectionException(e);
             }
         }
 
-        private SSLContext buildSslContext(ElasticSearchConfig config) throws NoSuchAlgorithmException, KeyManagementException, CertificateException, KeyStoreException, IOException, UnrecoverableKeyException {
+        private SSLContext buildSslContext(ElasticSearchConfig config)
+                throws NoSuchAlgorithmException, KeyManagementException, CertificateException,
+                KeyStoreException, IOException, UnrecoverableKeyException {
             ElasticSearchSslConfig sslConfig = config.getSsl();
             SSLContextBuilder sslContextBuilder = SSLContexts.custom();
             if (!Strings.isNullOrEmpty(sslConfig.getProvider())) {
@@ -562,10 +558,13 @@ public class ElasticSearchClient implements AutoCloseable {
             if (!Strings.isNullOrEmpty(sslConfig.getProtocols())) {
                 sslContextBuilder.setProtocol(sslConfig.getProtocols());
             }
-            if (!Strings.isNullOrEmpty(sslConfig.getTruststorePath()) && !Strings.isNullOrEmpty(sslConfig.getTruststorePassword())) {
-                sslContextBuilder.loadTrustMaterial(new File(sslConfig.getTruststorePath()), sslConfig.getTruststorePassword().toCharArray());
+            if (!Strings.isNullOrEmpty(sslConfig.getTruststorePath())
+                    && !Strings.isNullOrEmpty(sslConfig.getTruststorePassword())) {
+                sslContextBuilder.loadTrustMaterial(
+                        new File(sslConfig.getTruststorePath()), sslConfig.getTruststorePassword().toCharArray());
             }
-            if (!Strings.isNullOrEmpty(sslConfig.getKeystorePath()) && !Strings.isNullOrEmpty(sslConfig.getKeystorePassword())) {
+            if (!Strings.isNullOrEmpty(sslConfig.getKeystorePath())
+                    && !Strings.isNullOrEmpty(sslConfig.getKeystorePassword())) {
                 sslContextBuilder.loadKeyMaterial(new File(sslConfig.getKeystorePath()),
                         sslConfig.getKeystorePassword().toCharArray(),
                         sslConfig.getKeystorePassword().toCharArray());

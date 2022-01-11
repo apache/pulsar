@@ -999,12 +999,9 @@ public abstract class NamespacesBase extends AdminResource {
             final BookieAffinityGroupData bookkeeperAffinityGroup = getLocalPolicies().getLocalPolicies(namespaceName)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                             "Namespace local-policies does not exist")).bookieAffinityGroup;
-            if (bookkeeperAffinityGroup == null) {
-                throw new RestException(Status.NOT_FOUND, "bookie-affinity group does not exist");
-            }
             return bookkeeperAffinityGroup;
         } catch (NotFoundException e) {
-            log.warn("[{}] Failed to update local-policy configuration for namespace {}: does not exist",
+            log.warn("[{}] Failed to get local-policy configuration for namespace {}: does not exist",
                     clientAppId(), namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace policies does not exist");
         } catch (RestException re) {
@@ -1178,7 +1175,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetPublishRate(PublishRate maxPublishMessageRate) {
-        validateSuperUserAccess();
+        validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.WRITE);
         log.info("[{}] Set namespace publish-rate {}/{}", clientAppId(), namespaceName, maxPublishMessageRate);
         updatePolicies(namespaceName, policies -> {
             policies.publishMaxMessageRate.put(pulsar().getConfiguration().getClusterName(), maxPublishMessageRate);
@@ -1189,7 +1186,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalRemovePublishRate() {
-        validateSuperUserAccess();
+        validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.WRITE);
         log.info("[{}] Remove namespace publish-rate {}/{}", clientAppId(), namespaceName, topicName);
         try {
             updatePolicies(namespaceName, policies -> {
@@ -1211,18 +1208,12 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
-        PublishRate publishRate = policies.publishMaxMessageRate.get(pulsar().getConfiguration().getClusterName());
-        if (publishRate != null) {
-            return publishRate;
-        } else {
-            throw new RestException(Status.NOT_FOUND,
-                    "Publish-rate is not configured for cluster " + pulsar().getConfiguration().getClusterName());
-        }
+        return policies.publishMaxMessageRate.get(pulsar().getConfiguration().getClusterName());
     }
 
     @SuppressWarnings("deprecation")
     protected void internalSetTopicDispatchRate(DispatchRateImpl dispatchRate) {
-        validateSuperUserAccess();
+        validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.WRITE);
         log.info("[{}] Set namespace dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
 
         try {
@@ -1241,7 +1232,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalDeleteTopicDispatchRate() {
-        validateSuperUserAccess();
+        validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.WRITE);
         try {
             updatePolicies(namespaceName, policies -> {
                 policies.topicDispatchRate.remove(pulsar().getConfiguration().getClusterName());
@@ -1266,7 +1257,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetSubscriptionDispatchRate(DispatchRateImpl dispatchRate) {
-        validateSuperUserAccess();
+        validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.WRITE);
         log.info("[{}] Set namespace subscription dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
 
         try {
@@ -1284,7 +1275,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalDeleteSubscriptionDispatchRate() {
-        validateSuperUserAccess();
+        validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.WRITE);
 
         try {
             updatePolicies(namespaceName, policies -> {
@@ -1308,7 +1299,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetSubscribeRate(SubscribeRate subscribeRate) {
-        validateSuperUserAccess();
+        validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.WRITE);
         log.info("[{}] Set namespace subscribe-rate {}/{}", clientAppId(), namespaceName, subscribeRate);
         try {
             updatePolicies(namespaceName, policies -> {
@@ -1325,7 +1316,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalDeleteSubscribeRate() {
-        validateSuperUserAccess();
+        validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.WRITE);
         try {
             updatePolicies(namespaceName, policies -> {
                 policies.clusterSubscribeRate.remove(pulsar().getConfiguration().getClusterName());
@@ -1347,7 +1338,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalRemoveReplicatorDispatchRate() {
-        validateSuperUserAccess();
+        validateNamespacePolicyOperation(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.WRITE);
         try {
             updatePolicies(namespaceName, policies -> {
                 policies.replicatorDispatchRate.remove(pulsar().getConfiguration().getClusterName());
@@ -1363,7 +1354,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetReplicatorDispatchRate(DispatchRateImpl dispatchRate) {
-        validateSuperUserAccess();
+        validateNamespacePolicyOperation(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.WRITE);
         log.info("[{}] Set namespace replicator dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
         try {
             updatePolicies(namespaceName, policies -> {
@@ -1764,7 +1755,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetInactiveTopic(InactiveTopicPolicies inactiveTopicPolicies) {
-        validateSuperUserAccess();
+        validateNamespacePolicyOperation(namespaceName, PolicyName.INACTIVE_TOPIC, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         internalSetPolicies("inactive_topic_policies", inactiveTopicPolicies);
     }
@@ -1791,7 +1782,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetDelayedDelivery(DelayedDeliveryPolicies delayedDeliveryPolicies) {
-        validateSuperUserAccess();
+        validateNamespacePolicyOperation(namespaceName, PolicyName.DELAYED_DELIVERY, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         internalSetPolicies("delayed_delivery_policies", delayedDeliveryPolicies);
     }
@@ -2185,7 +2176,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetMaxSubscriptionsPerTopic(Integer maxSubscriptionsPerTopic){
-        validateSuperUserAccess();
+        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         if (maxSubscriptionsPerTopic != null && maxSubscriptionsPerTopic < 0) {
             throw new RestException(Status.PRECONDITION_FAILED,

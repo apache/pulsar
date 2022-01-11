@@ -260,7 +260,8 @@ defer client.Close()
 
 topicName := newTopicName()
 producer, err := client.CreateProducer(pulsar.ProducerOptions{
-	Topic: topicName,
+    Topic:           topicName,
+    DisableBatching: true,
 })
 if err != nil {
 	log.Fatal(err)

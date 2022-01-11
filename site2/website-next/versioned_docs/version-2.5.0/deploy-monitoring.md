@@ -37,7 +37,7 @@ The aggregated broker metrics are also exposed in the [Prometheus](https://prome
 
 ```shell
 
-http://$BROKER_ADDRESS:8080/metrics/
+http://$BROKER_ADDRESS:8080/metrics//
 
 ```
 

@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.io.core;
 
+import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.functions.api.Record;
-
-import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * Pulsar's Batch Push Source interface. Batch Push Sources have the same lifecycle
@@ -95,7 +94,7 @@ public abstract class BatchPushSource<T> implements BatchSource<T> {
     }
 
     /**
-     * Get length of the queue that records are push onto
+     * Get length of the queue that records are push onto.
      * Users can override this method to customize the queue length
      * @return queue length
      */
@@ -104,7 +103,7 @@ public abstract class BatchPushSource<T> implements BatchSource<T> {
     }
 
     /**
-     * Allows the source to notify errors asynchronously
+     * Allows the source to notify errors asynchronously.
      * @param ex
      */
     public void notifyError(Exception ex) {

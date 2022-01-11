@@ -19,8 +19,6 @@
 
 package org.apache.pulsar.broker.authentication;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.naming.AuthenticationException;

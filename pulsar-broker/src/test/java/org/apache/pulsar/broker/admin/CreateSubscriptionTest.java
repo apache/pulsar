@@ -29,9 +29,17 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.io.IOException;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.core.Response.Status;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.HttpPut;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -43,6 +51,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
+import org.eclipse.jetty.http.HttpStatus;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -296,5 +305,47 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         consumer4.close();
 
 
+    }
+
+    @Test
+    public void createSubscriptionBySpecifyingStringPosition() throws IOException, PulsarAdminException {
+        final int numberOfMessages = 5;
+        String topic = "persistent://my-property/my-ns/my-topic";
+        RequestConfig requestConfig = RequestConfig.custom().setConnectTimeout(30 * 1000).build();
+        CloseableHttpClient httpClient = HttpClientBuilder.create().setDefaultRequestConfig(requestConfig).build();
+
+        // Produce some messages to pulsar
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+        for (int i = 0; i < numberOfMessages; i++) {
+            producer.send(new byte[10]);
+        }
+
+        // Create a subscription from the latest position
+        String latestSubName = "sub-latest";
+        HttpPut request = new HttpPut(String.format("%s/admin/v2/persistent/my-property/my-ns/my-topic/subscription/%s",
+                admin.getServiceUrl(), latestSubName));
+        request.setHeader("Content-Type", "application/json");
+        request.setEntity(new StringEntity("\"latest\""));
+
+        HttpResponse httpResponse = httpClient.execute(request);
+        assertEquals(httpResponse.getStatusLine().getStatusCode(), HttpStatus.NO_CONTENT_204);
+
+        long msgBacklog = admin.topics().getStats(topic).getSubscriptions().get(latestSubName).getMsgBacklog();
+        assertEquals(msgBacklog, 0);
+
+        // Create a subscription from the earliest position
+        String earliestSubName = "sub-earliest";
+        request = new HttpPut(String.format("%s/admin/v2/persistent/my-property/my-ns/my-topic/subscription/%s",
+                admin.getServiceUrl(), earliestSubName));
+        request.setHeader("Content-Type", "application/json");
+        request.setEntity(new StringEntity("\"earliest\""));
+
+        httpResponse = httpClient.execute(request);
+        assertEquals(httpResponse.getStatusLine().getStatusCode(), HttpStatus.NO_CONTENT_204);
+
+        msgBacklog = admin.topics().getStats(topic).getSubscriptions().get(earliestSubName).getMsgBacklog();
+        assertEquals(msgBacklog, numberOfMessages);
+
+        producer.close();
     }
 }

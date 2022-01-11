@@ -179,6 +179,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Optional<Integer> webServicePortTls = Optional.empty();
 
     @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "Specify the tls protocols the proxy's web service will use to negotiate during TLS Handshake.\n\n"
+                    + "Example:- [TLSv1.3, TLSv1.2]"
+    )
+    private Set<String> webServiceTlsProtocols = new TreeSet<>();
+
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "Specify the tls cipher the proxy's web service will use to negotiate during TLS Handshake.\n\n"
+                    + "Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]"
+    )
+    private Set<String> webServiceTlsCiphers = new TreeSet<>();
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Hostname or IP address the service binds on"
     )
@@ -700,7 +714,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "Reducing to lower value can give more accuracy while throttling publish but "
                     + "it uses more CPU to perform frequent check. (Disable publish throttling with value 0)"
         )
-    private int topicPublisherThrottlingTickTimeMillis = 5;
+    private int topicPublisherThrottlingTickTimeMillis = 10;
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Enable precise rate limit for topic publish"
@@ -816,7 +830,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Default dispatch-throttling is disabled for consumers which already caught-up with"
             + " published messages and don't have backlog. This enables dispatch-throttling for "
             + " non-backlog consumers as well.")
-    private boolean dispatchThrottlingOnNonBacklogConsumerEnabled = false;
+    private boolean dispatchThrottlingOnNonBacklogConsumerEnabled = true;
 
     @FieldContext(
             category = CATEGORY_POLICIES,
@@ -1038,6 +1052,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SERVER,
+        dynamic = true,
         doc = "Max memory size for broker handling messages sending from producers.\n\n"
             + " If the processing message size exceed this value, broker will stop read data"
             + " from the connection. The processing messages means messages are sends to broker"
@@ -1596,7 +1611,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_STORAGE_ML,
         doc = "Threshold to which bring down the cache level when eviction is triggered"
     )
-    private double managedLedgerCacheEvictionWatermark = 0.9f;
+    private double managedLedgerCacheEvictionWatermark = 0.9;
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Configure the cache eviction frequency for the managed ledger cache. Default is 100/s")
     private double managedLedgerCacheEvictionFrequency = 100.0;
@@ -1785,7 +1800,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
-            doc = "load balance load shedding strategy"
+            dynamic = true,
+            doc = "load balance load shedding strategy (It requires broker restart if value is changed using dynamic config)"
     )
     private String loadBalancerLoadSheddingStrategy = "org.apache.pulsar.broker.loadbalance.impl.OverloadShedder";
 
@@ -1803,6 +1819,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int loadBalancerReportUpdateMaxIntervalMinutes = 15;
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
+        dynamic = true,
         doc = "Frequency of report to collect, in minutes"
     )
     private int loadBalancerHostUsageCheckIntervalMinutes = 1;
@@ -1814,12 +1831,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean loadBalancerSheddingEnabled = true;
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
+        dynamic = true,
         doc = "Load shedding interval. \n\nBroker periodically checks whether some traffic"
             + " should be offload from some over-loaded broker to other under-loaded brokers"
     )
     private int loadBalancerSheddingIntervalMinutes = 1;
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
+        dynamic = true,
         doc = "Prevent the same topics to be shed and moved to other broker more than"
             + " once within this timeframe"
     )
@@ -1947,26 +1966,32 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean loadBalancerAutoUnloadSplitBundlesEnabled = true;
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
+        dynamic = true,
         doc = "maximum topics in a bundle, otherwise bundle split will be triggered"
     )
     private int loadBalancerNamespaceBundleMaxTopics = 1000;
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
+        dynamic = true,
         doc = "maximum sessions (producers + consumers) in a bundle, otherwise bundle split will be triggered"
+                + "(disable threshold check with value -1)"
     )
     private int loadBalancerNamespaceBundleMaxSessions = 1000;
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
+        dynamic = true,
         doc = "maximum msgRate (in + out) in a bundle, otherwise bundle split will be triggered"
     )
     private int loadBalancerNamespaceBundleMaxMsgRate = 30000;
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
+        dynamic = true,
         doc = "maximum bandwidth (in + out) in a bundle, otherwise bundle split will be triggered"
     )
     private int loadBalancerNamespaceBundleMaxBandwidthMbytes = 100;
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
+        dynamic = true,
         doc = "maximum number of bundles in a namespace"
     )
     private int loadBalancerNamespaceMaximumBundles = 128;
@@ -1996,6 +2021,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
+        dynamic = true,
         doc = "Time to wait for the unloading of a namespace bundle"
     )
     private long namespaceBundleUnloadingTimeoutMs = 60000;
@@ -2005,7 +2031,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_REPLICATION,
         doc = "Enable replication metrics"
     )
-    private boolean replicationMetricsEnabled = false;
+    private boolean replicationMetricsEnabled = true;
     @FieldContext(
         category = CATEGORY_REPLICATION,
         doc = "Max number of connections to open for each broker in a remote cluster.\n\n"
@@ -2229,7 +2255,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_METRICS,
             doc = "Enable expose the broker bundles metrics."
     )
-    private boolean exposeBunlesMetricsInPrometheus = false;
+    private boolean exposeBundlesMetricsInPrometheus = false;
 
     /**** --- Functions --- ****/
     @FieldContext(
@@ -2388,7 +2414,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS TrustStore password for broker"
+            doc = "TLS TrustStore password for broker, null means empty password."
     )
     private String tlsTrustStorePassword = null;
 
