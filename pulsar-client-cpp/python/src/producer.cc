@@ -75,6 +75,8 @@ void Producer_close(Producer& producer) {
         CHECK_RESULT(res);
 }
 
+bool Producer_is_connected(Producer& producer) { return producer.isConnected(); }
+
 void export_producer() {
     using namespace boost::python;
 
@@ -103,5 +105,6 @@ void export_producer() {
         .def("flush", &Producer_flush,
              "Flush all the messages buffered in the client and wait until all messages have been\n"
              "successfully persisted\n")
-        .def("close", &Producer_close);
+        .def("close", &Producer_close)
+        .def("is_connected", &Producer_is_connected);
 }

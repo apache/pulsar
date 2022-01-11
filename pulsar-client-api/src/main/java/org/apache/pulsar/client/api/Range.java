@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.util.Objects;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
-
-import java.util.Objects;
 
 /**
  * Int range.

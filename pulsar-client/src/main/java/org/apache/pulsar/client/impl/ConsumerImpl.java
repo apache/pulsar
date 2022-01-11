@@ -740,16 +740,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         boolean isDurable = subscriptionMode == SubscriptionMode.Durable;
-        MessageIdData startMessageIdData = null;
-        if (isDurable) {
-            // For regular durable subscriptions, the message id from where to restart will be determined by the broker.
-            startMessageIdData = null;
-        } else if (startMessageId != null) {
-            // For non-durable we are going to restart from the next entry
+        final MessageIdData startMessageIdData;
+
+        // For regular durable subscriptions, the message id from where to restart will be determined by the broker.
+        // For non-durable we are going to restart from the next entry.
+        if (!isDurable && startMessageId != null) {
             startMessageIdData = new MessageIdData()
                     .setLedgerId(startMessageId.getLedgerId())
                     .setEntryId(startMessageId.getEntryId())
                     .setBatchIndex(startMessageId.getBatchIndex());
+        } else {
+            startMessageIdData = null;
         }
 
         SchemaInfo si = schema.getSchemaInfo();

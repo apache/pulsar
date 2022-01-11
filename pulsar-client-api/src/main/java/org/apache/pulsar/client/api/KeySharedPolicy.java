@@ -83,7 +83,7 @@ public abstract class KeySharedPolicy {
      */
     public static class KeySharedPolicySticky extends KeySharedPolicy {
 
-        protected List<Range> ranges;
+        protected final List<Range> ranges;
 
         KeySharedPolicySticky() {
             this.keySharedMode = KeySharedMode.STICKY;

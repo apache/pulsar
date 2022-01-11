@@ -321,7 +321,7 @@ You can check the following statistics of a given non-partitioned topic.
 
       -   **averageMsgSize**: The average message size in bytes from this publisher within the last interval.
 
-      -   **chunkedMessageRate**: Total chunked message count received for this producer on this topic.
+      -   **chunkedMessageRate**: The total rate of chunked messages published by this publisher. The totoal rate of 
 
       -   **producerId**: The internal identifier for this producer on this topic.
 
@@ -425,7 +425,7 @@ You can check the following statistics of a given non-partitioned topic.
 
                 -   **msgRateRedeliver**: Total rate of messages redelivered by this consumer (msg/s).
 
-                -   **chunkedMessageRate**: Total chunked messages dispatched.
+                -   **chunkedMessageRate**: The total rate of chunked messages delivered to this consumer.
 
                 -   **avgMessagesPerEntry**: Number of average messages per entry for the consumer consumed.
 
