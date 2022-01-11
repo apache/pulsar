@@ -412,9 +412,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         final String topic3 = "persistent://my-property/my-ns/topic3" + UUID.randomUUID();
         List<String> topics = Arrays.asList(topic, topic2, topic3);
         PulsarClientImpl client = (PulsarClientImpl) pulsarClient;
-        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
-                .startMessageId(MessageId.earliest)
-                .topics(topics).readerName("my-reader").create();
+
         // create producer and send msg
         List<Producer<String>> producerList = new ArrayList<>();
         for (String topicName : topics) {
@@ -430,6 +428,11 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
                 messages.add(msg);
             }
         }
+
+        // create reader and receive messages
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .startMessageId(MessageId.earliest)
+                .topics(topics).readerName("my-reader").create();
         // receive messages
         while (reader.hasMessageAvailable()) {
             messages.remove(reader.readNext(5, TimeUnit.SECONDS).getValue());
