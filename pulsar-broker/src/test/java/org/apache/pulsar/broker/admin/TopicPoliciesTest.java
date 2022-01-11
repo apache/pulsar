@@ -699,6 +699,14 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() -> assertNull(admin.namespaces().getSubscriptionDispatchRate(myNamespace)));
         Awaitility.await().untilAsserted(() -> assertNull(admin.topicPolicies().getSubscriptionDispatchRate(topic)));
         assertEquals(admin.topicPolicies().getSubscriptionDispatchRate(topic, true), brokerDispatchRate);
+
+        admin.namespaces().setSubscriptionDispatchRate(myNamespaceV1, namespaceDispatchRate);
+        Awaitility.await().untilAsserted(() ->
+                assertNotNull(admin.namespaces().getSubscriptionDispatchRate(myNamespaceV1)));
+        admin.namespaces().removeSubscriptionDispatchRate(myNamespaceV1);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin.namespaces().getSubscriptionDispatchRate(myNamespaceV1)));
+
     }
 
     @Test(timeOut = 20000)
