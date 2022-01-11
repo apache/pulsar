@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.stats.prometheus;
 
 import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsEventsNames;
 import io.netty.util.concurrent.FastThreadLocal;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
@@ -35,6 +37,11 @@ import org.apache.pulsar.transaction.coordinator.impl.TransactionMetadataStoreSt
 
 @Slf4j
 public class TransactionAggregator {
+
+    /**
+     * Used for tracking duplicate TYPE definitions
+     */
+    static Map<String, String> metricWithTypeDefinition = new HashMap<>();
 
     private static final FastThreadLocal<AggregatedTransactionCoordinatorStats> localTransactionCoordinatorStats =
             new FastThreadLocal<AggregatedTransactionCoordinatorStats>() {
@@ -54,6 +61,7 @@ public class TransactionAggregator {
 
     public static void generate(PulsarService pulsar, SimpleTextOutputStream stream, boolean includeTopicMetrics) {
         String cluster = pulsar.getConfiguration().getClusterName();
+        metricWithTypeDefinition.clear();
 
         if (includeTopicMetrics) {
             pulsar.getBrokerService().getMultiLayerTopicMap().forEach((namespace, bundlesMap) -> {
@@ -146,10 +154,19 @@ public class TransactionAggregator {
                 subscription, managedLedgerStats);
     }
 
+    static void metricType(SimpleTextOutputStream stream, String name) {
+
+        if (!metricWithTypeDefinition.containsKey(name)) {
+            metricWithTypeDefinition.put(name, "gauge");
+            stream.write("# TYPE ").write(name).write(" gauge\n");
+        }
+
+    }
+
     private static void metric(SimpleTextOutputStream stream, String cluster, String name,
                                double value, long coordinatorId) {
-        stream.write("# TYPE ").write(name).write(" gauge\n")
-                .write(name)
+        metricType(stream, name);
+        stream.write(name)
                 .write("{cluster=\"").write(cluster)
                 .write("\",coordinator_id=\"").write(coordinatorId).write("\"} ")
                 .write(value).write(' ').write(System.currentTimeMillis())
