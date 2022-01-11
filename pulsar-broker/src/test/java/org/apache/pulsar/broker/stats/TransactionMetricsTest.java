@@ -349,6 +349,8 @@ public class TransactionMetricsTest extends BrokerTestBase {
     @Test
     public void testDuplicateMetricTypeDefinitions() throws Exception{
         pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true).build();
+        admin.topics().deletePartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 3);
         Producer<byte[]> p1 = pulsarClient
                 .newProducer()
                 .topic("persistent://my-property/use/my-ns/my-topic1")

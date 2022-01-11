@@ -39,7 +39,7 @@ import org.apache.pulsar.transaction.coordinator.impl.TransactionMetadataStoreSt
 public class TransactionAggregator {
 
     /**
-     * Used for tracking duplicate TYPE definitions
+     * Used for tracking duplicate TYPE definitions.
      */
     static Map<String, String> metricWithTypeDefinition = new HashMap<>();
 
