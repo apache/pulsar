@@ -26,6 +26,7 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.pulsar.broker.ClassLoaderSwitcher;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.Subscription;
@@ -50,39 +51,53 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
                                   Entry entry,
                                   long[] ackSet,
                                   MessageMetadata msgMetadata) {
-        this.interceptor.beforeSendMessage(
-            subscription, entry, ackSet, msgMetadata);
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            this.interceptor.beforeSendMessage(
+                    subscription, entry, ackSet, msgMetadata);
+        }
     }
 
     @Override
     public void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws InterceptException {
-        this.interceptor.onPulsarCommand(command, cnx);
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            this.interceptor.onPulsarCommand(command, cnx);
+        }
     }
 
     @Override
     public void onConnectionClosed(ServerCnx cnx) {
-        this.interceptor.onConnectionClosed(cnx);
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            this.interceptor.onConnectionClosed(cnx);
+        }
     }
 
     @Override
     public void onWebserviceRequest(ServletRequest request) throws IOException, ServletException, InterceptException {
-        this.interceptor.onWebserviceRequest(request);
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            this.interceptor.onWebserviceRequest(request);
+        }
     }
 
     @Override
     public void onWebserviceResponse(ServletRequest request, ServletResponse response)
             throws IOException, ServletException {
-        this.interceptor.onWebserviceResponse(request, response);
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            this.interceptor.onWebserviceResponse(request, response);
+        }
     }
 
     @Override
     public void initialize(PulsarService pulsarService) throws Exception {
-        this.interceptor.initialize(pulsarService);
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            this.interceptor.initialize(pulsarService);
+        }
     }
 
     @Override
     public void close() {
-        interceptor.close();
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            interceptor.close();
+        }
         try {
             classLoader.close();
         } catch (IOException e) {
