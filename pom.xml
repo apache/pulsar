@@ -122,7 +122,7 @@ flexible messaging model and an intuitive client API.</description>
     <dockerfile-maven.version>1.4.13</dockerfile-maven.version>
     <typetools.version>0.5.0</typetools.version>
     <protobuf2.version>2.4.1</protobuf2.version>
-    <protobuf3.version>3.11.4</protobuf3.version>
+    <protobuf3.version>3.16.1</protobuf3.version>
     <protoc3.version>${protobuf3.version}</protoc3.version>
     <grpc.version>1.18.0</grpc.version>
     <protoc-gen-grpc-java.version>${grpc.version}</protoc-gen-grpc-java.version>
