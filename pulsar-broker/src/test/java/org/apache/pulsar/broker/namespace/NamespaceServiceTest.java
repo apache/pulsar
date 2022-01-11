@@ -512,7 +512,6 @@ public class NamespaceServiceTest extends BrokerTestBase {
         TopicName topicName = TopicName.get("persistent://pulsar/global/ns1/topic-1");
         NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
 
-
         NamespaceBundle splitBundle1 = bundles.findBundle(topicName);
         ownershipCache.tryAcquiringOwnership(splitBundle1);
         CompletableFuture<Void> result1 = namespaceService.splitAndOwnBundle(splitBundle1, false, NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO);
@@ -523,7 +522,6 @@ public class NamespaceServiceTest extends BrokerTestBase {
         }
         Awaitility.await().untilAsserted(()
                 -> assertNull(namespaceService.getOwnershipCache().getOwnedBundles().get(splitBundle1)));
-
 
         //unload split
         bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
@@ -538,9 +536,6 @@ public class NamespaceServiceTest extends BrokerTestBase {
         }
         Awaitility.await().untilAsserted(()
                 -> assertNull(namespaceService.getOwnershipCache().getOwnedBundles().get(splitBundle2)));
-
-
-
     }
 
 
