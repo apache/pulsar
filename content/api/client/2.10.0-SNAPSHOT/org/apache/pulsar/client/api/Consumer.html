@@ -954,7 +954,7 @@ extends java.io.Closeable</pre>
           consumer.acknowledge(msg);
      } catch (Throwable t) {
           log.warn("Failed to process message");
-          consumer.reconsumeLater(msg, 1000 , TimeUnit.MILLISECONDS);
+          consumer.reconsumeLater(msg, 1000, TimeUnit.MILLISECONDS);
      }
  }
  </code></pre></div>
@@ -996,7 +996,7 @@ extends java.io.Closeable</pre>
           consumer.acknowledge(msg);
      } catch (Throwable t) {
           log.warn("Failed to process message");
-          consumer.reconsumeLater(msg, 1000 , TimeUnit.MILLISECONDS);
+          consumer.reconsumeLater(msg, 1000, TimeUnit.MILLISECONDS);
      }
  }
  </code></pre></div>
