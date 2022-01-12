@@ -89,6 +89,10 @@ public class CmdTopicPolicies extends CmdBase {
         jcommander.addCommand("set-subscription-dispatch-rate", new SetSubscriptionDispatchRate());
         jcommander.addCommand("remove-subscription-dispatch-rate", new RemoveSubscriptionDispatchRate());
 
+        jcommander.addCommand("get-replicator-dispatch-rate", new GetReplicatorDispatchRate());
+        jcommander.addCommand("set-replicator-dispatch-rate", new SetReplicatorDispatchRate());
+        jcommander.addCommand("remove-replicator-dispatch-rate", new RemoveReplicatorDispatchRate());
+
         jcommander.addCommand("get-publish-rate", new GetPublishRate());
         jcommander.addCommand("set-publish-rate", new SetPublishRate());
         jcommander.addCommand("remove-publish-rate", new RemovePublishRate());
@@ -1269,6 +1273,82 @@ public class CmdTopicPolicies extends CmdBase {
             String persistentTopic = validatePersistentTopic(params);
             getTopicPolicies(isGlobal).removeInactiveTopicPolicies(persistentTopic);
         }
+    }
+
+    @Parameters(commandDescription = "Get replicator message-dispatch-rate for a topic")
+    private class GetReplicatorDispatchRate extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic")
+        private boolean applied = false;
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
+                + "If set to true, broker returned global topic policies")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(getTopicPolicies(isGlobal).getReplicatorDispatchRate(persistentTopic, applied));
+        }
+    }
+
+    @Parameters(commandDescription = "Set replicator message-dispatch-rate for a topic")
+    private class SetReplicatorDispatchRate extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--msg-dispatch-rate",
+                "-md" }, description = "message-dispatch-rate (default -1 will be overwrite if not passed)")
+        private int msgDispatchRate = -1;
+
+        @Parameter(names = { "--byte-dispatch-rate",
+                "-bd" }, description = "byte-dispatch-rate (default -1 will be overwrite if not passed)")
+        private long byteDispatchRate = -1;
+
+        @Parameter(names = {"--dispatch-rate-period",
+                "-dt"}, description = "dispatch-rate-period in second type (default 1 second will be overwrite if not"
+                + " passed)")
+        private int dispatchRatePeriodSec = 1;
+
+        @Parameter(names = {"--relative-to-publish-rate",
+                "-rp"}, description = "dispatch rate relative to publish-rate (if publish-relative flag is enabled "
+                + "then broker will apply throttling value to (publish-rate + dispatch rate))")
+        private boolean relativeToPublishRate = false;
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
+                + "If set to true, the policy will be replicate to other clusters asynchronously")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopicPolicies(isGlobal).setReplicatorDispatchRate(persistentTopic,
+                    DispatchRate.builder()
+                            .dispatchThrottlingRateInMsg(msgDispatchRate)
+                            .dispatchThrottlingRateInByte(byteDispatchRate)
+                            .ratePeriodInSecond(dispatchRatePeriodSec)
+                            .relativeToPublishRate(relativeToPublishRate)
+                            .build());
+        }
+    }
+
+    @Parameters(commandDescription = "Remove replicator message-dispatch-rate for a topic")
+    private class RemoveReplicatorDispatchRate extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to remove this policy globally. "
+                + "If set to true, the policy will be replicate to other clusters asynchronously")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopicPolicies(isGlobal).removeReplicatorDispatchRate(persistentTopic);
+        }
+
     }
 
     @Parameters(commandDescription = "Get subscription message-dispatch-rate for a topic")
