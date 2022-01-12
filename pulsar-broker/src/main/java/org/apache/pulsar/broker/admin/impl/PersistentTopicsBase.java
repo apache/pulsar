@@ -248,7 +248,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void validateCreateTopic(TopicName topicName) {
         if (isTransactionInternalName(topicName)) {
-            log.warn("Try to create a topic in the system topic format! {}", topicName);
+            log.warn("Forbidden to create transaction internal topic: {}", topicName);
             throw new RestException(Status.BAD_REQUEST, "Cannot create topic in system topic format!");
         }
     }
