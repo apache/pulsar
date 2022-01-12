@@ -252,6 +252,7 @@ The Apache Software License, Version 2.0
     - netty-transport-native-epoll-4.1.72.Final-linux-x86_64.jar
     - netty-transport-native-unix-common-4.1.72.Final.jar
     - netty-transport-native-unix-common-4.1.72.Final-linux-x86_64.jar
+    - netty-codec-http2-4.1.72.Final.jar
  * GRPC
     - grpc-api-1.42.1.jar
     - grpc-context-1.42.1.jar
@@ -479,7 +480,7 @@ The Apache Software License, Version 2.0
 Protocol Buffers License
  * Protocol Buffers
    - protobuf-java-3.16.1.jar
-   - protobuf-java-util-3.16.4.jar
+   - protobuf-java-util-3.16.1.jar
    - proto-google-common-protos-2.0.1.jar
 
 BSD 3-clause "New" or "Revised" License
