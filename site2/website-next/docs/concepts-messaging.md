@@ -232,7 +232,7 @@ If a message is not consumed successfully, and you want the broker to redeliver 
 You can also use the redelivery backoff mechanism, redeliver messages with different delays by setting the number
 of times the messages is retried.
 
-If you want to use Redelivery Backoff, you can use the following API.
+If you want to use redelivery backoff, you can use the following API.
 ```java
 consumer.ackTimeout(10, TimeUnit.SECOND)
         .ackTimeoutRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
@@ -241,7 +241,7 @@ consumer.ackTimeout(10, TimeUnit.SECOND)
         .multiplier(2).build())
 ```
 
-The message redelivery behavior should be:
+The message redelivery behavior should be as follows.
 
 Redelivery count | Redelivery delay
 :--------------------|:-----------

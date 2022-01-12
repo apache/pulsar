@@ -435,7 +435,7 @@ Consumer consumer =  client.newConsumer()
                 .build())
         .subscribe();
 ```
-The message redelivery behavior should be:
+The message redelivery behavior should be as follows.
 
 Redelivery count | Redelivery delay
 :--------------------|:-----------
