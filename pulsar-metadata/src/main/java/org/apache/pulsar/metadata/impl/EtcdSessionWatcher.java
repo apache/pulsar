@@ -47,7 +47,7 @@ public class EtcdSessionWatcher implements AutoCloseable {
     // Maximum time to wait for Etcd lease to be re-connected to quorum (set to 5/6 of SessionTimeout)
     private final long monitorTimeoutMillis;
 
-    // Interval at which we check the state of the zk session (set to 1/15 of SessionTimeout)
+    // Interval at which we check the state of the Etcd connection (set to 1/15 of SessionTimeout)
     private final long tickTimeMillis;
 
     private final ScheduledExecutorService scheduler;
@@ -78,7 +78,7 @@ public class EtcdSessionWatcher implements AutoCloseable {
         scheduler.awaitTermination(10, TimeUnit.SECONDS);
     }
 
-    // task that runs every TICK_TIME to check zk connection
+    // task that runs every TICK_TIME to check Etcd connection
     private synchronized void checkConnectionStatus() {
         try {
             CompletableFuture<SessionEvent> future = new CompletableFuture<>();
@@ -102,7 +102,7 @@ public class EtcdSessionWatcher implements AutoCloseable {
         } catch (RejectedExecutionException | InterruptedException e) {
             task.cancel(true);
         } catch (Throwable t) {
-            log.warn("Error while checking ZK connection status", t);
+            log.warn("Error while checking Etcd connection status", t);
         }
     }
 
@@ -114,7 +114,7 @@ public class EtcdSessionWatcher implements AutoCloseable {
         switch (etcdlientState) {
             case SessionLost:
                 if (currentStatus != SessionEvent.SessionLost) {
-                    log.error("Etcd lease has expired expired");
+                    log.error("Etcd lease has expired");
                     currentStatus = SessionEvent.SessionLost;
                     sessionListener.accept(currentStatus);
                 }
