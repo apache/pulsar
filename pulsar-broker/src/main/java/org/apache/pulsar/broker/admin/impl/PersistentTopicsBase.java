@@ -1617,7 +1617,7 @@ public class PersistentTopicsBase extends AdminResource {
                 }).exceptionally(e -> {
                     Throwable cause = e.getCause();
                     if (cause instanceof WebApplicationException) {
-                        if (log.isDebugEnabled() && ((WebApplicationException) e).getResponse().getStatus()
+                        if (log.isDebugEnabled() && ((WebApplicationException) cause).getResponse().getStatus()
                                 == Status.TEMPORARY_REDIRECT.getStatusCode()) {
                             log.debug("[{}] Failed to delete subscription from topic {}, redirecting to other brokers.",
                                     clientAppId(), topicName, e);
