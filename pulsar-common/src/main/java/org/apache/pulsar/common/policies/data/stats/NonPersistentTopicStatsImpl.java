@@ -21,17 +21,17 @@ package org.apache.pulsar.common.policies.data.stats;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import lombok.Getter;
-import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
-import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
-import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
-import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
+import lombok.Getter;
+import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
+import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
+import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
+import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 
 /**
  * Statistics for a non-persistent topic.
@@ -138,17 +138,20 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
             for (String subscription : stats.getNonPersistentSubscriptions().keySet()) {
                 NonPersistentSubscriptionStatsImpl subscriptionStats = new NonPersistentSubscriptionStatsImpl();
                 this.getNonPersistentSubscriptions().put(subscription, subscriptionStats
-                        .add((NonPersistentSubscriptionStatsImpl) stats.getNonPersistentSubscriptions().get(subscription)));
+                        .add((NonPersistentSubscriptionStatsImpl)
+                                stats.getNonPersistentSubscriptions().get(subscription)));
             }
         } else {
             for (String subscription : stats.getNonPersistentSubscriptions().keySet()) {
                 if (this.getNonPersistentSubscriptions().get(subscription) != null) {
                     ((NonPersistentSubscriptionStatsImpl) this.getNonPersistentSubscriptions().get(subscription))
-                          .add((NonPersistentSubscriptionStatsImpl) stats.getNonPersistentSubscriptions().get(subscription));
+                          .add((NonPersistentSubscriptionStatsImpl)
+                                  stats.getNonPersistentSubscriptions().get(subscription));
                 } else {
                     NonPersistentSubscriptionStatsImpl subscriptionStats = new NonPersistentSubscriptionStatsImpl();
                     this.getNonPersistentSubscriptions().put(subscription, subscriptionStats
-                         .add((NonPersistentSubscriptionStatsImpl) stats.getNonPersistentSubscriptions().get(subscription)));
+                         .add((NonPersistentSubscriptionStatsImpl)
+                                 stats.getNonPersistentSubscriptions().get(subscription)));
                 }
             }
         }

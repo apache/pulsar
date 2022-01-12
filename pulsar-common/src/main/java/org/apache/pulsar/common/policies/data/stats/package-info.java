@@ -16,12 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.stats;
-
-import com.fasterxml.jackson.annotation.JsonInclude;
-import java.util.Map;
-
-public abstract class MetricsMixIn {
-    @JsonInclude(content = JsonInclude.Include.NON_EMPTY)
-    Map<String, String> dimensions;
-}
+package org.apache.pulsar.common.policies.data.stats;

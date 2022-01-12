@@ -30,7 +30,8 @@ public final class Runnables {
     /**
      * Wraps a Runnable so that throwables are caught and logged when a Runnable is run.
      *
-     * The main usecase for this method is to be used in {@link java.util.concurrent.ScheduledExecutorService#scheduleAtFixedRate(Runnable, long, long, TimeUnit)}
+     * The main usecase for this method is to be used in
+     * {@link java.util.concurrent.ScheduledExecutorService#scheduleAtFixedRate(Runnable, long, long, TimeUnit)}
      * calls to ensure that the scheduled task doesn't get cancelled as a result of an uncaught exception.
      *
      * @param runnable The runnable to wrap
