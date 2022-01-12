@@ -1518,21 +1518,22 @@ public class PersistentTopicsBase extends AdminResource {
                 log.info("[{}][{}] Deleted subscription {}", clientAppId(), topicName, subName);
                 asyncResponse.resume(Response.noContent().build());
             }).exceptionally(e -> {
-                if (e.getCause() instanceof SubscriptionBusyException) {
+                Throwable cause = e.getCause();
+                if (cause instanceof SubscriptionBusyException) {
                     log.error("[{}] Failed to delete subscription {} from topic {}", clientAppId(), subName,
-                            topicName, e);
+                            topicName, cause);
                     asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
                             "Subscription has active connected consumers"));
-                } else if (e instanceof WebApplicationException) {
-                    if (log.isDebugEnabled() && ((WebApplicationException) e).getResponse().getStatus()
+                } else if (cause instanceof WebApplicationException) {
+                    if (log.isDebugEnabled() && ((WebApplicationException) cause).getResponse().getStatus()
                             == Status.TEMPORARY_REDIRECT.getStatusCode()) {
                         log.debug("[{}] Failed to delete subscription from topic {}, redirecting to other brokers.",
-                                clientAppId(), topicName, e);
+                                clientAppId(), topicName, cause);
                     }
-                    asyncResponse.resume(e);
+                    asyncResponse.resume(cause);
                 } else {
-                    log.error("[{}] Failed to delete subscription {} {}", clientAppId(), topicName, subName, e);
-                    asyncResponse.resume(new RestException(e));
+                    log.error("[{}] Failed to delete subscription {} {}", clientAppId(), topicName, subName, cause);
+                    asyncResponse.resume(new RestException(cause));
                 }
                 return null;
             });
