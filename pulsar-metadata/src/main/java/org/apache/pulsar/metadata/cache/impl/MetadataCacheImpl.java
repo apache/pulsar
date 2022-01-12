@@ -255,12 +255,12 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     }
 
     @Override
-    public void invalidate(String path) {
+    public synchronized void invalidate(String path) {
         objCache.synchronous().invalidate(path);
     }
 
     @Override
-    public void refresh(String path) {
+    public synchronized void refresh(String path) {
         // Refresh object of path if only it is cached before.
         if (objCache.getIfPresent(path) != null) {
             objCache.synchronous().invalidate(path);
@@ -269,7 +269,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     }
 
     @VisibleForTesting
-    public void invalidateAll() {
+    public synchronized void invalidateAll() {
         objCache.synchronous().invalidateAll();
     }
 
