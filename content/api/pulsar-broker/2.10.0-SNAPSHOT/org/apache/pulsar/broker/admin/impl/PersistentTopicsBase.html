@@ -433,7 +433,7 @@ extends <a href="../AdminResource.html" title="class in org.apache.pulsar.broker
 </tr>
 <tr id="i34" class="altColor">
 <td class="colFirst"><code>protected java.util.concurrent.CompletableFuture&lt;java.util.Optional&lt;java.lang.Integer&gt;&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalGetMaxSubscriptionsPerTopic()">internalGetMaxSubscriptionsPerTopic</a></span>()</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalGetMaxSubscriptionsPerTopic(boolean)">internalGetMaxSubscriptionsPerTopic</a></span>&#8203;(boolean&nbsp;isGlobal)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i35" class="rowColor">
@@ -519,7 +519,8 @@ extends <a href="../AdminResource.html" title="class in org.apache.pulsar.broker
 </tr>
 <tr id="i48" class="altColor">
 <td class="colFirst"><code>protected java.util.concurrent.CompletableFuture&lt;org.apache.pulsar.common.policies.data.impl.DispatchRateImpl&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalGetReplicatorDispatchRate(boolean)">internalGetReplicatorDispatchRate</a></span>&#8203;(boolean&nbsp;applied)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalGetReplicatorDispatchRate(boolean,boolean)">internalGetReplicatorDispatchRate</a></span>&#8203;(boolean&nbsp;applied,
+                                 boolean&nbsp;isGlobal)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i49" class="rowColor">
@@ -736,7 +737,8 @@ extends <a href="../AdminResource.html" title="class in org.apache.pulsar.broker
 </tr>
 <tr id="i85" class="rowColor">
 <td class="colFirst"><code>protected java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalSetMaxSubscriptionsPerTopic(java.lang.Integer)">internalSetMaxSubscriptionsPerTopic</a></span>&#8203;(java.lang.Integer&nbsp;maxSubscriptionsPerTopic)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalSetMaxSubscriptionsPerTopic(java.lang.Integer,boolean)">internalSetMaxSubscriptionsPerTopic</a></span>&#8203;(java.lang.Integer&nbsp;maxSubscriptionsPerTopic,
+                                   boolean&nbsp;isGlobal)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i86" class="altColor">
@@ -789,7 +791,8 @@ extends <a href="../AdminResource.html" title="class in org.apache.pulsar.broker
 </tr>
 <tr id="i94" class="altColor">
 <td class="colFirst"><code>protected java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalSetReplicatorDispatchRate(org.apache.pulsar.common.policies.data.impl.DispatchRateImpl)">internalSetReplicatorDispatchRate</a></span>&#8203;(org.apache.pulsar.common.policies.data.impl.DispatchRateImpl&nbsp;dispatchRate)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalSetReplicatorDispatchRate(org.apache.pulsar.common.policies.data.impl.DispatchRateImpl,boolean)">internalSetReplicatorDispatchRate</a></span>&#8203;(org.apache.pulsar.common.policies.data.impl.DispatchRateImpl&nbsp;dispatchRate,
+                                 boolean&nbsp;isGlobal)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i95" class="rowColor">
@@ -1666,40 +1669,43 @@ extends <a href="../AdminResource.html" title="class in org.apache.pulsar.broker
                                                                                          boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
-<a id="internalGetMaxSubscriptionsPerTopic()">
+<a id="internalGetMaxSubscriptionsPerTopic(boolean)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalGetMaxSubscriptionsPerTopic</h4>
-<pre class="methodSignature">protected&nbsp;java.util.concurrent.CompletableFuture&lt;java.util.Optional&lt;java.lang.Integer&gt;&gt;&nbsp;internalGetMaxSubscriptionsPerTopic()</pre>
+<pre class="methodSignature">protected&nbsp;java.util.concurrent.CompletableFuture&lt;java.util.Optional&lt;java.lang.Integer&gt;&gt;&nbsp;internalGetMaxSubscriptionsPerTopic&#8203;(boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
-<a id="internalSetMaxSubscriptionsPerTopic(java.lang.Integer)">
+<a id="internalSetMaxSubscriptionsPerTopic(java.lang.Integer,boolean)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalSetMaxSubscriptionsPerTopic</h4>
-<pre class="methodSignature">protected&nbsp;java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;internalSetMaxSubscriptionsPerTopic&#8203;(java.lang.Integer&nbsp;maxSubscriptionsPerTopic)</pre>
+<pre class="methodSignature">protected&nbsp;java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;internalSetMaxSubscriptionsPerTopic&#8203;(java.lang.Integer&nbsp;maxSubscriptionsPerTopic,
+                                                                                                     boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
-<a id="internalGetReplicatorDispatchRate(boolean)">
+<a id="internalGetReplicatorDispatchRate(boolean,boolean)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalGetReplicatorDispatchRate</h4>
-<pre class="methodSignature">protected&nbsp;java.util.concurrent.CompletableFuture&lt;org.apache.pulsar.common.policies.data.impl.DispatchRateImpl&gt;&nbsp;internalGetReplicatorDispatchRate&#8203;(boolean&nbsp;applied)</pre>
+<pre class="methodSignature">protected&nbsp;java.util.concurrent.CompletableFuture&lt;org.apache.pulsar.common.policies.data.impl.DispatchRateImpl&gt;&nbsp;internalGetReplicatorDispatchRate&#8203;(boolean&nbsp;applied,
+                                                                                                                                                 boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
-<a id="internalSetReplicatorDispatchRate(org.apache.pulsar.common.policies.data.impl.DispatchRateImpl)">
+<a id="internalSetReplicatorDispatchRate(org.apache.pulsar.common.policies.data.impl.DispatchRateImpl,boolean)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalSetReplicatorDispatchRate</h4>
-<pre class="methodSignature">protected&nbsp;java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;internalSetReplicatorDispatchRate&#8203;(org.apache.pulsar.common.policies.data.impl.DispatchRateImpl&nbsp;dispatchRate)</pre>
+<pre class="methodSignature">protected&nbsp;java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;internalSetReplicatorDispatchRate&#8203;(org.apache.pulsar.common.policies.data.impl.DispatchRateImpl&nbsp;dispatchRate,
+                                                                                                   boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
 <a id="preValidation(boolean)">
