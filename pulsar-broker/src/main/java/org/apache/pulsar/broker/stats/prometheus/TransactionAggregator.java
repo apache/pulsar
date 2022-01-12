@@ -161,7 +161,7 @@ public class TransactionAggregator {
                 subscription, managedLedgerStats);
     }
 
-    static void metricType(SimpleTextOutputStream stream, String name) {
+    private static void metricType(SimpleTextOutputStream stream, String name) {
         Map<String, String> metricWithTypeDefinition = threadLocalMetricWithTypeDefinition.get();
         if (!metricWithTypeDefinition.containsKey(name)) {
             metricWithTypeDefinition.put(name, "gauge");
