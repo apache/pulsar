@@ -184,9 +184,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
     private Optional<SubscribeRateLimiter> subscribeRateLimiter = Optional.empty();
-    public volatile long delayedDeliveryTickTimeMillis = 1000;
     private final long backloggedCursorThresholdEntries;
-    public volatile boolean delayedDeliveryEnabled = false;
     public static final int MESSAGE_RATE_BACKOFF_MS = 1000;
 
     protected final MessageDeduplication messageDeduplication;
@@ -256,9 +254,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         this.ledger = ledger;
         this.subscriptions = new ConcurrentOpenHashMap<>(16, 1);
         this.replicators = new ConcurrentOpenHashMap<>(16, 1);
-        this.delayedDeliveryEnabled = brokerService.pulsar().getConfiguration().isDelayedDeliveryEnabled();
-        this.delayedDeliveryTickTimeMillis =
-                brokerService.pulsar().getConfiguration().getDelayedDeliveryTickTimeMillis();
         this.backloggedCursorThresholdEntries =
                 brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
         initializeRateLimiterIfNeeded(Optional.empty());
@@ -2446,10 +2441,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         updateUnackedMessagesAppliedOnSubscription(data);
         updateUnackedMessagesExceededOnConsumer(data);
 
-        if (data.delayed_delivery_policies != null) {
-            delayedDeliveryTickTimeMillis = data.delayed_delivery_policies.getTickTime();
-            delayedDeliveryEnabled = data.delayed_delivery_policies.isActive();
-        }
         //If the topic-level policy already exists, the namespace-level policy cannot override the topic-level policy.
         Optional<TopicPolicies> topicPolicies = getTopicPolicies();
 
@@ -3042,10 +3033,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     public long getDelayedDeliveryTickTimeMillis() {
-        //Topic level setting has higher priority than namespace level
-        return getTopicPolicies()
-                .map(TopicPolicies::getDelayedDeliveryTickTimeMillis)
-                .orElse(delayedDeliveryTickTimeMillis);
+        return topicPolicies.getDelayedDeliveryTickTimeMillis().get();
     }
 
     public int getMaxUnackedMessagesOnConsumer() {
@@ -3053,10 +3041,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     public boolean isDelayedDeliveryEnabled() {
-        //Topic level setting has higher priority than namespace level
-        return getTopicPolicies()
-                .map(TopicPolicies::getDelayedDeliveryEnabled)
-                .orElse(delayedDeliveryEnabled);
+        return topicPolicies.getDelayedDeliveryEnabled().get();
     }
 
     public int getMaxUnackedMessagesOnSubscription() {
