@@ -168,25 +168,17 @@ public class FunctionsBase extends AdminResource {
                             + " when the Pulsar Function is deleted.\n"
                             + "2. Encapsulate the JSON object to a multipart object.",
                     examples = @Example(
-                            value = {
-                                @ExampleProperty(
+                            value = @ExampleProperty(
                                     mediaType = MediaType.APPLICATION_JSON,
-                                    value = "Example 1 \n{\n"
+                                    value = "{\n"
                                             + "  \"inputs\": persistent://public/default/input-topic,\n"
-                                            + "  \"parallelism\": 4,\n"
-                                            + "  \"output\": persistent://public/default/output-topic,\n"
-                                            + "  \"log-topic\": persistent://public/default/log-topic,\n"
-                                            + "  \"classname\": org.example.test.ExclamationFunction,\n"
+                                            + "  \"parallelism\": 4\n"
+                                            + "  \"output\": persistent://public/default/output-topic\n"
+                                            + "  \"log-topic\": persistent://public/default/log-topic\n"
+                                            + "  \"classname\": org.example.test.ExclamationFunction\n"
                                             + "  \"jar\": java-function-1.0-SNAPSHOT.jar\n"
                                             + "}\n"
-                                            + "Example 2 \n{\n"
-                                            + "  \"inputs\": [persistent://public/default/sink-topic],\n"
-                                            + "  \"parallelism\":1,\n"
-                                            + "  \"sinkType\":\"jdbc\",\n"
-                                            + "  \"archive\":\"builtin://jdbc\"\n"
-                                            + "}"
-                                )
-                            }
+                            )
                     )
             )
             final @FormDataParam("functionConfig") FunctionConfig functionConfig) {
