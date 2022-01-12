@@ -216,7 +216,7 @@ consumer.ackTimeout(10, TimeUnit.SECOND)
         .multiplier(2).build())
 ```
 
-The message redelivery behavior should be:
+The message redelivery behavior should be as follows.
 
 Redelivery count | Redelivery delay
 :--------------------|:-----------
