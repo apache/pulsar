@@ -1990,9 +1990,10 @@ public class PersistentTopic extends AbstractTopic
         stats.state = ml.getState().toString();
 
         stats.ledgers = Lists.newArrayList();
-        List<CompletableFuture<String>> futures = includeLedgerMetadata ? Lists.newArrayList() : null;
+        List<CompletableFuture<String>> futures = Lists.newArrayList();
         CompletableFuture<Set<String>> availableBookiesFuture =
                 brokerService.pulsar().getPulsarResources().getBookieResources().listAvailableBookiesAsync();
+        futures.add(availableBookiesFuture.handle((strings, throwable) -> null));
         availableBookiesFuture.whenComplete((bookies, e) -> {
             if (e != null) {
                 log.error("[{}] Failed to fetch available bookies.", topic, e);
@@ -2005,7 +2006,7 @@ public class PersistentTopic extends AbstractTopic
                     info.size = li.getSize();
                     info.offloaded = li.hasOffloadContext() && li.getOffloadContext().getComplete();
                     stats.ledgers.add(info);
-                    if (futures != null) {
+                    if (includeLedgerMetadata) {
                         futures.add(ml.getLedgerMetadata(li.getLedgerId()).handle((lMetadata, ex) -> {
                             if (ex == null) {
                                 info.metadata = lMetadata;
