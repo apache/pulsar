@@ -198,6 +198,7 @@ flexible messaging model and an intuitive client API.</description>
     <spring-context.version>5.3.15</spring-context.version>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>
+    <snakeyaml.version>1.30</snakeyaml.version>
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
@@ -1140,6 +1141,11 @@ flexible messaging model and an intuitive client API.</description>
         <version>${j2objc-annotations.version}</version>
       </dependency>
 
+      <dependency>
+        <groupId>org.yaml</groupId>
+        <artifactId>snakeyaml</artifactId>
+        <version>${snakeyaml.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
