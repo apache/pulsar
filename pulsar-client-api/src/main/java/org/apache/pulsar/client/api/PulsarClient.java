@@ -223,6 +223,27 @@ public interface PulsarClient extends Closeable {
     <T> ReaderBuilder<T> newReader(Schema<T> schema);
 
     /**
+     * Create a table view builder with a specific schema for subscribing on a specific topic.
+     *
+     * <p>The TableView provides a key-value map view of a compacted topic. Messages without keys will
+     * be ignored.
+     *
+     * <p>Example:
+     * <pre>{@code
+     *  TableView<byte[]> tableView = client.newTableView(Schema.BYTES)
+     *            .topic("my-topic")
+     *            .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
+     *            .create();
+     *
+     *  tableView.forEach((k, v) -> System.out.println(k + ":" + v));
+     * }</pre>
+     *
+     * @param schema provide a way to convert between serialized data and domain objects
+     * @return a {@link TableViewBuilder} object to configure and construct the {@link TableView} instance
+     */
+    <T> TableViewBuilder<T> newTableViewBuilder(Schema<T> schema);
+
+    /**
      * Update the service URL this client is using.
      *
      * <p>This will force the client close all existing connections and to restart service discovery to the new service
