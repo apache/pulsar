@@ -980,9 +980,13 @@ public class NamespaceService implements AutoCloseable {
 
     public boolean isServiceUnitActive(TopicName topicName) {
         try {
-            return ownershipCache.getOwnedBundle(getBundle(topicName)).isActive();
+            OwnedBundle ownedBundle = ownershipCache.getOwnedBundle(getBundle(topicName));
+            if (ownedBundle == null) {
+                return false;
+            }
+            return ownedBundle.isActive();
         } catch (Exception e) {
-            LOG.warn("Unable to find OwnedBundle for topic - [{}]", topicName);
+            LOG.warn("Unable to find OwnedBundle for topic - [{}]", topicName, e);
             return false;
         }
     }
