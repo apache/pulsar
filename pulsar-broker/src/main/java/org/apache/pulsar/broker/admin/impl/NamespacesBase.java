@@ -1927,7 +1927,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected List<String> internalGetAntiAffinityNamespaces(String cluster, String antiAffinityGroup,
                                                              String tenant) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.READ);
+        validateTenantOperation(tenant, TenantOperation.LIST_ANTI_AFFINITY_NAMESPACES);
         checkNotNull(cluster, "Cluster should not be null");
         checkNotNull(antiAffinityGroup, "AntiAffinityGroup should not be null");
         checkNotNull(tenant, "Tenant should not be null");
