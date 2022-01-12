@@ -335,5 +335,25 @@ module.exports = [
         name: 'Softtech',
         url: 'https://softtech.com.tr/en/homepage/',
         logo: 'https://softtech.com.tr/wp-content/uploads/2017/12/SOFTTECH-LOGO.png',
+    },
+    {
+        name: 'Baidu',
+        url: 'https://www.baidu.com',
+        logo: 'https://www.baidu.com/img/PCtm_d9c8750bed0b3c7d089fa7d55720d6cf.png',
+    },
+    {
+        name: 'Dominos-Pizza',
+        url: 'https://www.dominos.com.cn/home',
+        logo: 'https://www.dominos.com.cn/assets/img/logo.087b3fea.png',
+    },
+    {
+        name: 'MGTV',
+        url: 'https://www.mgtv.com',
+        logo: 'http://honey.mgtv.com/klyg.official/images/nav/logo.png',
+    },
+    {
+        name: 'AsiaInfo',
+        url: 'https://www.asiainfo.com/en_us/index.html',
+        logo: 'https://www.asiainfo.com/include/images/logo.svg',
     }
 ].sort((a, b) => (a.name > b.name) ? 1 : -1);

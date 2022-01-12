@@ -1372,7 +1372,8 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
             double totalBandwidth = stats.msgThroughputIn + stats.msgThroughputOut;
 
             boolean needSplit = false;
-            if (stats.topics > maxBundleTopics || totalSessions > maxBundleSessions || totalMsgRate > maxBundleMsgRate
+            if (stats.topics > maxBundleTopics || (maxBundleSessions > 0
+                    && totalSessions > maxBundleSessions) || totalMsgRate > maxBundleMsgRate
                     || totalBandwidth > maxBundleBandwidth) {
                 if (stats.topics <= 1) {
                     log.info("Unable to split hot namespace bundle {} since there is only one topic.", bundleName);

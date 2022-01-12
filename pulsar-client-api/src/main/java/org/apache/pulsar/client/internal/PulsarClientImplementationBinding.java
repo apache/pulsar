@@ -17,6 +17,19 @@
  * under the License.
  */
 package org.apache.pulsar.client.internal;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.Date;
+import java.util.Map;
+import java.util.function.Supplier;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -35,26 +48,12 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
-import java.sql.Time;
-import java.sql.Timestamp;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.Date;
-import java.util.Map;
-import java.util.function.Supplier;
-
 /**
  * Helper class for class instantiations and it also contains methods to work with schemas.
  * This interface allows you to not depend on the Implementation classes directly.
  * The actual implementation of this class is loaded from {@link DefaultImplementation}.
  */
 public interface PulsarClientImplementationBinding {
-    
     <T> SchemaDefinitionBuilder<T> newSchemaDefinitionBuilder();
 
     ClientBuilder newClientBuilder();
@@ -117,7 +116,8 @@ public interface PulsarClientImplementationBinding {
 
     <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufSchema(SchemaDefinition schemaDefinition);
 
-    <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufNativeSchema(SchemaDefinition schemaDefinition);
+    <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufNativeSchema(
+            SchemaDefinition schemaDefinition);
 
     <T> Schema<T> newJSONSchema(SchemaDefinition schemaDefinition);
 

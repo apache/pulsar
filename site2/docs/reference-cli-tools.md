@@ -15,8 +15,12 @@ All Pulsar command-line tools can be run from the `bin` directory of your [insta
 * [`bookkeeper`](#bookkeeper)
 * [`broker-tool`](#broker-tool)
 
-> ### Getting help
-> You can get help for any CLI tool, command, or subcommand using the `--help` flag, or `-h` for short. Here's an example:
+> **Important** 
+>
+> - This page only shows **some frequently used commands**. For the latest information about `pulsar`, `pulsar-client`, and `pulsar-perf`, including commands, flags, descriptions, and more information, see [Pulsar tools](https://pulsar.apache.org/tools/).
+>  
+> - You can get help for any CLI tool, command, or subcommand using the `--help` flag, or `-h` for short. Here's an example:
+> 
 > ```shell
 > $ bin/pulsar broker --help
 > ```
@@ -42,6 +46,7 @@ Commands:
 * `websocket`
 * `zookeeper`
 * `zookeeper-shell`
+* `autorecovery`
 
 Example:
 ```bash
@@ -63,7 +68,7 @@ The table below lists the environment variables that you can use to configure th
 |`PULSAR_EXTRA_CLASSPATH`|Extra paths for Pulsar's classpath||
 |`PULSAR_PID_DIR`|Folder where the pulsar server PID file should be stored||
 |`PULSAR_STOP_TIMEOUT`|Wait time before forcefully killing the Bookie server instance if attempts to stop it are not successful||
-
+|`PULSAR_GC_LOG`|Gc options to be passed to the jvm||
 
 
 ### `bookie`
@@ -266,6 +271,21 @@ Options
 |`-c`, `--conf`|Configuration file for ZooKeeper||
 |`-server`|Configuration zk address, eg: `127.0.0.1:2181`||
 
+### `autorecovery`
+
+Runs an auto-recovery service.
+
+Usage
+
+```bash
+$ pulsar autorecovery options
+```
+
+Options
+
+|Flag|Description|Default|
+|---|---|---|
+|`-c`, `--conf`|Configuration for the autorecovery|N/A|
 
 
 ## `pulsar-client`
@@ -410,6 +430,7 @@ Commands
 * `monitor-brokers`
 * `simulation-client`
 * `simulation-controller`
+* `transaction`
 * `help`
 
 Environment variables
@@ -422,6 +443,7 @@ The table below lists the environment variables that you can use to configure th
 |`PULSAR_CLIENT_CONF`|Configuration file for the client|conf/client.conf|
 |`PULSAR_EXTRA_OPTS`|Extra options to be passed to the JVM||
 |`PULSAR_EXTRA_CLASSPATH`|Extra paths for Pulsar's classpath||
+|`PULSAR_GC_LOG`|Gc options to be passed to the jvm||
 
 
 ### `consume`
@@ -470,6 +492,17 @@ Options
 |`--trust-cert-file`|Path for the trusted TLS certificate file||
 |`--tls-allow-insecure`|Allow insecure TLS connection||
 
+Below are **transaction** related options.
+
+If you want `--txn-timeout`, `--numMessage-perTransaction`, `-nmt`, `-ntxn`, or `-abort` take effect, set `--txn-enable` to true.
+
+|Flag|Description|Default|
+|---|---|---|
+`-tto`, `--txn-timeout`|Set the time of transaction timeout (in second). |10
+`-nmt`, `--numMessage-perTransaction`|The number of messages acknowledged by a transaction. |50
+`-txn`, `--txn-enable`|Enable or disable a transaction.|false
+`-ntxn`|The number of opened transactions. 0 means the number of transactions is unlimited. |0
+`-abort`|Abort a transaction. |true
 
 ### `produce`
 Run a producer
@@ -526,6 +559,16 @@ Options
 |`--warmup-time`|Warm-up time in seconds|1|
 |`--tls-allow-insecure`|Allow insecure TLS connection||
 
+Below are **transaction** related options.
+
+If you want `--txn-timeout`, `--numMessage-perTransaction`, or `-abort` take effect, set `--txn-enable` to true.
+
+|Flag|Description|Default|
+|---|---|---|
+`-tto`, `--txn-timeout`|Set the time of transaction timeout (in second). |5
+`-nmt`, `--numMessage-perTransaction`|The number of messages acknowledged by a transaction. |50
+`-txn`, `--txn-enable`|Enable or disable a transaction.|true
+`-abort`|Abort a transaction. |true
 
 ### `read`
 Run a topic reader
@@ -664,6 +707,43 @@ Options
 |`--cluster`|The cluster to test on||
 |`-h`, `--help`|Help message|false|
 
+### `transaction`
+
+Run a transaction. For more information, see [Pulsar transactions](txn-why.md).
+
+**Usage**
+
+```bash
+$ pulsar-perf transaction options
+```
+
+**Options**
+
+|Flag|Description|Default|
+|---|---|---|
+`-au`, `--admin-url`|Pulsar admin URL.|N/A
+`--conf-file`|Configuration file.|N/A
+`-h`, `--help`|Help messages.|N/A
+`-c`, `--max-connections`|Maximum number of TCP connections to a single broker.|100
+`-ioThreads`, `--num-io-threads`|Set the number of threads to be used for handling connections to brokers. |1
+`-ns`, `--num-subscriptions`|Number of subscriptions per topic.|1
+`-threads`, `--num-test-threads`|Number of test threads. <br /><br />This thread is for a new transaction to ack messages from consumer topics, produce messages to producer topics, and commit or abort this transaction. <br /><br /> Increasing the number of threads increases the parallelism of the performance test, consequently, it increases the intensity of the stress test.|1
+`-nmc`, `--numMessage-perTransaction-consume`|Set the number of messages consumed in a transaction. <br /><br /> If transaction is disabled, it means the number of messages consumed in a task instead of in a transaction.|1
+`-nmp`, `--numMessage-perTransaction-produce`|Set the number of messages produced in a transaction. <br /><br />If transaction is disabled, it means the number of messages produced in a task instead of in a transaction.|1
+`-ntxn`, `--number-txn`|Set the number of transactions. <br /><br /> 0 means the number of transactions is unlimited. <br /><br /> If transaction is disabled, it means the number of tasks instead of transactions. |0
+`-np`, `--partitions`|Create partitioned topics with a given number of partitions. <br /><br /> 0 means not trying to create a topic.
+`-q`, `--receiver-queue-size`|Size of the receiver queue.|1000
+`-u`, `--service-url`|Pulsar service URL.|N/A
+`-sp`, `--subscription-position`|Subscription position.|Earliest
+`-st`, `--subscription-type`|Subscription type.|Shared
+`-ss`, `--subscriptions`|A list of subscriptions to consume. <br /><br /> For example, sub1,sub2.|[sub]
+`-time`, `--test-duration`|Test duration (in second). <br /><br /> 0 means keeping publishing messages.|0
+`--topics-c`|All topics assigned to consumers.|[test-consume]
+`--topics-p`|All topics assigned to producers . |[test-produce]
+`--txn-disEnable`|Disable transaction.|true
+`-tto`, `--txn-timeout`|Set the time of transaction timeout (in second). <br /><br /> If you want `--txn-timeout` takes effect, set `--txn-enable` to true.|5
+`-abort`|Abort the transaction. <br /><br /> If you want `-abort` takes effect, set `--txn-disEnable` to false.|true
+`-txnRate`|Set the rate of opened transactions or tasks. <br /><br /> 0 means no limit.|0
 
 ### `help`
 This help message
@@ -683,7 +763,7 @@ $ bookkeeper command
 ```
 
 Commands
-* `auto-recovery`
+* `autorecovery`
 * `bookie`
 * `localbookie`
 * `upgrade`
@@ -703,21 +783,22 @@ The table below lists the environment variables that you can use to configure th
 |ENTRY_FORMATTER_CLASS|The Java class used to format entries||
 |BOOKIE_PID_DIR|Folder where the BookKeeper server PID file should be stored||
 |BOOKIE_STOP_TIMEOUT|Wait time before forcefully killing the Bookie server instance if attempts to stop it are not successful||
+|BOOKIE_GC_LOG|Gc options to be passed to the jvm||
 
 
-### `auto-recovery`
-Runs an auto-recovery service daemon
+### `autorecovery`
+Runs an auto-recovery service
 
 Usage
 ```bash
-$ bookkeeper auto-recovery options
+$ bookkeeper autorecovery options
 ```
 
 Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`-c`, `--conf`|Configuration for the auto-recovery daemon||
+|`-c`, `--conf`|Configuration for the auto-recovery||
 
 
 ### `bookie`
@@ -732,7 +813,7 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`-c`, `--conf`|Configuration for the auto-recovery daemon||
+|`-c`, `--conf`|Configuration for the auto-recovery||
 |-readOnly|Force start a read-only bookie server|false|
 |-withAutoRecovery|Start auto-recovery service bookie server|false|
 
@@ -757,7 +838,7 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`-c`, `--conf`|Configuration for the auto-recovery daemon||
+|`-c`, `--conf`|Configuration for the auto-recovery||
 |`-u`, `--upgrade`|Upgrade the bookie’s directories||
 
 

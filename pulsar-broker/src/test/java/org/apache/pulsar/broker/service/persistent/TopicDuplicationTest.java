@@ -160,7 +160,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         Awaitility.await().untilAsserted(() -> assertFalse(messageDeduplication.isEnabled()));
         producer.newMessage().value("msg").sequenceId(1).send();
         checkDeduplicationDisabled(producerName, messageDeduplication);
-        //remove namespace-level , use broker-level
+        //remove namespace-level, use broker-level
         admin.namespaces().removeDeduplicationStatus(myNamespace);
         Awaitility.await().untilAsserted(() -> assertNull(admin.namespaces().getDeduplicationStatus(myNamespace)));
         Awaitility.await().untilAsserted(() -> assertTrue(messageDeduplication.isEnabled()));

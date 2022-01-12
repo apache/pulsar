@@ -133,7 +133,7 @@ public class FunctionStatsManager extends ComponentStatsManager{
         _statTotalProcessedSuccessfully = statTotalProcessedSuccessfully.labels(metricsLabels);
 
         statTotalSysExceptions = collectorRegistry.registerIfNotExist(
-                PULSAR_FUNCTION_METRICS_PREFIX + SYSTEM_EXCEPTIONS_TOTAL ,
+                PULSAR_FUNCTION_METRICS_PREFIX + SYSTEM_EXCEPTIONS_TOTAL,
                 Counter.build()
                 .name(PULSAR_FUNCTION_METRICS_PREFIX + SYSTEM_EXCEPTIONS_TOTAL)
                 .help("Total number of system exceptions.")

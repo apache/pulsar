@@ -84,6 +84,12 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-package-filesystem-storage</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-tools</artifactId>
       <version>${project.version}</version>
       <exclusions>

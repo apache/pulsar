@@ -38,10 +38,9 @@ public class RestException extends WebApplicationException {
         writer.append("\n --- An unexpected error occurred in the server ---\n\n");
         if (t != null) {
             writer.append("Message: ").append(t.getMessage()).append("\n\n");
+            writer.append("Stacktrace:\n\n");
+            t.printStackTrace(new PrintWriter(writer));
         }
-        writer.append("Stacktrace:\n\n");
-
-        t.printStackTrace(new PrintWriter(writer));
         return writer.toString();
     }
 

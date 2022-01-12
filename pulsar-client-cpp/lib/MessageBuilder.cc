@@ -20,11 +20,13 @@
 
 #include <memory>
 #include <stdexcept>
+#include <string>
+#include <utility>
 
-#include "MessageImpl.h"
-#include "SharedBuffer.h"
 #include "LogUtils.h"
+#include "MessageImpl.h"
 #include "PulsarApi.pb.h"
+#include "SharedBuffer.h"
 
 DECLARE_LOG_OBJECT()
 
@@ -70,6 +72,12 @@ MessageBuilder& MessageBuilder::setAllocatedContent(void* data, size_t size) {
 MessageBuilder& MessageBuilder::setContent(const std::string& data) {
     checkMetadata();
     impl_->payload = SharedBuffer::copy((char*)data.c_str(), data.length());
+    return *this;
+}
+
+MessageBuilder& MessageBuilder::setContent(std::string&& data) {
+    checkMetadata();
+    impl_->payload = SharedBuffer::take(std::move(data));
     return *this;
 }
 

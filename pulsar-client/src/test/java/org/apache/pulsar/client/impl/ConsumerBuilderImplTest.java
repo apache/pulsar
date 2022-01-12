@@ -37,6 +37,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertNotNull;
 
@@ -309,5 +310,11 @@ public class ConsumerBuilderImplTest {
                 .minNackTimeMs(1000)
                 .maxNackTimeMs(10 * 1000)
                 .build());
+    }
+
+    @Test
+    public void testStartPaused() {
+        consumerBuilderImpl.startPaused(true);
+        verify(consumerBuilderImpl.getConf()).setStartPaused(true);
     }
 }

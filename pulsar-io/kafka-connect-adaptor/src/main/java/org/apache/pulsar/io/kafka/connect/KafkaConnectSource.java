@@ -20,6 +20,11 @@ package org.apache.pulsar.io.kafka.connect;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import java.util.Base64;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.json.JsonConverterConfig;
 import org.apache.kafka.connect.source.SourceRecord;
@@ -31,15 +36,8 @@ import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.kafka.connect.schema.KafkaSchemaWrappedSchema;
 import org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroData;
 
-import java.util.Base64;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
 /**
- * A pulsar source that runs
+ * A pulsar source that runs.
  */
 @Slf4j
 public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte[], byte[]>> {
@@ -69,15 +67,13 @@ public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte
         return record;
     }
 
-    private static Map<String, String> PROPERTIES = Collections.emptyMap();
-    private static Optional<Long> RECORD_SEQUENCE = Optional.empty();
-    private static long FLUSH_TIMEOUT_MS = 2000;
+    private static final AvroData avroData = new AvroData(1000);
 
-    private class KafkaSourceRecord extends AbstractKafkaSourceRecord<KeyValue<byte[], byte[]>> implements KVRecord<byte[], byte[]> {
+    private class KafkaSourceRecord extends AbstractKafkaSourceRecord<KeyValue<byte[], byte[]>>
+            implements KVRecord<byte[], byte[]> {
 
         KafkaSourceRecord(SourceRecord srcRecord) {
             super(srcRecord);
-            AvroData avroData = new AvroData(1000);
             byte[] keyBytes = keyConverter.fromConnectData(
                     srcRecord.topic(), srcRecord.keySchema(), srcRecord.key());
             this.key = keyBytes != null ? Optional.of(Base64.getEncoder().encodeToString(keyBytes)) : Optional.empty();

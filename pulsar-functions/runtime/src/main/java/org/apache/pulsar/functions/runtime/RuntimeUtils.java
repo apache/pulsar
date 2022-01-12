@@ -172,6 +172,9 @@ public class RuntimeUtils {
         if (instanceConfig.getFunctionDetails().getProcessingGuarantees() != null) {
             goInstanceConfig.setProcessingGuarantees(instanceConfig.getFunctionDetails().getProcessingGuaranteesValue());
         }
+        if (instanceConfig.getFunctionDetails().getRuntime() != null) {
+            goInstanceConfig.setRuntime(instanceConfig.getFunctionDetails().getRuntimeValue());
+        }
         if (instanceConfig.getFunctionDetails().getSecretsMap() != null) {
             goInstanceConfig.setSecretsMap(instanceConfig.getFunctionDetails().getSecretsMap());
         }
@@ -316,6 +319,10 @@ public class RuntimeUtils {
                     shardId));
 
             args.add("-Dio.netty.tryReflectionSetAccessible=true");
+
+            if (instanceConfig.getAdditionalJavaRuntimeArguments() != null) {
+                args.addAll(instanceConfig.getAdditionalJavaRuntimeArguments());
+            }
 
             if (!isEmpty(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
                 for (String runtimeFlagArg : splitRuntimeArgs(instanceConfig.getFunctionDetails().getRuntimeFlags())) {

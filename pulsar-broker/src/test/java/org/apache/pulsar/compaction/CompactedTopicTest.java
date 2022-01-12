@@ -254,7 +254,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         Assert.assertTrue(compactedTopic.getCompactedTopicContext().isPresent());
         Assert.assertEquals(compactedTopic.getCompactedTopicContext().get().getLedger().getId(),
                 newCompactedLedger.getId());
-        Assert.assertEquals(compactedTopic.getCompactionHorizon(), newHorizon);
+        Assert.assertTrue(compactedTopic.getCompactionHorizon().isPresent());
+        Assert.assertEquals(compactedTopic.getCompactionHorizon().get(), newHorizon);
         compactedTopic.deleteCompactedLedger(oldCompactedLedger.getId()).join();
 
         // old ledger should be deleted, new still there
@@ -649,5 +650,143 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(received, keys * 2);
         reader.close();
         producer.close();
+    }
+
+    @Test(timeOut = 1000 * 30)
+    public void testReader() throws Exception {
+        final String ns = "my-property/use/my-ns";
+        String topic = "persistent://" + ns + "/t1";
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .create();
+
+        producer.newMessage().key("k").value(("value").getBytes()).send();
+        producer.newMessage().key("k").value(null).send();
+        pulsar.getCompactor().compact(topic).get();
+
+        Awaitility.await()
+                .pollInterval(3, TimeUnit.SECONDS)
+                .atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+            admin.topics().unload(topic);
+            Thread.sleep(100);
+            Assert.assertTrue(admin.topics().getInternalStats(topic).lastConfirmedEntry.endsWith("-1"));
+        });
+        // Make sure the last confirm entry is -1, then get last message id from compact ledger
+        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic);
+        Assert.assertTrue(internalStats.lastConfirmedEntry.endsWith("-1"));
+        // Because the latest value of the key `k` is null, so there is no data in compact ledger.
+        Assert.assertEquals(internalStats.compactedLedger.size, 0);
+
+        @Cleanup
+        Reader<byte[]> reader = pulsarClient.newReader()
+                .topic(topic)
+                .startMessageIdInclusive()
+                .startMessageId(MessageId.earliest)
+                .readCompacted(true)
+                .create();
+        Assert.assertFalse(reader.hasMessageAvailable());
+    }
+
+    @Test
+    public void testHasMessageAvailableWithNullValueMessage() throws Exception {
+        String topic = "persistent://my-property/use/my-ns/testHasMessageAvailable-" +
+                UUID.randomUUID();
+        final int numMessages = 10;
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .blockIfQueueFull(true)
+                .enableBatching(false)
+                .create();
+        CompletableFuture<MessageId> lastMessage = null;
+        for (int i = 0; i < numMessages; ++i) {
+            lastMessage = producer.newMessage().key(i + "").value(String.format("msg [%d]", i)).sendAsync();
+        }
+
+        for (int i = numMessages / 2; i < numMessages; ++i) {
+            lastMessage = producer.newMessage().key(i + "").value(null).sendAsync();
+        }
+        producer.flush();
+        lastMessage.join();
+        admin.topics().triggerCompaction(topic);
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
+            Assert.assertNotEquals(stats.compactedLedger.ledgerId, -1);
+            Assert.assertEquals(stats.compactedLedger.entries, numMessages / 2);
+            Assert.assertEquals(admin.topics().getStats(topic)
+                    .getSubscriptions().get(COMPACTION_SUBSCRIPTION).getConsumers().size(), 0);
+            Assert.assertEquals(stats.lastConfirmedEntry, stats.cursors.get(COMPACTION_SUBSCRIPTION).markDeletePosition);
+        });
+
+        @Cleanup
+        Reader<byte[]> reader = pulsarClient.newReader()
+                .topic(topic)
+                .startMessageIdInclusive()
+                .startMessageId(MessageId.earliest)
+                .readCompacted(true)
+                .create();
+        for (int i = numMessages / 2; i < numMessages; ++i) {
+            reader.readNext();
+        }
+        Assert.assertFalse(reader.hasMessageAvailable());
+        Assert.assertNull(reader.readNext(3, TimeUnit.SECONDS));
+    }
+
+    public void testReadCompleteMessagesDuringTopicUnloading() throws Exception {
+        String topic = "persistent://my-property/use/my-ns/testReadCompleteMessagesDuringTopicUnloading-" +
+                UUID.randomUUID();
+        final int numMessages = 1000;
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .blockIfQueueFull(true)
+                .enableBatching(false)
+                .create();
+        CompletableFuture<MessageId> lastMessage = null;
+        for (int i = 0; i < numMessages; ++i) {
+            lastMessage = producer.newMessage().key(i + "").value(String.format("msg [%d]", i)).sendAsync();
+        }
+        producer.flush();
+        lastMessage.join();
+        admin.topics().triggerCompaction(topic);
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
+            Assert.assertNotEquals(stats.compactedLedger.ledgerId, -1);
+            Assert.assertEquals(stats.compactedLedger.entries, numMessages);
+            Assert.assertEquals(admin.topics().getStats(topic)
+                    .getSubscriptions().get(COMPACTION_SUBSCRIPTION).getConsumers().size(), 0);
+            Assert.assertEquals(stats.lastConfirmedEntry, stats.cursors.get(COMPACTION_SUBSCRIPTION).markDeletePosition);
+        });
+        // Unload the topic to make sure the original ledger been deleted.
+        admin.topics().unload(topic);
+        // Produce more messages to the original topic
+        for (int i = 0; i < numMessages; ++i) {
+            lastMessage = producer.newMessage().key(i + numMessages + "").value(String.format("msg [%d]", i + numMessages)).sendAsync();
+        }
+        producer.flush();
+        lastMessage.join();
+        // For now the topic has 1000 messages in the compacted ledger and 1000 messages in the original topic.
+        @Cleanup
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .startMessageIdInclusive()
+                .startMessageId(MessageId.earliest)
+                .readCompacted(true)
+                .create();
+
+        // Unloading the topic during reading the data to make sure the reader will not miss any messages.
+        for (int i = 0; i < numMessages / 2; ++i) {
+            Assert.assertEquals(reader.readNext().getValue(), String.format("msg [%d]", i));
+        }
+        admin.topics().unload(topic);
+        for (int i = 0; i < numMessages / 2; ++i) {
+            Assert.assertEquals(reader.readNext().getValue(), String.format("msg [%d]", i + numMessages / 2));
+        }
+        admin.topics().unload(topic);
+        for (int i = 0; i < numMessages; ++i) {
+            Assert.assertEquals(reader.readNext().getValue(), String.format("msg [%d]", i + numMessages));
+        }
     }
 }

@@ -38,7 +38,7 @@ This example uses Pulsar 2.5.1.
     tar xvfz apache-pulsar-offloaders-2.5.1-bin.tar.gz
     ```
 
-    > #### Note
+    > **Note**
     >
     > * If you run Pulsar in a bare metal cluster, ensure that the `offloaders` tarball is unzipped in every broker's Pulsar directory.
     > 
@@ -59,7 +59,7 @@ This example uses Pulsar 2.5.1.
     tiered-storage-jcloud-2.5.1.nar
     ```
 
-    > #### Note
+    > **Note**
     >
     > * If you run Pulsar in a bare metal cluster, ensure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
     > 
@@ -67,7 +67,7 @@ This example uses Pulsar 2.5.1.
 
 ## Configuration
 
-> #### Note
+> **Note**
 > 
 > Before offloading data from BookKeeper to filesystem, you need to configure some properties of the filesystem offloader driver. 
 
@@ -77,26 +77,18 @@ Besides, you can also configure the filesystem offloader to run it automatically
 
 You can configure the filesystem offloader driver in the `broker.conf` or `standalone.conf` configuration file.
 
+<!--DOCUSAURUS_CODE_TABS-->
+<!--HDFS-->
+
 - **Required** configurations are as below.
-
-    <!--DOCUSAURUS_CODE_TABS-->
-
-    <!--HDFS-->
 
     Parameter | Description | Example value
     |---|---|---
     `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. | filesystem
     `fileSystemURI` | Connection address, which is the URI to access the default Hadoop distributed file system. | hdfs://127.0.0.1:9000
-    `offloadersDirectory` | Hadoop profile path. The configuration file is stored in the Hadoop profile path. It contains various settings for Hadoop performance tuning. | ../conf/filesystem_offload_core_site.xml
+    `offloadersDirectory` | Offloader directory | offloaders
+    `fileSystemProfilePath` | Hadoop profile path. The configuration file is stored in the Hadoop profile path. It contains various settings for Hadoop performance tuning. | ../conf/filesystem_offload_core_site.xml
 
-    <!--NFS-->
-  
-    Parameter | Description | Example value
-    |---|---|---
-    `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. | filesystem
-    `offloadersDirectory` | Offloader directory. The configuration file is stored in the offloader directory. It contains various settings for performance tuning. | ../conf/filesystem_offload_core_site.xml
-
-    <!--END_DOCUSAURUS_CODE_TABS-->
 
 - **Optional** configurations are as below.
 
@@ -104,6 +96,24 @@ You can configure the filesystem offloader driver in the `broker.conf` or `stand
     |---|---|---
     `managedLedgerMinLedgerRolloverTimeMinutes`|Minimum time between ledger rollover for a topic. <br><br>**Note**: it is not recommended to set this parameter in the production environment.|2
     `managedLedgerMaxEntriesPerLedger`|Maximum number of entries to append to a ledger before triggering a rollover.<br><br>**Note**: it is not recommended to set this parameter in the production environment.|5000
+
+<!--NFS-->
+
+- **Required** configurations are as below. 
+    Parameter | Description | Example value
+    |---|---|---
+    `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. | filesystem
+    `offloadersDirectory` | Offloader directory | offloaders
+    `fileSystemProfilePath` | NFS profile path. The configuration file is stored in the NFS profile path. It contains various settings for performance tuning. | ../conf/filesystem_offload_core_site.xml
+
+- **Optional** configurations are as below.
+
+    Parameter| Description | Example value
+    |---|---|---
+    `managedLedgerMinLedgerRolloverTimeMinutes`|Minimum time between ledger rollover for a topic. <br><br>**Note**: it is not recommended to set this parameter in the production environment.|2
+    `managedLedgerMaxEntriesPerLedger`|Maximum number of entries to append to a ledger before triggering a rollover.<br><br>**Note**: it is not recommended to set this parameter in the production environment.|5000
+
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Run filesystem offloader automatically
 
@@ -127,7 +137,7 @@ This example sets the filesystem offloader threshold to 10 MB using pulsar-admin
 pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namespace
 ```
 
-> #### Tip
+> **Tip**
 >
 > For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#set-offload-threshold). 
 
@@ -155,7 +165,7 @@ To manually trigger the filesystem offloader via CLI tools, you need to specify 
     Offload triggered for persistent://my-tenant/my-namespace/topic1 for messages before 2:0:-1
     ```
 
-    > #### Tip
+    > **Tip**
     >
     > For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#offload). 
 
@@ -198,7 +208,7 @@ To manually trigger the filesystem offloader via CLI tools, you need to specify 
     Reason: Error offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: java.util.concurrent.CompletionException: com.amazonaws.services.s3.model.AmazonS3Exception: Anonymous users cannot initiate multipart uploads.  Please authenticate. (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; Request ID: 798758DE3F1776DF; S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=), S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=
     ```
 
-    > #### Tip
+    > **Tip**
     >
     > For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#offload-status). 
 
@@ -207,7 +217,6 @@ To manually trigger the filesystem offloader via CLI tools, you need to specify 
 This section provides step-by-step instructions on how to use the filesystem offloader to move data from Pulsar to Hadoop Distributed File System (HDFS) or Network File system (NFS).
 
 <!--DOCUSAURUS_CODE_TABS-->
-
 <!--HDFS-->
 
 To move data from Pulsar to HDFS, follow these steps.
@@ -383,13 +392,13 @@ Execute the following commands in the repository where you download Pulsar tarba
 1. Start Pulsar standalone.
 
     ```
-    ./bin/pulsar standalone -a 127.0.0.1
+    bin/pulsar standalone -a 127.0.0.1
     ```
 
 2. To ensure the data generated is not deleted immediately, it is recommended to set the [retention policy](https://pulsar.apache.org/docs/en/next/cookbooks-retention-expiry/#retention-policies), which can be either a **size** limit or a **time** limit. The larger value you set for the retention policy, the longer the data can be retained.
 
     ```
-    ./bin/pulsarctl namespaces set-retention public/default --size 100M --time 2d
+    bin/pulsar-admin namespaces set-retention public/default --size 100M --time 2d
     ```
 
     > **Tip**
@@ -399,13 +408,13 @@ Execute the following commands in the repository where you download Pulsar tarba
 3. Produce data using pulsar-client.
 
     ```
-    ./bin/pulsar-client produce -m "Hello FileSystem Offloader" -n 1000 public/default/fs-test
+    bin/pulsar-client produce -m "Hello FileSystem Offloader" -n 1000 public/default/fs-test
     ```
 
 4. The offloading operation starts after a ledger rollover is triggered. To ensure offload data successfully, it is recommended that you wait until several ledger rollovers are triggered. In this case, you might need to wait for a second. You can check the ledger status using pulsarctl.
 
     ```
-    ./bin/pulsarctl topics internal-stats public/default/fs-test
+    bin/pulsar-admin topics stats-internal public/default/fs-test
     ```
 
     **Output**
@@ -430,13 +439,13 @@ Execute the following commands in the repository where you download Pulsar tarba
 5. Wait a second and send more messages to the topic.
 
     ```
-    ./bin/pulsar-client produce -m "Hello FileSystem Offloader" -n 1000 public/default/fs-test
+    bin/pulsar-client produce -m "Hello FileSystem Offloader" -n 1000 public/default/fs-test
     ```
 
 6. Check the ledger status using pulsarctl.
 
     ```
-    ./bin/pulsarctl topics internal-stats public/default/fs-test
+    bin/pulsar-admin topics stats-internal public/default/fs-test
     ```
 
     **Output**
@@ -467,7 +476,7 @@ Execute the following commands in the repository where you download Pulsar tarba
 7. Trigger the offloading operation manually using pulsarctl.
 
     ```
-    ./bin/pulsarctl topic offload -s 0 public/default/fs-test
+    bin/pulsar-admin topics offload -s 0 public/default/fs-test
     ```
 
     **Output**
@@ -482,7 +491,7 @@ Execute the following commands in the repository where you download Pulsar tarba
 8.  Check the ledger status using pulsarctl.
 
     ```
-    ./bin/pulsarctl topic internal-info public/default/fs-test
+    bin/pulsar-admin topics stats-internal public/default/fs-test
     ```
 
     **Output**

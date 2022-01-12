@@ -20,11 +20,10 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.base.Preconditions;
-
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
@@ -101,7 +100,7 @@ public class MessageBuilderImpl implements MessageBuilder {
 
     @Override
     public MessageBuilder setReplicationClusters(List<String> clusters) {
-        Preconditions.checkNotNull(clusters);
+        Objects.requireNonNull(clusters);
         msgMetadataBuilder.clearReplicateTo();
         msgMetadataBuilder.addAllReplicateTos(clusters);
         return this;

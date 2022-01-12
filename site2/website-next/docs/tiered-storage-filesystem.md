@@ -93,31 +93,20 @@ Besides, you can also configure the filesystem offloader to run it automatically
 
 You can configure the filesystem offloader driver in the `broker.conf` or `standalone.conf` configuration file.
 
+<Tabs
+  defaultValue="HDFS"
+  values={[{"label":"HDFS","value":"HDFS"},{"label":"NFS","value":"NFS"}]}>
+
+<TabItem value="HDFS">
+
 - **Required** configurations are as below.
-
-  <Tabs 
-    defaultValue="HDFS"
-    values={[{"label":"HDFS","value":"HDFS"},{"label":"NFS","value":"NFS"}]}>    
-
-  <TabItem value="HDFS">
 
   Parameter | Description | Example value
   |---|---|---
   `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. | filesystem
   `fileSystemURI` | Connection address, which is the URI to access the default Hadoop distributed file system. | hdfs://127.0.0.1:9000
-  `offloadersDirectory` | Hadoop profile path. The configuration file is stored in the Hadoop profile path. It contains various settings for Hadoop performance tuning. | ../conf/filesystem_offload_core_site.xml
-
-  </TabItem>
-  <TabItem value="NFS">
-
-  Parameter | Description | Example value
-  |---|---|---
-  `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. | filesystem
-  `offloadersDirectory` | Offloader directory. The configuration file is stored in the offloader directory. It contains various settings for performance tuning. | ../conf/filesystem_offload_core_site.xml
-
-  </TabItem>
-
-  </Tabs>
+  `offloadersDirectory` | Offloader directory | offloaders
+  `fileSystemProfilePath` | Hadoop profile path. The configuration file is stored in the Hadoop profile path. It contains various settings for Hadoop performance tuning. | ../conf/filesystem_offload_core_site.xml
 
 - **Optional** configurations are as below.
 
@@ -125,6 +114,28 @@ You can configure the filesystem offloader driver in the `broker.conf` or `stand
   |---|---|---
   `managedLedgerMinLedgerRolloverTimeMinutes`|Minimum time between ledger rollover for a topic. <br /><br />**Note**: it is not recommended to set this parameter in the production environment.|2
   `managedLedgerMaxEntriesPerLedger`|Maximum number of entries to append to a ledger before triggering a rollover.<br /><br />**Note**: it is not recommended to set this parameter in the production environment.|5000
+
+</TabItem>
+<TabItem value="NFS">
+
+- **Required** configurations are as below.
+  
+  Parameter | Description | Example value
+  |---|---|---
+  `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. | filesystem
+  `offloadersDirectory` | Offloader directory | offloaders
+  `fileSystemProfilePath` | NFS profile path. The configuration file is stored in the NFS profile path. It contains various settings for performance tuning. | ../conf/filesystem_offload_core_site.xml
+
+- **Optional** configurations are as below.
+
+  Parameter| Description | Example value
+  |---|---|---
+  `managedLedgerMinLedgerRolloverTimeMinutes`|Minimum time between ledger rollover for a topic. <br /><br />**Note**: it is not recommended to set this parameter in the production environment.|2
+  `managedLedgerMaxEntriesPerLedger`|Maximum number of entries to append to a ledger before triggering a rollover.<br /><br />**Note**: it is not recommended to set this parameter in the production environment.|5000
+
+</TabItem>
+
+</Tabs>
 
 ### Run filesystem offloader automatically
 
@@ -458,7 +469,7 @@ Execute the following commands in the repository where you download Pulsar tarba
 
    ```
    
-   ./bin/pulsar standalone -a 127.0.0.1
+   bin/pulsar standalone -a 127.0.0.1
    
    ```
 
@@ -466,7 +477,7 @@ Execute the following commands in the repository where you download Pulsar tarba
 
    ```
    
-   ./bin/pulsarctl namespaces set-retention public/default --size 100M --time 2d
+   bin/pulsar-admin namespaces set-retention public/default --size 100M --time 2d
    
    ```
 
@@ -480,7 +491,7 @@ Execute the following commands in the repository where you download Pulsar tarba
 
    ```
    
-   ./bin/pulsar-client produce -m "Hello FileSystem Offloader" -n 1000 public/default/fs-test
+   bin/pulsar-client produce -m "Hello FileSystem Offloader" -n 1000 public/default/fs-test
    
    ```
 
@@ -488,7 +499,7 @@ Execute the following commands in the repository where you download Pulsar tarba
 
    ```
    
-   ./bin/pulsarctl topics internal-stats public/default/fs-test
+   bin/pulsar-admin topics stats-internal public/default/fs-test
    
    ```
 
@@ -517,7 +528,7 @@ Execute the following commands in the repository where you download Pulsar tarba
 
    ```
    
-   ./bin/pulsar-client produce -m "Hello FileSystem Offloader" -n 1000 public/default/fs-test
+   bin/pulsar-client produce -m "Hello FileSystem Offloader" -n 1000 public/default/fs-test
    
    ```
 
@@ -525,7 +536,7 @@ Execute the following commands in the repository where you download Pulsar tarba
 
    ```
    
-   ./bin/pulsarctl topics internal-stats public/default/fs-test
+   bin/pulsar-admin topics stats-internal public/default/fs-test
    
    ```
 
@@ -560,7 +571,7 @@ Execute the following commands in the repository where you download Pulsar tarba
 
    ```
    
-   ./bin/pulsarctl topic offload -s 0 public/default/fs-test
+   bin/pulsar-admin topics offload -s 0 public/default/fs-test
    
    ```
 
@@ -579,7 +590,7 @@ Execute the following commands in the repository where you download Pulsar tarba
 
    ```
    
-   ./bin/pulsarctl topic internal-info public/default/fs-test
+   bin/pulsar-admin topics stats-internal public/default/fs-test
    
    ```
 

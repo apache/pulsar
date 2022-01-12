@@ -35,7 +35,7 @@ import java.io.File;
 import java.util.Collections;
 import java.util.List;
 
-@Test(groups = "broker")
+@Test(groups = "broker-admin")
 public class PackagesApiTest extends MockedPulsarServiceBaseTest {
 
     @BeforeMethod
