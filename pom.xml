@@ -213,7 +213,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- Set docker-java.version to the version of docker-java used in Testcontainers -->
     <docker-java.version>3.2.8</docker-java.version>
     <kerby.version>1.1.1</kerby.version>
-    <testng.version>7.5</testng.version>
+    <testng.version>7.4.0</testng.version>
     <junit4.version>4.13.1</junit4.version>
     <mockito.version>3.12.4</mockito.version>
     <powermock.version>2.0.9</powermock.version>
