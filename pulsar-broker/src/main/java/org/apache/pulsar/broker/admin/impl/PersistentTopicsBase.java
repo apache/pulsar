@@ -3138,11 +3138,16 @@ public class PersistentTopicsBase extends AdminResource {
                 }));
     }
 
-    protected CompletableFuture<Void> internalSetReplicatorDispatchRate(DispatchRateImpl dispatchRate) {
+    protected CompletableFuture<Void> internalSetReplicatorDispatchRate(boolean updateMode,
+                                                                        DispatchRateImpl dispatchRate) {
         return getTopicPoliciesAsyncWithRetry(topicName)
             .thenCompose(op -> {
                 TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
-                topicPolicies.setReplicatorDispatchRate(dispatchRate);
+                DispatchRateImpl maxDispatchRate = dispatchRate;
+                if (updateMode) {
+                    maxDispatchRate = mergeDispatchRate(topicPolicies.getReplicatorDispatchRate(), dispatchRate);
+                }
+                topicPolicies.setReplicatorDispatchRate(maxDispatchRate);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
             });
     }
@@ -4130,17 +4135,42 @@ public class PersistentTopicsBase extends AdminResource {
                 }));
     }
 
-    protected CompletableFuture<Void> internalSetDispatchRate(DispatchRateImpl dispatchRate, boolean isGlobal) {
+    protected CompletableFuture<Void> internalSetDispatchRate(boolean updateMode,
+                                                              DispatchRateImpl dispatchRate,
+                                                              boolean isGlobal) {
         if (dispatchRate == null) {
             return CompletableFuture.completedFuture(null);
         }
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenCompose(op -> {
                 TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
-                topicPolicies.setDispatchRate(dispatchRate);
+                DispatchRateImpl maxDispatchRate = dispatchRate;
+                if (updateMode) {
+                    maxDispatchRate = mergeDispatchRate(topicPolicies.getDispatchRate(), dispatchRate);
+                }
+                topicPolicies.setDispatchRate(maxDispatchRate);
                 topicPolicies.setIsGlobal(isGlobal);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
             });
+    }
+
+    private DispatchRateImpl mergeDispatchRate(DispatchRateImpl originalDispatchRate,
+                                               DispatchRateImpl newDispatchRate) {
+        if (originalDispatchRate == null ^ newDispatchRate == null) { // one is null and the other is not null
+            return originalDispatchRate == null
+                    ? newDispatchRate
+                    : originalDispatchRate;
+        } else if (originalDispatchRate != null) {
+            newDispatchRate.setDispatchThrottlingRateInMsg(newDispatchRate.getDispatchThrottlingRateInMsg() == -1
+                    ? originalDispatchRate.getDispatchThrottlingRateInMsg()
+                    : newDispatchRate.getDispatchThrottlingRateInMsg());
+            newDispatchRate.setDispatchThrottlingRateInByte(newDispatchRate.getDispatchThrottlingRateInByte() == -1
+                    ? originalDispatchRate.getDispatchThrottlingRateInByte()
+                    : newDispatchRate.getDispatchThrottlingRateInByte());
+            return newDispatchRate;
+        }
+
+        return null;
     }
 
     protected CompletableFuture<Void> internalRemoveDispatchRate(boolean isGlobal) {
@@ -4169,15 +4199,20 @@ public class PersistentTopicsBase extends AdminResource {
                 }));
     }
 
-    protected CompletableFuture<Void> internalSetSubscriptionDispatchRate
-            (DispatchRateImpl dispatchRate, boolean isGlobal) {
+    protected CompletableFuture<Void> internalSetSubscriptionDispatchRate(boolean updateMode,
+                                                                          DispatchRateImpl dispatchRate,
+                                                                          boolean isGlobal) {
         if (dispatchRate == null) {
             return CompletableFuture.completedFuture(null);
         }
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenCompose(op -> {
                 TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
-                topicPolicies.setSubscriptionDispatchRate(dispatchRate);
+                DispatchRateImpl maxdispatchRate = dispatchRate;
+                if (updateMode) {
+                    maxdispatchRate = mergeDispatchRate(topicPolicies.getSubscriptionDispatchRate(), dispatchRate);
+                }
+                topicPolicies.setSubscriptionDispatchRate(maxdispatchRate);
                 topicPolicies.setIsGlobal(isGlobal);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
             });
@@ -4275,17 +4310,42 @@ public class PersistentTopicsBase extends AdminResource {
             .thenApply(op -> op.map(TopicPolicies::getPublishRate));
     }
 
-    protected CompletableFuture<Void> internalSetPublishRate(PublishRate publishRate, boolean isGlobal) {
+    protected CompletableFuture<Void> internalSetPublishRate(boolean updateMode,
+                                                             PublishRate publishRate,
+                                                             boolean isGlobal) {
         if (publishRate == null) {
             return CompletableFuture.completedFuture(null);
         }
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenCompose(op -> {
                 TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
-                topicPolicies.setPublishRate(publishRate);
+                PublishRate maxPublishRate = publishRate;
+                if (updateMode) {
+                    maxPublishRate = mergePublishRate(topicPolicies.getPublishRate(), publishRate);
+                }
+                topicPolicies.setPublishRate(maxPublishRate);
                 topicPolicies.setIsGlobal(isGlobal);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
             });
+    }
+
+    private PublishRate mergePublishRate(PublishRate originalPublishRate,
+                                         PublishRate newPublishRate) {
+        if (originalPublishRate == null ^ newPublishRate == null) { // one is null and the other is not null
+            return originalPublishRate == null
+                    ? newPublishRate
+                    : originalPublishRate;
+        } else if (originalPublishRate != null) {
+            newPublishRate.publishThrottlingRateInMsg = newPublishRate.publishThrottlingRateInMsg == -1
+                    ? originalPublishRate.publishThrottlingRateInMsg
+                    : newPublishRate.publishThrottlingRateInMsg;
+            newPublishRate.publishThrottlingRateInByte = newPublishRate.publishThrottlingRateInByte == -1
+                    ? originalPublishRate.publishThrottlingRateInByte
+                    : newPublishRate.publishThrottlingRateInByte;
+            return newPublishRate;
+        }
+
+        return null;
     }
 
     protected CompletableFuture<Optional<List<SubType>>> internalGetSubscriptionTypesEnabled(boolean isGlobal) {
@@ -4343,17 +4403,40 @@ public class PersistentTopicsBase extends AdminResource {
                 }));
     }
 
-    protected CompletableFuture<Void> internalSetSubscribeRate(SubscribeRate subscribeRate, boolean isGlobal) {
+    protected CompletableFuture<Void> internalSetSubscribeRate(boolean updateMode,
+                                                               SubscribeRate subscribeRate,
+                                                               boolean isGlobal) {
         if (subscribeRate == null) {
             return CompletableFuture.completedFuture(null);
         }
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenCompose(op -> {
                 TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
-                topicPolicies.setSubscribeRate(subscribeRate);
+                SubscribeRate maxSubscribeRate = subscribeRate;
+                if (updateMode) {
+                    maxSubscribeRate = mergeSubscribeRate(topicPolicies.getSubscribeRate(), subscribeRate);
+                }
+                topicPolicies.setSubscribeRate(maxSubscribeRate);
                 topicPolicies.setIsGlobal(isGlobal);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
             });
+    }
+
+    private SubscribeRate mergeSubscribeRate(SubscribeRate originalSubscribeRate,
+                                             SubscribeRate newSubscribeRate) {
+        if (originalSubscribeRate == null ^ newSubscribeRate == null) { // one is null and the other is not null
+            return originalSubscribeRate == null
+                    ? newSubscribeRate
+                    : originalSubscribeRate;
+        } else if (originalSubscribeRate != null) {
+            newSubscribeRate.subscribeThrottlingRatePerConsumer =
+                    newSubscribeRate.subscribeThrottlingRatePerConsumer == -1
+                            ? originalSubscribeRate.subscribeThrottlingRatePerConsumer
+                            : newSubscribeRate.subscribeThrottlingRatePerConsumer;
+            return newSubscribeRate;
+        }
+
+        return null;
     }
 
     protected CompletableFuture<Void> internalRemoveSubscribeRate(boolean isGlobal) {

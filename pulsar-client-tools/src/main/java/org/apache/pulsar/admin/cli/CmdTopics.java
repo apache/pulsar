@@ -1977,10 +1977,15 @@ public class CmdTopics extends CmdBase {
                 + "then broker will apply throttling value to (publish-rate + dispatch rate))", required = false)
         private boolean relativeToPublishRate = false;
 
+        @Parameter(names = {"--update-mode",
+                "-um"}, description = "update dispatch rate. If it is true then merging the previous and current rate "
+                + "(only for --msg-dispatch-rate and --byte-dispatch-rate)")
+        private boolean updateMode;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getTopics().setDispatchRate(persistentTopic,
+            getTopics().setDispatchRate(persistentTopic, updateMode,
                     DispatchRate.builder()
                             .dispatchThrottlingRateInMsg(msgDispatchRate)
                             .dispatchThrottlingRateInByte(byteDispatchRate)
@@ -2209,10 +2214,14 @@ public class CmdTopics extends CmdBase {
             "-b" }, description = "byte-publish-rate (default -1 will be overwrite if not passed)", required = false)
         private long bytePublishRate = -1;
 
+        @Parameter(names = {"--update-mode",
+                "-um"}, description = "update publish rate. If it is true then merging the previous and current rate")
+        private boolean updateMode;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getTopics().setPublishRate(persistentTopic,
+            getTopics().setPublishRate(persistentTopic, updateMode,
                 new PublishRate(msgPublishRate, bytePublishRate));
         }
     }
@@ -2267,10 +2276,15 @@ public class CmdTopics extends CmdBase {
                 + "then broker will apply throttling value to (publish-rate + dispatch rate))")
         private boolean relativeToPublishRate = false;
 
+        @Parameter(names = {"--update-mode",
+                "-um"}, description = "update subscription dispatch rate. If it is true then merging the previous and "
+                + "current rate (only for --msg-dispatch-rate and --byte-dispatch-rate)")
+        private boolean updateMode;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getTopics().setSubscriptionDispatchRate(persistentTopic,
+            getTopics().setSubscriptionDispatchRate(persistentTopic, updateMode,
                     DispatchRate.builder()
                             .dispatchThrottlingRateInMsg(msgDispatchRate)
                             .dispatchThrottlingRateInByte(byteDispatchRate)
@@ -2330,10 +2344,15 @@ public class CmdTopics extends CmdBase {
                 + "then broker will apply throttling value to (publish-rate + dispatch rate))")
         private boolean relativeToPublishRate = false;
 
+        @Parameter(names = {"--update-mode",
+                "-um"}, description = "update replicator dispatch rate. If it is true then merging the previous and "
+                + "current rate (only for --msg-dispatch-rate and --byte-dispatch-rate)")
+        private boolean updateMode;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getTopics().setReplicatorDispatchRate(persistentTopic,
+            getTopics().setReplicatorDispatchRate(persistentTopic, updateMode,
                     DispatchRate.builder()
                             .dispatchThrottlingRateInMsg(msgDispatchRate)
                             .dispatchThrottlingRateInByte(byteDispatchRate)
@@ -2661,10 +2680,15 @@ public class CmdTopics extends CmdBase {
                 + "(default 30 second will be overwrite if not passed)")
         private int subscribeRatePeriodSec = 30;
 
+        @Parameter(names = {"--update-mode",
+                "-um"}, description = "update subscribe rate. If it is true then merging the previous and "
+                + "current rate (only for --subscribe-rate)")
+        private boolean updateMode;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getTopics().setSubscribeRate(persistentTopic,
+            getTopics().setSubscribeRate(persistentTopic, updateMode,
                     new SubscribeRate(subscribeRate, subscribeRatePeriodSec));
         }
     }

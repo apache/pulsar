@@ -745,6 +745,19 @@ public interface TopicPolicies {
     void setDispatchRate(String topic, DispatchRate dispatchRate) throws PulsarAdminException;
 
     /**
+     * Set message-dispatch-rate (topic can dispatch this many messages per second).
+     *
+     * @param topic
+     * @param updateMode
+     *            update dispatch rate. If it is true then merging the previous and current rate
+     * @param dispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setDispatchRate(String topic, boolean updateMode, DispatchRate dispatchRate) throws PulsarAdminException;
+
+    /**
      * Set message-dispatch-rate asynchronously.
      * <p/>
      * topic can dispatch this many messages per second
@@ -754,6 +767,19 @@ public interface TopicPolicies {
      *            number of messages per second
      */
     CompletableFuture<Void> setDispatchRateAsync(String topic, DispatchRate dispatchRate);
+
+    /**
+     * Set message-dispatch-rate asynchronously.
+     * <p/>
+     * topic can dispatch this many messages per second
+     *
+     * @param topic
+     * @param updateMode
+     *            update dispatch rate. If it is true then merging the previous and current rate
+     * @param dispatchRate
+     *            number of messages per second
+     */
+    CompletableFuture<Void> setDispatchRateAsync(String topic, boolean updateMode, DispatchRate dispatchRate);
 
     /**
      * Get message-dispatch-rate (topic can dispatch this many messages per second).
@@ -835,6 +861,23 @@ public interface TopicPolicies {
     void setSubscriptionDispatchRate(String topic, DispatchRate dispatchRate) throws PulsarAdminException;
 
     /**
+     * Set subscription-message-dispatch-rate for the topic.
+     * <p/>
+     * Subscriptions under this namespace can dispatch this many messages per second
+     *
+     * @param topic
+     * @param updateMode
+     *            update subscription dispatch rate. If it is true then merging the previous and current rate
+     * @param dispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setSubscriptionDispatchRate(String topic,
+                                     boolean updateMode,
+                                     DispatchRate dispatchRate) throws PulsarAdminException;
+
+    /**
      * Set subscription-message-dispatch-rate for the topic asynchronously.
      * <p/>
      * Subscriptions under this namespace can dispatch this many messages per second.
@@ -844,6 +887,21 @@ public interface TopicPolicies {
      *            number of messages per second
      */
     CompletableFuture<Void> setSubscriptionDispatchRateAsync(String topic, DispatchRate dispatchRate);
+
+    /**
+     * Set subscription-message-dispatch-rate for the topic asynchronously.
+     * <p/>
+     * Subscriptions under this namespace can dispatch this many messages per second.
+     *
+     * @param topic
+     * @param updateMode
+     *            update subscription dispatch rate. If it is true then merging the previous and current rate
+     * @param dispatchRate
+     *            number of messages per second
+     */
+    CompletableFuture<Void> setSubscriptionDispatchRateAsync(String topic,
+                                                             boolean updateMode,
+                                                             DispatchRate dispatchRate);
 
     /**
      * Get applied subscription-message-dispatch-rate.
@@ -923,6 +981,23 @@ public interface TopicPolicies {
     void setReplicatorDispatchRate(String topic, DispatchRate dispatchRate) throws PulsarAdminException;
 
     /**
+     * Set replicatorDispatchRate for the topic.
+     * <p/>
+     * Replicator dispatch rate under this topic can dispatch this many messages per second
+     *
+     * @param topic
+     * @param updateMode
+     *            update replicator dispatch rate. If it is true then merging the previous and current rate
+     * @param dispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setReplicatorDispatchRate(String topic,
+                                   boolean updateMode,
+                                   DispatchRate dispatchRate) throws PulsarAdminException;
+
+    /**
      * Set replicatorDispatchRate for the topic asynchronously.
      * <p/>
      * Replicator dispatch rate under this topic can dispatch this many messages per second.
@@ -932,6 +1007,19 @@ public interface TopicPolicies {
      *            number of messages per second
      */
     CompletableFuture<Void> setReplicatorDispatchRateAsync(String topic, DispatchRate dispatchRate);
+
+    /**
+     * Set replicatorDispatchRate for the topic asynchronously.
+     * <p/>
+     * Replicator dispatch rate under this topic can dispatch this many messages per second.
+     *
+     * @param topic
+     * @param updateMode
+     *            update replicator dispatch rate. If it is true then merging the previous and current rate
+     * @param dispatchRate
+     *            number of messages per second
+     */
+    CompletableFuture<Void> setReplicatorDispatchRateAsync(String topic, boolean updateMode, DispatchRate dispatchRate);
 
     /**
      * Get replicatorDispatchRate for the topic.
@@ -1113,6 +1201,19 @@ public interface TopicPolicies {
     void setPublishRate(String topic, PublishRate publishMsgRate) throws PulsarAdminException;
 
     /**
+     * Set message-publish-rate (topics can publish this many messages per second).
+     *
+     * @param topic
+     * @param updateMode
+     *            update publish rate. If it is true then merging the previous and current rate
+     * @param publishMsgRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setPublishRate(String topic, boolean updateMode, PublishRate publishMsgRate) throws PulsarAdminException;
+
+    /**
      * Set message-publish-rate (topics can publish this many messages per second) asynchronously.
      *
      * @param topic
@@ -1120,6 +1221,17 @@ public interface TopicPolicies {
      *            number of messages per second
      */
     CompletableFuture<Void> setPublishRateAsync(String topic, PublishRate publishMsgRate);
+
+    /**
+     * Set message-publish-rate (topics can publish this many messages per second) asynchronously.
+     *
+     * @param topic
+     * @param updateMode
+     *            update publish rate. If it is true then merging the previous and current rate
+     * @param publishMsgRate
+     *            number of messages per second
+     */
+    CompletableFuture<Void> setPublishRateAsync(String topic, boolean updateMode, PublishRate publishMsgRate);
 
     /**
      * Get message-publish-rate (topics can publish this many messages per second).
@@ -1603,6 +1715,19 @@ public interface TopicPolicies {
     void setSubscribeRate(String topic, SubscribeRate subscribeRate) throws PulsarAdminException;
 
     /**
+     * Set topic-subscribe-rate (topic will limit by subscribeRate).
+     *
+     * @param topic
+     * @param updateMode
+     *            update subscribe rate. If it is true then merging the previous and current rate
+     * @param subscribeRate
+     *            consumer subscribe limit by this subscribeRate
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setSubscribeRate(String topic, boolean updateMode, SubscribeRate subscribeRate) throws PulsarAdminException;
+
+    /**
      * Set topic-subscribe-rate (topics will limit by subscribeRate) asynchronously.
      *
      * @param topic
@@ -1610,6 +1735,17 @@ public interface TopicPolicies {
      *            consumer subscribe limit by this subscribeRate
      */
     CompletableFuture<Void> setSubscribeRateAsync(String topic, SubscribeRate subscribeRate);
+
+    /**
+     * Set topic-subscribe-rate (topics will limit by subscribeRate) asynchronously.
+     *
+     * @param topic
+     * @param updateMode
+     *            update subscribe rate. If it is true then merging the previous and current rate
+     * @param subscribeRate
+     *            consumer subscribe limit by this subscribeRate
+     */
+    CompletableFuture<Void> setSubscribeRateAsync(String topic, boolean updateMode, SubscribeRate subscribeRate);
 
     /**
      * Get topic-subscribe-rate (topics allow subscribe times per consumer in a period).
