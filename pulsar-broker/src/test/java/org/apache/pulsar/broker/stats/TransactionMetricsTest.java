@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
@@ -62,6 +63,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+@Slf4j
 public class TransactionMetricsTest extends BrokerTestBase {
 
     @BeforeMethod(alwaysRun = true)
@@ -348,9 +350,15 @@ public class TransactionMetricsTest extends BrokerTestBase {
 
     @Test
     public void testDuplicateMetricTypeDefinitions() throws Exception{
+        admin.lookups().lookupTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+        TransactionCoordinatorID transactionCoordinatorIDOne = TransactionCoordinatorID.get(0);
+        TransactionCoordinatorID transactionCoordinatorIDTwo = TransactionCoordinatorID.get(1);
+        pulsar.getTransactionMetadataStoreService().handleTcClientConnect(transactionCoordinatorIDOne);
+        pulsar.getTransactionMetadataStoreService().handleTcClientConnect(transactionCoordinatorIDTwo);
+
+        Awaitility.await().until(() ->
+                pulsar.getTransactionMetadataStoreService().getStores().size() == 2);
         pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true).build();
-        admin.topics().deletePartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
-        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 3);
         Producer<byte[]> p1 = pulsarClient
                 .newProducer()
                 .topic("persistent://my-property/use/my-ns/my-topic1")
@@ -390,14 +398,14 @@ public class TransactionMetricsTest extends BrokerTestBase {
                 if (!typeDefs.containsKey(metricName)) {
                     typeDefs.put(metricName, type);
                 } else {
+                    log.warn(metricsStr);
                     fail("Duplicate type definition found for TYPE definition " + metricName);
-                    System.out.println(metricsStr);
 
                 }
                 // From https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md
                 // "The TYPE line for a metric name must appear before the first sample is reported for that metric name."
                 if (metricNames.containsKey(metricName)) {
-                    System.out.println(metricsStr);
+                    log.info(metricsStr);
                     fail("TYPE definition for " + metricName + " appears after first sample");
 
                 }

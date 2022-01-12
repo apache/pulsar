@@ -41,12 +41,13 @@ public class TransactionAggregator {
     /**
      * Used for tracking duplicate TYPE definitions.
      */
-    static FastThreadLocal<Map<String, String>> threadLocal = new FastThreadLocal() {
-        @Override
-        protected Map<String, String> initialValue() {
-            return new HashMap<>();
-        }
-    };
+    private static final FastThreadLocal<Map<String, String>> threadLocalMetricWithTypeDefinition =
+            new FastThreadLocal() {
+                @Override
+                protected Map<String, String> initialValue() {
+                    return new HashMap<>();
+                }
+             };
 
     private static final FastThreadLocal<AggregatedTransactionCoordinatorStats> localTransactionCoordinatorStats =
             new FastThreadLocal<AggregatedTransactionCoordinatorStats>() {
@@ -66,7 +67,7 @@ public class TransactionAggregator {
 
     public static void generate(PulsarService pulsar, SimpleTextOutputStream stream, boolean includeTopicMetrics) {
         String cluster = pulsar.getConfiguration().getClusterName();
-        Map<String, String> metricWithTypeDefinition = threadLocal.get();
+        Map<String, String> metricWithTypeDefinition = threadLocalMetricWithTypeDefinition.get();
         metricWithTypeDefinition.clear();
 
         if (includeTopicMetrics) {
@@ -161,7 +162,7 @@ public class TransactionAggregator {
     }
 
     static void metricType(SimpleTextOutputStream stream, String name) {
-        Map<String, String> metricWithTypeDefinition = threadLocal.get();
+        Map<String, String> metricWithTypeDefinition = threadLocalMetricWithTypeDefinition.get();
         if (!metricWithTypeDefinition.containsKey(name)) {
             metricWithTypeDefinition.put(name, "gauge");
             stream.write("# TYPE ").write(name).write(" gauge\n");
