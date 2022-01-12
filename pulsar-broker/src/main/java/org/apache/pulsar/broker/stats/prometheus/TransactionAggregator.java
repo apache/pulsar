@@ -41,7 +41,12 @@ public class TransactionAggregator {
     /**
      * Used for tracking duplicate TYPE definitions.
      */
-    static ThreadLocal<Map<String, String>> threadLocal = ThreadLocal.withInitial(HashMap::new);
+    static FastThreadLocal<Map<String, String>> threadLocal = new FastThreadLocal() {
+        @Override
+        protected Map<String, String> initialValue() {
+            return new HashMap<>();
+        }
+    };
 
     private static final FastThreadLocal<AggregatedTransactionCoordinatorStats> localTransactionCoordinatorStats =
             new FastThreadLocal<AggregatedTransactionCoordinatorStats>() {
