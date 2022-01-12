@@ -110,7 +110,7 @@ public class MLPendingAckStore implements PendingAckStore {
     //TODO can control the number of entry to read
     private void readAsync(int numberOfEntriesToRead,
                            AsyncCallbacks.ReadEntriesCallback readEntriesCallback) {
-        cursor.asyncReadEntries(numberOfEntriesToRead, readEntriesCallback, System.nanoTime(), PositionImpl.latest);
+        cursor.asyncReadEntries(numberOfEntriesToRead, readEntriesCallback, System.nanoTime(), PositionImpl.LATEST);
     }
 
     @Override
@@ -285,7 +285,7 @@ public class MLPendingAckStore implements PendingAckStore {
                 buf.release();
                 completableFuture.completeExceptionally(new PersistenceException(exception));
             }
-        } , null);
+        }, null);
         return completableFuture;
     }
 

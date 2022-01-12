@@ -434,7 +434,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
         admin.topics().removeInactiveTopicPolicies(topic);
         //Only the broker-level policies is set, so after removing the topic-level policies
-        // , the topic will use the broker-level policies
+        //, the topic will use the broker-level policies
         Awaitility.await().untilAsserted(()
                 -> assertEquals(((PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).get().get()).getInactiveTopicPolicies()
                 , defaultPolicy));
@@ -446,7 +446,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         assertEquals(policies, admin.topics().getInactiveTopicPolicies(topic2));
         inactiveTopicPolicies.setMaxInactiveDurationSeconds(999);
         //Both broker level and namespace level policies are set, so after removing the topic level policies
-        // , the topic will use the namespace level policies
+        //, the topic will use the namespace level policies
         admin.namespaces().setInactiveTopicPolicies(namespace, inactiveTopicPolicies);
         //wait for zk
         Awaitility.await().until(() -> {

@@ -36,7 +36,8 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
     private final boolean readCompacted;
 
     NonDurableCursorImpl(BookKeeper bookkeeper, ManagedLedgerConfig config, ManagedLedgerImpl ledger, String cursorName,
-                         PositionImpl startCursorPosition, CommandSubscribe.InitialPosition initialPosition, boolean isReadCompacted) {
+                         PositionImpl startCursorPosition, CommandSubscribe.InitialPosition initialPosition,
+                         boolean isReadCompacted) {
         super(bookkeeper, config, ledger, cursorName);
         this.readCompacted = isReadCompacted;
 
@@ -53,7 +54,7 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
                     initializeCursorPosition(ledger.getFirstPositionAndCounter());
                     break;
             }
-        } else if (startCursorPosition.getLedgerId() == PositionImpl.earliest.getLedgerId()) {
+        } else if (startCursorPosition.getLedgerId() == PositionImpl.EARLIEST.getLedgerId()) {
             // Start from invalid ledger to read from first available entry
             recoverCursor(ledger.getPreviousPosition(ledger.getFirstPosition()));
         } else {

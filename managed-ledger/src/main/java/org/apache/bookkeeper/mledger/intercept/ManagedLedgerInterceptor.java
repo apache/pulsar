@@ -19,13 +19,12 @@
 package org.apache.bookkeeper.mledger.intercept;
 
 import io.netty.buffer.ByteBuf;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.impl.OpAddEntry;
-
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Interceptor for ManagedLedger.
@@ -61,17 +60,17 @@ public interface ManagedLedgerInterceptor {
     void onUpdateManagedLedgerInfo(Map<String, String> propertiesMap);
 
     /**
-     * A reference handle to the payload processor
+     * A reference handle to the payload processor.
      */
     interface PayloadProcessorHandle {
         /**
-         * To obtain the processed data
+         * To obtain the processed data.
          * @return processed data
          */
         ByteBuf getProcessedPayload();
 
         /**
-         * To release resources used in processor, if any
+         * To release resources used in processor, if any.
          */
         void release();
     }
@@ -85,12 +84,13 @@ public interface ManagedLedgerInterceptor {
     }
 
     /**
-     * Intercept before payload gets written to ledger
+     * Intercept before payload gets written to ledger.
      * @param ledgerWriteOp OpAddEntry used to trigger ledger write.
      * @param dataToBeStoredInLedger data to be stored in ledger
      * @return handle to the processor
      */
-    default PayloadProcessorHandle processPayloadBeforeLedgerWrite(OpAddEntry ledgerWriteOp, ByteBuf dataToBeStoredInLedger){
+    default PayloadProcessorHandle processPayloadBeforeLedgerWrite(OpAddEntry ledgerWriteOp,
+                                                                   ByteBuf dataToBeStoredInLedger){
         return null;
     }
 }
