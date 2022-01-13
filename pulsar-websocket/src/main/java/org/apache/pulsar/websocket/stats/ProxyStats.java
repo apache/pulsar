@@ -20,23 +20,20 @@ package org.apache.pulsar.websocket.stats;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import static org.apache.pulsar.websocket.ProducerHandler.ENTRY_LATENCY_BUCKETS_USEC;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.websocket.WebSocketService;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * It periodically generates stats metrics of proxy service,
+ * It periodically generates stats metrics of proxy service.
  *
  */
 public class ProxyStats {
