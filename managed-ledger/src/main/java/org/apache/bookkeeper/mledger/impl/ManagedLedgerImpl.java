@@ -1628,7 +1628,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         if (!pendingAddEntries.isEmpty()) {
             // Need to create a new ledger to write pending entries
-            createLedgerAfterClosed();
+            // Use the executor here is to avoid use the Zookeeper thread to create the ledger which will lead
+            // to deadlock at the zookeeper client, details to see https://github.com/apache/pulsar/issues/13736
+            this.executor.execute(this::createLedgerAfterClosed);
         }
     }
 
