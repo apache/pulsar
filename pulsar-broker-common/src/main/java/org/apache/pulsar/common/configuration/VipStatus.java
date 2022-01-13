@@ -20,7 +20,6 @@ package org.apache.pulsar.common.configuration;
 
 import java.io.File;
 import java.util.function.Supplier;
-
 import javax.servlet.ServletContext;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
