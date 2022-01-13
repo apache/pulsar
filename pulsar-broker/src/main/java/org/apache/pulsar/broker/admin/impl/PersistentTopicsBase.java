@@ -1159,7 +1159,7 @@ public class PersistentTopicsBase extends AdminResource {
                     } else {
                         log.error("[{}] Failed to get list of subscriptions for {}", clientAppId(), topicName, cause);
                     }
-                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, cause);
                     return null;
                 });
     }
