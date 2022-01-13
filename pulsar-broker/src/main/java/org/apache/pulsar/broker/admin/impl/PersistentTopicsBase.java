@@ -1139,26 +1139,27 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private void internalGetSubscriptionsForNonPartitionedTopic(AsyncResponse asyncResponse, boolean authoritative) {
-        try {
-            validateTopicOwnership(topicName, authoritative);
-            validateTopicOperation(topicName, TopicOperation.GET_SUBSCRIPTIONS);
-
-            Topic topic = getTopicReference(topicName);
-            final List<String> subscriptions = Lists.newArrayList();
-            topic.getSubscriptions().forEach((subName, sub) -> subscriptions.add(subName));
-            asyncResponse.resume(subscriptions);
-        } catch (WebApplicationException wae) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Failed to get subscriptions for non-partitioned topic {},"
-                                + " redirecting to other brokers.",
-                        clientAppId(), topicName, wae);
-            }
-            resumeAsyncResponseExceptionally(asyncResponse, wae);
-            return;
-        } catch (Exception e) {
-            log.error("[{}] Failed to get list of subscriptions for {}", clientAppId(), topicName, e);
-            resumeAsyncResponseExceptionally(asyncResponse, e);
-        }
+        validateTopicOwnershipAsync(topicName, authoritative)
+                .thenRun(() -> validateTopicOperation(topicName, TopicOperation.GET_SUBSCRIPTIONS))
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                .thenAccept(topic -> {
+                    final List<String> subscriptions = new ArrayList<>(topic.getSubscriptions().keys());
+                    asyncResponse.resume(subscriptions);
+                }).exceptionally(ex -> {
+                    Throwable cause = ex.getCause();
+                    if (ex instanceof WebApplicationException) {
+                        if (log.isDebugEnabled() && ((WebApplicationException) cause).getResponse().getStatus()
+                                == Status.TEMPORARY_REDIRECT.getStatusCode()) {
+                            log.debug("[{}] Failed to get subscriptions for non-partitioned topic {},"
+                                            + " redirecting to other brokers.",
+                                    clientAppId(), topicName, ex);
+                        }
+                    } else {
+                        log.error("[{}] Failed to get list of subscriptions for {}", clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     protected TopicStats internalGetStats(boolean authoritative, boolean getPreciseBacklog,
