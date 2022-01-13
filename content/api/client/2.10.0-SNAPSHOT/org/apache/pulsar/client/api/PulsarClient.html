@@ -26,7 +26,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":1,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6};
+var data = {"i0":1,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -244,6 +244,13 @@ extends java.io.Closeable</pre>
 </td>
 </tr>
 <tr id="i11" class="rowColor">
+<td class="colFirst"><code>&lt;T&gt;&nbsp;<a href="TableViewBuilder.html" title="interface in org.apache.pulsar.client.api">TableViewBuilder</a>&lt;T&gt;</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#newTableViewBuilder(org.apache.pulsar.client.api.Schema)">newTableViewBuilder</a></span>&#8203;(<a href="Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a>&lt;T&gt;&nbsp;schema)</code></th>
+<td class="colLast">
+<div class="block">Create a table view builder with a specific schema for subscribing on a specific topic.</div>
+</td>
+</tr>
+<tr id="i12" class="altColor">
 <td class="colFirst"><code><a href="transaction/TransactionBuilder.html" title="interface in org.apache.pulsar.client.api.transaction">TransactionBuilder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#newTransaction()">newTransaction</a></span>()</code></th>
 <td class="colLast">
@@ -251,14 +258,14 @@ extends java.io.Closeable</pre>
  and construct a transaction.</div>
 </td>
 </tr>
-<tr id="i12" class="altColor">
+<tr id="i13" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#shutdown()">shutdown</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Perform immediate shutdown of PulsarClient.</div>
 </td>
 </tr>
-<tr id="i13" class="rowColor">
+<tr id="i14" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#updateServiceUrl(java.lang.String)">updateServiceUrl</a></span>&#8203;(java.lang.String&nbsp;serviceUrl)</code></th>
 <td class="colLast">
@@ -504,6 +511,35 @@ extends java.io.Closeable</pre>
 <dd>a <a href="ReaderBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ReaderBuilder</code></a> that can be used to configure and construct a <a href="Reader.html" title="interface in org.apache.pulsar.client.api"><code>Reader</code></a> instance</dd>
 <dt><span class="simpleTagLabel">Since:</span></dt>
 <dd>2.0.0</dd>
+</dl>
+</li>
+</ul>
+<a id="newTableViewBuilder(org.apache.pulsar.client.api.Schema)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>newTableViewBuilder</h4>
+<pre class="methodSignature">&lt;T&gt;&nbsp;<a href="TableViewBuilder.html" title="interface in org.apache.pulsar.client.api">TableViewBuilder</a>&lt;T&gt;&nbsp;newTableViewBuilder&#8203;(<a href="Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a>&lt;T&gt;&nbsp;schema)</pre>
+<div class="block">Create a table view builder with a specific schema for subscribing on a specific topic.
+
+ <p>The TableView provides a key-value map view of a compacted topic. Messages without keys will
+ be ignored.
+
+ <p>Example:
+ <pre><code>
+  TableView&lt;byte[]&gt; tableView = client.newTableView(Schema.BYTES)
+            .topic("my-topic")
+            .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
+            .create();
+
+  tableView.forEach((k, v) -&gt; System.out.println(k + ":" + v));
+ </code></pre></div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>schema</code> - provide a way to convert between serialized data and domain objects</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>a <a href="TableViewBuilder.html" title="interface in org.apache.pulsar.client.api"><code>TableViewBuilder</code></a> object to configure and construct the <a href="TableView.html" title="interface in org.apache.pulsar.client.api"><code>TableView</code></a> instance</dd>
 </dl>
 </li>
 </ul>

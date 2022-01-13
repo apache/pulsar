@@ -354,6 +354,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Set the interval of updating partitions <i>(default: 1 minute)</i>.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/TableViewBuilder.html#autoUpdatePartitionsInterval(int,java.util.concurrent.TimeUnit)">autoUpdatePartitionsInterval(int, TimeUnit)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/TableViewBuilder.html" title="interface in org.apache.pulsar.client.api">TableViewBuilder</a></dt>
+<dd>
+<div class="block">Set the interval of updating partitions <i>(default: 1 minute)</i>.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/schema/SchemaType.html#AVRO">AVRO</a></span> - org.apache.pulsar.common.schema.<a href="org/apache/pulsar/common/schema/SchemaType.html" title="enum in org.apache.pulsar.common.schema">SchemaType</a></dt>
 <dd>
 <div class="block">Serialize and deserialize via avro.</div>
@@ -627,6 +631,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Asynchronously close the reader and stop the broker to push more messages.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/TableView.html#closeAsync()">closeAsync()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/TableView.html" title="interface in org.apache.pulsar.client.api">TableView</a></dt>
+<dd>
+<div class="block">Close the table view and releases resources allocated.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/transaction/TransactionCoordinatorClient.html#closeAsync()">closeAsync()</a></span> - Method in interface org.apache.pulsar.client.api.transaction.<a href="org/apache/pulsar/client/api/transaction/TransactionCoordinatorClient.html" title="interface in org.apache.pulsar.client.api.transaction">TransactionCoordinatorClient</a></dt>
 <dd>
 <div class="block">Close the transaction meta store client asynchronous.</div>
@@ -757,6 +765,11 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Consumer statistics recorded by client.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/TableView.html#containsKey(java.lang.String)">containsKey(String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/TableView.html" title="interface in org.apache.pulsar.client.api">TableView</a></dt>
+<dd>
+<div class="block">Returns <code>true</code> if this <a href="org/apache/pulsar/client/api/TableView.html" title="interface in org.apache.pulsar.client.api"><code>TableView</code></a> contains a mapping for the specified
+ key.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/internal/PulsarClientImplementationBinding.html#convertKeyValueDataStringToSchemaInfoSchema(byte%5B%5D)">convertKeyValueDataStringToSchemaInfoSchema(byte[])</a></span> - Method in interface org.apache.pulsar.client.internal.<a href="org/apache/pulsar/client/internal/PulsarClientImplementationBinding.html" title="interface in org.apache.pulsar.client.internal">PulsarClientImplementationBinding</a></dt>
 <dd>
 <div class="block">Convert the key/value schema info data json bytes to key/value schema info data bytes.</div>
@@ -783,6 +796,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Finalize the creation of the <a href="org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api"><code>Reader</code></a> instance.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/TableViewBuilder.html#create()">create()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/TableViewBuilder.html" title="interface in org.apache.pulsar.client.api">TableViewBuilder</a></dt>
+<dd>
+<div class="block">Finalize the creation of the <a href="org/apache/pulsar/client/api/TableView.html" title="interface in org.apache.pulsar.client.api"><code>TableView</code></a> instance.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/AuthenticationFactory.html#create(java.lang.String,java.lang.String)">create(String, String)</a></span> - Static method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/AuthenticationFactory.html" title="class in org.apache.pulsar.client.api">AuthenticationFactory</a></dt>
 <dd>
 <div class="block">Create an instance of the <a href="org/apache/pulsar/client/api/Authentication.html" title="interface in org.apache.pulsar.client.api"><code>Authentication</code></a> object by using
@@ -799,6 +816,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderBuilder.html#createAsync()">createAsync()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></dt>
 <dd>
 <div class="block">Finalize the creation of the <a href="org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api"><code>Reader</code></a> instance in asynchronous mode.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/TableViewBuilder.html#createAsync()">createAsync()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/TableViewBuilder.html" title="interface in org.apache.pulsar.client.api">TableViewBuilder</a></dt>
+<dd>
+<div class="block">Finalize the creation of the <a href="org/apache/pulsar/client/api/TableView.html" title="interface in org.apache.pulsar.client.api"><code>TableView</code></a> instance in asynchronous mode.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/internal/PulsarClientImplementationBinding.html#createAuthentication(java.lang.String,java.lang.String)">createAuthentication(String, String)</a></span> - Method in interface org.apache.pulsar.client.internal.<a href="org/apache/pulsar/client/internal/PulsarClientImplementationBinding.html" title="interface in org.apache.pulsar.client.internal">PulsarClientImplementationBinding</a></dt>
 <dd>&nbsp;</dd>
@@ -1100,6 +1121,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/EncryptionKeyInfo.html#%3Cinit%3E(byte%5B%5D,java.util.Map)">EncryptionKeyInfo(byte[], Map&lt;String, String&gt;)</a></span> - Constructor for class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/EncryptionKeyInfo.html" title="class in org.apache.pulsar.client.api">EncryptionKeyInfo</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/TableView.html#entrySet()">entrySet()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/TableView.html" title="interface in org.apache.pulsar.client.api">TableView</a></dt>
+<dd>
+<div class="block">Returns a Set view of the mappings contained in this map.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Range.html#equals(java.lang.Object)">equals(Object)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Range.html" title="class in org.apache.pulsar.client.api">Range</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/transaction/TxnID.html#equals(java.lang.Object)">equals(Object)</a></span> - Method in class org.apache.pulsar.client.api.transaction.<a href="org/apache/pulsar/client/api/transaction/TxnID.html" title="class in org.apache.pulsar.client.api.transaction">TxnID</a></dt>
@@ -1176,6 +1201,16 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Flush all the messages buffered in the client and wait until all messages have been successfully persisted.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/TableView.html#forEach(java.util.function.BiConsumer)">forEach(BiConsumer&lt;String, T&gt;)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/TableView.html" title="interface in org.apache.pulsar.client.api">TableView</a></dt>
+<dd>
+<div class="block">Performs the given action for each entry in this map until all entries
+ have been processed or the action throws an exception.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/TableView.html#forEachAndListen(java.util.function.BiConsumer)">forEachAndListen(BiConsumer&lt;String, T&gt;)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/TableView.html" title="interface in org.apache.pulsar.client.api">TableView</a></dt>
+<dd>
+<div class="block">Performs the give action for each entry in this map until all entries
+ have been processed or the action throws an exception.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/MessageId.html#fromByteArray(byte%5B%5D)">fromByteArray(byte[])</a></span> - Static method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a></dt>
 <dd>
 <div class="block">De-serialize a message id from a byte array.</div>
@@ -1210,6 +1245,11 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><a href="org/apache/pulsar/client/api/schema/GenericSchema.html" title="interface in org.apache.pulsar.client.api.schema"><span class="typeNameLink">GenericSchema</span></a>&lt;<a href="org/apache/pulsar/client/api/schema/GenericSchema.html" title="type parameter in GenericSchema">T</a> extends <a href="org/apache/pulsar/client/api/schema/GenericRecord.html" title="interface in org.apache.pulsar.client.api.schema">GenericRecord</a>&gt; - Interface in <a href="org/apache/pulsar/client/api/schema/package-summary.html">org.apache.pulsar.client.api.schema</a></dt>
 <dd>
 <div class="block">A schema that serializes and deserializes between <a href="org/apache/pulsar/client/api/schema/GenericRecord.html" title="interface in org.apache.pulsar.client.api.schema"><code>GenericRecord</code></a> and bytes.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/TableView.html#get(java.lang.String)">get(String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/TableView.html" title="interface in org.apache.pulsar.client.api">TableView</a></dt>
+<dd>
+<div class="block">Returns the value to which the specified key is mapped, or null if this map contains
+ no mapping for the key.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/schema/SchemaDefinition.html#getAlwaysAllowNull()">getAlwaysAllowNull()</a></span> - Method in interface org.apache.pulsar.client.api.schema.<a href="org/apache/pulsar/client/api/schema/SchemaDefinition.html" title="interface in org.apache.pulsar.client.api.schema">SchemaDefinition</a></dt>
 <dd>
@@ -1914,6 +1954,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Check the message batch container is empty.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/TableView.html#isEmpty()">isEmpty()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/TableView.html" title="interface in org.apache.pulsar.client.api">TableView</a></dt>
+<dd>
+<div class="block">Returns <code>true</code> if this <a href="org/apache/pulsar/client/api/TableView.html" title="interface in org.apache.pulsar.client.api"><code>TableView</code></a> contains no key-value mappings.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/schema/SchemaDefinition.html#isJsr310ConversionEnabled()">isJsr310ConversionEnabled()</a></span> - Method in interface org.apache.pulsar.client.api.schema.<a href="org/apache/pulsar/client/api/schema/SchemaDefinition.html" title="interface in org.apache.pulsar.client.api.schema">SchemaDefinition</a></dt>
 <dd>
 <div class="block">Get JSR310 conversion enabled.</div>
@@ -2007,6 +2051,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Set key hash range of the reader, broker will only dispatch messages which hash of the message key contains by
  the specified key hash range.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/TableView.html#keySet()">keySet()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/TableView.html" title="interface in org.apache.pulsar.client.api">TableView</a></dt>
+<dd>
+<div class="block">Returns a <code>Set</code> view of the keys contained in this <a href="org/apache/pulsar/client/api/TableView.html" title="interface in org.apache.pulsar.client.api"><code>TableView</code></a>.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/KeySharedPolicy.html#keySharedMode">keySharedMode</a></span> - Variable in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/KeySharedPolicy.html" title="class in org.apache.pulsar.client.api">KeySharedPolicy</a></dt>
 <dd>&nbsp;</dd>
@@ -2113,6 +2161,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">Load the configuration from provided <tt>config</tt> map.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderBuilder.html#loadConf(java.util.Map)">loadConf(Map&lt;String, Object&gt;)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></dt>
+<dd>
+<div class="block">Load the configuration from provided <tt>config</tt> map.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/TableViewBuilder.html#loadConf(java.util.Map)">loadConf(Map&lt;String, Object&gt;)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/TableViewBuilder.html" title="interface in org.apache.pulsar.client.api">TableViewBuilder</a></dt>
 <dd>
 <div class="block">Load the configuration from provided <tt>config</tt> map.</div>
 </dd>
@@ -2482,6 +2534,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/internal/PulsarClientImplementationBinding.html#newStringSchema(java.nio.charset.Charset)">newStringSchema(Charset)</a></span> - Method in interface org.apache.pulsar.client.internal.<a href="org/apache/pulsar/client/internal/PulsarClientImplementationBinding.html" title="interface in org.apache.pulsar.client.internal">PulsarClientImplementationBinding</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClient.html#newTableViewBuilder(org.apache.pulsar.client.api.Schema)">newTableViewBuilder(Schema&lt;T&gt;)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></dt>
+<dd>
+<div class="block">Create a table view builder with a specific schema for subscribing on a specific topic.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/internal/PulsarClientImplementationBinding.html#newTimeSchema()">newTimeSchema()</a></span> - Method in interface org.apache.pulsar.client.internal.<a href="org/apache/pulsar/client/internal/PulsarClientImplementationBinding.html" title="interface in org.apache.pulsar.client.internal">PulsarClientImplementationBinding</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/internal/PulsarClientImplementationBinding.html#newTimestampSchema()">newTimestampSchema()</a></span> - Method in interface org.apache.pulsar.client.internal.<a href="org/apache/pulsar/client/internal/PulsarClientImplementationBinding.html" title="interface in org.apache.pulsar.client.internal">PulsarClientImplementationBinding</a></dt>
@@ -3427,6 +3483,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Get number of messages.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/TableView.html#size()">size()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/TableView.html" title="interface in org.apache.pulsar.client.api">TableView</a></dt>
+<dd>
+<div class="block">Returns the number of key-value mappings in the <a href="org/apache/pulsar/client/api/TableView.html" title="interface in org.apache.pulsar.client.api"><code>TableView</code></a>.</div>
+</dd>
 <dt><a href="org/apache/pulsar/client/api/SizeUnit.html" title="enum in org.apache.pulsar.client.api"><span class="typeNameLink">SizeUnit</span></a> - Enum in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>
 <div class="block">Size unit converter.</div>
@@ -3577,6 +3637,12 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </a>
 <h2 class="title">T</h2>
 <dl>
+<dt><a href="org/apache/pulsar/client/api/TableView.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">TableView</span></a>&lt;<a href="org/apache/pulsar/client/api/TableView.html" title="type parameter in TableView">T</a>&gt; - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/client/api/TableViewBuilder.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">TableViewBuilder</span></a>&lt;<a href="org/apache/pulsar/client/api/TableViewBuilder.html" title="type parameter in TableViewBuilder">T</a>&gt; - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
+<dd>
+<div class="block"><a href="org/apache/pulsar/client/api/TableViewBuilder.html" title="interface in org.apache.pulsar.client.api"><code>TableViewBuilder</code></a> is used to configure and create instances of <a href="org/apache/pulsar/client/api/TableView.html" title="interface in org.apache.pulsar.client.api"><code>TableView</code></a>.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/schema/SchemaType.html#TIME">TIME</a></span> - org.apache.pulsar.common.schema.<a href="org/apache/pulsar/common/schema/SchemaType.html" title="enum in org.apache.pulsar.common.schema">SchemaType</a></dt>
 <dd>
 <div class="block">Time.</div>
@@ -3670,6 +3736,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderBuilder.html#topic(java.lang.String)">topic(String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></dt>
 <dd>
 <div class="block">Specify the topic this reader will read from.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/TableViewBuilder.html#topic(java.lang.String)">topic(String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/TableViewBuilder.html" title="interface in org.apache.pulsar.client.api">TableViewBuilder</a></dt>
+<dd>
+<div class="block">Set the topic name of the <a href="org/apache/pulsar/client/api/TableView.html" title="interface in org.apache.pulsar.client.api"><code>TableView</code></a>.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#topic(java.lang.String...)">topic(String...)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
 <dd>
@@ -4009,6 +4079,10 @@ the order they are declared.</div>
 <dd>
 <div class="block">Returns an array containing the constants of this enum type, in
 the order they are declared.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/TableView.html#values()">values()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/TableView.html" title="interface in org.apache.pulsar.client.api">TableView</a></dt>
+<dd>
+<div class="block">Returns a Collection view of the values contained in this <a href="org/apache/pulsar/client/api/TableView.html" title="interface in org.apache.pulsar.client.api"><code>TableView</code></a>.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/transaction/TransactionCoordinatorClient.State.html#values()">values()</a></span> - Static method in enum org.apache.pulsar.client.api.transaction.<a href="org/apache/pulsar/client/api/transaction/TransactionCoordinatorClient.State.html" title="enum in org.apache.pulsar.client.api.transaction">TransactionCoordinatorClient.State</a></dt>
 <dd>

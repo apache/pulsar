@@ -484,6 +484,13 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </td>
 </tr>
 <tr class="rowColor">
+<td class="colFirst"><code><a href="../TableView.html" title="interface in org.apache.pulsar.client.api">TableView</a>&lt;<a href="../TableViewBuilder.html" title="type parameter in TableViewBuilder">T</a>&gt;</code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">TableViewBuilder.</span><code><span class="memberNameLink"><a href="../TableViewBuilder.html#create()">create</a></span>()</code></th>
+<td class="colLast">
+<div class="block">Finalize the creation of the <a href="../TableView.html" title="interface in org.apache.pulsar.client.api"><code>TableView</code></a> instance.</div>
+</td>
+</tr>
+<tr class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">MessageCrypto.</span><code><span class="memberNameLink"><a href="../MessageCrypto.html#encrypt(java.util.Set,org.apache.pulsar.client.api.CryptoKeyReader,java.util.function.Supplier,java.nio.ByteBuffer,java.nio.ByteBuffer)">encrypt</a></span>&#8203;(java.util.Set&lt;java.lang.String&gt;&nbsp;encKeys,
        <a href="../CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api">CryptoKeyReader</a>&nbsp;keyReader,
@@ -492,40 +499,40 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
        java.nio.ByteBuffer&nbsp;outBuffer)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">Producer.</span><code><span class="memberNameLink"><a href="../Producer.html#flush()">flush</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Flush all the messages buffered in the client and wait until all messages have been successfully persisted.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>default <a href="../AuthenticationDataProvider.html" title="interface in org.apache.pulsar.client.api">AuthenticationDataProvider</a></code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">Authentication.</span><code><span class="memberNameLink"><a href="../Authentication.html#getAuthData()">getAuthData</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>default <a href="../AuthenticationDataProvider.html" title="interface in org.apache.pulsar.client.api">AuthenticationDataProvider</a></code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">Authentication.</span><code><span class="memberNameLink"><a href="../Authentication.html#getAuthData(java.lang.String)">getAuthData</a></span>&#8203;(java.lang.String&nbsp;brokerHostName)</code></th>
 <td class="colLast">
 <div class="block">Get/Create an authentication data provider which provides the data that this client will be sent to the broker.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code><a href="../MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a></code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">Consumer.</span><code><span class="memberNameLink"><a href="../Consumer.html#getLastMessageId()">getLastMessageId</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Get the last message id available for consume.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">Reader.</span><code><span class="memberNameLink"><a href="../Reader.html#hasMessageAvailable()">hasMessageAvailable</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Check if there is any message available to read from the current position.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code><a href="../transaction/TransactionBuilder.html" title="interface in org.apache.pulsar.client.api.transaction">TransactionBuilder</a></code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">PulsarClient.</span><code><span class="memberNameLink"><a href="../PulsarClient.html#newTransaction()">newTransaction</a></span>()</code></th>
 <td class="colLast">
@@ -533,14 +540,14 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
  and construct a transaction.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code><a href="../Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../Reader.html" title="type parameter in Reader">T</a>&gt;</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">Reader.</span><code><span class="memberNameLink"><a href="../Reader.html#readNext()">readNext</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Read the next message in the topic.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code><a href="../Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../Reader.html" title="type parameter in Reader">T</a>&gt;</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">Reader.</span><code><span class="memberNameLink"><a href="../Reader.html#readNext(int,java.util.concurrent.TimeUnit)">readNext</a></span>&#8203;(int&nbsp;timeout,
         java.util.concurrent.TimeUnit&nbsp;unit)</code></th>
@@ -548,14 +555,14 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">Read the next message in the topic waiting for a maximum time.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code><a href="../Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../Consumer.html" title="type parameter in Consumer">T</a>&gt;</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">Consumer.</span><code><span class="memberNameLink"><a href="../Consumer.html#receive()">receive</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Receives a single message.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code><a href="../Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../Consumer.html" title="type parameter in Consumer">T</a>&gt;</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">Consumer.</span><code><span class="memberNameLink"><a href="../Consumer.html#receive(int,java.util.concurrent.TimeUnit)">receive</a></span>&#8203;(int&nbsp;timeout,
        java.util.concurrent.TimeUnit&nbsp;unit)</code></th>
@@ -563,7 +570,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">Receive a single message.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">Consumer.</span><code><span class="memberNameLink"><a href="../Consumer.html#reconsumeLater(org.apache.pulsar.client.api.Message,long,java.util.concurrent.TimeUnit)">reconsumeLater</a></span>&#8203;(<a href="../Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;?&gt;&nbsp;message,
               long&nbsp;delayTime,
@@ -572,7 +579,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">reconsumeLater the consumption of <a href="../Messages.html" title="interface in org.apache.pulsar.client.api"><code>Messages</code></a>.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">Consumer.</span><code><span class="memberNameLink"><a href="../Consumer.html#reconsumeLater(org.apache.pulsar.client.api.Message,java.util.Map,long,java.util.concurrent.TimeUnit)">reconsumeLater</a></span>&#8203;(<a href="../Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;?&gt;&nbsp;message,
               java.util.Map&lt;java.lang.String,&#8203;java.lang.String&gt;&nbsp;customProperties,
@@ -582,7 +589,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">reconsumeLater the consumption of <a href="../Messages.html" title="interface in org.apache.pulsar.client.api"><code>Messages</code></a>.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">Consumer.</span><code><span class="memberNameLink"><a href="../Consumer.html#reconsumeLater(org.apache.pulsar.client.api.Messages,long,java.util.concurrent.TimeUnit)">reconsumeLater</a></span>&#8203;(<a href="../Messages.html" title="interface in org.apache.pulsar.client.api">Messages</a>&lt;?&gt;&nbsp;messages,
               long&nbsp;delayTime,
@@ -591,7 +598,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">reconsumeLater the consumption of <a href="../Messages.html" title="interface in org.apache.pulsar.client.api"><code>Messages</code></a>.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">Consumer.</span><code><span class="memberNameLink"><a href="../Consumer.html#reconsumeLaterCumulative(org.apache.pulsar.client.api.Message,long,java.util.concurrent.TimeUnit)">reconsumeLaterCumulative</a></span>&#8203;(<a href="../Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;?&gt;&nbsp;message,
                         long&nbsp;delayTime,
@@ -600,91 +607,91 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">reconsumeLater the reception of all the messages in the stream up to (and including) the provided message.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">Consumer.</span><code><span class="memberNameLink"><a href="../Consumer.html#seek(long)">seek</a></span>&#8203;(long&nbsp;timestamp)</code></th>
 <td class="colLast">
 <div class="block">Reset the subscription associated with this consumer to a specific message publish time.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">Consumer.</span><code><span class="memberNameLink"><a href="../Consumer.html#seek(java.util.function.Function)">seek</a></span>&#8203;(java.util.function.Function&lt;java.lang.String,&#8203;java.lang.Object&gt;&nbsp;function)</code></th>
 <td class="colLast">
 <div class="block">Reset the subscription associated with this consumer to a specific message ID or message publish time.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">Consumer.</span><code><span class="memberNameLink"><a href="../Consumer.html#seek(org.apache.pulsar.client.api.MessageId)">seek</a></span>&#8203;(<a href="../MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&nbsp;messageId)</code></th>
 <td class="colLast">
 <div class="block">Reset the subscription associated with this consumer to a specific message id.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">Reader.</span><code><span class="memberNameLink"><a href="../Reader.html#seek(long)">seek</a></span>&#8203;(long&nbsp;timestamp)</code></th>
 <td class="colLast">
 <div class="block">Reset the subscription associated with this reader to a specific message publish time.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">Reader.</span><code><span class="memberNameLink"><a href="../Reader.html#seek(java.util.function.Function)">seek</a></span>&#8203;(java.util.function.Function&lt;java.lang.String,&#8203;java.lang.Object&gt;&nbsp;function)</code></th>
 <td class="colLast">
 <div class="block">Reset the subscription associated with this consumer to a specific message ID or message publish time.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">Reader.</span><code><span class="memberNameLink"><a href="../Reader.html#seek(org.apache.pulsar.client.api.MessageId)">seek</a></span>&#8203;(<a href="../MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&nbsp;messageId)</code></th>
 <td class="colLast">
 <div class="block">Reset the subscription associated with this reader to a specific message id.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code><a href="../MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a></code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">Producer.</span><code><span class="memberNameLink"><a href="../Producer.html#send(T)">send</a></span>&#8203;(<a href="../Producer.html" title="type parameter in Producer">T</a>&nbsp;message)</code></th>
 <td class="colLast">
 <div class="block">Sends a message.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code><a href="../MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a></code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">TypedMessageBuilder.</span><code><span class="memberNameLink"><a href="../TypedMessageBuilder.html#send()">send</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Send a message synchronously.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">PulsarClient.</span><code><span class="memberNameLink"><a href="../PulsarClient.html#shutdown()">shutdown</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Perform immediate shutdown of PulsarClient.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">Authentication.</span><code><span class="memberNameLink"><a href="../Authentication.html#start()">start</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Initialize the authentication provider.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code><a href="../Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;<a href="../ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">ConsumerBuilder.</span><code><span class="memberNameLink"><a href="../ConsumerBuilder.html#subscribe()">subscribe</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Finalize the <a href="../Consumer.html" title="interface in org.apache.pulsar.client.api"><code>Consumer</code></a> creation by subscribing to the topic.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">Consumer.</span><code><span class="memberNameLink"><a href="../Consumer.html#unsubscribe()">unsubscribe</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Unsubscribe the consumer.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">PulsarClient.</span><code><span class="memberNameLink"><a href="../PulsarClient.html#updateServiceUrl(java.lang.String)">updateServiceUrl</a></span>&#8203;(java.lang.String&nbsp;serviceUrl)</code></th>
 <td class="colLast">
