@@ -19,12 +19,11 @@
 package org.apache.pulsar.common.policies.data;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 public class EnsemblePlacementPolicyConfig {
     public static final String ENSEMBLE_PLACEMENT_POLICY_CONFIG = "EnsemblePlacementPolicyConfig";

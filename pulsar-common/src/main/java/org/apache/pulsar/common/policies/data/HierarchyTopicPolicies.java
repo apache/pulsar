@@ -28,7 +28,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 
 /**
- * Topic policy hierarchy value container
+ * Topic policy hierarchy value container.
  */
 @Getter
 public class HierarchyTopicPolicies {

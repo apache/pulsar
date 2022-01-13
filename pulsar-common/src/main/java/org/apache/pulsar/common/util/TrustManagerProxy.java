@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.util;
 
+import io.netty.handler.ssl.SslContext;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -31,12 +32,9 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509ExtendedTrustManager;
-
-import io.netty.handler.ssl.SslContext;
 import lombok.extern.slf4j.Slf4j;
 
 /**
