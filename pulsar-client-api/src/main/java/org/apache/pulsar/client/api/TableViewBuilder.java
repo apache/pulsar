@@ -19,12 +19,11 @@
 
 package org.apache.pulsar.client.api;
 
-import org.apache.pulsar.common.classification.InterfaceAudience;
-import org.apache.pulsar.common.classification.InterfaceStability;
-
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * {@link TableViewBuilder} is used to configure and create instances of {@link TableView}.
@@ -79,7 +78,7 @@ public interface TableViewBuilder<T> {
     CompletableFuture<TableView<T>> createAsync();
 
     /**
-     * Set the topic name of the {@link TableView}
+     * Set the topic name of the {@link TableView}.
      *
      * @param topic the name of the topic to create the {@link TableView}
      * @return the {@link TableViewBuilder} builder instance
@@ -87,7 +86,7 @@ public interface TableViewBuilder<T> {
     TableViewBuilder<T> topic(String topic);
 
     /**
-     * Set the interval of updating partitions <i>(default: 1 minute)</i>
+     * Set the interval of updating partitions <i>(default: 1 minute)</i>.
      * @param interval the interval of updating partitions
      * @param unit the time unit of the interval
      * @return the {@link TableViewBuilder} builder instance
