@@ -2046,7 +2046,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String replicatorPrefix = "pulsar.repl";
     @FieldContext(
         category = CATEGORY_REPLICATION,
-        doc = "Replicator producer queue size"
+        dynamic = true,
+        doc = "Replicator producer queue size. "
+                + "When dynamically modified, it only takes effect for the newly added replicators"
     )
     private int replicationProducerQueueSize = 1000;
     @FieldContext(
