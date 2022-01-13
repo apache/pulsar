@@ -226,6 +226,10 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |brokerClientTlsTrustStorePassword| TLS TrustStore password for internal client, used by the internal client to authenticate with Pulsar brokers ||
 |brokerClientTlsCiphers| Specify the tls cipher the internal client will use to negotiate during TLS Handshake. (a comma-separated list of ciphers) e.g.  [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]||
 |brokerClientTlsProtocols|Specify the tls protocols the broker will use to negotiate during TLS handshake. (a comma-separated list of protocol names). e.g.  `TLSv1.3`, `TLSv1.2` ||
+| metadataStoreBatchingEnabled | Enable metadata operations batching. | true |
+| metadataStoreBatchingMaxDelayMillis | Maximum delay to impose on batching grouping. | 5 |
+| metadataStoreBatchingMaxOperations | Maximum number of operations to include in a singular batch. | 1000 |
+| metadataStoreBatchingMaxSizeKb | Maximum size of a batch. | 128 |
 |ttlDurationDefaultInSeconds|The default Time to Live (TTL) for namespaces if the TTL is not configured at namespace policies. When the value is set to `0`, TTL is disabled. By default, TTL is disabled. |0|
 |tokenSettingPrefix| Configure the prefix of the token-related settings, such as `tokenSecretKey`, `tokenPublicKey`, `tokenAuthClaim`, `tokenPublicAlg`, `tokenAudienceClaim`, and `tokenAudience`. ||
 |tokenSecretKey| Configure the secret key to be used to validate auth tokens. The key can be specified like: `tokenSecretKey=data:;base64,xxxxxxxxx` or `tokenSecretKey=file:///my/secret.key`.  Note: key file must be DER-encoded.||
@@ -295,7 +299,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |loadBalancerEnabled| Enable load balancer  |true|
 |loadBalancerPlacementStrategy| Strategy to assign a new bundle weightedRandomSelection ||
 |loadBalancerReportUpdateThresholdPercentage| Percentage of change to trigger load report update  |10|
-|loadBalancerReportUpdateMaxIntervalMinutes|  maximum interval to update load report  |15|
+|loadBalancerReportUpdateMaxIntervalMinutes|  Maximum interval to update load report  |15|
 |loadBalancerHostUsageCheckIntervalMinutes| Frequency of report to collect  |1|
 |loadBalancerSheddingIntervalMinutes| Load shedding interval. Broker periodically checks whether some traffic should be offload from some over-loaded broker to other under-loaded brokers  |30|
 |loadBalancerSheddingGracePeriodMinutes|  Prevent the same topics to be shed and moved to other broker more than once within this timeframe |30|
@@ -304,12 +308,12 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |loadBalancerBrokerOverloadedThresholdPercentage| Usage threshold to determine a broker as over-loaded  |85|
 |loadBalancerResourceQuotaUpdateIntervalMinutes|  Interval to update namespace bundle resource quota |15|
 |loadBalancerBrokerComfortLoadLevelPercentage|  Usage threshold to determine a broker is having just right level of load  |65|
-|loadBalancerAutoBundleSplitEnabled|  enable/disable namespace bundle auto split  |false|
-|loadBalancerNamespaceBundleMaxTopics|  maximum topics in a bundle, otherwise bundle split will be triggered  |1000|
-|loadBalancerNamespaceBundleMaxSessions|  maximum sessions (producers + consumers) in a bundle, otherwise bundle split will be triggered  |1000|
-|loadBalancerNamespaceBundleMaxMsgRate| maximum msgRate (in + out) in a bundle, otherwise bundle split will be triggered  |1000|
-|loadBalancerNamespaceBundleMaxBandwidthMbytes| maximum bandwidth (in + out) in a bundle, otherwise bundle split will be triggered  |100|
-|loadBalancerNamespaceMaximumBundles| maximum number of bundles in a namespace  |128|
+|loadBalancerAutoBundleSplitEnabled|  Enable/disable namespace bundle auto split  |false|
+|loadBalancerNamespaceBundleMaxTopics|  Maximum topics in a bundle, otherwise bundle split will be triggered  |1000|
+|loadBalancerNamespaceBundleMaxSessions|  Maximum sessions (producers + consumers) in a bundle, otherwise bundle split will be triggered. <br>To disable the threshold check, set the value to -1.  |1000|
+|loadBalancerNamespaceBundleMaxMsgRate| Maximum msgRate (in + out) in a bundle, otherwise bundle split will be triggered  |1000|
+|loadBalancerNamespaceBundleMaxBandwidthMbytes| Maximum bandwidth (in + out) in a bundle, otherwise bundle split will be triggered  |100|
+|loadBalancerNamespaceMaximumBundles| Maximum number of bundles in a namespace  |128|
 |replicationMetricsEnabled| Enable replication metrics  |true|
 |replicationConnectionsPerBroker| Max number of connections to open for each broker in a remote cluster More connections host-to-host lead to better throughput over high-latency links.  |16|
 |replicationProducerQueueSize|  Replicator producer queue size  |1000|
@@ -518,7 +522,10 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 | maxProducersPerTopic | Maximum number of producers allowed to connect to topic. Once this limit reaches, the broker rejects new producers until the number of connected producers decreases. When the value is set to 0, maxProducersPerTopic-limit check is disabled. | 0 |
 | maxConsumersPerTopic | Maximum number of consumers allowed to connect to topic. Once this limit reaches, the broker rejects new consumers until the number of connected consumers decreases. When the value is set to 0, maxConsumersPerTopic-limit check is disabled. | 0 |
 | maxConsumersPerSubscription | Maximum number of consumers allowed to connect to subscription. Once this limit reaches, the broker rejects new consumers until the number of connected consumers decreases. When the value is set to 0, maxConsumersPerSubscription-limit check is disabled. | 0 |
-| maxNumPartitionsPerPartitionedTopic | Maximum number of partitions per partitioned topic. When the value is set to a negative number or is set to 0, the check is disabled. | 0 |
+| metadataStoreBatchingEnabled | Enable metadata operations batching. | true |
+| metadataStoreBatchingMaxDelayMillis | Maximum delay to impose on batching grouping. | 5 |
+| metadataStoreBatchingMaxOperations | Maximum number of operations to include in a singular batch. | 1000 |
+| metadataStoreBatchingMaxSizeKb | Maximum size of a batch. | 128 |
 | tlsCertRefreshCheckDurationSec | TLS certificate refresh duration in seconds. When the value is set to 0, check the TLS certificate on every new connection. | 300 |
 | tlsCertificateFilePath | Path for the TLS certificate file. | |
 | tlsKeyFilePath | Path for the TLS private key file. | |
@@ -646,7 +653,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |loadBalancerAutoBundleSplitEnabled|    |false|
 | loadBalancerAutoUnloadSplitBundlesEnabled | Enable/Disable automatic unloading of split bundles. | true |
 |loadBalancerNamespaceBundleMaxTopics|    |1000|
-|loadBalancerNamespaceBundleMaxSessions|    |1000|
+|loadBalancerNamespaceBundleMaxSessions|  Maximum sessions (producers + consumers) in a bundle, otherwise bundle split will be triggered. <br>To disable the threshold check, set the value to -1.  |1000|
 |loadBalancerNamespaceBundleMaxMsgRate|   |1000|
 |loadBalancerNamespaceBundleMaxBandwidthMbytes|   |100|
 |loadBalancerNamespaceMaximumBundles|   |128|
