@@ -1149,7 +1149,7 @@ public class PersistentTopicsBase extends AdminResource {
                     asyncResponse.resume(subscriptions);
                 }).exceptionally(ex -> {
                     Throwable cause = ex.getCause();
-                    if (ex instanceof WebApplicationException) {
+                    if (cause instanceof WebApplicationException) {
                         if (log.isDebugEnabled() && ((WebApplicationException) cause).getResponse().getStatus()
                                 == Status.TEMPORARY_REDIRECT.getStatusCode()) {
                             log.debug("[{}] Failed to get subscriptions for non-partitioned topic {},"
