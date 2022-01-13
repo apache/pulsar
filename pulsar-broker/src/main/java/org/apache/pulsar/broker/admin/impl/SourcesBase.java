@@ -77,7 +77,8 @@ public class SourcesBase extends AdminResource {
             final @FormDataParam("data") FormDataContentDisposition fileDetail,
             final @FormDataParam("url") String sourcePkgUrl,
             @ApiParam(value =
-                    "You can create a source in Java, Python, and Go. Follow the steps below.\n"
+                    "You can submit a source (in any languages that you are familiar with) to a Pulsar cluster. "
+                            + "Follow the steps below.\n"
                             + "1. Create a JSON object using some of the following parameters.\n"
                             + "A JSON value presenting configuration payload of a Pulsar Source."
                             + " An example of the expected functions can be found here.\n"
@@ -117,17 +118,29 @@ public class SourcesBase extends AdminResource {
                             + "2. Encapsulate the JSON object to a multipart object.",
                     examples = @Example(
                             value = @ExampleProperty(
-                                    mediaType = MediaType.APPLICATION_JSON,
-                                    value = "{\n"
-                                            + "  \"tenant\": public\n"
-                                            + "  \"namespace\": default\n"
-                                            + "  \"name\": pulsar-io-mysql\n"
-                                            + "  \"className\": TestSourceMysql\n"
-                                            + "  \"topicName\": pulsar-io-mysql\n"
-                                            + "  \"parallelism\": 1\n"
-                                            + "  \"archive\": /connectors/pulsar-io-mysql-0.0.1.nar\n"
-                                            + "  \"schemaType\": avro\n"
+                                    mediaType = MediaType.TEXT_PLAIN,
+                                    value = " Example \n"
+                                            + "\n"
+                                            + "1. Create a JSON object. \n"
+                                            + "\n"
+                                            + "{\n"
+                                            + "\t\"tenant\": \"public\",\n"
+                                            + "\t\"namespace\": \"default\",\n"
+                                            + "\t\"name\": \"pulsar-io-mysql\",\n"
+                                            + "\t\"className\": \"TestSourceMysql\",\n"
+                                            + "\t\"topicName\": \"pulsar-io-mysql\",\n"
+                                            + "\t\"parallelism\": \"1\",\n"
+                                            + "\t\"archive\": \"/connectors/pulsar-io-mysql-0.0.1.nar\",\n"
+                                            + "\t\"schemaType\": \"avro\"\n"
                                             + "}\n"
+                                            + "\n"
+                                            + "\n"
+                                            + "2. Encapsulate the JSON object to a multipart object (in Python). \n"
+                                            + "\n"
+                                            + "from requests_toolbelt.multipart.encoder import MultipartEncoder \n"
+                                            + "mp_encoder = MultipartEncoder( \n"
+                                            + "\t[('sourceConfig', "
+                                            + "(None, json.dumps(config), 'application/json'))])\n"
                             )
                     )
             )

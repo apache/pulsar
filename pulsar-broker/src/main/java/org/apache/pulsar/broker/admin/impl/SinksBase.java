@@ -75,7 +75,8 @@ public class SinksBase extends AdminResource {
                              final @FormDataParam("data") FormDataContentDisposition fileDetail,
                              final @FormDataParam("url") String sinkPkgUrl,
                              @ApiParam(value =
-                                     "You can create a sink in Java, Python, and Go. Follow the steps below.\n"
+                                     "You can submit a sink (in any languages that you are familiar with) "
+                                             + "to a Pulsar cluster. Follow the steps below.\n"
                                              + "1. Create a JSON object using some of the following parameters.\n"
                                              + "A JSON value presenting config payload of a Pulsar Sink."
                                              + " All available configuration options are:\n"
@@ -143,27 +144,28 @@ public class SinksBase extends AdminResource {
                                      examples = @Example(
                                              value = {
                                                  @ExampleProperty(
-                                                     mediaType = MediaType.APPLICATION_JSON,
-                                                     value = "Example 1 \n{ \n"
+                                                     mediaType = MediaType.TEXT_PLAIN,
+                                                     value = "Example \n"
+                                                             + "\n"
+                                                             + " 1. Create a JSON object. \n"
+                                                             + "\n"
+                                                             + "{\n"
                                                              + "\t\"classname\": \"org.example.MySinkTest\",\n"
                                                              + "\t\"inputs\": ["
                                                              + "\"persistent://public/default/sink-input\"],\n"
                                                              + "\t\"processingGuarantees\": \"EFFECTIVELY_ONCE\",\n"
-                                                             + "\t\"parallelism\": 10\n"
+                                                             + "\t\"parallelism\": \"10\"\n"
                                                              + "}\n"
-                                                             + "Example 2 \n{\n"
-                                                             + "\"inputs\": ["
-                                                             + "\"persistent://public/default/sink-topic\"],\n"
-                                                             + "\"parallelism\":1,\n"
-                                                             + "\"sinkType\":\"jdbc\",\n"
-                                                             + "\"archive\":\"builtin://jdbc\",\n"
-                                                             + "\"configs\": {\n"
-                                                             + "\t\"userName\": \"root\",\n"
-                                                             + "\t\"password\": \"jdbc\",\n"
-                                                             + "\t\"jdbcUrl\": \"jdbc:mysql://127.0.0.1:3306/"
-                                                             + "pulsar_mysql_jdbc_sink\",\n"
-                                                             + "\t\"tableName\": \"pulsar_mysql_jdbc_sink\"\n"
-                                                             + "}"
+                                                             + "\n"
+                                                             + "\n"
+                                                             + "2. Encapsulate the JSON object to a multipart object "
+                                                             + "(in Python).\n"
+                                                             + "\n"
+                                                             + "from requests_toolbelt.multipart.encoder import "
+                                                             + "MultipartEncoder \n"
+                                                             + "mp_encoder = MultipartEncoder( \n"
+                                                             + "\t[('sinkConfig', "
+                                                             + "(None, json.dumps(config), 'application/json'))])\n"
                                                   )
                                             }
                                     )
