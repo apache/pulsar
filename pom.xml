@@ -152,7 +152,7 @@ flexible messaging model and an intuitive client API.</description>
     <mariadb-jdbc.version>2.6.0</mariadb-jdbc.version>
     <hdfs-offload-version3>3.3.1</hdfs-offload-version3>
     <json-smart.version>2.4.7</json-smart.version>
-    <elasticsearch.version>7.9.1</elasticsearch.version>
+    <elasticsearch.version>7.16.3</elasticsearch.version>
     <presto.version>332</presto.version>
     <scala.binary.version>2.13</scala.binary.version>
     <scala-library.version>2.13.6</scala-library.version>
@@ -229,6 +229,7 @@ flexible messaging model and an intuitive client API.</description>
     <license-maven-plugin.version>4.0.rc2</license-maven-plugin.version>
     <directory-maven-plugin.version>1.0</directory-maven-plugin.version>
     <maven-enforcer-plugin.version>3.0.0-M3</maven-enforcer-plugin.version>
+    <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
     <!-- surefire.version is defined in apache parent pom -->
     <!-- it is used for surefire, failsafe and surefire-report plugins -->
     <!-- do not upgrade surefire.version to 3.0.0-M5 since it runs slowly and breaks tests. -->
@@ -1327,8 +1328,11 @@ flexible messaging model and an intuitive client API.</description>
         </dependencies>
       </plugin>
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
+        <version>${maven-compiler-plugin.version}</version>
         <configuration>
+          <forceJavacCompilerUse>true</forceJavacCompilerUse>
           <encoding>UTF-8</encoding>
           <showDeprecation>true</showDeprecation>
           <showWarnings>true</showWarnings>
@@ -1844,8 +1848,11 @@ flexible messaging model and an intuitive client API.</description>
         <pluginManagement>
           <plugins>
             <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
               <artifactId>maven-compiler-plugin</artifactId>
+              <version>${maven-compiler-plugin.version}</version>
               <configuration>
+                <forceJavacCompilerUse>true</forceJavacCompilerUse>
                 <!-- for some reason, setting maven.compiler.release property alone doesn't work -->
                 <release>${maven.compiler.release}</release>
               </configuration>
@@ -2138,7 +2145,9 @@ flexible messaging model and an intuitive client API.</description>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-compiler-plugin</artifactId>
+            <version>${maven-compiler-plugin.version}</version>
             <configuration>
+              <forceJavacCompilerUse>true</forceJavacCompilerUse>
               <fork>true</fork>
               <meminitial>128m</meminitial>
               <maxmem>1024m</maxmem>
@@ -2175,7 +2184,9 @@ flexible messaging model and an intuitive client API.</description>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-compiler-plugin</artifactId>
+            <version>${maven-compiler-plugin.version}</version>
             <configuration>
+              <forceJavacCompilerUse>true</forceJavacCompilerUse>
               <compilerArgs combine.children="append">
                 <arg>
                   -J-Xbootclasspath/p:${settings.localRepository}/com/google/errorprone/javac/${errorprone.javac.version}/javac-${errorprone.javac.version}.jar</arg>
@@ -2204,7 +2215,9 @@ flexible messaging model and an intuitive client API.</description>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-compiler-plugin</artifactId>
+            <version>${maven-compiler-plugin.version}</version>
             <configuration>
+              <forceJavacCompilerUse>true</forceJavacCompilerUse>
               <annotationProcessorPaths combine.children="append">
                 <!-- add https://github.com/KengoTODA/errorprone-slf4j Error Prone plugin -->
                 <!-- detects slf4j misusage. Doesn't run on Java 8, so this is why it's in the errorprone-jdk11 profile -->
@@ -2245,6 +2258,7 @@ flexible messaging model and an intuitive client API.</description>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-compiler-plugin</artifactId>
+            <version>${maven-compiler-plugin.version}</version>
             <executions>
               <execution>
                 <id>default-testCompile</id>
