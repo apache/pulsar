@@ -17,7 +17,7 @@
 # under the License.
 #
 
-name: CI - Unit - Brokers - Broker Group 2
+name: CI - Unit - Brokers - Broker Group
 on:
   pull_request:
     branches:
@@ -32,9 +32,13 @@ env:
 jobs:
 
   unit-tests:
-    name:
+    name: pulsar-ci-test
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        group: ["group1", "group2", "group3"]
 
     steps:
       - name: checkout
@@ -75,9 +79,17 @@ jobs:
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: mvn -B -ntp -q clean install -Pcore-modules,-main -DskipTests
 
+      - name: run unit test 'BROKER_GROUP_1'
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' && matrix.group == 'group1' }}
+        run: ./build/run_unit_group.sh BROKER_GROUP_1
+
       - name: run unit test 'BROKER_GROUP_2'
-        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' && matrix.group == 'group2' }}
         run: ./build/run_unit_group.sh BROKER_GROUP_2
+
+      - name: run unit test 'BROKER_GROUP_3'
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' && matrix.group == 'group3' }}
+        run: ./build/run_unit_group.sh BROKER_GROUP_3
 
       - name: print JVM thread dumps when cancelled
         if: cancelled()

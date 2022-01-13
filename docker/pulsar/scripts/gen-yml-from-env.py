@@ -104,6 +104,6 @@ for conf_filename in conf_files:
         conf.pop('processContainerFactory', None)
 
     # Store back the updated config in the same file
-    f = open(conf_filename , 'w')
+    f = open(conf_filename, 'w')
     yaml.dump(conf, f, default_flow_style=False)
     f.close()

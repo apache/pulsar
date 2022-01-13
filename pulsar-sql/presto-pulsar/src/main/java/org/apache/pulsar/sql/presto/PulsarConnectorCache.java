@@ -178,7 +178,7 @@ public class PulsarConnectorCache {
                 }
             } else {
                 log.info("No ledger offloader configured, using NULL instance");
-                return NullLedgerOffloader.INSTANCE;
+                return NullLedgerOffloader.instance_;
             }
         } catch (Throwable t) {
             throw new RuntimeException(t);
