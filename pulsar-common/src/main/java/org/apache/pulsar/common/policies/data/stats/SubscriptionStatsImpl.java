@@ -18,14 +18,14 @@
  */
 package org.apache.pulsar.common.policies.data.stats;
 
-import java.util.HashMap;
-import lombok.Data;
-import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import lombok.Data;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 
 /**
  * Statistics about subscription.

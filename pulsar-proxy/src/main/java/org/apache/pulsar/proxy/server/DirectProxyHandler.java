@@ -144,7 +144,7 @@ public class DirectProxyHandler {
             if (service.getProxyLogLevel() == 2) {
                 //Set a map between inbound and outbound,
                 //so can find inbound by outbound or find outbound by inbound
-                inboundOutboundChannelMap.put(outboundChannel.id() , inboundChannel.id());
+                inboundOutboundChannelMap.put(outboundChannel.id(), inboundChannel.id());
             }
 
             if (!config.isHaProxyProtocolEnabled()) {

@@ -58,6 +58,7 @@ import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -170,6 +171,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                         data.getBackLogQuotaMap() == null ? null : data.getBackLogQuotaMap().get(type.toString())));
         topicPolicies.getTopicMaxMessageSize().updateTopicValue(data.getMaxMessageSize());
         topicPolicies.getMessageTTLInSeconds().updateTopicValue(data.getMessageTTLInSeconds());
+        topicPolicies.getDelayedDeliveryEnabled().updateTopicValue(data.getDelayedDeliveryEnabled());
+        topicPolicies.getDelayedDeliveryTickTimeMillis().updateTopicValue(data.getDelayedDeliveryTickTimeMillis());
     }
 
     protected void updateTopicPolicyByNamespacePolicy(Policies namespacePolicies) {
@@ -189,6 +192,12 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                 .updateNamespaceValue(namespacePolicies.max_consumers_per_subscription);
         topicPolicies.getInactiveTopicPolicies().updateNamespaceValue(namespacePolicies.inactive_topic_policies);
         topicPolicies.getDeduplicationEnabled().updateNamespaceValue(namespacePolicies.deduplicationEnabled);
+        topicPolicies.getDelayedDeliveryEnabled().updateNamespaceValue(
+                Optional.ofNullable(namespacePolicies.delayed_delivery_policies)
+                        .map(DelayedDeliveryPolicies::isActive).orElse(null));
+        topicPolicies.getDelayedDeliveryTickTimeMillis().updateNamespaceValue(
+                Optional.ofNullable(namespacePolicies.delayed_delivery_policies)
+                        .map(DelayedDeliveryPolicies::getTickTime).orElse(null));
         topicPolicies.getSubscriptionTypesEnabled().updateNamespaceValue(
                 subTypeStringsToEnumSet(namespacePolicies.subscription_types_enabled));
         Arrays.stream(BacklogQuota.BacklogQuotaType.values()).forEach(
@@ -219,6 +228,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
         topicPolicies.getTopicMaxMessageSize().updateBrokerValue(config.getMaxMessageSize());
         topicPolicies.getMessageTTLInSeconds().updateBrokerValue(config.getTtlDurationDefaultInSeconds());
+        topicPolicies.getDelayedDeliveryEnabled().updateBrokerValue(config.isDelayedDeliveryEnabled());
+        topicPolicies.getDelayedDeliveryTickTimeMillis().updateBrokerValue(config.getDelayedDeliveryTickTimeMillis());
     }
 
     private EnumSet<SubType> subTypeStringsToEnumSet(Set<String> getSubscriptionTypesEnabled) {
@@ -894,7 +905,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         //both namespace-level and topic-level policy are not set, try to use broker-level policy
         ServiceConfiguration serviceConfiguration = brokerService.pulsar().getConfiguration();
         if (publishRate != null) {
-            //publishRate is not null , use namespace-level policy
+            //publishRate is not null, use namespace-level policy
             updatePublishDispatcher(publishRate);
         } else {
             PublishRate brokerPublishRate = new PublishRate(serviceConfiguration.getMaxPublishRatePerTopicInMessages()

@@ -56,7 +56,7 @@ import org.testng.annotations.Test;
  * Unit tests for schema admin api.
  */
 @Slf4j
-@Test(groups = "broker")
+@Test(groups = "broker-admin")
 public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
     final String cluster = "test";

@@ -19,9 +19,7 @@
 package org.apache.pulsar.broker.web;
 
 import java.io.IOException;
-
 import javax.naming.AuthenticationException;
-
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -30,7 +28,6 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.common.sasl.SaslConstants;
@@ -38,7 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Servlet filter that hooks up with AuthenticationService to reject unauthenticated HTTP requests
+ * Servlet filter that hooks up with AuthenticationService to reject unauthenticated HTTP requests.
  */
 public class AuthenticationFilter implements Filter {
     private static final Logger LOG = LoggerFactory.getLogger(AuthenticationFilter.class);
@@ -53,8 +50,8 @@ public class AuthenticationFilter implements Filter {
     }
 
     private boolean isSaslRequest(HttpServletRequest request) {
-        if (request.getHeader(SaslConstants.SASL_HEADER_TYPE) == null ||
-            request.getHeader(SaslConstants.SASL_HEADER_TYPE).isEmpty()) {
+        if (request.getHeader(SaslConstants.SASL_HEADER_TYPE) == null
+                || request.getHeader(SaslConstants.SASL_HEADER_TYPE).isEmpty()) {
             return false;
         }
         if (request.getHeader(SaslConstants.SASL_HEADER_TYPE)
