@@ -1154,7 +1154,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 == Status.TEMPORARY_REDIRECT.getStatusCode()) {
                             log.debug("[{}] Failed to get subscriptions for non-partitioned topic {},"
                                             + " redirecting to other brokers.",
-                                    clientAppId(), topicName, ex);
+                                    clientAppId(), topicName, cause);
                         }
                     } else {
                         log.error("[{}] Failed to get list of subscriptions for {}", clientAppId(), topicName, ex);
