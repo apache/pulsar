@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 
 import java.util.Iterator;
 
@@ -34,11 +35,27 @@ public class UnAckedTopicMessageRedeliveryTracker extends UnAckedMessageRedelive
         writeLock.lock();
         try {
             int removed = 0;
-            Iterator<MessageId> iterator = ackTimeoutMessages.keySet().iterator();
+            Iterator<UnackMessageIdWrapper> iterator = redeliveryMessageIdPartitionMap.keySet().iterator();
             while (iterator.hasNext()) {
-                MessageId messageId = iterator.next();
-                if (messageId instanceof TopicMessageIdImpl &&
-                        ((TopicMessageIdImpl) messageId).getTopicPartitionName().contains(topicName)) {
+                UnackMessageIdWrapper messageIdWrapper = iterator.next();
+                MessageId messageId = messageIdWrapper.getMessageId();
+                if (messageId instanceof TopicMessageIdImpl
+                        && ((TopicMessageIdImpl) messageId).getTopicPartitionName().contains(topicName)) {
+                    ConcurrentOpenHashSet<UnackMessageIdWrapper> exist = redeliveryMessageIdPartitionMap
+                            .get(messageIdWrapper);
+                    if (exist != null) {
+                        exist.remove(messageIdWrapper);
+                    }
+                    iterator.remove();
+                    removed++;
+                }
+            }
+
+            Iterator<MessageId> iteratorAckTimeOut = ackTimeoutMessages.keySet().iterator();
+            while (iterator.hasNext()) {
+                MessageId messageId = iteratorAckTimeOut.next();
+                if (messageId instanceof TopicMessageIdImpl
+                        && ((TopicMessageIdImpl) messageId).getTopicPartitionName().contains(topicName)) {
                     iterator.remove();
                     removed++;
                 }

@@ -19,90 +19,115 @@
 package org.apache.pulsar.client.impl;
 
 import io.netty.util.Timeout;
+import io.netty.util.TimerTask;
 import io.netty.util.concurrent.FastThreadLocal;
+import java.util.ArrayDeque;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RedeliveryBackoff;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
 
-    protected final HashMap<MessageId, Long> ackTimeoutMessages;
     private static final Logger log = LoggerFactory.getLogger(UnAckedMessageRedeliveryTracker.class);
 
-    private final long unAckDelayNanos;
-    private final ConsumerBase<?> consumer;
+    protected final ConcurrentHashMap<UnackMessageIdWrapper, ConcurrentOpenHashSet<UnackMessageIdWrapper>>
+            redeliveryMessageIdPartitionMap;
+    protected final ArrayDeque<ConcurrentOpenHashSet<UnackMessageIdWrapper>> redeliveryTimePartitions;
 
-    private final long timerIntervalNanos;
+    protected final HashMap<MessageId, Long> ackTimeoutMessages;
 
     private final RedeliveryBackoff ackTimeoutRedeliveryBackoff;
-
-    // Set a min delay to allow for grouping unack within a single batch
-    private static final long MIN_NACK_DELAY_NANOS = TimeUnit.MILLISECONDS.toNanos(100);
 
     public UnAckedMessageRedeliveryTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase,
                                            ConsumerConfigurationData<?> conf) {
         super(client, consumerBase, conf);
-        this.consumer = consumerBase;
         this.ackTimeoutRedeliveryBackoff = conf.getAckTimeoutRedeliveryBackoff();
         this.ackTimeoutMessages = new HashMap<MessageId, Long>();
-        this.unAckDelayNanos = Math.max(TimeUnit.MICROSECONDS.toNanos(tickDurationInMs),
-                MIN_NACK_DELAY_NANOS);
-        this.timerIntervalNanos = Math.max(
-                TimeUnit.MILLISECONDS.toNanos(ackTimeoutRedeliveryBackoff.next(0)),
-                MIN_NACK_DELAY_NANOS) / 3;
+        this.redeliveryMessageIdPartitionMap = new ConcurrentHashMap<>();
+        this.redeliveryTimePartitions = new ArrayDeque<>();
+
+        int blankPartitions = (int) Math.ceil((double) this.ackTimeoutMillis / this.tickDurationInMs);
+        for (int i = 0; i < blankPartitions + 1; i++) {
+            redeliveryTimePartitions.add(new ConcurrentOpenHashSet<>(16, 1));
+        }
+
+        timeout = client.timer().newTimeout(new TimerTask() {
+            @Override
+            public void run(Timeout t) throws Exception {
+                writeLock.lock();
+                try {
+                    ConcurrentOpenHashSet<UnackMessageIdWrapper> headPartition = redeliveryTimePartitions.removeFirst();
+                    if (!headPartition.isEmpty()) {
+                        headPartition.forEach(unackMessageIdWrapper -> {
+                            addAckTimeoutMessages(unackMessageIdWrapper);
+                            redeliveryMessageIdPartitionMap.remove(unackMessageIdWrapper);
+                        });
+                    }
+                    headPartition.clear();
+                    redeliveryTimePartitions.addLast(headPartition);
+                    triggerRedelivery(consumerBase);
+                } finally {
+                    writeLock.unlock();
+                    timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
+                }
+            }
+        }, this.tickDurationInMs, TimeUnit.MILLISECONDS);
+
     }
 
-    private static final FastThreadLocal<HashSet<MessageId>> TL_MESSAGE_IDS_SET = new FastThreadLocal<HashSet<MessageId>>() {
-        @Override
-        protected HashSet<MessageId> initialValue() throws Exception {
-            return new HashSet<>();
+    private void addAckTimeoutMessages(UnackMessageIdWrapper messageIdWrapper) {
+        writeLock.lock();
+        try {
+            MessageId messageId = messageIdWrapper.getMessageId();
+            int redeliveryCount = messageIdWrapper.getRedeliveryCount();
+            long backoffNs = ackTimeoutRedeliveryBackoff.next(redeliveryCount);
+            ackTimeoutMessages.put(messageId, System.currentTimeMillis() + backoffNs);
+        } finally {
+            writeLock.unlock();
         }
-    };
+    }
 
-    private void triggerRedelivery(Timeout t) {
-
+    private void triggerRedelivery(ConsumerBase<?> consumerBase) {
         if (ackTimeoutMessages.isEmpty()) {
-            this.timeout = null;
             return;
         }
-
         Set<MessageId> messageIds = TL_MESSAGE_IDS_SET.get();
         messageIds.clear();
 
-        writeLock.lock();
         try {
-            long now = System.nanoTime();
+            long now = System.currentTimeMillis();
             ackTimeoutMessages.forEach((messageId, timestamp) -> {
-                if (timestamp < now) {
-                    addChunkedMessageIdsAndRemoveFromSequenceMap(messageId, messageIds, consumer);
+                if (timestamp <= now) {
+                    addChunkedMessageIdsAndRemoveFromSequenceMap(messageId, messageIds, consumerBase);
                     messageIds.add(messageId);
                 }
             });
             if (!messageIds.isEmpty()) {
-                log.info("[{}] {} messages will be re-delivered", consumer, messageIds.size());
+                log.info("[{}] {} messages will be re-delivered", consumerBase, messageIds.size());
                 messageIds.forEach(ackTimeoutMessages::remove);
             }
         } finally {
-            writeLock.unlock();
             if (messageIds.size() > 0) {
-                consumer.onAckTimeoutSend(messageIds);
-                consumer.redeliverUnacknowledgedMessages(messageIds);
+                consumerBase.onAckTimeoutSend(messageIds);
+                consumerBase.redeliverUnacknowledgedMessages(messageIds);
             }
-            this.timeout = consumer.getClient().timer().newTimeout(this::triggerRedelivery, timerIntervalNanos,
-                    TimeUnit.NANOSECONDS);
         }
     }
 
+    @Override
     boolean isEmpty() {
         readLock.lock();
         try {
-            return ackTimeoutMessages.isEmpty();
+            return redeliveryMessageIdPartitionMap.isEmpty() && ackTimeoutMessages.isEmpty();
         } finally {
             readLock.unlock();
         }
@@ -112,53 +137,32 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
     public void clear() {
         writeLock.lock();
         try {
+            redeliveryMessageIdPartitionMap.clear();
+            redeliveryTimePartitions.forEach(tp -> tp.clear());
             ackTimeoutMessages.clear();
         } finally {
             writeLock.unlock();
         }
     }
 
-    long size() {
-        readLock.lock();
-        try {
-            return ackTimeoutMessages.size();
-        } finally {
-            readLock.unlock();
-        }
-    }
-
     @Override
     public boolean add(MessageId messageId) {
-        writeLock.lock();
-        try {
-            ackTimeoutMessages.put(messageId,
-                    System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(this.ackTimeoutMillis) + unAckDelayNanos);
-            if (this.timeout == null) {
-                // Schedule a task and group all the redeliveries for same period. Leave a small buffer to allow for
-                // nack immediately following the current one will be batched into the same redeliver request.
-                this.timeout = consumer.getClient().timer().newTimeout(this::triggerRedelivery, timerIntervalNanos,
-                        TimeUnit.NANOSECONDS);
-            }
-            return true;
-        } finally {
-            writeLock.unlock();
-        }
+        return add(messageId, 0);
     }
 
     @Override
     public boolean add(MessageId messageId, int redeliveryCount) {
         writeLock.lock();
         try {
-            long backoffNs =
-                    TimeUnit.MILLISECONDS.toNanos(ackTimeoutMillis + ackTimeoutRedeliveryBackoff.next(redeliveryCount));
-            ackTimeoutMessages.put(messageId, System.nanoTime() + backoffNs);
-            if (this.timeout == null) {
-                // Schedule a task and group all the redeliveries for same period. Leave a small buffer to allow for
-                // nack immediately following the current one will be batched into the same redeliver request.
-                this.timeout = consumer.getClient().timer().newTimeout(this::triggerRedelivery, timerIntervalNanos,
-                        TimeUnit.NANOSECONDS);
+            UnackMessageIdWrapper messageIdWrapper = UnackMessageIdWrapper.valueOf(messageId, redeliveryCount);
+            ConcurrentOpenHashSet<UnackMessageIdWrapper> partition = redeliveryTimePartitions.peekLast();
+            ConcurrentOpenHashSet<UnackMessageIdWrapper> previousPartition = redeliveryMessageIdPartitionMap
+                    .putIfAbsent(messageIdWrapper, partition);
+            if (previousPartition == null) {
+                return partition.add(messageIdWrapper);
+            } else {
+                return false;
             }
-            return true;
         } finally {
             writeLock.unlock();
         }
@@ -168,9 +172,25 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
     public boolean remove(MessageId messageId) {
         writeLock.lock();
         try {
-            return ackTimeoutMessages.remove(messageId) == null ? false : true;
+            boolean removed = false;
+            UnackMessageIdWrapper messageIdWrapper = UnackMessageIdWrapper.valueOf(messageId);
+            ConcurrentOpenHashSet<UnackMessageIdWrapper> exist = redeliveryMessageIdPartitionMap.remove(messageIdWrapper);
+            if (exist != null) {
+                removed = exist.remove(messageIdWrapper);
+            }
+            return removed || ackTimeoutMessages.remove(messageId) != null;
         } finally {
             writeLock.unlock();
+        }
+    }
+
+    @Override
+    long size() {
+        readLock.lock();
+        try {
+            return redeliveryMessageIdPartitionMap.size() + ackTimeoutMessages.size();
+        } finally {
+            readLock.unlock();
         }
     }
 
@@ -178,16 +198,30 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
     public int removeMessagesTill(MessageId msgId) {
         writeLock.lock();
         try {
-            Set<MessageId> messageIds = TL_MESSAGE_IDS_SET.get();
-            messageIds.clear();
-            ackTimeoutMessages.forEach((messageId, timestamp) -> {
+            int removed = 0;
+            Iterator<UnackMessageIdWrapper> iterator = redeliveryMessageIdPartitionMap.keySet().iterator();
+            while (iterator.hasNext()) {
+                UnackMessageIdWrapper messageIdWrapper = iterator.next();
+                MessageId messageId = messageIdWrapper.getMessageId();
                 if (messageId.compareTo(msgId) <= 0) {
-                    addChunkedMessageIdsAndRemoveFromSequenceMap(messageId, messageIds, consumer);
-                    messageIds.add(messageId);
+                    ConcurrentOpenHashSet<UnackMessageIdWrapper> exist = redeliveryMessageIdPartitionMap.get(messageIdWrapper);
+                    if (exist != null) {
+                        exist.remove(messageIdWrapper);
+                    }
+                    iterator.remove();
+                    removed++;
                 }
-            });
-            messageIds.forEach(ackTimeoutMessages::remove);
-            return messageIds.size();
+            }
+
+            Iterator<MessageId> iteratorAckTimeOut = ackTimeoutMessages.keySet().iterator();
+            while (iteratorAckTimeOut.hasNext()) {
+                MessageId messageId = iteratorAckTimeOut.next();
+                if (messageId.compareTo(msgId) <= 0) {
+                    iteratorAckTimeOut.remove();
+                    removed++;
+                }
+            }
+            return removed;
         } finally {
             writeLock.unlock();
         }

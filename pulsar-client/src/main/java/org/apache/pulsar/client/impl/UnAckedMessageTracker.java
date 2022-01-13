@@ -99,7 +99,7 @@ public class UnAckedMessageTracker implements Closeable {
         this.tickDurationInMs = 0;
     }
 
-    private static final FastThreadLocal<HashSet<MessageId>> TL_MESSAGE_IDS_SET = new FastThreadLocal<HashSet<MessageId>>() {
+    protected static final FastThreadLocal<HashSet<MessageId>> TL_MESSAGE_IDS_SET = new FastThreadLocal<HashSet<MessageId>>() {
         @Override
         protected HashSet<MessageId> initialValue() throws Exception {
             return new HashSet<>();

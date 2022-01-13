@@ -272,7 +272,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         assertEquals(messageCount1 + messageCount2, totalMessages);
         assertEquals(ackCount1 + messageCount2, totalMessages);
 
-        Thread.sleep((int) (ackTimeOutMillis * 1.1));
+        Thread.sleep((int) (ackTimeOutMillis * 2));
 
         // Since receive is a blocking call hoping that timeout will kick in
         log.info(key + " Timeout should be triggered again");
@@ -398,7 +398,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         assertEquals(messagesReceived, totalMessages);
 
         // 5. Check if Messages redelivered again
-        Thread.sleep(ackTimeOutMillis);
+        Thread.sleep(ackTimeOutMillis * 2);
         log.info(key + " Timeout should be triggered now");
         messagesReceived = 0;
         while (true) {
