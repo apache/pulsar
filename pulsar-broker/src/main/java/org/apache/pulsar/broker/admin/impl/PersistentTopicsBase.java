@@ -1157,7 +1157,7 @@ public class PersistentTopicsBase extends AdminResource {
                                     clientAppId(), topicName, cause);
                         }
                     } else {
-                        log.error("[{}] Failed to get list of subscriptions for {}", clientAppId(), topicName, ex);
+                        log.error("[{}] Failed to get list of subscriptions for {}", clientAppId(), topicName, cause);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
