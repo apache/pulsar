@@ -334,7 +334,7 @@ public interface ProducerBuilder<T> extends Cloneable {
      * (sometime due to broker-restart or publish time, producer might fail to publish entire large message
      * so, consumer will not be able to consume and ack those messages. So, those messages can
      * be only discared by msg ttl) Or configure
-     * {@link ConsumerBuilder#expireTimeOfIncompleteChunkedMessage()}
+     * {@link ConsumerBuilder#expireTimeOfIncompleteChunkedMessage}
      * 5. Consumer configuration: consumer should also configure receiverQueueSize and maxPendingChunkedMessage
      * </pre>
      * @param enableChunking
