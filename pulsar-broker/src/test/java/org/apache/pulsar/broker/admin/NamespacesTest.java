@@ -58,6 +58,7 @@ import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.bookkeeper.mledger.LedgerOffloaderMXBean;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -1278,6 +1279,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         @Override
         public String getOffloadDriverName() {
             return "mock";
+        }
+
+        @Override
+        public LedgerOffloaderMXBean getStats() {
+            return null;
         }
 
         @Override

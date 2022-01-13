@@ -91,16 +91,16 @@ public class LedgerOffloaderMXBeanImpl implements LedgerOffloaderMXBean {
             // skip refreshing stats
             return;
         }
-        offloadTimeMap.values().forEach(rate->rate.calculateRate(seconds));
-        offloadErrorMap.values().forEach(rate->rate.calculateRate(seconds));
-        offloadRateMap.values().forEach(rate-> rate.calculateRate(seconds));
+        offloadTimeMap.values().forEach(rate -> rate.calculateRate(seconds));
+        offloadErrorMap.values().forEach(rate -> rate.calculateRate(seconds));
+        offloadRateMap.values().forEach(rate -> rate.calculateRate(seconds));
         readLedgerLatencyBucketsMap.values().forEach(StatsBuckets::refresh);
         writeToStorageLatencyBucketsMap.values().forEach(StatsBuckets::refresh);
-        writeToStorageErrorMap.values().forEach(rate->rate.calculateRate(seconds));
+        writeToStorageErrorMap.values().forEach(rate -> rate.calculateRate(seconds));
         streamingWriteToStorageRateMap.values().forEach(rate -> rate.calculateRate(seconds));
-        streamingWriteToStorageErrorMap.values().forEach(rate->rate.calculateRate(seconds));
-        readOffloadDataRateMap.values().forEach(rate->rate.calculateRate(seconds));
-        readOffloadErrorMap.values().forEach(rate->rate.calculateRate(seconds));
+        streamingWriteToStorageErrorMap.values().forEach(rate -> rate.calculateRate(seconds));
+        readOffloadDataRateMap.values().forEach(rate -> rate.calculateRate(seconds));
+        readOffloadErrorMap.values().forEach(rate -> rate.calculateRate(seconds));
         readOffloadIndexLatencyBucketsMap.values().forEach(StatsBuckets::refresh);
         readOffloadDataLatencyBucketsMap.values().forEach(StatsBuckets::refresh);
 

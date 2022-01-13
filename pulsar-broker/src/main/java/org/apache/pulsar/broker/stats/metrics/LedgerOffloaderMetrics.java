@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.stats.metrics;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -164,7 +165,7 @@ public class LedgerOffloaderMetrics extends AbstractMetrics {
     private List<Metrics> aggregateInTopicLevel() {
         metricsCollection.clear();
         tempAggregatedMetricsMap.clear();
-        Map<String, String> dimensionMap = Maps.newHashMap();
+        Map<String, String> dimensionMap = new HashMap<>(4);
         dimensionMap.put("namespace", TopicName.get(topicName).getNamespace());
         dimensionMap.put("topic", topicName);
         Metrics metrics = createMetrics(dimensionMap);
@@ -186,7 +187,7 @@ public class LedgerOffloaderMetrics extends AbstractMetrics {
         metricsCollection.clear();
         tempAggregatedMetricsMap.clear();
 
-        Map<String, String> dimensionMap = Maps.newHashMap();
+        Map<String, String> dimensionMap = new HashMap<>(2);
         dimensionMap.put("namespace", nameSpace);
 
         Metrics metrics = createMetrics(dimensionMap);
