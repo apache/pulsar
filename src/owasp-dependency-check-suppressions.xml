@@ -41,4 +41,13 @@
     <gav regex="true">org\.apache\.zookeeper:.*:3\.6\.2</gav>
     <vulnerabilityName regex="true">.*</vulnerabilityName>
   </suppress>
+
+  <!-- clickhouse: security scan matches client lib to the server CVEs -->
+<suppress>
+   <notes><![CDATA[
+   file name: clickhouse-jdbc-0.3.2.jar
+   ]]></notes>
+   <packageUrl regex="true">^pkg:maven/ru\.yandex\.clickhouse/clickhouse\-jdbc@.*$</packageUrl>
+   <cpe>cpe:/a:yandex:clickhouse</cpe>
+</suppress>
 </suppressions>
