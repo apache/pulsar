@@ -19,34 +19,30 @@
 package org.apache.pulsar.broker.authentication;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
+import com.google.common.annotations.VisibleForTesting;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.Jwt;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.JwtParser;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.RequiredTypeException;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.SignatureException;
+import io.prometheus.client.Counter;
+import io.prometheus.client.Histogram;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.security.Key;
-
 import java.util.Date;
 import java.util.List;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
-
-import com.google.common.annotations.VisibleForTesting;
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.RequiredTypeException;
-import io.jsonwebtoken.JwtParser;
-import io.prometheus.client.Counter;
-import io.prometheus.client.Histogram;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
-
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwt;
-import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.SignatureException;
 
 public class AuthenticationProviderToken implements AuthenticationProvider {
 
@@ -135,9 +131,9 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
         this.parser = Jwts.parserBuilder().setSigningKey(this.validationKey).build();
 
-        if (audienceClaim != null && audience == null ) {
+        if (audienceClaim != null && audience == null) {
             throw new IllegalArgumentException("Token Audience Claim [" + audienceClaim
-                                               + "] configured, but Audience stands for this broker not.");
+                    + "] configured, but Audience stands for this broker not.");
         }
     }
 
@@ -157,7 +153,8 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
             return role;
         } catch (AuthenticationException exception) {
-            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(), exception.getMessage());
+            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(),
+                    exception.getMessage());
             throw exception;
         }
     }
@@ -226,7 +223,8 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             }
 
             if (jwt.getBody().getExpiration() != null) {
-                expiringTokenMinutesMetrics.observe((double) (jwt.getBody().getExpiration().getTime() - new Date().getTime()) / (60 * 1000));
+                expiringTokenMinutesMetrics.observe(
+                        (double) (jwt.getBody().getExpiration().getTime() - new Date().getTime()) / (60 * 1000));
             }
             return jwt;
         } catch (JwtException e) {
