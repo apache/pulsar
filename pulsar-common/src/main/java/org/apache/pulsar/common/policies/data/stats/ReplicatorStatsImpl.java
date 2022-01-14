@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.common.policies.data.stats;
 
+import java.util.Objects;
 import lombok.Data;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
-import java.util.Objects;
 
 /**
  * Statistics about a replicator.

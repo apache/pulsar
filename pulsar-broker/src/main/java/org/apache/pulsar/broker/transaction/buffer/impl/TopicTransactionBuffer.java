@@ -472,7 +472,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         if (checkIfReady() || checkIfNoSnapshot()) {
             return this.maxReadPosition;
         } else {
-            return PositionImpl.earliest;
+            return PositionImpl.EARLIEST;
         }
     }
 
@@ -510,7 +510,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
         private final TopicTransactionBufferRecoverCallBack callBack;
 
-        private Position startReadCursorPosition = PositionImpl.earliest;
+        private Position startReadCursorPosition = PositionImpl.EARLIEST;
 
         private final SpscArrayQueue<Entry> entryQueue;
 
@@ -653,7 +653,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             if (entryQueue.size() < entryQueue.capacity() && outstandingReadsRequests.get() == 0) {
                 if (cursor.hasMoreEntries()) {
                     outstandingReadsRequests.incrementAndGet();
-                    cursor.asyncReadEntries(100, this, System.nanoTime(), PositionImpl.latest);
+                    cursor.asyncReadEntries(100, this, System.nanoTime(), PositionImpl.LATEST);
                 }
             }
             return isReadable;

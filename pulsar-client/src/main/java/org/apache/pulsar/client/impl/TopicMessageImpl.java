@@ -219,4 +219,5 @@ public class TopicMessageImpl<T> implements Message<T> {
     public Optional<Long> getIndex() {
         return msg.getIndex();
     }
+
 }

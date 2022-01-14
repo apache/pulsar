@@ -77,8 +77,11 @@ public class FunctionUtils {
             return ObjectMapperFactory.getThreadLocalYaml().readValue(configStr, FunctionDefinition.class);
         }
     }
-
     public static Functions searchForFunctions(String functionsDirectory) throws IOException {
+        return searchForFunctions(functionsDirectory, false);
+    }
+
+    public static Functions searchForFunctions(String functionsDirectory, boolean alwaysPopulatePath) throws IOException {
         Path path = Paths.get(functionsDirectory).toAbsolutePath();
         log.info("Searching for functions in {}", path);
 
@@ -96,7 +99,7 @@ public class FunctionUtils {
                     log.info("Found function {} from {}", cntDef, archive);
                     log.error(cntDef.getName());
                     log.error(cntDef.getFunctionClass());
-                    if (!StringUtils.isEmpty(cntDef.getFunctionClass())) {
+                    if (alwaysPopulatePath || !StringUtils.isEmpty(cntDef.getFunctionClass())) {
                         functions.functions.put(cntDef.getName(), archive);
                     }
 

@@ -874,17 +874,18 @@ public class BrokerService implements Closeable {
             // unload all namespace-bundles gracefully
             long closeTopicsStartTime = System.nanoTime();
             Set<NamespaceBundle> serviceUnits = pulsar.getNamespaceService().getOwnedServiceUnits();
-            serviceUnits.forEach(su -> {
-                if (su instanceof NamespaceBundle) {
-                    try {
-                        pulsar.getNamespaceService().unloadNamespaceBundle(su,
-                                pulsar.getConfiguration().getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS)
-                                .get();
-                    } catch (Exception e) {
-                        log.warn("Failed to unload namespace bundle {}", su, e);
+            if (serviceUnits != null) {
+                serviceUnits.forEach(su -> {
+                    if (su instanceof NamespaceBundle) {
+                        try {
+                            pulsar.getNamespaceService().unloadNamespaceBundle(su, pulsar.getConfiguration()
+                                    .getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS).get();
+                        } catch (Exception e) {
+                            log.warn("Failed to unload namespace bundle {}", su, e);
+                        }
                     }
-                }
-            });
+                });
+            }
 
             double closeTopicsTimeSeconds = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - closeTopicsStartTime))
                     / 1000.0;
@@ -1682,7 +1683,7 @@ public class BrokerService implements Closeable {
             if (t instanceof PersistentTopic) {
                 Optional.ofNullable(((PersistentTopic) t).getManagedLedger()).ifPresent(
                         managedLedger -> {
-                            managedLedger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
+                            managedLedger.trimConsumedLedgersInBackground(Futures.nullPromise_);
                         }
                 );
             }
@@ -2296,9 +2297,16 @@ public class BrokerService implements Closeable {
      */
     private void updateDynamicServiceConfiguration() {
         Optional<Map<String, String>> configCache = Optional.empty();
+
         try {
-            configCache =
-                    Optional.of(pulsar().getPulsarResources().getDynamicConfigResources().getDynamicConfiguration());
+            configCache  =
+                    pulsar().getPulsarResources().getDynamicConfigResources().getDynamicConfiguration();
+
+            // create dynamic-config if not exist.
+            if (!configCache.isPresent()) {
+                pulsar().getPulsarResources().getDynamicConfigResources()
+                        .setDynamicConfigurationWithCreate(n -> Maps.newHashMap());
+            }
         } catch (Exception e) {
             log.warn("Failed to read dynamic broker configuration", e);
         }

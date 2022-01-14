@@ -81,6 +81,7 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.assertj.core.api.Assertions;
 import org.awaitility.Awaitility;
@@ -91,7 +92,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker")
+@Test(groups = "broker-admin")
 public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     private final String testTenant = "my-tenant";
@@ -698,6 +699,14 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() -> assertNull(admin.namespaces().getSubscriptionDispatchRate(myNamespace)));
         Awaitility.await().untilAsserted(() -> assertNull(admin.topicPolicies().getSubscriptionDispatchRate(topic)));
         assertEquals(admin.topicPolicies().getSubscriptionDispatchRate(topic, true), brokerDispatchRate);
+
+        admin.namespaces().setSubscriptionDispatchRate(myNamespaceV1, namespaceDispatchRate);
+        Awaitility.await().untilAsserted(() ->
+                assertNotNull(admin.namespaces().getSubscriptionDispatchRate(myNamespaceV1)));
+        admin.namespaces().removeSubscriptionDispatchRate(myNamespaceV1);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin.namespaces().getSubscriptionDispatchRate(myNamespaceV1)));
+
     }
 
     @Test(timeOut = 20000)
@@ -1209,7 +1218,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertNull(admin.topicPolicies().getDispatchRate(topic)));
 
-        //2 Remove level policy ,DispatchRateLimiter should us ns level policy
+        //2 Remove level policy, DispatchRateLimiter should us ns level policy
         Awaitility.await()
                 .untilAsserted(() -> {
                     DispatchRateLimiter limiter = pulsar.getBrokerService().getTopicIfExists(topic).get().get().getDispatchRateLimiter().get();
@@ -2927,4 +2936,49 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             });
         }
     }
+    @Test
+    public void testGlobalTopicPolicies() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        pulsarClient.newProducer().topic(topic).create().close();
+
+        Awaitility.await().untilAsserted(() ->
+                Assertions.assertThat(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)))
+                        .isNull());
+        admin.topicPolicies(true).setRetention(topic, new RetentionPolicies(1, 2));
+        SystemTopicBasedTopicPoliciesService topicPoliciesService
+                = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+
+        // check global topic policies can be added correctly.
+        Awaitility.await().untilAsserted(() -> assertNotNull(topicPoliciesService.getTopicPolicies(TopicName.get(topic), true)));
+        TopicPolicies topicPolicies = topicPoliciesService.getTopicPolicies(TopicName.get(topic), true);
+        assertNull(topicPoliciesService.getTopicPolicies(TopicName.get(topic)));
+        assertEquals(topicPolicies.getRetentionPolicies().getRetentionTimeInMinutes(), 1);
+        assertEquals(topicPolicies.getRetentionPolicies().getRetentionSizeInMB(), 2);
+
+        // check global topic policies can be updated correctly.
+        admin.topicPolicies(true).setRetention(topic, new RetentionPolicies(3, 4));
+        Awaitility.await().untilAsserted(() -> {
+            TopicPolicies tempPolicies = topicPoliciesService.getTopicPolicies(TopicName.get(topic), true);
+            assertNull(topicPoliciesService.getTopicPolicies(TopicName.get(topic)));
+            assertEquals(tempPolicies.getRetentionPolicies().getRetentionTimeInMinutes(), 3);
+            assertEquals(tempPolicies.getRetentionPolicies().getRetentionSizeInMB(), 4);
+        });
+
+        //Local topic policies and global topic policies can exist together.
+        admin.topicPolicies().setRetention(topic, new RetentionPolicies(10, 20));
+        Awaitility.await().untilAsserted(() -> assertNotNull(topicPoliciesService.getTopicPolicies(TopicName.get(topic))));
+        TopicPolicies tempPolicies = topicPoliciesService.getTopicPolicies(TopicName.get(topic), true);
+        assertEquals(tempPolicies.getRetentionPolicies().getRetentionTimeInMinutes(), 3);
+        assertEquals(tempPolicies.getRetentionPolicies().getRetentionSizeInMB(), 4);
+        tempPolicies = topicPoliciesService.getTopicPolicies(TopicName.get(topic));
+        assertEquals(tempPolicies.getRetentionPolicies().getRetentionTimeInMinutes(), 10);
+        assertEquals(tempPolicies.getRetentionPolicies().getRetentionSizeInMB(), 20);
+
+        // check remove global topic policies can be removed correctly.
+        admin.topicPolicies(true).removeRetention(topic);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(topicPoliciesService.getTopicPolicies(TopicName.get(topic), true).getRetentionPolicies()));
+
+    }
+
 }

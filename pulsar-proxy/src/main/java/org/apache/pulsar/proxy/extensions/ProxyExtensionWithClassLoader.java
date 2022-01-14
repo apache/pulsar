@@ -20,16 +20,15 @@ package org.apache.pulsar.proxy.extensions;
 
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.util.Map;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.proxy.server.ProxyConfiguration;
 import org.apache.pulsar.proxy.server.ProxyService;
-
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.util.Map;
 
 /**
  * A extension with its classloader.

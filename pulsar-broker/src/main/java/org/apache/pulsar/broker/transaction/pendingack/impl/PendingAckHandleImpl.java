@@ -875,6 +875,12 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         }
     }
 
+    public synchronized void exceptionHandleFuture(Throwable t) {
+        if (!this.pendingAckHandleCompletableFuture.isDone()) {
+            this.pendingAckHandleCompletableFuture.completeExceptionally(t);
+        }
+    }
+
     @Override
     public TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID) {
         TransactionInPendingAckStats transactionInPendingAckStats = new TransactionInPendingAckStats();

@@ -25,7 +25,6 @@ package org.apache.pulsar.common.tls;
 
 import java.util.Collections;
 import java.util.List;
-
 import lombok.Data;
 
 /**

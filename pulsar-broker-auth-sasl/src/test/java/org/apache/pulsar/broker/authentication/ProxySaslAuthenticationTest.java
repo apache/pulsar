@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.authentication;
 
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -267,7 +266,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		}
 
 		Message<byte[]> msg = null;
-		Set<String> messageSet = Sets.newHashSet();
+		Set<String> messageSet = new HashSet<>();
 		for (int i = 0; i < 10; i++) {
 			msg = consumer.receive(5, TimeUnit.SECONDS);
 			String receivedMessage = new String(msg.getData());

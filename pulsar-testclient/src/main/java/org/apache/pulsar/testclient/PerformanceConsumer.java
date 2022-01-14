@@ -20,7 +20,6 @@ package org.apache.pulsar.testclient;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.testclient.utils.PerformanceUtils.buildTransaction;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
@@ -31,6 +30,7 @@ import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.nio.ByteBuffer;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
@@ -60,7 +60,6 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.RateLimiter;
 
 public class PerformanceConsumer {
@@ -259,7 +258,7 @@ public class PerformanceConsumer {
             // keep compatibility with the previous version
             if (arguments.topic.size() == 1) {
                 String prefixTopicName = TopicName.get(arguments.topic.get(0)).toString().trim();
-                List<String> defaultTopics = Lists.newArrayList();
+                List<String> defaultTopics = new ArrayList<>();
                 for (int i = 0; i < arguments.numTopics; i++) {
                     defaultTopics.add(String.format("%s-%d", prefixTopicName, i));
                 }
@@ -283,7 +282,7 @@ public class PerformanceConsumer {
                 if (arguments.subscriberName == null) {
                     arguments.subscriberName = arguments.subscriptions.get(0);
                 }
-                List<String> defaultSubscriptions = Lists.newArrayList();
+                List<String> defaultSubscriptions = new ArrayList<>();
                 for (int i = 0; i < arguments.numSubscriptions; i++) {
                     defaultSubscriptions.add(String.format("%s-%d", arguments.subscriberName, i));
                 }
@@ -362,8 +361,13 @@ public class PerformanceConsumer {
         }
         PulsarClient pulsarClient = clientBuilder.build();
 
-        AtomicReference<Transaction> atomicReference = buildTransaction(pulsarClient, arguments.isEnableTransaction,
-                arguments.transactionTimeout);
+        AtomicReference<Transaction> atomicReference;
+        if (arguments.isEnableTransaction) {
+            atomicReference = new AtomicReference<>(pulsarClient.newTransaction()
+                    .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS).build().get());
+        } else {
+            atomicReference = new AtomicReference<>(null);
+        }
 
         AtomicLong messageAckedCount = new AtomicLong();
         Semaphore messageReceiveLimiter = new Semaphore(arguments.numMessagesPerTransaction);
@@ -473,7 +477,7 @@ public class PerformanceConsumer {
 
         };
 
-        List<Future<Consumer<ByteBuffer>>> futures = Lists.newArrayList();
+        List<Future<Consumer<ByteBuffer>>> futures = new ArrayList<>();
         ConsumerBuilder<ByteBuffer> consumerBuilder = pulsarClient.newConsumer(Schema.BYTEBUFFER) //
                 .messageListener(listener) //
                 .receiverQueueSize(arguments.receiverQueueSize) //

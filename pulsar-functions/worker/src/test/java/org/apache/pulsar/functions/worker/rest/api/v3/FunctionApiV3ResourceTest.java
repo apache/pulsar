@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker.rest.api.v3;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
@@ -29,6 +30,7 @@ import static org.powermock.api.mockito.PowerMockito.doNothing;
 import static org.powermock.api.mockito.PowerMockito.doThrow;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
 
 import com.google.common.collect.Lists;
 
@@ -38,11 +40,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -75,6 +79,7 @@ import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
+import org.apache.pulsar.functions.utils.functions.FunctionUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.LeaderService;
@@ -99,7 +104,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test of {@link FunctionsApiV2Resource}.
  */
-@PrepareForTest({WorkerUtils.class, InstanceUtils.class})
+@PrepareForTest({WorkerUtils.class, InstanceUtils.class, FunctionUtils.class})
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.functions.api.*" })
 public class FunctionApiV3ResourceTest {
 
@@ -1539,6 +1544,51 @@ public class FunctionApiV3ResourceTest {
         Assert.assertTrue(pkgFile.exists());
         if (pkgFile.exists()) {
             pkgFile.delete();
+        }
+    }
+
+    @Test
+    public void testDownloadFunctionBuiltin() throws Exception {
+        mockStatic(WorkerUtils.class);
+
+        URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
+        File file = Paths.get(fileUrl.toURI()).toFile();
+        String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+
+        PulsarWorkerService worker = mock(PulsarWorkerService.class);
+        doReturn(true).when(worker).isInitialized();
+
+        WorkerConfig config = mock(WorkerConfig.class);
+        when(config.isAuthorizationEnabled()).thenReturn(false);
+        when(config.getUploadBuiltinSinksSources()).thenReturn(false);
+        when(config.getConnectorsDirectory()).thenReturn("/connectors");
+
+        when(worker.getDlogNamespace()).thenReturn(mock(Namespace.class));
+        when(worker.getWorkerConfig()).thenReturn(config);
+        FunctionsImpl function = new FunctionsImpl(() -> worker);
+
+        Map<String, Path> functionsMap = new TreeMap<>();
+        functionsMap.put("cassandra", file.toPath());
+        org.apache.pulsar.functions.utils.functions.Functions mockedFunctions =
+                mock(org.apache.pulsar.functions.utils.functions.Functions.class);
+        when(mockedFunctions.getFunctions()).thenReturn(functionsMap);
+
+        mockStatic(FunctionUtils.class);
+        PowerMockito.when(FunctionUtils.searchForFunctions(anyString(), anyBoolean())).thenReturn(mockedFunctions);
+
+        StreamingOutput streamOutput = function.downloadFunction("builtin://cassandra", null, null);
+
+        File pkgFile = new File(testDir, UUID.randomUUID().toString());
+        OutputStream output = new FileOutputStream(pkgFile);
+        streamOutput.write(output);
+        output.flush();
+        output.close();
+        Assert.assertTrue(pkgFile.exists());
+        if (pkgFile.exists()) {
+            Assert.assertEquals(file.length(), pkgFile.length());
+            pkgFile.delete();
+        } else {
+            fail("expected file");
         }
     }
 

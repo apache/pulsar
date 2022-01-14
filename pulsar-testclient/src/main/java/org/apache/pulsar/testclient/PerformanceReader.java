@@ -28,10 +28,10 @@ import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.RateLimiter;
 import java.io.FileInputStream;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
@@ -162,7 +162,7 @@ public class PerformanceReader {
             // keep compatibility with the previous version
             if (arguments.topic.size() == 1) {
                 String prefixTopicName = arguments.topic.get(0);
-                List<String> defaultTopics = Lists.newArrayList();
+                List<String> defaultTopics = new ArrayList<>();
                 for (int i = 0; i < arguments.numTopics; i++) {
                     defaultTopics.add(String.format("%s-%d", prefixTopicName, i));
                 }
@@ -273,7 +273,7 @@ public class PerformanceReader {
 
         PulsarClient pulsarClient = clientBuilder.build();
 
-        List<CompletableFuture<Reader<byte[]>>> futures = Lists.newArrayList();
+        List<CompletableFuture<Reader<byte[]>>> futures = new ArrayList<>();
 
         MessageId startMessageId;
         if ("earliest".equals(arguments.startMessageId)) {
