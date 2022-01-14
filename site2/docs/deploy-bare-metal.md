@@ -331,11 +331,11 @@ Pulsar brokers are the last thing you need to deploy in your Pulsar cluster. Bro
 
 ### Configure Brokers
 
-The most important element of broker configuration is ensuring that each broker is aware of the ZooKeeper cluster that you have deployed. Ensure that the [`zookeeperServers`](reference-configuration.md#broker-zookeeperServers) and [`configurationStoreServers`](reference-configuration.md#broker-configurationStoreServers) parameters are correct. In this case, since you only have 1 cluster and no configuration store setup, the `configurationStoreServers` point to the same `zookeeperServers`.
+The most important element of broker configuration is ensuring that each broker is aware of the ZooKeeper cluster that you have deployed. Ensure that the [`metadataStoreUrl`](reference-configuration.md#broker) and [`configurationMetadataStoreUrl`](reference-configuration.md#broker) parameters are correct. In this case, since you only have 1 cluster and no configuration store setup, the `configurationMetadataStoreUrl` point to the same `metadataStoreUrl`.
 
 ```properties
-zookeeperServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
-configurationStoreServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
+metadataStoreUrl=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
+configurationMetadataStoreUrl=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
 ```
 
 You also need to specify the cluster name (matching the name that you provided when you [initialize the metadata of the cluster](#initialize-cluster-metadata)):
