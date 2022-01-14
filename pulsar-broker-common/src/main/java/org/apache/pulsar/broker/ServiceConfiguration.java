@@ -2326,6 +2326,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,
+            doc = "Number of threads to use for pulsar transaction replay PendingAckStore or TransactionBuffer."
+                    + "Default is 5"
+    )
+    private int numTransactionReplayThreadPoolSize = Runtime.getRuntime().availableProcessors();
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
             doc = "Transaction buffer take snapshot transaction count"
     )
     private int transactionBufferSnapshotMaxTransactionCount = 1000;

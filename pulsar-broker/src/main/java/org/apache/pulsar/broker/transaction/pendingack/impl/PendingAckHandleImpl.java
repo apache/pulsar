@@ -139,7 +139,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 .getBrokerService()
                 .getPulsar()
                 .getTransactionExecutorProvider()
-                .getExecutor();
+                .getExecutor(this);
     }
 
     private void initPendingAckStore() {
@@ -149,8 +149,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                         pendingAckStoreProvider.newPendingAckStore(persistentSubscription);
                 this.pendingAckStoreFuture.thenAccept(pendingAckStore -> {
                     pendingAckStore.replayAsync(this,
-                            (ScheduledExecutorService) persistentSubscription.getTopic().getBrokerService()
-                                    .getPulsar().getTransactionExecutorProvider().getExecutor(this));
+                            (ScheduledExecutorService) internalPinnedExecutor);
                 }).exceptionally(e -> {
                     acceptQueue.clear();
                     changeToErrorState();
@@ -167,16 +166,16 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         acceptQueue.add(() -> internalIndividualAcknowledgeMessage(txnID, positions, completableFuture));
     }
 
-    public CompletableFuture<Void> internalIndividualAcknowledgeMessage(TxnID txnID,
-                                                     List<MutablePair<PositionImpl, Integer>>
-                                                                                 positions,
+    public void internalIndividualAcknowledgeMessage(TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions,
                                                      CompletableFuture<Void> completableFuture) {
         if (txnID == null) {
-            return FutureUtil.failedFuture(new NotAllowedException("TransactionID can not be null."));
+            FutureUtil.failedFuture(new NotAllowedException("TransactionID can not be null."));
+            return;
 
         }
         if (positions == null) {
-            return FutureUtil.failedFuture(new NotAllowedException("Positions can not be null."));
+            FutureUtil.failedFuture(new NotAllowedException("Positions can not be null."));
+            return;
         }
 
         this.pendingAckStoreFuture.thenAccept(pendingAckStore ->
@@ -270,7 +269,6 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             completableFuture.completeExceptionally(e);
             return null;
         });
-        return completableFuture;
     }
 
     @Override
@@ -311,21 +309,24 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         acceptQueue.add(() -> internalCumulativeAcknowledgeMessage(txnID, positions, completableFuture));
     }
 
-    public CompletableFuture<Void> internalCumulativeAcknowledgeMessage(TxnID txnID,
+    public void internalCumulativeAcknowledgeMessage(TxnID txnID,
                                                      List<PositionImpl> positions,
                                                      CompletableFuture<Void> completableFuture) {
         if (txnID == null) {
-            return FutureUtil.failedFuture(new NotAllowedException("TransactionID can not be null."));
+            FutureUtil.failedFuture(new NotAllowedException("TransactionID can not be null."));
+            return;
         }
         if (positions == null) {
-            return FutureUtil.failedFuture(new NotAllowedException("Positions can not be null."));
+            FutureUtil.failedFuture(new NotAllowedException("Positions can not be null."));
+            return;
         }
 
         if (positions.size() != 1) {
             String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID
                     + " invalid cumulative ack received with multiple message ids.";
             log.error(errorMsg);
-            return FutureUtil.failedFuture(new NotAllowedException(errorMsg));
+            FutureUtil.failedFuture(new NotAllowedException(errorMsg));
+            return;
         }
 
         PositionImpl position = positions.get(0);
@@ -372,7 +373,6 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             completableFuture.completeExceptionally(e);
             return null;
         });
-        return completableFuture;
     }
 
     @Override
@@ -413,7 +413,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         acceptQueue.add(() -> internalCommitTxn(txnId, properties, lowWaterMark, completableFuture));
     }
 
-    private CompletableFuture<Void> internalCommitTxn(TxnID txnID, Map<String, Long> properties, long lowWaterMark,
+    private void internalCommitTxn(TxnID txnID, Map<String, Long> properties, long lowWaterMark,
                                    CompletableFuture<Void> commitFuture) {
         // It's valid to create transaction then commit without doing any operation, which will cause
         // pendingAckMessagesMap to be null.
@@ -470,7 +470,6 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 return null;
             });
         }
-        return commitFuture;
     }
 
     @Override
@@ -486,8 +485,6 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                     addCommitTxnRequest(txnID, properties, lowWaterMark, commitFuture);
                     initPendingAckStore();
                     return;
-                } else if (checkIfReady()) {
-
                 } else {
                     if (state == State.Error) {
                         commitFuture.completeExceptionally(
@@ -583,8 +580,6 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                     addAbortTxnRequest(txnId, consumer, lowWaterMark, abortFuture);
                     initPendingAckStore();
                     return;
-                } else if (checkIfReady()) {
-
                 } else {
                     if (state == State.Error) {
                         abortFuture.completeExceptionally(
