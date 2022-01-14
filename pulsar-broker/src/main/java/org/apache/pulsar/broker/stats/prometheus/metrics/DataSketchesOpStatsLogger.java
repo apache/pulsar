@@ -22,6 +22,7 @@ import com.yahoo.sketches.quantiles.DoublesSketch;
 import com.yahoo.sketches.quantiles.DoublesSketchBuilder;
 import com.yahoo.sketches.quantiles.DoublesUnion;
 import com.yahoo.sketches.quantiles.DoublesUnionBuilder;
+import com.yahoo.sketches.quantiles.UpdateDoublesSketch;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -173,8 +174,8 @@ public class DataSketchesOpStatsLogger implements OpStatsLogger {
     }
 
     private static class LocalData {
-        private final DoublesSketch successSketch = new DoublesSketchBuilder().build();
-        private final DoublesSketch failSketch = new DoublesSketchBuilder().build();
+        private final UpdateDoublesSketch successSketch = new DoublesSketchBuilder().build();
+        private final UpdateDoublesSketch failSketch = new DoublesSketchBuilder().build();
         private final StampedLock lock = new StampedLock();
     }
 

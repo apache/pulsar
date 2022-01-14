@@ -52,7 +52,7 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
     private final LongAdder totalAcksReceived;
     private static final DecimalFormat DEC = new DecimalFormat("0.000");
     private static final DecimalFormat THROUGHPUT_FORMAT = new DecimalFormat("0.00");
-    private final transient DoublesSketch ds;
+    private final transient UpdateDoublesSketch ds;
 
     private volatile double sendMsgsRate;
     private volatile double sendBytesRate;
@@ -69,7 +69,7 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
         totalBytesSent = new LongAdder();
         totalSendFailed = new LongAdder();
         totalAcksReceived = new LongAdder();
-        ds = DoublesSketch.builder().build(256);
+        ds = DoublesSketch.builder().setK(256).build();
     }
 
     public ProducerStatsRecorderImpl(PulsarClientImpl pulsarClient, ProducerConfigurationData conf,
@@ -85,7 +85,7 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
         totalBytesSent = new LongAdder();
         totalSendFailed = new LongAdder();
         totalAcksReceived = new LongAdder();
-        ds = DoublesSketch.builder().build(256);
+        ds = DoublesSketch.builder().setK(256).build();
         init(conf);
     }
 

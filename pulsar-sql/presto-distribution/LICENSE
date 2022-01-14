@@ -463,8 +463,8 @@ The Apache Software License, Version 2.0
   * Java Object Layout: Core
     - jol-core-0.2.jar
   * Yahoo Datasketches
-    - memory-0.8.3.jar
-    - sketches-core-0.8.3.jar
+    - memory-0.13.4.jar
+    - sketches-core-0.13.4.jar
   * Apache Zookeeper
     - zookeeper-3.6.3.jar
     - zookeeper-jute-3.6.3.jar
