@@ -809,8 +809,9 @@ public class CmdTopicPolicies extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-i", "--interval" }, description =
-                "Deduplication snapshot interval for topic in second, allowed range from 0 to Integer.MAX_VALUE", required = true)
+        @Parameter(names = {"-i", "--interval"}, description =
+                "Deduplication snapshot interval for topic in second, allowed range from 0 to Integer.MAX_VALUE",
+                required = true)
         private int interval;
 
         @Parameter(names = {"--global", "-g"}, description = "Whether to set this policy globally.")
