@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.websocket.stats;
 
+// CHECKSTYLE.OFF: IllegalImport
 import static io.netty.util.internal.PlatformDependent.maxDirectMemory;
 import static org.apache.pulsar.common.stats.Metrics.create;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
@@ -32,6 +33,7 @@ import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.websocket.WebSocketService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+// CHECKSTYLE.ON: IllegalImport
 
 public class JvmMetrics {
 
