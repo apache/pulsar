@@ -1139,23 +1139,21 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private void internalGetSubscriptionsForNonPartitionedTopic(AsyncResponse asyncResponse, boolean authoritative) {
-        validateTopicOwnershipAsync(topicName, authoritative)
-                .thenCompose(__ -> {
+        validateTopicOwnershipAsync(topicName, authoritative).thenCompose(__ -> {
                     validateTopicOperation(topicName, TopicOperation.GET_SUBSCRIPTIONS);
                     return getTopicReferenceAsync(topicName);
-                })
-                .thenAccept(topic -> {
+                }).thenAccept(topic -> {
                     final List<String> subscriptions = new ArrayList<>(topic.getSubscriptions().keys());
                     asyncResponse.resume(subscriptions);
                 }).exceptionally(ex -> {
                     Throwable cause = ex.getCause();
-                    if (cause instanceof WebApplicationException) {
-                        if (log.isDebugEnabled() && ((WebApplicationException) cause).getResponse().getStatus()
-                                == Status.TEMPORARY_REDIRECT.getStatusCode()) {
-                            log.debug("[{}] Failed to get subscriptions for non-partitioned topic {},"
-                                            + " redirecting to other brokers.",
-                                    clientAppId(), topicName, cause);
-                        }
+                    if (cause instanceof WebApplicationException
+                            && ((WebApplicationException) cause).getResponse().getStatus()
+                            == Status.TEMPORARY_REDIRECT.getStatusCode()) {
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] Failed to get subscriptions for non-partitioned topic {},"
+                                                + " redirecting to other brokers.", clientAppId(), topicName, cause);
+                            }
                     } else {
                         log.error("[{}] Failed to get list of subscriptions for {}", clientAppId(), topicName, cause);
                     }
