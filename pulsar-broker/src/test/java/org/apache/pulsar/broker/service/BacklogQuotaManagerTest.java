@@ -503,6 +503,7 @@ public class BacklogQuotaManagerTest {
         consumer.receive();
 
         admin.topics().unload(topic);
+        Awaitility.await().until(consumer::isConnected);
         PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic);
         assertEquals(internalStats.ledgers.size(), 2);
         assertEquals(internalStats.ledgers.get(1).entries, 0);
