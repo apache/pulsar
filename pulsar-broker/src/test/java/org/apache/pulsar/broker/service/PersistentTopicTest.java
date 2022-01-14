@@ -313,7 +313,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             final ByteBuf payload = (ByteBuf) invocationOnMock.getArguments()[0];
             final AddEntryCallback callback = (AddEntryCallback) invocationOnMock.getArguments()[1];
             final Topic.PublishContext ctx = (Topic.PublishContext) invocationOnMock.getArguments()[2];
-            callback.addComplete(PositionImpl.latest, payload, ctx);
+            callback.addComplete(PositionImpl.LATEST, payload, ctx);
             return null;
         }).when(ledgerMock).asyncAddEntry(any(ByteBuf.class), any(AddEntryCallback.class), any());
 
@@ -330,8 +330,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         final Topic.PublishContext publishContext = new Topic.PublishContext() {
             @Override
             public void completed(Exception e, long ledgerId, long entryId) {
-                assertEquals(ledgerId, PositionImpl.latest.getLedgerId());
-                assertEquals(entryId, PositionImpl.latest.getEntryId());
+                assertEquals(ledgerId, PositionImpl.LATEST.getLedgerId());
+                assertEquals(entryId, PositionImpl.LATEST.getEntryId());
                 latch.countDown();
             }
 

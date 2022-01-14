@@ -32,6 +32,11 @@ public class SystemTopic extends PersistentTopic {
     }
 
     @Override
+    public boolean isDeleteWhileInactive() {
+        return false;
+    }
+
+    @Override
     public boolean isSizeBacklogExceeded() {
         return false;
     }

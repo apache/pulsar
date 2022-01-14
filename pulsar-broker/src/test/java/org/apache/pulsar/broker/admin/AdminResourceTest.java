@@ -32,7 +32,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test {@link AdminResource}.
  */
-@Test(groups = "broker")
+@Test(groups = "broker-admin")
 public class AdminResourceTest extends BrokerTestBase {
 
     @BeforeClass

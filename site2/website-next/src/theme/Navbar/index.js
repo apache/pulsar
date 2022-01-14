@@ -32,7 +32,7 @@ const restApiVersions = require("../../../static/swagger/restApiVersions.json");
 const latestStableVersion = versions[0];
 
 function setVersion(version) {
-  localStorage.setItem("version", latestStableVersion);
+  localStorage.setItem("version", version == "next" ? "master" : version);
 }
 
 function getVersion() {
@@ -48,6 +48,10 @@ function getApiVersion(anchor) {
     apiVersion = restApiVersions[version][1]["version"];
   }
   return apiVersion;
+}
+
+function getLauguage() {
+  return "";
 }
 
 function useNavbarItems() {
@@ -227,6 +231,13 @@ function NavbarMobileSidebar({ sidebarShown, toggleSidebar }) {
                       getApiVersion(param),
                   };
                 });
+              } else if (item.label == "CLI") {
+                item.items = item.items.map((e) => {
+                  return {
+                    ...e,
+                    link: e.to + "?version=" + getVersion(),
+                  };
+                });
               }
               return (
                 <NavbarItem mobile {...item} onClick={toggleSidebar} key={i} />
@@ -302,7 +313,7 @@ function Navbar() {
             }}
           />
           <a className="font-bold underline mr-4 -ml-4" href="/versions/">
-            {getVersion()}
+            {getVersion() == "master" ? "next" : getVersion()}
           </a>
           {leftItems.map((item, i) => {
             if (item.label == "REST APIs") {
@@ -326,6 +337,23 @@ function Navbar() {
                     "&apiversion=" +
                     getApiVersion(param),
                 };
+              });
+            } else if (item.label == "CLI") {
+              item.items = item.items.map((e) => {
+                return {
+                  ...e,
+                  link: e.to + "?version=" + getVersion(),
+                };
+              });
+            } else if (item.label == "Community") {
+              item.items = item.items.map((e) => {
+                if (e.to) {
+                  return {
+                    ...e,
+                    to: e.to.replace(/\/:locale/g, getLauguage()),
+                  };
+                }
+                return e;
               });
             }
             return <NavbarItem {...item} key={i} />;

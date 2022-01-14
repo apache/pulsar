@@ -19,9 +19,7 @@
 package org.apache.pulsar.broker.web;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
-
 import java.util.concurrent.ThreadFactory;
-
 import org.eclipse.jetty.util.thread.ExecutorThreadPool;
 
 public class WebExecutorThreadPool extends ExecutorThreadPool {

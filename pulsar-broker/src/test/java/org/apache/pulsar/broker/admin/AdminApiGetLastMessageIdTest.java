@@ -55,7 +55,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+@Test(groups = "broker-admin")
 public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
 
     private PersistentTopics persistentTopics;

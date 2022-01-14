@@ -251,7 +251,7 @@ public class Consumer {
         }
 
         // Note
-        // Must ensure that the message is written to the pendingAcks before sent is first , because this consumer
+        // Must ensure that the message is written to the pendingAcks before sent is first, because this consumer
         // is possible to disconnect at this time.
         if (pendingAcks != null) {
             for (int i = 0; i < entries.size(); i++) {
@@ -363,7 +363,7 @@ public class Consumer {
                 log.warn("[{}] [{}] Received cumulative ack on shared subscription, ignoring",
                         subscription, consumerId);
             }
-            PositionImpl position = PositionImpl.earliest;
+            PositionImpl position = PositionImpl.EARLIEST;
             if (ack.getMessageIdsCount() == 1) {
                 MessageIdData msgId = ack.getMessageIdAt(0);
                 if (msgId.getAckSetsCount() > 0) {
