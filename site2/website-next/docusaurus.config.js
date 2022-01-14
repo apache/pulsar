@@ -209,10 +209,10 @@ module.exports = {
             //   label: "Resources",
             //   to: "/:locale/resources",
             // },
-            // {
-            //   label: "Team",
-            //   to: "/:locale/team",
-            // },
+            {
+              label: "Team",
+              to: "/:locale/team",
+            },
             // {
             //   label: "Powered By",
             //   to: "/:locale/powered-by",
