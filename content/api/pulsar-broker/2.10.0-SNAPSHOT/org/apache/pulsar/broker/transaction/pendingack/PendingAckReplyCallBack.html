@@ -26,7 +26,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":6,"i1":6};
+var data = {"i0":6,"i1":6,"i2":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -163,6 +163,13 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">Pending ack replay complete callback for pending ack store.</div>
 </td>
 </tr>
+<tr id="i2" class="altColor">
+<td class="colFirst"><code>void</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#replayFailed(java.lang.Throwable)">replayFailed</a></span>&#8203;(java.lang.Throwable&nbsp;t)</code></th>
+<td class="colLast">
+<div class="block">Pending ack replay failed callback for pending ack store.</div>
+</td>
+</tr>
 </table>
 </li>
 </ul>
@@ -193,7 +200,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <a id="handleMetadataEntry(org.apache.pulsar.broker.transaction.pendingack.proto.PendingAckMetadataEntry)">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>handleMetadataEntry</h4>
 <pre class="methodSignature">void&nbsp;handleMetadataEntry&#8203;(<a href="proto/PendingAckMetadataEntry.html" title="class in org.apache.pulsar.broker.transaction.pendingack.proto">PendingAckMetadataEntry</a>&nbsp;pendingAckMetadataEntry)</pre>
@@ -202,6 +209,16 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>pendingAckMetadataEntry</code> - <a href="proto/PendingAckMetadataEntry.html" title="class in org.apache.pulsar.broker.transaction.pendingack.proto"><code>PendingAckMetadataEntry</code></a> the metadata entry of pending ack</dd>
 </dl>
+</li>
+</ul>
+<a id="replayFailed(java.lang.Throwable)">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>replayFailed</h4>
+<pre class="methodSignature">void&nbsp;replayFailed&#8203;(java.lang.Throwable&nbsp;t)</pre>
+<div class="block">Pending ack replay failed callback for pending ack store.</div>
 </li>
 </ul>
 </li>

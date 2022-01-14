@@ -26,7 +26,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":10,"i16":10,"i17":10,"i18":10,"i19":10,"i20":10};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":10,"i16":10,"i17":10,"i18":10,"i19":10,"i20":10,"i21":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -282,65 +282,70 @@ implements <a href="../PendingAckHandle.html" title="interface in org.apache.pul
 </td>
 </tr>
 <tr id="i8" class="altColor">
+<td class="colFirst"><code>void</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#exceptionHandleFuture(java.lang.Throwable)">exceptionHandleFuture</a></span>&#8203;(java.lang.Throwable&nbsp;t)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code>org.apache.pulsar.common.policies.data.TransactionPendingAckStats</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getStats()">getStats</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Get pending ack handle stats.</div>
 </td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;org.apache.bookkeeper.mledger.ManagedLedger&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getStoreManageLedger()">getStoreManageLedger</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i10" class="altColor">
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code>java.lang.String</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getSubName()">getSubName</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i11" class="rowColor">
+<tr id="i12" class="altColor">
 <td class="colFirst"><code>java.lang.String</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getTopicName()">getTopicName</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i12" class="altColor">
+<tr id="i13" class="rowColor">
 <td class="colFirst"><code>org.apache.pulsar.common.policies.data.TransactionInPendingAckStats</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getTransactionInPendingAckStats(org.apache.pulsar.client.api.transaction.TxnID)">getTransactionInPendingAckStats</a></span>&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnID)</code></th>
 <td class="colLast">
 <div class="block">Get transaction in pending ack stats.</div>
 </td>
 </tr>
-<tr id="i13" class="rowColor">
+<tr id="i14" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#handleAbort(org.apache.pulsar.client.api.transaction.TxnID,org.apache.pulsar.common.api.proto.CommandAck.AckType)">handleAbort</a></span>&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnID,
            org.apache.pulsar.common.api.proto.CommandAck.AckType&nbsp;ackType)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i14" class="altColor">
+<tr id="i15" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#handleCacheRequest()">handleCacheRequest</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i15" class="rowColor">
+<tr id="i16" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#handleCommit(org.apache.pulsar.client.api.transaction.TxnID,org.apache.pulsar.common.api.proto.CommandAck.AckType,java.util.Map)">handleCommit</a></span>&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnID,
             org.apache.pulsar.common.api.proto.CommandAck.AckType&nbsp;ackType,
             java.util.Map&lt;java.lang.String,&#8203;java.lang.Long&gt;&nbsp;properties)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i16" class="altColor">
+<tr id="i17" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#handleCumulativeAckRecover(org.apache.pulsar.client.api.transaction.TxnID,org.apache.bookkeeper.mledger.impl.PositionImpl)">handleCumulativeAckRecover</a></span>&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnID,
                           org.apache.bookkeeper.mledger.impl.PositionImpl&nbsp;position)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i17" class="rowColor">
+<tr id="i18" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#handleIndividualAckRecover(org.apache.pulsar.client.api.transaction.TxnID,java.util.List)">handleIndividualAckRecover</a></span>&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnID,
                           java.util.List&lt;org.apache.commons.lang3.tuple.MutablePair&lt;org.apache.bookkeeper.mledger.impl.PositionImpl,&#8203;java.lang.Integer&gt;&gt;&nbsp;positions)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i18" class="altColor">
+<tr id="i19" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#individualAcknowledgeMessage(org.apache.pulsar.client.api.transaction.TxnID,java.util.List,boolean)">individualAcknowledgeMessage</a></span>&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnID,
                             java.util.List&lt;org.apache.commons.lang3.tuple.MutablePair&lt;org.apache.bookkeeper.mledger.impl.PositionImpl,&#8203;java.lang.Integer&gt;&gt;&nbsp;positions,
@@ -349,14 +354,14 @@ implements <a href="../PendingAckHandle.html" title="interface in org.apache.pul
 <div class="block">Acknowledge message(s) for an ongoing transaction.</div>
 </td>
 </tr>
-<tr id="i19" class="rowColor">
+<tr id="i20" class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;<a href="../PendingAckHandle.html" title="interface in org.apache.pulsar.broker.transaction.pendingack">PendingAckHandle</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#pendingAckHandleFuture()">pendingAckHandleFuture</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Pending ack recover whether ready future.</div>
 </td>
 </tr>
-<tr id="i20" class="altColor">
+<tr id="i21" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#syncBatchPositionAckSetForTransaction(org.apache.bookkeeper.mledger.impl.PositionImpl)">syncBatchPositionAckSetForTransaction</a></span>&#8203;(org.apache.bookkeeper.mledger.impl.PositionImpl&nbsp;position)</code></th>
 <td class="colLast">
@@ -681,6 +686,15 @@ implements <a href="../PendingAckHandle.html" title="interface in org.apache.pul
 <li class="blockList">
 <h4>completeHandleFuture</h4>
 <pre class="methodSignature">public&nbsp;void&nbsp;completeHandleFuture()</pre>
+</li>
+</ul>
+<a id="exceptionHandleFuture(java.lang.Throwable)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>exceptionHandleFuture</h4>
+<pre class="methodSignature">public&nbsp;void&nbsp;exceptionHandleFuture&#8203;(java.lang.Throwable&nbsp;t)</pre>
 </li>
 </ul>
 <a id="getTransactionInPendingAckStats(org.apache.pulsar.client.api.transaction.TxnID)">
