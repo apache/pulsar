@@ -146,8 +146,8 @@ public class ClusterResources extends BaseResources<ClusterData> {
         public void registerListener(Consumer<Notification> listener) {
             getStore().registerListener(n -> {
                 // Prefilter the notification just for failure domains
-                if (n.getPath().startsWith(BASE_CLUSTERS_PATH) &&
-                        n.getPath().contains("/" + FAILURE_DOMAIN)) {
+                if (n.getPath().startsWith(BASE_CLUSTERS_PATH)
+                        && n.getPath().contains("/" + FAILURE_DOMAIN)) {
                     listener.accept(n);
                 }
             });

@@ -19,12 +19,11 @@
 package org.apache.pulsar.common.policies.data.stats;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.Getter;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.NonPersistentPartitionedTopicStats;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Statistics for a non-persistent partitioned topic.

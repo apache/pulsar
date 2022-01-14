@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.common.util.collections;
 
-import lombok.EqualsAndHashCode;
-
 import java.util.BitSet;
 import java.util.concurrent.locks.StampedLock;
+import lombok.EqualsAndHashCode;
 
 /**
  * Safe multithreaded version of {@code BitSet}.

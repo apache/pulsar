@@ -90,14 +90,14 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
 
         loginContextName = config.getSaslJaasServerSectionName();
         if (jaasCredentialsContainer == null) {
-            log.info("JAAS loginContext is: {}." , loginContextName);
+            log.info("JAAS loginContext is: {}.", loginContextName);
             try {
                 jaasCredentialsContainer = new JAASCredentialsContainer(
                     loginContextName,
                     new PulsarSaslServer.SaslServerCallbackHandler(allowedIdsPattern),
                     configuration);
             } catch (LoginException e) {
-                log.error("JAAS login in broker failed" , e);
+                log.error("JAAS login in broker failed", e);
                 throw new IOException(e);
             }
         }
@@ -122,7 +122,7 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
             PulsarSaslServer server = new PulsarSaslServer(jaasCredentialsContainer.getSubject(), allowedIdsPattern);
             return new SaslAuthenticationState(server);
         } catch (Throwable t) {
-            log.error("Failed create sasl auth state" , t);
+            log.error("Failed create sasl auth state", t);
             throw new AuthenticationException(t.getMessage());
         }
     }

@@ -19,12 +19,12 @@
 package org.apache.pulsar.broker.validator;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.ArrayList;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -75,19 +75,23 @@ public class BindAddressValidator {
         List<BindAddress> addresses = new ArrayList<>(2);
         if (config.getBrokerServicePort().isPresent()) {
             addresses.add(new BindAddress(null, URI.create(
-                    ServiceConfigurationUtils.brokerUrl(config.getBindAddress(), config.getBrokerServicePort().get()))));
+                    ServiceConfigurationUtils.brokerUrl(config.getBindAddress(),
+                            config.getBrokerServicePort().get()))));
         }
         if (config.getBrokerServicePortTls().isPresent()) {
             addresses.add(new BindAddress(null, URI.create(
-                    ServiceConfigurationUtils.brokerUrlTls(config.getBindAddress(), config.getBrokerServicePortTls().get()))));
+                    ServiceConfigurationUtils.brokerUrlTls(config.getBindAddress(),
+                            config.getBrokerServicePortTls().get()))));
         }
         if (config.getWebServicePort().isPresent()) {
             addresses.add(new BindAddress(null, URI.create(
-                    ServiceConfigurationUtils.webServiceUrl(config.getBindAddress(), config.getWebServicePort().get()))));
+                    ServiceConfigurationUtils.webServiceUrl(config.getBindAddress(),
+                            config.getWebServicePort().get()))));
         }
         if (config.getWebServicePortTls().isPresent()) {
             addresses.add(new BindAddress(null, URI.create(
-                    ServiceConfigurationUtils.webServiceUrlTls(config.getBindAddress(), config.getWebServicePortTls().get()))));
+                    ServiceConfigurationUtils.webServiceUrlTls(config.getBindAddress(),
+                            config.getWebServicePortTls().get()))));
         }
         return addresses;
     }

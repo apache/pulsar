@@ -141,6 +141,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                     }).exceptionally(e -> {
                         acceptQueue.clear();
                         changeToErrorState();
+                        exceptionHandleFuture(e.getCause());
                         log.error("PendingAckHandleImpl init fail! TopicName : {}, SubName: {}", topicName, subName, e);
                         return null;
                     });
@@ -886,6 +887,12 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     public synchronized void completeHandleFuture() {
         if (!this.pendingAckHandleCompletableFuture.isDone()) {
             this.pendingAckHandleCompletableFuture.complete(PendingAckHandleImpl.this);
+        }
+    }
+
+    public synchronized void exceptionHandleFuture(Throwable t) {
+        if (!this.pendingAckHandleCompletableFuture.isDone()) {
+            this.pendingAckHandleCompletableFuture.completeExceptionally(t);
         }
     }
 

@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.authentication.utils;
 
 import com.google.common.io.ByteStreams;
-
 import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -27,7 +26,6 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.io.DecodingException;
 import io.jsonwebtoken.io.Encoders;
 import io.jsonwebtoken.security.Keys;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -40,11 +38,8 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Date;
 import java.util.Optional;
-
 import javax.crypto.SecretKey;
-
 import lombok.experimental.UtilityClass;
-
 import org.apache.commons.codec.binary.Base64;
 import org.apache.pulsar.client.api.url.URL;
 

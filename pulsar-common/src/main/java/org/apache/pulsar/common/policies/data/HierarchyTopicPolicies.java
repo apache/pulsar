@@ -28,7 +28,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 
 /**
- * Topic policy hierarchy value container
+ * Topic policy hierarchy value container.
  */
 @Getter
 public class HierarchyTopicPolicies {
@@ -41,8 +41,12 @@ public class HierarchyTopicPolicies {
     final Map<BacklogQuotaType, PolicyHierarchyValue<BacklogQuota>> backLogQuotaMap;
     final PolicyHierarchyValue<Integer> topicMaxMessageSize;
     final PolicyHierarchyValue<Integer> messageTTLInSeconds;
+    final PolicyHierarchyValue<Long> compactionThreshold;
     final PolicyHierarchyValue<Integer> maxConsumerPerTopic;
+    final PolicyHierarchyValue<Boolean> delayedDeliveryEnabled;
+    final PolicyHierarchyValue<Long> delayedDeliveryTickTimeMillis;
     final PolicyHierarchyValue<Integer> maxConsumersPerSubscription;
+
 
     public HierarchyTopicPolicies() {
         replicationClusters = new PolicyHierarchyValue<>();
@@ -59,5 +63,8 @@ public class HierarchyTopicPolicies {
                 .build();
         topicMaxMessageSize = new PolicyHierarchyValue<>();
         messageTTLInSeconds = new PolicyHierarchyValue<>();
+        delayedDeliveryEnabled = new PolicyHierarchyValue<>();
+        delayedDeliveryTickTimeMillis = new PolicyHierarchyValue<>();
+        compactionThreshold = new PolicyHierarchyValue<>();
     }
 }

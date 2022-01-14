@@ -177,18 +177,18 @@ module.exports = {
               label: "Contact",
               to: "/:locale/contact",
             },
-            // {
-            //   label: "Contributing",
-            //   to: "/:locale/contributing",
-            // },
-            // {
-            //   label: "Coding guide",
-            //   to: "/:locale/coding-guide",
-            // },
-            // {
-            //   label: "Events",
-            //   to: "/:locale/events",
-            // },
+            {
+              label: "Contributing",
+              to: "/:locale/contributing",
+            },
+            {
+              label: "Coding guide",
+              to: "/:locale/coding-guide",
+            },
+            {
+              label: "Events",
+              to: "/:locale/events",
+            },
             {
               label: "Twitter",
               href: "https://twitter.com/Apache_Pulsar",
@@ -209,10 +209,10 @@ module.exports = {
             //   label: "Resources",
             //   to: "/:locale/resources",
             // },
-            // {
-            //   label: "Team",
-            //   to: "/:locale/team",
-            // },
+            {
+              label: "Team",
+              to: "/:locale/team",
+            },
             // {
             //   label: "Powered By",
             //   to: "/:locale/powered-by",

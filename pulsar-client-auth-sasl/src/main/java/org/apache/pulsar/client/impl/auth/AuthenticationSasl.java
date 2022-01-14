@@ -143,7 +143,7 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
         if (!initializedJAAS) {
             synchronized (this) {
                 if (jaasCredentialsContainer == null) {
-                    log.info("JAAS loginContext is: {}." , loginContextName);
+                    log.info("JAAS loginContext is: {}.", loginContextName);
                     try {
                         jaasCredentialsContainer = new JAASCredentialsContainer(
                             loginContextName,
@@ -151,7 +151,7 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
                             configuration);
                         initializedJAAS = true;
                     } catch (LoginException e) {
-                        log.error("JAAS login in client failed" , e);
+                        log.error("JAAS login in client failed", e);
                         throw new PulsarClientException(e);
                     }
                 }
