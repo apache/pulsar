@@ -1053,8 +1053,13 @@ public abstract class PulsarWebResource {
         try {
             validateTopicOperationAsync(topicName, operation, subscription).get();
         } catch (InterruptedException | ExecutionException e) {
-            log.error("Validate Topic [%s] operation [%s] got server internal error.", e);
-            throw new RestException(e);
+            Throwable cause = e.getCause();
+            log.error("Validate Topic [%s] operation [%s] got server internal error.", cause);
+            if (cause instanceof WebApplicationException){
+                throw (WebApplicationException) cause;
+            } else {
+                throw new RestException(cause);
+            }
         }
     }
 
