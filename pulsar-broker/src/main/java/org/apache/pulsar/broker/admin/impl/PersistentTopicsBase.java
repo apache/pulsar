@@ -1139,13 +1139,11 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private void internalGetSubscriptionsForNonPartitionedTopic(AsyncResponse asyncResponse, boolean authoritative) {
-        validateTopicOwnershipAsync(topicName, authoritative).thenCompose(__ -> {
-                    validateTopicOperation(topicName, TopicOperation.GET_SUBSCRIPTIONS);
-                    return getTopicReferenceAsync(topicName);
-                }).thenAccept(topic -> {
-                    final List<String> subscriptions = new ArrayList<>(topic.getSubscriptions().keys());
-                    asyncResponse.resume(subscriptions);
-                }).exceptionally(ex -> {
+        validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.GET_SUBSCRIPTIONS))
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                .thenAccept(topic -> asyncResponse.resume(Lists.newArrayList(topic.getSubscriptions().keys())))
+                .exceptionally(ex -> {
                     Throwable cause = ex.getCause();
                     if (cause instanceof WebApplicationException
                             && ((WebApplicationException) cause).getResponse().getStatus()
