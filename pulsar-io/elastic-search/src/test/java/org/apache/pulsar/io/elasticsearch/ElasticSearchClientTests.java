@@ -47,7 +47,7 @@ import static org.hamcrest.Matchers.*;
 public class ElasticSearchClientTests {
 
     public static final String ELASTICSEARCH_IMAGE = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE"))
-            .orElse("docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.2-amd64");
+            .orElse("docker.elastic.co/elasticsearch/elasticsearch:7.16.3-amd64");
 
     static ElasticsearchContainer container;
 
@@ -295,8 +295,11 @@ public class ElasticSearchClientTests {
                     assertEquals(client.totalHits(index), 5);
                 });
 
+                log.info("Starting chaos container");
                 ChaosContainer<?> chaosContainer = ChaosContainer.pauseContainerForSeconds(container.getContainerName(), 30);
+                log.info("Starting chaos container 2");
                 chaosContainer.start();
+                log.info("Started chaos container");
                 Thread.sleep(1000L);
 
                 // 11th bulkIndex is blocking because we have 2 pending requests, and the 3rd request is blocked.

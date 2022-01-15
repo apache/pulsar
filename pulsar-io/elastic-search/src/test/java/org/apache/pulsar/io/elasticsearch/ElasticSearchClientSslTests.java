@@ -34,7 +34,7 @@ import static org.junit.Assert.assertTrue;
 public class ElasticSearchClientSslTests {
 
     public static final String ELASTICSEARCH_IMAGE = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE"))
-            .orElse("docker.elastic.co/elasticsearch/elasticsearch:7.10.2-amd64");
+            .orElse("docker.elastic.co/elasticsearch/elasticsearch:7.16.3-amd64");
 
     final static String INDEX = "myindex";
 
