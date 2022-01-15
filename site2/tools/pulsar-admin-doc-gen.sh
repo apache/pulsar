@@ -38,6 +38,7 @@ $ROOT_DIR/bin/pulsar-admin documents generate ns-isolation-policy > $ROOT_DIR/si
 $ROOT_DIR/bin/pulsar-admin documents generate sources > $ROOT_DIR/site2/website/brodocs/documents/sources.md
 $ROOT_DIR/bin/pulsar-admin documents generate sinks > $ROOT_DIR/site2/website/brodocs/documents/sinks.md
 $ROOT_DIR/bin/pulsar-admin documents generate topics > $ROOT_DIR/site2/website/brodocs/documents/topics.md
+$ROOT_DIR/bin/pulsar-admin documents generate topicPolicies > $ROOT_DIR/site2/website/brodocs/documents/topicPolicies.md
 $ROOT_DIR/bin/pulsar-admin documents generate proxy-stats > $ROOT_DIR/site2/website/brodocs/documents/proxy-stats.md
 $ROOT_DIR/bin/pulsar-admin documents generate resourcegroups > $ROOT_DIR/site2/website/brodocs/documents/resourcegroups.md
 $ROOT_DIR/bin/pulsar-admin documents generate transactions > $ROOT_DIR/site2/website/brodocs/documents/transactions.md

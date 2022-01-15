@@ -92,7 +92,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
         do {
             Message<byte[]> message = consumer.receive();
             log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
-            consumer.reconsumeLater(message, 1 , TimeUnit.SECONDS);
+            consumer.reconsumeLater(message, 1, TimeUnit.SECONDS);
             totalReceived++;
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
 
@@ -275,7 +275,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
         do {
             Message<byte[]> message = consumer.receive();
             log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
-            consumer.reconsumeLater(message, 1 , TimeUnit.SECONDS);
+            consumer.reconsumeLater(message, 1, TimeUnit.SECONDS);
             totalReceived++;
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
 
@@ -429,7 +429,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
         do {
             Message<byte[]> message = consumer.receive();
             log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
-            consumer.reconsumeLater(message, 1 , TimeUnit.SECONDS);
+            consumer.reconsumeLater(message, 1, TimeUnit.SECONDS);
             totalReceived++;
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
         int totalInDeadLetter = 0;

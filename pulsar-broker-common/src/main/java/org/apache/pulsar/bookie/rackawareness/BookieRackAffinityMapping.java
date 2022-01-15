@@ -64,7 +64,8 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         super.setConf(conf);
         Object storeProperty = conf.getProperty(METADATA_STORE_INSTANCE);
         if (storeProperty == null) {
-            throw new RuntimeException(METADATA_STORE_INSTANCE + " configuration was not set in the BK client configuration");
+            throw new RuntimeException(METADATA_STORE_INSTANCE + " configuration was not set in the BK client "
+                    + "configuration");
         }
 
         if (!(storeProperty instanceof MetadataStore)) {

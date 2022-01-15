@@ -37,7 +37,7 @@ public class PulsarEvent {
     private ActionType actionType;
     private TopicPoliciesEvent topicPoliciesEvent;
     /**
-     * Which remote clusters to replicate to
+     * Which remote clusters to replicate to.
      */
     private HashSet<String> replicateTo;
 }

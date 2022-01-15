@@ -99,7 +99,7 @@ public class MessageParserTest extends MockedPulsarServiceBaseTest {
                 .create();
 
         ManagedCursor cursor = ((PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get())
-                .getManagedLedger().newNonDurableCursor(PositionImpl.earliest);
+                .getManagedLedger().newNonDurableCursor(PositionImpl.EARLIEST);
 
         if (batchEnabled) {
             for (int i = 0; i < n - 1; i++) {

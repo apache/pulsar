@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.web.plugin.servlet;
 
 import java.io.IOException;
-
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

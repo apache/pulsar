@@ -19,9 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import com.google.common.collect.Range;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -36,7 +34,7 @@ public class ReadOnlyCursorImpl extends ManagedCursorImpl implements ReadOnlyCur
                               PositionImpl startPosition, String cursorName) {
         super(bookkeeper, config, ledger, cursorName);
 
-        if (startPosition.equals(PositionImpl.earliest)) {
+        if (startPosition.equals(PositionImpl.EARLIEST)) {
             readPosition = ledger.getFirstPosition().getNext();
         } else {
             readPosition = startPosition;

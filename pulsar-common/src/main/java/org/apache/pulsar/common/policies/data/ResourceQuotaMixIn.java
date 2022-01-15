@@ -22,5 +22,5 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 
 public abstract class ResourceQuotaMixIn {
     @JsonIgnore
-    abstract public boolean isValid();
+    public abstract boolean isValid();
 }

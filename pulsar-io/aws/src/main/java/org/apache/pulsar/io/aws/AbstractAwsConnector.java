@@ -63,7 +63,7 @@ public abstract class AbstractAwsConnector {
         } catch (Exception e) {
             log.error("Failed to initialize AwsCredentialProviderPlugin {}", pluginFQClassName, e);
             throw new IllegalArgumentException(
-                    String.format("invalid authplugin name %s , failed to init %s", pluginFQClassName, e.getMessage()));
+                    String.format("invalid authplugin name %s, failed to init %s", pluginFQClassName, e.getMessage()));
         }
     }
 

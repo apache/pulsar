@@ -289,7 +289,7 @@ public interface Consumer<T> extends Closeable {
      *          consumer.acknowledge(msg);
      *     } catch (Throwable t) {
      *          log.warn("Failed to process message");
-     *          consumer.reconsumeLater(msg, 1000 , TimeUnit.MILLISECONDS);
+     *          consumer.reconsumeLater(msg, 1000, TimeUnit.MILLISECONDS);
      *     }
      * }
      * </code></pre>
@@ -322,7 +322,7 @@ public interface Consumer<T> extends Closeable {
      *          consumer.acknowledge(msg);
      *     } catch (Throwable t) {
      *          log.warn("Failed to process message");
-     *          consumer.reconsumeLater(msg, 1000 , TimeUnit.MILLISECONDS);
+     *          consumer.reconsumeLater(msg, 1000, TimeUnit.MILLISECONDS);
      *     }
      * }
      * </code></pre>

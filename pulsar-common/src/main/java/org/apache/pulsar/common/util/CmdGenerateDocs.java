@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.common.util;
 
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
 import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterDescription;
+import com.beust.jcommander.Parameters;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;

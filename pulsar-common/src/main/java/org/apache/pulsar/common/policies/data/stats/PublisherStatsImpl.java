@@ -19,10 +19,10 @@
 package org.apache.pulsar.common.policies.data.stats;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.Map;
 import lombok.Data;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.common.policies.data.PublisherStats;
-import java.util.Map;
 
 /**
  * Statistics about a publisher.

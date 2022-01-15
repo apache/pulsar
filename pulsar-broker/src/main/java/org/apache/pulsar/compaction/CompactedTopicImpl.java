@@ -90,13 +90,13 @@ public class CompactedTopicImpl implements CompactedTopic {
         synchronized (this) {
             PositionImpl cursorPosition;
             if (isFirstRead && MessageId.earliest.equals(consumer.getStartMessageId())){
-                cursorPosition = PositionImpl.earliest;
+                cursorPosition = PositionImpl.EARLIEST;
             } else {
                 cursorPosition = (PositionImpl) cursor.getReadPosition();
             }
             if (compactionHorizon == null
                 || compactionHorizon.compareTo(cursorPosition) < 0) {
-                cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, consumer, PositionImpl.latest);
+                cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, consumer, PositionImpl.LATEST);
             } else {
                 compactedTopicContext.thenCompose(
                     (context) -> findStartPoint(cursorPosition, context.ledger.getLastAddConfirmed(), context.cache)
@@ -110,7 +110,7 @@ public class CompactedTopicImpl implements CompactedTopic {
                             }
                             if (startPoint == NEWER_THAN_COMPACTED && compactionHorizon.compareTo(cursorPosition) < 0) {
                                 cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, consumer,
-                                        PositionImpl.latest);
+                                        PositionImpl.LATEST);
                                 return CompletableFuture.completedFuture(null);
                             } else {
                                 long endPoint = Math.min(context.ledger.getLastAddConfirmed(),

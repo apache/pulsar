@@ -120,7 +120,6 @@ module.exports = {
           label: "Docs",
         },
         { to: "/download", label: "Download", position: "left" },
-        { to: "/blog", label: "Blog", position: "left" },
         {
           label: "REST APIs",
           position: "left",
@@ -166,6 +165,83 @@ module.exports = {
             {
               label: "Pulsar",
               to: "/pulsar-cli",
+            },
+          ],
+        },
+        { to: "/blog", label: "Blog", position: "left" },
+        {
+          label: "Community",
+          position: "left",
+          items: [
+            {
+              label: "Contact",
+              to: "/:locale/contact",
+            },
+            {
+              label: "Contributing",
+              to: "/:locale/contributing",
+            },
+            {
+              label: "Coding guide",
+              to: "/:locale/coding-guide",
+            },
+            {
+              label: "Events",
+              to: "/:locale/events",
+            },
+            {
+              label: "Twitter",
+              href: "https://twitter.com/Apache_Pulsar",
+            },
+            {
+              label: "Wiki",
+              href: "https://github.com/apache/pulsar/wiki",
+            },
+            {
+              label: "Issue tracking",
+              href: "https://github.com/apache/pulsar/issues",
+            },
+            {
+              label: "Pulsar Summit",
+              href: "https://pulsar-summit.org/",
+            },
+            // {
+            //   label: "Resources",
+            //   to: "/:locale/resources",
+            // },
+            {
+              label: "Team",
+              to: "/:locale/team",
+            },
+            // {
+            //   label: "Powered By",
+            //   to: "/:locale/powered-by",
+            // },
+          ],
+        },
+        {
+          label: "Apache",
+          position: "left",
+          items: [
+            {
+              label: "Foundation",
+              href: "https://www.apache.org/",
+            },
+            {
+              label: "License",
+              href: "https://www.apache.org/licenses/",
+            },
+            {
+              label: "Sponsorship",
+              href: "https://www.apache.org/foundation/sponsorship.html",
+            },
+            {
+              label: "Thanks",
+              href: "https://www.apache.org/foundation/thanks.html",
+            },
+            {
+              label: "Security",
+              href: "https://www.apache.org/security",
             },
           ],
         },

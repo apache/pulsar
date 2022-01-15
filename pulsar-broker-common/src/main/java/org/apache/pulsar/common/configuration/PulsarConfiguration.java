@@ -22,7 +22,7 @@ import java.util.Properties;
 
 public interface PulsarConfiguration {
 
-    public Properties getProperties();
+    Properties getProperties();
 
-    public void setProperties(Properties properties);
+    void setProperties(Properties properties);
 }
