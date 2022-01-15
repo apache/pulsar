@@ -239,13 +239,14 @@ public class PulsarClusterMetadataSetup {
             }
         }
 
-
         if (localStore instanceof ZKMetadataStore && configStore instanceof ZKMetadataStore) {
-            String uriStr = bkConf.getMetadataServiceUri().replace("metadata-store:", "zk://");
+            String uriStr;
             if (arguments.existingBkMetadataServiceUri != null) {
                 uriStr = arguments.existingBkMetadataServiceUri;
             } else if (arguments.bookieMetadataServiceUri != null) {
                 uriStr = arguments.bookieMetadataServiceUri;
+            } else {
+                 uriStr = bkConf.getMetadataServiceUri().replace("metadata-store:", "zk://");
             }
             ServiceURI bkMetadataServiceUri = ServiceURI.create(uriStr);
 
