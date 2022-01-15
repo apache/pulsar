@@ -61,6 +61,13 @@ public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
     }
 
     @Override
+    public void replayFailed(Throwable t) {
+        synchronized (pendingAckHandle) {
+            pendingAckHandle.exceptionHandleFuture(t);
+        }
+    }
+
+    @Override
     public void handleMetadataEntry(PendingAckMetadataEntry pendingAckMetadataEntry) {
         TxnID txnID = new TxnID(pendingAckMetadataEntry.getTxnidMostBits(),
                 pendingAckMetadataEntry.getTxnidLeastBits());

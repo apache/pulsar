@@ -32,7 +32,7 @@ const restApiVersions = require("../../../static/swagger/restApiVersions.json");
 const latestStableVersion = versions[0];
 
 function setVersion(version) {
-  localStorage.setItem("version", latestStableVersion);
+  localStorage.setItem("version", version == "next" ? "master" : version);
 }
 
 function getVersion() {
@@ -313,7 +313,7 @@ function Navbar() {
             }}
           />
           <a className="font-bold underline mr-4 -ml-4" href="/versions/">
-            {getVersion()}
+            {getVersion() == "master" ? "next" : getVersion()}
           </a>
           {leftItems.map((item, i) => {
             if (item.label == "REST APIs") {

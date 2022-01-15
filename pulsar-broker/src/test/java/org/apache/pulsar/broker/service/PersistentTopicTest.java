@@ -1873,9 +1873,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         NamespaceResources nsr = pulsar.getPulsarResources().getNamespaceResources();
         NamespaceName ns = TopicName.get(successTopicName).getNamespaceObject();
-        doReturn(Optional.of(policies)).when(nsr).getPolicies(ns);
+        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(nsr).getPoliciesAsync(ns);
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        topic.initialize().get();
 
         topic.checkCompaction();
 
@@ -1907,9 +1908,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         NamespaceResources nsr = pulsar.getPulsarResources().getNamespaceResources();
         NamespaceName ns = TopicName.get(successTopicName).getNamespaceObject();
-        doReturn(Optional.of(policies)).when(nsr).getPolicies(ns);
+        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(nsr).getPoliciesAsync(ns);
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        topic.initialize().get();
 
         topic.checkCompaction();
 
@@ -1936,11 +1938,12 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         NamespaceResources nsr = pulsar.getPulsarResources().getNamespaceResources();
         NamespaceName ns = TopicName.get(successTopicName).getNamespaceObject();
-        doReturn(Optional.of(policies)).when(nsr).getPolicies(ns);
+        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(nsr).getPoliciesAsync(ns);
 
         doReturn(1000L).when(ledgerMock).getEstimatedBacklogSize();
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        topic.initialize().get();
         topic.checkCompaction();
         verify(compactor, times(0)).compact(anyString());
     }
