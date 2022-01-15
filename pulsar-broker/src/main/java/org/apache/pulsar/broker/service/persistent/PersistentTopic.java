@@ -109,6 +109,7 @@ import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferDisable;
+import org.apache.pulsar.broker.transaction.exception.pendingack.TransactionPendingAckException;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
@@ -801,6 +802,16 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             consumerName);
                 } else if (ex.getCause() instanceof SubscriptionBusyException) {
                     log.warn("[{}][{}] {}", topic, subscriptionName, ex.getMessage());
+                } else if (ex.getCause()
+                        instanceof TransactionPendingAckException.TransactionPendingAckReplayException) {
+                    if (subscriptions.containsKey(subscriptionName)) {
+                        PersistentSubscription subscription = subscriptions.remove(subscriptionName);
+                        if (subscription != null) {
+                            log.error("[{}][{}] Transaction pending ack store replay pending ack failed, "
+                                            + "removed this subscription now",
+                                    topic, subscriptionName, ex.getCause());
+                        }
+                    }
                 } else {
                     log.error("[{}] Failed to create subscription: {}", topic, subscriptionName, ex);
                 }

@@ -49,4 +49,16 @@ public abstract class TransactionPendingAckException extends TransactionExceptio
         }
 
     }
+
+    /**
+     * Transaction pending ack store replay pending ack to recover
+     * the pending ack subscription pending ack state exception.
+     */
+    public static class TransactionPendingAckReplayException extends TransactionPendingAckException {
+
+        public TransactionPendingAckReplayException(String message) {
+            super(message);
+        }
+
+    }
 }

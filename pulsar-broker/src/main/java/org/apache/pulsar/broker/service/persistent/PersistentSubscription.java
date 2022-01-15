@@ -63,6 +63,7 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.transaction.exception.pendingack.TransactionPendingAckException;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleDisabled;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
@@ -218,6 +219,12 @@ public class PersistentSubscription implements Subscription {
 
     @Override
     public CompletableFuture<Void> addConsumer(Consumer consumer) {
+        if (pendingAckHandle.pendingAckHandleFuture().isCompletedExceptionally()) {
+            return FutureUtil.failedFuture(
+                    new TransactionPendingAckException.TransactionPendingAckReplayException(
+                            "Transaction pending ack replay pending ack failed"));
+        }
+
         return pendingAckHandle.pendingAckHandleFuture().thenCompose(future -> {
             synchronized (PersistentSubscription.this) {
                 cursor.updateLastActive();
