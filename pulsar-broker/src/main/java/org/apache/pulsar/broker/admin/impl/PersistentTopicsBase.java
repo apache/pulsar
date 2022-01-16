@@ -3762,13 +3762,9 @@ public class PersistentTopicsBase extends AdminResource {
 
     private CompletableFuture<Topic> getTopicReferenceAsync(TopicName topicName) {
         return pulsar().getBrokerService().getTopicIfExists(topicName.toString())
-                .thenCompose(optTopic -> {
-                    if (optTopic.isPresent()) {
-                        return CompletableFuture.completedFuture(optTopic.get());
-                    } else {
-                        return topicNotFoundReasonAsync(topicName);
-                    }
-                });
+                .thenCompose(optTopic -> optTopic
+                        .map(CompletableFuture::completedFuture)
+                        .orElseGet(() -> topicNotFoundReasonAsync(topicName)));
     }
 
     private RestException topicNotFoundReason(TopicName topicName) {
