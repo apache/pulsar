@@ -62,7 +62,10 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             for (int i = 0; i < numberOfPoints; i++) {
                 String key = consumer.consumerName() + i;
                 int hash = Murmur3_32Hash.getInstance().makeHash(key.getBytes());
-                hashRing.compute(hash, (k, v) -> {
+                if (hashRing.get(key) != null && hashRing.get(key).contains(consumer)) {
+                    break;
+                }
+                List<Consumer> consumers = hashRing.compute(hash, (k, v) -> {
                     if (v == null) {
                         return Lists.newArrayList(consumer);
                     } else {
@@ -73,6 +76,9 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                         return v;
                     }
                 });
+                if (consumers.contains(consumer)) {
+                    break;
+                }
             }
         } finally {
             rwLock.writeLock().unlock();
