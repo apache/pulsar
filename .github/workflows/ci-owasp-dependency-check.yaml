@@ -82,7 +82,7 @@ jobs:
         uses: actions/upload-artifact@v2
         if: always()
         with:
-          name: owasp-dependency-check-reports
+          name: owasp-dependency-check-reports-${{ matrix.checkout_branch }}
           path: |
             distribution/server/target/dependency-check-report.html
             distribution/offloaders/target/dependency-check-report.html

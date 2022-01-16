@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.admin.cli.utils;
 
+import java.nio.charset.StandardCharsets;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
-
-import java.nio.charset.StandardCharsets;
 
 public class SchemaExtractor {
 

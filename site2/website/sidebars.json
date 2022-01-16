@@ -149,7 +149,8 @@
       "develop-tools",
       "develop-binary-protocol",
       "develop-schema",
-      "develop-load-manager"
+      "develop-load-manager",
+      "develop-plugin"
     ],
     "Reference": [
       "reference-terminology",

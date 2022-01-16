@@ -150,7 +150,7 @@ public class TestPrestoQueryTieredStorage extends TestPulsarSQLBase {
         int sendMessageCnt = 0;
         while (true) {
             Stock stock = new Stock(
-                    sendMessageCnt,"STOCK_" + sendMessageCnt , 100.0 + sendMessageCnt * 10);
+                    sendMessageCnt,"STOCK_" + sendMessageCnt, 100.0 + sendMessageCnt * 10);
             MessageIdImpl messageId = (MessageIdImpl) producer.send(stock);
             sendMessageCnt ++;
             if (firstLedgerId == -1) {

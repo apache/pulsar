@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -70,7 +71,7 @@ public class MessageDuplicationTest {
         doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
         PersistentTopic persistentTopic = mock(PersistentTopic.class);
         ManagedLedger managedLedger = mock(ManagedLedger.class);
-        MessageDeduplication messageDeduplication = spy(new MessageDeduplication(pulsarService, persistentTopic, managedLedger));
+        MessageDeduplication messageDeduplication = spyWithClassAndConstructorArgs(MessageDeduplication.class, pulsarService, persistentTopic, managedLedger);
         doReturn(true).when(messageDeduplication).isEnabled();
 
         String producerName1 = "producer1";
@@ -163,7 +164,7 @@ public class MessageDuplicationTest {
         serviceConfiguration.setBrokerDeduplicationProducerInactivityTimeoutMinutes(1);
 
         doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
-        MessageDeduplication messageDeduplication = spy(new MessageDeduplication(pulsarService, topic, managedLedger));
+        MessageDeduplication messageDeduplication = spyWithClassAndConstructorArgs(MessageDeduplication.class, pulsarService, topic, managedLedger);
         doReturn(true).when(messageDeduplication).isEnabled();
 
         Topic.PublishContext publishContext = mock(Topic.PublishContext.class);
@@ -239,7 +240,7 @@ public class MessageDuplicationTest {
         doReturn(pulsarService).when(brokerService).pulsar();
         doReturn(new BacklogQuotaManager(pulsarService)).when(brokerService).getBacklogQuotaManager();
 
-        PersistentTopic persistentTopic = spy(new PersistentTopic("topic-1", brokerService, managedLedger, messageDeduplication));
+        PersistentTopic persistentTopic = spyWithClassAndConstructorArgs(PersistentTopic.class, "topic-1", brokerService, managedLedger, messageDeduplication);
 
         String producerName1 = "producer1";
         ByteBuf byteBuf1 = getMessage(producerName1, 0);

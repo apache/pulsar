@@ -18,11 +18,6 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import java.io.IOException;
-import java.util.function.Supplier;
-
-import org.apache.pulsar.client.admin.PulsarAdmin;
-
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.google.gson.Gson;
@@ -30,6 +25,9 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import java.io.IOException;
+import java.util.function.Supplier;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 
 @Parameters(commandDescription = "Operations to collect Proxy statistics")
 public class CmdProxyStats extends CmdBase {

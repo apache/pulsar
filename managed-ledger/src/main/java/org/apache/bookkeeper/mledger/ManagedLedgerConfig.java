@@ -19,20 +19,16 @@
 package org.apache.bookkeeper.mledger;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import com.google.common.base.Charsets;
 import java.time.Clock;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.api.DigestType;
-
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
-
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
 
@@ -73,7 +69,7 @@ public class ManagedLedgerConfig {
     private boolean unackedRangesOpenCacheSetEnabled = true;
     private Class<? extends EnsemblePlacementPolicy>  bookKeeperEnsemblePlacementPolicyClassName;
     private Map<String, Object> bookKeeperEnsemblePlacementPolicyProperties;
-    private LedgerOffloader ledgerOffloader = NullLedgerOffloader.INSTANCE;
+    private LedgerOffloader ledgerOffloader = NullLedgerOffloader.instance_;
     private int newEntriesCheckDelayInMillis = 10;
     private Clock clock = Clock.systemUTC();
     private ManagedLedgerInterceptor managedLedgerInterceptor;
@@ -391,7 +387,7 @@ public class ManagedLedgerConfig {
      * <p>
      * A retention time of 0 (default) will make data to be deleted immediately.
      * <p>
-     * A retention time of -1 , means to have an unlimited retention time.
+     * A retention time of -1, means to have an unlimited retention time.
      *
      * @param retentionTime
      *            duration for which messages should be retained
@@ -421,7 +417,7 @@ public class ManagedLedgerConfig {
      * <p>
      * A retention size of 0 (default) will make data to be deleted immediately.
      * <p>
-     * A retention size of -1 , means to have an unlimited retention size.
+     * A retention size of -1, means to have an unlimited retention size.
      *
      * @param retentionSizeInMB
      *            quota for message retention
@@ -510,7 +506,7 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * Get clock to use to time operations
+     * Get clock to use to time operations.
      *
      * @return a clock
      */
@@ -519,7 +515,7 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * Set clock to use for time operations
+     * Set clock to use for time operations.
      *
      * @param clock the clock to use
      */
@@ -530,7 +526,7 @@ public class ManagedLedgerConfig {
 
     /**
      *
-     * Ledger-Op (Create/Delete) timeout
+     * Ledger-Op (Create/Delete) timeout.
      *
      * @return
      */
@@ -539,7 +535,7 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * Ledger-Op (Create/Delete) timeout after which callback will be completed with failure
+     * Ledger-Op (Create/Delete) timeout after which callback will be completed with failure.
      *
      * @param metadataOperationsTimeoutSeconds
      */
@@ -549,7 +545,7 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * Ledger read-entry timeout
+     * Ledger read-entry timeout.
      *
      * @return
      */
@@ -558,7 +554,7 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * Ledger read entry timeout after which callback will be completed with failure. (disable timeout by setting
+     * Ledger read entry timeout after which callback will be completed with failure. (disable timeout by setting.
      * readTimeoutSeconds <= 0)
      *
      * @param readEntryTimeoutSeconds

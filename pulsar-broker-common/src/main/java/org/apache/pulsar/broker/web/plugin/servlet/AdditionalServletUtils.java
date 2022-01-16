@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.web.plugin.servlet;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
@@ -31,8 +32,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 /**
  * Util class to search and load {@link AdditionalServlets}.
  */
@@ -40,7 +39,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 @Slf4j
 public class AdditionalServletUtils {
 
-    public final String ADDITIONAL_SERVLET_FILE = "additional_servlet.yml";
+    public static final String ADDITIONAL_SERVLET_FILE = "additional_servlet.yml";
 
     /**
      * Retrieve the additional servlet definition from the provided nar package.

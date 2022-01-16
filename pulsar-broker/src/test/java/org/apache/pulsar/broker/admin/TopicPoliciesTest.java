@@ -92,7 +92,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker")
+@Test(groups = "broker-admin")
 public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     private final String testTenant = "my-tenant";
@@ -699,6 +699,14 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() -> assertNull(admin.namespaces().getSubscriptionDispatchRate(myNamespace)));
         Awaitility.await().untilAsserted(() -> assertNull(admin.topicPolicies().getSubscriptionDispatchRate(topic)));
         assertEquals(admin.topicPolicies().getSubscriptionDispatchRate(topic, true), brokerDispatchRate);
+
+        admin.namespaces().setSubscriptionDispatchRate(myNamespaceV1, namespaceDispatchRate);
+        Awaitility.await().untilAsserted(() ->
+                assertNotNull(admin.namespaces().getSubscriptionDispatchRate(myNamespaceV1)));
+        admin.namespaces().removeSubscriptionDispatchRate(myNamespaceV1);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin.namespaces().getSubscriptionDispatchRate(myNamespaceV1)));
+
     }
 
     @Test(timeOut = 20000)
@@ -1210,7 +1218,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertNull(admin.topicPolicies().getDispatchRate(topic)));
 
-        //2 Remove level policy ,DispatchRateLimiter should us ns level policy
+        //2 Remove level policy, DispatchRateLimiter should us ns level policy
         Awaitility.await()
                 .untilAsserted(() -> {
                     DispatchRateLimiter limiter = pulsar.getBrokerService().getTopicIfExists(topic).get().get().getDispatchRateLimiter().get();

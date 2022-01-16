@@ -266,11 +266,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     protected void semaphoreRelease(final int releaseCountRequest) {
         if (semaphore.isPresent()) {
             if (!errorState) {
-                final int availablePermits = semaphore.get().availablePermits();
-                if (availablePermits - releaseCountRequest < 0) {
-                    log.error("Semaphore permit release count request greater then availablePermits" +
-                                    " : availablePermits={}, releaseCountRequest={}",
-                            availablePermits, releaseCountRequest);
+                final int availableReleasePermits =
+                        conf.getMaxPendingMessages() - this.semaphore.get().availablePermits();
+                if (availableReleasePermits - releaseCountRequest < 0) {
+                    log.error("Semaphore permit release count request greater then availableReleasePermits" +
+                                    " : availableReleasePermits={}, releaseCountRequest={}",
+                            availableReleasePermits, releaseCountRequest);
                     errorState = true;
                 }
             }
@@ -2105,6 +2106,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     @VisibleForTesting
     Optional<Semaphore> getSemaphore() {
         return semaphore;
+    }
+
+    @VisibleForTesting
+    boolean isErrorStat() {
+        return errorState;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProducerImpl.class);

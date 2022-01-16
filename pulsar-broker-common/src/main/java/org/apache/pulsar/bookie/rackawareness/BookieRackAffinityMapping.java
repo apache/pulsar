@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.bookie.rackawareness;
 
+import com.google.api.client.util.Strings;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -64,7 +65,8 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         super.setConf(conf);
         Object storeProperty = conf.getProperty(METADATA_STORE_INSTANCE);
         if (storeProperty == null) {
-            throw new RuntimeException(METADATA_STORE_INSTANCE + " configuration was not set in the BK client configuration");
+            throw new RuntimeException(METADATA_STORE_INSTANCE + " configuration was not set in the BK client "
+                    + "configuration");
         }
 
         if (!(storeProperty instanceof MetadataStore)) {
@@ -158,7 +160,9 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             }
         }
 
-        if (bi != null) {
+        if (bi != null
+                && !Strings.isNullOrEmpty(bi.getRack())
+                && !bi.getRack().trim().equals("/")) {
             String rack = bi.getRack();
             if (!rack.startsWith("/")) {
                 rack = "/" + rack;

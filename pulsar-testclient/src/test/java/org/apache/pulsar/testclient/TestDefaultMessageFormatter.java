@@ -31,7 +31,7 @@ public class TestDefaultMessageFormatter {
     public void testFormatMessage() {
         String producerName = "producer-1";
         long msgId = 3;
-        byte[] message = "{ \"producer\": \"%p\", \"msgId\": %i, \"nanoTime\": %t, \"float1\": %5.2f, \"float2\": %-5.2f, \"long1\": %12l, \"long2\": %l, \"int1\": %d, \"int2\": %1d , \"long3\": %5l,  \"str\": \"%5s\" }".getBytes();
+        byte[] message = "{ \"producer\": \"%p\", \"msgId\": %i, \"nanoTime\": %t, \"float1\": %5.2f, \"float2\": %-5.2f, \"long1\": %12l, \"long2\": %l, \"int1\": %d, \"int2\": %1d, \"long3\": %5l,  \"str\": \"%5s\" }".getBytes();
         byte[] formatted = new DefaultMessageFormatter().formatMessage(producerName, msgId, message);
         String jsonString = new String(formatted, StandardCharsets.UTF_8);
 
