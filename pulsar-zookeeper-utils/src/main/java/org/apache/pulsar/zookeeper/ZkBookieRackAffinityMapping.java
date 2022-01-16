@@ -20,6 +20,7 @@ package org.apache.pulsar.zookeeper;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import com.google.api.client.util.Strings;
 import java.net.InetAddress;
 import java.net.URI;
 import java.util.ArrayList;
@@ -212,7 +213,9 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             }
         }
 
-        if (bi != null) {
+        if (bi != null
+                && !Strings.isNullOrEmpty(bi.getRack())
+                && !bi.getRack().trim().equals("/")) {
             String rack = bi.getRack();
             if (!rack.startsWith("/")) {
                 rack = "/" + rack;

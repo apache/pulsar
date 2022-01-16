@@ -28,6 +28,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 
+import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -75,11 +76,9 @@ import org.apache.pulsar.common.policies.data.BookiesClusterInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.FailureDomain;
-import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
@@ -1448,6 +1447,23 @@ public class PulsarAdminToolTest {
                         .rack("rack-1")
                         .hostname("host-1")
                         .build());
+
+        // test invalid rack name ""
+        try {
+            BookieInfo.builder().rack("").hostname("host-1").build();
+            fail();
+        } catch (IllegalArgumentException e) {
+            assertEquals(e.getMessage(), "rack name is invalid, it should not be null, empty or '/'");
+        }
+
+        // test invalid rack name "/"
+        try {
+            BookieInfo.builder().rack("/").hostname("host-1").build();
+            fail();
+        } catch (IllegalArgumentException e) {
+            assertEquals(e.getMessage(), "rack name is invalid, it should not be null, empty or '/'");
+        }
+
     }
 
     @Test
