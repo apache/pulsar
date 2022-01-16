@@ -144,8 +144,4 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
         }
         return result;
     }
-
-    Map<Integer, List<Consumer>> getRangeConsumer() {
-        return Collections.unmodifiableMap(hashRing);
-    }
 }

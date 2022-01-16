@@ -160,8 +160,4 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
         }
         return (num & num - 1) == 0;
     }
-
-    Map<Integer, Consumer> getRangeConsumer() {
-        return Collections.unmodifiableMap(rangeMap);
-    }
 }
