@@ -173,7 +173,8 @@ public class FileSourceConfig implements Serializable {
         }
 
         if (processedFileSuffix != null && keepFile) {
-            throw new IllegalArgumentException("The property keepFile must be false if the property processedFileSuffix is set");
+            throw new IllegalArgumentException(
+                    "The property keepFile must be false if the property processedFileSuffix is set");
         }
     }
 }

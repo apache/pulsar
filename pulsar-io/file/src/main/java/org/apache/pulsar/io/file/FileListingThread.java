@@ -140,7 +140,8 @@ public class FileListingThread extends Thread {
         final long minAge = Optional.ofNullable(fileConfig.getMinimumFileAge()).orElse(0);
         final Long maxAge = Optional.ofNullable(fileConfig.getMaximumFileAge()).orElse(Long.MAX_VALUE);
         final boolean ignoreHidden = Optional.ofNullable(fileConfig.getIgnoreHiddenFiles()).orElse(true);
-        final Pattern filePattern = Pattern.compile(Optional.ofNullable(fileConfig.getFileFilter()).orElse("[^\\.].*"));
+        final Pattern filePattern = Pattern.compile(Optional.ofNullable(fileConfig.getFileFilter())
+                .orElse("[^\\.].*"));
         final String indir = fileConfig.getInputDirectory();
         final String pathPatternStr = fileConfig.getPathFilter();
         final Pattern pathPattern = (!recurseDirs || pathPatternStr == null) ? null : Pattern.compile(pathPatternStr);
@@ -185,7 +186,8 @@ public class FileListingThread extends Thread {
                     return false;
                 }
 
-                if (!keepOriginal && !StringUtils.isBlank(processedFileSuffix) && file.getName().endsWith(processedFileSuffix)) {
+                if (!keepOriginal && !StringUtils.isBlank(processedFileSuffix) && file.getName()
+                        .endsWith(processedFileSuffix)) {
                     return false;
                 }
                 return filePattern.matcher(file.getName()).matches();
