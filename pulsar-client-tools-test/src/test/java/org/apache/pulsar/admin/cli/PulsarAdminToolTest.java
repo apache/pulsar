@@ -27,6 +27,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -1875,6 +1876,23 @@ public class PulsarAdminToolTest {
                         .rack("rack-1")
                         .hostname("host-1")
                         .build());
+
+        // test invalid rack name ""
+        try {
+            BookieInfo.builder().rack("").hostname("host-1").build();
+            fail();
+        } catch (IllegalArgumentException e) {
+            assertEquals(e.getMessage(), "rack name is invalid, it should not be null, empty or '/'");
+        }
+
+        // test invalid rack name "/"
+        try {
+            BookieInfo.builder().rack("/").hostname("host-1").build();
+            fail();
+        } catch (IllegalArgumentException e) {
+            assertEquals(e.getMessage(), "rack name is invalid, it should not be null, empty or '/'");
+        }
+
     }
 
     @Test
