@@ -124,7 +124,7 @@ You can reuse existing Zookeeper clusters.</p>
 <li>高性能的CPU和10Gbps <a href="https://en.wikipedia.org/wiki/Network_interface_controller"> NIC </a>（适用于Pulsar brokers）</li>
 <li>小型快速<a href="https://en.wikipedia.org/wiki/Solid-state_drive">固态硬盘</a>（SSD）或<a href="https://en.wikipedia.org/wiki/Hard_disk_drive">硬盘驱动器</a>（HDD），带有<a href="https://en.wikipedia.org/wiki/RAID">RAID</a>控制器和电池供电的写缓存（适用于BookKeeper bookies）</li>
 </ul>
-<p>要启动 Pulsar 实例，以下是最低和推荐的硬件设置。</p>
+<p>要启动 Pulsar 实例，以下是最低和推荐的硬件配置。</p>
 <ol>
 <li>The minimum hardware settings (250 Pulsar topics)</li>
 </ol>
@@ -176,7 +176,7 @@ You can reuse existing Zookeeper clusters.</p>
 <li><a href="https://archive.apache.org/dist/pulsar/pulsar-2.9.1/apache-pulsar-2.9.1-bin.tar.gz" download>Pulsar 2.9.1 binary release</a></li>
 </ul></li>
 <li>从Pulsar的 <a href="/download">下载页面</a>下载</li>
-<li>From the Pulsar <a href="https://github.com/apache/pulsar/releases/latest">releases page</a> on GitHub</li>
+<li>从 GitHub 上的 Pulsar <a href="https://github.com/apache/pulsar/releases/latest">发布页面</a> 下载</li>
 <li>使用 <a href="https://www.gnu.org/software/wget">wget</a> 命令下载:</li>
 </ul>
 <pre><code class="hljs css language-bash">$ wget https://archive.apache.org/dist/pulsar/pulsar-2.9.1/apache-pulsar-2.9.1-bin.tar.gz
@@ -202,7 +202,7 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.9.1
 <blockquote>
 <p>从 Pulsar <code>2.1.0-incubating</code>发行版开始，Pulsar 提供了独立的二进制包，包含了所有<code>内置</code>的connector。 要启用<code>内置</code>连接器(可选)，你可以按照以下说明进行操作。</p>
 </blockquote>
-<p>To use <code>builtin</code> connectors, you need to download the connectors tarball release on every broker node in one of the following ways :</p>
+<p>要使用 <code>内置</code> 连接器，你需要在每个 broker 节点上通过以下方式之一下载连接器的发行版压缩包：</p>
 <ul>
 <li><p>通过单击下面的链接并从 Apache 镜像下载该版本:</p>
 <ul>
@@ -226,7 +226,7 @@ pulsar-io-aerospike-2.9.1.nar
 <blockquote>
 <p>从Pulsar <code>2.2.0</code>发行版开始，Pulsar 提供了一个独立的包含分层存储的二进制包。 如果你想启用分层存储，你可以参考如下的说明；否则你可以 暂时跳过该部分。</p>
 </blockquote>
-<p>To use tiered storage offloaders, you need to download the offloaders tarball release on every broker node in one of the following ways:</p>
+<p>要使用分层存储卸载器，需要在所有 broker 节点上下载卸载器的压缩文件，下载方式有以下几种：</p>
 <ul>
 <li><p>通过单击下面的链接并从 Apache 镜像下载该版本:</p>
 <ul>
@@ -238,7 +238,7 @@ pulsar-io-aerospike-2.9.1.nar
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.9.1/apache-pulsar-offloaders-2.9.1-bin.tar.gz</span>
 </code></pre></li>
 </ul>
-<p>Once you download the tarball, in the Pulsar directory, untar the offloaders package and copy the offloaders as <code>offloaders</code> in the Pulsar directory:</p>
+<p>一旦你下载完压缩包后，在 Pulsar 目录下解压压缩包，并且将该拆卸器复制为 <code>offloaders</code> 存放在 pulsar 安装目录下。</p>
 <pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-offloaders-2.9.1-bin.tar.gz
 
 // 你可以在 pulsar 目录下找到一个名为 `apache-pulsar-offloaders-2.9.1` 的目录
@@ -254,7 +254,7 @@ tiered-storage-jcloud-2.9.1.nar
 <blockquote>
 <p>如果你已经有 zookeeper 集群并想复用它，你可以跳过本节。</p>
 </blockquote>
-<p><a href="https://zookeeper.apache.org">ZooKeeper</a> manages a variety of essential coordination-related and configuration-related tasks for Pulsar. To deploy a Pulsar cluster, you need to deploy ZooKeeper first. 建议部署3个节点的 Zookeeper 集群。 Pulsar does not make heavy use of ZooKeeper, so the lightweight machines or VMs should suffice for running ZooKeeper.</p>
+<p><a href="https://zookeeper.apache.org">ZooKeeper</a> 为 Pulsar 管理各种与协调和配置相关的重要任务。 要部署 Pulsar 集群，你要先部署 ZooKeeper。 建议部署3个节点的 Zookeeper 集群。 Pulsar 没有重度使用 ZooKeeper，因此低配机器或 VM 足以运行 ZooKeeper。</p>
 <p>首先，将所有的 Zookeeper 服务器信息添加到<a href="/docs/zh-CN/2.9.0/reference-configuration#zookeeper"><code>conf/zookeeper.conf</code></a>配置文件(文件在 Pulsar 的安装目录<a href="#install-the-pulsar-binary-package">里面</a>)。 如下所示：</p>
 <pre><code class="hljs css language-properties"><span class="hljs-meta">server.1</span>=<span class="hljs-string">zk1.us-west.example.com:2888:3888</span>
 <span class="hljs-meta">server.2</span>=<span class="hljs-string">zk2.us-west.example.com:2888:3888</span>
