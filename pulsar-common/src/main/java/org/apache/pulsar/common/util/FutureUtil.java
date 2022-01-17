@@ -78,8 +78,7 @@ public class FutureUtil {
     }
 
     /**
-     * If the future is cancelled or times out, the cancel action will be
-     * invoked
+     * If the future is cancelled or times out, the cancel action will be invoked.
      *
      * The action is executed once if the future completes with
      * {@link java.util.concurrent.CancellationException} or {@link TimeoutException}

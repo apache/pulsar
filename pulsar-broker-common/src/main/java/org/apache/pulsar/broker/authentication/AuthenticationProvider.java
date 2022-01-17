@@ -20,27 +20,24 @@ package org.apache.pulsar.broker.authentication;
 
 import java.io.Closeable;
 import java.io.IOException;
-
 import java.net.SocketAddress;
 import java.util.concurrent.CompletableFuture;
 import javax.naming.AuthenticationException;
-
 import javax.net.ssl.SSLSession;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.common.util.FutureUtil;
 
 /**
- * Provider of authentication mechanism
+ * Provider of authentication mechanism.
  */
 public interface AuthenticationProvider extends Closeable {
 
     /**
-     * Perform initialization for the authentication provider
+     * Perform initialization for the authentication provider.
      *
      * @param config
      *            broker config object

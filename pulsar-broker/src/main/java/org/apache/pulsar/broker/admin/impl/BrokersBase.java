@@ -70,6 +70,7 @@ import org.slf4j.LoggerFactory;
 public class BrokersBase extends PulsarWebResource {
     private static final Logger LOG = LoggerFactory.getLogger(BrokersBase.class);
     private static final Duration HEALTHCHECK_READ_TIMEOUT = Duration.ofSeconds(10);
+    public static final String HEALTH_CHECK_TOPIC_SUFFIX = "healthcheck";
 
     @GET
     @Path("/{cluster}")
@@ -317,7 +318,7 @@ public class BrokersBase extends PulsarWebResource {
                             pulsar().getConfiguration());
 
 
-            topic = String.format("persistent://%s/healthcheck", heartbeatNamespace);
+            topic = String.format("persistent://%s/%s", heartbeatNamespace, HEALTH_CHECK_TOPIC_SUFFIX);
 
             LOG.info("Running healthCheck with topic={}", topic);
 

@@ -76,7 +76,7 @@ public class OwnershipCache {
 
     private final LockManager<NamespaceEphemeralData> lockManager;
 
-    private final Map<NamespaceBundle, ResourceLock> locallyAcquiredLocks;
+    private final Map<NamespaceBundle, ResourceLock<NamespaceEphemeralData>> locallyAcquiredLocks;
 
     /**
      * The loading cache of locally owned <code>NamespaceBundle</code> objects.

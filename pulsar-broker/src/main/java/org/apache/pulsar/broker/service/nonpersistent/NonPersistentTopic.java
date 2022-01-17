@@ -68,6 +68,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
@@ -521,6 +522,10 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     public CompletableFuture<Void> checkReplication() {
         TopicName name = TopicName.get(topic);
         if (!name.isGlobal()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        NamespaceName heartbeatNamespace = brokerService.pulsar().getHeartbeatNamespaceV2();
+        if (name.getNamespaceObject().equals(heartbeatNamespace)) {
             return CompletableFuture.completedFuture(null);
         }
 

@@ -53,7 +53,7 @@ public abstract class PulsarHandler extends PulsarDecoder {
     }
 
     @Override
-    final protected void messageReceived() {
+    protected final void messageReceived() {
         waitingForPingResponse = false;
     }
 
@@ -78,7 +78,7 @@ public abstract class PulsarHandler extends PulsarDecoder {
     }
 
     @Override
-    final protected void handlePing(CommandPing ping) {
+    protected final void handlePing(CommandPing ping) {
         // Immediately reply success to ping requests
         if (log.isDebugEnabled()) {
             log.debug("[{}] Replying back to ping message", ctx.channel());
@@ -87,7 +87,7 @@ public abstract class PulsarHandler extends PulsarDecoder {
     }
 
     @Override
-    final protected void handlePong(CommandPong pong) {
+    protected final void handlePong(CommandPong pong) {
     }
 
     private void handleKeepAliveTimeout() {

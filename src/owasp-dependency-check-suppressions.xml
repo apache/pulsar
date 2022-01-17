@@ -41,4 +41,76 @@
     <gav regex="true">org\.apache\.zookeeper:.*:3\.6\.2</gav>
     <vulnerabilityName regex="true">.*</vulnerabilityName>
   </suppress>
+
+  <!-- clickhouse: security scan matches client lib to the server CVEs -->
+  <suppress>
+    <notes><![CDATA[
+    file name: avro-1.10.2.jar
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.avro/avro@.*$</packageUrl>
+    <cve>CVE-2021-43045</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+    file name: clickhouse-jdbc-0.3.2.jar
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/ru\.yandex\.clickhouse/clickhouse\-jdbc@.*$</packageUrl>
+    <cve>CVE-2018-14668</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+    file name: clickhouse-jdbc-0.3.2.jar
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/ru\.yandex\.clickhouse/clickhouse\-jdbc@.*$</packageUrl>
+    <cve>CVE-2018-14669</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+    file name: clickhouse-jdbc-0.3.2.jar
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/ru\.yandex\.clickhouse/clickhouse\-jdbc@.*$</packageUrl>
+    <cve>CVE-2018-14670</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+    file name: clickhouse-jdbc-0.3.2.jar
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/ru\.yandex\.clickhouse/clickhouse\-jdbc@.*$</packageUrl>
+    <cve>CVE-2018-14671</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+    file name: clickhouse-jdbc-0.3.2.jar
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/ru\.yandex\.clickhouse/clickhouse\-jdbc@.*$</packageUrl>
+    <cve>CVE-2018-14672</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+    file name: clickhouse-jdbc-0.3.2.jar
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/ru\.yandex\.clickhouse/clickhouse\-jdbc@.*$</packageUrl>
+    <cve>CVE-2019-15024</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+    file name: clickhouse-jdbc-0.3.2.jar
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/ru\.yandex\.clickhouse/clickhouse\-jdbc@.*$</packageUrl>
+    <cve>CVE-2019-16535</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+    file name: clickhouse-jdbc-0.3.2.jar
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/ru\.yandex\.clickhouse/clickhouse\-jdbc@.*$</packageUrl>
+    <cve>CVE-2019-18657</cve>
+  </suppress> 
+  <suppress>
+    <notes><![CDATA[
+    file name: clickhouse-jdbc-0.3.2.jar
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/ru\.yandex\.clickhouse/clickhouse\-jdbc@.*$</packageUrl>
+    <cve>CVE-2021-25263</cve>
+  </suppress>
 </suppressions>

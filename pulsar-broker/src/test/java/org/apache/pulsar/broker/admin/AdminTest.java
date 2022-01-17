@@ -96,7 +96,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+@Test(groups = "broker-admin")
 public class AdminTest extends MockedPulsarServiceBaseTest {
     private final String configClusterName = "use";
     private Clusters clusters;
@@ -119,17 +119,17 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         conf.setClusterName(configClusterName);
         super.internalSetup();
 
-        clusters = spy(new Clusters());
+        clusters = spy(Clusters.class);
         clusters.setPulsar(pulsar);
         doReturn("test").when(clusters).clientAppId();
         doNothing().when(clusters).validateSuperUserAccess();
 
-        properties = spy(new Properties());
+        properties = spy(Properties.class);
         properties.setPulsar(pulsar);
         doReturn("test").when(properties).clientAppId();
         doNothing().when(properties).validateSuperUserAccess();
 
-        namespaces = spy(new Namespaces());
+        namespaces = spy(Namespaces.class);
         namespaces.setServletContext(new MockServletContext());
         namespaces.setPulsar(pulsar);
         doReturn("test").when(namespaces).clientAppId();
@@ -138,7 +138,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doNothing().when(namespaces).validateAdminAccessForTenant("other-tenant");
         doNothing().when(namespaces).validateAdminAccessForTenant("new-property");
 
-        brokers = spy(new Brokers());
+        brokers = spy(Brokers.class);
         brokers.setPulsar(pulsar);
         doReturn("test").when(brokers).clientAppId();
         doNothing().when(brokers).validateSuperUserAccess();
@@ -146,7 +146,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         uriField = PulsarWebResource.class.getDeclaredField("uri");
         uriField.setAccessible(true);
 
-        persistentTopics = spy(new PersistentTopics());
+        persistentTopics = spy(PersistentTopics.class);
         persistentTopics.setServletContext(new MockServletContext());
         persistentTopics.setPulsar(pulsar);
         doReturn("test").when(persistentTopics).clientAppId();
@@ -156,11 +156,11 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doNothing().when(persistentTopics).validateAdminAccessForTenant("other-tenant");
         doNothing().when(persistentTopics).validateAdminAccessForTenant("prop-xyz");
 
-        resourceQuotas = spy(new ResourceQuotas());
+        resourceQuotas = spy(ResourceQuotas.class);
         resourceQuotas.setServletContext(new MockServletContext());
         resourceQuotas.setPulsar(pulsar);
 
-        brokerStats = spy(new BrokerStats());
+        brokerStats = spy(BrokerStats.class);
         brokerStats.setServletContext(new MockServletContext());
         brokerStats.setPulsar(pulsar);
 
@@ -169,7 +169,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doReturn("test").when(persistentTopics).clientAppId();
         doReturn(mock(AuthenticationDataHttps.class)).when(persistentTopics).clientAuthData();
 
-        schemasResource = spy(new SchemasResource());
+        schemasResource = spy(SchemasResource.class);
         schemasResource.setServletContext(new MockServletContext());
         schemasResource.setPulsar(pulsar);
     }

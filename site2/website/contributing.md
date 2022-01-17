@@ -252,7 +252,7 @@ Pull requests should not be merged before the review has approved from at least 
 > 
 > Git commit message is not only the best way to communicate context about code changes, but also shows whether a developer is a good collaborator. If the first commit message of a PR is not clear but the PR description is clear and concise, when merging a PR, consider copying the PR description to the commit message box or writing a proper one rather than using the default (first) commit message (see image below). In this way, others know the changes clearly, which is beneficial to cut a release or write a release note. Be well cared for git log is a healthy and sustainable thing.
  
-![Submit clear commit message](../img/commit-message.png)
+![Submit clear commit message](../../img/commit-message.png)
 
 ### Contributor License Agreement
 

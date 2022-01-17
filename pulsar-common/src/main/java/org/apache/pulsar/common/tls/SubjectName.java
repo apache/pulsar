@@ -34,11 +34,11 @@ final class SubjectName {
     private final String value;
     private final int type;
 
-    static SubjectName IP(final String value) {
+    static SubjectName newIP(final String value) {
         return new SubjectName(value, IP);
     }
 
-    static SubjectName DNS(final String value) {
+    static SubjectName newDNS(final String value) {
         return new SubjectName(value, DNS);
     }
 }

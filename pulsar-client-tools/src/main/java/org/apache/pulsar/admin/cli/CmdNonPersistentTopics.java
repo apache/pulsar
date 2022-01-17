@@ -20,12 +20,10 @@ package org.apache.pulsar.admin.cli;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
-
+import java.util.function.Supplier;
 import org.apache.pulsar.client.admin.NonPersistentTopics;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-
-import java.util.function.Supplier;
 
 @SuppressWarnings("deprecation")
 @Parameters(commandDescription = "Operations on non-persistent topics", hidden = true)
