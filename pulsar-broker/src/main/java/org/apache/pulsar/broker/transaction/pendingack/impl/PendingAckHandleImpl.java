@@ -123,8 +123,14 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         this.topicName = persistentSubscription.getTopicName();
         this.subName = persistentSubscription.getName();
         this.persistentSubscription = persistentSubscription;
+        internalPinnedExecutor = persistentSubscription
+                .getTopic()
+                .getBrokerService()
+                .getPulsar()
+                .getTransactionExecutorProvider()
+                .getExecutor(this);
 
-        this.pendingAckStoreProvider = ((PersistentTopic) this.persistentSubscription.getTopic())
+        this.pendingAckStoreProvider = this.persistentSubscription.getTopic()
                         .getBrokerService().getPulsar().getTransactionPendingAckStoreProvider();
         pendingAckStoreProvider.checkInitializedBefore(persistentSubscription).thenAccept(init -> {
             if (init) {
@@ -133,13 +139,6 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 completeHandleFuture();
             }
         });
-
-        internalPinnedExecutor = persistentSubscription
-                .getTopic()
-                .getBrokerService()
-                .getPulsar()
-                .getTransactionExecutorProvider()
-                .getExecutor(this);
     }
 
     private void initPendingAckStore() {
