@@ -97,17 +97,23 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     @Test
     public void testPublishRateLimitedTimes() throws Exception {
         cleanup();
-        conf.setMaxPublishRatePerTopicInBytes(1);
-        conf.setTopicPublisherThrottlingTickTimeMillis(1000000);
-        conf.setBrokerPublisherThrottlingTickTimeMillis(1000000);
-        conf.setPreciseTopicPublishRateLimiterEnable(true);
+        checkPublishRateLimitedTimes(true);
+        cleanup();
+        checkPublishRateLimitedTimes(false);
+    }
+
+    private void checkPublishRateLimitedTimes(boolean preciseRateLimit) throws Exception {
+        conf.setBrokerPublisherThrottlingTickTimeMillis(1000);
+        conf.setBrokerPublisherThrottlingMaxMessageRate(10);
+        conf.setBrokerPublisherThrottlingMaxByteRate(10);
+        conf.setPreciseTopicPublishRateLimiterEnable(preciseRateLimit);
         setup();
         String ns1 = "prop/ns-abc1" + UUID.randomUUID();
         admin.namespaces().createNamespace(ns1, 1);
         String topicName = "persistent://" + ns1 + "/metrics" + UUID.randomUUID();
         Producer<byte[]> producer = pulsarClient.newProducer().producerName("my-pub").enableBatching(false)
                 .topic(topicName).create();
-        producer.sendAsync(new byte[16]);
+        producer.sendAsync(new byte[11]);
 
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
                 .getTopic(topicName, false).get().get();

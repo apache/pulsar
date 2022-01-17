@@ -1708,7 +1708,10 @@ public class BrokerService implements Closeable {
     public void checkBrokerPublishThrottlingRate() {
         brokerPublishRateLimiter.checkPublishRate();
         if (brokerPublishRateLimiter.isPublishRateExceeded()) {
-            forEachTopic(topic -> ((AbstractTopic) topic).disableProducerRead());
+            forEachTopic(topic -> {
+                topic.increasePublishLimitedTimes();
+                ((AbstractTopic) topic).disableProducerRead();
+            });
         }
     }
 
