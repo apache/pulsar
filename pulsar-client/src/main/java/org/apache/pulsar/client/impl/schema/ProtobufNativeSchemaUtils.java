@@ -50,7 +50,7 @@ public class ProtobufNativeSchemaUtils {
             //extract root message path
             String rootMessageTypeName = descriptor.getFullName();
             String rootFileDescriptorName = descriptor.getFile().getFullName();
-            //build FileDescriptorSet , this is equal to < protoc --include_imports --descriptor_set_out >
+            //build FileDescriptorSet, this is equal to < protoc --include_imports --descriptor_set_out >
             byte[] fileDescriptorSet = FileDescriptorSet.newBuilder().addAllFile(fileDescriptorProtoCache.values()).build().toByteArray();
 
             //serialize to bytes

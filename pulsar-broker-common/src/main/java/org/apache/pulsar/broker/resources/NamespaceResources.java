@@ -82,8 +82,7 @@ public class NamespaceResources extends BaseResources<Policies> {
 
     public boolean namespaceExists(NamespaceName ns) throws MetadataStoreException {
         String path = joinPath(BASE_POLICIES_PATH, ns.toString());
-        return super.exists(path) &&
-                super.getChildren(path).isEmpty();
+        return super.exists(path) && super.getChildren(path).isEmpty();
     }
 
     public CompletableFuture<Boolean> namespaceExistsAsync(NamespaceName ns) {
@@ -193,7 +192,8 @@ public class NamespaceResources extends BaseResources<Policies> {
             super(configurationStore, PartitionedTopicMetadata.class, operationTimeoutSec);
         }
 
-        public CompletableFuture<Void> updatePartitionedTopicAsync(TopicName tn, Function<PartitionedTopicMetadata,PartitionedTopicMetadata> f) {
+        public CompletableFuture<Void> updatePartitionedTopicAsync(TopicName tn, Function<PartitionedTopicMetadata,
+                PartitionedTopicMetadata> f) {
             return setAsync(joinPath(PARTITIONED_TOPIC_PATH, tn.getNamespace(), tn.getDomain().value(),
                     tn.getEncodedLocalName()), f);
         }

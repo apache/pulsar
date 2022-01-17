@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.admin;
 import com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -29,9 +28,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.net.URL;
-
-@Test(groups = "broker")
+@Test(groups = "broker-admin")
 @Slf4j
 public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
 
@@ -66,18 +63,8 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
         admin.brokers().healthcheck(TopicVersion.V1);
     }
 
-    @Test(expectedExceptions = PulsarAdminException.class)
-    public void testHealthCheckupV2Error() throws Exception {
-        admin.brokers().healthcheck(TopicVersion.V2);
-    }
-
     @Test
     public void testHealthCheckupV2() throws Exception {
-        final URL pulsarWebAddress = new URL(pulsar.getWebServiceAddress());
-        final String targetNameSpace = "pulsar/" +
-                pulsarWebAddress.getHost() + ":" + pulsarWebAddress.getPort();
-        log.info("Target namespace for broker admin healthcheck V2 endpoint is {}", targetNameSpace);
-        admin.namespaces().createNamespace(targetNameSpace);
         admin.brokers().healthcheck(TopicVersion.V2);
     }
 }

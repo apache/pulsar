@@ -414,13 +414,13 @@ public class ManagedCursorContainerTest {
         container.add(cursor2);
         assertEquals(container.getSlowestReadPositionForActiveCursors(), new PositionImpl(1, 1));
 
-        // Move forward cursor, cursor1 = 5:5 , cursor2 = 5:6, slowest is 5:5
+        // Move forward cursor, cursor1 = 5:5, cursor2 = 5:6, slowest is 5:5
         position = PositionImpl.get(5,6);
         container.cursorUpdated(cursor2, position);
         doReturn(position).when(cursor2).getReadPosition();
         assertEquals(container.getSlowestReadPositionForActiveCursors(), new PositionImpl(5, 5));
 
-        // Move forward cursor, cursor1 = 5:8 , cursor2 = 5:6, slowest is 5:6
+        // Move forward cursor, cursor1 = 5:8, cursor2 = 5:6, slowest is 5:6
         position = PositionImpl.get(5,8);
         doReturn(position).when(cursor1).getReadPosition();
         container.cursorUpdated(cursor1, position);

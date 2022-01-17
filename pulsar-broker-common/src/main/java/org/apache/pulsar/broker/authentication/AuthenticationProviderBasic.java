@@ -19,24 +19,22 @@
 
 package org.apache.pulsar.broker.authentication;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import javax.naming.AuthenticationException;
+import lombok.Cleanup;
 import org.apache.commons.codec.digest.Crypt;
 import org.apache.commons.codec.digest.Md5Crypt;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
-
-import lombok.Cleanup;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
-
-import javax.naming.AuthenticationException;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
 
 public class AuthenticationProviderBasic implements AuthenticationProvider {
     private static final String HTTP_HEADER_NAME = "Authorization";
@@ -99,7 +97,8 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
                 throw new AuthenticationException(msg);
             }
         } catch (AuthenticationException exception) {
-            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(), exception.getMessage());
+            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(),
+                    exception.getMessage());
             throw exception;
         }
         AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());

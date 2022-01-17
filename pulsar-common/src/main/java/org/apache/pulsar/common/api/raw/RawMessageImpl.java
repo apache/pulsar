@@ -28,7 +28,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
 import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 
@@ -94,7 +93,7 @@ public class RawMessageImpl implements RawMessage {
         if (singleMessageMetadata != null && singleMessageMetadata.getPropertiesCount() > 0) {
             return singleMessageMetadata.getPropertiesList().stream()
                       .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue,
-                              (oldValue,newValue) -> newValue));
+                              (oldValue, newValue) -> newValue));
         } else if (msgMetadata.getMetadata().getPropertiesCount() > 0) {
             return msgMetadata.getMetadata().getPropertiesList().stream()
                     .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue));

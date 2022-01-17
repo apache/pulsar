@@ -412,6 +412,64 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         clientBuilder.memoryLimit(10000L, SizeUnit.BYTES);
     }
 
+    @Test
+    public void testSeekChunkMessages() throws PulsarClientException {
+        log.info("-- Starting {} test --", methodName);
+        this.conf.setMaxMessageSize(5);
+        final int totalMessages = 5;
+        final String topicName = "persistent://my-property/my-ns/test-seek-chunk";
+
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
+
+        Producer<byte[]> producer = producerBuilder
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
+
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("inclusive-seek")
+                .startMessageIdInclusive()
+                .subscribe();
+
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("default-seek")
+                .subscribe();
+
+        for (int i = 0; i < totalMessages; i++) {
+            String message = createMessagePayload(10);
+            producer.send(message.getBytes());
+        }
+
+        Message<byte[]> msg = null;
+        List<MessageId> msgIds = Lists.newArrayList();
+        for (int i = 0; i < totalMessages; i++) {
+            msg = consumer1.receive(5, TimeUnit.SECONDS);
+            String receivedMessage = new String(msg.getData());
+            log.info("[{}] - Received message: [{}]", i, receivedMessage);
+            msgIds.add(msg.getMessageId());
+        }
+
+        consumer1.seek(msgIds.get(1));
+        for (int i = 1; i < totalMessages; i++) {
+            Message<byte[]> msgAfterSeek = consumer1.receive(5, TimeUnit.SECONDS);
+            assertEquals(msgIds.get(i), msgAfterSeek.getMessageId());
+        }
+
+        consumer2.seek(msgIds.get(1));
+        for (int i = 2; i < totalMessages; i++) {
+            Message<byte[]> msgAfterSeek = consumer2.receive(5, TimeUnit.SECONDS);
+            assertEquals(msgIds.get(i), msgAfterSeek.getMessageId());
+        }
+
+        consumer1.close();
+        consumer2.close();
+        producer.close();
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+
     private String createMessagePayload(int size) {
         StringBuilder str = new StringBuilder();
         Random rand = new Random();

@@ -197,12 +197,7 @@ public class JsonConverter {
                 new Conversions.UUIDConversion()) {
             @Override
             JsonNode toJson(Schema schema, Object value) {
-                if (!(value instanceof String)) {
-                    throw new IllegalArgumentException("Invalid type for uuid, expected String but was "
-                            + value.getClass());
-                }
-                String uuidString = (String) value;
-                return jsonNodeFactory.textNode(uuidString);
+                return jsonNodeFactory.textNode(value == null ? null : value.toString());
             }
         });
     }

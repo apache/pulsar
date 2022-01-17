@@ -14,7 +14,7 @@ function HomepageHeader(props) {
   return (
     <header className={clsx("tailwind hero", styles.heroBanner)}>
       <div className="flex flex-col items-center container mt-24">
-        <Svg src="/img/pulsar.svg" className="h-36" />
+        <Svg src="/img/pulsar.svg" className="h-16 lg:h-36" />
         <h2 className="mt-12 font-medium mb-12">{siteConfig.tagline}</h2>
         <Stack spacing={2} direction="row">
           <Button

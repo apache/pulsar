@@ -3168,7 +3168,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topicName)
                 .enableBatching(false)
-                .autoUpdatePartitionsInterval(2 ,TimeUnit.SECONDS)
+                .autoUpdatePartitionsInterval(2, TimeUnit.SECONDS)
                 .create();
 
         // 1. produce 5 messages
@@ -3181,7 +3181,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .receiverQueueSize(receiverQueueSize)
-                .autoUpdatePartitionsInterval(2 ,TimeUnit.SECONDS)
+                .autoUpdatePartitionsInterval(2, TimeUnit.SECONDS)
                 .subscriptionName("test-multi-topic-consumer").subscribe();
 
         int counter = 0;

@@ -278,7 +278,24 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
         }
 
         public ClusterDataImpl build() {
-            return new ClusterDataImpl(serviceUrl, serviceUrlTls, brokerServiceUrl, brokerServiceUrlTls, proxyServiceUrl, authenticationPlugin, authenticationParameters, proxyProtocol, peerClusterNames, brokerClientTlsEnabled, tlsAllowInsecureConnection, brokerClientTlsEnabledWithKeyStore, brokerClientTlsTrustStoreType, brokerClientTlsTrustStore, brokerClientTlsTrustStorePassword, brokerClientTrustCertsFilePath, listenerName);
+            return new ClusterDataImpl(
+                    serviceUrl,
+                    serviceUrlTls,
+                    brokerServiceUrl,
+                    brokerServiceUrlTls,
+                    proxyServiceUrl,
+                    authenticationPlugin,
+                    authenticationParameters,
+                    proxyProtocol,
+                    peerClusterNames,
+                    brokerClientTlsEnabled,
+                    tlsAllowInsecureConnection,
+                    brokerClientTlsEnabledWithKeyStore,
+                    brokerClientTlsTrustStoreType,
+                    brokerClientTlsTrustStore,
+                    brokerClientTlsTrustStorePassword,
+                    brokerClientTrustCertsFilePath,
+                    listenerName);
         }
     }
 }

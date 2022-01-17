@@ -28,13 +28,21 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
@@ -109,6 +117,69 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         Awaitility.await().untilAsserted(() ->
                 assertNull(admin3.topicPolicies(true).getMessageTTL(topic)));
     }
+
+    @Test
+    public void testReplicateSubscribeRatePolicies() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+        init(namespace, topic);
+        // set global topic policy
+        SubscribeRate subscribeRate = new SubscribeRate(100, 10000);
+        admin1.topicPolicies(true).setSubscribeRate(topic, subscribeRate);
+
+        // get global topic policy
+        untilRemoteClustersAsserted(
+                admin -> assertEquals(admin.topicPolicies(true).getSubscribeRate(topic), subscribeRate));
+
+        // remove global topic policy
+        admin1.topicPolicies(true).removeSubscribeRate(topic);
+        untilRemoteClustersAsserted(admin -> assertNull(admin.topicPolicies(true).getSubscribeRate(topic)));
+    }
+
+    @Test
+    public void testReplicateMaxMessageSizePolicies() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+        init(namespace, topic);
+        // set global topic policy
+        admin1.topicPolicies(true).setMaxMessageSize(topic, 1000);
+
+        // get global topic policy
+        untilRemoteClustersAsserted(
+                admin -> assertEquals(admin.topicPolicies(true).getMaxMessageSize(topic), Integer.valueOf(1000)));
+
+        // remove global topic policy
+        admin1.topicPolicies(true).removeMaxMessageSize(topic);
+        untilRemoteClustersAsserted(admin -> assertNull(admin.topicPolicies(true).getMaxMessageSize(topic)));
+    }
+
+    @Test
+    public void testReplicatePublishRatePolicies() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+        init(namespace, topic);
+        // set global topic policy
+        PublishRate publishRate = new PublishRate(100, 10000);
+        admin1.topicPolicies(true).setPublishRate(topic, publishRate);
+
+        // get global topic policy
+        untilRemoteClustersAsserted(
+                admin -> assertEquals(admin.topicPolicies(true).getPublishRate(topic), publishRate));
+
+        // remove global topic policy
+        admin1.topicPolicies(true).removePublishRate(topic);
+        untilRemoteClustersAsserted(admin -> assertNull(admin.topicPolicies(true).getPublishRate(topic)));
+    }
+
+    private void untilRemoteClustersAsserted(ThrowingConsumer<PulsarAdmin> condition) {
+        Awaitility.await().untilAsserted(() -> condition.apply(admin2));
+        Awaitility.await().untilAsserted(() -> condition.apply(admin3));
+    }
+
+    private interface ThrowingConsumer<I> {
+        void apply(I input) throws Throwable;
+    }
+
 
     @Test
     public void testReplicatePersistentPolicies() throws Exception {
@@ -196,6 +267,25 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin2.topicPolicies(true).getMaxConsumersPerSubscription(topic)));
         Awaitility.await().untilAsserted(() ->
                 assertNull(admin3.topicPolicies(true).getMaxConsumersPerSubscription(topic)));
+    }
+
+    @Test
+    public void testReplicateMaxUnackedMsgPerConsumer() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+        init(namespace, topic);
+        // set max unacked msgs per consumers
+        admin1.topicPolicies(true).setMaxUnackedMessagesOnConsumer(topic, 100);
+        Awaitility.await().ignoreExceptions().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true).getMaxUnackedMessagesOnConsumer(topic).intValue(), 100));
+        Awaitility.await().ignoreExceptions().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true).getMaxUnackedMessagesOnConsumer(topic).intValue(), 100));
+        // remove max unacked msgs per consumers
+        admin1.topicPolicies(true).removeMaxUnackedMessagesOnConsumer(topic);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin2.topicPolicies(true).getMaxUnackedMessagesOnConsumer(topic)));
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin3.topicPolicies(true).getMaxUnackedMessagesOnConsumer(topic)));
     }
 
     @Test
@@ -295,6 +385,205 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         Awaitility.await().untilAsserted(() ->
                 assertNull(admin3.topicPolicies(true).getDispatchRate(persistentTopicName)));
     }
+
+    @Test
+    public void testReplicateDelayedDelivery() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+        init(namespace, topic);
+        DelayedDeliveryPolicies policies = DelayedDeliveryPolicies.builder().active(true).tickTime(10000L).build();
+        // set delayed delivery
+        admin1.topicPolicies(true).setDelayedDeliveryPolicy(topic, policies);
+        Awaitility.await().ignoreExceptions().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true).getDelayedDeliveryPolicy(topic), policies));
+        Awaitility.await().ignoreExceptions().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true).getDelayedDeliveryPolicy(topic), policies));
+        // remove delayed delivery
+        admin1.topicPolicies(true).removeDelayedDeliveryPolicy(topic);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin2.topicPolicies(true).getDelayedDeliveryPolicy(topic)));
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin3.topicPolicies(true).getDelayedDeliveryPolicy(topic)));
+    }
+
+    @Test
+    public void testReplicatorInactiveTopicPolicies() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+        init(namespace, persistentTopicName);
+
+        // set InactiveTopicPolicies
+        InactiveTopicPolicies inactiveTopicPolicies =
+                new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 1, true);
+        admin1.topicPolicies(true).setInactiveTopicPolicies(persistentTopicName, inactiveTopicPolicies);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true)
+                        .getInactiveTopicPolicies(persistentTopicName), inactiveTopicPolicies));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true)
+                        .getInactiveTopicPolicies(persistentTopicName), inactiveTopicPolicies));
+        // remove InactiveTopicPolicies
+        admin1.topicPolicies(true).removeInactiveTopicPolicies(persistentTopicName);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin2.topicPolicies(true).getInactiveTopicPolicies(persistentTopicName)));
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin3.topicPolicies(true).getInactiveTopicPolicies(persistentTopicName)));
+    }
+
+    @Test
+    public void testReplicatorSubscriptionDispatchRatePolicies() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+
+        init(namespace, persistentTopicName);
+        // set subscription dispatch rate
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(1)
+                .ratePeriodInSecond(1)
+                .dispatchThrottlingRateInByte(1)
+                .relativeToPublishRate(true)
+                .build();
+        admin1.topicPolicies(true).setSubscriptionDispatchRate(persistentTopicName, dispatchRate);
+        // get subscription dispatch rate
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true)
+                        .getSubscriptionDispatchRate(persistentTopicName), dispatchRate));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true)
+                        .getSubscriptionDispatchRate(persistentTopicName), dispatchRate));
+
+        //remove subscription dispatch rate
+        admin1.topicPolicies(true).removeSubscriptionDispatchRate(persistentTopicName);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin2.topicPolicies(true).getSubscriptionDispatchRate(persistentTopicName)));
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin3.topicPolicies(true).getSubscriptionDispatchRate(persistentTopicName)));
+    }
+
+    @Test
+    public void testReplicateReplicatorDispatchRatePolicies() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+
+        init(namespace, persistentTopicName);
+        // set replicator dispatch rate
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(1)
+                .ratePeriodInSecond(1)
+                .dispatchThrottlingRateInByte(1)
+                .relativeToPublishRate(true)
+                .build();
+        admin1.topicPolicies(true).setReplicatorDispatchRate(persistentTopicName, dispatchRate);
+        // get replicator dispatch rate
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true)
+                        .getReplicatorDispatchRate(persistentTopicName), dispatchRate));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true)
+                        .getReplicatorDispatchRate(persistentTopicName), dispatchRate));
+
+        //remove replicator dispatch rate
+        admin1.topicPolicies(true).removeReplicatorDispatchRate(persistentTopicName);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin2.topicPolicies(true).getReplicatorDispatchRate(persistentTopicName)));
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin3.topicPolicies(true).getReplicatorDispatchRate(persistentTopicName)));
+    }
+
+    @Test
+    public void testReplicateMaxUnackedMsgPerSub() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+        init(namespace, topic);
+        // set max unacked msgs per sub
+        admin1.topicPolicies(true).setMaxUnackedMessagesOnSubscription(topic, 100);
+        Awaitility.await().ignoreExceptions().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true).getMaxUnackedMessagesOnSubscription(topic).intValue(), 100));
+        Awaitility.await().ignoreExceptions().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true).getMaxUnackedMessagesOnSubscription(topic).intValue(), 100));
+        // remove max unacked msgs per sub
+        admin1.topicPolicies(true).removeMaxUnackedMessagesOnSubscription(topic);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin2.topicPolicies(true).getMaxUnackedMessagesOnSubscription(topic)));
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin3.topicPolicies(true).getMaxUnackedMessagesOnSubscription(topic)));
+    }
+
+    @Test
+    public void testReplicatorCompactionThresholdPolicies() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+
+        init(namespace, persistentTopicName);
+        // set compaction threshold
+        admin1.topicPolicies(true).setCompactionThreshold(persistentTopicName, 1);
+        // get compaction threshold
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true)
+                        .getCompactionThreshold(persistentTopicName), Long.valueOf(1)));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true)
+                        .getCompactionThreshold(persistentTopicName), Long.valueOf(1)));
+
+        //remove compaction threshold
+        admin1.topicPolicies(true).removeCompactionThreshold(persistentTopicName);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin2.topicPolicies(true).getCompactionThreshold(persistentTopicName)));
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin3.topicPolicies(true).getCompactionThreshold(persistentTopicName)));
+    }
+
+    @Test
+    public void testReplicateMaxSubscriptionsPerTopic() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+        init(namespace, persistentTopicName);
+
+        //set max subscriptions per topic
+        admin1.topicPolicies(true).setMaxSubscriptionsPerTopic(persistentTopicName, 1024);
+
+        //get max subscriptions per topic
+        untilRemoteClustersAsserted(
+                admin -> assertEquals(admin.topicPolicies(true).getMaxSubscriptionsPerTopic(persistentTopicName),
+                        Integer.valueOf(1024)));
+
+        //remove
+        admin1.topicPolicies(true).removeMaxSubscriptionsPerTopic(persistentTopicName);
+        untilRemoteClustersAsserted(
+                admin -> assertNull(admin.topicPolicies(true).getMaxSubscriptionsPerTopic(persistentTopicName)));
+    }
+
+    @Test
+    public void testReplicatorOffloadPolicies() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+
+        init(namespace, persistentTopicName);
+        OffloadPoliciesImpl offloadPolicies =
+                OffloadPoliciesImpl.create("s3", "region", "bucket", "endpoint", null, null, null, null,
+                8, 9, 10L, null, OffloadedReadPriority.BOOKKEEPER_FIRST);
+
+        // set offload policies
+        try{
+            admin1.topicPolicies(true).setOffloadPolicies(persistentTopicName, offloadPolicies);
+        }catch (Exception exception){
+            // driver not found exception.
+            assertTrue(exception instanceof PulsarAdminException.ServerSideErrorException);
+        }
+        // get offload policies
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true).getOffloadPolicies(persistentTopicName), offloadPolicies));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true).getOffloadPolicies(persistentTopicName), offloadPolicies));
+
+        //remove offload policies
+        admin1.topicPolicies(true).removeOffloadPolicies(persistentTopicName);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin2.topicPolicies(true).getOffloadPolicies(persistentTopicName)));
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin3.topicPolicies(true).getOffloadPolicies(persistentTopicName)));
+    }
+
 
     private void init(String namespace, String topic)
             throws PulsarAdminException, PulsarClientException, PulsarServerException {

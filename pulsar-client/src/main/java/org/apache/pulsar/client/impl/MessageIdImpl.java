@@ -120,6 +120,12 @@ public class MessageIdImpl implements MessageId {
                 messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
                     idData.getBatchIndex());
             }
+        } else if (idData.hasFirstChunkMessageId()) {
+            MessageIdData firstChunkIdData = idData.getFirstChunkMessageId();
+            messageId = new ChunkMessageIdImpl(
+                    new MessageIdImpl(firstChunkIdData.getLedgerId(), firstChunkIdData.getEntryId(),
+                            firstChunkIdData.getPartition()),
+                    new MessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition()));
         } else {
             messageId = new MessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition());
         }
@@ -166,12 +172,14 @@ public class MessageIdImpl implements MessageId {
         return messageId;
     }
 
-    // batchIndex is -1 if message is non-batched message and has the batchIndex for a batch message
-    protected byte[] toByteArray(int batchIndex, int batchSize) {
-        MessageIdData msgId = LOCAL_MESSAGE_ID.get()
-                .clear()
-                .setLedgerId(ledgerId)
-                .setEntryId(entryId);
+    protected MessageIdData writeMessageIdData(MessageIdData msgId, int batchIndex, int batchSize) {
+        if(msgId == null) {
+            msgId = LOCAL_MESSAGE_ID.get()
+                    .clear();
+        }
+
+        msgId.setLedgerId(ledgerId).setEntryId(entryId);
+
         if (partitionIndex >= 0) {
             msgId.setPartition(partitionIndex);
         }
@@ -183,6 +191,13 @@ public class MessageIdImpl implements MessageId {
         if (batchSize > -1) {
             msgId.setBatchSize(batchSize);
         }
+
+        return msgId;
+    }
+
+    // batchIndex is -1 if message is non-batched message and has the batchIndex for a batch message
+    protected byte[] toByteArray(int batchIndex, int batchSize) {
+        MessageIdData msgId = writeMessageIdData(null, batchIndex, batchSize);
 
         int size = msgId.getSerializedSize();
         ByteBuf serialized = Unpooled.buffer(size, size);

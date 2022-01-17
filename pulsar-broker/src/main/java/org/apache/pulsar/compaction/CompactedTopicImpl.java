@@ -20,7 +20,6 @@ package org.apache.pulsar.compaction;
 
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ComparisonChain;
 import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
@@ -91,13 +90,13 @@ public class CompactedTopicImpl implements CompactedTopic {
         synchronized (this) {
             PositionImpl cursorPosition;
             if (isFirstRead && MessageId.earliest.equals(consumer.getStartMessageId())){
-                cursorPosition = PositionImpl.earliest;
+                cursorPosition = PositionImpl.EARLIEST;
             } else {
                 cursorPosition = (PositionImpl) cursor.getReadPosition();
             }
             if (compactionHorizon == null
                 || compactionHorizon.compareTo(cursorPosition) < 0) {
-                cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, consumer, PositionImpl.latest);
+                cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, consumer, PositionImpl.LATEST);
             } else {
                 compactedTopicContext.thenCompose(
                     (context) -> findStartPoint(cursorPosition, context.ledger.getLastAddConfirmed(), context.cache)
@@ -111,7 +110,7 @@ public class CompactedTopicImpl implements CompactedTopic {
                             }
                             if (startPoint == NEWER_THAN_COMPACTED && compactionHorizon.compareTo(cursorPosition) < 0) {
                                 cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, consumer,
-                                        PositionImpl.latest);
+                                        PositionImpl.LATEST);
                                 return CompletableFuture.completedFuture(null);
                             } else {
                                 long endPoint = Math.min(context.ledger.getLastAddConfirmed(),
@@ -311,9 +310,8 @@ public class CompactedTopicImpl implements CompactedTopic {
             .compare(p.getEntryId(), m.getEntryId()).result();
     }
 
-    @VisibleForTesting
-    PositionImpl getCompactionHorizon() {
-        return this.compactionHorizon;
+    public synchronized Optional<Position> getCompactionHorizon() {
+        return Optional.ofNullable(this.compactionHorizon);
     }
     private static final Logger log = LoggerFactory.getLogger(CompactedTopicImpl.class);
 }

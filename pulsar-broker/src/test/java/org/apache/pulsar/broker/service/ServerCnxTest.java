@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockBookKeeper;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.mockito.ArgumentMatchers.any;
@@ -151,9 +152,9 @@ public class ServerCnxTest {
     public void setup() throws Exception {
         eventLoopGroup = new NioEventLoopGroup();
         executor = OrderedExecutor.newBuilder().numThreads(1).build();
-        svcConfig = spy(new ServiceConfiguration());
+        svcConfig = spy(ServiceConfiguration.class);
         svcConfig.setBrokerShutdownTimeoutMs(0L);
-        pulsar = spy(new PulsarService(svcConfig));
+        pulsar = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
         doReturn(new DefaultSchemaRegistryService()).when(pulsar).getSchemaRegistryService();
 
         svcConfig.setKeepAliveIntervalSeconds(inSec(1, TimeUnit.SECONDS));
@@ -175,14 +176,14 @@ public class ServerCnxTest {
         doReturn(store).when(pulsar).getLocalMetadataStore();
         doReturn(store).when(pulsar).getConfigurationMetadataStore();
 
-        brokerService = spy(new BrokerService(pulsar, eventLoopGroup));
+        brokerService = spyWithClassAndConstructorArgs(BrokerService.class, pulsar, eventLoopGroup);
         BrokerInterceptor interceptor = mock(BrokerInterceptor.class);
         doReturn(interceptor).when(brokerService).getInterceptor();
         doReturn(brokerService).when(pulsar).getBrokerService();
         doReturn(executor).when(pulsar).getOrderedExecutor();
 
-        PulsarResources pulsarResources = spy(new PulsarResources(store, store));
-        namespaceResources = spy(new NamespaceResources(store, store, 30));
+        PulsarResources pulsarResources = spyWithClassAndConstructorArgs(PulsarResources.class, store, store);
+        namespaceResources = spyWithClassAndConstructorArgs(NamespaceResources.class, store, store, 30);
         doReturn(namespaceResources).when(pulsarResources).getNamespaceResources();
         doReturn(pulsarResources).when(pulsar).getPulsarResources();
 
@@ -501,14 +502,14 @@ public class ServerCnxTest {
 
     @Test(timeOut = 30000)
     public void testNonExistentTopic() throws Exception {
-        AuthorizationService authorizationService = spy(new AuthorizationService(svcConfig, pulsar.getPulsarResources()));
+        AuthorizationService authorizationService = spyWithClassAndConstructorArgs(AuthorizationService.class, svcConfig, pulsar.getPulsarResources());
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         doReturn(true).when(brokerService).isAuthorizationEnabled();
         svcConfig.setAuthorizationEnabled(true);
         Field providerField = AuthorizationService.class.getDeclaredField("provider");
         providerField.setAccessible(true);
-        PulsarAuthorizationProvider authorizationProvider = spy(new PulsarAuthorizationProvider(svcConfig,
-                pulsar.getPulsarResources()));
+        PulsarAuthorizationProvider authorizationProvider = spyWithClassAndConstructorArgs(PulsarAuthorizationProvider.class, svcConfig,
+                pulsar.getPulsarResources());
         providerField.set(authorizationService, authorizationProvider);
         doReturn(CompletableFuture.completedFuture(false)).when(authorizationProvider).isSuperUser(Mockito.anyString(), Mockito.any(), Mockito.any());
 
@@ -534,11 +535,11 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void testClusterAccess() throws Exception {
         svcConfig.setAuthorizationEnabled(true);
-        AuthorizationService authorizationService = spy(new AuthorizationService(svcConfig, pulsar.getPulsarResources()));
+        AuthorizationService authorizationService = spyWithClassAndConstructorArgs(AuthorizationService.class, svcConfig, pulsar.getPulsarResources());
         Field providerField = AuthorizationService.class.getDeclaredField("provider");
         providerField.setAccessible(true);
-        PulsarAuthorizationProvider authorizationProvider = spy(new PulsarAuthorizationProvider(svcConfig,
-                pulsar.getPulsarResources()));
+        PulsarAuthorizationProvider authorizationProvider = spyWithClassAndConstructorArgs(PulsarAuthorizationProvider.class, svcConfig,
+                pulsar.getPulsarResources());
         providerField.set(authorizationService, authorizationProvider);
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         doReturn(true).when(brokerService).isAuthorizationEnabled();
@@ -565,12 +566,12 @@ public class ServerCnxTest {
 
     @Test(timeOut = 30000)
     public void testNonExistentTopicSuperUserAccess() throws Exception {
-        AuthorizationService authorizationService = spy(new AuthorizationService(svcConfig, pulsar.getPulsarResources()));
+        AuthorizationService authorizationService = spyWithClassAndConstructorArgs(AuthorizationService.class, svcConfig, pulsar.getPulsarResources());
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         doReturn(true).when(brokerService).isAuthorizationEnabled();
         Field providerField = AuthorizationService.class.getDeclaredField("provider");
         providerField.setAccessible(true);
-        PulsarAuthorizationProvider authorizationProvider = spy(new PulsarAuthorizationProvider(svcConfig, pulsar.getPulsarResources()));
+        PulsarAuthorizationProvider authorizationProvider = spyWithClassAndConstructorArgs(PulsarAuthorizationProvider.class, svcConfig, pulsar.getPulsarResources());
         providerField.set(authorizationService, authorizationProvider);
         doReturn(CompletableFuture.completedFuture(true)).when(authorizationProvider).isSuperUser(Mockito.anyString(), Mockito.any(), Mockito.any());
 
