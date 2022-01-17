@@ -99,17 +99,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         }
     }
 
-    @Override
-    public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
-        super.addConsumer(consumer);
-        try {
-            selector.addConsumer(consumer);
-        } catch (BrokerServiceException e) {
-            consumerSet.removeAll(consumer);
-            consumerList.remove(consumer);
-            throw e;
-        }
 
+    public synchronized boolean addConsumerIntoRecentlyJoinedConsumers(Consumer consumer) {
+        boolean addConsumer = false;
         PositionImpl readPositionWhenJoining = (PositionImpl) cursor.getReadPosition();
         consumer.setReadPositionWhenJoining(readPositionWhenJoining);
         // If this was the 1st consumer, or if all the messages are already acked, then we
@@ -119,6 +111,26 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 && consumerList.size() > 1
                 && cursor.getNumberOfEntriesSinceFirstNotAckedMessage() > 1) {
             recentlyJoinedConsumers.put(consumer, readPositionWhenJoining);
+            addConsumer = true;
+        }
+        return addConsumer;
+    }
+
+    public synchronized void addIntoConsumers(Consumer consumer) throws BrokerServiceException {
+        super.addConsumer(consumer);
+        try {
+            selector.addConsumer(consumer);
+        } catch (BrokerServiceException e) {
+            consumerSet.removeAll(consumer);
+            consumerList.remove(consumer);
+            throw e;
+        }
+    }
+
+    @Override
+    public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
+        if(!addConsumerIntoRecentlyJoinedConsumers(consumer)){
+            addIntoConsumers(consumer);
         }
     }
 
@@ -412,6 +424,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 Map.Entry<Consumer, PositionImpl> entry = itr.next();
                 if (entry.getValue().compareTo(nextPositionOfTheMarkDeletePosition) <= 0) {
                     itr.remove();
+                    try {
+                        addIntoConsumers(entry.getKey());
+                    } catch (BrokerServiceException e) {
+                        log.error("add consumer {} failed!", entry.getKey());
+                    }
                     hasConsumerRemovedFromTheRecentJoinedConsumers = true;
                 } else {
                     break;
