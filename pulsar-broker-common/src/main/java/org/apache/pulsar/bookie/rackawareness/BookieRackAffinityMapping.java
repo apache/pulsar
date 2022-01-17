@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.bookie.rackawareness;
 
+import com.google.api.client.util.Strings;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -159,7 +160,9 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             }
         }
 
-        if (bi != null) {
+        if (bi != null
+                && !Strings.isNullOrEmpty(bi.getRack())
+                && !bi.getRack().trim().equals("/")) {
             String rack = bi.getRack();
             if (!rack.startsWith("/")) {
                 rack = "/" + rack;
