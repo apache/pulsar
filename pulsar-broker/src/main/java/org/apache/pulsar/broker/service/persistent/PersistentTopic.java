@@ -1690,7 +1690,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public void updateRates(NamespaceStats nsStats, NamespaceBundleStats bundleStats,
                             StatsOutputStream topicStatsStream,
                             ClusterReplicationMetrics replStats, String namespace, boolean hydratePublishers) {
-
+        this.publishRateLimitedTimes = 0;
         TopicStatsHelper topicStatsHelper = threadLocalTopicStats.get();
         topicStatsHelper.reset();
 

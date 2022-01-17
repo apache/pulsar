@@ -106,6 +106,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         conf.setBrokerPublisherThrottlingTickTimeMillis(1000);
         conf.setBrokerPublisherThrottlingMaxMessageRate(10);
         conf.setBrokerPublisherThrottlingMaxByteRate(10);
+        conf.setStatsUpdateFrequencyInSecs(5);
+        conf.setStatsUpdateInitialDelayInSecs(1);
         conf.setPreciseTopicPublishRateLimiterEnable(preciseRateLimit);
         setup();
         String ns1 = "prop/ns-abc1" + UUID.randomUUID();
@@ -134,6 +136,24 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 assertEquals(item.value, 1);
             }
         });
+        // Stats updater will reset the stats
+        Awaitility.await().untilAsserted(() -> {
+            long value = (long) field.get(persistentTopic);
+            assertEquals(value, 0);
+        });
+
+        @Cleanup
+        ByteArrayOutputStream statsOut2 = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut2);
+        String metricsStr2 = statsOut2.toString();
+        Multimap<String, Metric> metrics2 = parseMetrics(metricsStr2);
+        assertTrue(metrics2.containsKey("pulsar_publish_rate_limit_times"));
+        metrics2.get("pulsar_publish_rate_limit_times").forEach(item -> {
+            if (ns1.equals(item.tags.get("namespace"))) {
+                assertEquals(item.value, 0);
+            }
+        });
+
     }
 
     @Test
