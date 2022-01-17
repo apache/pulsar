@@ -38,7 +38,7 @@ function setVersion(version) {
 
 function getVersion() {
   if (!getCache()) {
-    return "master";
+    return latestStableVersion;
   }
   return getCache().getItem("version") || latestStableVersion;
 }
