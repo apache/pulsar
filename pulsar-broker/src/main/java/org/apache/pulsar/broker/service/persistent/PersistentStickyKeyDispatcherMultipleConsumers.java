@@ -63,7 +63,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     /**
      * When a consumer joins, it will be added to this map with the current read position.
-     * This means that, in order to preserve ordering, new consumers can only receive old
+     * This means that, in order to preserve ordering, new consumers can only receive new
      * messages, until the mark-delete position will move past this point.
      */
     private final LinkedHashMap<Consumer, PositionImpl> recentlyJoinedConsumers;
