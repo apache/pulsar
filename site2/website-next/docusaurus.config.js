@@ -121,6 +121,12 @@ module.exports = {
         },
         { to: "/download", label: "Download", position: "left" },
         {
+          type: "doc",
+          docId: "client-libraries",
+          position: "left",
+          label: "Clients",
+        },
+        {
           label: "REST APIs",
           position: "left",
           items: [
