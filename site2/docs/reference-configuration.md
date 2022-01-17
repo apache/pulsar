@@ -365,8 +365,8 @@ The following parameters have been deprecated.
 |tlsEnabled|  Use `webServicePortTls` and `brokerServicePortTls` instead. |false|
 |replicationTlsEnabled| Enable TLS when talking with other clusters to replicate messages |false|
 |subscriptionKeySharedEnable|  Whether to enable the Key_Shared subscription.|true|
-|zookeeperServers|  Zookeeper quorum connection string. Use `metadataStoreUrl` instead.  ||
-|configurationStoreServers| Configuration store connection string (as a comma-separated list). Use `configurationMetadataStoreUrl` instead. ||
+|zookeeperServers|  Zookeeper quorum connection string. Use `metadataStoreUrl` instead.  |N/A|
+|configurationStoreServers| Configuration store connection string (as a comma-separated list). Use `configurationMetadataStoreUrl` instead. |N/A|
 
 
 
