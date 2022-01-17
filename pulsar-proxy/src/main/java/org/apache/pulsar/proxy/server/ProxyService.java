@@ -181,7 +181,7 @@ public class ProxyService implements Closeable {
                     + "authenticationEnabled=true when authorization is enabled with authorizationEnabled=true.");
         }
 
-        if (!isBlank(proxyConfig.getZookeeperServers()) && !isBlank(proxyConfig.getConfigurationStoreServers())) {
+        if (!isBlank(proxyConfig.getMetadataStoreUrl()) && !isBlank(proxyConfig.getConfigurationMetadataStoreUrl())) {
             localMetadataStore = createLocalMetadataStore();
             configMetadataStore = createConfigurationMetadataStore();
             pulsarResources = new PulsarResources(localMetadataStore, configMetadataStore);
@@ -384,12 +384,12 @@ public class ProxyService implements Closeable {
     }
 
     public MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
-        return PulsarResources.createMetadataStore(proxyConfig.getZookeeperServers(),
+        return PulsarResources.createMetadataStore(proxyConfig.getMetadataStoreUrl(),
                 proxyConfig.getZookeeperSessionTimeoutMs());
     }
 
     public MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
-        return PulsarResources.createMetadataStore(proxyConfig.getConfigurationStoreServers(),
+        return PulsarResources.createMetadataStore(proxyConfig.getConfigurationMetadataStoreUrl(),
                 proxyConfig.getZookeeperSessionTimeoutMs());
     }
 

@@ -31,6 +31,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
@@ -78,6 +79,17 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private String zookeeperServers;
     @FieldContext(
+            category = CATEGORY_BROKER_DISCOVERY,
+            required = false,
+            doc = "The metadata store URL. \n"
+                    + " Examples: \n"
+                    + "  * zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181\n"
+                    + "  * my-zk-1:2181,my-zk-2:2181,my-zk-3:2181 (will default to ZooKeeper when the schema is not "
+                    + "specified)\n"
+                    + "  * zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181/my-chroot-path (to add a ZK chroot path)\n"
+    )
+    private String metadataStoreUrl;
+    @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
         doc = "Configuration store connection string (as a comma-separated list)"
     )
@@ -88,6 +100,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     @Deprecated
     private String globalZookeeperServers;
+    @FieldContext(
+            category = CATEGORY_BROKER_DISCOVERY,
+            required = false,
+            doc = "The metadata store URL for the configuration data. If empty, we fall back to use metadataStoreUrl"
+    )
+    private String configurationMetadataStoreUrl;
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
@@ -615,6 +633,28 @@ public class ProxyConfiguration implements PulsarConfiguration {
             doc = "Name of the cluster to which this broker belongs to"
     )
     private String clusterName;
+
+    public String getMetadataStoreUrl() {
+        if (StringUtils.isNotBlank(metadataStoreUrl)) {
+            return metadataStoreUrl;
+        } else {
+            // Fallback to old setting
+            return zookeeperServers;
+        }
+    }
+
+    public String getConfigurationMetadataStoreUrl() {
+        if (StringUtils.isNotBlank(configurationMetadataStoreUrl)) {
+            return configurationMetadataStoreUrl;
+        } else if (StringUtils.isNotBlank(configurationStoreServers)) {
+            return configurationStoreServers;
+        } else if (StringUtils.isNotBlank(globalZookeeperServers)) {
+            return globalZookeeperServers;
+        } else {
+            // Fallback to local zookeeper
+            return getMetadataStoreUrl();
+        }
+    }
 
     private Properties properties = new Properties();
 
