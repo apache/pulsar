@@ -47,4 +47,9 @@ DOCKER_CMD="docker run -i -e CI_USER=$CI_USER -e CI_GROUP=$CI_GROUP -v $HOME/.m2
 sed -i "s#$ROOT_DIR#/pulsar#g" $ROOT_DIR/distribution/server/target/classpath.txt
 sed -i "s#$HOME#/root#g" $ROOT_DIR/distribution/server/target/classpath.txt
 
-$DOCKER_CMD bash -l -c 'export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 && cd /pulsar && /pulsar/site2/tools/build-site.sh'
+if [ $1"" == "next" ]
+then
+    $DOCKER_CMD bash -l -c 'export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 && cd /pulsar && /pulsar/site2/tools/build-site-next.sh'
+else
+    $DOCKER_CMD bash -l -c 'export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 && cd /pulsar && /pulsar/site2/tools/build-site.sh'
+fi
