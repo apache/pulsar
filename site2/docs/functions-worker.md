@@ -127,6 +127,21 @@ If authentication is enabled for your broker cluster, you *should* configure the
 - `clientAuthenticationPlugin`
 - `clientAuthenticationParameters`
 
+#### Customizing Java Runtime Options
+
+If you want to pass additional arguments to the JVM command line to every process started by the worker
+you can configure the `additionalJavaRuntimeArguments` parameter.
+
+```
+additionalJavaRuntimeArguments: ['-XX:+ExitOnOutOfMemoryError','-Dfoo=bar']
+```
+
+This is very useful in case you want to:
+- add JMV flags, like `-XX:+ExitOnOutOfMemoryError`
+- pass custom system properties, like `-Dlog4j2.formatMsgNoLookups`
+
+Please note that this feature applies only to Process and Kubernetes runtimes.
+
 #### Security settings
 
 If you want to enable security on functions workers, you *should*:
