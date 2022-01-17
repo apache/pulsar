@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Docs</title>
+<link rel="shortcut icon" href="favicon.ico" type="image/vnd.microsoft.icon">
+<!-- Latest compiled and minified CSS -->
+<link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="node_modules/font-awesome/css/font-awesome.min.css" type="text/css">
+<link rel="stylesheet" href="node_modules/highlight.js/styles/default.css" type="text/css">
+<link rel="stylesheet" href="stylesheet.css" type="text/css">
+</head>
+<body>
+<div id="sidebar-wrapper" class="side-nav side-bar-nav"><ul><li class="nav-level-1"><a href="#broker" class="nav-item">broker</a></li></ul><br/><div class="copyright"><a href='http://pulsar.apache.org/'>Apache Pulsar</a></div></div>
+<div id="wrapper">
+<div id="code-tabs-wrapper" class="code-tabs"><ul class="code-tab-list"><li class="code-tab" id="example">example</li></ul></div>
+<div id="page-content-wrapper" class="body-content container-fluid"><hr>
+<h1 id="broker">broker</h1>
+<h3 id="usage">Usage</h3>
+<p><code>$broker</code></p>
+<hr>
+<p>Options</p>
+<pre class="code-block example"><code class="lang-shell"><span class="hljs-symbol">$</span> pulsar broker <span class="hljs-keyword">options</span>
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-h, --help</code></td>
+<td>Show this help message</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-ra, --run-bookie-autorecovery</code></td>
+<td>Run Bookie Autorecovery together with broker</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-g, --generate-docs</code></td>
+<td>Generate docs</td>
+<td>true</td>
+</tr>
+<tr>
+<td><code>-rfw, --run-functions-worker</code></td>
+<td>Run functions worker with Broker</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-c, --broker-conf</code></td>
+<td>Configuration file for Broker</td>
+<td>/pulsar/conf/broker.conf</td>
+</tr>
+<tr>
+<td><code>-rb, --run-bookie</code></td>
+<td>Run Bookie together with Broker</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-bc, --bookie-conf</code></td>
+<td>Configuration file for Bookie</td>
+<td>/pulsar/conf/bookkeeper.conf</td>
+</tr>
+<tr>
+<td><code>-fwc, --functions-worker-conf</code></td>
+<td>Configuration file for Functions Worker</td>
+<td>/pulsar/conf/functions_worker.yml</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<script src="node_modules/jquery/dist/jquery.min.js"></script>
+<script src="node_modules/jquery.scrollto/jquery.scrollTo.min.js"></script>
+<script src="navData.js"></script>
+<script src="scroll.js"></script>
+<!--<script src="actions.js"></script>-->
+<script src="tabvisibility.js"></script>
+</body>
+</html>
