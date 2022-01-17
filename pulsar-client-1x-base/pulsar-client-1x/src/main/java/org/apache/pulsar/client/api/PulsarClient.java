@@ -20,7 +20,6 @@ package org.apache.pulsar.client.api;
 
 import java.io.Closeable;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.pulsar.client.impl.v1.PulsarClientV1Impl;
 
 /**
@@ -32,7 +31,7 @@ import org.apache.pulsar.client.impl.v1.PulsarClientV1Impl;
 public interface PulsarClient extends Closeable {
 
     /**
-     * Create a new PulsarClient object using default client configuration
+     * Create a new PulsarClient object using default client configuration.
      *
      * @param serviceUrl
      *            the url of the Pulsar endpoint to be used
@@ -42,12 +41,12 @@ public interface PulsarClient extends Closeable {
      * @deprecated use {@link #builder()} to construct a client instance
      */
     @Deprecated
-    public static PulsarClient create(String serviceUrl) throws PulsarClientException {
+     static PulsarClient create(String serviceUrl) throws PulsarClientException {
         return create(serviceUrl, new ClientConfiguration());
     }
 
     /**
-     * Create a new PulsarClient object
+     * Create a new PulsarClient object.
      *
      * @param serviceUrl
      *            the url of the Pulsar endpoint to be used
@@ -59,12 +58,12 @@ public interface PulsarClient extends Closeable {
      * @deprecated use {@link #builder()} to construct a client instance
      */
     @Deprecated
-    public static PulsarClient create(String serviceUrl, ClientConfiguration conf) throws PulsarClientException {
+    static PulsarClient create(String serviceUrl, ClientConfiguration conf) throws PulsarClientException {
         return new PulsarClientV1Impl(serviceUrl, conf);
     }
 
     /**
-     * Create a producer with default {@link ProducerConfiguration} for publishing on a specific topic
+     * Create a producer with default {@link ProducerConfiguration} for publishing on a specific topic.
      *
      * @param topic
      *            The name of the topic where to produce
@@ -83,7 +82,7 @@ public interface PulsarClient extends Closeable {
     Producer createProducer(String topic) throws PulsarClientException;
 
     /**
-     * Asynchronously create a producer with default {@link ProducerConfiguration} for publishing on a specific topic
+     * Asynchronously create a producer with default {@link ProducerConfiguration} for publishing on a specific topic.
      *
      * @param topic
      *            The name of the topic where to produce
@@ -94,7 +93,7 @@ public interface PulsarClient extends Closeable {
     CompletableFuture<Producer> createProducerAsync(String topic);
 
     /**
-     * Create a producer with given {@code ProducerConfiguration} for publishing on a specific topic
+     * Create a producer with given {@code ProducerConfiguration} for publishing on a specific topic.
      *
      * @param topic
      *            The name of the topic where to produce
@@ -110,7 +109,7 @@ public interface PulsarClient extends Closeable {
     Producer createProducer(String topic, ProducerConfiguration conf) throws PulsarClientException;
 
     /**
-     * Asynchronously create a producer with given {@code ProducerConfiguration} for publishing on a specific topic
+     * Asynchronously create a producer with given {@code ProducerConfiguration} for publishing on a specific topic.
      *
      * @param topic
      *            The name of the topic where to produce
@@ -123,7 +122,7 @@ public interface PulsarClient extends Closeable {
     CompletableFuture<Producer> createProducerAsync(String topic, ProducerConfiguration conf);
 
     /**
-     * Subscribe to the given topic and subscription combination with default {@code ConsumerConfiguration}
+     * Subscribe to the given topic and subscription combination with default {@code ConsumerConfiguration}.
      *
      * @param topic
      *            The name of the topic
@@ -139,7 +138,7 @@ public interface PulsarClient extends Closeable {
     Consumer subscribe(String topic, String subscription) throws PulsarClientException;
 
     /**
-     * Asynchronously subscribe to the given topic and subscription combination using default
+     * Asynchronously subscribe to the given topic and subscription combination using default.
      * {@code ConsumerConfiguration}
      *
      * @param topic
@@ -153,7 +152,7 @@ public interface PulsarClient extends Closeable {
     CompletableFuture<Consumer> subscribeAsync(String topic, String subscription);
 
     /**
-     * Subscribe to the given topic and subscription combination with given {@code ConsumerConfiguration}
+     * Subscribe to the given topic and subscription combination with given {@code ConsumerConfiguration}.
      *
      * @param topic
      *            The name of the topic
@@ -169,7 +168,7 @@ public interface PulsarClient extends Closeable {
     Consumer subscribe(String topic, String subscription, ConsumerConfiguration conf) throws PulsarClientException;
 
     /**
-     * Asynchronously subscribe to the given topic and subscription combination using given
+     * Asynchronously subscribe to the given topic and subscription combination using given.
      * {@code ConsumerConfiguration}
      *
      * @param topic

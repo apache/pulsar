@@ -90,7 +90,7 @@ public class MessageUtils {
                 try {
                     rowChange = CanalEntry.RowChange.parseFrom(entry.getStoreValue());
                 } catch (Exception e) {
-                    throw new RuntimeException("ERROR ## parser of eromanga-event has an error , data:"
+                    throw new RuntimeException("ERROR ## parser of eromanga-event has an error, data:"
                             + entry.toString(), e);
                 }
 

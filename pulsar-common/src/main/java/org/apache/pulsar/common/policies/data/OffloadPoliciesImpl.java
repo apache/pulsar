@@ -18,12 +18,9 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import static org.apache.pulsar.common.util.FieldParser.value;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import java.io.Serializable;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -35,7 +32,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
-import static org.apache.pulsar.common.util.FieldParser.value;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Definition of the offload policies.
@@ -74,7 +74,8 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
     public static final String OFFLOAD_THRESHOLD_NAME_IN_CONF_FILE =
             "managedLedgerOffloadAutoTriggerSizeThresholdBytes";
     public static final String DELETION_LAG_NAME_IN_CONF_FILE = "managedLedgerOffloadDeletionLagMs";
-    public static final OffloadedReadPriority DEFAULT_OFFLOADED_READ_PRIORITY = OffloadedReadPriority.TIERED_STORAGE_FIRST;
+    public static final OffloadedReadPriority DEFAULT_OFFLOADED_READ_PRIORITY =
+            OffloadedReadPriority.TIERED_STORAGE_FIRST;
 
     // common config
     @Configuration
@@ -490,22 +491,26 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
             return this;
         }
 
-        public OffloadPoliciesImplBuilder managedLedgerOffloadPrefetchRounds(Integer managedLedgerOffloadPrefetchRounds) {
+        public OffloadPoliciesImplBuilder managedLedgerOffloadPrefetchRounds(
+                Integer managedLedgerOffloadPrefetchRounds) {
             impl.managedLedgerOffloadPrefetchRounds = managedLedgerOffloadPrefetchRounds;
             return this;
         }
 
-        public OffloadPoliciesImplBuilder managedLedgerOffloadThresholdInBytes(Long managedLedgerOffloadThresholdInBytes) {
+        public OffloadPoliciesImplBuilder managedLedgerOffloadThresholdInBytes(
+                Long managedLedgerOffloadThresholdInBytes) {
             impl.managedLedgerOffloadThresholdInBytes = managedLedgerOffloadThresholdInBytes;
             return this;
         }
 
-        public OffloadPoliciesImplBuilder managedLedgerOffloadDeletionLagInMillis(Long managedLedgerOffloadDeletionLagInMillis) {
+        public OffloadPoliciesImplBuilder managedLedgerOffloadDeletionLagInMillis(
+                Long managedLedgerOffloadDeletionLagInMillis) {
             impl.managedLedgerOffloadDeletionLagInMillis = managedLedgerOffloadDeletionLagInMillis;
             return this;
         }
 
-        public OffloadPoliciesImplBuilder managedLedgerOffloadedReadPriority(OffloadedReadPriority managedLedgerOffloadedReadPriority) {
+        public OffloadPoliciesImplBuilder managedLedgerOffloadedReadPriority(
+                OffloadedReadPriority managedLedgerOffloadedReadPriority) {
             impl.managedLedgerOffloadedReadPriority = managedLedgerOffloadedReadPriority;
             return this;
         }
@@ -520,27 +525,32 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
             return this;
         }
 
-        public OffloadPoliciesImplBuilder s3ManagedLedgerOffloadServiceEndpoint(String s3ManagedLedgerOffloadServiceEndpoint) {
+        public OffloadPoliciesImplBuilder s3ManagedLedgerOffloadServiceEndpoint(
+                String s3ManagedLedgerOffloadServiceEndpoint) {
             impl.s3ManagedLedgerOffloadServiceEndpoint = s3ManagedLedgerOffloadServiceEndpoint;
             return this;
         }
 
-        public OffloadPoliciesImplBuilder s3ManagedLedgerOffloadMaxBlockSizeInBytes(Integer s3ManagedLedgerOffloadMaxBlockSizeInBytes) {
+        public OffloadPoliciesImplBuilder s3ManagedLedgerOffloadMaxBlockSizeInBytes(
+                Integer s3ManagedLedgerOffloadMaxBlockSizeInBytes) {
             impl.s3ManagedLedgerOffloadMaxBlockSizeInBytes = s3ManagedLedgerOffloadMaxBlockSizeInBytes;
             return this;
         }
 
-        public OffloadPoliciesImplBuilder s3ManagedLedgerOffloadReadBufferSizeInBytes(Integer s3ManagedLedgerOffloadReadBufferSizeInBytes) {
+        public OffloadPoliciesImplBuilder s3ManagedLedgerOffloadReadBufferSizeInBytes(
+                Integer s3ManagedLedgerOffloadReadBufferSizeInBytes) {
             impl.s3ManagedLedgerOffloadReadBufferSizeInBytes = s3ManagedLedgerOffloadReadBufferSizeInBytes;
             return this;
         }
 
-        public OffloadPoliciesImplBuilder s3ManagedLedgerOffloadCredentialId(String s3ManagedLedgerOffloadCredentialId) {
+        public OffloadPoliciesImplBuilder s3ManagedLedgerOffloadCredentialId(
+                String s3ManagedLedgerOffloadCredentialId) {
             impl.s3ManagedLedgerOffloadCredentialId = s3ManagedLedgerOffloadCredentialId;
             return this;
         }
 
-        public OffloadPoliciesImplBuilder s3ManagedLedgerOffloadCredentialSecret(String s3ManagedLedgerOffloadCredentialSecret) {
+        public OffloadPoliciesImplBuilder s3ManagedLedgerOffloadCredentialSecret(
+                String s3ManagedLedgerOffloadCredentialSecret) {
             impl.s3ManagedLedgerOffloadCredentialSecret = s3ManagedLedgerOffloadCredentialSecret;
             return this;
         }
@@ -556,7 +566,8 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
             return this;
         }
 
-        public OffloadPoliciesImplBuilder s3ManagedLedgerOffloadRoleSessionName(String s3ManagedLedgerOffloadRoleSessionName) {
+        public OffloadPoliciesImplBuilder s3ManagedLedgerOffloadRoleSessionName(
+                String s3ManagedLedgerOffloadRoleSessionName) {
             impl.s3ManagedLedgerOffloadRoleSessionName = s3ManagedLedgerOffloadRoleSessionName;
             return this;
         }
@@ -571,17 +582,20 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
             return this;
         }
 
-        public OffloadPoliciesImplBuilder gcsManagedLedgerOffloadMaxBlockSizeInBytes(Integer gcsManagedLedgerOffloadMaxBlockSizeInBytes) {
+        public OffloadPoliciesImplBuilder gcsManagedLedgerOffloadMaxBlockSizeInBytes(
+                Integer gcsManagedLedgerOffloadMaxBlockSizeInBytes) {
             impl.gcsManagedLedgerOffloadMaxBlockSizeInBytes = gcsManagedLedgerOffloadMaxBlockSizeInBytes;
             return this;
         }
 
-        public OffloadPoliciesImplBuilder gcsManagedLedgerOffloadReadBufferSizeInBytes(Integer gcsManagedLedgerOffloadReadBufferSizeInBytes) {
+        public OffloadPoliciesImplBuilder gcsManagedLedgerOffloadReadBufferSizeInBytes(
+                Integer gcsManagedLedgerOffloadReadBufferSizeInBytes) {
             impl.gcsManagedLedgerOffloadReadBufferSizeInBytes = gcsManagedLedgerOffloadReadBufferSizeInBytes;
             return this;
         }
 
-        public OffloadPoliciesImplBuilder gcsManagedLedgerOffloadServiceAccountKeyFile(String gcsManagedLedgerOffloadServiceAccountKeyFile) {
+        public OffloadPoliciesImplBuilder gcsManagedLedgerOffloadServiceAccountKeyFile(
+                String gcsManagedLedgerOffloadServiceAccountKeyFile) {
             impl.gcsManagedLedgerOffloadServiceAccountKeyFile = gcsManagedLedgerOffloadServiceAccountKeyFile;
             return this;
         }
@@ -606,17 +620,20 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
             return this;
         }
 
-        public OffloadPoliciesImplBuilder managedLedgerOffloadServiceEndpoint(String managedLedgerOffloadServiceEndpoint) {
+        public OffloadPoliciesImplBuilder managedLedgerOffloadServiceEndpoint(
+                String managedLedgerOffloadServiceEndpoint) {
             impl.managedLedgerOffloadServiceEndpoint = managedLedgerOffloadServiceEndpoint;
             return this;
         }
 
-        public OffloadPoliciesImplBuilder managedLedgerOffloadMaxBlockSizeInBytes(Integer managedLedgerOffloadMaxBlockSizeInBytes) {
+        public OffloadPoliciesImplBuilder managedLedgerOffloadMaxBlockSizeInBytes(
+                Integer managedLedgerOffloadMaxBlockSizeInBytes) {
             impl.managedLedgerOffloadMaxBlockSizeInBytes = managedLedgerOffloadMaxBlockSizeInBytes;
             return this;
         }
 
-        public OffloadPoliciesImplBuilder managedLedgerOffloadReadBufferSizeInBytes(Integer managedLedgerOffloadReadBufferSizeInBytes) {
+        public OffloadPoliciesImplBuilder managedLedgerOffloadReadBufferSizeInBytes(
+                Integer managedLedgerOffloadReadBufferSizeInBytes) {
             impl.managedLedgerOffloadReadBufferSizeInBytes = managedLedgerOffloadReadBufferSizeInBytes;
             return this;
         }
