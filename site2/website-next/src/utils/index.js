@@ -28,5 +28,8 @@ export function githubUrl() {
 
 export function getCache() {
   const windowGlobal = typeof window !== "undefined" && window;
+  if (!windowGlobal) {
+    return null;
+  }
   return windowGlobal.localStorage;
 }
