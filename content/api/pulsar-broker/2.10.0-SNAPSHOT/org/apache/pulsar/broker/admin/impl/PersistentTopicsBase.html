@@ -464,7 +464,8 @@ extends <a href="../AdminResource.html" title="class in org.apache.pulsar.broker
 </tr>
 <tr id="i39" class="rowColor">
 <td class="colFirst"><code>protected java.util.concurrent.CompletableFuture&lt;org.apache.pulsar.common.policies.data.OffloadPoliciesImpl&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalGetOffloadPolicies(boolean)">internalGetOffloadPolicies</a></span>&#8203;(boolean&nbsp;applied)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalGetOffloadPolicies(boolean,boolean)">internalGetOffloadPolicies</a></span>&#8203;(boolean&nbsp;applied,
+                          boolean&nbsp;isGlobal)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i40" class="altColor">
@@ -761,7 +762,8 @@ extends <a href="../AdminResource.html" title="class in org.apache.pulsar.broker
 </tr>
 <tr id="i89" class="rowColor">
 <td class="colFirst"><code>protected java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalSetOffloadPolicies(org.apache.pulsar.common.policies.data.OffloadPoliciesImpl)">internalSetOffloadPolicies</a></span>&#8203;(org.apache.pulsar.common.policies.data.OffloadPoliciesImpl&nbsp;offloadPolicies)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalSetOffloadPolicies(org.apache.pulsar.common.policies.data.OffloadPoliciesImpl,boolean)">internalSetOffloadPolicies</a></span>&#8203;(org.apache.pulsar.common.policies.data.OffloadPoliciesImpl&nbsp;offloadPolicies,
+                          boolean&nbsp;isGlobal)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i90" class="altColor">
@@ -1150,22 +1152,24 @@ extends <a href="../AdminResource.html" title="class in org.apache.pulsar.broker
                                                                                                                                                     boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
-<a id="internalGetOffloadPolicies(boolean)">
+<a id="internalGetOffloadPolicies(boolean,boolean)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalGetOffloadPolicies</h4>
-<pre class="methodSignature">protected&nbsp;java.util.concurrent.CompletableFuture&lt;org.apache.pulsar.common.policies.data.OffloadPoliciesImpl&gt;&nbsp;internalGetOffloadPolicies&#8203;(boolean&nbsp;applied)</pre>
+<pre class="methodSignature">protected&nbsp;java.util.concurrent.CompletableFuture&lt;org.apache.pulsar.common.policies.data.OffloadPoliciesImpl&gt;&nbsp;internalGetOffloadPolicies&#8203;(boolean&nbsp;applied,
+                                                                                                                                        boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
-<a id="internalSetOffloadPolicies(org.apache.pulsar.common.policies.data.OffloadPoliciesImpl)">
+<a id="internalSetOffloadPolicies(org.apache.pulsar.common.policies.data.OffloadPoliciesImpl,boolean)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalSetOffloadPolicies</h4>
-<pre class="methodSignature">protected&nbsp;java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;internalSetOffloadPolicies&#8203;(org.apache.pulsar.common.policies.data.OffloadPoliciesImpl&nbsp;offloadPolicies)</pre>
+<pre class="methodSignature">protected&nbsp;java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;internalSetOffloadPolicies&#8203;(org.apache.pulsar.common.policies.data.OffloadPoliciesImpl&nbsp;offloadPolicies,
+                                                                                            boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
 <a id="internalGetInactiveTopicPolicies(boolean,boolean)">

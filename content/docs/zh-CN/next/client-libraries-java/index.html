@@ -400,7 +400,7 @@ C5, 1, 1</p>
 * **AllTopics**：同时订阅持久化和非持久化主题。|RegexSubscriptionMode.PersistentOnly 
 `deadLetterPolicy`| DeadLetterPolicy | 消费者的死信策略。  
   
-默认情况下，一些消息可能会被多次重传，甚至达到从不停止的程度。  
+默认情况下，一些消息可能会被多次重传，甚至可能一直重传。  
   
 利用死信机制，可以限制消息的最大重传次数。 **当超过最大重传次数时，消息会被发送到死信主题并自动确认。**.  
   
