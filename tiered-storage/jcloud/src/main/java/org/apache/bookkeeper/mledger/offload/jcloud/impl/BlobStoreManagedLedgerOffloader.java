@@ -228,7 +228,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                         }
                         entryBytesWritten += blockStream.getBlockEntryBytesCount();
                         partId++;
-                        this.mxBean.recordOffloadRate(extraMetadata.get(MANAGED_LEDGER_NAME),
+                        this.mxBean.recordOffloadBytes(extraMetadata.get(MANAGED_LEDGER_NAME),
                                 blockStream.getBlockEntryBytesCount());
                     }
 
@@ -392,7 +392,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             final int blockSize = BufferedOffloadStream
                     .calculateBlockSize(streamingBlockSize, entries.size(), blockEntrySize);
             buildBlockAndUpload(blockSize, entries, blockLedgerId, blockEntryId, partId);
-            this.mxBean.recordStreamingWriteToStorageRate(ml.getName(), blockSize);
+            this.mxBean.recordStreamingWriteToStorageBytes(ml.getName(), blockSize);
             streamingOffloadLoop(partId + 1, dataObjectLength + blockSize);
         } else {
             log.debug("not enough data, delay schedule for part: {} length: {}", partId, dataObjectLength);

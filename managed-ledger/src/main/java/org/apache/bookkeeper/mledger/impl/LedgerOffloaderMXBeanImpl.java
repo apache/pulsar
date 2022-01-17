@@ -19,92 +19,55 @@
 package org.apache.bookkeeper.mledger.impl;
 
 
-import java.util.Iterator;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.mledger.LedgerOffloaderMXBean;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
-import org.apache.pulsar.common.stats.Rate;
 
 public class LedgerOffloaderMXBeanImpl implements LedgerOffloaderMXBean {
 
+    private final int DEFAULT_SIZE = 4;
     public static final long[] READ_ENTRY_LATENCY_BUCKETS_USEC = {500, 1_000, 5_000, 10_000, 20_000, 50_000, 100_000,
             200_000, 1000_000};
 
-    private static final long OUT_DATED_CLEAN_PERIOD_MILLISECOND = 10 * 60 * 1000;
-
     private final String driverName;
 
-    private final Map<String, Long> topicAccessTime;
-
     // offloadTimeMap record the time cost by one round offload
-    private final ConcurrentHashMap<String, Rate> offloadTimeMap = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, LongAdder> offloadTimeMap = new ConcurrentHashMap<>(DEFAULT_SIZE);
     // offloadErrorMap record error ocurred
-    private final ConcurrentHashMap<String, Rate> offloadErrorMap = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, LongAdder> offloadErrorMap = new ConcurrentHashMap<>(DEFAULT_SIZE);
     // offloadRateMap record the offload rate
-    private final ConcurrentHashMap<String, Rate> offloadRateMap = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, LongAdder> offloadBytesMap = new ConcurrentHashMap<>(DEFAULT_SIZE);
 
 
     // readLedgerLatencyBucketsMap record the time cost by ledger read
-    private final ConcurrentHashMap<String, StatsBuckets> readLedgerLatencyBucketsMap = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, StatsBuckets> readLedgerLatencyBucketsMap = new ConcurrentHashMap<>(
+            DEFAULT_SIZE);
     // writeToStorageLatencyBucketsMap record the time cost by write to storage
-    private final ConcurrentHashMap<String, StatsBuckets> writeToStorageLatencyBucketsMap = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, StatsBuckets> writeToStorageLatencyBucketsMap = new ConcurrentHashMap<>(
+            DEFAULT_SIZE);
     // writeToStorageErrorMap record the error occurred in write storage
-    private final ConcurrentHashMap<String, Rate> writeToStorageErrorMap = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, LongAdder> writeToStorageErrorMap = new ConcurrentHashMap<>();
 
 
     // streamingWriteToStorageRateMap and streamingWriteToStorageErrorMap is for streamingOffload
-    private final ConcurrentHashMap<String, Rate> streamingWriteToStorageRateMap = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Rate> streamingWriteToStorageErrorMap = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, LongAdder> streamingWriteToStorageBytesMap = new ConcurrentHashMap<>(
+            DEFAULT_SIZE);
+    private final ConcurrentHashMap<String, LongAdder> streamingWriteToStorageErrorMap = new ConcurrentHashMap<>(
+            DEFAULT_SIZE);
 
     // readOffloadIndexLatencyBucketsMap and readOffloadDataLatencyBucketsMap are latency metrics about index and data
     // readOffloadDataRateMap and readOffloadErrorMap is for reading offloaded data
-    private final ConcurrentHashMap<String, StatsBuckets> readOffloadIndexLatencyBucketsMap = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, StatsBuckets> readOffloadDataLatencyBucketsMap = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Rate> readOffloadDataRateMap = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Rate> readOffloadErrorMap = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, StatsBuckets> readOffloadIndexLatencyBucketsMap = new ConcurrentHashMap<>(
+            DEFAULT_SIZE);
+    private final ConcurrentHashMap<String, StatsBuckets> readOffloadDataLatencyBucketsMap = new ConcurrentHashMap<>(
+            DEFAULT_SIZE);
+    private final ConcurrentHashMap<String, LongAdder> readOffloadDataBytesMap = new ConcurrentHashMap<>(DEFAULT_SIZE);
+    private final ConcurrentHashMap<String, LongAdder> readOffloadErrorMap = new ConcurrentHashMap<>(DEFAULT_SIZE);
 
     public LedgerOffloaderMXBeanImpl(String driverName) {
         this.driverName = driverName;
-        topicAccessTime = new ConcurrentHashMap<>();
-    }
-
-    private void accessTopic(String topicName) {
-        topicAccessTime.compute(topicName, (k, v) -> System.currentTimeMillis());
-    }
-
-    private void removeOutdatedTopicMetricsIfNeeded() {
-        Iterator<Map.Entry<String, Long>> it = topicAccessTime.entrySet().iterator();
-        while (it.hasNext()) {
-            Long lastAccess = it.next().getValue();
-            if (System.currentTimeMillis() > lastAccess + OUT_DATED_CLEAN_PERIOD_MILLISECOND) {
-                removeTopicIfExist(it.next().getKey());
-                it.remove();
-            }
-        }
-    }
-
-    public void refreshStats(long period, TimeUnit unit) {
-        double seconds = unit.toMillis(period) / 1000.0;
-        if (seconds <= 0.0) {
-            // skip refreshing stats
-            return;
-        }
-        offloadTimeMap.values().forEach(rate -> rate.calculateRate(seconds));
-        offloadErrorMap.values().forEach(rate -> rate.calculateRate(seconds));
-        offloadRateMap.values().forEach(rate -> rate.calculateRate(seconds));
-        readLedgerLatencyBucketsMap.values().forEach(StatsBuckets::refresh);
-        writeToStorageLatencyBucketsMap.values().forEach(StatsBuckets::refresh);
-        writeToStorageErrorMap.values().forEach(rate -> rate.calculateRate(seconds));
-        streamingWriteToStorageRateMap.values().forEach(rate -> rate.calculateRate(seconds));
-        streamingWriteToStorageErrorMap.values().forEach(rate -> rate.calculateRate(seconds));
-        readOffloadDataRateMap.values().forEach(rate -> rate.calculateRate(seconds));
-        readOffloadErrorMap.values().forEach(rate -> rate.calculateRate(seconds));
-        readOffloadIndexLatencyBucketsMap.values().forEach(StatsBuckets::refresh);
-        readOffloadDataLatencyBucketsMap.values().forEach(StatsBuckets::refresh);
-
-        removeOutdatedTopicMetricsIfNeeded();
     }
 
     @Override
@@ -113,107 +76,97 @@ public class LedgerOffloaderMXBeanImpl implements LedgerOffloaderMXBean {
     }
 
     @Override
-    public Map<String, Rate> getOffloadTimes() {
-        return offloadTimeMap;
+    public long getOffloadTime(String topic) {
+        LongAdder offloadTime = this.offloadTimeMap.remove(topic);
+        return null == offloadTime ? 0L : offloadTime.sum();
     }
 
     @Override
-    public Map<String, Rate> getOffloadErrors() {
-        return offloadErrorMap;
+    public long getOffloadErrors(String topic) {
+        LongAdder errors = this.offloadErrorMap.remove(topic);
+        return null == errors ? 0L : errors.sum();
     }
 
     @Override
-    public Map<String, Rate> getOffloadRates() {
-        return offloadRateMap;
+    public long getOffloadBytes(String topic) {
+        LongAdder offloadBytes = this.offloadBytesMap.remove(topic);
+        return null == offloadBytes ? 0L : offloadBytes.sum();
     }
 
     @Override
-    public Map<String, StatsBuckets> getReadLedgerLatencyBuckets() {
-        return readLedgerLatencyBucketsMap;
+    public StatsBuckets getReadLedgerLatencyBuckets(String topic) {
+        return this.readLedgerLatencyBucketsMap.remove(topic);
     }
 
     @Override
-    public Map<String, StatsBuckets> getWriteToStorageLatencyBuckets() {
-        return writeToStorageLatencyBucketsMap;
+    public StatsBuckets getWriteToStorageLatencyBuckets(String topic) {
+        return this.writeToStorageLatencyBucketsMap.remove(topic);
     }
 
     @Override
-    public Map<String, Rate> getWriteToStorageErrors() {
-        return writeToStorageErrorMap;
+    public long getWriteToStorageErrors(String topic) {
+        LongAdder errors = this.writeToStorageErrorMap.remove(topic);
+        return null == errors ? 0L : errors.sum();
     }
 
     @Override
-    public Map<String, Rate> getStreamingWriteToStorageRates() {
-        return streamingWriteToStorageRateMap;
+    public long getStreamingWriteToStorageBytes(String topic) {
+        LongAdder bytes = this.streamingWriteToStorageBytesMap.remove(topic);
+        return null == bytes ? 0L : bytes.sum();
     }
 
     @Override
-    public Map<String, Rate> getStreamingWriteToStorageErrors() {
-        return streamingWriteToStorageErrorMap;
-    }
-
-    public void removeTopicIfExist(String topicName) {
-        offloadTimeMap.remove(topicName);
-        offloadErrorMap.remove(topicName);
-        offloadRateMap.remove(topicName);
-        readLedgerLatencyBucketsMap.remove(topicName);
-        writeToStorageLatencyBucketsMap.remove(topicName);
-        writeToStorageErrorMap.remove(topicName);
-        streamingWriteToStorageRateMap.remove(topicName);
-        streamingWriteToStorageErrorMap.remove(topicName);
-        readOffloadDataRateMap.remove(topicName);
-        readOffloadErrorMap.remove(topicName);
-        readOffloadIndexLatencyBucketsMap.remove(topicName);
-        readOffloadDataLatencyBucketsMap.remove(topicName);
+    public long getStreamingWriteToStorageErrors(String topic) {
+        LongAdder errors = this.streamingWriteToStorageErrorMap.remove(topic);
+        return null == errors ? 0L : errors.sum();
     }
 
 
     @Override
-    public Map<String, StatsBuckets> getReadOffloadIndexLatencyBuckets() {
-        return readOffloadIndexLatencyBucketsMap;
+    public StatsBuckets getReadOffloadIndexLatencyBuckets(String topic) {
+        return this.readOffloadIndexLatencyBucketsMap.remove(topic);
     }
 
     @Override
-    public Map<String, StatsBuckets> getReadOffloadDataLatencyBuckets() {
-        return readOffloadDataLatencyBucketsMap;
+    public StatsBuckets getReadOffloadDataLatencyBuckets(String topic) {
+        return this.readOffloadDataLatencyBucketsMap.remove(topic);
     }
 
     @Override
-    public Map<String, Rate> getReadOffloadRates() {
-        return readOffloadDataRateMap;
+    public long getReadOffloadBytes(String topic) {
+        LongAdder bytes = this.readOffloadDataBytesMap.remove(topic);
+        return null == bytes ? 0L : bytes.sum();
     }
 
     @Override
-    public Map<String, Rate> getReadOffloadErrors() {
-        return readOffloadErrorMap;
+    public long getReadOffloadErrors(String topic) {
+        LongAdder errors = this.readOffloadErrorMap.remove(topic);
+        return null == errors ? 0L : errors.sum();
     }
-
 
     public void recordOffloadTime(String topicName, long time, TimeUnit unit) {
         if (topicName == null) {
             return;
         }
-        Rate adder = offloadTimeMap.computeIfAbsent(topicName, k -> new Rate());
-        adder.recordEvent(unit.toMillis(time));
-        accessTopic(topicName);
+        LongAdder adder = offloadTimeMap.computeIfAbsent(topicName, k -> new LongAdder());
+        adder.add(unit.toMillis(time));
     }
+
 
     public void recordOffloadError(String topicName) {
         if (topicName == null) {
             return;
         }
-        Rate adder = offloadErrorMap.computeIfAbsent(topicName, k -> new Rate());
-        adder.recordEvent(1);
-        accessTopic(topicName);
+        LongAdder adder = offloadErrorMap.computeIfAbsent(topicName, k -> new LongAdder());
+        adder.add(1L);
     }
 
-    public void recordOffloadRate(String topicName, int size) {
+    public void recordOffloadBytes(String topicName, int size) {
         if (topicName == null) {
             return;
         }
-        Rate rate = offloadRateMap.computeIfAbsent(topicName, k -> new Rate());
-        rate.recordEvent(size);
-        accessTopic(topicName);
+        LongAdder adder = offloadBytesMap.computeIfAbsent(topicName, k -> new LongAdder());
+        adder.add(size);
     }
 
     public void recordReadLedgerLatency(String topicName, long latency, TimeUnit unit) {
@@ -223,7 +176,6 @@ public class LedgerOffloaderMXBeanImpl implements LedgerOffloaderMXBean {
         StatsBuckets statsBuckets = readLedgerLatencyBucketsMap.computeIfAbsent(topicName,
                 k -> new StatsBuckets(READ_ENTRY_LATENCY_BUCKETS_USEC));
         statsBuckets.addValue(unit.toMicros(latency));
-        accessTopic(topicName);
     }
 
     public void recordWriteToStorageLatency(String topicName, long latency, TimeUnit unit) {
@@ -233,34 +185,30 @@ public class LedgerOffloaderMXBeanImpl implements LedgerOffloaderMXBean {
         StatsBuckets statsBuckets = writeToStorageLatencyBucketsMap.computeIfAbsent(topicName,
                 k -> new StatsBuckets(READ_ENTRY_LATENCY_BUCKETS_USEC));
         statsBuckets.addValue(unit.toMicros(latency));
-        accessTopic(topicName);
     }
 
     public void recordWriteToStorageError(String topicName) {
         if (topicName == null) {
             return;
         }
-        Rate adder = writeToStorageErrorMap.computeIfAbsent(topicName, k -> new Rate());
-        adder.recordEvent(1);
-        accessTopic(topicName);
+        LongAdder adder = writeToStorageErrorMap.computeIfAbsent(topicName, k -> new LongAdder());
+        adder.add(1L);
     }
 
-    public void recordStreamingWriteToStorageRate(String topicName, int size) {
+    public void recordStreamingWriteToStorageBytes(String topicName, int size) {
         if (topicName == null) {
             return;
         }
-        Rate rate = streamingWriteToStorageRateMap.computeIfAbsent(topicName, k -> new Rate());
-        rate.recordEvent(size);
-        accessTopic(topicName);
+        LongAdder adder = streamingWriteToStorageBytesMap.computeIfAbsent(topicName, k -> new LongAdder());
+        adder.add(size);
     }
 
     public void recordStreamingWriteToStorageError(String topicName) {
         if (topicName == null) {
             return;
         }
-        Rate adder = streamingWriteToStorageErrorMap.computeIfAbsent(topicName, k -> new Rate());
-        adder.recordEvent(1);
-        accessTopic(topicName);
+        LongAdder adder = streamingWriteToStorageErrorMap.computeIfAbsent(topicName, k -> new LongAdder());
+        adder.add(1L);
     }
 
 
@@ -268,18 +216,16 @@ public class LedgerOffloaderMXBeanImpl implements LedgerOffloaderMXBean {
         if (topicName == null) {
             return;
         }
-        Rate adder = readOffloadErrorMap.computeIfAbsent(topicName, k -> new Rate());
-        adder.recordEvent(1);
-        accessTopic(topicName);
+        LongAdder adder = readOffloadErrorMap.computeIfAbsent(topicName, k -> new LongAdder());
+        adder.add(1L);
     }
 
-    public void recordReadOffloadRate(String topicName, int size) {
+    public void recordReadOffloadBytes(String topicName, int size) {
         if (topicName == null) {
             return;
         }
-        Rate rate = readOffloadDataRateMap.computeIfAbsent(topicName, k -> new Rate());
-        rate.recordEvent(size);
-        accessTopic(topicName);
+        LongAdder adder = readOffloadDataBytesMap.computeIfAbsent(topicName, k -> new LongAdder());
+        adder.add(size);
     }
 
     public void recordReadOffloadIndexLatency(String topicName, long latency, TimeUnit unit) {
@@ -289,7 +235,6 @@ public class LedgerOffloaderMXBeanImpl implements LedgerOffloaderMXBean {
         StatsBuckets statsBuckets = readOffloadIndexLatencyBucketsMap.computeIfAbsent(topicName,
                 k -> new StatsBuckets(READ_ENTRY_LATENCY_BUCKETS_USEC));
         statsBuckets.addValue(unit.toMicros(latency));
-        accessTopic(topicName);
     }
 
     public void recordReadOffloadDataLatency(String topicName, long latency, TimeUnit unit) {
@@ -299,7 +244,5 @@ public class LedgerOffloaderMXBeanImpl implements LedgerOffloaderMXBean {
         StatsBuckets statsBuckets = readOffloadDataLatencyBucketsMap.computeIfAbsent(topicName,
                 k -> new StatsBuckets(READ_ENTRY_LATENCY_BUCKETS_USEC));
         statsBuckets.addValue(unit.toMicros(latency));
-        accessTopic(topicName);
     }
-
 }

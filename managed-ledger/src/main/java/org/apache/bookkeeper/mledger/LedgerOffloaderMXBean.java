@@ -18,12 +18,9 @@
  */
 package org.apache.bookkeeper.mledger;
 
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
-import org.apache.pulsar.common.stats.Rate;
 
 
 /**
@@ -40,97 +37,87 @@ public interface LedgerOffloaderMXBean {
      */
     String getDriverName();
 
-
-    /**
-     * Refresh offloader stats.
-     *
-     */
-    void refreshStats(long period, TimeUnit unit);
-
-
-
     /**
      * Record the offload total time.
      *
      * @return offload time per topic.
      */
-    Map<String, Rate> getOffloadTimes();
+    long getOffloadTime(String topic);
 
     /**
      * Record the offload error count.
      *
      * @return offload errors per topic.
      */
-    Map<String, Rate> getOffloadErrors();
+    long getOffloadErrors(String topic);
 
     /**
      * Record the offload rate to storage.
      *
      * @return offload rate per topic.
      */
-    Map<String, Rate> getOffloadRates();
-
+    long getOffloadBytes(String topic);
 
     /**
      * Record the read ledger latency.
      *
      * @return read ledger latency per topic.
      */
-    Map<String, StatsBuckets> getReadLedgerLatencyBuckets();
+    StatsBuckets getReadLedgerLatencyBuckets(String topic);
 
     /**
      * Record the write latency to tiered storage.
      *
      * @return write to storage latency per topic.
      */
-    Map<String, StatsBuckets> getWriteToStorageLatencyBuckets();
+    StatsBuckets getWriteToStorageLatencyBuckets(String topic);
 
     /**
      * Record the write to storage error count.
      *
      * @return write to storage errors per topic.
      */
-    Map<String, Rate> getWriteToStorageErrors();
+    long getWriteToStorageErrors(String topic);
 
     /**
      * Record read offload index latency.
      *
      * @return read offload index latency per topic.
      */
-    Map<String, StatsBuckets> getReadOffloadIndexLatencyBuckets();
+    StatsBuckets getReadOffloadIndexLatencyBuckets(String topic);
 
     /**
      * Record read offload data latency.
      *
      * @return read offload data latency per topic.
      */
-    Map<String, StatsBuckets> getReadOffloadDataLatencyBuckets();
+    StatsBuckets getReadOffloadDataLatencyBuckets(String topic);
 
     /**
      * Record read offload method rate.
      *
      * @return read offload data rate.
      */
-    Map<String, Rate> getReadOffloadRates();
+    long getReadOffloadBytes(String topic);
 
     /**
      * Record read offload error count.
      *
      * @return read offload data errors.
      */
-    Map<String, Rate> getReadOffloadErrors();
+    long getReadOffloadErrors(String topic);
 
     /**
      * Record streaming read offload method rate.
      *
      * @return streaming write to storage rate per topic.
      */
-    Map<String, Rate> getStreamingWriteToStorageRates();
+    long getStreamingWriteToStorageBytes(String topic);
 
     /**
      * Record streaming read offload error count.
      *
      * @return streaming write to storage errors per topic.
      */
-    Map<String, Rate> getStreamingWriteToStorageErrors();
+    long getStreamingWriteToStorageErrors(String topic);
 }

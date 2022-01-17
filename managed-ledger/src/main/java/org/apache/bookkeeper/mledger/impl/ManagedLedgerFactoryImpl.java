@@ -243,24 +243,15 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         long period = now - lastStatTimestamp;
 
         mbean.refreshStats(period, TimeUnit.NANOSECONDS);
-        Set<LedgerOffloader> offloaders = new HashSet<>();
         ledgers.values().forEach(mlfuture -> {
             if (mlfuture.isDone() && !mlfuture.isCompletedExceptionally()) {
                 ManagedLedgerImpl ml = mlfuture.getNow(null);
                 if (ml != null) {
                     ml.mbean.refreshStats(period, TimeUnit.NANOSECONDS);
-
-                    // do metrics refresh for each offloader
-                    LedgerOffloader offloader = ml.getConfig().getLedgerOffloader();
-                    if (offloader != null && offloader != NullLedgerOffloader.INSTANCE && !offloaders.contains(offloader)) {
-                        offloaders.add(offloader);
-                        offloader.getStats().refreshStats(period, TimeUnit.NANOSECONDS);
-                    }
                 }
             }
         });
 
-        offloaders.clear();
         lastStatTimestamp = now;
     }
 

@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.stats.metrics;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,7 +29,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloaderMXBean;
 import org.apache.bookkeeper.mledger.impl.LedgerOffloaderMXBeanImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.pulsar.broker.PulsarService;
@@ -36,7 +36,6 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
-import org.apache.pulsar.common.stats.Rate;
 
 @Slf4j
 public class LedgerOffloaderMetrics extends AbstractMetrics {
@@ -45,15 +44,20 @@ public class LedgerOffloaderMetrics extends AbstractMetrics {
     private boolean isTopicLevel;
     private String topicName;
     private String nameSpace;
-    private int statsPeriodSeconds;
+    private final double periodInSeconds;
 
     protected static final double[] WRITE_TO_STORAGE_BUCKETS_MS =
             new double[LedgerOffloaderMXBeanImpl.READ_ENTRY_LATENCY_BUCKETS_USEC.length];
+
+    private static final List<String> RATE_METRICS_KEYS = new ArrayList<>(3);
 
     static {
         for (int i = 0; i < LedgerOffloaderMXBeanImpl.READ_ENTRY_LATENCY_BUCKETS_USEC.length; i++) {
             WRITE_TO_STORAGE_BUCKETS_MS[i] = LedgerOffloaderMXBeanImpl.READ_ENTRY_LATENCY_BUCKETS_USEC[i] / 1000.0;
         }
+        RATE_METRICS_KEYS.add("brk_ledgeroffloader_writeRate");
+        RATE_METRICS_KEYS.add("brk_ledgeroffloader_readOffloadRate");
+        RATE_METRICS_KEYS.add("brk_ledgeroffloader_streamingWriteRate");
     }
 
     private static final Buckets WRITE_TO_STORAGE_BUCKETS =
@@ -68,6 +72,9 @@ public class LedgerOffloaderMetrics extends AbstractMetrics {
     private static final Buckets READ_OFFLOAD_DATA_LATENCY_BUCKETS =
             new Buckets("brk_readOffload_dataLatencyBuckets", WRITE_TO_STORAGE_BUCKETS_MS);
 
+    //when the offload metrics was collected
+    private static long collectedUtc = System.currentTimeMillis();
+
     public LedgerOffloaderMetrics(PulsarService pulsar, boolean isTopicLevel, String nameSpace, String topicName) {
         super(pulsar);
         this.metricsCollection = Lists.newArrayList();
@@ -75,86 +82,76 @@ public class LedgerOffloaderMetrics extends AbstractMetrics {
         this.nameSpace = nameSpace;
         this.topicName = topicName;
         this.tempAggregatedMetricsMap = Maps.newHashMap();
-        statsPeriodSeconds = ((ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory())
-                .getConfig().getStatsPeriodSeconds();
+        this.periodInSeconds = (System.currentTimeMillis() - collectedUtc) / 1000D;
     }
 
     @Override
     public synchronized List<Metrics> generate() {
-        if (isTopicLevel) {
-            return aggregateInTopicLevel();
-        } else {
-            return aggregateByNameSpace();
-        }
+        return isTopicLevel ? aggregateInTopicLevel() : aggregateByNameSpace();
     }
 
-    private Map<String, Double> aggregate(Map<String, Double> tempAggregatedMetricsMap, String topicName) {
+    private void aggregate(Map<String, Double> tempAggregatedMetricsMap, String topicName) {
         String managedLedgerName = "";
         try {
             Optional<Topic> existedTopic = pulsar.getBrokerService().getTopicIfExists(topicName).get();
             if (!existedTopic.isPresent()) {
-                return tempAggregatedMetricsMap;
+                return;
             }
             Topic topic = existedTopic.get();
             if (!(topic instanceof PersistentTopic)) {
-                return tempAggregatedMetricsMap;
+                return;
             }
             LedgerOffloader ledgerOffloader =
                     ((PersistentTopic) topic).getManagedLedger().getConfig().getLedgerOffloader();
             LedgerOffloaderMXBean mbean = ledgerOffloader.getStats();
             managedLedgerName = ((PersistentTopic) topic).getManagedLedger().getName();
             if (ledgerOffloader == NullLedgerOffloader.INSTANCE || mbean == null) {
-                return tempAggregatedMetricsMap;
+                return;
             }
+
             populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ledgeroffloader_offloadError",
-                    (double) mbean.getOffloadErrors().getOrDefault(managedLedgerName, new Rate()).getCount());
+                    mbean.getOffloadErrors(managedLedgerName));
             populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ledgeroffloader_offloadTime",
-                    mbean.getOffloadTimes().getOrDefault(managedLedgerName, new Rate()).getAverageValue());
+                    mbean.getOffloadTime(managedLedgerName));
             populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ledgeroffloader_writeRate",
-                    mbean.getOffloadRates().getOrDefault(managedLedgerName, new Rate()).getValueRate());
-            StatsBuckets statsBuckets = mbean.getReadLedgerLatencyBuckets().get(managedLedgerName);
+                    mbean.getOffloadBytes(managedLedgerName));
+            StatsBuckets statsBuckets = mbean.getReadLedgerLatencyBuckets(managedLedgerName);
             if (statsBuckets != null) {
                 READ_LEDGER_LATENCY_BUCKETS.populateBucketEntries(tempAggregatedMetricsMap,
-                        statsBuckets.getBuckets(),
-                        statsPeriodSeconds);
+                        statsBuckets.getBuckets(), 1);
             }
-            statsBuckets = mbean.getWriteToStorageLatencyBuckets().get(managedLedgerName);
+            statsBuckets = mbean.getWriteToStorageLatencyBuckets(managedLedgerName);
             if (statsBuckets != null) {
                 WRITE_TO_STORAGE_BUCKETS.populateBucketEntries(tempAggregatedMetricsMap,
-                        statsBuckets.getBuckets(),
-                        statsPeriodSeconds);
+                        statsBuckets.getBuckets(), 1);
             }
             populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ledgeroffloader_writeError",
-                    (double) mbean.getWriteToStorageErrors().getOrDefault(managedLedgerName, new Rate()).getCount());
+                    mbean.getWriteToStorageErrors(managedLedgerName));
 
-            statsBuckets = mbean.getReadOffloadIndexLatencyBuckets().get(managedLedgerName);
+            statsBuckets = mbean.getReadOffloadIndexLatencyBuckets(managedLedgerName);
             if (statsBuckets != null) {
                 READ_OFFLOAD_INDEX_LATENCY_BUCKETS.populateBucketEntries(tempAggregatedMetricsMap,
-                        statsBuckets.getBuckets(),
-                        statsPeriodSeconds);
+                        statsBuckets.getBuckets(), 1);
             }
-            statsBuckets = mbean.getReadOffloadDataLatencyBuckets().get(managedLedgerName);
+            statsBuckets = mbean.getReadOffloadDataLatencyBuckets(managedLedgerName);
             if (statsBuckets != null) {
                 READ_OFFLOAD_DATA_LATENCY_BUCKETS.populateBucketEntries(tempAggregatedMetricsMap,
-                        statsBuckets.getBuckets(),
-                        statsPeriodSeconds);
+                        statsBuckets.getBuckets(), 1);
             }
             populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ledgeroffloader_readOffloadError",
-                    (double) mbean.getReadOffloadErrors().getOrDefault(managedLedgerName, new Rate()).getCount());
+                    mbean.getReadOffloadErrors(managedLedgerName));
             populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ledgeroffloader_readOffloadRate",
-                    mbean.getReadOffloadRates().getOrDefault(managedLedgerName, new Rate()).getValueRate());
+                    mbean.getReadOffloadBytes(managedLedgerName));
             // streaming offload
             populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ledgeroffloader_streamingWriteRate",
-                    mbean.getStreamingWriteToStorageRates().getOrDefault(managedLedgerName, new Rate()).getValueRate());
+                    mbean.getStreamingWriteToStorageBytes(managedLedgerName));
             populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ledgeroffloader_streamingWriteError",
-                    (double) mbean.getStreamingWriteToStorageErrors().
-                            getOrDefault(managedLedgerName, new Rate()).getCount());
+                    mbean.getStreamingWriteToStorageErrors(managedLedgerName));
         } catch (Exception e) {
             log.error("aggregate ledger offload metrics for topic: {} managedLedgerName {} failed ",
                     topicName, managedLedgerName, e);
         }
 
-        return tempAggregatedMetricsMap;
     }
 
     /**
@@ -170,11 +167,8 @@ public class LedgerOffloaderMetrics extends AbstractMetrics {
         dimensionMap.put("topic", topicName);
         Metrics metrics = createMetrics(dimensionMap);
         aggregate(tempAggregatedMetricsMap, topicName);
-        for (Map.Entry<String, Double> ma : tempAggregatedMetricsMap.entrySet()) {
-            metrics.put(ma.getKey(), ma.getValue());
-        }
+        this.parseMetricsValue(metrics);
         metricsCollection.add(metrics);
-
         return metricsCollection;
     }
 
@@ -197,11 +191,23 @@ public class LedgerOffloaderMetrics extends AbstractMetrics {
                 aggregate(tempAggregatedMetricsMap, topicName);
             });
         });
-
-        for (Map.Entry<String, Double> ma : tempAggregatedMetricsMap.entrySet()) {
-            metrics.put(ma.getKey(), ma.getValue());
-        }
+        this.parseMetricsValue(metrics);
         metricsCollection.add(metrics);
         return metricsCollection;
+    }
+
+
+    private void parseMetricsValue(Metrics metrics) {
+        for (Map.Entry<String, Double> ma : tempAggregatedMetricsMap.entrySet()) {
+            String metricsKey = ma.getKey();
+            double value = ma.getValue();
+            value = RATE_METRICS_KEYS.contains(metricsKey) ? value / this.periodInSeconds : value;
+            metrics.put(metricsKey, value);
+        }
+    }
+
+
+    public static void resetCollectedUtc() {
+        collectedUtc = System.currentTimeMillis();
     }
 }

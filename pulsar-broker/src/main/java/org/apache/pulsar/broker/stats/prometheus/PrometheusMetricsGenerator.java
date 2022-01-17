@@ -202,6 +202,7 @@ public class PrometheusMetricsGenerator {
                 }
             });
         }
+        LedgerOffloaderMetrics.resetCollectedUtc();
         if (metricList.size() > 0) {
             String clusterName = pulsar.getConfiguration().getClusterName();
             parseMetricsToPrometheusMetrics(metricList, clusterName, Collector.Type.GAUGE, stream);

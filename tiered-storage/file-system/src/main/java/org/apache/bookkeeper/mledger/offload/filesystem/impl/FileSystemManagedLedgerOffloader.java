@@ -312,7 +312,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                         break;
                     }
                     haveOffloadEntryNumber.incrementAndGet();
-                    ledgerReader.mxBean.recordOffloadRate(managedLedgerName, entry.getEntryBytes().length);
+                    ledgerReader.mxBean.recordOffloadBytes(managedLedgerName, entry.getEntryBytes().length);
                 }
                 long writeEntryTimeInNs = System.nanoTime() - start;
                 ledgerReader.mxBean.recordWriteToStorageLatency(managedLedgerName, writeEntryTimeInNs, TimeUnit.NANOSECONDS);

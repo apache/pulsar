@@ -136,7 +136,7 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
                         buf.writeBytes(value.copyBytes());
                         entriesToRead--;
                         nextExpectedId++;
-                        this.mxBean.recordReadOffloadRate(managedLedgerName, length);
+                        this.mxBean.recordReadOffloadBytes(managedLedgerName, length);
                     } else if (entryId > lastEntry) {
                         log.info("Expected to read {}, but read {}, which is greater than last entry {}",
                                 nextExpectedId, entryId, lastEntry);

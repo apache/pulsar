@@ -150,7 +150,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                         }
                         entriesToRead--;
                         nextExpectedId++;
-                        this.mxBean.recordReadOffloadRate(managedLedgerName, length);
+                        this.mxBean.recordReadOffloadBytes(managedLedgerName, length);
                     } else if (entryId > nextExpectedId && entryId < lastEntry) {
                         log.warn("The read entry {} is not the expected entry {} but in the range of {} - {},"
                             + " seeking to the right position", entryId, nextExpectedId, nextExpectedId, lastEntry);
