@@ -205,18 +205,18 @@ module.exports = {
               label: "Pulsar Summit",
               href: "https://pulsar-summit.org/",
             },
-            // {
-            //   label: "Resources",
-            //   to: "/:locale/resources",
-            // },
-            // {
-            //   label: "Team",
-            //   to: "/:locale/team",
-            // },
-            // {
-            //   label: "Powered By",
-            //   to: "/:locale/powered-by",
-            // },
+            {
+              label: "Resources",
+              to: "/:locale/resources",
+            },
+            {
+              label: "Team",
+              to: "/:locale/team",
+            },
+            {
+              label: "Powered By",
+              to: "/:locale/powered-by",
+            },
           ],
         },
         {

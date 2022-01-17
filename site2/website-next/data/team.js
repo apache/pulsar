@@ -46,6 +46,11 @@ module.exports = {
       roles: 'Committer, PMC'
     },
     {
+      name: 'David Kjerrumgaard',
+      apacheId: 'david-streamlio',
+      roles: 'Committer'
+    },
+    {
       name: 'Enrico Olivelli',
       apacheId: 'eolivelli',
       roles: 'Committer, PMC'
@@ -63,6 +68,12 @@ module.exports = {
     {
       name: 'Guangning E',
       apacheId: 'guangning',
+      roles: 'Committer'
+    },
+    {
+      name: 'Guo Jiwei',
+      apacheId: 'technoboy',
+      org: 'StreamNative',
       roles: 'Committer'
     },
     {
@@ -153,6 +164,12 @@ module.exports = {
       apacheId: 'mmerli',
       org: 'Streamlio',
       roles: 'Committer, PMC'
+    },
+    {
+      name: 'Michael Marshall',
+      apacheId: 'mmarshall',
+      org: 'DataStax',
+      roles: 'Committer'
     },
     {
       name: 'Nozomi Kurihara',
