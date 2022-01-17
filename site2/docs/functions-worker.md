@@ -127,9 +127,9 @@ If authentication is enabled for your broker cluster, you *should* configure the
 - `clientAuthenticationPlugin`
 - `clientAuthenticationParameters`
 
-#### Customizing Java Runtime Options
+#### Customize Java runtime options
 
-If you want to pass additional arguments to the JVM command line to every process started by the worker
+If you want to pass additional arguments to the JVM command line to every process started by a function worker,
 you can configure the `additionalJavaRuntimeArguments` parameter.
 
 ```
@@ -140,7 +140,8 @@ This is very useful in case you want to:
 - add JMV flags, like `-XX:+ExitOnOutOfMemoryError`
 - pass custom system properties, like `-Dlog4j2.formatMsgNoLookups`
 
-Please note that this feature applies only to Process and Kubernetes runtimes.
+**Note**
+This feature applies only to Process and Kubernetes runtimes.
 
 #### Security settings
 
