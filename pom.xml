@@ -156,6 +156,7 @@ flexible messaging model and an intuitive client API.</description>
     <hdfs-offload-version3>3.3.3</hdfs-offload-version3>
     <json-smart.version>2.4.7</json-smart.version>
     <opensearch.version>1.2.4</opensearch.version>
+    <elasticsearch.version>7.9.1</elasticsearch.version>
     <presto.version>332</presto.version>
     <scala.binary.version>2.13</scala.binary.version>
     <scala-library.version>2.13.10</scala-library.version>
