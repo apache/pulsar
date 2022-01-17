@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.common.util.keystoretls;
 
+import java.util.Set;
 import javax.net.ssl.SSLContext;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
-
-import java.util.Set;
 
 /**
  * SslContextFactoryWithAutoRefresh that create SSLContext for web server, and refresh in time.

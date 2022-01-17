@@ -23,13 +23,12 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeSet;
 import com.google.common.collect.TreeRangeSet;
-import lombok.EqualsAndHashCode;
-
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import lombok.EqualsAndHashCode;
 
 /**
  * A set comprising zero or more ranges type of key-value pair.

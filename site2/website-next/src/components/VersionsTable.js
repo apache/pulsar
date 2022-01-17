@@ -40,7 +40,10 @@ export default function VersionsTable(props) {
                 )}
                 underline="none"
                 onClick={() => {
-                  localStorage.setItem("version", row.name);
+                  localStorage.setItem(
+                    "version",
+                    row.name == "next" ? "master" : row.name
+                  );
                 }}
               >
                 <Translate>Documentation</Translate>

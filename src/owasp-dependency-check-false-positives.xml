@@ -47,6 +47,11 @@
     <gav regex="true">org\.apache\.avro:.*</gav>
     <cve>CVE-2019-17195</cve>
   </suppress>
+  <suppress>
+    <notes>CVE-2021-43045 affects only .NET distro, see https://github.com/apache/avro/pull/1357</notes>
+    <gav regex="true">org\.apache\.avro:.*</gav>
+    <cve>CVE-2021-43045</cve>
+  </suppress>
   <suppress base="true">
     <notes><![CDATA[
         FP per #3889

@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.util.collections;
 
 import static java.util.Objects.requireNonNull;
-
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import java.util.ArrayList;
