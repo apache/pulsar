@@ -34,6 +34,7 @@ import org.apache.bookkeeper.net.BookieNode;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.proto.BookieAddressResolver;
 import org.apache.commons.configuration.Configuration;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.metadata.api.MetadataCache;
@@ -130,7 +131,6 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         return racks;
     }
 
-    @SuppressWarnings("checkstyle:RegexpSinglelineJava")
     private String getRack(String bookieAddress) {
         try {
             // Trigger load of z-node in case it didn't exist
@@ -161,7 +161,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         }
 
         if (bi != null
-                && !com.google.api.client.util.Strings.isNullOrEmpty(bi.getRack())
+                && !StringUtils.isEmpty(bi.getRack())
                 && !bi.getRack().trim().equals("/")) {
             String rack = bi.getRack();
             if (!rack.startsWith("/")) {
