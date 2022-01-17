@@ -211,7 +211,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
         for (int i = 0; i < 505; i++) {
-            producer.newMessage().value("messages for test transaction consumer".getBytes()).send();
+            producer.newMessage().value(("messages [" + i + "] for test transaction consumer").getBytes()).send();
         }
         Thread thread = new Thread(() -> {
             try {
@@ -232,8 +232,19 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
             Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
         }
-        Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
-        Assert.assertNull(message);
-    }
+        while (true) {
+            Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
+            if (message != null) {
+                String value = new String(message.getData());
+                String values [] = value.split("\\[");
+                values = values[1].split("\\]");
+                if (Integer.parseInt(values[0]) >= 500) {
+                    fail();
+                }
+            } else {
+                break;
+            }
+        }
 
+    }
 }
