@@ -1080,22 +1080,42 @@ public abstract class PulsarWebResource {
     }
 
     public void validateTopicOperation(TopicName topicName, TopicOperation operation, String subscription) {
+        try {
+            validateTopicOperationAsync(topicName, operation, subscription).get();
+        } catch (InterruptedException | ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof WebApplicationException){
+                throw (WebApplicationException) cause;
+            } else {
+                throw new RestException(cause);
+            }
+        }
+    }
+
+    public CompletableFuture<Void> validateTopicOperationAsync(TopicName topicName, TopicOperation operation) {
+       return validateTopicOperationAsync(topicName, operation, null);
+    }
+
+    public CompletableFuture<Void> validateTopicOperationAsync(TopicName topicName,
+                                                               TopicOperation operation, String subscription) {
         if (pulsar().getConfiguration().isAuthenticationEnabled()
                 && pulsar().getBrokerService().isAuthorizationEnabled()) {
             if (!isClientAuthenticated(clientAppId())) {
                 throw new RestException(Status.UNAUTHORIZED, "Need to authenticate to perform the request");
             }
-
             AuthenticationDataHttps authData = clientAuthData();
             authData.setSubscription(subscription);
-
-            Boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
-                    .allowTopicOperation(topicName, operation, originalPrincipal(), clientAppId(), authData);
-
-            if (!isAuthorized) {
-                throw new RestException(Status.UNAUTHORIZED, String.format("Unauthorized to validateTopicOperation for"
-                        + " operation [%s] on topic [%s]", operation.toString(), topicName));
-            }
+            return pulsar().getBrokerService().getAuthorizationService()
+                    .allowTopicOperationAsync(topicName, operation, originalPrincipal(), clientAppId(), authData)
+                    .thenAccept(isAuthorized -> {
+                        if (!isAuthorized) {
+                            throw new RestException(Status.UNAUTHORIZED, String.format(
+                                    "Unauthorized to validateTopicOperation for operation [%s] on topic [%s]",
+                                    operation.toString(), topicName));
+                        }
+                    });
+        } else {
+            return CompletableFuture.completedFuture(null);
         }
     }
 
