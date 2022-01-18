@@ -67,6 +67,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -258,24 +259,36 @@ public class PersistentTopicsBase extends AdminResource {
         validateTopicOwnership(topicName, authoritative);
     }
 
-    private void grantPermissions(String topicUri, String role, Set<AuthAction> actions) {
+    private void grantPermissions(TopicName topicUri, String role, Set<AuthAction> actions) {
         try {
-            namespaceResources().setPolicies(namespaceName, policies -> {
-                if (!policies.auth_policies.getTopicAuthentication().containsKey(topicUri)) {
-                    policies.auth_policies.getTopicAuthentication().put(topicUri, new HashMap<>());
-                }
-
-                policies.auth_policies.getTopicAuthentication().get(topicUri).put(role, actions);
-                return policies;
-            });
+            AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
+            if (null != authService) {
+                authService.grantPermissionAsync(topicUri, actions, role, null/*additional auth-data json*/).get();
+            } else {
+                throw new RestException(Status.NOT_IMPLEMENTED, "Authorization is not enabled");
+            }
             log.info("[{}] Successfully granted access for role {}: {} - topic {}", clientAppId(), role, actions,
                     topicUri);
-        } catch (MetadataStoreException.NotFoundException e) {
-            log.warn("[{}] Failed to grant permissions on topic {}: Namespace does not exist", clientAppId(), topicUri);
-            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-        } catch (Exception e) {
-            log.error("[{}] Failed to grant permissions for topic {}", clientAppId(), topicUri, e);
+        } catch (InterruptedException e) {
+            log.error("[{}] Failed to get permissions for topic {}", clientAppId(), topicUri, e);
             throw new RestException(e);
+        } catch (ExecutionException e) {
+            // The IllegalArgumentException and the IllegalStateException were historically thrown by the
+            // grantPermissionAsync method, so we catch them here to ensure backwards compatibility.
+            if (e.getCause() instanceof MetadataStoreException.NotFoundException
+                    || e.getCause() instanceof IllegalArgumentException) {
+                log.warn("[{}] Failed to set permissions for topic {}: Namespace does not exist", clientAppId(),
+                        topicUri, e);
+                throw new RestException(Status.NOT_FOUND, "Topic's namespace does not exist");
+            } else if (e.getCause() instanceof MetadataStoreException.BadVersionException
+                    || e.getCause() instanceof IllegalStateException) {
+                log.warn("[{}] Failed to set permissions for topic {}: {}",
+                        clientAppId(), topicUri, e.getCause().getMessage(), e);
+                throw new RestException(Status.CONFLICT, "Concurrent modification");
+            } else {
+                log.error("[{}] Failed to get permissions for topic {}", clientAppId(), topicUri, e);
+                throw new RestException(e);
+            }
         }
     }
 
@@ -289,10 +302,10 @@ public class PersistentTopicsBase extends AdminResource {
         if (numPartitions > 0) {
             for (int i = 0; i < numPartitions; i++) {
                 TopicName topicNamePartition = topicName.getPartition(i);
-                grantPermissions(topicNamePartition.toString(), role, actions);
+                grantPermissions(topicNamePartition, role, actions);
             }
         }
-        grantPermissions(topicName.toString(), role, actions);
+        grantPermissions(topicName, role, actions);
     }
 
     protected void internalDeleteTopicForcefully(boolean authoritative, boolean deleteSchema) {
