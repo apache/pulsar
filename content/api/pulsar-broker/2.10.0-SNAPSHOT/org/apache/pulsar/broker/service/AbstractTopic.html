@@ -583,7 +583,8 @@ implements <a href="Topic.html" title="interface in org.apache.pulsar.broker.ser
 </tr>
 <tr id="i47" class="rowColor">
 <td class="colFirst"><code>protected boolean</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isExceedMaximumMessageSize(int)">isExceedMaximumMessageSize</a></span>&#8203;(int&nbsp;size)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isExceedMaximumMessageSize(int,org.apache.pulsar.broker.service.Topic.PublishContext)">isExceedMaximumMessageSize</a></span>&#8203;(int&nbsp;size,
+                          <a href="Topic.PublishContext.html" title="interface in org.apache.pulsar.broker.service">Topic.PublishContext</a>&nbsp;publishContext)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i48" class="altColor">
@@ -1712,13 +1713,14 @@ implements <a href="Topic.html" title="interface in org.apache.pulsar.broker.ser
 <pre class="methodSignature">protected&nbsp;int&nbsp;getWaitingProducersCount()</pre>
 </li>
 </ul>
-<a id="isExceedMaximumMessageSize(int)">
+<a id="isExceedMaximumMessageSize(int,org.apache.pulsar.broker.service.Topic.PublishContext)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>isExceedMaximumMessageSize</h4>
-<pre class="methodSignature">protected&nbsp;boolean&nbsp;isExceedMaximumMessageSize&#8203;(int&nbsp;size)</pre>
+<pre class="methodSignature">protected&nbsp;boolean&nbsp;isExceedMaximumMessageSize&#8203;(int&nbsp;size,
+                                             <a href="Topic.PublishContext.html" title="interface in org.apache.pulsar.broker.service">Topic.PublishContext</a>&nbsp;publishContext)</pre>
 </li>
 </ul>
 <a id="updatePublishDispatcher(org.apache.pulsar.common.policies.data.PublishRate)">
