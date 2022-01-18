@@ -1209,25 +1209,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 CompletableFuture<Void> backlogQuotaCheckFuture = CompletableFuture.allOf(
                         topic.checkBacklogQuotaExceeded(producerName, BacklogQuotaType.destination_storage),
                         topic.checkBacklogQuotaExceeded(producerName, BacklogQuotaType.message_age));
-                backlogQuotaCheckFuture.exceptionally(throwable -> {
-                    //throwable should be CompletionException holding TopicBacklogQuotaExceededException
-                    BrokerServiceException.TopicBacklogQuotaExceededException exception =
-                            (BrokerServiceException.TopicBacklogQuotaExceededException) throwable.getCause();
-                    IllegalStateException illegalStateException = new IllegalStateException(exception);
-                    BacklogQuota.RetentionPolicy retentionPolicy = exception.getRetentionPolicy();
-                    if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_request_hold) {
-                        commandSender.sendErrorResponse(requestId,
-                                ServerError.ProducerBlockedQuotaExceededError,
-                                illegalStateException.getMessage());
-                    } else if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_exception) {
-                        commandSender.sendErrorResponse(requestId,
-                                ServerError.ProducerBlockedQuotaExceededException,
-                                illegalStateException.getMessage());
-                    }
-                    producerFuture.completeExceptionally(illegalStateException);
-                    producers.remove(producerId, producerFuture);
-                    return null;
-                });
 
                 backlogQuotaCheckFuture.thenRun(() -> {
                     // Check whether the producer will publish encrypted messages or not
@@ -1274,6 +1255,25 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 return backlogQuotaCheckFuture;
             }).exceptionally(exception -> {
                 Throwable cause = exception.getCause();
+                if (cause instanceof BrokerServiceException.TopicBacklogQuotaExceededException) {
+                    BrokerServiceException.TopicBacklogQuotaExceededException tbqe =
+                            (BrokerServiceException.TopicBacklogQuotaExceededException) cause;
+                    IllegalStateException illegalStateException = new IllegalStateException(tbqe);
+                    BacklogQuota.RetentionPolicy retentionPolicy = tbqe.getRetentionPolicy();
+                    if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_request_hold) {
+                        commandSender.sendErrorResponse(requestId,
+                                ServerError.ProducerBlockedQuotaExceededError,
+                                illegalStateException.getMessage());
+                    } else if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_exception) {
+                        commandSender.sendErrorResponse(requestId,
+                                ServerError.ProducerBlockedQuotaExceededException,
+                                illegalStateException.getMessage());
+                    }
+                    producerFuture.completeExceptionally(illegalStateException);
+                    producers.remove(producerId, producerFuture);
+                    return null;
+                }
+
                 if (cause instanceof NoSuchElementException) {
                     cause = new TopicNotFoundException("Topic Not Found.");
                 }
