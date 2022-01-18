@@ -888,7 +888,8 @@ public abstract class PulsarWebResource {
             && pulsar().getBrokerService().isAuthorizationEnabled()) {
             if (!isClientAuthenticated(clientAppId())) {
                 return FutureUtil
-                        .failedFuture(new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request"));
+                        .failedFuture(new RestException(Status.FORBIDDEN,
+                                "Need to authenticate to perform the request"));
             }
 
             return pulsar().getBrokerService().getAuthorizationService()
@@ -898,7 +899,7 @@ public abstract class PulsarWebResource {
                         if (!isAuthorized) {
                             throw new RestException(Status.FORBIDDEN,
                                     String.format("Unauthorized to validateNamespaceOperation for"
-                                            + " operation [%s] on namespace [%s]", operation.toString(), namespaceName));
+                                        + " operation [%s] on namespace [%s]", operation.toString(), namespaceName));
                         }
                     });
         }
