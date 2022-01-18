@@ -124,7 +124,7 @@ public class NamespaceBundle implements ServiceUnitId, Comparable<NamespaceBundl
         return bundleRange;
     }
 
-    public static String getKey(NamespaceName nsname, Range<Long> keyRange) {
+    private static String getKey(NamespaceName nsname, Range<Long> keyRange) {
         return String.format("%s/0x%08x_0x%08x", nsname, keyRange.lowerEndpoint(), keyRange.upperEndpoint());
     }
 

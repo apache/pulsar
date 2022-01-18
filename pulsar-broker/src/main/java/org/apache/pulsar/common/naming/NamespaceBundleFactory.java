@@ -239,8 +239,7 @@ public class NamespaceBundleFactory {
             NamespaceBundle bundleWithHighestThroughput = null;
             for (NamespaceBundle bundle : bundles.getBundles()) {
                 BundleData bundleData = ((ModularLoadManagerWrapper) loadManager).getLoadManager()
-                        .getBundleDataOrDefault(NamespaceBundle.getKey(bundle.getNamespaceObject(),
-                                bundle.getKeyRange()));
+                        .getBundleDataOrDefault(bundle.toString());
                 if (bundleData.getTopics() > 0
                         && bundleData.getLongTermData().totalMsgThroughput() > maxMsgThroughput) {
                     maxMsgThroughput = bundleData.getLongTermData().totalMsgThroughput();
