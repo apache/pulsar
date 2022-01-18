@@ -129,7 +129,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     @Override
     public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
-        if(!addConsumerIntoRecentlyJoinedConsumers(consumer)){
+        if (!addConsumerIntoRecentlyJoinedConsumers(consumer)) {
             addIntoConsumers(consumer);
         }
     }
