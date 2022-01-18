@@ -560,23 +560,12 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void internalDeletePartitionedTopic(AsyncResponse asyncResponse, boolean authoritative,
                                                   boolean force, boolean deleteSchema) {
-        try {
-            validateNamespaceOperation(topicName.getNamespaceObject(), NamespaceOperation.DELETE_TOPIC);
-            validateTopicOwnership(topicName, authoritative);
-        } catch (WebApplicationException wae) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Failed to delete partitioned topic {}, redirecting to other brokers.",
-                        clientAppId(), topicName, wae);
-            }
-            resumeAsyncResponseExceptionally(asyncResponse, wae);
-            return;
-        } catch (Exception e) {
-            log.error("[{}] Failed to delete partitioned topic {}", clientAppId(), topicName, e);
-            resumeAsyncResponseExceptionally(asyncResponse, e);
-            return;
-        }
+        CompletableFuture<PartitionedTopicMetadata> partitionedTopicMetadataCompletableFuture =
+                validateNamespaceOperationAsync(topicName.getNamespaceObject(), NamespaceOperation.DELETE_TOPIC)
+                .thenApply(__ -> validateTopicOwnershipAsync(topicName, authoritative))
+                .thenCompose(__ -> pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName));
         final CompletableFuture<Void> future = new CompletableFuture<>();
-        pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName).thenAccept(partitionMeta -> {
+        partitionedTopicMetadataCompletableFuture.thenAccept(partitionMeta -> {
             final int numPartitions = partitionMeta.partitions;
             if (numPartitions > 0) {
                 final AtomicInteger count = new AtomicInteger(numPartitions);
@@ -709,6 +698,19 @@ public class PersistentTopicsBase extends AdminResource {
                 log.error("[{}] Failed to delete partitioned topic {}", clientAppId(), topicName, e1);
                 asyncResponse.resume(new RestException(e1));
             }
+        }).exceptionally(ex ->{
+            Throwable cause = ex.getCause();
+            if (cause instanceof  WebApplicationException && ((WebApplicationException) cause).getResponse().getStatus()
+                    == Status.TEMPORARY_REDIRECT.getStatusCode()) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Failed to delete partitioned topic {}, redirecting to other brokers.",
+                            clientAppId(), topicName, cause);
+                }
+            } else {
+                log.error("[{}] Failed to delete partitioned topic {}", clientAppId(), topicName, cause);
+            }
+            resumeAsyncResponseExceptionally(asyncResponse, cause);
+            return null;
         });
     }
 

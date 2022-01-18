@@ -448,21 +448,6 @@ public class AuthorizationService {
         }
     }
 
-    public boolean allowNamespaceOperation(NamespaceName namespaceName,
-                                           NamespaceOperation operation,
-                                           String originalRole,
-                                           String role,
-                                           AuthenticationDataSource authData) {
-        try {
-            return allowNamespaceOperationAsync(
-                    namespaceName, operation, originalRole, role, authData).get();
-        } catch (InterruptedException e) {
-            throw new RestException(e);
-        } catch (ExecutionException e) {
-            throw new RestException(e.getCause());
-        }
-    }
-
     /**
      * Grant authorization-action permission on a namespace to the given client.
      *
