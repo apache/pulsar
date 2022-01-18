@@ -20,21 +20,20 @@ package org.apache.pulsar.broker.authorization;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
+import com.google.common.base.Joiner;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.core.Response;
-import com.google.common.base.Joiner;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.resources.PulsarResources;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PolicyName;
@@ -74,7 +73,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         requireNonNull(pulsarResources, "PulsarResources can't be null");
         this.conf = conf;
         this.pulsarResources = pulsarResources;
-        
+
         // For compatibility, call the old deprecated initialize
         initialize(conf, (ConfigurationCacheService) null);
     }
@@ -132,8 +131,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         case Prefix:
                             if (!subscription.startsWith(role)) {
                                 PulsarServerException ex = new PulsarServerException(String.format(
-                                        "Failed to create consumer - The subscription name needs to be prefixed by the authentication role, like %s-xxxx for topic: %s",
-                                        role, topicName));
+                                        "Failed to create consumer - The subscription name needs to be prefixed by the "
+                                                + "authentication role, like %s-xxxx for topic: %s", role, topicName));
                                 permissionFuture.completeExceptionally(ex);
                                 return;
                             }
@@ -193,7 +192,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                             topicName.toString(), role, ex.getMessage());
                 }
             }
-            canConsumeAsync(topicName, role, authenticationData, null).whenComplete((consumeAuthorized, e) -> {
+            canConsumeAsync(topicName, role, authenticationData, null).whenComplete((consumeAuthorized, e)
+                    -> {
                 if (e == null) {
                     finalResult.complete(consumeAuthorized);
                 } else {
@@ -211,23 +211,21 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     }
 
     @Override
-    public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+    public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,
+                                                            AuthenticationDataSource authenticationData) {
         return allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.functions);
     }
 
     @Override
-    public CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+    public CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName, String role,
+                                                          AuthenticationDataSource authenticationData) {
         return allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.sources);
     }
 
     @Override
-    public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+    public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role,
+                                                        AuthenticationDataSource authenticationData) {
         return allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.sinks);
-    }
-
-    @Override
-    public CompletableFuture<Boolean> allowConsumeOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
-        return allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.consume);
     }
 
     private CompletableFuture<Boolean> allowTheSpecifiedActionOpsAsync(NamespaceName namespaceName, String role,
@@ -526,26 +524,44 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                                                                    String role,
                                                                    NamespaceOperation operation,
                                                                    AuthenticationDataSource authData) {
-        CompletableFuture<Boolean> isAuthorizedFuture;
-        switch (operation) {
-            case PACKAGES:
-                isAuthorizedFuture = allowTheSpecifiedActionOpsAsync(namespaceName, role, authData, AuthAction.packages);
-                break;
-            case GET_TOPICS:
-            case UNSUBSCRIBE:
-                isAuthorizedFuture = allowConsumeOpsAsync(namespaceName, role, authData);
-                break;
-            default:
-                isAuthorizedFuture = CompletableFuture.completedFuture(false);
+        if (log.isDebugEnabled()) {
+            log.debug("Check allowNamespaceOperationAsync [{}] on [{}].", operation.name(), namespaceName);
         }
-        CompletableFuture<Boolean> isTenantAdminFuture = validateTenantAdminAccess(namespaceName.getTenant(), role, authData);
-        return isTenantAdminFuture.thenCombine(isAuthorizedFuture, (isTenantAdmin, isAuthorized) -> {
-            if (log.isDebugEnabled()) {
-                log.debug("Verify if role {} is allowed to {} to topic {}: isTenantAdmin={}, isAuthorized={}",
-                        role, operation, namespaceName, isTenantAdmin, isAuthorized);
-            }
-            return isTenantAdmin || isAuthorized;
-        });
+
+        return validateTenantAdminAccess(namespaceName.getTenant(), role, authData)
+                .thenCompose(isSuperUserOrAdmin -> {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Verify if role {} is allowed to {} to namespace {}: isSuperUserOrAdmin={}",
+                                role, operation, namespaceName, isSuperUserOrAdmin);
+                    }
+                    if (isSuperUserOrAdmin) {
+                        return CompletableFuture.completedFuture(true);
+                    } else {
+                        switch (operation) {
+                            case PACKAGES:
+                                return allowTheSpecifiedActionOpsAsync(
+                                        namespaceName, role, authData, AuthAction.packages);
+                            case GET_TOPIC:
+                            case GET_TOPICS:
+                            case UNSUBSCRIBE:
+                            case CLEAR_BACKLOG:
+                                return allowTheSpecifiedActionOpsAsync(
+                                        namespaceName, role, authData, AuthAction.consume);
+                            case CREATE_TOPIC:
+                            case DELETE_TOPIC:
+                            case ADD_BUNDLE:
+                            case GET_BUNDLE:
+                            case DELETE_BUNDLE:
+                            case GRANT_PERMISSION:
+                            case GET_PERMISSION:
+                            case REVOKE_PERMISSION:
+                                return CompletableFuture.completedFuture(false);
+                            default:
+                                return FutureUtil.failedFuture(new IllegalStateException(
+                                        "NamespaceOperation [" + operation.name() + "] is not supported."));
+                        }
+                    }
+                });
     }
 
     @Override
@@ -562,41 +578,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                                                                String role,
                                                                TopicOperation operation,
                                                                AuthenticationDataSource authData) {
-        log.debug("Check allowTopicOperationAsync [" + operation.name() + "] on [" + topicName.toString() + "].");
-
-        CompletableFuture<Boolean> isAuthorizedFuture;
-
-        switch (operation) {
-            case LOOKUP:
-            case GET_STATS:
-            case GET_METADATA:
-                isAuthorizedFuture = canLookupAsync(topicName, role, authData);
-                break;
-            case PRODUCE:
-                isAuthorizedFuture = canProduceAsync(topicName, role, authData);
-                break;
-            case GET_SUBSCRIPTIONS:
-            case CONSUME:
-            case SUBSCRIBE:
-            case UNSUBSCRIBE:
-            case SKIP:
-            case EXPIRE_MESSAGES:
-            case PEEK_MESSAGES:
-            case RESET_CURSOR:
-            case SET_REPLICATED_SUBSCRIPTION_STATUS:
-                isAuthorizedFuture = canConsumeAsync(topicName, role, authData, authData.getSubscription());
-                break;
-            case TERMINATE:
-            case COMPACT:
-            case OFFLOAD:
-            case UNLOAD:
-            case ADD_BUNDLE_RANGE:
-            case GET_BUNDLE_RANGE:
-            case DELETE_BUNDLE_RANGE:
-                return validateTenantAdminAccess(topicName.getTenant(), role, authData);
-            default:
-                return FutureUtil.failedFuture(
-                        new IllegalStateException("TopicOperation [" + operation.name() + "] is not supported."));
+        if (log.isDebugEnabled()) {
+            log.debug("Check allowTopicOperationAsync [{}] on [{}].", operation.name(), topicName);
         }
 
         return validateTenantAdminAccess(topicName.getTenant(), role, authData)
@@ -608,7 +591,37 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                     if (isSuperUserOrAdmin) {
                         return CompletableFuture.completedFuture(true);
                     } else {
-                        return isAuthorizedFuture;
+                        switch (operation) {
+                            case LOOKUP:
+                            case GET_STATS:
+                            case GET_METADATA:
+                                return canLookupAsync(topicName, role, authData);
+                            case PRODUCE:
+                                return canProduceAsync(topicName, role, authData);
+                            case GET_SUBSCRIPTIONS:
+                            case CONSUME:
+                            case SUBSCRIBE:
+                            case UNSUBSCRIBE:
+                            case SKIP:
+                            case EXPIRE_MESSAGES:
+                            case PEEK_MESSAGES:
+                            case RESET_CURSOR:
+                            case GET_BACKLOG_SIZE:
+                            case SET_REPLICATED_SUBSCRIPTION_STATUS:
+                            case GET_REPLICATED_SUBSCRIPTION_STATUS:
+                                return canConsumeAsync(topicName, role, authData, authData.getSubscription());
+                            case TERMINATE:
+                            case COMPACT:
+                            case OFFLOAD:
+                            case UNLOAD:
+                            case ADD_BUNDLE_RANGE:
+                            case GET_BUNDLE_RANGE:
+                            case DELETE_BUNDLE_RANGE:
+                                return CompletableFuture.completedFuture(false);
+                            default:
+                                return FutureUtil.failedFuture(new IllegalStateException(
+                                        "TopicOperation [" + operation.name() + "] is not supported."));
+                        }
                     }
                 });
     }
@@ -640,7 +653,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         try {
                             TenantInfo tenantInfo = pulsarResources.getTenantResources()
                                     .getTenant(tenantName)
-                                    .orElseThrow(() -> new RestException(Response.Status.NOT_FOUND, "Tenant does not exist"));
+                                    .orElseThrow(() -> new RestException(Response.Status.NOT_FOUND,
+                                            "Tenant does not exist"));
                             return isTenantAdmin(tenantName, role, tenantInfo, authData);
                         } catch (NotFoundException e) {
                             log.warn("Failed to get tenant info data for non existing tenant {}", tenantName);

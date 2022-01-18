@@ -19,7 +19,6 @@
 package org.apache.pulsar.tests.integration.io.sinks;
 
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 
 import java.io.IOException;
 import java.util.HashMap;

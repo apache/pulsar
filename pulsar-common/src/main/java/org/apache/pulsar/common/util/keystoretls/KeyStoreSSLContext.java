@@ -22,7 +22,6 @@ import static org.apache.pulsar.common.util.SecurityUtility.getProvider;
 import com.google.common.base.Strings;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
@@ -35,7 +34,6 @@ import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLException;
 import javax.net.ssl.TrustManagerFactory;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -66,22 +64,22 @@ public class KeyStoreSSLContext {
     @Getter
     private final Mode mode;
 
-    private String sslProviderString;
-    private String keyStoreTypeString;
-    private String keyStorePath;
-    private String keyStorePassword;
-    private boolean allowInsecureConnection;
-    private String trustStoreTypeString;
-    private String trustStorePath;
-    private String trustStorePassword;
-    private boolean needClientAuth;
-    private Set<String> ciphers;
-    private Set<String> protocols;
+    private final String sslProviderString;
+    private final String keyStoreTypeString;
+    private final String keyStorePath;
+    private final String keyStorePassword;
+    private final boolean allowInsecureConnection;
+    private final String trustStoreTypeString;
+    private final String trustStorePath;
+    private final String trustStorePassword;
+    private final boolean needClientAuth;
+    private final Set<String> ciphers;
+    private final Set<String> protocols;
     private SSLContext sslContext;
 
-    private String protocol = DEFAULT_SSL_PROTOCOL;
-    private String kmfAlgorithm = DEFAULT_SSL_KEYMANGER_ALGORITHM;
-    private String tmfAlgorithm = DEFAULT_SSL_TRUSTMANAGER_ALGORITHM;
+    private final String protocol = DEFAULT_SSL_PROTOCOL;
+    private final String kmfAlgorithm = DEFAULT_SSL_KEYMANGER_ALGORITHM;
+    private final String tmfAlgorithm = DEFAULT_SSL_TRUSTMANAGER_ALGORITHM;
 
     // only init vars, before using it, need to call createSSLContext to create ssl context.
     public KeyStoreSSLContext(Mode mode,
@@ -107,10 +105,12 @@ public class KeyStoreSSLContext {
                 ? DEFAULT_KEYSTORE_TYPE
                 : trustStoreTypeString;
         this.trustStorePath = trustStorePath;
-        this.trustStorePassword = trustStorePassword;
+        if (trustStorePassword == null) {
+            this.trustStorePassword = "";
+        } else {
+            this.trustStorePassword = trustStorePassword;
+        }
         this.needClientAuth = requireTrustedClientCertOnConnect;
-        this.ciphers = ciphers;
-        this.protocols = protocols;
 
         if (protocols != null && protocols.size() > 0) {
             this.protocols = protocols;
@@ -189,7 +189,9 @@ public class KeyStoreSSLContext {
 
     private SSLEngine configureSSLEngine(SSLEngine sslEngine) {
         sslEngine.setEnabledProtocols(protocols.toArray(new String[0]));
-        sslEngine.setEnabledCipherSuites(sslEngine.getSupportedCipherSuites());
+        if (this.ciphers != null) {
+            sslEngine.setEnabledCipherSuites(this.ciphers.toArray(new String[0]));
+        }
 
         if (this.mode == Mode.SERVER) {
             sslEngine.setNeedClientAuth(this.needClientAuth);
@@ -210,7 +212,7 @@ public class KeyStoreSSLContext {
                                                             String trustStorePassword,
                                                             Set<String> ciphers,
                                                             Set<String> protocols)
-            throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
+            throws GeneralSecurityException, IOException {
         KeyStoreSSLContext keyStoreSSLContext = new KeyStoreSSLContext(Mode.CLIENT,
                 sslProviderString,
                 keyStoreTypeString,
@@ -240,7 +242,7 @@ public class KeyStoreSSLContext {
                                                     boolean requireTrustedClientCertOnConnect,
                                                     Set<String> ciphers,
                                                     Set<String> protocols)
-            throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
+            throws GeneralSecurityException, IOException {
         KeyStoreSSLContext keyStoreSSLContext = new KeyStoreSSLContext(Mode.SERVER,
                 sslProviderString,
                 keyStoreTypeString,
@@ -258,7 +260,8 @@ public class KeyStoreSSLContext {
         return keyStoreSSLContext;
     }
 
-    // for web server use case, no need ciphers and protocols
+    // the web server only use this method to get SSLContext, it won't use this to configure engine
+    // no need ciphers and protocols
     public static SSLContext createServerSslContext(String sslProviderString,
                                                     String keyStoreTypeString,
                                                     String keyStorePath,
@@ -268,7 +271,7 @@ public class KeyStoreSSLContext {
                                                     String trustStorePath,
                                                     String trustStorePassword,
                                                     boolean requireTrustedClientCertOnConnect)
-            throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
+            throws GeneralSecurityException, IOException {
 
         return createServerKeyStoreSslContext(
                 sslProviderString,
@@ -295,7 +298,7 @@ public class KeyStoreSSLContext {
                                                     String trustStorePassword,
                                                     Set<String> ciphers,
                                                     Set<String> protocol)
-            throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
+            throws GeneralSecurityException, IOException {
         KeyStoreSSLContext keyStoreSSLContext = new KeyStoreSSLContext(Mode.CLIENT,
                 sslProviderString,
                 keyStoreTypeString,
@@ -319,7 +322,7 @@ public class KeyStoreSSLContext {
                                                     String trustStoreTypeString,
                                                     String trustStorePath,
                                                     String trustStorePassword)
-            throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
+            throws GeneralSecurityException, IOException {
         KeyStoreSSLContext keyStoreSSLContext = new KeyStoreSSLContext(Mode.CLIENT,
                 null,
                 keyStoreTypeString,
@@ -337,18 +340,19 @@ public class KeyStoreSSLContext {
     }
 
     // for web server. autoRefresh is default true.
-    public static SslContextFactory createSslContextFactory(String sslProviderString,
-                                                            String keyStoreTypeString,
-                                                            String keyStore,
-                                                            String keyStorePassword,
-                                                            boolean allowInsecureConnection,
-                                                            String trustStoreTypeString,
-                                                            String trustStore,
-                                                            String trustStorePassword,
-                                                            boolean requireTrustedClientCertOnConnect,
-                                                            long certRefreshInSec)
-            throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
-        SslContextFactory sslCtxFactory;
+    public static SslContextFactory.Server createSslContextFactory(String sslProviderString,
+                                                                   String keyStoreTypeString,
+                                                                   String keyStore,
+                                                                   String keyStorePassword,
+                                                                   boolean allowInsecureConnection,
+                                                                   String trustStoreTypeString,
+                                                                   String trustStore,
+                                                                   String trustStorePassword,
+                                                                   boolean requireTrustedClientCertOnConnect,
+                                                                   Set<String> ciphers,
+                                                                   Set<String> protocols,
+                                                                   long certRefreshInSec) {
+        SslContextFactory.Server sslCtxFactory;
 
         if (sslProviderString == null) {
             Provider provider = SecurityUtility.CONSCRYPT_PROVIDER;
@@ -357,7 +361,7 @@ public class KeyStoreSSLContext {
             }
         }
 
-        sslCtxFactory = new SslContextFactoryWithAutoRefresh(
+        sslCtxFactory = new JettySslContextFactoryWithAutoRefresh(
                 sslProviderString,
                 keyStoreTypeString,
                 keyStore,
@@ -367,6 +371,8 @@ public class KeyStoreSSLContext {
                 trustStore,
                 trustStorePassword,
                 requireTrustedClientCertOnConnect,
+                ciphers,
+                protocols,
                 certRefreshInSec);
 
         if (requireTrustedClientCertOnConnect) {

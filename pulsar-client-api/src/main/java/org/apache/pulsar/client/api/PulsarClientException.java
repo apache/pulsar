@@ -1003,7 +1003,7 @@ public class PulsarClientException extends IOException {
         // site
         Throwable cause = t.getCause();
         String msg = cause.getMessage();
-        PulsarClientException newException = null;
+        PulsarClientException newException;
         if (cause instanceof TimeoutException) {
             newException = new TimeoutException(msg);
         } else if (cause instanceof InvalidConfigurationException) {
@@ -1085,7 +1085,7 @@ public class PulsarClientException extends IOException {
         Throwable e = t;
         for (int maxDepth = 20; maxDepth > 0 && e != null; maxDepth--) {
             if (e instanceof PulsarClientException) {
-                Collection<Throwable> previous = ((PulsarClientException)e).getPreviousExceptions();
+                Collection<Throwable> previous = ((PulsarClientException) e).getPreviousExceptions();
                 if (previous != null) {
                     return previous;
                 }
@@ -1099,7 +1099,7 @@ public class PulsarClientException extends IOException {
         Throwable e = t;
         for (int maxDepth = 20; maxDepth > 0 && e != null; maxDepth--) {
             if (e instanceof PulsarClientException) {
-                ((PulsarClientException)e).setPreviousExceptions(previous);
+                ((PulsarClientException) e).setPreviousExceptions(previous);
                 return;
             }
             e = t.getCause();

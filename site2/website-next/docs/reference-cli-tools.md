@@ -391,6 +391,7 @@ Options
 |`-p`, `--properties`|Properties to add. If you want to add multiple properties, use the comma as the separator, e.g. `k1=v1,k2=v2`.| |
 |`-ekn`, `--encryption-key-name`|The public key name to encrypt payload.| |
 |`-ekv`, `--encryption-key-value`|The URI of public key to encrypt payload. For example, `file:///path/to/public.key` or `data:application/x-pem-file;base64,*****`.| |
+|`-dr`, `--disable-replication`|Disable geo-replication for messages|false|
 
 
 ### `consume`
@@ -545,6 +546,7 @@ Options
 |`-mc`, `--max_chunked_msg`|Max pending chunk messages|0|
 |`-n`, `--num-consumers`|Number of consumers (per topic)|1|
 |`-ioThreads`, `--num-io-threads`|Set the number of threads to be used for handling connections to brokers|1|
+|`-lt`, `--num-listener-threads`|Set the number of threads to be used for message listeners|1|
 |`-ns`, `--num-subscriptions`|Number of subscriptions (per topic)|1|
 |`-t`, `--num-topics`|The number of topics|1|
 |`-pm`, `--pool-messages`|Use the pooled message|true|
@@ -645,6 +647,7 @@ Options
 |`-n`, `--num-messages`|Number of messages to consume in total. If the value is equal to or smaller than 0, it keeps consuming messages.|0|
 |`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
 |`-ioThreads`, `--num-io-threads`|Set the number of threads to be used for handling connections to brokers|1|
+|`-lt`, `--num-listener-threads`|Set the number of threads to be used for message listeners|1|
 |`-t`, `--num-topics`|The number of topics|1|
 |`-r`, `--rate`|Simulate a slow message reader (rate in msg/s)|0|
 |`-q`, `--receiver-queue-size`|Size of the receiver queue|1000|
@@ -800,7 +803,7 @@ $ bookkeeper command
 ```
 
 Commands
-* `auto-recovery`
+* `autorecovery`
 * `bookie`
 * `localbookie`
 * `upgrade`
@@ -822,14 +825,14 @@ The table below lists the environment variables that you can use to configure th
 |BOOKIE_STOP_TIMEOUT|Wait time before forcefully killing the Bookie server instance if attempts to stop it are not successful||
 
 
-### `auto-recovery`
-Runs an auto-recovery service daemon
+### `autorecovery`
+Runs an auto-recovery service
 
 Usage
 
 ```bash
 
-$ bookkeeper auto-recovery options
+$ bookkeeper autorecovery options
 
 ```
 
@@ -837,7 +840,7 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`-c`, `--conf`|Configuration for the auto-recovery daemon||
+|`-c`, `--conf`|Configuration for the auto-recovery||
 
 
 ### `bookie`
@@ -855,7 +858,7 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`-c`, `--conf`|Configuration for the auto-recovery daemon||
+|`-c`, `--conf`|Configuration for the auto-recovery||
 |-readOnly|Force start a read-only bookie server|false|
 |-withAutoRecovery|Start auto-recovery service bookie server|false|
 
@@ -886,7 +889,7 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`-c`, `--conf`|Configuration for the auto-recovery daemon||
+|`-c`, `--conf`|Configuration for the auto-recovery||
 |`-u`, `--upgrade`|Upgrade the bookie’s directories||
 
 

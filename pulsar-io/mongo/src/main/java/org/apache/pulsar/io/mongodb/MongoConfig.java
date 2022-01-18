@@ -21,15 +21,14 @@ package org.apache.pulsar.io.mongodb;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.base.Preconditions;
-import lombok.Data;
-import lombok.experimental.Accessors;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.io.core.annotations.FieldDoc;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
+import lombok.Data;
+import lombok.experimental.Accessors;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 /**
  * Configuration class for the MongoDB Connectors.
@@ -47,8 +46,8 @@ public class MongoConfig implements Serializable {
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "The uri of mongodb that the connector connects to" +
-                " (see: https://docs.mongodb.com/manual/reference/connection-string/)"
+        help = "The uri of mongodb that the connector connects to"
+                + " (see: https://docs.mongodb.com/manual/reference/connection-string/)"
     )
     private String mongoUri;
 
@@ -93,9 +92,9 @@ public class MongoConfig implements Serializable {
     }
 
     public void validate(boolean dbRequired, boolean collectionRequired) {
-        if (StringUtils.isEmpty(getMongoUri()) ||
-                (dbRequired && StringUtils.isEmpty(getDatabase())) ||
-                (collectionRequired && StringUtils.isEmpty(getCollection()))) {
+        if (StringUtils.isEmpty(getMongoUri())
+                || (dbRequired && StringUtils.isEmpty(getDatabase()))
+                || (collectionRequired && StringUtils.isEmpty(getCollection()))) {
 
             throw new IllegalArgumentException("Required property not set.");
         }

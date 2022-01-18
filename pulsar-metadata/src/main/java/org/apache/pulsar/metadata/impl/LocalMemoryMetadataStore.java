@@ -90,10 +90,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     }
 
     @Override
-    public CompletableFuture<Optional<GetResult>> get(String path) {
-        if (!isValidPath(path)) {
-            return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
-        }
+    public CompletableFuture<Optional<GetResult>> storeGet(String path) {
         synchronized (map) {
             Value v = map.get(path);
             if (v != null) {
@@ -138,11 +135,6 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
             Value v = map.get(path);
             return FutureUtils.value(v != null);
         }
-    }
-
-    @Override
-    public CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion) {
-        return put(path, value, expectedVersion, EnumSet.noneOf(CreateOption.class));
     }
 
     @Override
@@ -216,14 +208,6 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
                 notifyParentChildrenChanged(path);
                 return FutureUtils.value(null);
             }
-        }
-    }
-
-    private void notifyParentChildrenChanged(String path) {
-        String parent = parent(path);
-        while (parent != null) {
-            receivedNotification(new Notification(NotificationType.ChildrenChanged, parent));
-            parent = parent(parent);
         }
     }
 }

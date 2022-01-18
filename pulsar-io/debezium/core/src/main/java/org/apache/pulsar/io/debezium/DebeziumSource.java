@@ -56,8 +56,8 @@ public abstract class DebeziumSource extends KafkaConnectSource {
         String tenant = sourceContext.getTenant();
         String namespace = sourceContext.getNamespace();
 
-        return (StringUtils.isEmpty(tenant) ? TopicName.PUBLIC_TENANT : tenant) + "/" +
-            (StringUtils.isEmpty(namespace) ? TopicName.DEFAULT_NAMESPACE : namespace);
+        return (StringUtils.isEmpty(tenant) ? TopicName.PUBLIC_TENANT : tenant) + "/"
+                + (StringUtils.isEmpty(namespace) ? TopicName.DEFAULT_NAMESPACE : namespace);
     }
 
     public abstract void setDbConnectorTask(Map<String, Object> config) throws Exception;

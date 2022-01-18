@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.base.Charsets;
 import com.sun.management.OperatingSystemMXBean;
 import java.io.IOException;
@@ -86,7 +87,8 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
 
         // Call now to initialize values before the constructor returns
         calculateBrokerHostUsage();
-        executorService.scheduleAtFixedRate(this::calculateBrokerHostUsage, hostUsageCheckIntervalMin,
+        executorService.scheduleWithFixedDelay(catchingAndLoggingThrowables(this::calculateBrokerHostUsage),
+                hostUsageCheckIntervalMin,
                 hostUsageCheckIntervalMin, TimeUnit.MINUTES);
     }
 
@@ -103,9 +105,14 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         double totalNicUsageRx = getTotalNicUsageRxKb(nics);
         double totalCpuLimit = getTotalCpuLimit();
 
-        SystemResourceUsage usage = new SystemResourceUsage();
         long now = System.currentTimeMillis();
         double elapsedSeconds = (now - lastCollection) / 1000d;
+        if (elapsedSeconds <= 0) {
+            log.warn("elapsedSeconds {} is not expected, skip this round of calculateBrokerHostUsage", elapsedSeconds);
+            return;
+        }
+
+        SystemResourceUsage usage = new SystemResourceUsage();
         double cpuUsage = getTotalCpuUsage(elapsedSeconds);
 
         if (lastCollection == 0L) {

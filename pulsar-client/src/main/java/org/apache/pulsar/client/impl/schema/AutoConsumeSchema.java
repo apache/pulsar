@@ -18,22 +18,26 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import com.google.common.collect.Maps;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.avro.Schema.Type.RECORD;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.reflect.ReflectData;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
+import org.apache.pulsar.client.impl.schema.util.SchemaUtil;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 
@@ -54,7 +58,7 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     private SchemaInfoProvider schemaInfoProvider;
 
     private ConcurrentMap<SchemaVersion, Schema<?>> initSchemaMap() {
-        ConcurrentMap<SchemaVersion, Schema<?>> schemaMap = Maps.newConcurrentMap();
+        ConcurrentMap<SchemaVersion, Schema<?>> schemaMap = new ConcurrentHashMap<>();
         // The Schema.BYTES will not be uploaded to the broker and store in the schema storage,
         // if the schema version in the message metadata is empty byte[], it means its schema is Schema.BYTES.
         schemaMap.put(BytesSchemaVersion.of(new byte[0]), Schema.BYTES);
@@ -172,11 +176,32 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         switch (schemaInfo.getType()) {
             case JSON:
             case AVRO:
-                return GenericSchemaImpl.of(schemaInfo,useProvidedSchemaAsReaderSchema);
+                return extractFromAvroSchema(schemaInfo, useProvidedSchemaAsReaderSchema);
             case PROTOBUF_NATIVE:
                 return GenericProtobufNativeSchema.of(schemaInfo, useProvidedSchemaAsReaderSchema);
             default:
                 return getSchema(schemaInfo);
+        }
+    }
+
+    private static Schema<?> extractFromAvroSchema(SchemaInfo schemaInfo, final boolean useProvidedSchemaAsReaderSchema) {
+        org.apache.avro.Schema avroSchema = SchemaUtil.parseAvroSchema(new String(schemaInfo.getSchema(), UTF_8));
+        // if avroSchema type is RECORD we can use GenericSchema, otherwise use its own schema and decode return
+        // `GenericObjectWrapper`
+        if (avroSchema.getType() == RECORD) {
+            return GenericSchemaImpl.of(schemaInfo, useProvidedSchemaAsReaderSchema);
+        } else {
+            // because of we use json primitive schema or avro primitive schema generated data
+            // different from the data generated using the primitive schema of pulsar itself.
+            // so we should use the original schema of this data
+            if (schemaInfo.getType() == SchemaType.JSON) {
+                // It should be generated and used POJO, otherwise json cannot be parsed correctly
+                return Schema.JSON(SchemaDefinition.builder()
+                        .withPojo(ReflectData.get().getClass(avroSchema)).build());
+            } else {
+                return Schema.AVRO(SchemaDefinition.builder()
+                        .withJsonDef(new String(schemaInfo.getSchema(), UTF_8)).build());
+            }
         }
     }
 

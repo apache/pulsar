@@ -24,7 +24,7 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 /**
  * Default routing mode for messages to partition.
  *
- * <p>This logic is applied when the application is not setting a key {@link MessageBuilder#setKey(String)}
+ * <p>This logic is applied when the application is not setting a key {@link TypedMessageBuilder#key(String)}
  * on a particular message.
  */
 @InterfaceAudience.Public

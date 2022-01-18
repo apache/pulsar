@@ -73,7 +73,7 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
 
     @Override
     protected boolean isConsumersExceededOnSubscription() {
-        return isConsumersExceededOnSubscription(topic.getBrokerService(), topic.getName(), consumers.size());
+        return isConsumersExceededOnSubscription(topic, consumers.size());
     }
 
     @Override

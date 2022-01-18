@@ -33,23 +33,20 @@ import static org.apache.pulsar.common.sasl.SaslConstants.SASL_STATE_COMPLETE;
 import static org.apache.pulsar.common.sasl.SaslConstants.SASL_STATE_NEGOTIATE;
 import static org.apache.pulsar.common.sasl.SaslConstants.SASL_STATE_SERVER;
 import static org.apache.pulsar.common.sasl.SaslConstants.SASL_STATE_SERVER_CHECK_TOKEN;
-
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
-
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import javax.security.auth.login.LoginException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
-import com.google.common.collect.Maps;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.AuthData;
@@ -75,7 +72,7 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
-        this.configuration = Maps.newHashMap();
+        this.configuration = new HashMap<>();
         final String allowedIdsPatternRegExp = config.getSaslJaasClientAllowedIds();
         configuration.put(JAAS_CLIENT_ALLOWED_IDS, allowedIdsPatternRegExp);
         configuration.put(JAAS_SERVER_SECTION_NAME, config.getSaslJaasServerSectionName());
@@ -90,14 +87,14 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
 
         loginContextName = config.getSaslJaasServerSectionName();
         if (jaasCredentialsContainer == null) {
-            log.info("JAAS loginContext is: {}." , loginContextName);
+            log.info("JAAS loginContext is: {}.", loginContextName);
             try {
                 jaasCredentialsContainer = new JAASCredentialsContainer(
                     loginContextName,
                     new PulsarSaslServer.SaslServerCallbackHandler(allowedIdsPattern),
                     configuration);
             } catch (LoginException e) {
-                log.error("JAAS login in broker failed" , e);
+                log.error("JAAS login in broker failed", e);
                 throw new IOException(e);
             }
         }
@@ -119,11 +116,10 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
                                             SocketAddress remoteAddress,
                                             SSLSession sslSession) throws AuthenticationException {
         try {
-            return new SaslAuthenticationState(
-                new SaslAuthenticationDataSource(
-                    new PulsarSaslServer(jaasCredentialsContainer.getSubject(), allowedIdsPattern)));
+            PulsarSaslServer server = new PulsarSaslServer(jaasCredentialsContainer.getSubject(), allowedIdsPattern);
+            return new SaslAuthenticationState(server);
         } catch (Throwable t) {
-            log.error("Failed create sasl auth state" , t);
+            log.error("Failed create sasl auth state", t);
             throw new AuthenticationException(t.getMessage());
         }
     }
@@ -231,7 +227,8 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
                 request.setAttribute(AuthenticatedDataAttributeName,
                     new AuthenticationDataHttps(request));
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Server side role token OK to go on: {}", request.getRequestURI(), saslAuthRoleToken);
+                    log.debug("[{}] Server side role token OK to go on: {}", request.getRequestURI(),
+                            saslAuthRoleToken);
                 }
                 return true;
             } else {
@@ -240,7 +237,8 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
                 response.setHeader(SASL_STATE_SERVER, request.getHeader(SASL_STATE_SERVER));
                 response.setStatus(HttpServletResponse.SC_OK);
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Server side role token verified success: {}", request.getRequestURI(), saslAuthRoleToken);
+                    log.debug("[{}] Server side role token verified success: {}", request.getRequestURI(),
+                            saslAuthRoleToken);
                 }
                 return false;
             }

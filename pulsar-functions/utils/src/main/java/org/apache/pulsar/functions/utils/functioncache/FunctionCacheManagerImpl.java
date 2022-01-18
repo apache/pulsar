@@ -51,7 +51,7 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
     @Override
     public ClassLoader getClassLoader(String fid) {
         if (fid == null) {
-            throw new NullPointerException("FunctionID not set");
+            throw new IllegalArgumentException("FunctionID not set");
         }
 
         synchronized (cacheFunctions) {

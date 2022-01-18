@@ -192,4 +192,58 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
         assertTrue(exist);
     }
 
+    @Test(timeOut = 60000)
+    public void testReadWriteOperationsWithSeparatedBkCluster() throws Exception {
+        PackagesStorageProvider provider = PackagesStorageProvider
+                .newProvider(BookKeeperPackagesStorageProvider.class.getName());
+        DefaultPackagesStorageConfiguration configuration = new DefaultPackagesStorageConfiguration();
+        // set the unavailable bk cluster with mock zookeeper path
+        configuration.setProperty("zookeeperServers", zkUtil.getZooKeeperConnectString() + "/mock");
+        configuration.setProperty("packagesReplicas", "1");
+        configuration.setProperty("packagesManagementLedgerRootPath", "/ledgers");
+        PackagesStorage storage1 = provider.getStorage(configuration);
+        storage1.initialize();
+
+        String mockData = "mock-data";
+        ByteArrayInputStream mockDataStream = new ByteArrayInputStream(mockData.getBytes(StandardCharsets.UTF_8));
+        String mockPath = "mock-path";
+
+        // write some data to the dlog will fail
+        try {
+            storage1.writeAsync(mockPath, mockDataStream).get();
+        } catch (Exception e) {
+            String errMsg = e.getCause().getMessage();
+            assertTrue(errMsg.contains("Error on allocating ledger") || errMsg.contains("Write rejected"));
+        } finally {
+            storage1.closeAsync().get();
+        }
+
+        // set the available bk cluster with bookkeeperMetadataServiceUri using actual zookeeper path
+        String bookkeeperMetadataServiceUri = String.format("zk+null://%s/ledgers", zkUtil.getZooKeeperConnectString());
+        DefaultPackagesStorageConfiguration configuration2 = new DefaultPackagesStorageConfiguration();
+        configuration2.setProperty("zookeeperServers", zkUtil.getZooKeeperConnectString());
+        configuration2.setProperty("bookkeeperMetadataServiceUri", bookkeeperMetadataServiceUri);
+        configuration2.setProperty("packagesReplicas", "1");
+        PackagesStorage storage2 = provider.getStorage(configuration2);
+        storage2.initialize();
+
+        String testData = "test-data";
+        ByteArrayInputStream testDataStream = new ByteArrayInputStream(testData.getBytes(StandardCharsets.UTF_8));
+        String testPath = "test-path";
+
+        // write some data to the dlog will success
+        try {
+            storage2.writeAsync(testPath, testDataStream).get();
+
+            // read the data from the dlog
+            ByteArrayOutputStream readData = new ByteArrayOutputStream();
+            storage2.readAsync(testPath, readData).get();
+            String readResult = new String(readData.toByteArray(), StandardCharsets.UTF_8);
+
+            assertEquals(testData, readResult);
+        } finally {
+            storage2.closeAsync().get();
+        }
+    }
+
 }

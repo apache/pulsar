@@ -21,7 +21,7 @@
 CryptoKeyReaderWrapper::CryptoKeyReaderWrapper() {}
 
 CryptoKeyReaderWrapper::CryptoKeyReaderWrapper(const std::string& publicKeyPath,
-                                             const std::string& privateKeyPath) {
+                                               const std::string& privateKeyPath) {
     this->cryptoKeyReader = DefaultCryptoKeyReader::create(publicKeyPath, privateKeyPath);
 }
 

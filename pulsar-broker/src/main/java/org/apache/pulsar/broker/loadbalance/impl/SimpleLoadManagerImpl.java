@@ -30,7 +30,6 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.HashMap;
@@ -70,6 +69,7 @@ import org.apache.pulsar.metadata.api.coordination.ResourceLock;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUnitRanking;
+import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage.ResourceType;
 import org.slf4j.Logger;
@@ -1026,10 +1026,11 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
         }
     }
 
-    public SystemResourceUsage getSystemResourceUsage() throws IOException {
+    public SystemResourceUsage getSystemResourceUsage() {
         SystemResourceUsage systemResourceUsage = LoadManagerShared.getSystemResourceUsage(brokerHostUsage);
         long memoryUsageInMBytes = getAverageJvmHeapUsageMBytes();
-        systemResourceUsage.memory.usage = (double) memoryUsageInMBytes;
+        systemResourceUsage
+                .setMemory(new ResourceUsage((double) memoryUsageInMBytes, systemResourceUsage.memory.limit));
         return systemResourceUsage;
     }
 
@@ -1372,7 +1373,8 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
             double totalBandwidth = stats.msgThroughputIn + stats.msgThroughputOut;
 
             boolean needSplit = false;
-            if (stats.topics > maxBundleTopics || totalSessions > maxBundleSessions || totalMsgRate > maxBundleMsgRate
+            if (stats.topics > maxBundleTopics || (maxBundleSessions > 0
+                    && totalSessions > maxBundleSessions) || totalMsgRate > maxBundleMsgRate
                     || totalBandwidth > maxBundleBandwidth) {
                 if (stats.topics <= 1) {
                     log.info("Unable to split hot namespace bundle {} since there is only one topic.", bundleName);

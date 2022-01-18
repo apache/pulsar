@@ -118,10 +118,10 @@ class ClientCredentialsFlow extends FlowBase {
      */
     public static ClientCredentialsFlow fromParameters(Map<String, String> params) {
         URL issuerUrl = parseParameterUrl(params, CONFIG_PARAM_ISSUER_URL);
-        String audience = parseParameterString(params, CONFIG_PARAM_AUDIENCE);
         String privateKeyUrl = parseParameterString(params, CONFIG_PARAM_KEY_FILE);
-        // This is an optional parameter
+        // These are optional parameters, so we only perform a get
         String scope = params.get(CONFIG_PARAM_SCOPE);
+        String audience = params.get(CONFIG_PARAM_AUDIENCE);
         return ClientCredentialsFlow.builder()
                 .issuerUrl(issuerUrl)
                 .audience(audience)

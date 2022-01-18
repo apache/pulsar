@@ -38,7 +38,6 @@ import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,6 +53,7 @@ public class NamespaceResources extends BaseResources<Policies> {
 
     private static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
     private static final String NAMESPACE_BASE_PATH = "/namespace";
+    private static final String BUNDLE_DATA_BASE_PATH = "/loadbalance/bundle-data";
 
     public NamespaceResources(MetadataStore localStore, MetadataStore configurationStore, int operationTimeoutSec) {
         super(configurationStore, Policies.class, operationTimeoutSec);
@@ -82,8 +82,7 @@ public class NamespaceResources extends BaseResources<Policies> {
 
     public boolean namespaceExists(NamespaceName ns) throws MetadataStoreException {
         String path = joinPath(BASE_POLICIES_PATH, ns.toString());
-        return super.exists(path) &&
-                super.getChildren(path).isEmpty();
+        return super.exists(path) && super.getChildren(path).isEmpty();
     }
 
     public CompletableFuture<Boolean> namespaceExistsAsync(NamespaceName ns) {
@@ -134,35 +133,13 @@ public class NamespaceResources extends BaseResources<Policies> {
     // clear resource of `/namespace/{namespaceName}` for zk-node
     public CompletableFuture<Void> deleteNamespaceAsync(NamespaceName ns) {
         final String namespacePath = joinPath(NAMESPACE_BASE_PATH, ns.toString());
-        CompletableFuture<Void> future = new CompletableFuture<Void>();
-        deleteAsync(namespacePath).whenComplete((ignore, ex) -> {
-            if (ex != null && ex.getCause().getCause() instanceof KeeperException.NoNodeException) {
-                future.complete(null);
-            } else if (ex != null) {
-                future.completeExceptionally(ex);
-            } else {
-                future.complete(null);
-            }
-        });
-
-        return future;
+        return deleteIfExistsAsync(namespacePath);
     }
 
     // clear resource of `/namespace/{tenant}` for zk-node
     public CompletableFuture<Void> deleteTenantAsync(String tenant) {
         final String tenantPath = joinPath(NAMESPACE_BASE_PATH, tenant);
-        CompletableFuture<Void> future = new CompletableFuture<Void>();
-        deleteAsync(tenantPath).whenComplete((ignore, ex) -> {
-            if (ex != null && ex.getCause().getCause() instanceof KeeperException.NoNodeException) {
-                future.complete(null);
-            } else if (ex != null) {
-                future.completeExceptionally(ex);
-            } else {
-                future.complete(null);
-            }
-        });
-
-        return future;
+        return deleteIfExistsAsync(tenantPath);
     }
 
     public static NamespaceName namespaceFromPath(String path) {
@@ -215,7 +192,8 @@ public class NamespaceResources extends BaseResources<Policies> {
             super(configurationStore, PartitionedTopicMetadata.class, operationTimeoutSec);
         }
 
-        public CompletableFuture<Void> updatePartitionedTopicAsync(TopicName tn, Function<PartitionedTopicMetadata,PartitionedTopicMetadata> f) {
+        public CompletableFuture<Void> updatePartitionedTopicAsync(TopicName tn, Function<PartitionedTopicMetadata,
+                PartitionedTopicMetadata> f) {
             return setAsync(joinPath(PARTITIONED_TOPIC_PATH, tn.getNamespace(), tn.getDomain().value(),
                     tn.getEncodedLocalName()), f);
         }
@@ -260,25 +238,25 @@ public class NamespaceResources extends BaseResources<Policies> {
 
         public CompletableFuture<Void> clearPartitionedTopicMetadataAsync(NamespaceName namespaceName) {
             final String globalPartitionedPath = joinPath(PARTITIONED_TOPIC_PATH, namespaceName.toString());
+            return getStore().deleteRecursive(globalPartitionedPath);
+        }
 
-            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-
-            deleteRecursiveAsync(this, globalPartitionedPath)
-                    .thenAccept(ignore -> {
-                        log.info("Clear partitioned topic metadata [{}] success.", namespaceName);
-                        completableFuture.complete(null);
-                    }).exceptionally(ex -> {
-                if (ex.getCause().getCause() instanceof KeeperException.NoNodeException) {
-                    completableFuture.complete(null);
-                } else {
-                    log.error("Clear partitioned topic metadata failed.");
-                    completableFuture.completeExceptionally(ex.getCause());
-                    return null;
-                }
-                return null;
-            });
-
-            return completableFuture;
+        public CompletableFuture<Void> clearPartitionedTopicTenantAsync(String tenant) {
+            final String partitionedTopicPath = joinPath(PARTITIONED_TOPIC_PATH, tenant);
+            return deleteIfExistsAsync(partitionedTopicPath);
         }
     }
+
+    // clear resource of `/loadbalance/bundle-data/{tenant}/{namespace}/` in metadata-store
+    public CompletableFuture<Void> deleteBundleDataAsync(NamespaceName ns) {
+        final String namespaceBundlePath = joinPath(BUNDLE_DATA_BASE_PATH, ns.toString());
+        return getStore().deleteRecursive(namespaceBundlePath);
+    }
+
+    // clear resource of `/loadbalance/bundle-data/{tenant}/` in metadata-store
+    public CompletableFuture<Void> deleteBundleDataTenantAsync(String tenant) {
+        final String tenantBundlePath = joinPath(BUNDLE_DATA_BASE_PATH, tenant);
+        return getStore().deleteRecursive(tenantBundlePath);
+    }
+
 }

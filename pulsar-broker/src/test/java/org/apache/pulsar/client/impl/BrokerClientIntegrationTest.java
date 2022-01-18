@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.UUID.randomUUID;
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
@@ -35,6 +36,9 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
@@ -52,8 +56,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Cleanup;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -104,9 +106,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 
 @Test(groups = "broker-impl")
 public class BrokerClientIntegrationTest extends ProducerConsumerBase {
@@ -814,8 +813,9 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     public void testJsonSchemaProducerConsumerWithSpecifiedReaderAndWriter() throws PulsarClientException {
         final String topicName = "persistent://my-property/my-ns/my-topic1";
         ObjectMapper mapper = new ObjectMapper();
-        SchemaReader<TestMessageObject> reader = Mockito.spy(new JacksonJsonReader<>(mapper, TestMessageObject.class));
-        SchemaWriter<TestMessageObject> writer = Mockito.spy(new JacksonJsonWriter<>(mapper));
+        SchemaReader<TestMessageObject> reader =
+                spyWithClassAndConstructorArgs(JacksonJsonReader.class, mapper, TestMessageObject.class);
+        SchemaWriter<TestMessageObject> writer = spyWithClassAndConstructorArgs(JacksonJsonWriter.class, mapper);
 
         SchemaDefinition<TestMessageObject> schemaDefinition = new SchemaDefinitionBuilderImpl<TestMessageObject>()
                 .withPojo(TestMessageObject.class)
@@ -850,10 +850,10 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     private static final class TestMessageObject{
         private String value;
     }
-    
+
     /**
      * It validates pooled message consumption for batch and non-batch messages.
-     * 
+     *
      * @throws Exception
      */
     @Test(dataProvider = "booleanFlagProvider")
@@ -904,10 +904,10 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         consumer.close();
         producer.close();
     }
-    
+
     /**
      * It verifies that expiry/redelivery of messages relesaes the messages without leak.
-     * 
+     *
      * @param isBatchingEnabled
      * @throws Exception
      */
@@ -947,7 +947,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
     /**
      * It validates pooled message consumption for batch and non-batch messages.
-     * 
+     *
      * @throws Exception
      */
     @Test(dataProvider = "booleanFlagProvider")

@@ -36,9 +36,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.net.URI;
-import java.time.Clock;
-import java.time.Instant;
-import java.time.ZoneId;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -56,6 +53,7 @@ import javax.ws.rs.core.StreamingOutput;
 import javax.ws.rs.core.UriInfo;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.v1.BrokerStats;
 import org.apache.pulsar.broker.admin.v1.Brokers;
 import org.apache.pulsar.broker.admin.v1.Clusters;
@@ -98,7 +96,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+@Test(groups = "broker-admin")
 public class AdminTest extends MockedPulsarServiceBaseTest {
     private final String configClusterName = "use";
     private Clusters clusters;
@@ -110,10 +108,6 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     private BrokerStats brokerStats;
     private SchemasResource schemasResource;
     private Field uriField;
-    private final Clock mockClock = Clock.fixed(
-        Instant.ofEpochSecond(365248800),
-        ZoneId.of("-05:00")
-    );
 
     public AdminTest() {
         super();
@@ -125,17 +119,17 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         conf.setClusterName(configClusterName);
         super.internalSetup();
 
-        clusters = spy(new Clusters());
+        clusters = spy(Clusters.class);
         clusters.setPulsar(pulsar);
         doReturn("test").when(clusters).clientAppId();
         doNothing().when(clusters).validateSuperUserAccess();
 
-        properties = spy(new Properties());
+        properties = spy(Properties.class);
         properties.setPulsar(pulsar);
         doReturn("test").when(properties).clientAppId();
         doNothing().when(properties).validateSuperUserAccess();
 
-        namespaces = spy(new Namespaces());
+        namespaces = spy(Namespaces.class);
         namespaces.setServletContext(new MockServletContext());
         namespaces.setPulsar(pulsar);
         doReturn("test").when(namespaces).clientAppId();
@@ -144,7 +138,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doNothing().when(namespaces).validateAdminAccessForTenant("other-tenant");
         doNothing().when(namespaces).validateAdminAccessForTenant("new-property");
 
-        brokers = spy(new Brokers());
+        brokers = spy(Brokers.class);
         brokers.setPulsar(pulsar);
         doReturn("test").when(brokers).clientAppId();
         doNothing().when(brokers).validateSuperUserAccess();
@@ -152,7 +146,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         uriField = PulsarWebResource.class.getDeclaredField("uri");
         uriField.setAccessible(true);
 
-        persistentTopics = spy(new PersistentTopics());
+        persistentTopics = spy(PersistentTopics.class);
         persistentTopics.setServletContext(new MockServletContext());
         persistentTopics.setPulsar(pulsar);
         doReturn("test").when(persistentTopics).clientAppId();
@@ -162,11 +156,11 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doNothing().when(persistentTopics).validateAdminAccessForTenant("other-tenant");
         doNothing().when(persistentTopics).validateAdminAccessForTenant("prop-xyz");
 
-        resourceQuotas = spy(new ResourceQuotas());
+        resourceQuotas = spy(ResourceQuotas.class);
         resourceQuotas.setServletContext(new MockServletContext());
         resourceQuotas.setPulsar(pulsar);
 
-        brokerStats = spy(new BrokerStats());
+        brokerStats = spy(BrokerStats.class);
         brokerStats.setServletContext(new MockServletContext());
         brokerStats.setPulsar(pulsar);
 
@@ -175,7 +169,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doReturn("test").when(persistentTopics).clientAppId();
         doReturn(mock(AuthenticationDataHttps.class)).when(persistentTopics).clientAuthData();
 
-        schemasResource = spy(new SchemasResource(mockClock));
+        schemasResource = spy(SchemasResource.class);
         schemasResource.setServletContext(new MockServletContext());
         schemasResource.setPulsar(pulsar);
     }
@@ -189,12 +183,13 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void internalConfiguration() throws Exception {
+        ServiceConfiguration conf = pulsar.getConfiguration();
         InternalConfigurationData expectedData = new InternalConfigurationData(
-            pulsar.getConfiguration().getZookeeperServers(),
-            pulsar.getConfiguration().getConfigurationStoreServers(),
-            new ClientConfiguration().getZkLedgersRootPath(),
-            pulsar.getMetadataServiceUri(),
-            pulsar.getWorkerConfig().map(wc -> wc.getStateStorageServiceUrl()).orElse(null));
+                conf.getMetadataStoreUrl(),
+                conf.getConfigurationMetadataStoreUrl(),
+                new ClientConfiguration().getZkLedgersRootPath(),
+                conf.isBookkeeperMetadataStoreSeparated() ? conf.getBookkeeperMetadataStoreUrl() : null,
+                pulsar.getWorkerConfig().map(wc -> wc.getStateStorageServiceUrl()).orElse(null));
 
         assertEquals(brokers.getInternalConfigurationData(), expectedData);
     }

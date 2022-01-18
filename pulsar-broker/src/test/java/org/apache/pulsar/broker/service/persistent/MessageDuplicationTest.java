@@ -18,24 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.EventLoopGroup;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.testng.annotations.Test;
-
-import java.lang.reflect.Field;
-import java.util.Map;
-
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -50,6 +33,24 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.EventLoopGroup;
+import java.lang.reflect.Field;
+import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.service.BacklogQuotaManager;
+import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker")
@@ -70,7 +71,7 @@ public class MessageDuplicationTest {
         doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
         PersistentTopic persistentTopic = mock(PersistentTopic.class);
         ManagedLedger managedLedger = mock(ManagedLedger.class);
-        MessageDeduplication messageDeduplication = spy(new MessageDeduplication(pulsarService, persistentTopic, managedLedger));
+        MessageDeduplication messageDeduplication = spyWithClassAndConstructorArgs(MessageDeduplication.class, pulsarService, persistentTopic, managedLedger);
         doReturn(true).when(messageDeduplication).isEnabled();
 
         String producerName1 = "producer1";
@@ -163,7 +164,7 @@ public class MessageDuplicationTest {
         serviceConfiguration.setBrokerDeduplicationProducerInactivityTimeoutMinutes(1);
 
         doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
-        MessageDeduplication messageDeduplication = spy(new MessageDeduplication(pulsarService, topic, managedLedger));
+        MessageDeduplication messageDeduplication = spyWithClassAndConstructorArgs(MessageDeduplication.class, pulsarService, topic, managedLedger);
         doReturn(true).when(messageDeduplication).isEnabled();
 
         Topic.PublishContext publishContext = mock(Topic.PublishContext.class);
@@ -218,6 +219,7 @@ public class MessageDuplicationTest {
         serviceConfiguration.setReplicatorPrefix(REPLICATOR_PREFIX);
 
         doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
+        doReturn(mock(PulsarResources.class)).when(pulsarService).getPulsarResources();
 
         ManagedLedger managedLedger = mock(ManagedLedger.class);
         MessageDeduplication messageDeduplication = spy(new MessageDeduplication(pulsarService, mock(PersistentTopic.class), managedLedger));
@@ -236,8 +238,9 @@ public class MessageDuplicationTest {
         BrokerService brokerService = mock(BrokerService.class);
         doReturn(eventLoopGroup).when(brokerService).executor();
         doReturn(pulsarService).when(brokerService).pulsar();
+        doReturn(new BacklogQuotaManager(pulsarService)).when(brokerService).getBacklogQuotaManager();
 
-        PersistentTopic persistentTopic = spy(new PersistentTopic("topic-1", brokerService, managedLedger, messageDeduplication));
+        PersistentTopic persistentTopic = spyWithClassAndConstructorArgs(PersistentTopic.class, "topic-1", brokerService, managedLedger, messageDeduplication);
 
         String producerName1 = "producer1";
         ByteBuf byteBuf1 = getMessage(producerName1, 0);

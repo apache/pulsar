@@ -52,4 +52,11 @@ public class EventsTopicNames {
         return topicName != null && topicName.toString()
                 .startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
     }
+
+    public static boolean isTopicPoliciesSystemTopic(String topic) {
+        if (topic == null) {
+            return false;
+        }
+        return TopicName.get(topic).getLocalName().equals(NAMESPACE_EVENTS_LOCAL_NAME);
+    }
 }

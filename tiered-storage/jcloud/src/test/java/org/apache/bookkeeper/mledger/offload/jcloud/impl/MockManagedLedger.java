@@ -122,8 +122,8 @@ public class MockManagedLedger implements ManagedLedger {
 
     @Override
     public ManagedCursor newNonDurableCursor(Position startPosition, String subscriptionName,
-                                             CommandSubscribe.InitialPosition initialPosition) throws
-            ManagedLedgerException {
+                                             CommandSubscribe.InitialPosition initialPosition,
+                                             boolean isReadCompacted) throws ManagedLedgerException {
         return null;
     }
 
@@ -182,6 +182,11 @@ public class MockManagedLedger implements ManagedLedger {
     @Override
     public long getEstimatedBacklogSize() {
         return 0;
+    }
+
+    @Override
+    public CompletableFuture<Long> getEarliestMessagePublishTimeInBacklog() {
+        return CompletableFuture.completedFuture(0L);
     }
 
     @Override

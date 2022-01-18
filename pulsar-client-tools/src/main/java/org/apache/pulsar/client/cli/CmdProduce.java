@@ -19,16 +19,13 @@
 package org.apache.pulsar.client.cli;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.gson.JsonParseException;
-
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -43,7 +40,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -91,27 +87,28 @@ public class CmdProduce {
     @Parameter(names = { "-m", "--messages" },
                description = "Messages to send, either -m or -f must be specified. The default separator is comma",
                splitter = NoSplitter.class)
-    private List<String> messages = Lists.newArrayList();
+    private List<String> messages = new ArrayList<>();
 
     @Parameter(names = { "-f", "--files" },
                description = "Comma separated file paths to send, either -m or -f must be specified.")
-    private List<String> messageFileNames = Lists.newArrayList();
+    private List<String> messageFileNames = new ArrayList<>();
 
     @Parameter(names = { "-n", "--num-produce" },
-               description = "Number of times to send message(s), the count of messages/files * num-produce " +
-                       "should below than " + MAX_MESSAGES + ".")
+               description = "Number of times to send message(s), the count of messages/files * num-produce "
+                       + "should below than " + MAX_MESSAGES + ".")
     private int numTimesProduce = 1;
 
     @Parameter(names = { "-r", "--rate" },
-               description = "Rate (in msg/sec) at which to produce," +
-                       " value 0 means to produce messages as fast as possible.")
+               description = "Rate (in msg/sec) at which to produce,"
+                       + " value 0 means to produce messages as fast as possible.")
     private double publishRate = 0;
 
     @Parameter(names = { "-db", "--disable-batching" }, description = "Disable batch sending of messages")
     private boolean disableBatching = false;
-    
+
     @Parameter(names = { "-c",
-            "--chunking" }, description = "Should split the message and publish in chunks if message size is larger than allowed max size")
+            "--chunking" }, description = "Should split the message and publish in chunks if message size is "
+            + "larger than allowed max size")
     private boolean chunkingAllowed = false;
 
     @Parameter(names = { "-s", "--separator" },
@@ -120,7 +117,7 @@ public class CmdProduce {
 
     @Parameter(names = { "-p", "--properties"}, description = "Properties to add, Comma separated "
             + "key=value string, like k1=v1,k2=v2.")
-    private List<String> properties = Lists.newArrayList();
+    private List<String> properties = new ArrayList<>();
 
     @Parameter(names = { "-k", "--key"}, description = "message key to add ")
     private String key;
@@ -131,7 +128,8 @@ public class CmdProduce {
     @Parameter(names = { "-ks", "--key-schema"}, description = "Schema type (can be bytes,avro,json,string...)")
     private String keySchema = "string";
 
-    @Parameter(names = { "-kvet", "--key-value-encoding-type"}, description = "Key Value Encoding Type (it can be separated or inline)")
+    @Parameter(names = { "-kvet", "--key-value-encoding-type"},
+            description = "Key Value Encoding Type (it can be separated or inline)")
     private String keyValueEncodingType = null;
 
     @Parameter(names = { "-ekn", "--encryption-key-name" }, description = "The public key name to encrypt payload")
@@ -141,6 +139,10 @@ public class CmdProduce {
             "--encryption-key-value" }, description = "The URI of public key to encrypt payload, for example "
                     + "file:///path/to/public.key or data:application/x-pem-file;base64,*****")
     private String encKeyValue = null;
+
+    @Parameter(names = { "-dr",
+            "--disable-replication" }, description = "Disable geo-replication for messages.")
+    private boolean disableReplication = false;
 
     private ClientBuilder clientBuilder;
     private Authentication authentication;
@@ -218,7 +220,8 @@ public class CmdProduce {
                 case KEY_VALUE_ENCODING_TYPE_INLINE:
                     break;
                 default:
-                    throw (new ParameterException("--key-value-encoding-type "+keyValueEncodingType+" is not valid, only 'separated' or 'inline'"));
+                    throw (new ParameterException("--key-value-encoding-type "
+                            + keyValueEncodingType + " is not valid, only 'separated' or 'inline'"));
             }
         }
 
@@ -298,6 +301,10 @@ public class CmdProduce {
                             throw new IllegalStateException();
                     }
 
+                    if (disableReplication) {
+                        message.disableReplication();
+                    }
+
                     message.send();
 
 
@@ -321,11 +328,14 @@ public class CmdProduce {
             case KEY_VALUE_ENCODING_TYPE_NOT_SET:
                 return buildComponentSchema(schema);
             case KEY_VALUE_ENCODING_TYPE_SEPARATED:
-                return Schema.KeyValue(buildComponentSchema(keySchema), buildComponentSchema(schema), KeyValueEncodingType.SEPARATED);
+                return Schema.KeyValue(buildComponentSchema(keySchema), buildComponentSchema(schema),
+                        KeyValueEncodingType.SEPARATED);
             case KEY_VALUE_ENCODING_TYPE_INLINE:
-                return Schema.KeyValue(buildComponentSchema(keySchema), buildComponentSchema(schema), KeyValueEncodingType.INLINE);
+                return Schema.KeyValue(buildComponentSchema(keySchema), buildComponentSchema(schema),
+                        KeyValueEncodingType.INLINE);
             default:
-                throw new IllegalArgumentException("Invalid KeyValueEncodingType "+keyValueEncodingType+", only: 'none','separated' and 'inline");
+                throw new IllegalArgumentException("Invalid KeyValueEncodingType "
+                        + keyValueEncodingType + ", only: 'none','separated' and 'inline");
         }
     }
 
@@ -344,7 +354,7 @@ public class CmdProduce {
                 } else if (schema.startsWith("json:")) {
                     base = buildGenericSchema(SchemaType.JSON, schema.substring(5));
                 } else {
-                    throw new IllegalArgumentException("Invalid schema type: "+schema);
+                    throw new IllegalArgumentException("Invalid schema type: " + schema);
                 }
         }
         return Schema.AUTO_PRODUCE_BYTES(base);
@@ -432,7 +442,7 @@ public class CmdProduce {
                     if (limiter != null) {
                         limiter.acquire();
                     }
-                    produceSocket.send(index++, content).get(30,TimeUnit.SECONDS);
+                    produceSocket.send(index++, content).get(30, TimeUnit.SECONDS);
                     numMessagesSent++;
                 }
             }
@@ -494,8 +504,8 @@ public class CmdProduce {
 
         @OnWebSocketMessage
         public synchronized void onMessage(String msg) throws JsonParseException {
-            LOG.info("ack= {}",msg);
-            if(this.result!=null) {
+            LOG.info("ack= {}", msg);
+            if (this.result != null) {
                 this.result.complete(null);
             }
         }

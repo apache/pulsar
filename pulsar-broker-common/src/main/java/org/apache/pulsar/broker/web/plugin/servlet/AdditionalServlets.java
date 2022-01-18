@@ -19,10 +19,8 @@
 package org.apache.pulsar.broker.web.plugin.servlet;
 
 import com.google.common.collect.ImmutableMap;
-
 import java.io.IOException;
 import java.util.Map;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
@@ -72,7 +70,7 @@ public class AdditionalServlets implements AutoCloseable {
         }
 
         String narExtractionDirectory = conf.getProperties().getProperty(NAR_EXTRACTION_DIRECTORY);
-        if(narExtractionDirectory == null) {
+        if (narExtractionDirectory == null) {
             narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
         }
 

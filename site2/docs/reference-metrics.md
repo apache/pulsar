@@ -31,23 +31,7 @@ The following types of metrics are available:
 
 The ZooKeeper metrics are exposed under "/metrics" at port `8000`. You can use a different port by configuring the `metricsProvider.httpPort` in conf/zookeeper.conf.
 
-### Server metrics
-
-| Name | Type | Description |
-|---|---|---|
-| znode_count | Gauge | The number of z-nodes stored. |
-| approximate_data_size | Gauge | The approximate size of all of z-nodes stored. |
-| num_alive_connections | Gauge | The number of currently lived connections. |
-| watch_count | Gauge | The number of watchers registered. |
-| ephemerals_count | Gauge | The number of ephemeral z-nodes. |
-
-### Request metrics
-
-| Name | Type | Description |
-|---|---|---|
-| request_commit_queued | Counter | The total number of requests already committed by a particular server. |
-| updatelatency | Summary | The update requests latency calculated in milliseconds. |
-| readlatency | Summary | The read requests latency calculated in milliseconds. |
+ZooKeeper provides a New Metrics System since 3.6.0, more detailed metrics can refer [ZooKeeper Monitor Guide](https://zookeeper.apache.org/doc/r3.7.0/zookeeperMonitor.html).
 
 ## BookKeeper
 
@@ -65,6 +49,9 @@ in the `bookkeeper.conf` configuration file.
 | bookie_READ_BYTES | Counter | The total number of bytes read from the bookie. |
 | bookkeeper_server_ADD_ENTRY_REQUEST | Summary | The summary of request latency of ADD_ENTRY requests at the bookie. The `success` label is used to distinguish successes and failures. |
 | bookkeeper_server_READ_ENTRY_REQUEST | Summary | The summary of request latency of READ_ENTRY requests at the bookie. The `success` label is used to distinguish successes and failures. |
+| bookkeeper_server_BookieReadThreadPool_queue_{thread_id}|Gauge|The number of requests to be processed in a read thread queue.|
+| bookkeeper_server_BookieReadThreadPool_task_queued|Summary | The waiting time of a task to be processed in a read thread queue. |
+| bookkeeper_server_BookieReadThreadPool_task_execution|Summary | The execution time of a task in a read thread queue.|
 
 ### Journal metrics
 
@@ -76,6 +63,7 @@ in the `bookkeeper.conf` configuration file.
 | bookie_journal_JOURNAL_CB_QUEUE_SIZE | Gauge | The total number of callbacks pending in the callback queue. |
 | bookie_journal_JOURNAL_ADD_ENTRY | Summary | The summary of request latency of adding entries to the journal. |
 | bookie_journal_JOURNAL_SYNC | Summary | The summary of fsync latency of syncing data to the journal disk. |
+| bookie_journal_JOURNAL_CREATION_LATENCY| Summary | The latency created by a journal log file. |
 
 ### Storage metrics
 
@@ -87,6 +75,8 @@ in the `bookkeeper.conf` configuration file.
 | bookie_read_cache_size | Gauge | The bookie read cache size (in bytes). |
 | bookie_DELETED_LEDGER_COUNT | Counter | The total number of ledgers deleted since the bookie has started. |
 | bookie_ledger_writable_dirs | Gauge | The number of writable directories in the bookie. |
+| bookie_flush | Gauge| The table flush latency of bookie memory. |
+| bookie_throttled_write_requests | Counter | The number of write requests to be throttled. |
 
 ## Broker
 
@@ -125,6 +115,16 @@ The following metrics are available for broker:
 - [Proxy](#proxy)
 - [Pulsar SQL Worker](#pulsar-sql-worker)
 - [Pulsar transaction](#pulsar-transaction)
+
+### BookKeeper client metrics
+
+All the BookKeeper client metric are labelled with the following label:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
+
+| Name | Type | Description |
+|---|---|---|
+| bookkeeper_server_BOOKIE_QUARANTINE_count | Counter | The number of bookie clients to be quarantined. |
 
 ### Namespace metrics
 
@@ -230,6 +230,18 @@ All the replication metrics are labelled with `remoteCluster=${pulsar_remote_clu
 | pulsar_replication_throughput_out | Gauge | The total throughput of the topic replicating to remote cluster (bytes/second). |
 | pulsar_replication_backlog | Gauge | The total backlog of the topic replicating to remote cluster (messages). |
 
+#### Topic lookup metrics
+
+| Name | Type | Description |
+|---|---|---|
+| pulsar_broker_load_manager_bundle_assignment | Gauge | The summary of latency of bundles ownership operations. |
+| pulsar_broker_lookup | Gauge | The latency of all lookup operations. |
+| pulsar_broker_lookup_redirects | Gauge | The number of lookup redirected requests. |
+| pulsar_broker_lookup_answers | Gauge | The number of lookup responses (i.e. not redirected requests). |
+| pulsar_broker_lookup_failures | Gauge | The number of lookup failures. |
+| pulsar_broker_lookup_pending_requests | Gauge | The number of pending lookups in broker. When it is up to the threshold, new requests are rejected. |
+| pulsar_broker_topic_load_pending_requests | Gauge | The load of pending topic operations. |
+
 ### ManagedLedgerCache metrics
 All the ManagedLedgerCache metrics are labelled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
@@ -237,10 +249,10 @@ All the ManagedLedgerCache metrics are labelled with the following labels:
 | Name | Type | Description |
 | --- | --- | --- |
 | pulsar_ml_cache_evictions | Gauge | The number of cache evictions during the last minute. |
-| pulsar_ml_cache_hits_rate | Gauge | The number of cache hits per second. |
-| pulsar_ml_cache_hits_throughput | Gauge | The amount of data is retrieved from the cache in byte/s |
-| pulsar_ml_cache_misses_rate | Gauge | The number of cache misses per second |
-| pulsar_ml_cache_misses_throughput | Gauge | The amount of data is retrieved from the cache in byte/s |
+| pulsar_ml_cache_hits_rate | Gauge | The number of cache hits per second on the broker side. |
+| pulsar_ml_cache_hits_throughput | Gauge | The amount of data is retrieved from the cache on the broker side (in byte/s).  |
+| pulsar_ml_cache_misses_rate | Gauge | The number of cache misses per second on the broker side. |
+| pulsar_ml_cache_misses_throughput | Gauge | The amount of data is not retrieved from the cache on the broker side (in byte/s). |
 | pulsar_ml_cache_pool_active_allocations | Gauge | The number of currently active allocations in direct arena |
 | pulsar_ml_cache_pool_active_allocations_huge | Gauge | The number of currently active huge allocation in direct arena |
 | pulsar_ml_cache_pool_active_allocations_normal | Gauge | The number of currently active normal allocations in direct arena |
@@ -332,6 +344,23 @@ All the bundleUnloading metrics are labelled with the following labels:
 | Name | Type | Description |
 | --- | --- | --- |
 | pulsar_lb_bundles_split_count | Counter | bundle split count in this bundle splitting check interval |
+
+#### Bundle metrics
+All the bundle metrics are labelled with the following labels:
+- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
+- broker: broker=${broker}. ${broker} is the IP address of the broker
+- bundle: bundle=${bundle}. ${bundle} is the bundle range on this broker
+- metric: metric="loadBalancing".
+
+| Name | Type | Description |
+| --- | --- | --- |
+| pulsar_bundle_msg_rate_in | Gauge | The total message rate coming into the topics in this bundle  (messages/second). |
+| pulsar_bundle_msg_rate_out | Gauge | The total message rate going out from the topics in this bundle  (messages/second).  |
+| pulsar_bundle_topics_count | Gauge | The topic count in this bundle.  |
+| pulsar_bundle_consumer_count | Gauge | The consumer count of the topics in this bundle. |
+| pulsar_bundle_producer_count | Gauge | The producer count of the topics in this bundle. |
+| pulsar_bundle_msg_throughput_in | Gauge | The total throughput coming into the topics in this bundle (bytes/second). |
+| pulsar_bundle_msg_throughput_out | Gauge | The total throughput going out from the topics in this bundle (bytes/second). |
 
 ### Subscription metrics
 
