@@ -26,7 +26,6 @@ import io.jsonwebtoken.io.DecodingException;
 import io.jsonwebtoken.io.Encoders;
 import io.jsonwebtoken.security.Keys;
 import java.io.IOException;
-import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.Key;
@@ -41,6 +40,7 @@ import javax.crypto.SecretKey;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.IOUtils;
+import org.apache.pulsar.client.api.url.URL;
 
 @UtilityClass
 public class AuthTokenUtils {
@@ -102,7 +102,7 @@ public class AuthTokenUtils {
     public static byte[] readKeyFromUrl(String keyConfUrl) throws IOException {
         if (keyConfUrl.startsWith("data:") || keyConfUrl.startsWith("file:")) {
             try {
-                return IOUtils.toByteArray(URI.create(keyConfUrl));
+                return IOUtils.toByteArray(URL.createURL(keyConfUrl));
             } catch (IOException e) {
                 throw e;
             } catch (Exception e) {
