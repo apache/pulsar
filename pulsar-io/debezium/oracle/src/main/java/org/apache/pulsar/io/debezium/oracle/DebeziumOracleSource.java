@@ -19,13 +19,12 @@
 package org.apache.pulsar.io.debezium.oracle;
 
 import java.util.Map;
-
 import org.apache.kafka.connect.runtime.TaskConfig;
 import org.apache.pulsar.io.debezium.DebeziumSource;
 
 
 /**
- * A pulsar source that runs debezium oracle source
+ * A pulsar source that runs debezium oracle source.
  */
 public class DebeziumOracleSource extends DebeziumSource {
     private static final String DEFAULT_TASK = "io.debezium.connector.oracle.OracleConnectorTask";

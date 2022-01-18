@@ -295,6 +295,19 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     @JsonIgnore
     private Clock clock = Clock.systemDefaultZone();
 
+    @ApiModelProperty(
+            name = "dnsLookupBindAddress",
+            value = "The Pulsar client dns lookup bind address, default behavior is bind on 0.0.0.0"
+    )
+    private String dnsLookupBindAddress = null;
+
+    @ApiModelProperty(
+            name = "dnsLookupBindPort",
+            value = "The Pulsar client dns lookup bind port, takes effect when dnsLookupBindAddress is configured," +
+                    " default value is 0."
+    )
+    private int dnsLookupBindPort = 0;
+
     // socks5
     @ApiModelProperty(
             name = "socks5ProxyAddress",

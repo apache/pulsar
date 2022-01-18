@@ -18,20 +18,19 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
+import com.beust.jcommander.Parameters;
+import java.util.function.Supplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.Parameters;
-
-import java.util.function.Supplier;
-
 @Parameters(commandDescription = "Operations about resource quotas")
 public class CmdResourceQuotas extends CmdBase {
 
-    @Parameters(commandDescription = "Get the resource quota for specified namespace bundle, or default quota if no namespace/bundle specified.")
+    @Parameters(commandDescription = "Get the resource quota for specified namespace bundle, "
+            + "or default quota if no namespace/bundle specified.")
     private class GetResourceQuota extends CliCommand {
 
         @Parameter(names = { "--namespace",
@@ -55,7 +54,8 @@ public class CmdResourceQuotas extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Set the resource quota for specified namespace bundle, or default quota if no namespace/bundle specified.")
+    @Parameters(commandDescription = "Set the resource quota for specified namespace bundle, "
+            + "or default quota if no namespace/bundle specified.")
     private class SetResourceQuota extends CliCommand {
 
         @Parameter(names = { "--namespace",

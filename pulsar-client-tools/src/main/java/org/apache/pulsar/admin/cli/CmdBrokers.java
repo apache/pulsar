@@ -18,13 +18,11 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import org.apache.pulsar.client.admin.PulsarAdmin;
-
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
-import org.apache.pulsar.common.naming.TopicVersion;
-
 import java.util.function.Supplier;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.common.naming.TopicVersion;
 
 @Parameters(commandDescription = "Operations about brokers")
 public class CmdBrokers extends CmdBase {

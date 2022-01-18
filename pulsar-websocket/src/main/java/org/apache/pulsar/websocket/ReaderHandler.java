@@ -98,7 +98,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
                 try {
                     builder.cryptoFailureAction(ConsumerCryptoFailureAction.valueOf(action));
                 } catch (Exception e) {
-                    log.warn("Failed to configure cryptoFailureAction {} , {}", action, e.getMessage());
+                    log.warn("Failed to configure cryptoFailureAction {}, {}", action, e.getMessage());
                 }
             }
 

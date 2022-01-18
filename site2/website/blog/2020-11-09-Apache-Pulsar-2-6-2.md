@@ -42,7 +42,7 @@ Consumers using the `Key_Shared` subscription would encounter disorder messages 
 2. Connect Producer and publish 500 messages with key `(i % 10)`
 3. Connect Consumer2 to same subscription and start to receive
   - receiverQueueSize: 1
-  - since https://github.com/apache/pulsar/pull/7106 , Consumer2 can't receive (expected)
+  - since https://github.com/apache/pulsar/pull/7106, Consumer2 can't receive (expected)
 4. Producer publish more 500 messages with same key generation algorithm
 5. After that, Consumer1 start to receive
 6. Check Consumer2 message ordering

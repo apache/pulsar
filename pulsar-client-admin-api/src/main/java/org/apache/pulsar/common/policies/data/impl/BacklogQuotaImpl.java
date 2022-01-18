@@ -35,7 +35,7 @@ public class BacklogQuotaImpl implements BacklogQuota {
      * @since 2.9.1
      */
     @Deprecated
-    private Long limit;
+    private long limit;
 
     /**
      * backlog quota by size in byte.
@@ -57,7 +57,6 @@ public class BacklogQuotaImpl implements BacklogQuota {
     @Deprecated
     public long getLimit() {
         if (limitSize == null) {
-            // the limitSize and limit can't be both null
             return limit;
         }
         return limitSize;
@@ -71,7 +70,6 @@ public class BacklogQuotaImpl implements BacklogQuota {
 
     public long getLimitSize() {
         if (limitSize == null) {
-            // the limitSize and limit can't be both null
             return limit;
         }
         return limitSize;

@@ -58,7 +58,7 @@ public class RetryUtil {
                 if (log.isDebugEnabled()) {
                     log.debug("execute with retry fail, will retry in {} ms", next, e);
                 }
-                log.info("Because of {} , will retry in {} ms", e.getMessage(), next);
+                log.info("Because of {}, will retry in {} ms", e.getMessage(), next);
                 scheduledExecutorService.schedule(() ->
                                 executeWithRetry(supplier, backoff, scheduledExecutorService, callback),
                         next, TimeUnit.MILLISECONDS);

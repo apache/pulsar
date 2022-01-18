@@ -111,7 +111,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private volatile boolean closed;
 
     /**
-     * Keep a flag to indicate whether we're currently connected to the metadata service
+     * Keep a flag to indicate whether we're currently connected to the metadata service.
      */
     @Getter
     private boolean metadataServiceAvailable;

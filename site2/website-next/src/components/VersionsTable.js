@@ -6,7 +6,7 @@ import TableRow from "@mui/material/TableRow";
 import Link from "@mui/material/Link";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import Translate, { translate } from "@docusaurus/Translate";
-import { docUrl } from "../utils/index";
+import { docUrl, getCache } from "../utils/index";
 const versions = require("../../versions.json");
 
 export default function VersionsTable(props) {
@@ -24,7 +24,7 @@ export default function VersionsTable(props) {
               sx={{ border: 1, color: "inherit" }}
               align="left"
             >
-              <p>{row.name}</p>
+              <span>{row.name}</span>
             </TableCell>
             <TableCell
               className="border-gray-300"
@@ -39,6 +39,12 @@ export default function VersionsTable(props) {
                   row.name == latestStableVersion ? "" : row.name
                 )}
                 underline="none"
+                onClick={() => {
+                  getCache().setItem(
+                    "version",
+                    row.name == "next" ? "master" : row.name
+                  );
+                }}
               >
                 <Translate>Documentation</Translate>
               </Link>

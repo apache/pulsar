@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -33,7 +34,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +44,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
@@ -56,6 +58,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -93,7 +96,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker")
+@Test(groups = "broker-admin")
 public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
     private PersistentTopics persistentTopics;
@@ -115,7 +118,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     protected void setup() throws Exception {
         super.internalSetup();
-        persistentTopics = spy(new PersistentTopics());
+        persistentTopics = spy(PersistentTopics.class);
         persistentTopics.setServletContext(new MockServletContext());
         persistentTopics.setPulsar(pulsar);
         doReturn(false).when(persistentTopics).isRequestHttps();
@@ -125,7 +128,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         doNothing().when(persistentTopics).validateAdminAccessForTenant(this.testTenant);
         doReturn(mock(AuthenticationDataHttps.class)).when(persistentTopics).clientAuthData();
 
-        nonPersistentTopic = spy(new NonPersistentTopics());
+        nonPersistentTopic = spy(NonPersistentTopics.class);
         nonPersistentTopic.setServletContext(new MockServletContext());
         nonPersistentTopic.setPulsar(pulsar);
         doReturn(false).when(nonPersistentTopic).isRequestHttps();
@@ -137,7 +140,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         PulsarResources resources =
                 spy(new PulsarResources(pulsar.getLocalMetadataStore(), pulsar.getConfigurationMetadataStore()));
-        doReturn(spy(new TopicResources(pulsar.getLocalMetadataStore()))).when(resources).getTopicResources();
+        doReturn(spyWithClassAndConstructorArgs(TopicResources.class, pulsar.getLocalMetadataStore())).when(resources).getTopicResources();
         Whitebox.setInternalState(pulsar, "pulsarResources", resources);
 
         admin.clusters().createCluster("use", ClusterData.builder().serviceUrl("http://broker-use.com:8080").build());
@@ -336,7 +339,9 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         // 9) terminate partitioned topic
         response = mock(AsyncResponse.class);
         persistentTopics.terminatePartitionedTopic(response, testTenant, testNamespace, testLocalTopicName, true);
-        verify(response, timeout(5000).times(1)).resume(Arrays.asList(new MessageIdImpl(3, -1, -1)));
+        Map<Integer, MessageId> messageIds = new ConcurrentHashMap<>();
+        messageIds.put(0, new MessageIdImpl(3, -1, -1));
+        verify(response, timeout(5000).times(1)).resume(messageIds);
     }
 
     @Test
@@ -1126,4 +1131,41 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(e.getResponse().getStatus(), 404);
         }
     }
+
+    public void testAdminTerminatePartitionedTopic() throws Exception{
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant("prop-xyz", tenantInfo);
+        admin.namespaces().createNamespace("prop-xyz/ns12", Sets.newHashSet("test"));
+        final String topicName = "persistent://prop-xyz/ns12/testTerminatePartitionedTopic";
+
+        admin.topics().createPartitionedTopic(topicName, 1);
+        Map<Integer, MessageId> results = new HashMap<>();
+        results.put(0, new MessageIdImpl(3, -1, -1));
+        Assert.assertEquals(admin.topics().terminatePartitionedTopic(topicName),  results);
+
+        // Check examine message not allowed on non-partitioned topic.
+        admin.topics().createNonPartitionedTopic("persistent://prop-xyz/ns12/test");
+        try {
+            admin.topics().terminatePartitionedTopic(topicName);
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getMessage(), "Termination of a non-partitioned topic is not allowed using partitioned-terminate, please use terminate commands.");
+        }
+    }
+
+    @Test
+    public void testResetCursorReturnTimeoutWhenZKTimeout() {
+        String topic = "persistent://" + testTenant + "/" + testNamespace + "/" + "topic-2";
+        BrokerService brokerService = spy(pulsar.getBrokerService());
+        doReturn(brokerService).when(pulsar).getBrokerService();
+        CompletableFuture<Optional<Topic>> completableFuture = new CompletableFuture<>();
+        doReturn(completableFuture).when(brokerService).getTopicIfExists(topic);
+        try {
+            admin.topics().resetCursor(topic, "my-sub", System.currentTimeMillis());
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            String errorMsg = ((InternalServerErrorException) e.getCause()).getResponse().readEntity(String.class);
+            Assert.assertTrue(errorMsg.contains("TimeoutException"));
+        }
+    }
+
 }

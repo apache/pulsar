@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializationContext;
@@ -32,7 +33,6 @@ import com.google.gson.JsonSerializer;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufUtil;
-
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
@@ -43,16 +43,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
-
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 
 /**
  * Utils for schemas.
@@ -336,31 +332,35 @@ public final class SchemaUtils {
     }
 
     /**
-     * convert the key/value schema info data to string
+     * Convert the key/value schema info data to string.
      *
      * @param kvSchemaInfo the key/value schema info
      * @return the convert schema info data string
      */
-    public static String convertKeyValueSchemaInfoDataToString(KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo) throws IOException {
+    public static String convertKeyValueSchemaInfoDataToString(
+            KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo) throws IOException {
         ObjectMapper objectMapper = ObjectMapperFactory.create();
-        KeyValue<Object, Object> keyValue = new KeyValue<>(SchemaType.isPrimitiveType(kvSchemaInfo.getKey().getType()) ? ""
-                : objectMapper.readTree(kvSchemaInfo.getKey().getSchema()), SchemaType.isPrimitiveType(kvSchemaInfo.getValue().getType()) ?
-                "" : objectMapper.readTree(kvSchemaInfo.getValue().getSchema()));
+        KeyValue<Object, Object> keyValue = new KeyValue<>(
+                SchemaType.isPrimitiveType(kvSchemaInfo.getKey().getType()) ? ""
+                        : objectMapper.readTree(kvSchemaInfo.getKey().getSchema()),
+                SchemaType.isPrimitiveType(kvSchemaInfo.getValue().getType()) ? ""
+                        : objectMapper.readTree(kvSchemaInfo.getValue().getSchema()));
         return objectMapper.writeValueAsString(keyValue);
     }
 
     private static byte[] getKeyOrValueSchemaBytes(JsonElement jsonElement) {
-        return KEY_VALUE_SCHEMA_NULL_STRING.equals(jsonElement.toString()) ?
-                KEY_VALUE_SCHEMA_IS_PRIMITIVE : jsonElement.toString().getBytes(UTF_8);
+        return KEY_VALUE_SCHEMA_NULL_STRING.equals(jsonElement.toString())
+                ? KEY_VALUE_SCHEMA_IS_PRIMITIVE : jsonElement.toString().getBytes(UTF_8);
     }
 
     /**
-     * convert the key/value schema info data json bytes to key/value schema info data bytes
+     * Convert the key/value schema info data json bytes to key/value schema info data bytes.
      *
      * @param keyValueSchemaInfoDataJsonBytes the key/value schema info data json bytes
      * @return the key/value schema info data bytes
      */
-    public static byte[] convertKeyValueDataStringToSchemaInfoSchema(byte[] keyValueSchemaInfoDataJsonBytes) throws IOException {
+    public static byte[] convertKeyValueDataStringToSchemaInfoSchema(
+            byte[] keyValueSchemaInfoDataJsonBytes) throws IOException {
         JsonObject jsonObject = (JsonObject) toJsonElement(new String(keyValueSchemaInfoDataJsonBytes, UTF_8));
         byte[] keyBytes = getKeyOrValueSchemaBytes(jsonObject.get("key"));
         byte[] valueBytes = getKeyOrValueSchemaBytes(jsonObject.get("value"));
@@ -374,7 +374,7 @@ public final class SchemaUtils {
     }
 
     /**
-     * Serialize schema properties
+     * Serialize schema properties.
      *
      * @param properties schema properties
      * @return the serialized schema properties

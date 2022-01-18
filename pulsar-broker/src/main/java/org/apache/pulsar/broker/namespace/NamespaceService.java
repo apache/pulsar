@@ -894,6 +894,8 @@ public class NamespaceService implements AutoCloseable {
                             // update bundled_topic cache for load-report-generation
                             pulsar.getBrokerService().refreshTopicToStatsMaps(bundle);
                             loadManager.get().setLoadReportForceUpdateFlag();
+                            // release old bundle from ownership cache
+                            pulsar.getNamespaceService().getOwnershipCache().removeOwnership(bundle);
                             completionFuture.complete(null);
                             if (unload) {
                                 // Unload new split bundles, in background. This will not
@@ -980,9 +982,13 @@ public class NamespaceService implements AutoCloseable {
 
     public boolean isServiceUnitActive(TopicName topicName) {
         try {
-            return ownershipCache.getOwnedBundle(getBundle(topicName)).isActive();
+            OwnedBundle ownedBundle = ownershipCache.getOwnedBundle(getBundle(topicName));
+            if (ownedBundle == null) {
+                return false;
+            }
+            return ownedBundle.isActive();
         } catch (Exception e) {
-            LOG.warn("Unable to find OwnedBundle for topic - [{}]", topicName);
+            LOG.warn("Unable to find OwnedBundle for topic - [{}]", topicName, e);
             return false;
         }
     }

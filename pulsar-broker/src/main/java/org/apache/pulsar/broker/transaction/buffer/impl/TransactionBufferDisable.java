@@ -90,7 +90,7 @@ public class TransactionBufferDisable implements TransactionBuffer {
 
     @Override
     public PositionImpl getMaxReadPosition() {
-        return PositionImpl.latest;
+        return PositionImpl.LATEST;
     }
 
     @Override

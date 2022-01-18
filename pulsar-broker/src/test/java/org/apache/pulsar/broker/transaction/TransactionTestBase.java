@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
@@ -59,8 +60,6 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.MockZooKeeperSession;
 import org.apache.zookeeper.data.ACL;
-import org.awaitility.Awaitility;
-import org.testng.Assert;
 
 @Slf4j
 public abstract class TransactionTestBase extends TestRetrySupport {
@@ -142,8 +141,6 @@ public abstract class TransactionTestBase extends TestRetrySupport {
                 .statsInterval(0, TimeUnit.SECONDS)
                 .enableTransaction(true)
                 .build();
-        // wait tc init success to ready state
-        waitForCoordinatorToBeAvailable(numPartitionsOfTC);
     }
 
     protected void startBroker() throws Exception {
@@ -174,7 +171,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
             conf.setTopicLevelPoliciesEnabled(true);
             serviceConfigurationList.add(conf);
 
-            PulsarService pulsar = spy(new PulsarService(conf));
+            PulsarService pulsar = spyWithClassAndConstructorArgs(PulsarService.class, conf);
 
             setupBrokerMocks(pulsar);
             pulsar.start();
@@ -189,7 +186,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         MockZooKeeperSession mockZooKeeperSession = MockZooKeeperSession.newInstance(mockZooKeeper);
         doReturn(new ZKMetadataStore(mockZooKeeperSession)).when(pulsar).createLocalMetadataStore();
         doReturn(new ZKMetadataStore(mockZooKeeperSession)).when(pulsar).createConfigurationMetadataStore();
-        Supplier<NamespaceService> namespaceServiceSupplier = () -> spy(new NamespaceService(pulsar));
+        Supplier<NamespaceService> namespaceServiceSupplier = () -> spyWithClassAndConstructorArgs(NamespaceService.class, pulsar);
         doReturn(namespaceServiceSupplier).when(pulsar).getNamespaceServiceProvider();
 
         SameThreadOrderedSafeExecutor executor = new SameThreadOrderedSafeExecutor();
@@ -320,15 +317,5 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         } catch (Exception e) {
             log.warn("Failed to clean up mocked pulsar service:", e);
         }
-    }
-    public void waitForCoordinatorToBeAvailable(int numOfTCPerBroker){
-        // wait tc init success to ready state
-        Awaitility.await()
-                .untilAsserted(() -> {
-                    int transactionMetaStoreCount = pulsarServiceList.stream()
-                            .mapToInt(pulsarService -> pulsarService.getTransactionMetadataStoreService().getStores().size())
-                            .sum();
-                    Assert.assertEquals(transactionMetaStoreCount, numOfTCPerBroker);
-                });
     }
 }
