@@ -704,6 +704,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/stats/NamespaceStats.html#BRK_ADD_ENTRY_LATENCY_PREFIX">BRK_ADD_ENTRY_LATENCY_PREFIX</a></span> - Static variable in class org.apache.pulsar.broker.stats.<a href="org/apache/pulsar/broker/stats/NamespaceStats.html" title="class in org.apache.pulsar.broker.stats">NamespaceStats</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/DispatchRateLimiter.Type.html#BROKER">BROKER</a></span> - org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/DispatchRateLimiter.Type.html" title="enum in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter.Type</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/namespace/NamespaceService.AddressType.html#BROKER_URL">BROKER_URL</a></span> - org.apache.pulsar.broker.namespace.<a href="org/apache/pulsar/broker/namespace/NamespaceService.AddressType.html" title="enum in org.apache.pulsar.broker.namespace">NamespaceService.AddressType</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/BrokerData.html" title="class in org.apache.pulsar.broker"><span class="typeNameLink">BrokerData</span></a> - Class in <a href="org/apache/pulsar/broker/package-summary.html">org.apache.pulsar.broker</a></dt>
@@ -715,6 +717,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Initialize this BrokerData using the most recent local data.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/BrokerService.html#brokerDispatchRateLimiter">brokerDispatchRateLimiter</a></span> - Variable in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/loadbalance/BrokerFilter.html" title="interface in org.apache.pulsar.broker.loadbalance"><span class="typeNameLink">BrokerFilter</span></a> - Interface in <a href="org/apache/pulsar/broker/loadbalance/package-summary.html">org.apache.pulsar.broker.loadbalance</a></dt>
 <dd>
 <div class="block">Load management component which determines what brokers should not be considered for topic placement by the placement
@@ -2714,6 +2718,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/service/persistent/DispatchRateLimiter.html" title="class in org.apache.pulsar.broker.service.persistent"><span class="typeNameLink">DispatchRateLimiter</span></a> - Class in <a href="org/apache/pulsar/broker/service/persistent/package-summary.html">org.apache.pulsar.broker.service.persistent</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/DispatchRateLimiter.html#%3Cinit%3E(org.apache.pulsar.broker.service.BrokerService)">DispatchRateLimiter(BrokerService)</a></span> - Constructor for class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/DispatchRateLimiter.html" title="class in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/DispatchRateLimiter.html#%3Cinit%3E(org.apache.pulsar.broker.service.persistent.PersistentTopic,org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type)">DispatchRateLimiter(PersistentTopic, DispatchRateLimiter.Type)</a></span> - Constructor for class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/DispatchRateLimiter.html" title="class in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/service/persistent/DispatchRateLimiter.Type.html" title="enum in org.apache.pulsar.broker.service.persistent"><span class="typeNameLink">DispatchRateLimiter.Type</span></a> - Enum in <a href="org/apache/pulsar/broker/service/persistent/package-summary.html">org.apache.pulsar.broker.service.persistent</a></dt>
@@ -3430,6 +3436,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/resource/usage/ResourceUsageInfo.html#getBroker()">getBroker()</a></span> - Method in class org.apache.pulsar.broker.service.resource.usage.<a href="org/apache/pulsar/broker/service/resource/usage/ResourceUsageInfo.html" title="class in org.apache.pulsar.broker.service.resource.usage">ResourceUsageInfo</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/LoadData.html#getBrokerData()">getBrokerData()</a></span> - Method in class org.apache.pulsar.broker.loadbalance.<a href="org/apache/pulsar/broker/loadbalance/LoadData.html" title="class in org.apache.pulsar.broker.loadbalance">LoadData</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/PersistentTopic.html#getBrokerDispatchRateLimiter()">getBrokerDispatchRateLimiter()</a></span> - Method in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/PersistentTopic.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentTopic</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/Topic.html#getBrokerDispatchRateLimiter()">getBrokerDispatchRateLimiter()</a></span> - Method in interface org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/Topic.html" title="interface in org.apache.pulsar.broker.service">Topic</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/BrokerService.html#getBrokerEntryMetadataInterceptors()">getBrokerEntryMetadataInterceptors()</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a></dt>
 <dd>&nbsp;</dd>
@@ -9892,6 +9902,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/ConnectionController.Sate.html#REACH_MAX_CONNECTION_PER_IP">REACH_MAX_CONNECTION_PER_IP</a></span> - org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/ConnectionController.Sate.html" title="enum in org.apache.pulsar.broker.service">ConnectionController.Sate</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/AbstractBaseDispatcher.html#reachDispatchRateLimit(org.apache.pulsar.broker.service.persistent.DispatchRateLimiter)">reachDispatchRateLimit(DispatchRateLimiter)</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/AbstractBaseDispatcher.html" title="class in org.apache.pulsar.broker.service">AbstractBaseDispatcher</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/Consumer.html#reachedEndOfTopic()">reachedEndOfTopic()</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/PersistentDispatcherMultipleConsumers.html#readBatchSize">readBatchSize</a></span> - Variable in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/PersistentDispatcherMultipleConsumers.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentDispatcherMultipleConsumers</a></dt>
@@ -10519,6 +10531,16 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">Http request wrapper.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/web/RequestWrapper.html#%3Cinit%3E(javax.servlet.http.HttpServletRequest)">RequestWrapper(HttpServletRequest)</a></span> - Constructor for class org.apache.pulsar.broker.web.<a href="org/apache/pulsar/broker/web/RequestWrapper.html" title="class in org.apache.pulsar.broker.web">RequestWrapper</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/AbstractBaseDispatcher.html#reScheduleRead()">reScheduleRead()</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/AbstractBaseDispatcher.html" title="class in org.apache.pulsar.broker.service">AbstractBaseDispatcher</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/nonpersistent/NonPersistentDispatcherMultipleConsumers.html#reScheduleRead()">reScheduleRead()</a></span> - Method in class org.apache.pulsar.broker.service.nonpersistent.<a href="org/apache/pulsar/broker/service/nonpersistent/NonPersistentDispatcherMultipleConsumers.html" title="class in org.apache.pulsar.broker.service.nonpersistent">NonPersistentDispatcherMultipleConsumers</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/nonpersistent/NonPersistentDispatcherSingleActiveConsumer.html#reScheduleRead()">reScheduleRead()</a></span> - Method in class org.apache.pulsar.broker.service.nonpersistent.<a href="org/apache/pulsar/broker/service/nonpersistent/NonPersistentDispatcherSingleActiveConsumer.html" title="class in org.apache.pulsar.broker.service.nonpersistent">NonPersistentDispatcherSingleActiveConsumer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/PersistentDispatcherMultipleConsumers.html#reScheduleRead()">reScheduleRead()</a></span> - Method in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/PersistentDispatcherMultipleConsumers.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentDispatcherMultipleConsumers</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/PersistentDispatcherSingleActiveConsumer.html#reScheduleRead()">reScheduleRead()</a></span> - Method in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/PersistentDispatcherSingleActiveConsumer.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentDispatcherSingleActiveConsumer</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/AbstractDispatcherSingleActiveConsumer.html#reset()">reset()</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/AbstractDispatcherSingleActiveConsumer.html" title="class in org.apache.pulsar.broker.service">AbstractDispatcherSingleActiveConsumer</a></dt>
 <dd>&nbsp;</dd>
@@ -12932,6 +12954,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/resourcegroup/ResourceGroup.html#updateLocalQuota(org.apache.pulsar.broker.resourcegroup.ResourceGroup.ResourceGroupMonitoringClass,org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount)">updateLocalQuota(ResourceGroup.ResourceGroupMonitoringClass, ResourceGroup.BytesAndMessagesCount)</a></span> - Method in class org.apache.pulsar.broker.resourcegroup.<a href="org/apache/pulsar/broker/resourcegroup/ResourceGroup.html" title="class in org.apache.pulsar.broker.resourcegroup">ResourceGroup</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/AbstractTopic.html#updateMaxPublishRate(org.apache.pulsar.common.policies.data.Policies)">updateMaxPublishRate(Policies)</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/AbstractTopic.html" title="class in org.apache.pulsar.broker.service">AbstractTopic</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/AbstractBaseDispatcher.html#updateMessagesToRead(org.apache.pulsar.broker.service.persistent.DispatchRateLimiter,int,long)">updateMessagesToRead(DispatchRateLimiter, int, long)</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/AbstractBaseDispatcher.html" title="class in org.apache.pulsar.broker.service">AbstractBaseDispatcher</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/PersistentReplicator.html#updateMessageTTL(int)">updateMessageTTL(int)</a></span> - Method in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/PersistentReplicator.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentReplicator</a></dt>
 <dd>&nbsp;</dd>

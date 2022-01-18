@@ -130,6 +130,21 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </a>
 <h3>Uses of <a href="../DispatchRateLimiter.html" title="class in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter</a> in <a href="../../package-summary.html">org.apache.pulsar.broker.service</a></h3>
 <table class="useSummary">
+<caption><span>Fields in <a href="../../package-summary.html">org.apache.pulsar.broker.service</a> declared as <a href="../DispatchRateLimiter.html" title="class in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colSecond" scope="col">Field</th>
+<th class="colLast" scope="col">Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>protected <a href="../DispatchRateLimiter.html" title="class in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter</a></code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">BrokerService.</span><code><span class="memberNameLink"><a href="../../BrokerService.html#brokerDispatchRateLimiter">brokerDispatchRateLimiter</a></span></code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+</tbody>
+</table>
+<table class="useSummary">
 <caption><span>Methods in <a href="../../package-summary.html">org.apache.pulsar.broker.service</a> that return types with arguments of type <a href="../DispatchRateLimiter.html" title="class in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter</a></span><span class="tabEnd">&nbsp;</span></caption>
 <tr>
 <th class="colFirst" scope="col">Modifier and Type</th>
@@ -139,17 +154,44 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <tbody>
 <tr class="altColor">
 <td class="colFirst"><code>default java.util.Optional&lt;<a href="../DispatchRateLimiter.html" title="class in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter</a>&gt;</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">Topic.</span><code><span class="memberNameLink"><a href="../../Topic.html#getDispatchRateLimiter()">getDispatchRateLimiter</a></span>()</code></th>
+<th class="colSecond" scope="row"><span class="typeNameLabel">Topic.</span><code><span class="memberNameLink"><a href="../../Topic.html#getBrokerDispatchRateLimiter()">getBrokerDispatchRateLimiter</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>default java.util.Optional&lt;<a href="../DispatchRateLimiter.html" title="class in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter</a>&gt;</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">Dispatcher.</span><code><span class="memberNameLink"><a href="../../Dispatcher.html#getRateLimiter()">getRateLimiter</a></span>()</code></th>
+<th class="colSecond" scope="row"><span class="typeNameLabel">Topic.</span><code><span class="memberNameLink"><a href="../../Topic.html#getDispatchRateLimiter()">getDispatchRateLimiter</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>default java.util.Optional&lt;<a href="../DispatchRateLimiter.html" title="class in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter</a>&gt;</code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">Dispatcher.</span><code><span class="memberNameLink"><a href="../../Dispatcher.html#getRateLimiter()">getRateLimiter</a></span>()</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>default java.util.Optional&lt;<a href="../DispatchRateLimiter.html" title="class in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter</a>&gt;</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">Replicator.</span><code><span class="memberNameLink"><a href="../../Replicator.html#getRateLimiter()">getRateLimiter</a></span>()</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+</tbody>
+</table>
+<table class="useSummary">
+<caption><span>Methods in <a href="../../package-summary.html">org.apache.pulsar.broker.service</a> with parameters of type <a href="../DispatchRateLimiter.html" title="class in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colSecond" scope="col">Method</th>
+<th class="colLast" scope="col">Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>protected boolean</code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">AbstractBaseDispatcher.</span><code><span class="memberNameLink"><a href="../../AbstractBaseDispatcher.html#reachDispatchRateLimit(org.apache.pulsar.broker.service.persistent.DispatchRateLimiter)">reachDispatchRateLimit</a></span>&#8203;(<a href="../DispatchRateLimiter.html" title="class in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter</a>&nbsp;dispatchRateLimiter)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>protected org.apache.commons.lang3.tuple.Pair&lt;java.lang.Integer,&#8203;java.lang.Long&gt;</code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">AbstractBaseDispatcher.</span><code><span class="memberNameLink"><a href="../../AbstractBaseDispatcher.html#updateMessagesToRead(org.apache.pulsar.broker.service.persistent.DispatchRateLimiter,int,long)">updateMessagesToRead</a></span>&#8203;(<a href="../DispatchRateLimiter.html" title="class in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter</a>&nbsp;dispatchRateLimiter,
+                    int&nbsp;messagesToRead,
+                    long&nbsp;bytesToRead)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </tbody>
@@ -186,20 +228,25 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <tbody>
 <tr class="altColor">
 <td class="colFirst"><code>java.util.Optional&lt;<a href="../DispatchRateLimiter.html" title="class in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter</a>&gt;</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">PersistentTopic.</span><code><span class="memberNameLink"><a href="../PersistentTopic.html#getDispatchRateLimiter()">getDispatchRateLimiter</a></span>()</code></th>
+<th class="colSecond" scope="row"><span class="typeNameLabel">PersistentTopic.</span><code><span class="memberNameLink"><a href="../PersistentTopic.html#getBrokerDispatchRateLimiter()">getBrokerDispatchRateLimiter</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>java.util.Optional&lt;<a href="../DispatchRateLimiter.html" title="class in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter</a>&gt;</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">PersistentDispatcherMultipleConsumers.</span><code><span class="memberNameLink"><a href="../PersistentDispatcherMultipleConsumers.html#getRateLimiter()">getRateLimiter</a></span>()</code></th>
+<th class="colSecond" scope="row"><span class="typeNameLabel">PersistentTopic.</span><code><span class="memberNameLink"><a href="../PersistentTopic.html#getDispatchRateLimiter()">getDispatchRateLimiter</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>java.util.Optional&lt;<a href="../DispatchRateLimiter.html" title="class in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter</a>&gt;</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">PersistentDispatcherSingleActiveConsumer.</span><code><span class="memberNameLink"><a href="../PersistentDispatcherSingleActiveConsumer.html#getRateLimiter()">getRateLimiter</a></span>()</code></th>
+<th class="colSecond" scope="row"><span class="typeNameLabel">PersistentDispatcherMultipleConsumers.</span><code><span class="memberNameLink"><a href="../PersistentDispatcherMultipleConsumers.html#getRateLimiter()">getRateLimiter</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="rowColor">
+<td class="colFirst"><code>java.util.Optional&lt;<a href="../DispatchRateLimiter.html" title="class in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter</a>&gt;</code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">PersistentDispatcherSingleActiveConsumer.</span><code><span class="memberNameLink"><a href="../PersistentDispatcherSingleActiveConsumer.html#getRateLimiter()">getRateLimiter</a></span>()</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
 <td class="colFirst"><code>java.util.Optional&lt;<a href="../DispatchRateLimiter.html" title="class in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter</a>&gt;</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">PersistentReplicator.</span><code><span class="memberNameLink"><a href="../PersistentReplicator.html#getRateLimiter()">getRateLimiter</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
