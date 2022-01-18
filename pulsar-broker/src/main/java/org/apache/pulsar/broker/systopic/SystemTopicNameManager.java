@@ -38,8 +38,8 @@ public class SystemTopicNameManager {
     }
 
     public static void register(TopicName topicName) {
-        String name = topicName.getLocalName();
-        register(name);
+        TopicName topicNameWithOutPartitioned = TopicName.get(topicName.getPartitionedTopicName());
+        register(topicNameWithOutPartitioned.getLocalName());
     }
 
     public static void register(String topicName) {
