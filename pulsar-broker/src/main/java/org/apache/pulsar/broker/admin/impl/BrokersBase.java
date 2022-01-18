@@ -111,14 +111,8 @@ public class BrokersBase extends PulsarWebResource {
         validateSuperUserAccess();
 
         try {
-            LeaderBroker leaderBroker;
-            if (pulsar().getLeaderElectionService().isLeader()) {
-                leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader()
-                        .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Couldn't find leader broker"));
-            } else {
-                leaderBroker = pulsar().getLeaderElectionService().readCurrentLeader().get()
-                        .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Couldn't find leader broker"));
-            }
+            LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader()
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Couldn't find leader broker"));
             return BrokerInfo.builder().serviceUrl(leaderBroker.getServiceUrl()).build();
         } catch (Exception e) {
             LOG.error("[{}] Failed to get the information of the leader broker.", clientAppId(), e);
