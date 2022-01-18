@@ -23,7 +23,6 @@ import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
-
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
