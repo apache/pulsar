@@ -174,34 +174,6 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     @PUT
-    @Path("/{property}/{cluster}/{namespace}/{topic}/partitions/properties")
-    @ApiOperation(hidden = true, value = "Create a partitioned topic.",
-            notes = "It needs to be called before creating a producer on a partitioned topic.")
-    @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-            @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 406, message = "The number of partitions should be "
-                    + "more than 0 and less than or equal to maxNumPartitionsPerPartitionedTopic"),
-            @ApiResponse(code = 409, message = "Partitioned topic already exist")})
-    public void createPartitionedTopic(
-            @Suspended final AsyncResponse asyncResponse,
-            @PathParam("property") String property,
-            @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("createLocalTopicOnly") @DefaultValue("false") boolean createLocalTopicOnly,
-            PartitionedTopicMetadata metadata) {
-        try {
-            validateTopicName(property, cluster, namespace, encodedTopic);
-            internalCreatePartitionedTopic(asyncResponse, metadata.partitions, createLocalTopicOnly,
-                    metadata.properties);
-        } catch (Exception e) {
-            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
-            resumeAsyncResponseExceptionally(asyncResponse, e);
-        }
-    }
-
-    @PUT
     @Path("/{tenant}/{cluster}/{namespace}/{topic}")
     @ApiOperation(value = "Create a non-partitioned topic.",
             notes = "This is the only REST endpoint from which non-partitioned topics could be created.")
