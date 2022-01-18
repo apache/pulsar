@@ -33,7 +33,6 @@ import static org.apache.pulsar.common.sasl.SaslConstants.SASL_STATE_COMPLETE;
 import static org.apache.pulsar.common.sasl.SaslConstants.SASL_STATE_NEGOTIATE;
 import static org.apache.pulsar.common.sasl.SaslConstants.SASL_STATE_SERVER;
 import static org.apache.pulsar.common.sasl.SaslConstants.SASL_STATE_SERVER_CHECK_TOKEN;
-
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.Base64;
@@ -43,13 +42,11 @@ import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
-
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import javax.security.auth.login.LoginException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.AuthData;
@@ -230,7 +227,8 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
                 request.setAttribute(AuthenticatedDataAttributeName,
                     new AuthenticationDataHttps(request));
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Server side role token OK to go on: {}", request.getRequestURI(), saslAuthRoleToken);
+                    log.debug("[{}] Server side role token OK to go on: {}", request.getRequestURI(),
+                            saslAuthRoleToken);
                 }
                 return true;
             } else {
@@ -239,7 +237,8 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
                 response.setHeader(SASL_STATE_SERVER, request.getHeader(SASL_STATE_SERVER));
                 response.setStatus(HttpServletResponse.SC_OK);
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Server side role token verified success: {}", request.getRequestURI(), saslAuthRoleToken);
+                    log.debug("[{}] Server side role token verified success: {}", request.getRequestURI(),
+                            saslAuthRoleToken);
                 }
                 return false;
             }
