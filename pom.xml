@@ -199,8 +199,8 @@ flexible messaging model and an intuitive client API.</description>
     <!-- override kotlin-stdlib used by okio in order to address CVE-2020-29582 -->
     <kotlin-stdlib.version>1.4.32</kotlin-stdlib.version>
     <nsq-client.version>1.0</nsq-client.version>
-    <cron-utils.version>9.1.3</cron-utils.version>
-    <spring-context.version>5.3.1</spring-context.version>
+    <cron-utils.version>9.1.6</cron-utils.version>
+    <spring-context.version>5.3.15</spring-context.version>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <snakeyaml.version>1.30</snakeyaml.version>
 
