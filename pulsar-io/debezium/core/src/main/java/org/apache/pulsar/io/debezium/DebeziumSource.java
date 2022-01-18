@@ -22,6 +22,7 @@ import java.util.Map;
 
 import io.debezium.relational.HistorizedRelationalDatabaseConnectorConfig;
 import io.debezium.relational.history.DatabaseHistory;
+import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.io.core.SourceContext;
@@ -50,10 +51,7 @@ public abstract class DebeziumSource extends KafkaConnectSource {
     }
 
     public static void setConfigIfNull(Map<String, Object> config, String key, String value) {
-        Object orig = config.get(key);
-        if (orig == null) {
-            config.put(key, value);
-        }
+        config.putIfAbsent(key, value);
     }
 
     // namespace for output topics, default value is "tenant/namespace"
@@ -79,12 +77,8 @@ public abstract class DebeziumSource extends KafkaConnectSource {
         // database.history : implementation class for database history.
         setConfigIfNull(config, HistorizedRelationalDatabaseConnectorConfig.DATABASE_HISTORY.name(), DEFAULT_HISTORY);
 
-        // database.history.pulsar.service.url, this is set as the value of pulsar.service.url if null.
-        String serviceUrl = (String) config.get(PulsarKafkaWorkerConfig.PULSAR_SERVICE_URL_CONFIG);
-        if (serviceUrl == null) {
-            throw new IllegalArgumentException("Pulsar service URL not provided.");
-        }
-        setConfigIfNull(config, PulsarDatabaseHistory.SERVICE_URL.name(), serviceUrl);
+        // database.history.pulsar.service.url
+        String pulsarUrl = (String) config.get(PulsarDatabaseHistory.SERVICE_URL.name());
 
         String topicNamespace = topicNamespace(sourceContext);
         // topic.namespace
@@ -98,8 +92,12 @@ public abstract class DebeziumSource extends KafkaConnectSource {
         setConfigIfNull(config, PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG,
             topicNamespace + "/" + sourceName + "-" + DEFAULT_OFFSET_TOPIC);
 
-        config.put(DatabaseHistory.CONFIGURATION_FIELD_PREFIX_STRING + "pulsar.client.builder",
-                SerDeUtils.serialize(sourceContext.getPulsarClientBuilder()));
+        // pass pulsar.client.builder if database.history.pulsar.service.url is not provided
+        if (StringUtils.isEmpty(pulsarUrl)) {
+            String pulsarClientBuilder = SerDeUtils.serialize(sourceContext.getPulsarClientBuilder());
+            config.put(PulsarDatabaseHistory.CLIENT_BUILDER.name(), pulsarClientBuilder);
+        }
+
         super.open(config, sourceContext);
     }
 
