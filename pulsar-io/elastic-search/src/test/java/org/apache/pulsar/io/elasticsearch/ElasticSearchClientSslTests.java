@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
+import lombok.extern.slf4j.Slf4j;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testcontainers.utility.MountableFile;
@@ -44,9 +45,8 @@ public class ElasticSearchClientSslTests {
     @Test
     public void testSslBasic() throws IOException {
         try(ElasticsearchContainer container = new ElasticsearchContainer(ELASTICSEARCH_IMAGE)
-                .withCreateContainerCmdModifier(c -> c.withName("elasticsearch"))
                 .withFileSystemBind(sslResourceDir, configDir + "/ssl")
-                .withEnv("ELASTIC_PASSWORD","elastic")  // boostrap password
+                .withPassword("elastic")
                 .withEnv("xpack.license.self_generated.type", "trial")
                 .withEnv("xpack.security.enabled", "true")
                 .withEnv("xpack.security.http.ssl.enabled", "true")
@@ -80,9 +80,8 @@ public class ElasticSearchClientSslTests {
     @Test
     public void testSslWithHostnameVerification() throws IOException {
         try(ElasticsearchContainer container = new ElasticsearchContainer(ELASTICSEARCH_IMAGE)
-                .withCreateContainerCmdModifier(c -> c.withName("elasticsearch"))
                 .withFileSystemBind(sslResourceDir, configDir + "/ssl")
-                .withEnv("ELASTIC_PASSWORD","elastic")  // boostrap password
+                .withPassword("elastic")
                 .withEnv("xpack.license.self_generated.type", "trial")
                 .withEnv("xpack.security.enabled", "true")
                 .withEnv("xpack.security.http.ssl.enabled", "true")
@@ -119,9 +118,8 @@ public class ElasticSearchClientSslTests {
     @Test
     public void testSslWithClientAuth() throws IOException {
         try(ElasticsearchContainer container = new ElasticsearchContainer(ELASTICSEARCH_IMAGE)
-                .withCreateContainerCmdModifier(c -> c.withName("elasticsearch"))
                 .withFileSystemBind(sslResourceDir, configDir + "/ssl")
-                .withEnv("ELASTIC_PASSWORD","elastic")  // boostrap password
+                .withPassword("elastic")
                 .withEnv("xpack.license.self_generated.type", "trial")
                 .withEnv("xpack.security.enabled", "true")
                 .withEnv("xpack.security.http.ssl.enabled", "true")
