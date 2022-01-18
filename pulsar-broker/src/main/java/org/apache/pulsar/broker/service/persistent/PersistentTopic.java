@@ -404,7 +404,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             decrementPendingWriteOpsAndCheck();
             return;
         }
-        if (isExceedMaximumMessageSize(headersAndPayload.readableBytes())) {
+        if (isExceedMaximumMessageSize(headersAndPayload.readableBytes(), publishContext)) {
             publishContext.completed(new NotAllowedException("Exceed maximum message size")
                     , -1, -1);
             decrementPendingWriteOpsAndCheck();
@@ -2971,7 +2971,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             decrementPendingWriteOpsAndCheck();
             return;
         }
-        if (isExceedMaximumMessageSize(headersAndPayload.readableBytes())) {
+        if (isExceedMaximumMessageSize(headersAndPayload.readableBytes(), publishContext)) {
             publishContext.completed(new NotAllowedException("Exceed maximum message size")
                     , -1, -1);
             decrementPendingWriteOpsAndCheck();
