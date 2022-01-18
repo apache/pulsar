@@ -894,7 +894,7 @@ public abstract class PulsarWebResource {
             return pulsar().getBrokerService().getAuthorizationService()
                     .allowNamespaceOperationAsync(namespaceName, operation, originalPrincipal(),
                              clientAppId(), clientAuthData())
-                    .thenAccept(isAuthorized ->{
+                    .thenAccept(isAuthorized -> {
                         if (!isAuthorized) {
                             throw new RestException(Status.FORBIDDEN,
                                     String.format("Unauthorized to validateNamespaceOperation for"
