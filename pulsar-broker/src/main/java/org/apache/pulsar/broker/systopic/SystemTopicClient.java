@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.systopic;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.admin.impl.BrokersBase;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -190,6 +192,13 @@ public interface SystemTopicClient<T> {
         if (topicName.isPartitioned()) {
             return EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME
                     .equals(TopicName.get(topicName.getPartitionedTopicName()).getLocalName());
+        }
+
+        TopicName nonePartitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
+        String localName = nonePartitionedTopicName.getLocalName();
+        // health check topic
+        if (StringUtils.endsWith(localName, BrokersBase.HEALTH_CHECK_TOPIC_SUFFIX)){
+            return true;
         }
 
         return EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME.equals(topicName.getLocalName());
