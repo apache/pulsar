@@ -26,6 +26,7 @@ import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Optional;
+import java.util.concurrent.Semaphore;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.api.proto.CommandGetSchema;
@@ -80,9 +81,11 @@ public class LookupProxyHandler {
             .build("pulsar_proxy_rejected_get_topics_of_namespace_requests",
                     "Counter of getTopicsOfNamespace requests rejected due to throttling")
             .create().register();
+    private final Semaphore lookupRequestSemaphore;
 
     public LookupProxyHandler(ProxyService proxy, ProxyConnection proxyConnection) {
         this.service = proxy;
+        this.lookupRequestSemaphore = this.service.getLookupRequestSemaphore();
         this.proxyConnection = proxyConnection;
         this.clientAddress = proxyConnection.clientAddress();
         this.connectWithTLS = proxy.getConfiguration().isTlsEnabledWithBroker();
@@ -95,28 +98,31 @@ public class LookupProxyHandler {
             log.debug("Received Lookup from {}", clientAddress);
         }
         long clientRequestId = lookup.getRequestId();
-        if (this.service.getLookupRequestSemaphore().tryAcquire()) {
-            LOOKUP_REQUESTS.inc();
-            String topic = lookup.getTopic();
-            String serviceUrl;
-            if (isBlank(brokerServiceURL)) {
-                ServiceLookupData availableBroker = null;
-                try {
-                    availableBroker = service.getDiscoveryProvider().nextBroker();
-                } catch (Exception e) {
-                    log.warn("[{}] Failed to get next active broker {}", clientAddress, e.getMessage(), e);
-                    proxyConnection.ctx().writeAndFlush(Commands.newLookupErrorResponse(ServerError.ServiceNotReady,
-                            e.getMessage(), clientRequestId));
-                    return;
+        if (lookupRequestSemaphore.tryAcquire()) {
+            try {
+                LOOKUP_REQUESTS.inc();
+                String topic = lookup.getTopic();
+                String serviceUrl;
+                if (isBlank(brokerServiceURL)) {
+                    ServiceLookupData availableBroker = null;
+                    try {
+                        availableBroker = service.getDiscoveryProvider().nextBroker();
+                    } catch (Exception e) {
+                        log.warn("[{}] Failed to get next active broker {}", clientAddress, e.getMessage(), e);
+                        proxyConnection.ctx().writeAndFlush(Commands.newLookupErrorResponse(ServerError.ServiceNotReady,
+                                e.getMessage(), clientRequestId));
+                        return;
+                    }
+                    serviceUrl = this.connectWithTLS ? availableBroker.getPulsarServiceUrlTls()
+                            : availableBroker.getPulsarServiceUrl();
+                } else {
+                    serviceUrl = this.connectWithTLS ? service.getConfiguration().getBrokerServiceURLTLS()
+                            : service.getConfiguration().getBrokerServiceURL();
                 }
-                serviceUrl = this.connectWithTLS ? availableBroker.getPulsarServiceUrlTls()
-                        : availableBroker.getPulsarServiceUrl();
-            } else {
-                serviceUrl = this.connectWithTLS ? service.getConfiguration().getBrokerServiceURLTLS()
-                        : service.getConfiguration().getBrokerServiceURL();
+                performLookup(clientRequestId, topic, serviceUrl, false, 10);
+            } finally {
+                lookupRequestSemaphore.release();
             }
-            performLookup(clientRequestId, topic, serviceUrl, false, 10);
-            this.service.getLookupRequestSemaphore().release();
         } else {
             REJECTED_LOOKUP_REQUESTS.inc();
             if (log.isDebugEnabled()) {
@@ -200,9 +206,12 @@ public class LookupProxyHandler {
             log.debug("[{}] Received PartitionMetadataLookup", clientAddress);
         }
         final long clientRequestId = partitionMetadata.getRequestId();
-        if (this.service.getLookupRequestSemaphore().tryAcquire()) {
-            handlePartitionMetadataResponse(partitionMetadata, clientRequestId);
-            this.service.getLookupRequestSemaphore().release();
+        if (lookupRequestSemaphore.tryAcquire()) {
+            try {
+                handlePartitionMetadataResponse(partitionMetadata, clientRequestId);
+            } finally {
+                lookupRequestSemaphore.release();
+            }
         } else {
             REJECTED_PARTITIONS_METADATA_REQUESTS.inc();
             if (log.isDebugEnabled()) {
@@ -274,9 +283,12 @@ public class LookupProxyHandler {
 
         final long requestId = commandGetTopicsOfNamespace.getRequestId();
 
-        if (this.service.getLookupRequestSemaphore().tryAcquire()) {
-            handleGetTopicsOfNamespace(commandGetTopicsOfNamespace, requestId);
-            this.service.getLookupRequestSemaphore().release();
+        if (lookupRequestSemaphore.tryAcquire()) {
+            try {
+                handleGetTopicsOfNamespace(commandGetTopicsOfNamespace, requestId);
+            } finally {
+                lookupRequestSemaphore.release();
+            }
         } else {
             REJECTED_GET_TOPICS_OF_NAMESPACE_REQUESTS.inc();
             if (log.isDebugEnabled()) {
