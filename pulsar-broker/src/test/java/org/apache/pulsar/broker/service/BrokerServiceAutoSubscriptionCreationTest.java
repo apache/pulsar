@@ -131,4 +131,18 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
         assertFalse(admin.topics().getSubscriptions(topicName.toString()).contains(subscriptionName));
     }
 
+    @Test
+    public void testNonPersistentTopicSubscriptionCreationWithAutoCreationDisable() throws Exception {
+        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
+
+        final String topicName = "non-persistent://prop/ns-abc/test-subtopic-" + testId.getAndIncrement();
+        final String subscriptionName = "test-subtopic-sub";
+
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        // Subscribe operation should be successful
+        pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
+        assertTrue(admin.topics().getSubscriptions(topicName).contains(subscriptionName));
+    }
+
 }
