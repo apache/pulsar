@@ -1,12 +1,8 @@
 ---
 id: txn-how
 title: How transactions work?
-sidebar_label: How transactions work?
+sidebar_label: "How transactions work?"
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 This section describes transaction components and how the components work together. For the complete design details, see [PIP-31: Transactional Streaming](https://docs.google.com/document/d/145VYp09JKTw9jAT-7yNyFU255FptB2_B2Fye100ZXDI/edit#heading=h.bm5ainqxosrx).
 

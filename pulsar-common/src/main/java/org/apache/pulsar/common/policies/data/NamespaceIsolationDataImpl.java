@@ -18,21 +18,18 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.Value;
-import lombok.extern.jackson.Jacksonized;
-import org.apache.commons.lang3.StringUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
-import static com.google.common.base.Preconditions.checkArgument;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * The data of namespace isolation configuration.
@@ -59,7 +56,7 @@ public class NamespaceIsolationDataImpl implements NamespaceIsolationData {
     private List<String> primary;
 
     @ApiModelProperty(
-            name = "primary",
+            name = "secondary",
             value = "The list of secondary brokers for serving the list of namespaces in this isolation policy"
     )
     private List<String> secondary;

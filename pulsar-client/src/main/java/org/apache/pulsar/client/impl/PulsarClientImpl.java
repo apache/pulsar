@@ -24,7 +24,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.collect.Lists;
 
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.HashedWheelTimer;
@@ -64,6 +63,7 @@ import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TableViewBuilder;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.api.transaction.TransactionBuilder;
@@ -95,6 +95,7 @@ public class PulsarClientImpl implements PulsarClient {
     protected final ClientConfigurationData conf;
     private LookupService lookup;
     private final ConnectionPool cnxPool;
+    @Getter
     private final Timer timer;
     private boolean needStopTimer;
     private final ExecutorProvider externalExecutorProvider;
@@ -257,6 +258,11 @@ public class PulsarClientImpl implements PulsarClient {
     @Override
     public <T> ReaderBuilder<T> newReader(Schema<T> schema) {
         return new ReaderBuilderImpl<>(this, schema);
+    }
+
+    @Override
+    public <T> TableViewBuilder<T> newTableViewBuilder(Schema<T> schema) {
+        return new TableViewBuilderImpl<>(this, schema);
     }
 
     public CompletableFuture<Producer<byte[]>> createProducerAsync(ProducerConfigurationData conf) {
@@ -673,7 +679,7 @@ public class PulsarClientImpl implements PulsarClient {
         }
 
         final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
-        List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         producers.forEach(p -> futures.add(p.closeAsync()));
         consumers.forEach(c -> futures.add(c.closeAsync()));
@@ -712,6 +718,14 @@ public class PulsarClientImpl implements PulsarClient {
                     throwable = t;
                 }
             }
+            if (tcClient != null) {
+                try {
+                    tcClient.close();
+                } catch (Throwable t) {
+                    log.warn("Failed to close tcClient");
+                    throwable = t;
+                }
+            }
             try {
                 // Shutting down eventLoopGroup separately because in some cases, cnxPool might be using different
                 // eventLoopGroup.
@@ -744,14 +758,6 @@ public class PulsarClientImpl implements PulsarClient {
                     conf.getAuthentication().close();
                 } catch (Throwable t) {
                     log.warn("Failed to close authentication", t);
-                    throwable = t;
-                }
-            }
-            if (tcClient != null) {
-                try {
-                    tcClient.close();
-                } catch (Throwable t) {
-                    log.warn("Failed to close tcClient");
                     throwable = t;
                 }
             }

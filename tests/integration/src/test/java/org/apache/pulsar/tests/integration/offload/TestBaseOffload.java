@@ -48,7 +48,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
         return entry;
     }
 
-    public void testPublishOffloadAndConsumeViaCLI(String serviceUrl, String adminUrl) throws Exception {
+    protected void testPublishOffloadAndConsumeViaCLI(String serviceUrl, String adminUrl) throws Exception {
         final String tenant = "offload-test-cli-" + randomName(4);
         final String namespace = tenant + "/ns1";
         final String topic = "persistent://" + namespace + "/topic1";
@@ -120,7 +120,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
         }
     }
 
-    public void testPublishOffloadAndConsumeViaThreshold(String serviceUrl, String adminUrl) throws Exception {
+    protected void testPublishOffloadAndConsumeViaThreshold(String serviceUrl, String adminUrl) throws Exception {
         final String tenant = "offload-test-threshold-" + randomName(4);
         final String namespace = tenant + "/ns1";
         final String topic = "persistent://" + namespace + "/topic1";
@@ -240,7 +240,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
         }
     }
 
-    public void testPublishOffloadAndConsumeDeletionLag(String serviceUrl, String adminUrl) throws Exception {
+    protected void testPublishOffloadAndConsumeDeletionLag(String serviceUrl, String adminUrl) throws Exception {
         final String tenant = "offload-test-deletion-lag-" + randomName(4);
         final String namespace = tenant + "/ns1";
         final String topic = "persistent://" + namespace + "/topic1";

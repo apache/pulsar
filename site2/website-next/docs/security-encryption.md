@@ -1,7 +1,7 @@
 ---
 id: security-encryption
 title: Pulsar Encryption
-sidebar_label: End-to-End Encryption
+sidebar_label: "End-to-End Encryption"
 ---
 
 import Tabs from '@theme/Tabs';
@@ -45,9 +45,168 @@ openssl ec -in test_ecdsa_privkey.pem -pubout -outform pem -out test_ecdsa_pubke
 
 4. Add encryption key name to producer builder: PulsarClient.newProducer().addEncryptionKey("myapp.key").
 
-5. Add CryptoKeyReader implementation to producer or consumer builder: PulsarClient.newProducer().cryptoKeyReader(keyReader) / PulsarClient.newConsumer().cryptoKeyReader(keyReader).
+5. Configure a `CryptoKeyReader` to a producer, consumer or reader. 
 
-6. Sample producer application:
+<Tabs 
+  defaultValue="Java"
+  values={[{"label":"Java","value":"Java"},{"label":"C++","value":"C++"},{"label":"Python","value":"Python"},{"label":"Node.JS","value":"Node.JS"}]}>
+<TabItem value="Java">
+
+```java
+
+PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
+String topic = "persistent://my-tenant/my-ns/my-topic";
+// RawFileKeyReader is just an example implementation that's not provided by Pulsar
+CryptoKeyReader keyReader = new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem");
+
+Producer<byte[]> producer = pulsarClient.newProducer()
+        .topic(topic)
+        .cryptoKeyReader(keyReader)
+        .addEncryptionKey(“myappkey”)
+        .create();
+
+Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        .topic(topic)
+        .subscriptionName("my-subscriber-name")
+        .cryptoKeyReader(keyReader)
+        .subscribe();
+
+Reader<byte[]> reader = pulsarClient.newReader()
+        .topic(topic)
+        .startMessageId(MessageId.earliest)
+        .cryptoKeyReader(keyReader)
+        .create();
+
+```
+
+</TabItem>
+<TabItem value="C++">
+
+```c++
+
+Client client("pulsar://localhost:6650");
+std::string topic = "persistent://my-tenant/my-ns/my-topic";
+// DefaultCryptoKeyReader is a built-in implementation that reads public key and private key from files
+auto keyReader = std::make_shared<DefaultCryptoKeyReader>("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem");
+
+Producer producer;
+ProducerConfiguration producerConf;
+producerConf.setCryptoKeyReader(keyReader);
+producerConf.addEncryptionKey("myappkey");
+client.createProducer(topic, producerConf, producer);
+
+Consumer consumer;
+ConsumerConfiguration consumerConf;
+consumerConf.setCryptoKeyReader(keyReader);
+client.subscribe(topic, "my-subscriber-name", consumerConf, consumer);
+
+Reader reader;
+ReaderConfiguration readerConf;
+readerConf.setCryptoKeyReader(keyReader);
+client.createReader(topic, MessageId::earliest(), readerConf, reader);
+
+```
+
+</TabItem>
+<TabItem value="Python">
+
+```python
+
+from pulsar import Client, CryptoKeyReader
+
+client = Client('pulsar://localhost:6650')
+topic = 'persistent://my-tenant/my-ns/my-topic'
+# CryptoKeyReader is a built-in implementation that reads public key and private key from files
+key_reader = CryptoKeyReader('test_ecdsa_pubkey.pem', 'test_ecdsa_privkey.pem')
+
+producer = client.create_producer(
+    topic=topic,
+    encryption_key='myappkey',
+    crypto_key_reader=key_reader
+)
+
+consumer = client.subscribe(
+    topic=topic,
+    subscription_name='my-subscriber-name',
+    crypto_key_reader=key_reader
+)
+
+reader = client.create_reader(
+    topic=topic,
+    start_message_id=MessageId.earliest,
+    crypto_key_reader=key_reader
+)
+
+client.close()
+
+```
+
+</TabItem>
+<TabItem value="Node.JS">
+
+```nodejs
+
+const Pulsar = require('pulsar-client');
+
+(async () => {
+// Create a client
+const client = new Pulsar.Client({
+    serviceUrl: 'pulsar://localhost:6650',
+    operationTimeoutSeconds: 30,
+});
+
+// Create a producer
+const producer = await client.createProducer({
+    topic: 'persistent://public/default/my-topic',
+    sendTimeoutMs: 30000,
+    batchingEnabled: true,
+    publicKeyPath: "public-key.client-rsa.pem",
+    encryptionKey: "encryption-key"
+});
+
+// Create a consumer
+const consumer = await client.subscribe({
+    topic: 'persistent://public/default/my-topic',
+    subscription: 'sub1',
+    subscriptionType: 'Shared',
+    ackTimeoutMs: 10000,
+    privateKeyPath: "private-key.client-rsa.pem"
+});
+
+// Send messages
+for (let i = 0; i < 10; i += 1) {
+    const msg = `my-message-${i}`;
+    producer.send({
+    data: Buffer.from(msg),
+    });
+    console.log(`Sent message: ${msg}`);
+}
+await producer.flush();
+
+// Receive messages
+for (let i = 0; i < 10; i += 1) {
+    const msg = await consumer.receive();
+    console.log(msg.getData().toString());
+    consumer.acknowledge(msg);
+}
+
+await consumer.close();
+await producer.close();
+await client.close();
+})();
+
+```
+
+</TabItem>
+
+</Tabs>
+
+6. Below is an example of a **customized** `CryptoKeyReader` implementation.
+
+<Tabs 
+  defaultValue="Java"
+  values={[{"label":"Java","value":"Java"},{"label":"C++","value":"C++"},{"label":"Python","value":"Python"},{"label":"Node.JS","value":"Node.JS"}]}>
+<TabItem value="Java">
 
 ```java
 
@@ -86,81 +245,48 @@ class RawFileKeyReader implements CryptoKeyReader {
     }
 }
 
-PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
+```
 
-Producer producer = pulsarClient.newProducer()
-                .topic("persistent://my-tenant/my-ns/my-topic")
-                .addEncryptionKey("myappkey")
-                .cryptoKeyReader(new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem"))
-                .create();
+</TabItem>
+<TabItem value="C++">
 
-for (int i = 0; i < 10; i++) {
-    producer.send("my-message".getBytes());
-}
+```c++
 
-producer.close();
-pulsarClient.close();
+class CustomCryptoKeyReader : public CryptoKeyReader {
+    public:
+    Result getPublicKey(const std::string& keyName, std::map<std::string, std::string>& metadata,
+                        EncryptionKeyInfo& encKeyInfo) const override {
+        // TODO:
+        return ResultOk;
+    }
+
+    Result getPrivateKey(const std::string& keyName, std::map<std::string, std::string>& metadata,
+                        EncryptionKeyInfo& encKeyInfo) const override {
+        // TODO:
+        return ResultOk;
+    }
+};
+
+auto keyReader = std::make_shared<CustomCryptoKeyReader>(/* ... */);
+// TODO: create producer, consumer or reader based on keyReader here
 
 ```
-7. Sample Consumer Application:
 
-```java
+Besides, you can use the **default** implementation of `CryptoKeyReader` by specifying the paths of `private key` and `public key`.
 
-class RawFileKeyReader implements CryptoKeyReader {
+</TabItem>
+<TabItem value="Python">
 
-    String publicKeyFile = "";
-    String privateKeyFile = "";
+Currently, **customized** `CryptoKeyReader` implementation is not supported in Python. However, you can use the **default** implementation by specifying the path of `private key` and `public key`.
 
-    RawFileKeyReader(String pubKeyFile, String privKeyFile) {
-        publicKeyFile = pubKeyFile;
-        privateKeyFile = privKeyFile;
-    }
+</TabItem>
+<TabItem value="Node.JS">
 
-    @Override
-    public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-        EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
-        try {
-            keyInfo.setKey(Files.readAllBytes(Paths.get(publicKeyFile)));
-        } catch (IOException e) {
-            System.out.println("ERROR: Failed to read public key from file " + publicKeyFile);
-            e.printStackTrace();
-        }
-        return keyInfo;
-    }
+Currently, **customized** `CryptoKeyReader` implementation is not supported in Node.JS. However, you can use the **default** implementation by specifying the path of `private key` and `public key`.
 
-    @Override
-    public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-        EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
-        try {
-            keyInfo.setKey(Files.readAllBytes(Paths.get(privateKeyFile)));
-        } catch (IOException e) {
-            System.out.println("ERROR: Failed to read private key from file " + privateKeyFile);
-            e.printStackTrace();
-        }
-        return keyInfo;
-    }
-}
+</TabItem>
 
-PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
-Consumer consumer = pulsarClient.newConsumer()
-                .topic("persistent://my-tenant/my-ns/my-topic")
-                .subscriptionName("my-subscriber-name")
-                .cryptoKeyReader(new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem"))
-                .subscribe();
-Message msg = null;
-
-for (int i = 0; i < 10; i++) {
-    msg = consumer.receive();
-    // do something
-    System.out.println("Received: " + new String(msg.getData()));
-}
-
-// Acknowledge the consumption of all messages at once
-consumer.acknowledgeCumulative(msg);
-consumer.close();
-pulsarClient.close();
-
-```
+</Tabs>
 
 ## Key rotation
 Pulsar generates a new AES data key every 4 hours or after publishing a certain number of messages. A producer fetches the asymmetric public key every 4 hours by calling CryptoKeyReader.getPublicKey() to retrieve the latest version.
@@ -179,6 +305,7 @@ If you need to encrypt the messages using 2 keys (myapp.messagekey1 and myapp.me
 PulsarClient.newProducer().addEncryptionKey("myapp.messagekey1").addEncryptionKey("myapp.messagekey2");
 
 ```
+
 ## Decrypt encrypted messages at the consumer application
 Consumers require access one of the private keys to decrypt messages that the producer produces. If you want to receive encrypted messages, create a public or private key and give your public key to the producer application to encrypt messages using your public key.
 

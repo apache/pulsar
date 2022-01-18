@@ -19,7 +19,6 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,13 +32,11 @@ import java.util.Iterator;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executor;
-
 import javax.net.ssl.SSLContext;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -53,6 +50,7 @@ import org.eclipse.jetty.client.ProtocolHandlers;
 import org.eclipse.jetty.client.RedirectProtocolHandler;
 import org.eclipse.jetty.client.api.ContentProvider;
 import org.eclipse.jetty.client.api.Request;
+import org.eclipse.jetty.client.http.HttpClientTransportOverHTTP;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.proxy.ProxyServlet;
 import org.eclipse.jetty.util.HttpCookieStore;
@@ -114,14 +112,16 @@ class AdminProxyHandler extends ProxyServlet {
         String value = config.getInitParameter("maxThreads");
         if (value == null || "-".equals(value)) {
             executor = (Executor) getServletContext().getAttribute("org.eclipse.jetty.server.Executor");
-            if (executor == null)
+            if (executor == null) {
                 throw new IllegalStateException("No server executor for proxy");
+            }
         } else {
             QueuedThreadPool qtp = new QueuedThreadPool(Integer.parseInt(value));
             String servletName = config.getServletName();
             int dot = servletName.lastIndexOf('.');
-            if (dot >= 0)
+            if (dot >= 0) {
                 servletName = servletName.substring(dot + 1);
+            }
             qtp.setName(servletName);
             executor = qtp;
         }
@@ -129,22 +129,26 @@ class AdminProxyHandler extends ProxyServlet {
         client.setExecutor(executor);
 
         value = config.getInitParameter("maxConnections");
-        if (value == null)
+        if (value == null) {
             value = "256";
+        }
         client.setMaxConnectionsPerDestination(Integer.parseInt(value));
 
         value = config.getInitParameter("idleTimeout");
-        if (value == null)
+        if (value == null) {
             value = "30000";
+        }
         client.setIdleTimeout(Long.parseLong(value));
 
         value = config.getInitParameter("requestBufferSize");
-        if (value != null)
+        if (value != null) {
             client.setRequestBufferSize(Integer.parseInt(value));
+        }
 
         value = config.getInitParameter("responseBufferSize");
-        if (value != null)
+        if (value != null){
             client.setResponseBufferSize(Integer.parseInt(value));
+        }
 
         try {
             client.start();
@@ -209,12 +213,14 @@ class AdminProxyHandler extends ProxyServlet {
     }
 
     private static class JettyHttpClient extends HttpClient {
+        private static final int NUMBER_OF_SELECTOR_THREADS = 1;
+
         public JettyHttpClient() {
-            super();
+            super(new HttpClientTransportOverHTTP(NUMBER_OF_SELECTOR_THREADS), null);
         }
 
         public JettyHttpClient(SslContextFactory sslContextFactory) {
-            super(sslContextFactory);
+            super(new HttpClientTransportOverHTTP(NUMBER_OF_SELECTOR_THREADS), sslContextFactory);
         }
 
         /**
@@ -256,7 +262,7 @@ class AdminProxyHandler extends ProxyServlet {
 
             if (config.isTlsEnabledWithBroker()) {
                 try {
-                    X509Certificate trustCertificates[] = SecurityUtility
+                    X509Certificate[] trustCertificates = SecurityUtility
                         .loadCertificatesFromPemFile(config.getBrokerClientTrustCertsFilePath());
 
                     SSLContext sslCtx;
@@ -281,6 +287,7 @@ class AdminProxyHandler extends ProxyServlet {
 
                     return new JettyHttpClient(contextFactory);
                 } catch (Exception e) {
+                    LOG.error("new jetty http client exception ", e);
                     try {
                         auth.close();
                     } catch (IOException ioe) {
@@ -303,7 +310,7 @@ class AdminProxyHandler extends ProxyServlet {
 
         boolean isFunctionsRestRequest = false;
         String requestUri = request.getRequestURI();
-        for (String routePrefix: functionRoutes) {
+        for (String routePrefix : functionRoutes) {
             if (requestUri.startsWith(routePrefix)) {
                 isFunctionsRestRequest = true;
                 break;
@@ -324,7 +331,7 @@ class AdminProxyHandler extends ProxyServlet {
 
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("[{}:{}] Selected active broker is {}", request.getRemoteAddr(), request.getRemotePort(),
-                            url.toString());
+                            url);
                 }
             } catch (Exception e) {
                 LOG.warn("[{}:{}] Failed to get next active broker {}", request.getRemoteAddr(),

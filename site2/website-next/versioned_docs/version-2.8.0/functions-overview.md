@@ -1,13 +1,9 @@
 ---
 id: functions-overview
 title: Pulsar Functions overview
-sidebar_label: Overview
+sidebar_label: "Overview"
 original_id: functions-overview
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 **Pulsar Functions** are lightweight compute processes that
 
@@ -210,3 +206,4 @@ $ bin/pulsar-admin functions update \
   # Other function configs
 
 ```
+

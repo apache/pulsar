@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.compaction;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -26,11 +27,13 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.Consumer;
 
 public interface CompactedTopic {
-    CompletableFuture<?> newCompactedLedger(Position p, long compactedLedgerId);
+    CompletableFuture<CompactedTopicContext> newCompactedLedger(Position p, long compactedLedgerId);
+    CompletableFuture<Void> deleteCompactedLedger(long compactedLedgerId);
     void asyncReadEntriesOrWait(ManagedCursor cursor,
                                 int numberOfEntriesToRead,
                                 boolean isFirstRead,
                                 ReadEntriesCallback callback,
                                 Consumer consumer);
     CompletableFuture<Entry> readLastEntryOfCompactedLedger();
+    Optional<Position> getCompactionHorizon();
 }

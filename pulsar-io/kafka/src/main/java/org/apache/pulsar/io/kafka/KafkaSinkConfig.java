@@ -21,13 +21,12 @@ package org.apache.pulsar.io.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import lombok.Data;
-import lombok.experimental.Accessors;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
+import lombok.Data;
+import lombok.experimental.Accessors;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @Data
@@ -47,13 +46,13 @@ public class KafkaSinkConfig implements Serializable {
     @FieldDoc(
             required = false,
             defaultValue = "",
-            help = "Protocol used to communicate with kafka brokers.")
+            help = "Protocol used to communicate with Kafka brokers.")
     private String securityProtocol;
 
     @FieldDoc(
             required = false,
             defaultValue = "",
-            help = "SASL mechanism used for kafka client connections.")
+            help = "SASL mechanism used for Kafka client connections.")
     private String saslMechanism;
 
     @FieldDoc(
@@ -89,14 +88,13 @@ public class KafkaSinkConfig implements Serializable {
     @FieldDoc(
             required = true,
             defaultValue = "",
-            help =
-                    "The number of acknowledgments the producer requires the leader to have received "
-                            + "before considering a request complete. This controls the durability of records that are sent.")
+            help = "The number of acknowledgments the producer requires the leader to have received"
+                    + " before considering a request complete. This controls the durability of records that are sent.")
     private String acks;
     @FieldDoc(
             defaultValue = "16384L",
-            help =
-                    "The batch size that Kafka producer will attempt to batch records together before sending them to brokers.")
+            help = "The batch size that Kafka producer will attempt to batch records together"
+                    + " before sending them to brokers.")
     private long batchSize = 16384L;
     @FieldDoc(
             defaultValue = "1048576L",

@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.worker.rest.api;
 
 import lombok.extern.slf4j.Slf4j;
-import lombok.val;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -76,10 +75,7 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
         if (workerService == null) {
             return false;
         }
-        if (!workerService.isInitialized()) {
-            return false;
-        }
-        return true;
+        return workerService.isInitialized();
     }
 
     @Override

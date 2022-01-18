@@ -18,24 +18,23 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
+import com.beust.jcommander.Parameters;
+import java.util.function.Supplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.Parameters;
-
-import java.util.function.Supplier;
-
 @Parameters(commandDescription = "Operations about resource quotas")
 public class CmdResourceQuotas extends CmdBase {
 
-    @Parameters(commandDescription = "Get the resource quota for specified namespace bundle, or default quota if no namespace/bundle specified.")
+    @Parameters(commandDescription = "Get the resource quota for specified namespace bundle, "
+            + "or default quota if no namespace/bundle specified.")
     private class GetResourceQuota extends CliCommand {
 
         @Parameter(names = { "--namespace",
-                "-n" }, description = "property/cluster/namespace, must be specified together with '--bundle'")
+                "-n" }, description = "tenant/namespace, must be specified together with '--bundle'")
         private java.util.List<String> names;
 
         @Parameter(names = { "--bundle",
@@ -55,11 +54,12 @@ public class CmdResourceQuotas extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Set the resource quota for specified namespace bundle, or default quota if no namespace/bundle specified.")
+    @Parameters(commandDescription = "Set the resource quota for specified namespace bundle, "
+            + "or default quota if no namespace/bundle specified.")
     private class SetResourceQuota extends CliCommand {
 
         @Parameter(names = { "--namespace",
-                "-n" }, description = "property/cluster/namespace, must be specified together with '--bundle'")
+                "-n" }, description = "tenant/namespace, must be specified together with '--bundle'")
         private java.util.List<String> names;
 
         @Parameter(names = { "--bundle",
@@ -113,7 +113,7 @@ public class CmdResourceQuotas extends CmdBase {
     @Parameters(commandDescription = "Reset the specified namespace bundle's resource quota to default value.")
     private class ResetNamespaceBundleResourceQuota extends CliCommand {
 
-        @Parameter(names = { "--namespace", "-n" }, description = "property/cluster/namespace", required = true)
+        @Parameter(names = { "--namespace", "-n" }, description = "tenant/namespace", required = true)
         private java.util.List<String> names;
 
         @Parameter(names = { "--bundle", "-b" }, description = "{start-boundary}_{end-boundary}", required = true)

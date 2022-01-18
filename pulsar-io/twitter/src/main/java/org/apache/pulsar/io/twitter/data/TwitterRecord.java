@@ -21,7 +21,6 @@ package org.apache.pulsar.io.twitter.data;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Optional;
-
 import org.apache.pulsar.functions.api.Record;
 
 /**
@@ -29,7 +28,7 @@ import org.apache.pulsar.functions.api.Record;
  */
 public class TwitterRecord implements Record<TweetData> {
     private final TweetData tweet;
-    private static SimpleDateFormat dateFormat = new SimpleDateFormat("EEE MMM d HH:mm:ss Z yyyy");
+    private static final SimpleDateFormat dateFormat = new SimpleDateFormat("EEE MMM d HH:mm:ss Z yyyy");
     private final boolean guestimateTweetTime;
 
     public TwitterRecord(TweetData tweet, boolean guestimateTweetTime) {

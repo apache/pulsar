@@ -19,6 +19,7 @@
 package org.apache.pulsar.admin.cli;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -133,8 +134,12 @@ public class CmdTransactions extends CmdBase {
 
         @Override
         void run() throws Exception {
-            long timeout =
-                    TimeUnit.SECONDS.toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(timeoutStr));
+            long timeout;
+            try {
+                timeout = TimeUnit.SECONDS.toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(timeoutStr));
+            } catch (IllegalArgumentException exception) {
+                throw new ParameterException(exception.getMessage());
+            }
             if (coordinatorId != null) {
                 print(getAdmin().transactions().getSlowTransactionsByCoordinatorId(coordinatorId,
                         timeout, TimeUnit.MILLISECONDS));

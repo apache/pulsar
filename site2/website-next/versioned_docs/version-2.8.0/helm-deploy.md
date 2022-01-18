@@ -1,13 +1,9 @@
 ---
 id: helm-deploy
 title: Deploy Pulsar cluster using Helm
-sidebar_label: Deployment
+sidebar_label: "Deployment"
 original_id: helm-deploy
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 Before running `helm install`, you need to decide how to run Pulsar.
 Options can be specified using Helm's `--set option.name=value` command line option.
@@ -73,7 +69,6 @@ To use local persistent volumes as the persistent storage for Helm release, you 
 ```
 
 :::note
-
 
 Before installing the production instance of Pulsar, ensure to plan the storage settings to avoid extra storage migration work. Because after initial installation, you must edit Kubernetes objects manually if you want to change storage settings.
 
@@ -212,6 +207,7 @@ certs:
     type: selfsigning
 
 ```
+
 You can also customize the generated TLS certificates by configuring the fields as the following.
 
 ```yaml
@@ -342,6 +338,7 @@ To use local persistent volumes as the persistent storage, you need to install a
 One of the easiest way to get started is to use the local storage provisioner provided along with the Pulsar Helm chart.
 
 ```
+
 helm repo add streamnative https://charts.streamnative.io
 helm repo update
 helm install pulsar-storage-provisioner streamnative/local-storage-provisioner
@@ -380,9 +377,9 @@ The `prepare_helm_release` creates the following resources:
 
 - A Kubernetes namespace for installing the Pulsar release
 - JWT secret keys and tokens for three super users: `broker-admin`, `proxy-admin`, and `admin`. By default, it generates an asymmetric pubic/private key pair. You can choose to generate a symmetric secret key by specifying `--symmetric`.
-    - `proxy-admin` role is used for proxies to communicate to brokers.
-    - `broker-admin` role is used for inter-broker communications.
-    - `admin` role is used by the admin tools.
+  - `proxy-admin` role is used for proxies to communicate to brokers.
+  - `broker-admin` role is used for inter-broker communications.
+  - `admin` role is used by the admin tools.
 
 ## Deploy Pulsar cluster using Helm
 
@@ -406,7 +403,6 @@ helm install pulsar apache/pulsar \
 ```
 
 :::note
-
 
 For the first deployment, add `--set initialize=true` option to initialize bookie and Pulsar cluster metadata.
 
@@ -435,3 +431,4 @@ To find the IP addresses of those components, run the following command:
 kubectl get service -n <k8s-namespace>
 
 ```
+

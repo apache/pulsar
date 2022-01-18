@@ -18,13 +18,22 @@
  */
 package org.apache.pulsar.tests.integration.suites;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.S3Container;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 
+/**
+ * Pulsar SQL test suite.
+ */
 @Slf4j
 public abstract class PulsarSQLTestSuite extends PulsarTestSuite {
 
@@ -33,11 +42,15 @@ public abstract class PulsarSQLTestSuite extends PulsarTestSuite {
     public static final String BUCKET = "pulsar-integtest";
     public static final String ENDPOINT = "http://" + S3Container.NAME + ":9090";
 
+    protected Connection connection = null;
+    protected PulsarClient pulsarClient = null;
+
     @Override
     protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(String clusterName, PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
         specBuilder.queryLastMessage(true);
         specBuilder.clusterName("pulsar-sql-test");
         specBuilder.numBrokers(1);
+        specBuilder.maxMessageSize(2 * Commands.DEFAULT_MAX_MESSAGE_SIZE);
         return super.beforeSetupCluster(clusterName, specBuilder);
     }
 
@@ -55,4 +68,43 @@ public abstract class PulsarSQLTestSuite extends PulsarTestSuite {
         }
     }
 
+    @Override
+    public void setupCluster() throws Exception {
+        super.setupCluster();
+        pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .build();
+    }
+
+    protected void initJdbcConnection() throws SQLException {
+        if (pulsarCluster.getPrestoWorkerContainer() == null) {
+            log.error("The presto work container isn't exist.");
+            return;
+        }
+        String url = String.format("jdbc:presto://%s",  pulsarCluster.getPrestoWorkerContainer().getUrl());
+        connection = DriverManager.getConnection(url, "test", null);
+    }
+
+    @Override
+    public void tearDownCluster() throws Exception {
+        close();
+        super.tearDownCluster();
+    }
+
+    protected void close() {
+        if (connection != null) {
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                log.error("Failed to close sql connection.", e);
+            }
+        }
+        if (pulsarClient != null) {
+            try {
+                pulsarClient.close();
+            } catch (PulsarClientException e) {
+                log.error("Failed to close pulsar client.", e);
+            }
+        }
+    }
 }

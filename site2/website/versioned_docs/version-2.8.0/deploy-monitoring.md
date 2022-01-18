@@ -32,7 +32,7 @@ All the message rates are updated every minute.
 The aggregated broker metrics are also exposed in the [Prometheus](https://prometheus.io) format at:
 
 ```shell
-http://$BROKER_ADDRESS:8080/metrics
+http://$BROKER_ADDRESS:8080/metrics/
 ```
 
 ### ZooKeeper stats
@@ -124,5 +124,5 @@ The following are some Grafana dashboards examples:
 - [pulsar-grafana](http://pulsar.apache.org/docs/en/deploy-monitoring/#grafana): a Grafana dashboard that displays metrics collected in Prometheus for Pulsar clusters running on Kubernetes.
 - [apache-pulsar-grafana-dashboard](https://github.com/streamnative/apache-pulsar-grafana-dashboard): a collection of Grafana dashboard templates for different Pulsar components running on both Kubernetes and on-premise machines.
 
- ## Alerting rules
- You can set alerting rules according to your Pulsar environment. To configure alerting rules for Apache Pulsar, refer to [alerting rules](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/).
+## Alerting rules
+You can set alerting rules according to your Pulsar environment. To configure alerting rules for Apache Pulsar, refer to [alerting rules](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/).

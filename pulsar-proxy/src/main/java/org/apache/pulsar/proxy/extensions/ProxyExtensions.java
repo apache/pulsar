@@ -19,18 +19,20 @@
 package org.apache.pulsar.proxy.extensions;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.proxy.server.ProxyConfiguration;
 import org.apache.pulsar.proxy.server.ProxyService;
-
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * A collection of loaded extensions.
@@ -38,6 +40,8 @@ import java.util.Set;
 @Slf4j
 public class ProxyExtensions implements AutoCloseable {
 
+    @Getter
+    private final Map<SocketAddress, String> endpoints = new ConcurrentHashMap<>();
     /**
      * Load the extensions for the given <tt>extensions</tt> list.
      *
@@ -108,8 +112,8 @@ public class ProxyExtensions implements AutoCloseable {
     }
 
     public Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> newChannelInitializers() {
-        Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> channelInitializers = Maps.newHashMap();
-        Set<InetSocketAddress> addresses = Sets.newHashSet();
+        Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> channelInitializers = new HashMap<>();
+        Set<InetSocketAddress> addresses = new HashSet<>();
 
         for (Map.Entry<String, ProxyExtensionWithClassLoader> extension : extensions.entrySet()) {
             Map<InetSocketAddress, ChannelInitializer<SocketChannel>> initializers =
@@ -123,6 +127,7 @@ public class ProxyExtensions implements AutoCloseable {
                         + "` attempts to use " + address + " for its listening port. But it is"
                         + " already occupied by other messaging extensions");
                 }
+                endpoints.put(address, extension.getKey());
                 channelInitializers.put(extension.getKey(), initializers);
             });
         }

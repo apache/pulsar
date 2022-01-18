@@ -1,13 +1,9 @@
 ---
 id: schema-get-started
 title: Get started
-sidebar_label: Get started
+sidebar_label: "Get started"
 original_id: schema-get-started
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 This chapter introduces Pulsar schemas and explains why they are important. 
 
@@ -56,6 +52,7 @@ Pulsar schema enables you to use language-specific types of data when constructi
 You can use the _User_ class to define the messages sent to Pulsar topics.
 
 ```
+
 public class User {
     String name;
     int age;
@@ -72,6 +69,7 @@ If you construct a producer without specifying a schema, then the producer can o
 **Example**
 
 ```
+
 Producer<byte[]> producer = client.newProducer()
         .topic(topic)
         .create();
@@ -80,6 +78,7 @@ byte[] message = … // serialize the `user` by yourself;
 producer.send(message);
 
 ```
+
 ### With schema
 
 If you construct a producer with specifying a schema, then you can send a class to a topic directly without worrying about how to serialize POJOs into bytes. 
@@ -89,6 +88,7 @@ If you construct a producer with specifying a schema, then you can send a class 
 This example constructs a producer with the _JSONSchema_, and you can send the _User_ class to topics directly without worrying about how to serialize it into bytes. 
 
 ```
+
 Producer<User> producer = client.newProducer(JSONSchema.of(User.class))
         .topic(topic)
         .create();

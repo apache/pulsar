@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.collect.ComparisonChain;
 import org.apache.pulsar.client.api.MessageId;
 
 /**

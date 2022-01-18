@@ -199,7 +199,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
     }
 
     /**
-     *  Check whether there are any cursors
+     *  Check whether there are any cursors.
      * @return true is there are no cursors and false if there are
      */
     public boolean isEmpty() {
@@ -219,7 +219,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
     }
 
     /**
-     * Check whether that are any durable cursors
+     * Check whether that are any durable cursors.
      * @return true if there are durable cursors and false if there are not
      */
     public boolean hasDurableCursors() {

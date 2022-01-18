@@ -23,7 +23,6 @@ import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 import com.beust.jcommander.internal.Lists;
 import com.google.common.collect.Maps;
 import io.netty.util.concurrent.FastThreadLocal;
-import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashSet;
@@ -46,6 +45,7 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
+import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -211,19 +211,19 @@ public class LoadManagerShared {
     }
 
     // Get the system resource usage for this broker.
-    public static SystemResourceUsage getSystemResourceUsage(final BrokerHostUsage brokerHostUsage) throws IOException {
+    public static SystemResourceUsage getSystemResourceUsage(final BrokerHostUsage brokerHostUsage) {
         SystemResourceUsage systemResourceUsage = brokerHostUsage.getBrokerHostUsage();
 
         // Override System memory usage and limit with JVM heap usage and limit
-        long maxHeapMemoryInBytes = Runtime.getRuntime().maxMemory();
-        long memoryUsageInBytes = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
-        systemResourceUsage.memory.usage = (double) memoryUsageInBytes / MIBI;
-        systemResourceUsage.memory.limit = (double) maxHeapMemoryInBytes / MIBI;
+        double maxHeapMemoryInBytes = Runtime.getRuntime().maxMemory();
+        double memoryUsageInBytes = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+        double memoryUsage = memoryUsageInBytes / MIBI;
+        double memoryLimit = maxHeapMemoryInBytes / MIBI;
+        systemResourceUsage.setMemory(new ResourceUsage(memoryUsage, memoryLimit));
 
         // Collect JVM direct memory
-        systemResourceUsage.directMemory.usage = (double) (getJvmDirectMemoryUsed() / MIBI);
-        systemResourceUsage.directMemory.limit =
-                (double) (io.netty.util.internal.PlatformDependent.maxDirectMemory() / MIBI);
+        systemResourceUsage.setDirectMemory(new ResourceUsage((double) (getJvmDirectMemoryUsed() / MIBI),
+                (double) (io.netty.util.internal.PlatformDependent.maxDirectMemory() / MIBI)));
 
         return systemResourceUsage;
     }
@@ -334,29 +334,29 @@ public class LoadManagerShared {
             // now, "candidates" has list of brokers which are part of domain that can accept this namespace. now,
             // with in these domains, remove brokers which don't have least number of namespaces. so, brokers with least
             // number of namespace can be selected
-            int leastNamaespaceCount = Integer.MAX_VALUE;
+            int leastNamespaceCount = Integer.MAX_VALUE;
             for (final String broker : candidates) {
                 if (brokerToAntiAffinityNamespaceCount.containsKey(broker)) {
                     Integer namespaceCount = brokerToAntiAffinityNamespaceCount.get(broker);
                     if (namespaceCount == null) {
                         // Assume that when the namespace is absent, there are no namespace assigned to
                         // that broker.
-                        leastNamaespaceCount = 0;
+                        leastNamespaceCount = 0;
                         break;
                     }
-                    leastNamaespaceCount = Math.min(leastNamaespaceCount, namespaceCount);
+                    leastNamespaceCount = Math.min(leastNamespaceCount, namespaceCount);
                 } else {
                     // Assume non-present brokers have 0 bundles.
-                    leastNamaespaceCount = 0;
+                    leastNamespaceCount = 0;
                     break;
                 }
             }
             // filter out broker based on namespace distribution
-            if (leastNamaespaceCount == 0) {
+            if (leastNamespaceCount == 0) {
                 candidates.removeIf(broker -> brokerToAntiAffinityNamespaceCount.containsKey(broker)
                         && brokerToAntiAffinityNamespaceCount.get(broker) > 0);
             } else {
-                final int finalLeastNamespaceCount = leastNamaespaceCount;
+                final int finalLeastNamespaceCount = leastNamespaceCount;
                 candidates
                         .removeIf(broker -> brokerToAntiAffinityNamespaceCount.get(broker) != finalLeastNamespaceCount);
             }

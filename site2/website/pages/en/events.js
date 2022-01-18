@@ -34,10 +34,13 @@ class Events extends React.Component {
             </iframe>
             <h2><translate>Events</translate></h2>            
             <MarkdownBlock>
-              - [Pulsar Summit Asia 2020](https://pulsar-summit.org/en/event/asia-2020)
+              - [Pulsar Summit Europe 2021](https://pulsar-summit.org/en/event/europe-2021) 6 October 2021
             </MarkdownBlock>
             <MarkdownBlock>
-              - [Pulsar Summit Virtual Conference](https://www.youtube.com/playlist?list=PLqRma1oIkcWjVlPfaWlf3VO9W-XWsF_4-)
+              - [Pulsar Summit Asia 2021](https://pulsar-summit.org/en/event/asia-2021) 20-21 November 2021
+            </MarkdownBlock>
+            <MarkdownBlock>
+              - [Pulsar Summit North America 2021](https://pulsar-summit.org/en/event/north-america-2021) 16-17 June 2021
             </MarkdownBlock>
             <MarkdownBlock>
               - [ApacheCon @Home](https://www.youtube.com/watch?v=iIABx20uvmw&list=PLU2OcwpQkYCy_awEe5xwlxGTk5UieA37m)
@@ -57,13 +60,32 @@ class Events extends React.Component {
             <MarkdownBlock>
               - [Pulsar Developer Community biweekly meetup](https://github.com/streamnative/pulsar-community-loc-cn/)
             </MarkdownBlock>
+            <h2><translate>Groups</translate></h2>
+            <MarkdownBlock>
+              - [NorCal Apache Pulsar Neighborhood Meetup Group](https://www.meetup.com/nor-cal-apache-pulsar-meetup-group/)
+            </MarkdownBlock>
+            <MarkdownBlock>
+              - [Netherlands Apache Pulsar Meetup Group](https://www.meetup.com/netherlands-apache-pulsar-meetup/)
+            </MarkdownBlock>
+            <MarkdownBlock>
+              - [SoCal Apache Pulsar Neighborhood Meetup Group](https://www.meetup.com/socal-apache-pulsar-meetup-group/)
+            </MarkdownBlock>
+            <MarkdownBlock>
+              - [New York City Apache Pulsar Meetup](https://www.meetup.com/new-york-city-apache-pulsar-meetup/)
+            </MarkdownBlock>
+            <MarkdownBlock>
+              - [Beijing Apache Pulsar® Meetup by StreamNative](https://www.meetup.com/beijing-apache-pulsar-meetup-by-streamnative/)
+            </MarkdownBlock>
             <MarkdownBlock>
               - [SF Bay Area Apache Pulsar Meetup](https://www.meetup.com/SF-Bay-Area-Apache-Pulsar-Meetup/)
             </MarkdownBlock>
-            <h2><translate>Groups</translate></h2>
             <MarkdownBlock>
               - [Japan Pulsar User Group](https://japan-pulsar-user-group.connpass.com/)
-            </MarkdownBlock> 
+            </MarkdownBlock>
+             <h2><translate>Replays</translate></h2>
+            <MarkdownBlock>
+              - [Pulsar Summit Virtual Conference](https://www.youtube.com/playlist?list=PLqRma1oIkcWjVlPfaWlf3VO9W-XWsF_4-) 9 September 2020
+            </MarkdownBlock>
           </div>
         </Container>
       </div>

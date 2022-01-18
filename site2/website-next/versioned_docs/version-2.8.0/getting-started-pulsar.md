@@ -1,13 +1,9 @@
 ---
 id: pulsar-2.0
 title: Pulsar 2.0
-sidebar_label: Pulsar 2.0
+sidebar_label: "Pulsar 2.0"
 original_id: pulsar-2.0
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 Pulsar 2.0 is a major new release for Pulsar that brings some bold changes to the platform, including [simplified topic names](#topic-names), the addition of the [Pulsar Functions](functions-overview) feature, some terminology changes, and more.
 
@@ -34,6 +30,7 @@ Prior to version 2.0, *all* Pulsar topics had the following form:
 {persistent|non-persistent}://property/cluster/namespace/topic
 
 ```
+
 Two important changes have been made in Pulsar 2.0:
 
 * There is no longer a [cluster component](#no-cluster)

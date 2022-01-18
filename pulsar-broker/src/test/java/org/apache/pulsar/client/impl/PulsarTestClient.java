@@ -151,11 +151,11 @@ public class PulsarTestClient extends PulsarClientImpl {
             }
 
             @Override
-            protected boolean shouldWriteOpSendMsg() {
+            protected ClientCnx getCnxIfReady() {
                 if (dropOpSendMessages) {
-                    return false;
+                    return null;
                 } else {
-                    return super.shouldWriteOpSendMsg();
+                    return super.getCnxIfReady();
                 }
             }
         };

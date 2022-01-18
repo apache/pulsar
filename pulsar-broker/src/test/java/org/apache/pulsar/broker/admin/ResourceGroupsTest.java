@@ -25,7 +25,6 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.broker.admin.v2.ResourceGroups;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.testng.annotations.AfterClass;
@@ -52,7 +51,7 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest  {
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
-        resourcegroups = spy(new ResourceGroups());
+        resourcegroups = spy(ResourceGroups.class);
         resourcegroups.setServletContext(new MockServletContext());
         resourcegroups.setPulsar(pulsar);
         doReturn(false).when(resourcegroups).isRequestHttps();

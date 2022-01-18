@@ -24,9 +24,11 @@
         <classes>
             <class name="org.apache.pulsar.tests.integration.messaging.PersistentTopicMessagingTest" />
             <class name="org.apache.pulsar.tests.integration.messaging.NonPersistentTopicMessagingTest" />
+            <class name="org.apache.pulsar.tests.integration.messaging.GeoReplicationTest" />
             <class name="org.apache.pulsar.tests.integration.messaging.DelayMessagingTest" />
+            <class name="org.apache.pulsar.tests.integration.messaging.ReaderMessagingTest" />
+            <class name="org.apache.pulsar.tests.integration.messaging.NonDurableConsumerMessagingTest" />
             <class name="org.apache.pulsar.tests.integration.admin.AdminTest" />
-            <class name="org.apache.pulsar.tests.integration.io.sources.AvroKafkaSourceTest" />
         </classes>
     </test>
 </suite>

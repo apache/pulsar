@@ -42,6 +42,10 @@ public class ClusterResources extends BaseResources<ClusterData> {
         this.failureDomainResources = new FailureDomainResources(store, FailureDomainImpl.class, operationTimeoutSec);
     }
 
+    public CompletableFuture<Set<String>> listAsync() {
+        return getChildrenAsync(BASE_CLUSTERS_PATH).thenApply(list -> new HashSet<>(list));
+    }
+
     public Set<String> list() throws MetadataStoreException {
         return new HashSet<>(super.getChildren(BASE_CLUSTERS_PATH));
     }
@@ -117,20 +121,20 @@ public class ClusterResources extends BaseResources<ClusterData> {
 
         public void deleteFailureDomain(String clusterName, String domainName) throws MetadataStoreException {
             String path = joinPath(BASE_CLUSTERS_PATH, clusterName, FAILURE_DOMAIN, domainName);
-            if (exists(path)) {
-                delete(path);
-            }
+            delete(path);
         }
 
         public void deleteFailureDomains(String clusterName) throws MetadataStoreException {
             String failureDomainPath = joinPath(BASE_CLUSTERS_PATH, clusterName, FAILURE_DOMAIN);
+            if (!exists(failureDomainPath)) {
+                return;
+            }
+
             for (String domain : getChildren(failureDomainPath)) {
                 delete(joinPath(failureDomainPath, domain));
             }
 
-            if (exists(failureDomainPath)) {
-                delete(failureDomainPath);
-            }
+            delete(failureDomainPath);
         }
 
         public void setFailureDomainWithCreate(String clusterName, String domainName,
@@ -142,8 +146,8 @@ public class ClusterResources extends BaseResources<ClusterData> {
         public void registerListener(Consumer<Notification> listener) {
             getStore().registerListener(n -> {
                 // Prefilter the notification just for failure domains
-                if (n.getPath().startsWith(BASE_CLUSTERS_PATH) &&
-                        n.getPath().contains("/" + FAILURE_DOMAIN)) {
+                if (n.getPath().startsWith(BASE_CLUSTERS_PATH)
+                        && n.getPath().contains("/" + FAILURE_DOMAIN)) {
                     listener.accept(n);
                 }
             });

@@ -32,7 +32,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataSerde;
-import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.Stat;
@@ -193,13 +192,16 @@ public class FaultInjectionMetadataStore implements MetadataStoreExtended {
         if (ex != null) {
             return Optional.of(ex);
         }
-        Optional<Failure> failure = failures.stream()
-                .filter(f -> f.predicate.test(op, path))
-                .findFirst();
-        if (failure.isPresent()) {
-            failures.remove(failure.get());
+        while (true) {
+            Optional<Failure> failure = failures.stream().filter(f -> f.predicate.test(op, path)).findFirst();
+            if (failure.isPresent()) {
+                if (failures.remove(failure.get())) {
+                    return failure.map(Failure::getException);
+                }
+                // failure is taken by other threads. Retry.
+            } else {
+                return Optional.empty();
+            }
         }
-
-        return failure.map(Failure::getException);
     }
 }

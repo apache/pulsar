@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import com.google.common.collect.Lists;
-
 import io.prometheus.client.jetty.JettyStatisticsCollector;
 import java.io.IOException;
 import java.net.URI;
@@ -33,9 +31,9 @@ import javax.servlet.DispatcherType;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
+import org.apache.pulsar.broker.web.JettyRequestLogFactory;
 import org.apache.pulsar.broker.web.JsonMapperProvider;
 import org.apache.pulsar.broker.web.RateLimitingFilter;
-import org.apache.pulsar.broker.web.JettyRequestLogFactory;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
@@ -69,8 +67,8 @@ public class WebServer {
     private final Server server;
     private final WebExecutorThreadPool webServiceExecutor;
     private final AuthenticationService authenticationService;
-    private final List<String> servletPaths = Lists.newArrayList();
-    private final List<Handler> handlers = Lists.newArrayList();
+    private final List<String> servletPaths = new ArrayList<>();
+    private final List<Handler> handlers = new ArrayList<>();
     private final ProxyConfiguration config;
     protected int externalServicePort;
     private URI serviceURI = null;
@@ -78,20 +76,20 @@ public class WebServer {
     private ServerConnector connector;
     private ServerConnector connectorTls;
 
-    public WebServer(ProxyConfiguration config, AuthenticationService authenticationService) throws IOException {
+    public WebServer(ProxyConfiguration config, AuthenticationService authenticationService) {
         this.webServiceExecutor = new WebExecutorThreadPool(config.getHttpNumThreads(), "pulsar-external-web");
         this.server = new Server(webServiceExecutor);
         this.authenticationService = authenticationService;
         this.config = config;
 
-        List<ServerConnector> connectors = Lists.newArrayList();
+        List<ServerConnector> connectors = new ArrayList<>();
 
-        HttpConfiguration http_config = new HttpConfiguration();
-        http_config.setOutputBufferSize(config.getHttpOutputBufferSize());
+        HttpConfiguration httpConfig = new HttpConfiguration();
+        httpConfig.setOutputBufferSize(config.getHttpOutputBufferSize());
 
         if (config.getWebServicePort().isPresent()) {
             this.externalServicePort = config.getWebServicePort().get();
-            connector = new ServerConnector(server, 1, 1, new HttpConnectionFactory(http_config));
+            connector = new ServerConnector(server, 1, 1, new HttpConnectionFactory(httpConfig));
             connector.setHost(config.getBindAddress());
             connector.setPort(externalServicePort);
             connectors.add(connector);
@@ -110,6 +108,8 @@ public class WebServer {
                             config.getTlsTrustStore(),
                             config.getTlsTrustStorePassword(),
                             config.isTlsRequireTrustedClientCertOnConnect(),
+                            config.getWebServiceTlsCiphers(),
+                            config.getWebServiceTlsProtocols(),
                             config.getTlsCertRefreshCheckDurationSec()
                     );
                 } else {
@@ -148,7 +148,8 @@ public class WebServer {
         addServlet(basePath, servletHolder, attributes, true);
     }
 
-    public void addServlet(String basePath, ServletHolder servletHolder, List<Pair<String, Object>> attributes, boolean requireAuthentication) {
+    public void addServlet(String basePath, ServletHolder servletHolder,
+                           List<Pair<String, Object>> attributes, boolean requireAuthentication) {
         Optional<String> existingPath = servletPaths.stream().filter(p -> p.startsWith(basePath)).findFirst();
         if (existingPath.isPresent()) {
             throw new IllegalArgumentException(

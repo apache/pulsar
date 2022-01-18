@@ -27,7 +27,6 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.jsonwebtoken.SignatureAlgorithm;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -47,15 +46,12 @@ import java.util.Properties;
 import java.util.Random;
 import java.util.TreeMap;
 import java.util.UUID;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.crypto.SecretKey;
 import javax.naming.AuthenticationException;
 import lombok.Cleanup;
-import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -74,7 +70,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.compaction.Compactor;
-import org.apache.pulsar.compaction.TwoPhaseCompactor;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -282,6 +277,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         for (String topic : topicList) {
             PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
             persistentTopic.getBrokerService().getPulsar().getConfiguration().setTtlDurationDefaultInSeconds(-1);
+            persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().updateBrokerValue(-1);
         }
         pulsar.getBrokerService().forEachTopic(Topic::checkMessageExpiry);
         //wait for checkMessageExpiry
@@ -1186,8 +1182,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                     .value(data)
                     .send();
         }
-        ScheduledExecutorService compactionScheduler = Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder().setNameFormat("compactor").setDaemon(true).build());
         Compactor compactor = pulsar.getCompactor(true);
         compactor.compact(topicName).get();
         statsOut = new ByteArrayOutputStream();

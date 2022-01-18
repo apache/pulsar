@@ -90,7 +90,7 @@ public class TransactionBufferDisable implements TransactionBuffer {
 
     @Override
     public PositionImpl getMaxReadPosition() {
-        return PositionImpl.latest;
+        return PositionImpl.LATEST;
     }
 
     @Override
@@ -101,5 +101,10 @@ public class TransactionBufferDisable implements TransactionBuffer {
     @Override
     public TransactionBufferStats getStats() {
         return null;
+    }
+
+    @Override
+    public CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxn) {
+        return CompletableFuture.completedFuture(null);
     }
 }

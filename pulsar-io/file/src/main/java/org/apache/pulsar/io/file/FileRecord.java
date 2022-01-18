@@ -22,9 +22,7 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-
 import lombok.Data;
-
 import org.apache.pulsar.functions.api.Record;
 
 /**

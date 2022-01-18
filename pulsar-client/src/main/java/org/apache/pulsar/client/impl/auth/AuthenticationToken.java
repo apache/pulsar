@@ -19,12 +19,10 @@
 
 package org.apache.pulsar.client.impl.auth;
 
-import com.google.common.base.Charsets;
-
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Map;
@@ -114,7 +112,7 @@ public class AuthenticationToken implements Authentication, EncodedAuthenticatio
         @Override
         public String get() {
             try {
-                return new String(Files.readAllBytes(Paths.get(uri)), Charsets.UTF_8).trim();
+                return new String(Files.readAllBytes(Paths.get(uri)), StandardCharsets.UTF_8).trim();
             } catch (IOException e) {
                 throw new RuntimeException("Failed to read token from file", e);
             }

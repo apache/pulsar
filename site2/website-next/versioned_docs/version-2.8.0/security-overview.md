@@ -1,13 +1,9 @@
 ---
 id: security-overview
 title: Pulsar security overview
-sidebar_label: Overview
+sidebar_label: "Overview"
 original_id: security-overview
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 As the central message bus for a business, Apache Pulsar is frequently used for storing mission-critical data. Therefore, enabling security features in Pulsar is crucial.
 

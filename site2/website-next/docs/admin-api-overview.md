@@ -1,7 +1,7 @@
 ---
 id: admin-api-overview
 title: Pulsar admin interface
-sidebar_label: Overview
+sidebar_label: "Overview"
 ---
 
 import Tabs from '@theme/Tabs';
@@ -14,15 +14,15 @@ You can interact with the admin interface via:
 
 - The `pulsar-admin` CLI tool, which is available in the `bin` folder of your Pulsar installation:
 
-    ```shell
-
-    bin/pulsar-admin
-
-    ```
+  ```shell
+  
+  bin/pulsar-admin
+  
+  ```
 
   > **Important**
   > 
-  > For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/).
+  > For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more information, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/).
 
 - HTTP calls, which are made against the admin {@inject: rest:REST:/} API provided by Pulsar brokers. For some RESTful APIs, they might be redirected to the owner brokers for serving with [`307 Temporary Redirect`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/307), hence the HTTP callers should handle `307 Temporary Redirect`. If you use `curl` commands, you should specify `-L` to handle redirections.
   
@@ -44,20 +44,7 @@ Each of the three admin interfaces (the `pulsar-admin` CLI tool, the {@inject: r
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 If you have enabled authentication, you need to provide an auth configuration to use the `pulsar-admin` tool. By default, the configuration for the `pulsar-admin` tool is in the [`conf/client.conf`](reference-configuration.md#client) file. The following are the available parameters:
@@ -121,6 +108,7 @@ PulsarAdmin admin = PulsarAdmin.builder()
 .build();
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -141,12 +129,10 @@ Kubernetes requires a name that can be used as a DNS subdomain name as defined i
   - Dots (.) 
   
 - Replace beginning and ending non-alphanumeric characters with 0
-
+  
 :::tip
 
-
 - If you get an error in translating Pulsar object names into Kubernetes resource labels (for example, you may have a naming collision if your Pulsar object name is too long) or want to customize the translating rules, see [customize Kubernetes runtime](https://pulsar.apache.org/docs/en/next/functions-runtime/#customize-kubernetes-runtime).
-
 - For how to configure Kubernetes runtime, see [here](https://pulsar.apache.org/docs/en/next/functions-runtime/#configure-kubernetes-runtime).
 
 :::

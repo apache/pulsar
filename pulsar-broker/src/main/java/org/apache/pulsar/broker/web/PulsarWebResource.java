@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
+import com.google.common.collect.Sets;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
@@ -303,6 +304,34 @@ public abstract class PulsarWebResource {
 
                 log.debug("Successfully authorized {} on tenant {}", clientAppId, tenant);
             }
+        }
+    }
+
+    /**
+     * It validates that peer-clusters can't coexist in replication-clusters.
+     *
+     * @clusterName: given cluster whose peer-clusters can't be present into replication-cluster list
+     * @replicationClusters: replication-cluster list
+     */
+    protected void validatePeerClusterConflict(String clusterName, Set<String> replicationClusters) {
+        try {
+            ClusterData clusterData = clusterResources().getCluster(clusterName).orElseThrow(
+                    () -> new RestException(Status.PRECONDITION_FAILED, "Invalid replication cluster " + clusterName));
+            Set<String> peerClusters = clusterData.getPeerClusterNames();
+            if (peerClusters != null && !peerClusters.isEmpty()) {
+                Sets.SetView<String> conflictPeerClusters = Sets.intersection(peerClusters, replicationClusters);
+                if (!conflictPeerClusters.isEmpty()) {
+                    log.warn("[{}] {}'s peer cluster can't be part of replication clusters {}", clientAppId(),
+                            clusterName, conflictPeerClusters);
+                    throw new RestException(Status.CONFLICT,
+                            String.format("%s's peer-clusters %s can't be part of replication-clusters %s", clusterName,
+                                    conflictPeerClusters, replicationClusters));
+                }
+            }
+        } catch (RestException re) {
+            throw re;
+        } catch (Exception e) {
+            log.warn("[{}] Failed to get cluster-data for {}", clientAppId(), clusterName, e);
         }
     }
 
@@ -709,6 +738,11 @@ public abstract class PulsarWebResource {
         if (!namespace.isGlobal()) {
             return CompletableFuture.completedFuture(null);
         }
+        NamespaceName heartbeatNamespace = pulsarService.getHeartbeatNamespaceV2();
+        if (namespace.equals(heartbeatNamespace)) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         final CompletableFuture<ClusterDataImpl> validationFuture = new CompletableFuture<>();
         final String localCluster = pulsarService.getConfiguration().getClusterName();
 
@@ -1016,22 +1050,42 @@ public abstract class PulsarWebResource {
     }
 
     public void validateTopicOperation(TopicName topicName, TopicOperation operation, String subscription) {
+        try {
+            validateTopicOperationAsync(topicName, operation, subscription).get();
+        } catch (InterruptedException | ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof WebApplicationException){
+                throw (WebApplicationException) cause;
+            } else {
+                throw new RestException(cause);
+            }
+        }
+    }
+
+    public CompletableFuture<Void> validateTopicOperationAsync(TopicName topicName, TopicOperation operation) {
+       return validateTopicOperationAsync(topicName, operation, null);
+    }
+
+    public CompletableFuture<Void> validateTopicOperationAsync(TopicName topicName,
+                                                               TopicOperation operation, String subscription) {
         if (pulsar().getConfiguration().isAuthenticationEnabled()
                 && pulsar().getBrokerService().isAuthorizationEnabled()) {
             if (!isClientAuthenticated(clientAppId())) {
                 throw new RestException(Status.UNAUTHORIZED, "Need to authenticate to perform the request");
             }
-
             AuthenticationDataHttps authData = clientAuthData();
             authData.setSubscription(subscription);
-
-            Boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
-                    .allowTopicOperation(topicName, operation, originalPrincipal(), clientAppId(), authData);
-
-            if (!isAuthorized) {
-                throw new RestException(Status.UNAUTHORIZED, String.format("Unauthorized to validateTopicOperation for"
-                        + " operation [%s] on topic [%s]", operation.toString(), topicName));
-            }
+            return pulsar().getBrokerService().getAuthorizationService()
+                    .allowTopicOperationAsync(topicName, operation, originalPrincipal(), clientAppId(), authData)
+                    .thenAccept(isAuthorized -> {
+                        if (!isAuthorized) {
+                            throw new RestException(Status.UNAUTHORIZED, String.format(
+                                    "Unauthorized to validateTopicOperation for operation [%s] on topic [%s]",
+                                    operation.toString(), topicName));
+                        }
+                    });
+        } else {
+            return CompletableFuture.completedFuture(null);
         }
     }
 

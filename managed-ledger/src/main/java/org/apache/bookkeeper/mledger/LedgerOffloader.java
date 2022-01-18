@@ -77,12 +77,12 @@ public interface LedgerOffloader {
         CompletableFuture<OffloadResult> getOffloadResultAsync();
 
         /**
-         * Manually close current offloading segment
+         * Manually close current offloading segment.
          * @return true if the segment is not already closed
          */
         boolean close();
 
-        default CompletableFuture<Boolean> AsyncClose() {
+        default CompletableFuture<Boolean> asyncClose() {
             return CompletableFuture.completedFuture(close());
         }
     }
@@ -158,7 +158,8 @@ public interface LedgerOffloader {
      * ensuring that subsequent calls will not attempt to offload the same ledger
      * again.
      *
-     * @return an OffloaderHandle, which when `completeFuture()` completed, denotes that the offload has been successful.
+     * @return an OffloaderHandle, which when `completeFuture()` completed, denotes that the offload has been
+     * successful.
      */
     default CompletableFuture<OffloadHandle> streamingOffload(ManagedLedger ml, UUID uid, long beginLedger,
                                                               long beginEntry,
@@ -201,20 +202,19 @@ public interface LedgerOffloader {
         throw new UnsupportedOperationException();
     }
 
-    default CompletableFuture<Void> deleteOffloaded(UUID uid,
-                                                    Map<String, String> offloadDriverMetadata) {
+    default CompletableFuture<Void> deleteOffloaded(UUID uid, Map<String, String> offloadDriverMetadata) {
         throw new UnsupportedOperationException();
     }
 
     /**
-     * Get offload policies of this LedgerOffloader
+     * Get offload policies of this LedgerOffloader.
      *
      * @return offload policies
      */
     OffloadPoliciesImpl getOffloadPolicies();
 
     /**
-     * Close the resources if necessary
+     * Close the resources if necessary.
      */
     void close();
 }

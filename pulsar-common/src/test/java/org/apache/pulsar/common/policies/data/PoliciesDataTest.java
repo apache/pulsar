@@ -22,10 +22,12 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
@@ -34,7 +36,6 @@ import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 public class PoliciesDataTest {
@@ -51,7 +52,7 @@ public class PoliciesDataTest {
         assertNotEquals(new Object(), policies);
 
         policies.auth_policies.getNamespaceAuthentication().clear();
-        Map<String, Set<AuthAction>> permissions = Maps.newTreeMap();
+        Map<String, Set<AuthAction>> permissions = new TreeMap<>();
         permissions.put("my-role", EnumSet.of(AuthAction.consume));
         policies.auth_policies.getTopicAuthentication().put("persistent://my-dest", permissions);
 
@@ -94,7 +95,7 @@ public class PoliciesDataTest {
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
         String newJsonPolicy = "{\"auth_policies\":{\"namespace_auth\":{},\"destination_auth\":{}},\"replication_clusters\":[],\"bundles\":{\"boundaries\":[\"0x00000000\",\"0xffffffff\"]},\"backlog_quota_map\":{},\"persistence\":null,\"latency_stats_sample_rate\":{}}";
 
-        List<String> bundleSet = Lists.newArrayList();
+        List<String> bundleSet = new ArrayList<>();
         bundleSet.add("0x00000000");
         bundleSet.add("0xffffffff");
 

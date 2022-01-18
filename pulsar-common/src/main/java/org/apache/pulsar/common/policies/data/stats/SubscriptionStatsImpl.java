@@ -18,13 +18,14 @@
  */
 package org.apache.pulsar.common.policies.data.stats;
 
-import lombok.Data;
-import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import lombok.Data;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 
 /**
  * Statistics about subscription.
@@ -54,6 +55,9 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
 
     /** Size of backlog in byte. **/
     public long backlogSize;
+
+    /** Get the publish time of the earliest message in the backlog. */
+    public long earliestMsgPublishTimeInBacklog;
 
     /** Number of messages in the subscription backlog that do not contain the delay messages. */
     public long msgBacklogNoDelayed;
@@ -118,9 +122,13 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** The serialized size of non-contiguous deleted messages ranges. */
     public int nonContiguousDeletedMessagesRangesSerializedSize;
 
+    /** SubscriptionProperties (key/value strings) associated with this subscribe. */
+    public Map<String, String> subscriptionProperties;
+
     public SubscriptionStatsImpl() {
         this.consumers = new ArrayList<>();
         this.consumersAfterMarkDeletePosition = new LinkedHashMap<>();
+        this.subscriptionProperties = new HashMap<>();
     }
 
     public void reset() {
@@ -141,6 +149,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         consumersAfterMarkDeletePosition.clear();
         nonContiguousDeletedMessagesRanges = 0;
         nonContiguousDeletedMessagesRangesSerializedSize = 0;
+        subscriptionProperties.clear();
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
@@ -175,6 +184,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         this.consumersAfterMarkDeletePosition.putAll(stats.consumersAfterMarkDeletePosition);
         this.nonContiguousDeletedMessagesRanges += stats.nonContiguousDeletedMessagesRanges;
         this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;
+        this.subscriptionProperties.putAll(stats.subscriptionProperties);
         return this;
     }
 }

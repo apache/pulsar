@@ -21,14 +21,12 @@ package org.apache.pulsar.io.kinesis;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Base64.getEncoder;
-
+import com.google.flatbuffers.FlatBufferBuilder;
 import com.google.gson.JsonObject;
-
 import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
-
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.source.RecordWithEncryptionContext;
@@ -36,8 +34,6 @@ import org.apache.pulsar.io.kinesis.fbs.EncryptionCtx;
 import org.apache.pulsar.io.kinesis.fbs.EncryptionKey;
 import org.apache.pulsar.io.kinesis.fbs.KeyValue;
 import org.apache.pulsar.io.kinesis.fbs.Message;
-
-import com.google.flatbuffers.FlatBufferBuilder;
 
 public class Utils {
 
@@ -109,7 +105,8 @@ public class Utils {
         return ByteBuffer.wrap(bb.array(), space, bb.capacity() - space);
     }
 
-    private static int createEncryptionCtxOffset(final FlatBufferBuilder builder, Optional<EncryptionContext> encryptionCtx) {
+    private static int createEncryptionCtxOffset(final FlatBufferBuilder builder,
+                                                 Optional<EncryptionContext> encryptionCtx) {
         if (!encryptionCtx.isPresent()) {
             return -1;
         }
@@ -135,7 +132,7 @@ public class Utils {
             EncryptionKey.startEncryptionKey(builder);
             EncryptionKey.addKey(builder, key);
             EncryptionKey.addValue(builder, value);
-            if(metadataOffset!=-1) {
+            if (metadataOffset != -1) {
                 EncryptionKey.addMetadata(builder, metadataOffset);
             }
             keysOffsets[keyIndex++] = EncryptionKey.endEncryptionKey(builder);
@@ -147,9 +144,9 @@ public class Utils {
         int batchSize = ctx.getBatchSize().isPresent() ? ctx.getBatchSize().get() : 1;
         byte compressionType;
         switch (ctx.getCompressionType()) {
-        case LZ4:
-            compressionType = org.apache.pulsar.io.kinesis.fbs.CompressionType.LZ4;
-            break;
+            case LZ4:
+                compressionType = org.apache.pulsar.io.kinesis.fbs.CompressionType.LZ4;
+                break;
         case ZLIB:
             compressionType = org.apache.pulsar.io.kinesis.fbs.CompressionType.ZLIB;
             break;

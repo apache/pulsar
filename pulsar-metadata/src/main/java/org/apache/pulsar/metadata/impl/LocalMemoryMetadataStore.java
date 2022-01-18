@@ -18,18 +18,24 @@
  */
 package org.apache.pulsar.metadata.impl;
 
+import com.google.common.collect.MapMaker;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
-
 import lombok.Data;
-
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -41,6 +47,7 @@ import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
+@Slf4j
 public class LocalMemoryMetadataStore extends AbstractMetadataStore implements MetadataStoreExtended {
 
     @Data
@@ -55,145 +62,152 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     private final NavigableMap<String, Value> map;
     private final AtomicLong sequentialIdGenerator;
 
-    public LocalMemoryMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig) {
-        map = new TreeMap<>();
-        sequentialIdGenerator = new AtomicLong();
-    }
+    private static final Map<String, NavigableMap<String, Value>> STATIC_MAPS = new MapMaker()
+            .weakValues().makeMap();
+    private static final Map<String, AtomicLong> STATIC_ID_GEN_MAP = new MapMaker()
+            .weakValues().makeMap();
 
-    @Override
-    public synchronized CompletableFuture<Optional<GetResult>> get(String path) {
-        if (!isValidPath(path)) {
-            return FutureUtils.exception(new MetadataStoreException(""));
+    public LocalMemoryMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig)
+            throws MetadataStoreException {
+        URI uri;
+        try {
+            uri = new URI(metadataURL);
+        } catch (URISyntaxException e) {
+            throw new MetadataStoreException(e);
         }
 
-        Value v = map.get(path);
-        if (v != null) {
-            return FutureUtils.value(
-                    Optional.of(new GetResult(v.data, new Stat(path, v.version, v.createdTimestamp, v.modifiedTimestamp,
-                            v.isEphemeral(), true))));
+        // Local means a private data set
+        if ("local".equals(uri.getHost())) {
+            map = new TreeMap<>();
+            sequentialIdGenerator = new AtomicLong();
         } else {
-            return FutureUtils.value(Optional.empty());
+            // Use a reference from a shared data set
+            String name = uri.getHost();
+            map = STATIC_MAPS.computeIfAbsent(name, __ -> new TreeMap<>());
+            sequentialIdGenerator = STATIC_ID_GEN_MAP.computeIfAbsent(name, __ -> new AtomicLong());
+            log.info("Created LocalMemoryDataStore for '{}'", name);
         }
     }
 
     @Override
-    public synchronized CompletableFuture<List<String>> getChildrenFromStore(String path) {
-        if (!isValidPath(path)) {
-            return FutureUtils.exception(new MetadataStoreException(""));
+    public CompletableFuture<Optional<GetResult>> storeGet(String path) {
+        synchronized (map) {
+            Value v = map.get(path);
+            if (v != null) {
+                return FutureUtils.value(
+                        Optional.of(
+                                new GetResult(v.data, new Stat(path, v.version, v.createdTimestamp, v.modifiedTimestamp,
+                                        v.isEphemeral(), true))));
+            } else {
+                return FutureUtils.value(Optional.empty());
+            }
         }
+    }
 
-        String firstKey = path.equals("/") ? path : path + "/";
-        String lastKey = path.equals("/") ? "0" : path + "0"; // '0' is lexicographically just after '/'
+    @Override
+    public CompletableFuture<List<String>> getChildrenFromStore(String path) {
+        if (!isValidPath(path)) {
+            return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
+        }
+        synchronized (map) {
+            String firstKey = path.equals("/") ? path : path + "/";
+            String lastKey = path.equals("/") ? "0" : path + "0"; // '0' is lexicographically just after '/'
 
-        List<String> children = new ArrayList<>();
-        map.subMap(firstKey, false, lastKey, false).forEach((key, value) -> {
-            String relativePath = key.replace(firstKey, "");
-            if (!relativePath.contains("/")) {
+            Set<String> children = new TreeSet<>();
+            map.subMap(firstKey, false, lastKey, false).forEach((key, value) -> {
+                String relativePath = key.replace(firstKey, "");
+
                 // Only return first-level children
-                children.add(relativePath);
+                String child = relativePath.split("/", 2)[0];
+                children.add(child);
+            });
+
+            return FutureUtils.value(new ArrayList<>(children));
+        }
+    }
+
+    @Override
+    public CompletableFuture<Boolean> existsFromStore(String path) {
+        if (!isValidPath(path)) {
+            return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
+        }
+        synchronized (map) {
+            Value v = map.get(path);
+            return FutureUtils.value(v != null);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
+                                            EnumSet<CreateOption> options) {
+        if (!isValidPath(path)) {
+            return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
+        }
+        synchronized (map) {
+            boolean hasVersion = optExpectedVersion.isPresent();
+            int expectedVersion = optExpectedVersion.orElse(-1L).intValue();
+
+            if (options.contains(CreateOption.Sequential)) {
+                path += Long.toString(sequentialIdGenerator.getAndIncrement());
             }
-        });
 
-        return FutureUtils.value(children);
-    }
+            long now = System.currentTimeMillis();
 
-    @Override
-    public synchronized CompletableFuture<Boolean> existsFromStore(String path) {
-        if (!isValidPath(path)) {
-            return FutureUtils.exception(new MetadataStoreException(""));
-        }
-
-        Value v = map.get(path);
-        return FutureUtils.value(v != null ? true : false);
-    }
-
-    @Override
-    public CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion) {
-        return put(path, value, expectedVersion, EnumSet.noneOf(CreateOption.class));
-    }
-
-    @Override
-    public synchronized CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
-            EnumSet<CreateOption> options) {
-        if (!isValidPath(path)) {
-            return FutureUtils.exception(new MetadataStoreException(""));
-        }
-
-        boolean hasVersion = optExpectedVersion.isPresent();
-        int expectedVersion = optExpectedVersion.orElse(-1L).intValue();
-
-        if (options.contains(CreateOption.Sequential)) {
-            path += Long.toString(sequentialIdGenerator.getAndIncrement());
-        }
-
-        long now = System.currentTimeMillis();
-
-        if (hasVersion && expectedVersion == -1) {
-            Value newValue = new Value(0, data, now, now, options.contains(CreateOption.Ephemeral));
-            Value existingValue = map.putIfAbsent(path, newValue);
-            if (existingValue != null) {
-                return FutureUtils.exception(new BadVersionException(""));
-            } else {
-                receivedNotification(new Notification(NotificationType.Created, path));
-                String parent = parent(path);
-                if (parent != null) {
-                    receivedNotification(new Notification(NotificationType.ChildrenChanged, parent));
+            if (hasVersion && expectedVersion == -1) {
+                Value newValue = new Value(0, data, now, now, options.contains(CreateOption.Ephemeral));
+                Value existingValue = map.putIfAbsent(path, newValue);
+                if (existingValue != null) {
+                    return FutureUtils.exception(new BadVersionException(""));
+                } else {
+                    receivedNotification(new Notification(NotificationType.Created, path));
+                    notifyParentChildrenChanged(path);
+                    return FutureUtils.value(new Stat(path, 0, now, now, newValue.isEphemeral(), true));
                 }
-                return FutureUtils.value(new Stat(path, 0, now, now, newValue.isEphemeral(), true));
-            }
-        } else {
-            Value existingValue = map.get(path);
-            long existingVersion = existingValue != null ? existingValue.version : -1;
-            if (hasVersion && expectedVersion != existingVersion) {
-                return FutureUtils.exception(new BadVersionException(""));
             } else {
-                long newVersion = existingValue != null ? existingValue.version + 1 : 0;
-                long createdTimestamp = existingValue != null ? existingValue.createdTimestamp : now;
-                Value newValue = new Value(newVersion, data, createdTimestamp, now,
-                        options.contains(CreateOption.Ephemeral));
-                map.put(path, newValue);
+                Value existingValue = map.get(path);
+                long existingVersion = existingValue != null ? existingValue.version : -1;
+                if (hasVersion && expectedVersion != existingVersion) {
+                    return FutureUtils.exception(new BadVersionException(""));
+                } else {
+                    long newVersion = existingValue != null ? existingValue.version + 1 : 0;
+                    long createdTimestamp = existingValue != null ? existingValue.createdTimestamp : now;
+                    Value newValue = new Value(newVersion, data, createdTimestamp, now,
+                            options.contains(CreateOption.Ephemeral));
+                    map.put(path, newValue);
 
-                NotificationType type = existingValue == null ? NotificationType.Created : NotificationType.Modified;
-                receivedNotification(new Notification(type, path));
-                if (type == NotificationType.Created) {
-                    String parent = parent(path);
-                    if (parent != null) {
-                        receivedNotification(new Notification(NotificationType.ChildrenChanged, parent));
+                    NotificationType type =
+                            existingValue == null ? NotificationType.Created : NotificationType.Modified;
+                    receivedNotification(new Notification(type, path));
+                    if (type == NotificationType.Created) {
+                        notifyParentChildrenChanged(path);
                     }
+                    return FutureUtils
+                            .value(new Stat(path, newValue.version, newValue.createdTimestamp,
+                                    newValue.modifiedTimestamp,
+                                    false, true));
                 }
-                return FutureUtils
-                        .value(new Stat(path, newValue.version, newValue.createdTimestamp, newValue.modifiedTimestamp, false, true));
             }
         }
     }
 
     @Override
-    public synchronized CompletableFuture<Void> storeDelete(String path, Optional<Long> optExpectedVersion) {
+    public CompletableFuture<Void> storeDelete(String path, Optional<Long> optExpectedVersion) {
         if (!isValidPath(path)) {
-            return FutureUtils.exception(new MetadataStoreException(""));
+            return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
+        synchronized (map) {
+            Value value = map.get(path);
+            if (value == null) {
+                return FutureUtils.exception(new NotFoundException(""));
+            } else if (optExpectedVersion.isPresent() && optExpectedVersion.get() != value.version) {
+                return FutureUtils.exception(new BadVersionException(""));
+            } else {
+                map.remove(path);
+                receivedNotification(new Notification(NotificationType.Deleted, path));
 
-        Value value = map.get(path);
-        if (value == null) {
-            return FutureUtils.exception(new NotFoundException(""));
-        } else if (optExpectedVersion.isPresent() && optExpectedVersion.get() != value.version) {
-            return FutureUtils.exception(new BadVersionException(""));
-        } else {
-            map.remove(path);
-            receivedNotification(new Notification(NotificationType.Deleted, path));
-            String parent = parent(path);
-            if (parent != null) {
-                receivedNotification(new Notification(NotificationType.ChildrenChanged, parent));
+                notifyParentChildrenChanged(path);
+                return FutureUtils.value(null);
             }
-            return FutureUtils.value(null);
         }
-    }
-
-    private static boolean isValidPath(String path) {
-        if (path == null || !path.startsWith("/")) {
-            return false;
-        }
-
-        return !path.equals("/") || !path.endsWith("/");
     }
 }

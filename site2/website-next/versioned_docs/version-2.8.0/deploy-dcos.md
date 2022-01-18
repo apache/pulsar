@@ -1,18 +1,16 @@
 ---
 id: deploy-dcos
 title: Deploy Pulsar on DC/OS
-sidebar_label: DC/OS
+sidebar_label: "DC/OS"
 original_id: deploy-dcos
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
+:::tip
 
+If you want to enable all builtin [Pulsar IO](io-overview) connectors in your Pulsar deployment, you can choose to use `apachepulsar/pulsar-all` image instead of
+`apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled [all builtin connectors](io-overview.md#working-with-connectors).
 
-> ### Tips
->
-> If you want to enable all builtin [Pulsar IO](io-overview) connectors in your Pulsar deployment, you can choose to use `apachepulsar/pulsar-all` image instead of
-> `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled [all builtin connectors](io-overview.md#working-with-connectors).
+:::
 
 [DC/OS](https://dcos.io/) (the <strong>D</strong>ata<strong>C</strong>enter <strong>O</strong>perating <strong>S</strong>ystem) is a distributed operating system used for deploying and managing applications and systems on [Apache Mesos](http://mesos.apache.org/). DC/OS is an open-source tool that [Mesosphere](https://mesosphere.com/) creates and maintains .
 
@@ -28,9 +26,9 @@ In order to run Pulsar on DC/OS, you need the following:
 * The [`PulsarGroups.json`](https://github.com/apache/pulsar/blob/master/deployment/dcos/PulsarGroups.json) configuration file from the Pulsar GitHub repo.
 
   ```bash
-
+  
   $ curl -O https://raw.githubusercontent.com/apache/pulsar/master/deployment/dcos/PulsarGroups.json
-
+  
   ```
 
 Each node in the DC/OS-managed Mesos cluster must have at least:
@@ -190,12 +188,13 @@ You can shut down and uninstall the `pulsar` application from DC/OS at any time 
 
 1. Using the DC/OS GUI, you can choose **Delete** at the right end of Pulsar group.
 
-    ![DC/OS pulsar uninstall](/assets/dcos_uninstall.png)
+   ![DC/OS pulsar uninstall](/assets/dcos_uninstall.png)
 
 2. You can use the following command:
 
-    ```bash
+   ```bash
+   
+   $ dcos marathon group remove /pulsar
+   
+   ```
 
-    $ dcos marathon group remove /pulsar
-
-    ```

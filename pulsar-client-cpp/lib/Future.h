@@ -90,7 +90,8 @@ class Promise {
    public:
     Promise() : state_(std::make_shared<InternalState<Result, Type> >()) {}
 
-    bool setValue(const Type& value) {
+    bool setValue(const Type& value) const {
+        static Result DEFAULT_RESULT;
         InternalState<Result, Type>* state = state_.get();
         Lock lock(state->mutex);
 
@@ -99,21 +100,24 @@ class Promise {
         }
 
         state->value = value;
-        state->result = Result();
+        state->result = DEFAULT_RESULT;
         state->complete = true;
 
-        typename std::list<ListenerCallback>::iterator it;
-        for (it = state->listeners.begin(); it != state->listeners.end(); ++it) {
-            ListenerCallback& callback = *it;
-            callback(state->result, state->value);
+        decltype(state->listeners) listeners;
+        listeners.swap(state->listeners);
+
+        lock.unlock();
+
+        for (auto& callback : listeners) {
+            callback(DEFAULT_RESULT, value);
         }
 
-        state->listeners.clear();
         state->condition.notify_all();
         return true;
     }
 
-    bool setFailed(Result result) {
+    bool setFailed(Result result) const {
+        static Type DEFAULT_VALUE;
         InternalState<Result, Type>* state = state_.get();
         Lock lock(state->mutex);
 
@@ -124,13 +128,15 @@ class Promise {
         state->result = result;
         state->complete = true;
 
-        typename std::list<ListenerCallback>::iterator it;
-        for (it = state->listeners.begin(); it != state->listeners.end(); ++it) {
-            ListenerCallback& callback = *it;
-            callback(state->result, state->value);
+        decltype(state->listeners) listeners;
+        listeners.swap(state->listeners);
+
+        lock.unlock();
+
+        for (auto& callback : listeners) {
+            callback(result, DEFAULT_VALUE);
         }
 
-        state->listeners.clear();
         state->condition.notify_all();
         return true;
     }

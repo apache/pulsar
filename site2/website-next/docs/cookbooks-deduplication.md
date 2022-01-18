@@ -1,7 +1,7 @@
 ---
 id: cookbooks-deduplication
 title: Message deduplication
-sidebar_label: Message deduplication 
+sidebar_label: "Message deduplication "
 ---
 
 import Tabs from '@theme/Tabs';
@@ -76,20 +76,7 @@ The instructions for Java, Python, and C++ clients are different.
 
 <Tabs 
   defaultValue="Java clients"
-  values={[
-  {
-    "label": "Java clients",
-    "value": "Java clients"
-  },
-  {
-    "label": "Python clients",
-    "value": "Python clients"
-  },
-  {
-    "label": "C++ clients",
-    "value": "C++ clients"
-  }
-]}>
+  values={[{"label":"Java clients","value":"Java clients"},{"label":"Python clients","value":"Python clients"},{"label":"C++ clients","value":"C++ clients"}]}>
 <TabItem value="Java clients">
 
 To enable message deduplication on a [Java producer](client-libraries-java.md#producers), set the producer name using the `producerName` setter, and set the timeout to `0` using the `sendTimeout` setter. 
@@ -127,6 +114,7 @@ producer = client.create_producer(
     send_timeout_millis=0)
 
 ```
+
 </TabItem>
 <TabItem value="C++ clients">
 
@@ -151,6 +139,7 @@ Producer producer;
 Result result = client.createProducer(topic, producerConfig, producer);
 
 ```
+
 </TabItem>
 
 </Tabs>

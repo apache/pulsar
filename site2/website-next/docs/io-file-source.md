@@ -1,12 +1,8 @@
 ---
 id: io-file-source
 title: File source connector
-sidebar_label: File source connector
+sidebar_label: "File source connector"
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 The File source connector pulls messages from files in directories and persists the messages to Pulsar topics.
 
@@ -37,8 +33,10 @@ Before using the File source connector, you need to create a configuration file 
 
 * JSON 
 
-    ```json
-    {
+  ```json
+  
+  {
+     "configs": {
         "inputDirectory": "/Users/david",
         "recurse": true,
         "keepFile": true,
@@ -51,26 +49,30 @@ Before using the File source connector, you need to create a configuration file 
         "ignoreHiddenFiles": true,
         "pollingInterval": 5000,
         "numWorkers": 1
-    }
-    ```
+     }
+  }
+  
+  ```
 
 * YAML
 
-    ```yaml
-    configs:
-        inputDirectory: "/Users/david"
-        recurse: true
-        keepFile: true
-        fileFilter: "[^\\.].*"
-        pathFilter: "*"
-        minimumFileAge: 0
-        maximumFileAge: 9999999999
-        minimumSize: 1
-        maximumSize: 5000000
-        ignoreHiddenFiles: true
-        pollingInterval: 5000
-        numWorkers: 1
-    ```
+  ```yaml
+  
+  configs:
+      inputDirectory: "/Users/david"
+      recurse: true
+      keepFile: true
+      fileFilter: "[^\\.].*"
+      pathFilter: "*"
+      minimumFileAge: 0
+      maximumFileAge: 9999999999
+      minimumSize: 1
+      maximumSize: 5000000
+      ignoreHiddenFiles: true
+      pollingInterval: 5000
+      numWorkers: 1
+  
+  ```
 
 ## Usage
 
@@ -78,64 +80,82 @@ Here is an example of using the File source connecter.
 
 1. Pull a Pulsar image.
 
-    ```bash
-    $ docker pull apachepulsar/pulsar:{version}
-    ```
+   ```bash
+   
+   $ docker pull apachepulsar/pulsar:{version}
+   
+   ```
 
 2. Start Pulsar standalone.
+
+   ```bash
    
-    ```bash
-    $ docker run -d -it -p 6650:6650 -p 8080:8080 -v $PWD/data:/pulsar/data --name pulsar-standalone apachepulsar/pulsar:{version} bin/pulsar standalone
-    ```
+   $ docker run -d -it -p 6650:6650 -p 8080:8080 -v $PWD/data:/pulsar/data --name pulsar-standalone apachepulsar/pulsar:{version} bin/pulsar standalone
+   
+   ```
 
 3. Create a configuration file _file-connector.yaml_.
 
-    ```yaml
-    configs:
-        inputDirectory: "/opt"
-    ```
+   ```yaml
+   
+   configs:
+       inputDirectory: "/opt"
+   
+   ```
 
 4. Copy the configuration file _file-connector.yaml_ to the container.
 
-    ```bash
-    $ docker cp connectors/file-connector.yaml pulsar-standalone:/pulsar/
-    ```
+   ```bash
+   
+   $ docker cp connectors/file-connector.yaml pulsar-standalone:/pulsar/
+   
+   ```
 
 5. Download the File source connector.
 
-    ```bash
-    $ curl -O https://mirrors.tuna.tsinghua.edu.cn/apache/pulsar/pulsar-{version}/connectors/pulsar-io-file-{version}.nar
-    ```
+   ```bash
+   
+   $ curl -O https://mirrors.tuna.tsinghua.edu.cn/apache/pulsar/pulsar-{version}/connectors/pulsar-io-file-{version}.nar
+   
+   ```
 
 6. Start the File source connector.
 
-    ```bash
-    $ docker exec -it pulsar-standalone /bin/bash
+   ```bash
+   
+   $ docker exec -it pulsar-standalone /bin/bash
 
-    $ ./bin/pulsar-admin sources localrun \
-    --archive /pulsar/pulsar-io-file-{version}.nar \
-    --name file-test \
-    --destination-topic-name  pulsar-file-test \
-    --source-config-file /pulsar/file-connector.yaml
-    ```
+   $ ./bin/pulsar-admin sources localrun \
+   --archive /pulsar/pulsar-io-file-{version}.nar \
+   --name file-test \
+   --destination-topic-name  pulsar-file-test \
+   --source-config-file /pulsar/file-connector.yaml
+   
+   ```
 
 7. Start a consumer.
 
-    ```bash
-    ./bin/pulsar-client consume -s file-test -n 0 pulsar-file-test
-    ```
+   ```bash
+   
+   ./bin/pulsar-client consume -s file-test -n 0 pulsar-file-test
+   
+   ```
 
 8. Write the message to the file _test.txt_.
+
+   ```bash
    
-    ```bash
-    echo "hello world!" > /opt/test.txt
-    ```
+   echo "hello world!" > /opt/test.txt
+   
+   ```
 
-    The following information appears on the consumer terminal window.
+   The following information appears on the consumer terminal window.
 
-    ```bash
-    ----- got message -----
-    hello world!
-    ```
+   ```bash
+   
+   ----- got message -----
+   hello world!
+   
+   ```
 
-    
+   

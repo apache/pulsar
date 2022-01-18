@@ -20,7 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import java.util.BitSet;
 
-class BatchMessageAcker {
+public class BatchMessageAcker {
 
     private BatchMessageAcker() {
         this.bitSet = new BitSet();

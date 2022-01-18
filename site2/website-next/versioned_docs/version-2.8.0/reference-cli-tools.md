@@ -1,13 +1,9 @@
 ---
 id: reference-cli-tools
 title: Pulsar command-line tools
-sidebar_label: Pulsar CLI tools
+sidebar_label: "Pulsar CLI tools"
 original_id: reference-cli-tools
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 Pulsar offers several command-line tools that you can use for managing Pulsar installations, performance testing, using command-line producers and consumers, and more.
 
@@ -22,10 +18,14 @@ All Pulsar command-line tools can be run from the `bin` directory of your [insta
 
 > ### Getting help
 > You can get help for any CLI tool, command, or subcommand using the `--help` flag, or `-h` for short. Here's an example:
+
 > ```shell
->
+> 
 > $ bin/pulsar broker --help
+>
+> 
 > ```
+
 
 ## `pulsar`
 
@@ -40,6 +40,7 @@ Usage:
 $ pulsar command
 
 ```
+
 Commands:
 * `bookie`
 * `broker`
@@ -149,6 +150,7 @@ Usage
 $ pulsar compact-topic options
 
 ```
+
 Options
 
 |Flag|Description|Default|
@@ -279,7 +281,7 @@ Options
 |Flag|Description|Default|
 |---|---|---|
 |`-a` , `--advertised-address`|The standalone broker advertised address||
-|`--bookkeeper-dir`|Local bookies’ base data directory|data/standalone/bookeeper|
+|`--bookkeeper-dir`|Local bookies’ base data directory|data/standalone/bookkeeper|
 |`--bookkeeper-port`|Local bookies’ base port|3181|
 |`--no-broker`|Only start ZooKeeper and BookKeeper services, not the broker|false|
 |`--num-bookies`|The number of local bookies|1|
@@ -435,7 +437,7 @@ Options
 |`-s`, `--subscription-name`|Subscription name||
 |`-t`, `--subscription-type`|The type of the subscription. Possible values: Exclusive, Shared, Failover, Key_Shared.|Exclusive|
 |`-p`, `--subscription-position`|The position of the subscription. Possible values: Latest, Earliest.|Latest|
-|`-m`, `--subscription-mode`|Subscription mode.|Durable|
+|`-m`, `--subscription-mode`|Subscription mode. Possible values: Durable, NonDurable.|Durable|
 |`-q`, `--queue-size`|The size of consumer's receiver queue.|0|
 |`-mc`, `--max_chunked_msg`|Max pending chunk messages.|0|
 |`-ac`, `--auto_ack_chunk_q_full`|Auto ack for the oldest message in consumer's receiver queue if the queue full.|false|
@@ -532,6 +534,7 @@ Run a consumer
 Usage
 
 ```
+
 $ pulsar-perf consume options
 
 ```
@@ -806,7 +809,7 @@ $ bookkeeper command
 ```
 
 Commands
-* `auto-recovery`
+* `autorecovery`
 * `bookie`
 * `localbookie`
 * `upgrade`
@@ -828,14 +831,14 @@ The table below lists the environment variables that you can use to configure th
 |BOOKIE_STOP_TIMEOUT|Wait time before forcefully killing the Bookie server instance if attempts to stop it are not successful||
 
 
-### `auto-recovery`
-Runs an auto-recovery service daemon
+### `autorecovery`
+Runs an auto-recovery service
 
 Usage
 
 ```bash
 
-$ bookkeeper auto-recovery options
+$ bookkeeper autorecovery options
 
 ```
 
@@ -843,7 +846,7 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`-c`, `--conf`|Configuration for the auto-recovery daemon||
+|`-c`, `--conf`|Configuration for the auto-recovery||
 
 
 ### `bookie`
@@ -861,7 +864,7 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`-c`, `--conf`|Configuration for the auto-recovery daemon||
+|`-c`, `--conf`|Configuration for the auto-recovery||
 |-readOnly|Force start a read-only bookie server|false|
 |-withAutoRecovery|Start auto-recovery service bookie server|false|
 
@@ -892,7 +895,7 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`-c`, `--conf`|Configuration for the auto-recovery daemon||
+|`-c`, `--conf`|Configuration for the auto-recovery||
 |`-u`, `--upgrade`|Upgrade the bookie’s directories||
 
 
@@ -926,6 +929,7 @@ Usage
 $ broker-tool command
 
 ```
+
 Commands
 * `load-report`
 * `help`

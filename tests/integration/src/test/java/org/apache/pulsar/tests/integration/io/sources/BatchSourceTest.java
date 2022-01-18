@@ -19,8 +19,6 @@
 package org.apache.pulsar.tests.integration.io.sources;
 
 import lombok.Cleanup;
-import lombok.Data;
-import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -43,7 +41,6 @@ import org.testng.annotations.Test;
 
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.JAVAJAR;
 import static org.apache.pulsar.tests.integration.suites.PulsarTestSuite.retryStrategically;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
@@ -118,7 +115,7 @@ public class BatchSourceTest extends PulsarStandaloneTestSuite {
         log.info("Run command : {}", StringUtils.join(commands, ' '));
         ContainerExecResult result = container.execCmd(commands);
         assertTrue(
-            result.getStdout().contains("\"Created successfully\""),
+            result.getStdout().contains("Created successfully"),
             result.getStdout());
     }
 

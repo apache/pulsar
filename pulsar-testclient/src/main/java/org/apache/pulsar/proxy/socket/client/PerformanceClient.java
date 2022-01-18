@@ -26,7 +26,6 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -36,6 +35,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,7 +46,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 
-import com.google.common.collect.Lists;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -212,8 +211,6 @@ public class PerformanceClient {
             arguments.proxyURL += "/";
         }
 
-        arguments.testTime = TimeUnit.SECONDS.toMillis(arguments.testTime);
-
         return arguments;
 
     }
@@ -222,7 +219,7 @@ public class PerformanceClient {
         // Read payload data from file if needed
         final byte[] payloadBytes = new byte[arguments.msgSize];
         Random random = new Random(0);
-        List<byte[]> payloadByteList = Lists.newArrayList();
+        List<byte[]> payloadByteList = new ArrayList<>();
         if (arguments.payloadFilename != null) {
             Path payloadFilePath = Paths.get(arguments.payloadFilename);
             if (Files.notExists(payloadFilePath) || Files.size(payloadFilePath) == 0)  {
@@ -295,10 +292,17 @@ public class PerformanceClient {
         executor.submit(() -> {
             try {
                 RateLimiter rateLimiter = RateLimiter.create(arguments.msgRate);
+                long startTime = System.nanoTime();
+                long testEndTime = startTime + (long) (arguments.testTime * 1e9);
                 // Send messages on all topics/producers
                 long totalSent = 0;
                 while (true) {
                     for (String topic : producersMap.keySet()) {
+                        if (arguments.testTime > 0 && System.nanoTime() > testEndTime) {
+                            log.info("------------- DONE (reached the maximum duration: [{} seconds] of production) --------------", arguments.testTime);
+                            PerfClientUtils.exit(0);
+                        }
+
                         if (arguments.numMessages > 0) {
                             if (totalSent >= arguments.numMessages) {
                                 log.trace("------------- DONE (reached the maximum number: [{}] of production) --------------", arguments.numMessages);

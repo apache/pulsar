@@ -21,23 +21,20 @@ package org.apache.bookkeeper.mledger.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
-
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Longs;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
-
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-
 import org.apache.bookkeeper.client.api.BKException;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.util.RangeCache;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
@@ -50,6 +47,7 @@ public class EntryCacheImpl implements EntryCache {
 
     private final EntryCacheManager manager;
     private final ManagedLedgerImpl ml;
+    private ManagedLedgerInterceptor interceptor;
     private final RangeCache<PositionImpl, EntryImpl> entries;
     private final boolean copyEntries;
 
@@ -58,6 +56,7 @@ public class EntryCacheImpl implements EntryCache {
     public EntryCacheImpl(EntryCacheManager manager, ManagedLedgerImpl ml, boolean copyEntries) {
         this.manager = manager;
         this.ml = ml;
+        this.interceptor = ml.getManagedLedgerInterceptor();
         this.entries = new RangeCache<>(EntryImpl::getLength, EntryImpl::getTimestamp);
         this.copyEntries = copyEntries;
 
@@ -158,8 +157,8 @@ public class EntryCacheImpl implements EntryCache {
         Pair<Integer, Long> removed = entries.removeRange(firstPosition, lastPosition, false);
         int entriesRemoved = removed.getLeft();
         long sizeRemoved = removed.getRight();
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Invalidated entries up to {} - Entries removed: {} - Size removed: {}", ml.getName(),
+        if (log.isTraceEnabled()) {
+            log.trace("[{}] Invalidated entries up to {} - Entries removed: {} - Size removed: {}", ml.getName(),
                     lastPosition, entriesRemoved, sizeRemoved);
         }
 
@@ -209,19 +208,13 @@ public class EntryCacheImpl implements EntryCache {
             manager.mlFactoryMBean.recordCacheHit(cachedEntry.getLength());
             callback.readEntryComplete(cachedEntry, ctx);
         } else {
-            lh.readAsync(position.getEntryId(), position.getEntryId()).whenCompleteAsync(
-                    (ledgerEntries, exception) -> {
-                        if (exception != null) {
-                            ml.invalidateLedgerHandle(lh);
-                            callback.readEntryFailed(createManagedLedgerException(exception), ctx);
-                            return;
-                        }
-
+            lh.readAsync(position.getEntryId(), position.getEntryId()).thenAcceptAsync(
+                    ledgerEntries -> {
                         try {
                             Iterator<LedgerEntry> iterator = ledgerEntries.iterator();
                             if (iterator.hasNext()) {
                                 LedgerEntry ledgerEntry = iterator.next();
-                                EntryImpl returnEntry = EntryImpl.create(ledgerEntry);
+                                EntryImpl returnEntry = EntryCacheManager.create(ledgerEntry, interceptor);
 
                                 manager.mlFactoryMBean.recordCacheMiss(1, returnEntry.getLength());
                                 ml.mbean.addReadEntriesSample(1, returnEntry.getLength());
@@ -234,12 +227,11 @@ public class EntryCacheImpl implements EntryCache {
                         } finally {
                             ledgerEntries.close();
                         }
-                    }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception->{
-                          ml.invalidateLedgerHandle(lh);
-                          callback.readEntryFailed(createManagedLedgerException(exception), ctx);
-                          return null;
-                    }
-                    );
+                    }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception -> {
+                        ml.invalidateLedgerHandle(lh);
+                        callback.readEntryFailed(createManagedLedgerException(exception), ctx);
+                        return null;
+            });
         }
     }
 
@@ -297,30 +289,17 @@ public class EntryCacheImpl implements EntryCache {
             }
 
             // Read all the entries from bookkeeper
-            lh.readAsync(firstEntry, lastEntry).whenCompleteAsync(
-                    (ledgerEntries, exception) -> {
-                        if (exception != null) {
-                            if (exception instanceof BKException
-                                && ((BKException)exception).getCode() == BKException.Code.TooManyRequestsException) {
-                                callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
-                            } else {
-                                ml.invalidateLedgerHandle(lh);
-                                ManagedLedgerException mlException = createManagedLedgerException(exception);
-                                callback.readEntriesFailed(mlException, ctx);
-                            }
-                            return;
-                        }
-
+            lh.readAsync(firstEntry, lastEntry).thenAcceptAsync(
+                    ledgerEntries -> {
                         checkNotNull(ml.getName());
                         checkNotNull(ml.getExecutor());
 
                         try {
                             // We got the entries, we need to transform them to a List<> type
                             long totalSize = 0;
-                            final List<EntryImpl> entriesToReturn
-                                = Lists.newArrayListWithExpectedSize(entriesToRead);
+                            final List<EntryImpl> entriesToReturn = Lists.newArrayListWithExpectedSize(entriesToRead);
                             for (LedgerEntry e : ledgerEntries) {
-                                EntryImpl entry = EntryImpl.create(e);
+                                EntryImpl entry = EntryCacheManager.create(e, interceptor);
 
                                 entriesToReturn.add(entry);
                                 totalSize += entry.getLength();
@@ -333,17 +312,17 @@ public class EntryCacheImpl implements EntryCache {
                         } finally {
                             ledgerEntries.close();
                         }
-                    }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception->{
-                    	  if (exception instanceof BKException
-                                  && ((BKException)exception).getCode() == BKException.Code.TooManyRequestsException) {
-                                  callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
-                              } else {
-                                  ml.invalidateLedgerHandle(lh);
-                                  ManagedLedgerException mlException = createManagedLedgerException(exception);
-                                  callback.readEntriesFailed(mlException, ctx);
-                              }
-                    	return null;
-                    });
+                    }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception -> {
+                        if (exception instanceof BKException
+                                && ((BKException) exception).getCode() == BKException.Code.TooManyRequestsException) {
+                            callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
+                        } else {
+                            ml.invalidateLedgerHandle(lh);
+                            ManagedLedgerException mlException = createManagedLedgerException(exception);
+                            callback.readEntriesFailed(mlException, ctx);
+                        }
+                        return null;
+            });
         }
     }
 

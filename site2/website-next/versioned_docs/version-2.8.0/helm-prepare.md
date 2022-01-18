@@ -1,20 +1,16 @@
 ---
 id: helm-prepare
 title: Prepare Kubernetes resources
-sidebar_label: Prepare
+sidebar_label: "Prepare"
 original_id: helm-prepare
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 For a fully functional Pulsar cluster, you need a few resources before deploying the Apache Pulsar Helm chart. The following provides instructions to prepare the Kubernetes cluster before deploying the Pulsar Helm chart.
 
 - [Google Kubernetes Engine](#google-kubernetes-engine)
   - [Manual cluster creation](#manual-cluster-creation)
   - [Scripted cluster creation](#scripted-cluster-creation)
-    - [Create cluster with local SSDs](#create-cluster-with-local-ssds)
+  - [Create cluster with local SSDs](#create-cluster-with-local-ssds)
 - [Next Steps](#next-steps)
 
 ## Google Kubernetes Engine
@@ -24,7 +20,7 @@ To get started easier, a script is provided to create the cluster automatically.
 - [Google Kubernetes Engine](#google-kubernetes-engine)
   - [Manual cluster creation](#manual-cluster-creation)
   - [Scripted cluster creation](#scripted-cluster-creation)
-    - [Create cluster with local SSDs](#create-cluster-with-local-ssds)
+  - [Create cluster with local SSDs](#create-cluster-with-local-ssds)
 - [Next Steps](#next-steps)
 
 ### Manual cluster creation
@@ -86,9 +82,11 @@ PROJECT=<gcloud project id> scripts/pulsar/gke_bootstrap_script.sh down
 To install a Pulsar Helm chart using local persistent volumes, you need to create a GKE cluster with local SSDs. You can do so Specifying the `USE_LOCAL_SSD` to be `true` in the following command to create a Pulsar cluster with local SSDs.
 
 ```
+
 PROJECT=<gcloud project id> USE_LOCAL_SSD=true LOCAL_SSD_COUNT=<local-ssd-count> scripts/pulsar/gke_bootstrap_script.sh up
 
 ```
+
 ## Next Steps
 
 Continue with the [installation of the chart](helm-deploy) once you have the cluster up and running.

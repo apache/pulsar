@@ -1,12 +1,8 @@
 ---
 id: io-hbase-sink
 title: HBase sink connector
-sidebar_label: HBase sink connector
+sidebar_label: "HBase sink connector"
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 The HBase sink connector pulls the messages from Pulsar topics 
 and persists the messages to HBase tables
@@ -36,8 +32,10 @@ Before using the HBase sink connector, you need to create a configuration file t
 
 * JSON 
 
-    ```json
-    {
+  ```json
+  
+  {
+     "configs": {
         "hbaseConfigResources": "hbase-site.xml",
         "zookeeperQuorum": "localhost",
         "zookeeperClientPort": "2181",
@@ -46,22 +44,25 @@ Before using the HBase sink connector, you need to create a configuration file t
         "rowKeyName": "rowKey",
         "familyName": "info",
         "qualifierNames": [ 'name', 'address', 'age']
-    }
-    ```
-
+     }
+  }
+  
+  ```
 
 * YAML
 
-    ```yaml
-    configs:
-        hbaseConfigResources: "hbase-site.xml"
-        zookeeperQuorum: "localhost"
-        zookeeperClientPort: "2181"
-        zookeeperZnodeParent: "/hbase"
-        tableName: "pulsar_hbase"
-        rowKeyName: "rowKey"
-        familyName: "info"
-        qualifierNames: [ 'name', 'address', 'age']
-    ```
+  ```yaml
+  
+  configs:
+      hbaseConfigResources: "hbase-site.xml"
+      zookeeperQuorum: "localhost"
+      zookeeperClientPort: "2181"
+      zookeeperZnodeParent: "/hbase"
+      tableName: "pulsar_hbase"
+      rowKeyName: "rowKey"
+      familyName: "info"
+      qualifierNames: [ 'name', 'address', 'age']
+  
+  ```
 
-    
+  

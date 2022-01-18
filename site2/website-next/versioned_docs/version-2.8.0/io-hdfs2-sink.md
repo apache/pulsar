@@ -1,13 +1,9 @@
 ---
 id: io-hdfs2-sink
 title: HDFS2 sink connector
-sidebar_label: HDFS2 sink connector
+sidebar_label: "HDFS2 sink connector"
 original_id: io-hdfs2-sink
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 The HDFS2 sink connector pulls the messages from Pulsar topics 
 and persists the messages to HDFS files.
@@ -39,29 +35,30 @@ Before using the HDFS2 sink connector, you need to create a configuration file t
 
 * JSON 
 
-    ```json
-
-    {
-        "hdfsConfigResources": "core-site.xml",
-        "directory": "/foo/bar",
-        "filenamePrefix": "prefix",
-        "fileExtension": ".log",
-        "compression": "SNAPPY",
-        "subdirectoryPattern": "yyyy-MM-dd"
-    }
-
-    ```
+  ```json
+  
+  {
+      "hdfsConfigResources": "core-site.xml",
+      "directory": "/foo/bar",
+      "filenamePrefix": "prefix",
+      "fileExtension": ".log",
+      "compression": "SNAPPY",
+      "subdirectoryPattern": "yyyy-MM-dd"
+  }
+  
+  ```
 
 * YAML
 
-    ```yaml
+  ```yaml
+  
+  configs:
+      hdfsConfigResources: "core-site.xml"
+      directory: "/foo/bar"
+      filenamePrefix: "prefix"
+      fileExtension: ".log"
+      compression: "SNAPPY"
+      subdirectoryPattern: "yyyy-MM-dd"
+  
+  ```
 
-    configs:
-        hdfsConfigResources: "core-site.xml"
-        directory: "/foo/bar"
-        filenamePrefix: "prefix"
-        fileExtension: ".log"
-        compression: "SNAPPY"
-        subdirectoryPattern: "yyyy-MM-dd"
-
-    ```

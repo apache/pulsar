@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -370,7 +371,6 @@ public class SchedulerManager implements AutoCloseable {
         return currentMembership;
     }
 
-    @VisibleForTesting
     void invokeScheduler() {
         long startTime = System.nanoTime();
 
@@ -532,19 +532,19 @@ public class SchedulerManager implements AutoCloseable {
 
     private void scheduleCompaction(ScheduledExecutorService executor, long scheduleFrequencySec) {
         if (executor != null) {
-            executor.scheduleWithFixedDelay(() -> {
+            executor.scheduleWithFixedDelay(catchingAndLoggingThrowables(() -> {
                 if (leaderService.isLeader() && isCompactionNeeded.get()) {
                     compactAssignmentTopic();
                     isCompactionNeeded.set(false);
                 }
-            }, scheduleFrequencySec, scheduleFrequencySec, TimeUnit.SECONDS);
+            }), scheduleFrequencySec, scheduleFrequencySec, TimeUnit.SECONDS);
 
-            executor.scheduleWithFixedDelay(() -> {
+            executor.scheduleWithFixedDelay(catchingAndLoggingThrowables(() -> {
                 if (leaderService.isLeader() && metadataTopicLastMessage.compareTo(functionMetaDataManager.getLastMessageSeen()) != 0) {
                     metadataTopicLastMessage = functionMetaDataManager.getLastMessageSeen();
                     compactFunctionMetadataTopic();
                 }
-            }, scheduleFrequencySec, scheduleFrequencySec, TimeUnit.SECONDS);
+            }), scheduleFrequencySec, scheduleFrequencySec, TimeUnit.SECONDS);
         }
     }
 
@@ -560,7 +560,6 @@ public class SchedulerManager implements AutoCloseable {
         assignmentsMovedInLastDrain = null;
     }
 
-    @VisibleForTesting
     List<Assignment> invokeDrain(String workerId) {
 
         long startTime = System.nanoTime();

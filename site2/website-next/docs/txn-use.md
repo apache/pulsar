@@ -1,12 +1,8 @@
 ---
 id: txn-use
 title: How to use transactions?
-sidebar_label: How to use transactions?
+sidebar_label: "How to use transactions?"
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 ## Transaction API
 
@@ -24,47 +20,57 @@ This section provides an example of how to use the transaction API to send and r
 
 2. Enable transaction. 
 
-    Change the configuration in the `broker.conf` file.
+   Change the configuration in the `broker.conf` file.
 
-    ```
-    transactionCoordinatorEnabled=true
-    ```
+   ```
+   
+   transactionCoordinatorEnabled=true
+   
+   ```
 
-    If you want to enable batch messages in transactions, follow the steps below.
+   If you want to enable batch messages in transactions, follow the steps below.
 
-    Set `acknowledgmentAtBatchIndexLevelEnabled` to `true` in the `broker.conf` or `standalone.conf` file.
+   Set `acknowledgmentAtBatchIndexLevelEnabled` to `true` in the `broker.conf` or `standalone.conf` file.
 
-      ```
-      acknowledgmentAtBatchIndexLevelEnabled=true
-      ```
+     ```
+     
+     acknowledgmentAtBatchIndexLevelEnabled=true
+     
+     ```
 
 3. Initialize transaction coordinator metadata.
 
-    The transaction coordinator can leverage the advantages of partitioned topics (such as load balance).
+   The transaction coordinator can leverage the advantages of partitioned topics (such as load balance).
 
-    **Input**
+   **Input**
 
-    ```
-    bin/pulsar initialize-transaction-coordinator-metadata -cs 127.0.0.1:2181 -c standalone
-    ```
+   ```
+   
+   bin/pulsar initialize-transaction-coordinator-metadata -cs 127.0.0.1:2181 -c standalone
+   
+   ```
 
-    **Output**
+   **Output**
 
-    ```
-    Transaction coordinator metadata setup success
-    ```
+   ```
+   
+   Transaction coordinator metadata setup success
+   
+   ```
 
 4. Initialize a Pulsar client.
 
-    ```
-    PulsarClient client = PulsarClient.builder()
+   ```
+   
+   PulsarClient client = PulsarClient.builder()
 
-    .serviceUrl(“pulsar://localhost:6650”)
+   .serviceUrl(“pulsar://localhost:6650”)
 
-    .enableTransaction(true)
+   .enableTransaction(true)
 
-    .build();
-    ```
+   .build();
+   
+   ```
 
 Now you can start using the transaction API to send and receive messages. Below is an example of a `consume-process-produce` application written in Java.
 
@@ -83,6 +89,7 @@ Let’s walk through this example step by step.
 [1] Example of enabling batch messages ack in transactions in the consumer builder.
 
 ```
+
 Consumer<byte[]> sinkConsumer = pulsarClient
     .newConsumer()
     .topic(transferTopic)
@@ -92,5 +99,6 @@ Consumer<byte[]> sinkConsumer = pulsarClient
     .subscriptionType(SubscriptionType.Shared)
     .enableBatchIndexAcknowledgment(true) // enable batch index acknowledgement
     .subscribe();
+
 ```
 
