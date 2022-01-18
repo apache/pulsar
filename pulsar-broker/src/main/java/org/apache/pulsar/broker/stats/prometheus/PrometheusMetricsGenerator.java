@@ -249,13 +249,15 @@ public class PrometheusMetricsGenerator {
                             .write("{cluster=\"").write(cluster).write('"');
                 }
 
+                boolean appendQuantile = false;
                 for (Map.Entry<String, String> metric : metrics1.getDimensions().entrySet()) {
                     if (metric.getKey().isEmpty() || "cluster".equals(metric.getKey())) {
                         continue;
                     }
                     stream.write(", ").write(metric.getKey()).write("=\"").write(metric.getValue()).write('"');
-                    if (value != null && !value.isEmpty()) {
+                    if (value != null && !value.isEmpty() && !appendQuantile) {
                         stream.write(", ").write("quantile=\"").write(value).write('"');
+                        appendQuantile = true;
                     }
                 }
                 stream.write("} ").write(String.valueOf(entry.getValue()))

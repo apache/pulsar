@@ -105,7 +105,7 @@ public class LedgerOffloaderMetrics extends AbstractMetrics {
                     ((PersistentTopic) topic).getManagedLedger().getConfig().getLedgerOffloader();
             LedgerOffloaderMXBean mbean = ledgerOffloader.getStats();
             managedLedgerName = ((PersistentTopic) topic).getManagedLedger().getName();
-            if (ledgerOffloader == NullLedgerOffloader.INSTANCE || mbean == null) {
+            if (ledgerOffloader == NullLedgerOffloader.instance_ || mbean == null) {
                 return;
             }
 

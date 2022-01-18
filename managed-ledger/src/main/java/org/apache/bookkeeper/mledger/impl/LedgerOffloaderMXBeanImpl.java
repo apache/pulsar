@@ -27,7 +27,7 @@ import org.apache.bookkeeper.mledger.util.StatsBuckets;
 
 public class LedgerOffloaderMXBeanImpl implements LedgerOffloaderMXBean {
 
-    private final int DEFAULT_SIZE = 4;
+    private static final int DEFAULT_SIZE = 4;
     public static final long[] READ_ENTRY_LATENCY_BUCKETS_USEC = {500, 1_000, 5_000, 10_000, 20_000, 50_000, 100_000,
             200_000, 1000_000};
 
@@ -95,12 +95,20 @@ public class LedgerOffloaderMXBeanImpl implements LedgerOffloaderMXBean {
 
     @Override
     public StatsBuckets getReadLedgerLatencyBuckets(String topic) {
-        return this.readLedgerLatencyBucketsMap.remove(topic);
+        StatsBuckets buckets = this.readLedgerLatencyBucketsMap.remove(topic);
+        if (null != buckets) {
+            buckets.refresh();
+        }
+        return buckets;
     }
 
     @Override
     public StatsBuckets getWriteToStorageLatencyBuckets(String topic) {
-        return this.writeToStorageLatencyBucketsMap.remove(topic);
+        StatsBuckets buckets = this.writeToStorageLatencyBucketsMap.remove(topic);
+        if (null != buckets) {
+            buckets.refresh();
+        }
+        return buckets;
     }
 
     @Override
@@ -124,12 +132,20 @@ public class LedgerOffloaderMXBeanImpl implements LedgerOffloaderMXBean {
 
     @Override
     public StatsBuckets getReadOffloadIndexLatencyBuckets(String topic) {
-        return this.readOffloadIndexLatencyBucketsMap.remove(topic);
+        StatsBuckets buckets = this.readOffloadIndexLatencyBucketsMap.remove(topic);
+        if (null != buckets) {
+            buckets.refresh();
+        }
+        return buckets;
     }
 
     @Override
     public StatsBuckets getReadOffloadDataLatencyBuckets(String topic) {
-        return this.readOffloadDataLatencyBucketsMap.remove(topic);
+        StatsBuckets buckets = this.readOffloadDataLatencyBucketsMap.remove(topic);
+        if (null != buckets) {
+            buckets.refresh();
+        }
+        return buckets;
     }
 
     @Override
