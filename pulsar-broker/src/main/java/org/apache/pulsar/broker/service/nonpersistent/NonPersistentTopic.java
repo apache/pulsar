@@ -1076,4 +1076,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     protected boolean isTerminated() {
         return false;
     }
+
+    @Override
+    public boolean isPersistent() {
+        return false;
+    }
 }

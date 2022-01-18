@@ -258,6 +258,8 @@ public interface Topic {
         return false;
     }
 
+    boolean isPersistent();
+
     /* ------ Transaction related ------ */
 
     /**
