@@ -32,6 +32,8 @@ yarn build
 
 node ./scripts/split-swagger-by-version.js
 
+ls -l static/swagger
+
 # Generate document for command line tools.
 ${ROOT_DIR}/site2/tools/pulsar-admin-doc-gen.sh
 ${ROOT_DIR}/site2/tools/pulsar-client-doc-gen.sh
