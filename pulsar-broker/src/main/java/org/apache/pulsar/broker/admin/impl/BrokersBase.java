@@ -47,6 +47,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.systopic.SystemTopicNameManager;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.Message;
@@ -70,7 +71,6 @@ import org.slf4j.LoggerFactory;
 public class BrokersBase extends PulsarWebResource {
     private static final Logger LOG = LoggerFactory.getLogger(BrokersBase.class);
     private static final Duration HEALTHCHECK_READ_TIMEOUT = Duration.ofSeconds(10);
-    public static final String HEALTH_CHECK_TOPIC_SUFFIX = "healthcheck";
 
     @GET
     @Path("/{cluster}")
@@ -318,7 +318,8 @@ public class BrokersBase extends PulsarWebResource {
                             pulsar().getConfiguration());
 
 
-            topic = String.format("persistent://%s/%s", heartbeatNamespace, HEALTH_CHECK_TOPIC_SUFFIX);
+            topic = String.format("persistent://%s/%s", heartbeatNamespace,
+                    SystemTopicNameManager.BROKER_NS_HEALTH_CHECK_NAME);
 
             LOG.info("Running healthCheck with topic={}", topic);
 

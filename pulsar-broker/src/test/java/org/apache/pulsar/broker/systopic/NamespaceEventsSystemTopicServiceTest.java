@@ -143,8 +143,8 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
         TopicName systemTopicName = TopicName.get(systemTopic);
         TopicName normalTopicName = TopicName.get(normalTopic);
 
-        Assert.assertEquals(SystemTopicClient.isSystemTopic(systemTopicName), true);
-        Assert.assertEquals(SystemTopicClient.isSystemTopic(normalTopicName), false);
+        Assert.assertTrue(SystemTopicNameManager.isSystemTopic(systemTopicName));
+        Assert.assertFalse(SystemTopicNameManager.isSystemTopic(normalTopicName));
     }
 
     private void prepareData() throws PulsarAdminException {

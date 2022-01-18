@@ -29,8 +29,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.broker.admin.impl.BrokersBase;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.systopic.SystemTopicNameManager;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.common.naming.TopicName;
@@ -581,7 +581,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
         super.baseSetup();
         // init topic
-        final String healthCheckTopic = "persistent://prop/ns-abc/"+ BrokersBase.HEALTH_CHECK_TOPIC_SUFFIX;
+        final String healthCheckTopic = "persistent://prop/ns-abc/"+ SystemTopicNameManager.BROKER_NS_HEALTH_CHECK_NAME;
         final String topic = "persistent://prop/ns-abc/testDeleteWhenNoSubscriptions";
 
         Producer<byte[]> producer = pulsarClient.newProducer()
