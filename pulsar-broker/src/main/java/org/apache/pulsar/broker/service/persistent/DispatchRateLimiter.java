@@ -65,8 +65,6 @@ public class DispatchRateLimiter {
         this.topicName = null;
         this.brokerService = brokerService;
         this.type = Type.BROKER;
-        this.subscriptionRelativeRatelimiterOnMessage = -1;
-        this.subscriptionRelativeRatelimiterOnByte = -1;
         updateDispatchRate();
     }
 
