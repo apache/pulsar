@@ -140,8 +140,9 @@ This is very useful in case you want to:
 - add JMV flags, like `-XX:+ExitOnOutOfMemoryError`
 - pass custom system properties, like `-Dlog4j2.formatMsgNoLookups`
 
-**Note**
-This feature applies only to Process and Kubernetes runtimes.
+> **Note**
+> 
+> This feature applies only to Process and Kubernetes runtimes.
 
 #### Security settings
 
