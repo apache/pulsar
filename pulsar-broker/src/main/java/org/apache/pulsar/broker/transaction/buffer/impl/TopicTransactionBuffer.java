@@ -96,7 +96,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     public TopicTransactionBuffer(PersistentTopic topic) {
         super(State.None);
         this.topic = topic;
-        this.changeToInitializingState();
         this.takeSnapshotWriter = this.topic.getBrokerService().getPulsar()
                 .getTransactionBufferSnapshotService().createWriter(TopicName.get(topic.getName()));
         this.timer = topic.getBrokerService().getPulsar().getTransactionTimer();
@@ -531,7 +530,11 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         @SneakyThrows
         @Override
         public void run() {
-            this.topicTransactionBuffer.changeToInitializingState();
+            if (!this.topicTransactionBuffer.changeToInitializingState()) {
+                log.warn("TransactionBuffer {} of topic {} can not change state to Initializing",
+                        this, topic.getName());
+                return;
+            }
             topic.getBrokerService().getPulsar().getTransactionBufferSnapshotService()
                     .createReader(TopicName.get(topic.getName())).thenAcceptAsync(reader -> {
                 try {
@@ -579,8 +582,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 }
                 PositionImpl lastConfirmedEntry = (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
                 PositionImpl currentLoadPosition = (PositionImpl) this.startReadCursorPosition;
-                FillEntryQueueCallback fillEntryQueueCallback = new FillEntryQueueCallback(entryQueue, managedCursor,
-                        TopicTransactionBufferRecover.this);
+                FillEntryQueueCallback fillEntryQueueCallback = new FillEntryQueueCallback(entryQueue,
+                        managedCursor, TopicTransactionBufferRecover.this);
                 if (lastConfirmedEntry.getEntryId() != -1) {
                     while (lastConfirmedEntry.compareTo(currentLoadPosition) > 0
                             && fillEntryQueueCallback.fillQueue()) {
@@ -604,7 +607,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
                 closeCursor(managedCursor);
                 callBack.recoverComplete();
-            }).exceptionally(e -> {
+            }, topic.getBrokerService().getPulsar().getTransactionReplayExecutor()).exceptionally(e -> {
                 callBack.recoverExceptionally(new Exception(e));
                 log.error("[{}]Transaction buffer new snapshot reader fail!", topic.getName(), e);
                 return null;
@@ -654,6 +657,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 if (cursor.hasMoreEntries()) {
                     outstandingReadsRequests.incrementAndGet();
                     cursor.asyncReadEntries(100, this, System.nanoTime(), PositionImpl.LATEST);
+                } else {
+                    if (entryQueue.size() == 0) {
+                        isReadable = false;
+                    }
                 }
             }
             return isReadable;

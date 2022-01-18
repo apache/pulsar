@@ -1504,7 +1504,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             // Return ManagedLedgerFencedException to addFailed callback
                             // to indicate that the ledger is now fenced and topic needs to be closed
                             clearPendingAddEntries(new ManagedLedgerFencedException(e));
-                            // Do not need to unlock ledgersListMutex here because we are going to close to topic
+                            // Do not need to unlock metadataMutex here because we are going to close to topic
                             // anyways
                             return;
                         }

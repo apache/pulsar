@@ -248,8 +248,8 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void validateCreateTopic(TopicName topicName) {
         if (isTransactionInternalName(topicName)) {
-            log.warn("Try to create a topic in the system topic format! {}", topicName);
-            throw new RestException(Status.CONFLICT, "Cannot create topic in system topic format!");
+            log.warn("Forbidden to create transaction internal topic: {}", topicName);
+            throw new RestException(Status.BAD_REQUEST, "Cannot create topic in system topic format!");
         }
     }
 
@@ -1139,26 +1139,25 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private void internalGetSubscriptionsForNonPartitionedTopic(AsyncResponse asyncResponse, boolean authoritative) {
-        try {
-            validateTopicOwnership(topicName, authoritative);
-            validateTopicOperation(topicName, TopicOperation.GET_SUBSCRIPTIONS);
-
-            Topic topic = getTopicReference(topicName);
-            final List<String> subscriptions = Lists.newArrayList();
-            topic.getSubscriptions().forEach((subName, sub) -> subscriptions.add(subName));
-            asyncResponse.resume(subscriptions);
-        } catch (WebApplicationException wae) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Failed to get subscriptions for non-partitioned topic {},"
-                                + " redirecting to other brokers.",
-                        clientAppId(), topicName, wae);
-            }
-            resumeAsyncResponseExceptionally(asyncResponse, wae);
-            return;
-        } catch (Exception e) {
-            log.error("[{}] Failed to get list of subscriptions for {}", clientAppId(), topicName, e);
-            resumeAsyncResponseExceptionally(asyncResponse, e);
-        }
+        validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.GET_SUBSCRIPTIONS))
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                .thenAccept(topic -> asyncResponse.resume(Lists.newArrayList(topic.getSubscriptions().keys())))
+                .exceptionally(ex -> {
+                    Throwable cause = ex.getCause();
+                    if (cause instanceof WebApplicationException
+                            && ((WebApplicationException) cause).getResponse().getStatus()
+                            == Status.TEMPORARY_REDIRECT.getStatusCode()) {
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] Failed to get subscriptions for non-partitioned topic {},"
+                                                + " redirecting to other brokers.", clientAppId(), topicName, cause);
+                            }
+                    } else {
+                        log.error("[{}] Failed to get list of subscriptions for {}", clientAppId(), topicName, cause);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, cause);
+                    return null;
+                });
     }
 
     protected TopicStats internalGetStats(boolean authoritative, boolean getPreciseBacklog,
@@ -3755,7 +3754,7 @@ public class PersistentTopicsBase extends AdminResource {
             throw e;
         } catch (Exception e) {
             if (e.getCause() instanceof NotAllowedException) {
-                throw new RestException(Status.CONFLICT, e.getCause());
+                throw new RestException(Status.BAD_REQUEST, e.getCause());
             }
             throw new RestException(e.getCause() == null ? e : e.getCause());
         }
@@ -3763,13 +3762,9 @@ public class PersistentTopicsBase extends AdminResource {
 
     private CompletableFuture<Topic> getTopicReferenceAsync(TopicName topicName) {
         return pulsar().getBrokerService().getTopicIfExists(topicName.toString())
-                .thenCompose(optTopic -> {
-                    if (optTopic.isPresent()) {
-                        return CompletableFuture.completedFuture(optTopic.get());
-                    } else {
-                        return topicNotFoundReasonAsync(topicName);
-                    }
-                });
+                .thenCompose(optTopic -> optTopic
+                        .map(CompletableFuture::completedFuture)
+                        .orElseGet(() -> topicNotFoundReasonAsync(topicName)));
     }
 
     private RestException topicNotFoundReason(TopicName topicName) {

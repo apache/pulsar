@@ -597,14 +597,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private boolean hasRemoteProducers() {
-        AtomicBoolean foundRemote = new AtomicBoolean(false);
-        producers.values().forEach(producer -> {
+        if (producers.isEmpty()) {
+            return false;
+        }
+        for (Producer producer : producers.values()) {
             if (producer.isRemote()) {
-                foundRemote.set(true);
+                return true;
             }
-        });
-
-        return foundRemote.get();
+        }
+        return false;
     }
 
     public CompletableFuture<Void> startReplProducers() {
@@ -2698,6 +2699,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return this.dispatchRateLimiter;
     }
 
+    @Override
+    public Optional<DispatchRateLimiter> getBrokerDispatchRateLimiter() {
+        return Optional.ofNullable(this.brokerService.getBrokerDispatchRateLimiter());
+    }
+
     public Optional<SubscribeRateLimiter> getSubscribeRateLimiter() {
         return this.subscribeRateLimiter;
     }
@@ -2902,6 +2908,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public boolean isSystemTopic() {
         return false;
+    }
+
+    @Override
+    public boolean isPersistent() {
+        return true;
     }
 
     private synchronized void fence() {
