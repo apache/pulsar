@@ -83,8 +83,8 @@ jobs:
           mkdir -p site2/website-next/static/swagger/master/
           cp pulsar-broker/target/docs/swagger*.json site2/website-next/static/swagger/master
           echo "Copied swagger json file."
-          echo "Building Website Next"
-          # Build the new website Next
+          echo "Building Website"
+          # Build the new website
           site2/tools/docker-build-site.sh next
           # Script was initially made for travis
-          bash -e site2/tools/publish-website-next.sh
+          bash -e site2/tools/publish-website-next.sh next

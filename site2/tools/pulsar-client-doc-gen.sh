@@ -21,16 +21,17 @@
 ROOT_DIR=$(git rev-parse --show-toplevel)
 VERSION=`${ROOT_DIR}/src/get-project-version.py`
 DEST_DIR=$ROOT_DIR/generated-site
+WEBSITE=$1
 
 cd $ROOT_DIR
 
 mkdir -p $DEST_DIR/tools/pulsar-client/${VERSION}
 mkdir -p $DEST_DIR/tools/pulsar-client/${VERSION}/node_modules
-mkdir -p $ROOT_DIR/site2/website/brodocs/documents
+mkdir -p $ROOT_DIR/site2/${WEBSITE}/brodocs/documents
 
-$ROOT_DIR/bin/pulsar-client generate_documentation > $ROOT_DIR/site2/website/brodocs/documents/pulsar-client.md
+$ROOT_DIR/bin/pulsar-client generate_documentation > $ROOT_DIR/site2/${WEBSITE}/brodocs/documents/pulsar-client.md
 
-cd $ROOT_DIR/site2/website/brodocs
+cd $ROOT_DIR/site2/${WEBSITE}/brodocs
 cp pulsar-client-manifest.json manifest.json
 node brodoc.js
 
@@ -39,14 +40,14 @@ cp navData.js stylesheet.css $DEST_DIR/tools/pulsar-client/${VERSION}/
 cp scroll.js tabvisibility.js $DEST_DIR/tools/pulsar-client/${VERSION}/
 cp favicon.ico $DEST_DIR/tools/pulsar-client/${VERSION}/
 mkdir -p $DEST_DIR/tools/pulsar-client/${VERSION}/node_modules/bootstrap/dist/css
-cp -r $ROOT_DIR/site2/website/node_modules/bootstrap/dist/css/bootstrap.min.css $DEST_DIR/tools/pulsar-client/${VERSION}/node_modules/bootstrap/dist/css
+cp -r $ROOT_DIR/site2/${WEBSITE}/node_modules/bootstrap/dist/css/bootstrap.min.css $DEST_DIR/tools/pulsar-client/${VERSION}/node_modules/bootstrap/dist/css
 mkdir -p $DEST_DIR/tools/pulsar-client/${VERSION}/node_modules/font-awesome/css
-cp -r $ROOT_DIR/site2/website/node_modules/font-awesome/css/font-awesome.min.css $DEST_DIR/tools/pulsar-client/${VERSION}/node_modules/font-awesome/css
+cp -r $ROOT_DIR/site2/${WEBSITE}/node_modules/font-awesome/css/font-awesome.min.css $DEST_DIR/tools/pulsar-client/${VERSION}/node_modules/font-awesome/css
 mkdir -p $DEST_DIR/tools/pulsar-client/${VERSION}/node_modules/highlight.js/styles
-cp -r $ROOT_DIR/site2/website/node_modules/highlight.js/styles/default.css $DEST_DIR/tools/pulsar-client/${VERSION}/node_modules/highlight.js/styles
+cp -r $ROOT_DIR/site2/${WEBSITE}/node_modules/highlight.js/styles/default.css $DEST_DIR/tools/pulsar-client/${VERSION}/node_modules/highlight.js/styles
 mkdir -p $DEST_DIR/tools/pulsar-client/${VERSION}/node_modules/jquery/dist
-cp -r $ROOT_DIR/site2/website/node_modules/jquery/dist/jquery.min.js $DEST_DIR/tools/pulsar-client/${VERSION}/node_modules/jquery/dist/
+cp -r $ROOT_DIR/site2/${WEBSITE}/node_modules/jquery/dist/jquery.min.js $DEST_DIR/tools/pulsar-client/${VERSION}/node_modules/jquery/dist/
 mkdir -p $DEST_DIR/tools/pulsar-client/${VERSION}/node_modules/jquery.scrollto
-cp -r $ROOT_DIR/site2/website/node_modules/jquery.scrollto/jquery.scrollTo.min.js $DEST_DIR/tools/pulsar-client/${VERSION}/node_modules/jquery.scrollto
+cp -r $ROOT_DIR/site2/${WEBSITE}/node_modules/jquery.scrollto/jquery.scrollTo.min.js $DEST_DIR/tools/pulsar-client/${VERSION}/node_modules/jquery.scrollto
 
 

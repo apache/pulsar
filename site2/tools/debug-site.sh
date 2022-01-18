@@ -26,6 +26,6 @@ then
 docker rm -f $container_id
 fi
 
-docker run --name pulsar-website-nginx -p 80:80 -v $ROOT_DIR/generated-site/content:/usr/share/nginx/html:ro -d nginx
+docker run --name pulsar-website-nginx -p 80:80 -v $ROOT_DIR/generated-site/content:/usr/share/nginx/html -d nginx
 
 echo "Website is running: http://localhost"

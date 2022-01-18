@@ -25,6 +25,12 @@ ROOT_DIR=$(git rev-parse --show-toplevel)
 ORIGIN_REPO=$(git remote show origin | grep 'Push  URL' | awk -F// '{print $NF}')
 echo "ORIGIN_REPO: $ORIGIN_REPO"
 
+NEXT=$1
+BRANCH_CONTENT="asf-site"
+if [ ! -n "$NEXT" ]; then
+  BRANCH_CONTENT="asf-site-"$NEXT
+fi
+
 GENERATED_SITE_DIR=$ROOT_DIR/generated-site
 
 PULSAR_SITE_TMP=/tmp/pulsar-site
@@ -39,13 +45,13 @@ PULSAR_SITE_TMP=/tmp/pulsar-site
   git clone "https://$GH_TOKEN@$ORIGIN_REPO" .
   git config user.name "Pulsar Site Updater"
   git config user.email "dev@pulsar.incubator.apache.org"
-  git checkout asf-site
+  git checkout $BRANCH_CONTENT
 
   # copy the apache generated dir
   cp -r $GENERATED_SITE_DIR/content/* $PULSAR_SITE_TMP/content
 
   git add -A .
-  git diff-index --quiet HEAD || (git commit -m "Updated site at revision $REVISION" && git push -q origin HEAD:asf-site)
+  git diff-index --quiet HEAD || (git commit -m "Updated site at revision $REVISION" && git push -q origin HEAD:$BRANCH_CONTENT)
 
   rm -rf $PULSAR_SITE_TMP
 )

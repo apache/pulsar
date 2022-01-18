@@ -21,6 +21,12 @@
 ROOT_DIR=$(git rev-parse --show-toplevel)
 VERSION=$(${ROOT_DIR}/src/get-project-version.py)
 
+NEXT=$1
+WEBSITE_DIR="website"
+if [ ! -n "$NEXT" ]; then
+  WEBSITE_DIR="website-"$NEXT
+fi
+
 function workaround_crowdin_problem_by_copying_files() {
   # TODO: remove this after figuring out why crowdin removed code tab when generating translated files
   # https://github.com/apache/pulsar/issues/5816
@@ -55,30 +61,23 @@ function workaround_crowdin_problem_by_copying_files() {
   cp versioned_docs/version-2.5.2/functions-develop.md translated_docs/ko/version-2.5.2/functions-develop.md
 }
 
+function crowdin() {
+  yarn write-translations
+  if [ "$CROWDIN_DOCUSAURUS_API_KEY" != "UNSET" ]; then
+    # upload only if environment variable CROWDIN_UPLOAD=1 is set
+    # or current hour is 0-5
+    # this leads to executing crowdin-upload once per day when website build is scheduled
+    # to run with cron expression '0 */6 * * *'
+    CURRENT_HOUR=$(date +%H)
+    if [[ "$CROWDIN_UPLOAD" == "1" || $CURRENT_HOUR -lt 6 ]]; then
+      yarn run crowdin-upload
+    fi
+    yarn run crowdin-download
 
-set -x -e
-
-export NODE_OPTIONS="--max-old-space-size=4096" #increase to 4GB, default is 512MB
-${ROOT_DIR}/site2/tools/generate-api-docs.sh
-cd ${ROOT_DIR}/site2/website
-yarn
-yarn write-translations
-
-if [ "$CROWDIN_DOCUSAURUS_API_KEY" != "UNSET" ]; then
-  # upload only if environment variable CROWDIN_UPLOAD=1 is set
-  # or current hour is 0-5
-  # this leads to executing crowdin-upload once per day when website build is scheduled
-  # to run with cron expression '0 */6 * * *'
-  CURRENT_HOUR=$(date +%H)
-  if [[ "$CROWDIN_UPLOAD" == "1" || $CURRENT_HOUR -lt 6 ]]; then
-    yarn run crowdin-upload
-  fi
-  yarn run crowdin-download
-
-  workaround_crowdin_problem_by_copying_files
-else
-  # set English as the only language to build in this case
-  cat > languages.js <<'EOF'
+    workaround_crowdin_problem_by_copying_files
+  else
+    # set English as the only language to build in this case
+    cat >languages.js <<'EOF'
 const languages = [
 {
   enabled: true,
@@ -87,23 +86,38 @@ const languages = [
 }];
 module.exports = languages;
 EOF
+  fi
+}
+
+set -x -e
+
+export NODE_OPTIONS="--max-old-space-size=4096" #increase to 4GB, default is 512MB
+${ROOT_DIR}/site2/tools/generate-api-docs.sh
+cd ${ROOT_DIR}/site2/$WEBSITE_DIR
+
+yarn
+
+if [ ! -n "$NEXT" ]; then
+  crowdin
+  yarn build
+  node ./scripts/replace.js
+  node ./scripts/split-swagger-by-version.js
+else
+  node scripts/replace.js
+  node ./scripts/split-swagger-by-version.js
+  yarn build
 fi
 
-yarn build
-
-node ./scripts/replace.js
-node ./scripts/split-swagger-by-version.js
-
 # Generate document for command line tools.
-${ROOT_DIR}/site2/tools/pulsar-admin-doc-gen.sh
-${ROOT_DIR}/site2/tools/pulsar-client-doc-gen.sh
-${ROOT_DIR}/site2/tools/pulsar-perf-doc-gen.sh
-${ROOT_DIR}/site2/tools/pulsar-doc-gen.sh
-cd ${ROOT_DIR}/site2/website
+${ROOT_DIR}/site2/tools/pulsar-admin-doc-gen.sh $WEBSITE_DIR
+${ROOT_DIR}/site2/tools/pulsar-client-doc-gen.sh $WEBSITE_DIR
+${ROOT_DIR}/site2/tools/pulsar-perf-doc-gen.sh $WEBSITE_DIR
+${ROOT_DIR}/site2/tools/pulsar-doc-gen.sh $WEBSITE_DIR
+cd ${ROOT_DIR}/site2/$WEBSITE_DIR
 
 rm -rf ${ROOT_DIR}/generated-site/content
 mkdir -p ${ROOT_DIR}/generated-site/content
 cp -R ${ROOT_DIR}/generated-site/api ${ROOT_DIR}/generated-site/content
 cp -R ./build/pulsar/* ${ROOT_DIR}/generated-site/content
 cp -R ${ROOT_DIR}/generated-site/tools ${ROOT_DIR}/generated-site/content
-cp -R ${ROOT_DIR}/site2/website/static/swagger/* ${ROOT_DIR}/generated-site/content/swagger/
+cp -R ${ROOT_DIR}/site2/$WEBSITE_DIR/static/swagger/* ${ROOT_DIR}/generated-site/content/swagger/
