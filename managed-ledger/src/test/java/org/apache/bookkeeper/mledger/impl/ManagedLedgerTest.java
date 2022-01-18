@@ -1774,11 +1774,12 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         assertEquals(ledger.getLedgersInfoAsList().size(), 1);
 
-        Thread.sleep(2000);
-
         ledger.addEntry("data".getBytes());
         ledger.addEntry("data".getBytes());
-        assertEquals(ledger.getLedgersInfoAsList().size(), 2);
+        
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ledger.getLedgersInfoAsList().size(), 2);
+        });   
     }
 
     @Test
