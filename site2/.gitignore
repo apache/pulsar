@@ -15,4 +15,14 @@ website/static/swagger/master/*
 website/static/swagger/restApiVersions.json
 website/static/swagger/*/v*/*.json
 
+website-next/translated_docs
+website-next/build/
+website-next/yarn.lock
+website-next/node_modules
+website-next/i18n/*
+website-next/static/swagger/master/*
+
+website-next/static/swagger/restApiVersions.json
+website-next/static/swagger/*/v*/*.json
+
 website-tmp*/

@@ -26,13 +26,10 @@ set -x -e
 export NODE_OPTIONS="--max-old-space-size=4096" #increase to 4GB, default is 512MB
 ${ROOT_DIR}/site2/tools/generate-api-docs.sh
 cd ${ROOT_DIR}/site2/website-next
+
 yarn
-
-yarn build
-
 node ./scripts/split-swagger-by-version.js
-
-ls -l static/swagger
+yarn build
 
 # Generate document for command line tools.
 ${ROOT_DIR}/site2/tools/pulsar-admin-doc-gen.sh
