@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
 public class FastThreadLocalCleanupListener extends BetweenTestClassesListenerAdapter {
     private static final Logger LOG = LoggerFactory.getLogger(FastThreadLocalCleanupListener.class);
     private static final boolean FAST_THREAD_LOCAL_CLEANUP_ENABLED =
-            Boolean.valueOf(System.getProperty("testFastThreadLocalCleanup", "true"));
+            Boolean.parseBoolean(System.getProperty("testFastThreadLocalCleanup", "true"));
     private static final String FAST_THREAD_LOCAL_CLEANUP_PACKAGE =
             System.getProperty("testFastThreadLocalCleanupPackage", "org.apache.pulsar");
     private static final FastThreadLocalStateCleaner CLEANER = new FastThreadLocalStateCleaner(object -> {

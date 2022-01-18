@@ -68,6 +68,8 @@ import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
+import org.apache.pulsar.broker.service.AbstractTopic;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -78,6 +80,7 @@ import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -109,7 +112,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+@Test(groups = "broker-admin")
 public class NamespacesTest extends MockedPulsarServiceBaseTest {
     private static final Logger log = LoggerFactory.getLogger(NamespacesTest.class);
     private Namespaces namespaces;
@@ -155,7 +158,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         conf.setClusterName(testLocalCluster);
         super.internalSetup();
 
-        namespaces = spy(new Namespaces());
+        namespaces = spy(Namespaces.class);
         namespaces.setServletContext(new MockServletContext());
         namespaces.setPulsar(pulsar);
         doReturn(false).when(namespaces).isRequestHttps();
@@ -1090,7 +1093,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         ownership.setAccessible(true);
         ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
         TopicName topicName = TopicName.get(testNs.getPersistentTopicName("my-topic"));
-        PersistentTopics topics = spy(new PersistentTopics());
+        PersistentTopics topics = spy(PersistentTopics.class);
         topics.setServletContext(new MockServletContext());
         topics.setPulsar(pulsar);
         doReturn(false).when(topics).isRequestHttps();
@@ -1254,7 +1257,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.tenants().deleteTenant("my-tenants");
     }
 
-    class MockLedgerOffloader implements LedgerOffloader {
+    public static class MockLedgerOffloader implements LedgerOffloader {
         ConcurrentHashMap<Long, UUID> offloads = new ConcurrentHashMap<Long, UUID>();
         ConcurrentHashMap<Long, UUID> deletes = new ConcurrentHashMap<Long, UUID>();
 
@@ -1698,12 +1701,15 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
 
         // clear all namespace subType enabled, add failover to broker.conf and sub with shared will fail
-        subscriptionTypes.clear();
-        admin.namespaces().setSubscriptionTypesEnabled(namespace, subscriptionTypes);
+        admin.namespaces().removeSubscriptionTypesEnabled(namespace);
+        assertEquals(admin.namespaces().getSubscriptionTypesEnabled(namespace), Sets.newHashSet());
         consumerBuilder.subscriptionType(SubscriptionType.Shared);
-        HashSet<String> subscriptions = new HashSet<>();
-        subscriptions.add("Failover");
-        conf.setSubscriptionTypesEnabled(subscriptions);
+        admin.brokers().updateDynamicConfiguration("subscriptionTypesEnabled", "Failover");
+        Awaitility.await().untilAsserted(()->{
+            Topic t = pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+            assertTrue(((AbstractTopic) t).getHierarchyTopicPolicies().getSubscriptionTypesEnabled().getBrokerValue()
+                    .contains(CommandSubscribe.SubType.Failover));
+        });
         try {
             consumerBuilder.subscribe().close();
             fail();
@@ -1712,8 +1718,12 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
 
         // add shared to broker.conf and sub with shared will success
-        subscriptions.add("Shared");
-        conf.setSubscriptionTypesEnabled(subscriptions);
+        admin.brokers().updateDynamicConfiguration("subscriptionTypesEnabled", "Failover,Shared");
+        Awaitility.await().untilAsserted(()->{
+            Topic t = pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+            assertTrue(((AbstractTopic) t).getHierarchyTopicPolicies().getSubscriptionTypesEnabled().getBrokerValue()
+                    .contains(CommandSubscribe.SubType.Failover));
+        });
         consumerBuilder.subscribe().close();
     }
 

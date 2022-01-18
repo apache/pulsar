@@ -45,6 +45,10 @@ function broker_group_2() {
   $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='schema,utils,functions-worker,broker-io,broker-discovery,broker-compaction,broker-naming,websocket,other'
 }
 
+function broker_group_3() {
+  $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='broker-admin'
+}
+
 function broker_client_api() {
   $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='broker-api'
 }
@@ -90,12 +94,8 @@ function broker_flaky() {
   echo "::endgroup::"
   echo "::group::Running quarantined tests"
   $MVN_COMMAND test -pl pulsar-broker -Dgroups='quarantine' -DexcludedGroups='' -DfailIfNoTests=false \
-    -DtestForkCount=2 -Dexclude='**/Replicator*Test.java' ||
+    -DtestForkCount=2 ||
     print_testng_failures pulsar-broker/target/surefire-reports/testng-failed.xml "Quarantined test failure in" "Quarantined test failures"
-  # run quarantined Replicator tests separately
-  $MVN_COMMAND test -pl pulsar-broker -Dgroups='quarantine' -DexcludedGroups='' -DfailIfNoTests=false \
-    -DtestForkCount=2 -Dinclude='**/Replicator*Test.java' || \
-    print_testng_failures pulsar-broker/target/surefire-reports/testng-failed.xml "Quarantined test failure in" "Quarantined Replicator*Test failures"
   echo "::endgroup::"
   echo "::group::Running flaky tests"
   $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='flaky' -DtestForkCount=2
@@ -157,6 +157,10 @@ case $TEST_GROUP in
 
   BROKER_GROUP_2)
     broker_group_2
+    ;;
+
+  BROKER_GROUP_3)
+    broker_group_3
     ;;
 
   BROKER_CLIENT_API)

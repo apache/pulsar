@@ -1,13 +1,9 @@
 ---
 id: cookbooks-encryption
 title: Pulsar Encryption
-sidebar_label: Encryption
+sidebar_label: "Encryption"
 original_id: cookbooks-encryption
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 Pulsar encryption allows applications to encrypt messages at the producer and decrypt at the consumer. Encryption is performed using the public/private key pair configured by the application. Encrypted messages can only be decrypted by consumers with a valid key.
 
@@ -39,6 +35,7 @@ openssl ecparam -name secp521r1 -genkey -param_enc explicit -out test_ecdsa_priv
 openssl ec -in test_ecdsa_privkey.pem -pubout -outform pkcs8 -out test_ecdsa_pubkey.pem
 
 ```
+
 2. Add the public and private key to the key management and configure your producers to retrieve public keys and consumers clients to retrieve private keys.
 3. Implement CryptoKeyReader::getPublicKey() interface from producer and CryptoKeyReader::getPrivateKey() interface from consumer, which will be invoked by Pulsar client to load the key.
 4. Add encryption key to producer configuration: conf.addEncryptionKey("myapp.key")
@@ -96,6 +93,7 @@ for (int i = 0; i < 10; i++) {
 pulsarClient.close();
 
 ```
+
 7. Sample Consumer Application:
 
 ```java
@@ -171,6 +169,7 @@ conf.addEncryptionKey("myapp.messagekey1");
 conf.addEncryptionKey("myapp.messagekey2");
 
 ```
+
 ## Decrypting encrypted messages at the consumer application:
 Consumers require access one of the private keys to decrypt messages produced by the producer. If you would like to receive encrypted messages, create a public/private key and give your public key to the producer application to encrypt messages using your public key.
 

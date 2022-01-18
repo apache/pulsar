@@ -1,13 +1,9 @@
 ---
 id: io-hdfs3-sink
 title: HDFS3 sink connector
-sidebar_label: HDFS3 sink connector
+sidebar_label: "HDFS3 sink connector"
 original_id: io-hdfs3-sink
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 The HDFS3 sink connector pulls the messages from Pulsar topics 
 and persists the messages to HDFS files.
@@ -38,25 +34,26 @@ Before using the HDFS3 sink connector, you need to create a configuration file t
 
 * JSON 
 
-    ```json
-
-    {
-        "hdfsConfigResources": "core-site.xml",
-        "directory": "/foo/bar",
-        "filenamePrefix": "prefix",
-        "compression": "SNAPPY"
-    }
-
-    ```
+  ```json
+  
+  {
+      "hdfsConfigResources": "core-site.xml",
+      "directory": "/foo/bar",
+      "filenamePrefix": "prefix",
+      "compression": "SNAPPY"
+  }
+  
+  ```
 
 * YAML
 
-    ```yaml
+  ```yaml
+  
+  configs:
+      hdfsConfigResources: "core-site.xml"
+      directory: "/foo/bar"
+      filenamePrefix: "prefix"
+      compression: "SNAPPY"
+  
+  ```
 
-    configs:
-        hdfsConfigResources: "core-site.xml"
-        directory: "/foo/bar"
-        filenamePrefix: "prefix"
-        compression: "SNAPPY"
-
-    ```

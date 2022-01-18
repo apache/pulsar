@@ -43,7 +43,7 @@ downloadDirectory: download/pulsar_functions
 # jvmGCMetricsLoggerClassName:
 
 #################################################################
-# Function metadata managment (assignment, scheduling, and etc)
+# Function metadata management (assignment, scheduling, and etc)
 #################################################################
 
 # Configure the pulsar client used by function metadata management
@@ -74,7 +74,7 @@ pulsarWebServiceUrl: http://localhost:8080
 #
 # Authentication plugin to use when connecting to bookies
 # bookkeeperClientAuthenticationPlugin:
-# BookKeeper auth plugin implementatation specifics parameters name and values
+# BookKeeper auth plugin implementation specifics parameters name and values
 # bookkeeperClientAuthenticationParametersName:
 # Parameters for bookkeeper auth plugin
 # bookkeeperClientAuthenticationParameters:
@@ -125,6 +125,10 @@ functionRuntimeFactoryConfigs:
     pythonInstanceLocation:
     # change the extra dependencies location:
     extraFunctionDependenciesDir:
+
+#### Additional JVM tuning (only process and Kubernetes runtime) ####
+#   This arguments will be added to the command line execution of 'java'
+#additionalJavaRuntimeArguments: ['-XX:+ExitOnOutOfMemoryError']
 
 #### Thread Runtime ####
 # Pulsar function instances are run as threads
@@ -211,11 +215,18 @@ functionRuntimeFactoryConfigs:
 #    narExtractionDirectory:
 #    # The classpath where function instance files stored
 #    functionInstanceClassPath:
+#    # Upload the builtin sources/sinks to BookKeeper.
+#    # True by default.
+#    uploadBuiltinSinksSources: true
 #    # the directory for dropping extra function dependencies
 #    # if it is not an absolute path, it is relative to `pulsarRootDir`
 #    extraFunctionDependenciesDir:
 #    # Additional memory padding added on top of the memory requested by the function per on a per instance basis
 #    percentMemoryPadding: 10
+#    # The duration in seconds before the StatefulSet deleted on function stop/restart.
+#    # Value must be non-negative integer. The value zero indicates delete immediately.
+#    # Default is 5 seconds.
+#    gracePeriodSeconds: 5
 
 ## A set of the minimum amount of resources functions must request.
 ## Support for this depends on function runtime.
@@ -311,7 +322,7 @@ tlsCertRefreshCheckDurationSec: 300
 connectorsDirectory: ./connectors
 functionsDirectory: ./functions
 
-# Should connector config be validated during during submission
+# Should connector config be validated during submission
 validateConnectorConfig: false
 
 # Whether to initialize distributed log metadata by runtime.

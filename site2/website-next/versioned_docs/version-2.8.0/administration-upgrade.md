@@ -1,13 +1,9 @@
 ---
 id: administration-upgrade
 title: Upgrade Guide
-sidebar_label: Upgrade
+sidebar_label: "Upgrade"
 original_id: administration-upgrade
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 ## Upgrade guidelines
 
@@ -35,21 +31,24 @@ To upgrade an Apache Pulsar cluster, follow the upgrade sequence.
 2. Upgrade bookies  
 - Canary test: test an upgraded version in one or a small set of bookies.
 - Rolling upgrade:  
-    - a. Disable `autorecovery` with the following command.
+  - a. Disable `autorecovery` with the following command.
 
-       ```shell
+     ```shell
+     
+     bin/bookkeeper shell autorecovery -disable
+     
+     ```
 
-       bin/bookkeeper shell autorecovery -disable
+  
+  - b. Rollout the upgraded version to all bookies in the cluster after you determine that a version is safe after canary.  
+  - c. After you upgrade all bookies, re-enable `autorecovery` with the following command.
 
-       ```  
-    - b. Rollout the upgraded version to all bookies in the cluster after you determine that a version is safe after canary.  
-    - c. After you upgrade all bookies, re-enable `autorecovery` with the following command.
+     ```shell
+     
+     bin/bookkeeper shell autorecovery -enable
+     
+     ```
 
-       ```shell
-
-       bin/bookkeeper shell autorecovery -enable
-
-       ```
 3. Upgrade brokers
 - Canary test: test an upgraded version in one or a small set of brokers.
 - Rolling upgrade: rollout the upgraded version to all brokers in the cluster after you determine that a version is safe after canary.
@@ -98,17 +97,19 @@ To upgrade bookie to a new version, complete the following steps:
 3. Start the bookie in `ReadOnly` mode to verify if the bookie of this new version runs well for read workload.
 
    ```shell
-
+   
    bin/pulsar bookie --readOnly
-
+   
    ```
+
 4. When the bookie runs successfully in `ReadOnly` mode, stop the bookie and restart it in `Write/Read` mode.
 
    ```shell
-
+   
    bin/pulsar bookie
-
+   
    ```
+
 5. Observe and make sure the cluster serves both write and read traffic.
 
 #### Canary rollback

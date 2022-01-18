@@ -33,6 +33,8 @@ import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collections;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -50,6 +52,7 @@ import lombok.Data;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
+import org.apache.pulsar.functions.instance.state.BKStateStoreProviderImpl;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactoryConfig;
 import org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactoryConfig;
@@ -178,6 +181,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         category = CATEGORY_FUNCTIONS,
         doc = "The path to the location to locate builtin functions"
     )
+    private Boolean uploadBuiltinSinksSources = true;
+    @FieldContext(
+            category = CATEGORY_FUNCTIONS,
+            doc = "Should the builtin sources/sinks be uploaded for the externally managed runtimes?"
+    )
     private String functionsDirectory = "./functions";
     @FieldContext(
         category = CATEGORY_FUNC_METADATA_MNG,
@@ -234,6 +242,13 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "The service URL of state storage"
     )
     private String stateStorageServiceUrl;
+
+    @FieldContext(
+            category = CATEGORY_STATE,
+            doc = "The implementation class for the state store"
+    )
+    private String stateStorageProviderImplementation = BKStateStoreProviderImpl.class.getName();
+
     @FieldContext(
         category = CATEGORY_FUNC_RUNTIME_MNG,
         doc = "The Pulsar topic used for storing function assignment informations"
@@ -530,6 +545,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "Whether to forward the source message properties to the output message"
     )
     private boolean forwardSourceMessageProperty = true;
+
+    @FieldContext(
+            doc = "Additional arguments to pass to the Java command line for Java functions"
+    )
+    private List<String> additionalJavaRuntimeArguments = new ArrayList<>();
 
     public String getFunctionMetadataTopic() {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionMetadataTopicName);

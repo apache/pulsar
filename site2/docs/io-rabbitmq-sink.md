@@ -41,20 +41,22 @@ Before using the RabbitMQ sink connector, you need to create a configuration fil
 
     ```json
     {
-        "host": "localhost",
-        "port": "5672",
-        "virtualHost": "/",
-        "username": "guest",
-        "password": "guest",
-        "queueName": "test-queue",
-        "connectionName": "test-connection",
-        "requestedChannelMax": "0",
-        "requestedFrameMax": "0",
-        "connectionTimeout": "60000",
-        "handshakeTimeout": "10000",
-        "requestedHeartbeat": "60",
-        "exchangeName": "test-exchange",
-        "routingKey": "test-key"
+       "configs": {
+          "host": "localhost",
+          "port": "5672",
+          "virtualHost": "/",
+          "username": "guest",
+          "password": "guest",
+          "queueName": "test-queue",
+          "connectionName": "test-connection",
+          "requestedChannelMax": "0",
+          "requestedFrameMax": "0",
+          "connectionTimeout": "60000",
+          "handshakeTimeout": "10000",
+          "requestedHeartbeat": "60",
+          "exchangeName": "test-exchange",
+          "routingKey": "test-key"
+       }
     }
     ```
 

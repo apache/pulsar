@@ -36,16 +36,16 @@ import org.apache.pulsar.common.api.AuthData;
 @Slf4j
 public class AuthenticationProviderList implements AuthenticationProvider {
 
-    private interface AuthProcessor<T, P> {
+    private interface AuthProcessor<T, W> {
 
-        T apply(P process) throws AuthenticationException;
+        T apply(W process) throws AuthenticationException;
 
     }
 
-    static <T, P> T applyAuthProcessor(List<P> processors, AuthProcessor<T, P> authFunc)
+    static <T, W> T applyAuthProcessor(List<W> processors, AuthProcessor<T, W> authFunc)
         throws AuthenticationException {
         AuthenticationException authenticationException = null;
-        for (P ap : processors) {
+        for (W ap : processors) {
             try {
                 return authFunc.apply(ap);
             } catch (AuthenticationException ae) {
@@ -206,7 +206,7 @@ public class AuthenticationProviderList implements AuthenticationProvider {
                 }
             }
         );
-        return authenticated.booleanValue();
+        return authenticated;
     }
 
     @Override

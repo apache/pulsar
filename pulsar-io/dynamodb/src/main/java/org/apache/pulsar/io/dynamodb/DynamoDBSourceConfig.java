@@ -18,13 +18,6 @@
  */
 package org.apache.pulsar.io.dynamodb;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.Serializable;
-import java.net.URI;
-import java.util.Date;
-import java.util.Map;
-
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder;
@@ -33,15 +26,17 @@ import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBStreams;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBStreamsClientBuilder;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
-import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStreamExtended;
-import org.apache.pulsar.io.aws.AwsCredentialProviderPlugin;
-import org.apache.pulsar.io.core.annotations.FieldDoc;
-
-import software.amazon.awssdk.regions.Region;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-
+import java.io.File;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.Date;
+import java.util.Map;
 import lombok.Data;
+import org.apache.pulsar.io.aws.AwsCredentialProviderPlugin;
+import org.apache.pulsar.io.core.annotations.FieldDoc;
+import software.amazon.awssdk.regions.Region;
 
 @Data
 public class DynamoDBSourceConfig implements Serializable {
@@ -51,7 +46,8 @@ public class DynamoDBSourceConfig implements Serializable {
     @FieldDoc(
             required = false,
             defaultValue = "",
-            help = "Dynamodb streams end-point url. It can be found at https://docs.aws.amazon.com/general/latest/gr/rande.html"
+            help = "Dynamodb streams end-point url. It can be found at "
+                    + "https://docs.aws.amazon.com/general/latest/gr/rande.html"
     )
     private String awsEndpoint = "";
 
@@ -74,8 +70,8 @@ public class DynamoDBSourceConfig implements Serializable {
             defaultValue = "",
             help = "Fully-Qualified class name of implementation of AwsCredentialProviderPlugin."
                     + " It is a factory class which creates an AWSCredentialsProvider that will be used by dynamodb."
-                    + " If it is empty then dynamodb will create a default AWSCredentialsProvider which accepts json-map"
-                    + " of credentials in `awsCredentialPluginParam`")
+                    + " If it is empty then dynamodb will create a default AWSCredentialsProvider which accepts "
+                    + "json-map of credentials in `awsCredentialPluginParam`")
     private String awsCredentialPluginName = "";
 
     @FieldDoc(
@@ -187,7 +183,8 @@ public class DynamoDBSourceConfig implements Serializable {
         AmazonDynamoDBStreamsClientBuilder builder = AmazonDynamoDBStreamsClientBuilder.standard();
 
         if (!this.getAwsEndpoint().isEmpty()) {
-            builder.setEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(this.getAwsEndpoint(), this.getAwsRegion()));
+            builder.setEndpointConfiguration(
+                    new AwsClientBuilder.EndpointConfiguration(this.getAwsEndpoint(), this.getAwsRegion()));
         }
         if (!this.getAwsRegion().isEmpty()) {
             builder.setRegion(this.getAwsRegion());
@@ -200,7 +197,8 @@ public class DynamoDBSourceConfig implements Serializable {
         AmazonDynamoDBClientBuilder builder = AmazonDynamoDBClientBuilder.standard();
 
         if (!this.getAwsEndpoint().isEmpty()) {
-            builder.setEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(this.getDynamoEndpoint(), this.getAwsRegion()));
+            builder.setEndpointConfiguration(
+                    new AwsClientBuilder.EndpointConfiguration(this.getDynamoEndpoint(), this.getAwsRegion()));
         }
         if (!this.getAwsRegion().isEmpty()) {
             builder.setRegion(this.getAwsRegion());
@@ -213,7 +211,8 @@ public class DynamoDBSourceConfig implements Serializable {
         AmazonCloudWatchClientBuilder builder = AmazonCloudWatchClientBuilder.standard();
 
         if (!this.getAwsEndpoint().isEmpty()) {
-            builder.setEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(this.getCloudwatchEndpoint(), this.getAwsRegion()));
+            builder.setEndpointConfiguration(
+                    new AwsClientBuilder.EndpointConfiguration(this.getCloudwatchEndpoint(), this.getAwsRegion()));
         }
         if (!this.getAwsRegion().isEmpty()) {
             builder.setRegion(this.getAwsRegion());
@@ -222,12 +221,4 @@ public class DynamoDBSourceConfig implements Serializable {
         return builder.build();
     }
 
-    public InitialPositionInStreamExtended getStreamStartPosition() {
-        if (initialPositionInStream == InitialPositionInStream.AT_TIMESTAMP) {
-            return InitialPositionInStreamExtended.newInitialPositionAtTimestamp(getStartAtTime());
-        }
-        else {
-            return InitialPositionInStreamExtended.newInitialPosition(this.getInitialPositionInStream());
-        }
-    }
 }

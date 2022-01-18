@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.util;
 
+import io.netty.handler.ssl.SslContext;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -34,12 +35,9 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.X509ExtendedKeyManager;
-
-import io.netty.handler.ssl.SslContext;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -73,20 +71,23 @@ public class KeyManagerProxy extends X509ExtendedKeyManager {
                 TimeUnit.SECONDS);
     }
 
-    public void updateKeyManagerSafely() {
+    private void updateKeyManagerSafely() {
         try {
+            if (log.isDebugEnabled()) {
+                log.debug("refreshing key manager for {} {}", certFile.getFileName(), keyFile.getFileName());
+            }
             updateKeyManager();
         } catch (Exception e) {
             log.warn("Failed to update key Manager for {}, {}", certFile.getFileName(), keyFile.getFileName(), e);
         }
     }
 
-    public void updateKeyManager()
+    private void updateKeyManager()
             throws CertificateException, KeyStoreException, NoSuchAlgorithmException, UnrecoverableKeyException {
         if (keyManager != null && !certFile.checkAndRefresh() && !keyFile.checkAndRefresh()) {
             return;
         }
-        log.info("refreshing key manager for {} {}", certFile.getFileName(), keyFile.getFileName());
+
         X509Certificate certificate;
         PrivateKey privateKey = null;
         KeyStore keyStore;

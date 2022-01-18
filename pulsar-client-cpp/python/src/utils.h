@@ -27,8 +27,7 @@ namespace py = boost::python;
 
 struct PulsarException {
     Result _result;
-    PulsarException(Result res) :
-            _result(res) {}
+    PulsarException(Result res) : _result(res) {}
 };
 
 inline void CHECK_RESULT(Result res) {

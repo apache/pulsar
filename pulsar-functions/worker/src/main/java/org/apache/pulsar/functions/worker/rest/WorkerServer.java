@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.functions.worker.rest;
 
-import com.google.common.annotations.VisibleForTesting;
 import io.prometheus.client.jetty.JettyStatisticsCollector;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -46,8 +45,6 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
 
-import java.net.BindException;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -68,15 +65,6 @@ public class WorkerServer {
 
     private ServerConnector httpConnector;
     private ServerConnector httpsConnector;
-
-    private static String getErrorMessage(Server server, int port, Exception ex) {
-        if (ex instanceof BindException) {
-            final URI uri = server.getURI();
-            return String.format("%s http://%s:%d", ex.getMessage(), uri.getHost(), port);
-        }
-
-        return ex.getMessage();
-    }
 
     public WorkerServer(WorkerService workerService, AuthenticationService authenticationService) {
         this.workerConfig = workerService.getWorkerConfig();
@@ -191,7 +179,6 @@ public class WorkerServer {
         return contextHandler;
     }
 
-    @VisibleForTesting
     public void stop() {
         if (this.server != null) {
             try {

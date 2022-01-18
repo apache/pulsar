@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.pulsar.client.impl.TransactionMetaStoreHandler.getExceptionByServerError;
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 
 import com.google.common.collect.Queues;
 import io.netty.buffer.ByteBuf;
@@ -57,8 +58,6 @@ import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.ConnectException;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
-import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
-import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
@@ -217,8 +216,9 @@ public class ClientCnx extends PulsarHandler {
         this.localAddress = ctx.channel().localAddress();
         this.remoteAddress = ctx.channel().remoteAddress();
 
-        this.timeoutTask = this.eventLoopGroup.scheduleAtFixedRate(() -> checkRequestTimeout(), operationTimeoutMs,
-                operationTimeoutMs, TimeUnit.MILLISECONDS);
+        this.timeoutTask = this.eventLoopGroup
+                .scheduleAtFixedRate(catchingAndLoggingThrowables(this::checkRequestTimeout), operationTimeoutMs,
+                        operationTimeoutMs, TimeUnit.MILLISECONDS);
 
         if (proxyToTargetBrokerAddress == null) {
             if (log.isDebugEnabled()) {
@@ -541,7 +541,9 @@ public class ClientCnx extends PulsarHandler {
     @Override
     protected void handleLookupResponse(CommandLookupTopicResponse lookupResult) {
         if (log.isDebugEnabled()) {
-            log.debug("Received Broker lookup response: {}", lookupResult.getResponse());
+            CommandLookupTopicResponse.LookupType response =
+                    lookupResult.hasResponse() ? lookupResult.getResponse() : null;
+            log.debug("Received Broker lookup response: {} {}", lookupResult.getRequestId(), response);
         }
 
         long requestId = lookupResult.getRequestId();
@@ -577,7 +579,11 @@ public class ClientCnx extends PulsarHandler {
     @Override
     protected void handlePartitionResponse(CommandPartitionedTopicMetadataResponse lookupResult) {
         if (log.isDebugEnabled()) {
-            log.debug("Received Broker Partition response: {}", lookupResult.getPartitions());
+            CommandPartitionedTopicMetadataResponse.LookupType response =
+                    lookupResult.hasResponse() ? lookupResult.getResponse() : null;
+            int partitions = lookupResult.hasPartitions() ? lookupResult.getPartitions() : -1;
+            log.debug("Received Broker Partition response: {} {} {}", lookupResult.getRequestId(), response,
+                    partitions);
         }
 
         long requestId = lookupResult.getRequestId();

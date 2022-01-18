@@ -1,7 +1,7 @@
 ---
 id: admin-api-topics
 title: Manage topics
-sidebar_label: Topics
+sidebar_label: "Topics"
 ---
 
 import Tabs from '@theme/Tabs';
@@ -33,6 +33,7 @@ Non-persistent topics are used in applications that only consume real-time publi
 non-persistent://tenant/namespace/topic
 
 ```
+
 ## Manage topic resources
 Whether it is persistent or non-persistent topic, you can obtain the topic resources through `pulsar-admin` tool, REST API and Java.
 
@@ -49,20 +50,7 @@ You can get the list of topics under a given namespace in the following ways.
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -86,6 +74,7 @@ String namespace = "my-tenant/my-namespace";
 admin.topics().getList(namespace);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -96,20 +85,7 @@ You can grant permissions on a client role to perform specific actions on a give
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -147,20 +123,7 @@ You can fetch permission in the following ways.
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -201,20 +164,7 @@ admin.topics().getPermissions(topic);
 You can revoke a permission granted on a client role in the following ways.
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -258,20 +208,7 @@ You can delete a topic in the following ways. You cannot delete a topic if any a
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -305,20 +242,7 @@ admin.topics().delete(topic);
 You can unload a topic in the following ways.
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -397,7 +321,7 @@ You can check the following statistics of a given non-partitioned topic.
 
       -   **averageMsgSize**: The average message size in bytes from this publisher within the last interval.
 
-      -   **chunkedMessageRate**: Total chunked message count received for this producer on this topic.
+      -   **chunkedMessageRate**: The total rate of chunked messages published by this publisher. The totoal rate of 
 
       -   **producerId**: The internal identifier for this producer on this topic.
 
@@ -461,6 +385,10 @@ You can check the following statistics of a given non-partitioned topic.
 
           -   **replicated**: Mark that the subscription state is kept in sync across different regions.
 
+          -   **allowOutOfOrderDelivery**: Whether out of order delivery is allowed on the Key_Shared subscription.
+
+          -   **keySharedMode**: Whether the Key_Shared subscription mode is AUTO_SPLIT or STICKY.
+
           -   **consumersAfterMarkDeletePosition**: This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription.
 
           -   **nonContiguousDeletedMessagesRanges**: The number of non-contiguous deleted messages ranges.
@@ -497,7 +425,7 @@ You can check the following statistics of a given non-partitioned topic.
 
                 -   **msgRateRedeliver**: Total rate of messages redelivered by this consumer (msg/s).
 
-                -   **chunkedMessageRate**: Total chunked messages dispatched.
+                -   **chunkedMessageRate**: The total rate of chunked messages delivered to this consumer.
 
                 -   **avgMessagesPerEntry**: Number of average messages per entry for the consumer consumed.
 
@@ -607,6 +535,7 @@ The following is an example of a topic status.
         "connectedSince" : "2021-06-09T17:22:45.353+08:00",
         "clientVersion" : "2.9.0-SNAPSHOT"
       } ],
+      "allowOutOfOrderDelivery": false,
       "consumersAfterMarkDeletePosition" : { },
       "nonContiguousDeletedMessagesRanges" : 0,
       "nonContiguousDeletedMessagesRangesSerializedSize" : 0,
@@ -621,24 +550,12 @@ The following is an example of a topic status.
 }
 
 ```
+
 To get the status of a topic, you can use the following ways.
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -812,23 +729,11 @@ The following is an example of the detailed statistics of a topic.
 }
 
 ```
+
 To get the internal status of a topic, you can use the following ways.
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -862,20 +767,7 @@ admin.topics().getInternalStats(topic);
 You can peek a number of messages for a specific subscription of a given topic in the following ways.
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -917,20 +809,7 @@ You can fetch the message with the given ledger ID and entry ID in the following
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -968,20 +847,7 @@ You can examine a specific message on a topic by position relative to the earlie
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -1017,20 +883,7 @@ You can get message ID published at or just after the given datetime.
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -1068,20 +921,7 @@ You can skip a number of messages for a specific subscription of a given topic i
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -1119,20 +959,7 @@ You can skip all the old messages for a specific subscription of a given topic.
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -1169,20 +996,7 @@ You can reset a subscription cursor position back to the position which is recor
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -1206,7 +1020,7 @@ $ pulsar-admin topics reset-cursor \
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 long timestamp = 2342343L;
-admin.topics().skipAllMessages(topic, subName, timestamp);
+admin.topics().resetCursor(topic, subName, timestamp);
 
 ```
 
@@ -1220,20 +1034,7 @@ You can locate the broker URL which is serving the given topic in the following 
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -1270,20 +1071,7 @@ You can check the range of the bundle which contains given topic in the followin
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -1320,20 +1108,7 @@ You can check all subscription names for a given topic in the following ways.
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -1364,76 +1139,13 @@ admin.topics().getSubscriptions(topic);
 
 </Tabs>
 
-### Unsubscribe
-
-When a subscription does not process messages any more, you can unsubscribe it in the following ways. 
-
-<Tabs 
-  defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
-<TabItem value="pulsar-admin">
-
-```shell
-
-$ pulsar-admin topics unsubscribe \
-  --subscription my-subscription \
-  persistent://test-tenant/ns1/tp1 \
-
-```
-
-</TabItem>
-<TabItem value="REST API">
-
-{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/:topic/subscription/:subscription|operation/deleteSubscription?version=@pulsar:version_number@}
-
-</TabItem>
-<TabItem value="Java">
-
-```java
-
-String topic = "persistent://my-tenant/my-namespace/my-topic";
-String subscriptionName = "my-subscription";
-admin.topics().deleteSubscription(topic, subscriptionName);
-
-```
-
-</TabItem>
-
-</Tabs>
-
 ### Last Message Id
 
 You can get the last committed message ID for a persistent topic. It is available since 2.3.0 release.
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -1461,6 +1173,43 @@ admin.topics().getLastMessage(topic);
 
 </Tabs>
 
+### Get backlog size
+
+You can get the backlog size of a single partition topic or a non-partitioned topic with a given message ID (in bytes).
+
+<Tabs
+defaultValue="pulsar-admin"
+values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+
+$ pulsar-admin topics get-backlog-size \
+  -m 1:1 \
+  persistent://test-tenant/ns1/tp1-partition-0 \
+
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/backlogSize|operation/getBacklogSizeByMessageId?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
+```java
+
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+MessageId messageId = MessageId.earliest;
+admin.topics().getBacklogSizeByMessageId(topic, messageId);
+
+```
+
+</TabItem>
+
+</Tabs>
+
 ## Manage non-partitioned topics
 You can use Pulsar [admin API](admin-api-overview) to create, delete and check status of non-partitioned topics.
 
@@ -1474,21 +1223,9 @@ For more information about the two parameters, see [here](reference-configuratio
 You can create non-partitioned topics in the following ways.
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
+
 When you create non-partitioned topics with the [`create`](reference-pulsar-admin.md#create-3) command, you need to specify the topic name as an argument.
 
 ```shell
@@ -1497,9 +1234,10 @@ $ bin/pulsar-admin topics create \
   persistent://my-tenant/my-namespace/my-topic
 
 ```
+
 :::note
 
-When you create a non-partitioned topic with the suffix '-partition-' followed by numeric value like 'xyz-topic-partition-x' for the topic name, if a partitioned topic with same suffix 'xyz-topic-partition-y' exists, then the numeric value(x) for the non-partitioned topic must be larger than the number of partitions(y) of the partitioned topic. Otherwise, you cannot create such a non-partitioned topic. 
+When you create a non-partitioned topic with the suffix '-partition-' followed by numeric value like 'xyz-topic-partition-x' for the topic name, if a partitioned topic with same suffix 'xyz-topic-partition-y' exists, then the numeric value(x) for the non-partitioned topic must be larger than the number of partitions(y) of the partitioned topic. Otherwise, you cannot create such a non-partitioned topic.
 
 :::
 
@@ -1526,20 +1264,7 @@ admin.topics().createNonPartitionedTopic(topicName);
 You can delete non-partitioned topics in the following ways.
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -1572,20 +1297,7 @@ admin.topics().delete(topic);
 You can get the list of topics under a given namespace in the following ways.  
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -1652,23 +1364,11 @@ You can check the current statistics of a given topic. The following is an examp
 }
 
 ```
+
 You can check the current statistics of a given topic and its connected producers and consumers in the following ways.
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -1692,6 +1392,7 @@ $ pulsar-admin topics stats \
 admin.topics().getStats(topic, false /* is precise backlog */);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -1710,21 +1411,9 @@ For more information about the two parameters, see [here](reference-configuratio
 You can create partitioned topics in the following ways.
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
+
 When you create partitioned topics with the [`create-partitioned-topic`](reference-pulsar-admin.md#create-partitioned-topic)
 command, you need to specify the topic name as an argument and the number of partitions using the `-p` or `--partitions` flag.
 
@@ -1768,21 +1457,9 @@ When topic auto-creation is disabled, and you have a partitioned topic without a
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
+
 You can create missed partitions with the [`create-missed-partitions`](reference-pulsar-admin.md#create-missed-partitions) command and specify the topic name as an argument.
 
 ```shell
@@ -1821,21 +1498,9 @@ Field | Description
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
+
 You can check the number of partitions in a partitioned topic with the [`get-partitioned-topic-metadata`](reference-pulsar-admin.md#get-partitioned-topic-metadata) subcommand. 
 
 ```shell
@@ -1875,21 +1540,9 @@ Producers and consumers can find the newly created partitions automatically.
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
+
 You can update partitioned topics with the [`update-partitioned-topic`](reference-pulsar-admin.md#update-partitioned-topic) command.
 
 ```shell
@@ -1923,20 +1576,7 @@ You can delete partitioned topics with the [`delete-partitioned-topic`](referenc
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -1965,28 +1605,15 @@ admin.topics().delete(topic);
 </Tabs>
 
 ### List
-You can get the list of topics under a given namespace in the following ways.  
+You can get the list of partitioned topics under a given namespace in the following ways.  
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
 
-$ pulsar-admin topics list tenant/namespace
+$ pulsar-admin list-partitioned-topics list tenant/namespace
 persistent://tenant/namespace/topic1
 persistent://tenant/namespace/topic2
 
@@ -2002,7 +1629,7 @@ persistent://tenant/namespace/topic2
 
 ```java
 
-admin.topics().getList(namespace);
+admin.topics().getPartitionedTopicList(namespace);
 
 ```
 
@@ -2075,20 +1702,7 @@ You can check the current statistics of a given partitioned topic and its connec
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -2164,20 +1778,7 @@ You can get the internal stats for the partitioned topic in the following ways.
 
 <Tabs 
   defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -2205,55 +1806,6 @@ admin.topics().getInternalStats(topic);
 
 </Tabs>
 
-### Get backlog size
-
-You can get backlog size of a single topic partition or a nonpartitioned topic given a message ID (in bytes).
-
-<Tabs 
-  defaultValue="pulsar-admin"
-  values={[
-  {
-    "label": "pulsar-admin",
-    "value": "pulsar-admin"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java",
-    "value": "Java"
-  }
-]}>
-<TabItem value="pulsar-admin">
-
-```shell
-
-$ pulsar-admin topics get-backlog-size \
-  -m 1:1 \
-  persistent://test-tenant/ns1/tp1-partition-0 \
-
-```
-
-</TabItem>
-<TabItem value="REST API">
-
-{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/backlogSize|operation/getBacklogSizeByMessageId?version=@pulsar:version_number@}
-
-</TabItem>
-<TabItem value="Java">
-
-```java
-
-String topic = "persistent://my-tenant/my-namespace/my-topic";
-MessageId messageId = MessageId.earliest;
-admin.topics().getBacklogSizeByMessageId(topic, messageId);
-
-```
-
-</TabItem>
-
-</Tabs>
 
 ## Publish to partitioned topics
 
@@ -2346,4 +1898,121 @@ If a message has a key, it supersedes the round robin routing policy. The follow
             return signSafeMod(PARTITION_INDEX_UPDATER.getAndIncrement(this), topicMetadata.numPartitions());
         }
 
-```        
+```
+
+## Manage subscriptions
+
+You can use [Pulsar admin API](admin-api-overview) to create, check, and delete subscriptions.
+
+### Create subscription
+
+You can create a subscription for a topic using one of the following methods.
+
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+
+<TabItem value="pulsar-admin">
+
+```shell
+
+pulsar-admin topics create-subscription \
+--subscription my-subscription \
+persistent://test-tenant/ns1/tp1
+
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|PUT|/admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subscription|operation/createSubscriptions?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
+```java
+
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+String subscriptionName = "my-subscription";
+admin.topics().createSubscription(topic, subscriptionName, MessageId.latest);
+
+```
+
+</TabItem>
+
+</Tabs>
+
+### Get subscription
+
+You can check all subscription names for a given topic using one of the following methods.
+
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+
+<TabItem value="pulsar-admin">
+
+```shell
+
+pulsar-admin topics subscriptions \
+persistent://test-tenant/ns1/tp1 \
+my-subscription
+
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscriptions|operation/getSubscriptions?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
+```java
+
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+admin.topics().getSubscriptions(topic);
+
+```
+
+</TabItem>
+
+</Tabs>
+
+### Unsubscribe subscription 
+
+When a subscription does not process messages any more, you can unsubscribe it using one of the following methods. 
+
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+
+<TabItem value="pulsar-admin">
+
+```shell
+
+pulsar-admin topics unsubscribe \
+--subscription my-subscription \
+persistent://test-tenant/ns1/tp1
+
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/:topic/subscription/:subscription|operation/deleteSubscription?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
+```java
+
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+String subscriptionName = "my-subscription";
+admin.topics().deleteSubscription(topic, subscriptionName);
+
+```
+
+</TabItem>
+
+</Tabs>

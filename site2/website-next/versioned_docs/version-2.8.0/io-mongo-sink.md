@@ -1,13 +1,9 @@
 ---
 id: io-mongo-sink
 title: MongoDB sink connector
-sidebar_label: MongoDB sink connector
+sidebar_label: "MongoDB sink connector"
 original_id: io-mongo-sink
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 The MongoDB sink connector pulls messages from Pulsar topics 
 and persists the messages to collections.
@@ -32,31 +28,30 @@ The configuration of the MongoDB sink connector has the following properties.
 Before using the Mongo sink connector, you need to create a configuration file through one of the following methods.
 
 * JSON
+
+  ```json
   
-
-    ```json
-
-    {
-        "mongoUri": "mongodb://localhost:27017",
-        "database": "pulsar",
-        "collection": "messages",
-        "batchSize": "2",
-        "batchTimeMs": "500"
-    }
-
-    ```
+  {
+      "mongoUri": "mongodb://localhost:27017",
+      "database": "pulsar",
+      "collection": "messages",
+      "batchSize": "2",
+      "batchTimeMs": "500"
+  }
+  
+  ```
 
 * YAML
+
+  ```yaml
   
+  {
+      mongoUri: "mongodb://localhost:27017"
+      database: "pulsar"
+      collection: "messages"
+      batchSize: 2
+      batchTimeMs: 500
+  }
+  
+  ```
 
-    ```yaml
-
-    {
-        mongoUri: "mongodb://localhost:27017"
-        database: "pulsar"
-        collection: "messages"
-        batchSize: 2
-        batchTimeMs: 500
-    }
-
-    ```

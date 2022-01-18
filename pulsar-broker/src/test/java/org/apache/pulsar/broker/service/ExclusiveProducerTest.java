@@ -25,6 +25,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import io.netty.util.HashedWheelTimer;
 import lombok.Cleanup;
 
 import org.apache.pulsar.client.api.Producer;
@@ -33,8 +34,11 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerFencedException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
+import org.awaitility.Awaitility;
 import org.powermock.reflect.Whitebox;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -115,6 +119,30 @@ public class ExclusiveProducerTest extends BrokerTestBase {
                 .accessMode(ProducerAccessMode.Exclusive)
                 .create();
         p2.close();
+    }
+
+    @Test(dataProvider = "topics")
+    public void testProducerTasksCleanupWhenUsingExclusiveProducers(String type, boolean partitioned) throws Exception {
+        String topic = newTopic(type, partitioned);
+        Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .accessMode(ProducerAccessMode.Exclusive)
+                .create();
+
+        try {
+            pulsarClient.newProducer(Schema.STRING)
+                    .topic(topic)
+                    .accessMode(ProducerAccessMode.Exclusive)
+                    .create();
+            fail("Should have failed");
+        } catch (ProducerFencedException e) {
+            // Expected
+        }
+
+        p1.close();
+
+        HashedWheelTimer timer = (HashedWheelTimer) ((PulsarClientImpl) pulsarClient).timer();
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(timer.pendingTimeouts(), 0));
     }
 
     @Test(dataProvider = "topics")

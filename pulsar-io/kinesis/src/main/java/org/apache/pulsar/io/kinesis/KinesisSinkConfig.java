@@ -21,16 +21,15 @@ package org.apache.pulsar.io.kinesis;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import lombok.*;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Map;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @Data
-@EqualsAndHashCode(callSuper=true)
+@EqualsAndHashCode(callSuper = true)
 public class KinesisSinkConfig extends BaseKinesisConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -81,9 +80,9 @@ public class KinesisSinkConfig extends BaseKinesisConfig implements Serializable
         return mapper.readValue(new File(yamlFile), KinesisSinkConfig.class);
     }
 
-    public static enum MessageFormat {
+    public enum MessageFormat {
         /**
-         * Kinesis sink directly publishes pulsar-payload as a message into the kinesis-stream
+         * Kinesis sink directly publishes pulsar-payload as a message into the kinesis-stream.
          */
         ONLY_RAW_PAYLOAD,
         /**

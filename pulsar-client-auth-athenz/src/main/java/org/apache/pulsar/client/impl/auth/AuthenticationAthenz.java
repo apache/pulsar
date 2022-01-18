@@ -20,7 +20,13 @@ package org.apache.pulsar.client.impl.auth;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
+import com.google.common.io.CharStreams;
+import com.yahoo.athenz.auth.ServiceIdentityProvider;
+import com.yahoo.athenz.auth.impl.SimpleServiceIdentityProvider;
+import com.yahoo.athenz.auth.util.Crypto;
+import com.yahoo.athenz.auth.util.CryptoException;
+import com.yahoo.athenz.zts.RoleToken;
+import com.yahoo.athenz.zts.ZTSClient;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -33,7 +39,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
@@ -41,14 +46,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.GettingAuthenticationDataException;
 import org.apache.pulsar.client.api.url.URL;
 import org.apache.pulsar.client.impl.AuthenticationUtil;
-
-import com.google.common.io.CharStreams;
-import com.yahoo.athenz.auth.ServiceIdentityProvider;
-import com.yahoo.athenz.auth.impl.SimpleServiceIdentityProvider;
-import com.yahoo.athenz.auth.util.Crypto;
-import com.yahoo.athenz.auth.util.CryptoException;
-import com.yahoo.athenz.zts.RoleToken;
-import com.yahoo.athenz.zts.ZTSClient;
 
 public class AuthenticationAthenz implements Authentication, EncodedAuthenticationParameterSupport {
 
@@ -70,7 +67,8 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
     private boolean autoPrefetchEnabled = false;
     private long cachedRoleTokenTimestamp;
     private String roleToken;
-    private static final int minValidity = 2 * 60 * 60; // athenz will only give this token if it's at least valid for 2hrs
+    // athenz will only give this token if it's at least valid for 2hrs
+    private static final int minValidity = 2 * 60 * 60;
     private static final int maxValidity = 24 * 60 * 60; // token has upto 24 hours validity
     private static final int cacheDurationInHour = 1; // we will cache role token for an hour then ask athenz lib again
 
@@ -159,7 +157,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         }
 
         this.keyId = authParams.getOrDefault("keyId", "0");
-        this.autoPrefetchEnabled = Boolean.valueOf(authParams.getOrDefault("autoPrefetchEnabled", "false"));
+        this.autoPrefetchEnabled = Boolean.parseBoolean(authParams.getOrDefault("autoPrefetchEnabled", "false"));
 
         if (isNotBlank(authParams.get("athenzConfPath"))) {
             System.setProperty("athenz.athenz_conf", authParams.get("athenzConfPath"));
@@ -206,7 +204,8 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
                 throw new IllegalArgumentException(
                         "Unsupported media type or encoding format: " + urlConnection.getContentType());
             }
-            String keyData = CharStreams.toString(new InputStreamReader((InputStream) urlConnection.getContent(), Charset.defaultCharset()));
+            String keyData = CharStreams.toString(new InputStreamReader((InputStream) urlConnection.getContent(),
+                    Charset.defaultCharset()));
             privateKey = Crypto.loadPrivateKey(keyData);
         } catch (URISyntaxException e) {
             throw new IllegalArgumentException("Invalid privateKey format", e);

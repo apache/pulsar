@@ -23,7 +23,6 @@ import io.prestosql.spi.PrestoException;
 import io.prestosql.spi.connector.*;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -189,7 +188,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
     @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
     public void testGetTableMetadataTableBlankSchema(String delimiter) throws PulsarAdminException {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
-        SchemaInfo badSchemaInfo = SchemaInfoImpl.builder()
+        SchemaInfo badSchemaInfo = SchemaInfo.builder()
                 .schema(new byte[0])
                 .type(SchemaType.AVRO)
                 .build();
@@ -216,7 +215,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
     @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
     public void testGetTableMetadataTableInvalidSchema(String delimiter) throws PulsarAdminException {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
-        SchemaInfo badSchemaInfo = SchemaInfoImpl.builder()
+        SchemaInfo badSchemaInfo = SchemaInfo.builder()
                 .schema("foo".getBytes())
                 .type(SchemaType.AVRO)
                 .build();

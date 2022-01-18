@@ -1,12 +1,8 @@
 ---
 id: io-rabbitmq-sink
 title: RabbitMQ sink connector
-sidebar_label: RabbitMQ sink connector
+sidebar_label: "RabbitMQ sink connector"
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 The RabbitMQ sink connector pulls messages from Pulsar topics 
 and persist the messages to RabbitMQ queues.
@@ -43,8 +39,10 @@ Before using the RabbitMQ sink connector, you need to create a configuration fil
 
 * JSON 
 
-    ```json
-    {
+  ```json
+  
+  {
+     "configs": {
         "host": "localhost",
         "port": "5672",
         "virtualHost": "/",
@@ -59,26 +57,30 @@ Before using the RabbitMQ sink connector, you need to create a configuration fil
         "requestedHeartbeat": "60",
         "exchangeName": "test-exchange",
         "routingKey": "test-key"
-    }
-    ```
+     }
+  }
+  
+  ```
 
 * YAML
 
-    ```yaml
-    configs:
-        host: "localhost"
-        port: 5672
-        virtualHost: "/",
-        username: "guest"
-        password: "guest"
-        queueName: "test-queue"
-        connectionName: "test-connection"
-        requestedChannelMax: 0
-        requestedFrameMax: 0
-        connectionTimeout: 60000
-        handshakeTimeout: 10000
-        requestedHeartbeat: 60
-        exchangeName: "test-exchange"
-        routingKey: "test-key"
-    ```
+  ```yaml
+  
+  configs:
+      host: "localhost"
+      port: 5672
+      virtualHost: "/",
+      username: "guest"
+      password: "guest"
+      queueName: "test-queue"
+      connectionName: "test-connection"
+      requestedChannelMax: 0
+      requestedFrameMax: 0
+      connectionTimeout: 60000
+      handshakeTimeout: 10000
+      requestedHeartbeat: 60
+      exchangeName: "test-exchange"
+      routingKey: "test-key"
+  
+  ```
 

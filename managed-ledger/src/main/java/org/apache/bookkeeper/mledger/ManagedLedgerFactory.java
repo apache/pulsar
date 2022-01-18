@@ -91,7 +91,7 @@ public interface ManagedLedgerFactory {
             Supplier<Boolean> mlOwnershipChecker, Object ctx);
 
     /**
-     * Open a {@link ReadOnlyCursor} positioned to the earliest entry for the specified managed ledger
+     * Open a {@link ReadOnlyCursor} positioned to the earliest entry for the specified managed ledger.
      *
      * @param managedLedgerName
      * @param startPosition
@@ -103,7 +103,7 @@ public interface ManagedLedgerFactory {
             throws InterruptedException, ManagedLedgerException;
 
     /**
-     * Open a {@link ReadOnlyCursor} positioned to the earliest entry for the specified managed ledger
+     * Open a {@link ReadOnlyCursor} positioned to the earliest entry for the specified managed ledger.
      *
      * @param managedLedgerName
      * @param startPosition

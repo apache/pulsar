@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service.persistent;
 import static com.google.common.base.Preconditions.checkArgument;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -34,7 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CompactorSubscription extends PersistentSubscription {
-    private CompactedTopic compactedTopic;
+    private final CompactedTopic compactedTopic;
 
     public CompactorSubscription(PersistentTopic topic, CompactedTopic compactedTopic,
                                  String subscriptionName, ManagedCursor cursor) {
@@ -48,8 +47,12 @@ public class CompactorSubscription extends PersistentSubscription {
         Map<String, Long> properties = cursor.getProperties();
         if (properties.containsKey(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY)) {
             long compactedLedgerId = properties.get(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY);
-            compactedTopic.newCompactedLedger(cursor.getMarkDeletedPosition(),
-                                              compactedLedgerId);
+            compactedTopic.newCompactedLedger(cursor.getMarkDeletedPosition(), compactedLedgerId)
+                    .thenAccept(previousContext -> {
+                        if (previousContext != null) {
+                            compactedTopic.deleteCompactedLedger(previousContext.getLedger().getId());
+                        }
+                    });
         }
     }
 
@@ -65,15 +68,25 @@ public class CompactorSubscription extends PersistentSubscription {
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Cumulative ack on compactor subscription {}", topicName, subName, position);
         }
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        cursor.asyncMarkDelete(position, properties, new MarkDeleteCallback() {
+
+        // The newCompactedLedger must be called at the first step because we need to ensure the reader can read
+        // complete data from compacted Ledger, otherwise, if the original ledger been deleted the reader cursor
+        // might move to a subsequent original ledger if `compactionHorizon` have not updated, this will lead to
+        // the reader skips compacted data at that time, after the `compactionHorizon` updated, the reader able
+        // to read the complete compacted data again.
+        // And we can only delete the previous ledger after the mark delete succeed, otherwise we will loss the
+        // compacted data if mark delete failed.
+        compactedTopic.newCompactedLedger(position, compactedLedgerId).thenAccept(previousContext -> {
+            cursor.asyncMarkDelete(position, properties, new MarkDeleteCallback() {
                 @Override
                 public void markDeleteComplete(Object ctx) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}][{}] Mark deleted messages until position on compactor subscription {}",
-                                  topicName, subName, position);
+                                topicName, subName, position);
                     }
-                    future.complete(null);
+                    if (previousContext != null) {
+                        compactedTopic.deleteCompactedLedger(previousContext.getLedger().getId());
+                    }
                 }
 
                 @Override
@@ -81,19 +94,16 @@ public class CompactorSubscription extends PersistentSubscription {
                     // TODO: cut consumer connection on markDeleteFailed
                     if (log.isDebugEnabled()) {
                         log.debug("[{}][{}] Failed to mark delete for position on compactor subscription {}",
-                                  topicName, subName, ctx, exception);
+                                topicName, subName, ctx, exception);
                     }
                 }
             }, null);
+        });
 
         if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog(false) == 0) {
             // Notify all consumer that the end of topic was reached
             dispatcher.getConsumers().forEach(Consumer::reachedEndOfTopic);
         }
-
-        // Once properties have been persisted, we can notify the compacted topic to use
-        // the new ledger
-        future.thenAccept((v) -> compactedTopic.newCompactedLedger(position, compactedLedgerId));
     }
 
     private static final Logger log = LoggerFactory.getLogger(CompactorSubscription.class);

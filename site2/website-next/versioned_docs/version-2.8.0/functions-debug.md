@@ -5,10 +5,6 @@ sidebar_label: "How-to: Debug"
 original_id: functions-debug
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 You can use the following methods to debug Pulsar Functions:
 
 * [Captured stderr](functions-debug.md#captured-stderr)
@@ -226,7 +222,6 @@ With [Pulsar Functions CLI](reference-pulsar-admin.md#functions), you can debug 
 
 :::tip
 
-
 For complete commands of **Pulsar Functions CLI**, see [here](reference-pulsar-admin.md#functions)。
 
 :::
@@ -254,7 +249,6 @@ $ pulsar-admin functions get options
 
 :::tip
 
-
 `--fqfn` consists of `--name`, `--namespace` and `--tenant`, so you can specify either `--fqfn` or `--name`, `--namespace` and `--tenant`.
 
 :::
@@ -268,6 +262,7 @@ You can specify `--fqfn` to get information about a Pulsar Function.
 $ ./bin/pulsar-admin functions get public/default/ExclamationFunctio6
 
 ```
+
 Optionally, you can specify `--name`, `--namespace` and `--tenant` to get information about a Pulsar Function.
 
 ```bash
@@ -467,6 +462,7 @@ $ ./bin/pulsar-admin functions list \
     --namespace default
 
 ```
+
 As shown below, the `list` command returns three functions running under the _public_ tenant and the _default_ namespace.
 
 ```text
@@ -529,9 +525,9 @@ You must specify the [entire topic name](getting-started-pulsar.md#topic-names) 
 ```text
 
 Function in trigger function has unidentified topic
-
 Reason: Function in trigger function has unidentified topic
 
 ```
 
 :::
+

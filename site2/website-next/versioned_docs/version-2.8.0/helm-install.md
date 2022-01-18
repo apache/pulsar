@@ -1,13 +1,9 @@
 ---
 id: helm-install
 title: Install Apache Pulsar using Helm
-sidebar_label: Install
+sidebar_label: "Install"
 original_id: helm-install
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 Install Apache Pulsar on Kubernetes with the official Pulsar Helm chart.
 

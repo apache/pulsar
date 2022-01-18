@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.common.configuration;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 import static org.apache.pulsar.common.util.FieldParser.update;
-
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,14 +29,13 @@ import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Properties;
-
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Loads ServiceConfiguration with properties
+ * Loads ServiceConfiguration with properties.
  *
  *
  */
@@ -52,7 +50,7 @@ public class PulsarConfigurationLoader {
      */
     public static <T extends PulsarConfiguration> T create(String configFile,
             Class<? extends PulsarConfiguration> clazz) throws IOException, IllegalArgumentException {
-        checkNotNull(configFile);
+        requireNonNull(configFile);
         try (InputStream inputStream = new FileInputStream(configFile)) {
             return create(inputStream, clazz);
         }
@@ -71,7 +69,7 @@ public class PulsarConfigurationLoader {
     public static <T extends PulsarConfiguration> T create(InputStream inStream,
             Class<? extends PulsarConfiguration> clazz) throws IOException, IllegalArgumentException {
         try {
-            checkNotNull(inStream);
+            requireNonNull(inStream);
             Properties properties = new Properties();
             properties.load(inStream);
             return (create(properties, clazz));
@@ -92,7 +90,7 @@ public class PulsarConfigurationLoader {
     @SuppressWarnings({ "rawtypes", "unchecked" })
     public static <T extends PulsarConfiguration> T create(Properties properties,
             Class<? extends PulsarConfiguration> clazz) throws IOException, IllegalArgumentException {
-        checkNotNull(properties);
+        requireNonNull(properties);
         T configuration = null;
         try {
             configuration = (T) clazz.getDeclaredConstructor().newInstance();
@@ -117,7 +115,7 @@ public class PulsarConfigurationLoader {
      * @throws IllegalAccessException
      */
     public static boolean isComplete(Object obj) throws IllegalArgumentException {
-        checkNotNull(obj);
+        requireNonNull(obj);
         Field[] fields = obj.getClass().getDeclaredFields();
         StringBuilder error = new StringBuilder();
         for (Field field : fields) {
@@ -174,10 +172,12 @@ public class PulsarConfigurationLoader {
      * @param ignoreNonExistMember
      * @return
      * @throws IllegalArgumentException
-     *             if conf has the field whose name is not contained in ServiceConfiguration and ignoreNonExistMember is false.
+     *             if conf has the field whose name is not contained in ServiceConfiguration and ignoreNonExistMember
+     *             is false.
      * @throws RuntimeException
      */
-    public static ServiceConfiguration convertFrom(PulsarConfiguration conf, boolean ignoreNonExistMember) throws RuntimeException {
+    public static ServiceConfiguration convertFrom(PulsarConfiguration conf, boolean ignoreNonExistMember)
+            throws RuntimeException {
         try {
             final ServiceConfiguration convertedConf = ServiceConfiguration.class
                     .getDeclaredConstructor().newInstance();
@@ -192,7 +192,8 @@ public class PulsarConfigurationLoader {
                     }
                 } catch (NoSuchFieldException e) {
                     if (!ignoreNonExistMember) {
-                        throw new IllegalArgumentException("Exception caused while converting configuration: " + e.getMessage());
+                        throw new IllegalArgumentException("Exception caused while converting configuration: "
+                                + e.getMessage());
                     }
                 } catch (IllegalAccessException e) {
                     throw new RuntimeException("Exception caused while converting configuration: " + e.getMessage());

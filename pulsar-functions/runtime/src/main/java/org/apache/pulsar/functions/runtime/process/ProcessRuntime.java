@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.functions.runtime.process;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -42,7 +43,6 @@ import org.apache.pulsar.functions.runtime.RuntimeUtils;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -51,9 +51,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 /**
  * A function container implemented using java thread.
@@ -180,16 +177,17 @@ class ProcessRuntime implements Runtime {
                     .build();
             stub = InstanceControlGrpc.newFutureStub(channel);
 
-            timer = InstanceCache.getInstanceCache().getScheduledExecutorService().scheduleAtFixedRate(() -> {
-                CompletableFuture<InstanceCommunication.HealthCheckResult> result = healthCheck();
-                try {
-                    result.get();
-                } catch (Exception e) {
-                    log.error("Health check failed for {}-{}",
-                            instanceConfig.getFunctionDetails().getName(),
-                            instanceConfig.getInstanceId(), e);
-                }
-            }, expectedHealthCheckInterval, expectedHealthCheckInterval, TimeUnit.SECONDS);
+            timer = InstanceCache.getInstanceCache().getScheduledExecutorService()
+                    .scheduleAtFixedRate(catchingAndLoggingThrowables(() -> {
+                        CompletableFuture<InstanceCommunication.HealthCheckResult> result = healthCheck();
+                        try {
+                            result.get();
+                        } catch (Exception e) {
+                            log.error("Health check failed for {}-{}",
+                                    instanceConfig.getFunctionDetails().getName(),
+                                    instanceConfig.getInstanceId(), e);
+                        }
+                    }), expectedHealthCheckInterval, expectedHealthCheckInterval, TimeUnit.SECONDS);
         }
     }
 

@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import java.util.Arrays;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -110,7 +109,7 @@ public class StatsBuckets {
             buckets[i].add(other.values[i]);
         }
 
-        sumCounter.add(other.count);
+        sumCounter.add(other.sum);
     }
 
     private boolean isSorted(long[] array) {

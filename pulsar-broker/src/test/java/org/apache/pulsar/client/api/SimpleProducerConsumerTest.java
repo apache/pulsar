@@ -3168,7 +3168,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topicName)
                 .enableBatching(false)
-                .autoUpdatePartitionsInterval(2 ,TimeUnit.SECONDS)
+                .autoUpdatePartitionsInterval(2, TimeUnit.SECONDS)
                 .create();
 
         // 1. produce 5 messages
@@ -3181,7 +3181,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .receiverQueueSize(receiverQueueSize)
-                .autoUpdatePartitionsInterval(2 ,TimeUnit.SECONDS)
+                .autoUpdatePartitionsInterval(2, TimeUnit.SECONDS)
                 .subscriptionName("test-multi-topic-consumer").subscribe();
 
         int counter = 0;
@@ -4112,8 +4112,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                     .topic(topic).subscriptionName("sub").subscribe();
             fail("should fail");
         } catch (Exception e) {
-            String retryTopic = topic + "-sub-RETRY";
-            assertTrue(e.getMessage().contains("Topic " + retryTopic + " does not exist"));
+            assertTrue(e instanceof PulsarClientException.NotFoundException);
         } finally {
             conf.setAllowAutoTopicCreation(true);
         }

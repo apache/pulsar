@@ -98,6 +98,13 @@ public interface Topic {
         default boolean isMarkerMessage() {
             return false;
         }
+
+        default void setProperty(String propertyName, Object value) {
+        }
+
+        default Object getProperty(String propertyName) {
+            return null;
+        }
     }
 
     CompletableFuture<Void> initialize();
@@ -129,6 +136,7 @@ public interface Topic {
      */
     void recordAddLatency(long latency, TimeUnit unit);
 
+    @Deprecated
     CompletableFuture<Consumer> subscribe(TransportCnx cnx, String subscriptionName, long consumerId, SubType subType,
                                           int priorityLevel, String consumerName, boolean isDurable,
                                           MessageId startMessageId,
@@ -136,6 +144,13 @@ public interface Topic {
                                           InitialPosition initialPosition,
                                           long startMessageRollbackDurationSec, boolean replicateSubscriptionState,
                                           KeySharedMeta keySharedMeta);
+
+    /**
+     * Subscribe a topic.
+     * @param option
+     * @return
+     */
+    CompletableFuture<Consumer> subscribe(SubscriptionOption option);
 
     CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
             boolean replicateSubscriptionState);
@@ -212,7 +227,12 @@ public interface Topic {
 
     ConcurrentOpenHashMap<String, ? extends Replicator> getReplicators();
 
-    TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize);
+    TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
+                            boolean getEarliestTimeInBacklog);
+
+    CompletableFuture<? extends TopicStatsImpl> asyncGetStats(boolean getPreciseBacklog,
+                                                              boolean subscriptionBacklogSize,
+                                                              boolean getEarliestTimeInBacklog);
 
     CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata);
 
@@ -289,5 +309,11 @@ public interface Topic {
      * @return
      */
     CompletableFuture<Void> truncate();
+
+    /**
+     * Get BrokerService.
+     * @return
+     */
+    BrokerService getBrokerService();
 
 }

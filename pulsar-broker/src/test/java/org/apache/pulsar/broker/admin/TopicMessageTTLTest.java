@@ -19,14 +19,13 @@
 package org.apache.pulsar.broker.admin;
 
 import com.google.common.collect.Sets;
-import java.util.concurrent.CompletableFuture;
+import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.eclipse.jetty.http.HttpStatus;
@@ -35,9 +34,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import java.lang.reflect.Method;
-import java.util.UUID;
 
 @Slf4j
 @Test(groups = "flaky")
@@ -162,27 +158,29 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         final String topicName = testTopic + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topicName);
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
-        Method method = PersistentTopic.class.getDeclaredMethod("getMessageTTL");
-        method.setAccessible(true);
 
         Integer namespaceMessageTTL = admin.namespaces().getNamespaceMessageTTL(myNamespace);
         Assert.assertNull(namespaceMessageTTL);
-        Assert.assertEquals((int) ((CompletableFuture<Integer>) method.invoke(persistentTopic)).join(), 3600);
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(
+                (int) persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().get(), 3600));
 
         admin.namespaces().setNamespaceMessageTTL(myNamespace, 10);
         Awaitility.await().untilAsserted(()
                 -> Assert.assertEquals(admin.namespaces().getNamespaceMessageTTL(myNamespace).intValue(), 10));
-        Assert.assertEquals((int) ((CompletableFuture<Integer>) method.invoke(persistentTopic)).join(), 10);
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(
+                (int) persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().get(), 10));
 
         admin.namespaces().setNamespaceMessageTTL(myNamespace, 0);
         Awaitility.await().untilAsserted(()
                 -> Assert.assertEquals(admin.namespaces().getNamespaceMessageTTL(myNamespace).intValue(), 0));
-        Assert.assertEquals((int) ((CompletableFuture<Integer>) method.invoke(persistentTopic)).join(), 0);
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(
+                (int) persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().get(), 0));
 
         admin.namespaces().removeNamespaceMessageTTL(myNamespace);
         Awaitility.await().untilAsserted(()
                 -> Assert.assertNull(admin.namespaces().getNamespaceMessageTTL(myNamespace)));
-        Assert.assertEquals((int) ((CompletableFuture<Integer>) method.invoke(persistentTopic)).join(), 3600);
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(
+                (int) persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().get(), 3600));
     }
 
     @Test(dataProvider = "isV1")
@@ -203,9 +201,8 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
     public void testDifferentLevelPolicyApplied() throws Exception {
         final String topicName = testTopic + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topicName);
-        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
-        Method method = PersistentTopic.class.getDeclaredMethod("getMessageTTL");
-        method.setAccessible(true);
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
         //namespace-level default value is null
         Integer namespaceMessageTTL = admin.namespaces().getNamespaceMessageTTL(myNamespace);
         Assert.assertNull(namespaceMessageTTL);
@@ -238,7 +235,8 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         admin.topics().removeMessageTTL(topicName);
         Awaitility.await().untilAsserted(()
                 -> Assert.assertEquals(admin.topics().getMessageTTL(topicName, true).intValue(), 3600));
-        Assert.assertEquals((int) ((CompletableFuture<Integer>)method.invoke(persistentTopic)).join(), 3600);
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(
+                (int) persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().get(), 3600));
     }
 
 }

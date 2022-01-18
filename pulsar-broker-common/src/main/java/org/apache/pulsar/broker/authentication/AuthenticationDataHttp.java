@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.authentication;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-
 import javax.servlet.http.HttpServletRequest;
 
 public class AuthenticationDataHttp implements AuthenticationDataSource {

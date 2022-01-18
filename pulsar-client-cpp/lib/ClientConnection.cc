@@ -584,9 +584,9 @@ void ClientConnection::handleRead(const boost::system::error_code& err, size_t b
     if (err || bytesTransferred == 0) {
         if (err) {
             if (err == boost::asio::error::operation_aborted) {
-                LOG_DEBUG(cnxString_ << "Read failed: " << err.message());
+                LOG_DEBUG(cnxString_ << "Read operation was canceled: " << err.message());
             } else {
-                LOG_ERROR(cnxString_ << "Read operation was cancelled");
+                LOG_ERROR(cnxString_ << "Read operation failed: " << err.message());
             }
         }  // else: bytesTransferred == 0, which means server has closed the connection
         close();
@@ -1620,7 +1620,12 @@ Future<Result, MessageId> ClientConnection::newGetLastMessageId(uint64_t consume
 
     pendingGetLastMessageIdRequests_.insert(std::make_pair(requestId, promise));
     lock.unlock();
-    sendRequestWithId(Commands::newGetLastMessageId(consumerId, requestId), requestId);
+    sendRequestWithId(Commands::newGetLastMessageId(consumerId, requestId), requestId)
+        .addListener([promise](Result result, const ResponseData& data) {
+            if (result != ResultOk) {
+                promise.setFailed(result);
+            }
+        });
     return promise.getFuture();
 }
 

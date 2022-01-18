@@ -37,7 +37,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSealedException;
+import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
 import org.apache.pulsar.client.impl.Backoff;
 
 /**
@@ -197,7 +197,7 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
         PositionImpl readPosition = pendingReadEntryRequest.position;
         pendingReadEntryRequest.retry++;
         long waitTimeMillis = readFailureBackoff.next();
-        if (exception.getCause() instanceof TransactionNotSealedException) {
+        if (exception.getCause() instanceof TransactionBufferException.TransactionNotSealedException) {
             waitTimeMillis = 1;
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Error reading transaction entries : {}, - Retrying to read in {} seconds",

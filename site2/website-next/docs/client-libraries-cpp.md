@@ -1,12 +1,8 @@
 ---
 id: client-libraries-cpp
 title: Pulsar C++ client
-sidebar_label: C++
+sidebar_label: "C++"
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 You can use Pulsar C++ client to create Pulsar producers and consumers in C++.
 
@@ -14,7 +10,7 @@ All the methods in producer, consumer, and reader of a C++ client are thread-saf
 
 ## Supported platforms
 
-Pulsar C++ client is supported on **Linux** and **MacOS** platforms.
+Pulsar C++ client is supported on **Linux** ,**MacOS** and **Windows** platforms.
 
 [Doxygen](http://www.doxygen.nl/)-generated API docs for the C++ client are available [here](/api/cpp).
 
@@ -127,6 +123,7 @@ These libraries rely on some other libraries. If you want to get detailed versio
  g++ --std=c++11  PulsarTest.cpp -o test /usr/lib/libpulsarwithdeps.a -lssl -lcrypto -ldl -lpthread  -I/usr/local/ssl/include -L/usr/local/ssl/lib
 
 ```
+
 The `libpulsarwithdeps.a` does not include library openssl related libraries `libssl` and `libcrypto`, because these two libraries are related to security. It is more reasonable and easier to use the versions provided by the local system to handle security issues and upgrade libraries.
 
 ### Install RPM
@@ -305,9 +302,15 @@ cmake --build ./build --config Release
 
 ```
 
+> **NOTE**
+>
+> 1. For Windows 32-bit, you need to use `-A Win32` and `-DVCPKG_TRIPLET=x86-windows`.
+> 2. For MSVC Debug mode, you need to replace `Release` with `Debug` for both `CMAKE_BUILD_TYPE` variable and `--config` option.
+
 4. Client libraries are available in the following places.
 
 ```
+
 ${PULSAR_HOME}/pulsar-client-cpp/build/lib/Release/pulsar.lib
 ${PULSAR_HOME}/pulsar-client-cpp/build/lib/Release/pulsar.dll
 
@@ -344,8 +347,8 @@ pulsar+ssl://pulsar.us-west.example.com:6651
 ## Create a consumer
 
 To use Pulsar as a consumer, you need to create a consumer on the C++ client. There are two main ways of using the consumer:
-- Blocking style: synchronously calling `receive(msg)`.
-- Non-blocking (event based) style: using a message listener.
+- [Blocking style](#blocking-example): synchronously calling `receive(msg)`.
+- [Non-blocking](#consumer-with-a-message-listener) (event based) style: using a message listener.
 
 ### Blocking example
 
@@ -354,6 +357,7 @@ The benefit of this approach is that it is the simplest code. Simply keeps calli
 This example starts a subscription at the earliest offset and consumes 100 messages.
 
 ```c++
+
 #include <pulsar/Client.h>
 
 using namespace pulsar;
@@ -392,11 +396,12 @@ int main() {
 
 ### Consumer with a message listener
 
-We can avoid the need to run a loop with blocking calls with an event based style by using a message listener which is invoked for each message that is received.
+You can avoid  running a loop with blocking calls with an event based style by using a message listener which is invoked for each message that is received.
 
 This example starts a subscription at the earliest offset and consumes 100 messages.
 
 ```c++
+
 #include <pulsar/Client.h>
 #include <atomic>
 #include <thread>
@@ -444,14 +449,15 @@ int main() {
 ## Create a producer
 
 To use Pulsar as a producer, you need to create a producer on the C++ client. There are two main ways of using a producer:
-- Blocking style where each call to `send` waits for an ack from the broker.
-- Non-blocking asynchronous style where `sendAsync` is called instead of `send` and a callback is supplied for when the ack is received from the broker.
+- [Blocking style](#simple-blocking-example) : each call to `send` waits for an ack from the broker.
+- [Non-blocking asynchronous style](#non-blocking-example) : `sendAsync` is called instead of `send` and a callback is supplied for when the ack is received from the broker.
 
 ### Simple blocking example
 
 This example sends 100 messages using the blocking style. While simple, it does not produce high throughput as it waits for each ack to come back before sending the next message.
 
 ```c++
+
 #include <pulsar/Client.h>
 #include <thread>
 
@@ -499,6 +505,7 @@ The producer configuration `blockIfQueueFull` is useful here to avoid `ResultPro
 Without this configuration, the result code `ResultProducerQueueIsFull` is passed to the callback. You must decide how to deal with that (retry, discard etc).
 
 ```c++
+
 #include <pulsar/Client.h>
 #include <thread>
 
@@ -565,6 +572,7 @@ With our example above, that reduces the number of internal producers spread out
 Note that there can be extra latency for the first message sent. If you set a low send timeout, this timeout could be reached if the initial connection handshake is slow to complete.
 
 ```c++
+
 ProducerConfiguration producerConf;
 producerConf.setPartitionsRoutingMode(ProducerConfiguration::UseSinglePartition);
 producerConf.setLazyStartPartitionedProducers(true);
@@ -598,68 +606,73 @@ schema, see [Pulsar schema](schema-get-started).
 
 - The following example shows how to create a producer with an Avro schema.
 
-    ```cpp
-
-    static const std::string exampleSchema =
-        "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","
-        "\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}";
-    Producer producer;
-    ProducerConfiguration producerConf;
-    producerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
-    client.createProducer("topic-avro", producerConf, producer);
-
-    ```
+  ```cpp
+  
+  static const std::string exampleSchema =
+      "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","
+      "\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}";
+  Producer producer;
+  ProducerConfiguration producerConf;
+  producerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
+  client.createProducer("topic-avro", producerConf, producer);
+  
+  ```
 
 - The following example shows how to create a consumer with an Avro schema.
 
-    ```cpp
-
-    static const std::string exampleSchema =
-        "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","
-        "\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}";
-    ConsumerConfiguration consumerConf;
-    Consumer consumer;
-    consumerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
-    client.subscribe("topic-avro", "sub-2", consumerConf, consumer)
-
-    ```
+  ```cpp
+  
+  static const std::string exampleSchema =
+      "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","
+      "\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}";
+  ConsumerConfiguration consumerConf;
+  Consumer consumer;
+  consumerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
+  client.subscribe("topic-avro", "sub-2", consumerConf, consumer)
+  
+  ```
 
 ### ProtobufNative schema
 
 The following example shows how to create a producer and a consumer with a ProtobufNative schema.
 ​
-1. Generate the `User` class using Protobuf3.
+1. Generate the `User` class using Protobuf3. 
 
-:::note
+   :::note
 
-You need to use Protobuf3 or later versions.
+   You need to use Protobuf3 or later versions.
 
-:::
+   :::
+
 ​
 
    ```protobuf
-
+   
    syntax = "proto3";
    
    message User {
        string name = 1;
        int32 age = 2;
    }
-
+   
    ```
+
 ​
 2. Include the `ProtobufNativeSchema.h` in your source code. Ensure the Protobuf dependency has been added to your project.
 ​
 
    ```c++
+   
    #include <pulsar/ProtobufNativeSchema.h>
-
+   
    ```
+
 ​
 3. Create a producer to send a `User` instance.
 ​
 
    ```c++
+   
    ProducerConfiguration producerConf;
    producerConf.setSchema(createProtobufNativeSchema(User::GetDescriptor()));
    Producer producer;
@@ -670,13 +683,15 @@ You need to use Protobuf3 or later versions.
    std::string content;
    user.SerializeToString(&content);
    producer.send(MessageBuilder().setContent(content).build());
-
+   
    ```
+
 ​
 4. Create a consumer to receive a `User` instance.
 ​
 
    ```c++
+   
    ConsumerConfiguration consumerConf;
    consumerConf.setSchema(createProtobufNativeSchema(User::GetDescriptor()));
    consumerConf.setSubscriptionInitialPosition(InitialPositionEarliest);
@@ -686,5 +701,6 @@ You need to use Protobuf3 or later versions.
    consumer.receive(msg);
    User user2;
    user2.ParseFromArray(msg.getData(), msg.getLength());
-
+   
    ```
+

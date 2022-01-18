@@ -1,13 +1,9 @@
 ---
 id: concepts-tiered-storage
 title: Tiered Storage
-sidebar_label: Tiered Storage
+sidebar_label: "Tiered Storage"
 original_id: concepts-tiered-storage
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 Pulsar's segment oriented architecture allows for topic backlogs to grow very large, effectively without limit. However, this can become expensive over time.
 

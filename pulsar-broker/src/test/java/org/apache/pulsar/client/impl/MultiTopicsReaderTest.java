@@ -26,15 +26,19 @@ import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -43,12 +47,12 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -57,16 +61,17 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@Slf4j
 @Test(groups = "flaky")
 public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
 
     private static final String subscription = "reader-multi-topics-sub";
 
-    @BeforeMethod(alwaysRun = true)
+    @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -82,7 +87,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("my-property/my-ns", policies);
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -120,6 +125,67 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         String topic = "persistent://my-property/my-ns/my-reader-topic-with-batching" + UUID.randomUUID();
         admin.topics().createPartitionedTopic(topic, 3);
         testReadMessages(topic, true);
+    }
+
+    @Test(timeOut = 10000)
+    public void testHasMessageAvailableAsync() throws Exception {
+        String topic = "persistent://my-property/my-ns/testHasMessageAvailableAsync";
+        String content = "my-message-";
+        int msgNum = 10;
+        admin.topics().createPartitionedTopic(topic, 2);
+        // stop retention from cleaning up
+        pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
+
+        try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic).readCompacted(true)
+                .startMessageId(MessageId.earliest).create()) {
+            Assert.assertFalse(reader.hasMessageAvailable());
+            Assert.assertFalse(reader.hasMessageAvailableAsync().get(10, TimeUnit.SECONDS));
+        }
+
+        try (Reader<byte[]> reader = pulsarClient.newReader()
+                .topic(topic).startMessageId(MessageId.earliest).create()) {
+            try (Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create()) {
+                for (int i = 0; i < msgNum; i++) {
+                    producer.newMessage().key(content + i)
+                            .value((content + i).getBytes(StandardCharsets.UTF_8)).send();
+                }
+            }
+            // Should have message available
+            Assert.assertTrue(reader.hasMessageAvailableAsync().get());
+            try {
+                // Should have message available too
+                Assert.assertTrue(reader.hasMessageAvailable());
+            } catch (PulsarClientException e) {
+                fail("Expect success but failed.", e);
+            }
+            List<Message<byte[]>> msgs = Collections.synchronizedList(new ArrayList<>());
+            CountDownLatch latch = new CountDownLatch(1);
+            readMessageUseAsync(reader, msgs, latch);
+            latch.await();
+            Assert.assertEquals(msgs.size(), msgNum);
+        }
+    }
+
+    private static <T> void readMessageUseAsync(Reader<T> reader, List<Message<T>> msgs, CountDownLatch latch) {
+        reader.hasMessageAvailableAsync().thenAccept(hasMessageAvailable -> {
+            if (hasMessageAvailable) {
+                reader.readNextAsync().whenComplete((msg, ex) -> {
+                    if (ex != null) {
+                        log.error("Read message failed.", ex);
+                        latch.countDown();
+                        return;
+                    }
+                    msgs.add(msg);
+                    readMessageUseAsync(reader, msgs, latch);
+                });
+            } else {
+                latch.countDown();
+            }
+        }).exceptionally(throwable -> {
+            log.error("Read message failed.", throwable);
+            latch.countDown();
+            return null;
+        });
     }
 
     @Test(timeOut = 10000)
@@ -369,6 +435,107 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
             messages.remove(reader.readNext(5, TimeUnit.SECONDS).getValue());
         }
         assertEquals(messages.size(), 0);
+        assertEquals(client.consumersCount(), 1);
+        // clean up
+        for (Producer<String> producer : producerList) {
+            producer.close();
+        }
+        reader.close();
+        Awaitility.await().untilAsserted(() -> assertEquals(client.consumersCount(), 0));
+    }
+
+    @Test(timeOut = 20000)
+    public void testMultiNonPartitionedTopicWithStartMessageId() throws Exception {
+        final String topic1 = "persistent://my-property/my-ns/topic1" + UUID.randomUUID();
+        final String topic2 = "persistent://my-property/my-ns/topic2" + UUID.randomUUID();
+        List<String> topics = Arrays.asList(topic1, topic2);
+        PulsarClientImpl client = (PulsarClientImpl) pulsarClient;
+
+        // create producer and send msg
+        List<Producer<String>> producerList = new ArrayList<>();
+        for (String topicName : topics) {
+            producerList.add(pulsarClient.newProducer(Schema.STRING).topic(topicName).create());
+        }
+        int msgNum = 10;
+        Set<String> messages = new HashSet<>();
+        for (int i = 0; i < producerList.size(); i++) {
+            Producer<String> producer = producerList.get(i);
+            for (int j = 0; j < msgNum; j++) {
+                String msg = i + "msg" + j;
+                producer.send(msg);
+                messages.add(msg);
+            }
+        }
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .startMessageId(MessageId.earliest)
+                .topics(topics).readerName("my-reader").create();
+        // receive messages
+        while (reader.hasMessageAvailable()) {
+            messages.remove(reader.readNext(5, TimeUnit.SECONDS).getValue());
+        }
+        assertEquals(messages.size(), 0);
+        assertEquals(client.consumersCount(), 1);
+        // clean up
+        for (Producer<String> producer : producerList) {
+            producer.close();
+        }
+        reader.close();
+        Awaitility.await().untilAsserted(() -> assertEquals(client.consumersCount(), 0));
+    }
+
+    @Test(timeOut = 20000)
+    public void testMultiNonPartitionedTopicWithRollbackDuration() throws Exception {
+        final String topic1 = "persistent://my-property/my-ns/topic1" + UUID.randomUUID();
+        final String topic2 = "persistent://my-property/my-ns/topic2" + UUID.randomUUID();
+        List<String> topics = Arrays.asList(topic1, topic2);
+        PulsarClientImpl client = (PulsarClientImpl) pulsarClient;
+
+        // create producer and send msg
+        List<Producer<String>> producerList = new ArrayList<>();
+        for (String topicName : topics) {
+            producerList.add(pulsarClient.newProducer(Schema.STRING).topic(topicName).create());
+        }
+        int totalMsg = 10;
+        Set<String> messages = new HashSet<>();
+        long oldMsgPublishTime = System.currentTimeMillis() - TimeUnit.HOURS.toMillis(5); // 5 hours old
+        long newMsgPublishTime = System.currentTimeMillis() - TimeUnit.HOURS.toMillis(1); // 5 hours old
+        for (int i = 0; i < producerList.size(); i++) {
+            Producer<String> producer = producerList.get(i);
+            // (1) Publish 10 messages with publish-time 5 HOUR back
+            for (int j = 0; j < totalMsg; j++) {
+                TypedMessageBuilderImpl<String> msg = (TypedMessageBuilderImpl<String>) producer.newMessage()
+                        .value(i + "-old-msg-" + j);
+                msg.getMetadataBuilder()
+                        .setPublishTime(oldMsgPublishTime)
+                        .setProducerName(producer.getProducerName())
+                        .setReplicatedFrom("us-west1");
+                msg.send();
+                messages.add(msg.getMessage().getValue());
+            }
+            // (2) Publish 10 messages with publish-time 1 HOUR back
+            for (int j = 0; j < totalMsg; j++) {
+                TypedMessageBuilderImpl<String> msg = (TypedMessageBuilderImpl<String>) producer.newMessage()
+                        .value(i + "-new-msg-" + j);
+                msg.getMetadataBuilder()
+                        .setPublishTime(newMsgPublishTime)
+                        .setProducerName(producer.getProducerName())
+                        .setReplicatedFrom("us-west1");
+                msg.send();
+                messages.add(msg.getMessage().getValue());
+            }
+        }
+
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .startMessageFromRollbackDuration(2, TimeUnit.HOURS)
+                .topics(topics).readerName("my-reader").create();
+        // receive messages
+        while (reader.hasMessageAvailable()) {
+            messages.remove(reader.readNext(5, TimeUnit.SECONDS).getValue());
+        }
+        assertEquals(messages.size(), 2 * totalMsg);
+        for (String message : messages) {
+            assertTrue(message.contains("old-msg"));
+        }
         assertEquals(client.consumersCount(), 1);
         // clean up
         for (Producer<String> producer : producerList) {

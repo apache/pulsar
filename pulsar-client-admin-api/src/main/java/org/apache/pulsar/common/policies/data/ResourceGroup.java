@@ -20,7 +20,8 @@ package org.apache.pulsar.common.policies.data;
 
 import lombok.Data;
 
-@Data public class ResourceGroup {
+@Data
+public class ResourceGroup {
     private int publishRateInMsgs = -1;
     private long publishRateInBytes = -1;
     private int dispatchRateInMsgs = -1;

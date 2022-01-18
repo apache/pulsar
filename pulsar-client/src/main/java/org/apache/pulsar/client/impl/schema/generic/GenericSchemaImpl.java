@@ -25,7 +25,6 @@ import org.apache.pulsar.client.impl.schema.AvroBaseStructSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**

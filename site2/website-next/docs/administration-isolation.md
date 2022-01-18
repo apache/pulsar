@@ -1,7 +1,7 @@
 ---
 id: administration-isolation
 title: Pulsar isolation
-sidebar_label: Pulsar isolation
+sidebar_label: "Pulsar isolation"
 ---
 
 import Tabs from '@theme/Tabs';
@@ -20,25 +20,14 @@ You can set a namespace isolation policy for a cluster using one of the followin
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java admin API",
-    "value": "Java admin API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java admin API","value":"Java admin API"}]}>
 
 <TabItem value="Admin CLI">
 
 ```
+
 pulsar-admin ns-isolation-policy set options
+
 ```
 
 For more information about the command `pulsar-admin ns-isolation-policy set options`, see [here](https://pulsar.apache.org/tools/pulsar-admin/).
@@ -46,11 +35,13 @@ For more information about the command `pulsar-admin ns-isolation-policy set opt
 **Example**
 
 ```shell
+
 bin/pulsar-admin ns-isolation-policy set \
 --auto-failover-policy-type min_available \
 --auto-failover-policy-params min_limit=1,usage_threshold=80 \
 --namespaces my-tenant/my-namespace \
 --primary 10.193.216.*  my-cluster policy-name
+
 ```
 
 </TabItem>
@@ -75,25 +66,14 @@ You can set a bookie affinity group using one of the following methods.
 
 <Tabs 
   defaultValue="Admin CLI"
-  values={[
-  {
-    "label": "Admin CLI",
-    "value": "Admin CLI"
-  },
-  {
-    "label": "REST API",
-    "value": "REST API"
-  },
-  {
-    "label": "Java admin API",
-    "value": "Java admin API"
-  }
-]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java admin API","value":"Java admin API"}]}>
 
 <TabItem value="Admin CLI">
 
 ```
+
 pulsar-admin namespaces set-bookie-affinity-group options
+
 ```
 
 For more information about the command `pulsar-admin namespaces set-bookie-affinity-group options`, see [here](https://pulsar.apache.org/tools/pulsar-admin/).
@@ -101,6 +81,7 @@ For more information about the command `pulsar-admin namespaces set-bookie-affin
 **Example**
 
 ```shell
+
 bin/pulsar-admin bookies set-bookie-rack \
 --bookie 127.0.0.1:3181 \
 --hostname 127.0.0.1:3181 \
@@ -109,6 +90,7 @@ bin/pulsar-admin bookies set-bookie-rack \
 
 bin/pulsar-admin namespaces set-bookie-affinity-group public/default \
 --primary-group group-bookie1
+
 ```
 
 </TabItem>

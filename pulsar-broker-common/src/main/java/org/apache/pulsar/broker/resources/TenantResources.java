@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.resources;
 
-import com.google.common.collect.Lists;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -82,7 +82,7 @@ public class TenantResources extends BaseResources<TenantInfo> {
     }
 
     public List<String> getListOfNamespaces(String tenant) throws MetadataStoreException {
-        List<String> namespaces = Lists.newArrayList();
+        List<String> namespaces = new ArrayList<>();
 
         // this will return a cluster in v1 and a namespace in v2
         for (String clusterOrNamespace : getChildren(joinPath(BASE_POLICIES_PATH, tenant))) {
@@ -121,7 +121,7 @@ public class TenantResources extends BaseResources<TenantInfo> {
                 activeNamespaceFuture.complete(null);
                 return;
             }
-            List<CompletableFuture<Void>> activeNamespaceListFuture = Lists.newArrayList();
+            List<CompletableFuture<Void>> activeNamespaceListFuture = new ArrayList<>();
             clusterOrNamespaceList.forEach(clusterOrNamespace -> {
                 // get list of active V1 namespace
                 CompletableFuture<Void> checkNs = new CompletableFuture<>();
@@ -134,7 +134,7 @@ public class TenantResources extends BaseResources<TenantInfo> {
                             }
                             if (children != null && !children.isEmpty()) {
                                 checkNs.completeExceptionally(
-                                        new IllegalStateException("Tenant has active namespace"));
+                                        new IllegalStateException("The tenant still has active namespaces"));
                                 return;
                             }
                             String namespace = NamespaceName.get(tenant, clusterOrNamespace).toString();
@@ -145,7 +145,7 @@ public class TenantResources extends BaseResources<TenantInfo> {
                             getAsync(joinPath(BASE_POLICIES_PATH, namespace)).thenApply(data -> {
                                 if (data.isPresent()) {
                                     checkNs.completeExceptionally(new IllegalStateException(
-                                            "Tenant has active namespace"));
+                                            "The tenant still has active namespaces"));
                                 } else {
                                     checkNs.complete(null);
                                 }

@@ -1,13 +1,9 @@
 ---
 id: client-libraries
 title: Pulsar client libraries
-sidebar_label: Overview
+sidebar_label: "Overview"
 original_id: client-libraries
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 Pulsar supports the following client libraries:
 

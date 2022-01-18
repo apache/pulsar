@@ -1,13 +1,9 @@
 ---
 id: io-dynamodb-source
 title: AWS DynamoDB source connector
-sidebar_label: AWS DynamoDB source connector
+sidebar_label: "AWS DynamoDB source connector"
 original_id: io-dynamodb-source
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 The DynamoDB source connector pulls data from DynamoDB table streams and persists data into Pulsar.
 
@@ -45,40 +41,40 @@ Before using the DynamoDB source connector, you need to create a configuration f
 
 * JSON 
 
-    ```json
-
-    {
-        "awsEndpoint": "https://some.endpoint.aws",
-        "awsRegion": "us-east-1",
-        "awsDynamodbStreamArn": "arn:aws:dynamodb:us-west-2:111122223333:table/TestTable/stream/2015-05-11T21:21:33.291",
-        "awsCredentialPluginParam": "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}",
-        "applicationName": "My test application",
-        "checkpointInterval": "30000",
-        "backoffTime": "4000",
-        "numRetries": "3",
-        "receiveQueueSize": 2000,
-        "initialPositionInStream": "TRIM_HORIZON",
-        "startAtTime": "2019-03-05T19:28:58.000Z"
-    }
-
-    ```
+  ```json
+  
+  {
+      "awsEndpoint": "https://some.endpoint.aws",
+      "awsRegion": "us-east-1",
+      "awsDynamodbStreamArn": "arn:aws:dynamodb:us-west-2:111122223333:table/TestTable/stream/2015-05-11T21:21:33.291",
+      "awsCredentialPluginParam": "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}",
+      "applicationName": "My test application",
+      "checkpointInterval": "30000",
+      "backoffTime": "4000",
+      "numRetries": "3",
+      "receiveQueueSize": 2000,
+      "initialPositionInStream": "TRIM_HORIZON",
+      "startAtTime": "2019-03-05T19:28:58.000Z"
+  }
+  
+  ```
 
 * YAML
 
-    ```yaml
-
-    configs:
-        awsEndpoint: "https://some.endpoint.aws"
-        awsRegion: "us-east-1"
-        awsDynamodbStreamArn: "arn:aws:dynamodb:us-west-2:111122223333:table/TestTable/stream/2015-05-11T21:21:33.291"
-        awsCredentialPluginParam: "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}"
-        applicationName: "My test application"
-        checkpointInterval: 30000
-        backoffTime: 4000
-        numRetries: 3
-        receiveQueueSize: 2000
-        initialPositionInStream: "TRIM_HORIZON"
-        startAtTime: "2019-03-05T19:28:58.000Z"
-
-    ```
+  ```yaml
+  
+  configs:
+      awsEndpoint: "https://some.endpoint.aws"
+      awsRegion: "us-east-1"
+      awsDynamodbStreamArn: "arn:aws:dynamodb:us-west-2:111122223333:table/TestTable/stream/2015-05-11T21:21:33.291"
+      awsCredentialPluginParam: "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}"
+      applicationName: "My test application"
+      checkpointInterval: 30000
+      backoffTime: 4000
+      numRetries: 3
+      receiveQueueSize: 2000
+      initialPositionInStream: "TRIM_HORIZON"
+      startAtTime: "2019-03-05T19:28:58.000Z"
+  
+  ```
 

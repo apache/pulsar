@@ -90,7 +90,8 @@ public class Person {
         protected String city;
 
         public Address(io.codearte.jfairy.producer.person.Address address) {
-            this(address.getStreet(), address.getStreetNumber(), address.getApartmentNumber(), address.getPostalCode(), address.getCity());
+            this(address.getStreet(), address.getStreetNumber(), address.getApartmentNumber(),
+                    address.getPostalCode(), address.getCity());
         }
     }
 }

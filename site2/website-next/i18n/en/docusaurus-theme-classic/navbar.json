@@ -1,0 +1,46 @@
+{
+  "item.label.Docs": {
+    "message": "Docs",
+    "description": "Navbar item with label Docs"
+  },
+  "item.label.Versions": {
+    "message": "Versions",
+    "description": "Navbar item with label Versions"
+  },
+  "item.label.Blog": {
+    "message": "Blog",
+    "description": "Navbar item with label Blog"
+  },
+  "item.label.GitHub": {
+    "message": "GitHub",
+    "description": "Navbar item with label GitHub"
+  },
+  "item.label.Version": {
+    "message": "Version",
+    "description": "Navbar item with label Version"
+  },
+  "item.label.2.8.0": {
+    "message": "2.8.0",
+    "description": "Navbar item with label 2.8.0"
+  },
+  "item.label.2.7.3": {
+    "message": "2.7.3",
+    "description": "Navbar item with label 2.7.3"
+  },
+  "item.label.2.7.2": {
+    "message": "2.7.2",
+    "description": "Navbar item with label 2.7.2"
+  },
+  "item.label.2.7.1": {
+    "message": "2.7.1",
+    "description": "Navbar item with label 2.7.1"
+  },
+  "item.label.2.7.0": {
+    "message": "2.7.0",
+    "description": "Navbar item with label 2.7.0"
+  },
+  "item.label.2.2.0": {
+    "message": "2.2.0",
+    "description": "Navbar item with label 2.2.0"
+  }
+}

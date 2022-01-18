@@ -37,6 +37,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertNotNull;
 
@@ -301,5 +302,19 @@ public class ConsumerBuilderImplTest {
     public void testConsumerMode() {
         consumerBuilderImpl.subscriptionMode(SubscriptionMode.NonDurable)
             .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
+    }
+
+    @Test
+    public void testNegativeAckRedeliveryBackoff() {
+        consumerBuilderImpl.negativeAckRedeliveryBackoff(NegativeAckRedeliveryExponentialBackoff.builder()
+                .minNackTimeMs(1000)
+                .maxNackTimeMs(10 * 1000)
+                .build());
+    }
+
+    @Test
+    public void testStartPaused() {
+        consumerBuilderImpl.startPaused(true);
+        verify(consumerBuilderImpl.getConf()).setStartPaused(true);
     }
 }

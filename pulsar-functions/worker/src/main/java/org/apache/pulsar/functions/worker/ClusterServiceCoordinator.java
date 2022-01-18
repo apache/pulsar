@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.functions.worker;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -69,7 +70,7 @@ public class ClusterServiceCoordinator implements AutoCloseable {
         for (Map.Entry<String, TimerTaskInfo> entry : this.tasks.entrySet()) {
             TimerTaskInfo timerTaskInfo = entry.getValue();
             String taskName = entry.getKey();
-            this.executor.scheduleAtFixedRate(() -> {
+            this.executor.scheduleAtFixedRate(catchingAndLoggingThrowables(() -> {
                 if (isLeader.get()) {
                     try {
                         timerTaskInfo.getTask().run();
@@ -77,7 +78,7 @@ public class ClusterServiceCoordinator implements AutoCloseable {
                         log.error("Cluster timer task {} failed with exception.", taskName, e);
                     }
                 }
-            }, timerTaskInfo.getInterval(), timerTaskInfo.getInterval(), TimeUnit.MILLISECONDS);
+            }), timerTaskInfo.getInterval(), timerTaskInfo.getInterval(), TimeUnit.MILLISECONDS);
         }
     }
 

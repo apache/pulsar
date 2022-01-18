@@ -117,7 +117,8 @@
       "client-libraries-cpp",
       "client-libraries-node",
       "client-libraries-websocket",
-      "client-libraries-dotnet"
+      "client-libraries-dotnet",
+      "client-libraries-rest"
     ],
     "Admin API": [
       "admin-api-overview",
@@ -148,7 +149,8 @@
       "develop-tools",
       "develop-binary-protocol",
       "develop-schema",
-      "develop-load-manager"
+      "develop-load-manager",
+      "develop-plugin"
     ],
     "Reference": [
       "reference-terminology",

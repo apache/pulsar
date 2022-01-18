@@ -40,14 +40,12 @@ import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.namespace.OwnedBundle;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
-import org.apache.pulsar.broker.namespace.ServiceUnitUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
@@ -312,14 +310,14 @@ public class TopicOwnerTest {
         Assert.assertEquals(partitions, allPartitionMap.size());
 
         Map<String, String> partitionedMap = new LinkedHashMap<>();
-        for(int i = 0; i < partitions; i++) {
+        for (int i = 0; i < partitions; i++) {
            String partitionTopicName = topic + "-partition-" + i;
            partitionedMap.put(partitionTopicName, pulsarAdmins[0].lookups().lookupTopic(partitionTopicName));
         }
 
         Assert.assertEquals(allPartitionMap.size(), partitionedMap.size());
 
-        for(Map.Entry<String, String> entry : allPartitionMap.entrySet()) {
+        for (Map.Entry<String, String> entry : allPartitionMap.entrySet()) {
             Assert.assertTrue(entry.getValue().equalsIgnoreCase(partitionedMap.get(entry.getKey())));
         }
 

@@ -1,13 +1,9 @@
 ---
 id: io-twitter-source
 title: Twitter Firehose source connector
-sidebar_label: Twitter Firehose source connector
+sidebar_label: "Twitter Firehose source connector"
 original_id: io-twitter-source
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 The Twitter Firehose source connector receives tweets from Twitter Firehose and 
 writes the tweets to Pulsar topics.

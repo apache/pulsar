@@ -1,13 +1,9 @@
 ---
 id: deploy-aws
 title: Deploying a Pulsar cluster on AWS using Terraform and Ansible
-sidebar_label: Amazon Web Services
+sidebar_label: "Amazon Web Services"
 original_id: deploy-aws
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 > For instructions on deploying a single Pulsar cluster manually rather than using Terraform and Ansible, see [Deploying a Pulsar cluster on bare metal](deploy-bare-metal.md). For instructions on manually deploying a multi-cluster Pulsar instance, see [Deploying a Pulsar instance on bare metal](deploy-bare-metal-multi-cluster).
 
@@ -60,17 +56,25 @@ $ cd pulsar/deployment/terraform-ansible/aws
 >
 > 1. update `ansible.cfg` with following values:
 >
+
 > ```shell
->
+> 
 > private_key_file=~/.ssh/pulsar_aws
+>
+> 
 > ```
+
 >
 > 2. update `terraform.tfvars` with following values:
 >
+
 > ```shell
->
+> 
 > public_key_path=~/.ssh/pulsar_aws.pub
+>
+> 
 > ```
+
 
 In order to create the necessary AWS resources using Terraform, you need to create an SSH key. Enter the following commands to create a private SSH key in `~/.ssh/id_rsa` and a public key in `~/.ssh/id_rsa.pub`:
 
@@ -161,6 +165,7 @@ All EC2 instances for the cluster run in the [us-west-2](http://docs.aws.amazon.
 When you apply the Terraform configuration by entering the command `terraform apply`, Terraform outputs a value for the `pulsar_service_url`. The value should look something like this:
 
 ```
+
 pulsar://pulsar-elb-1800761694.us-west-2.elb.amazonaws.com:6650
 
 ```

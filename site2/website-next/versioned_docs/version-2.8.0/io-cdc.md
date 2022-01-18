@@ -1,13 +1,9 @@
 ---
 id: io-cdc
 title: CDC connector
-sidebar_label: CDC connector
+sidebar_label: "CDC connector"
 original_id: io-cdc
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 CDC source connectors capture log changes of databases (such as MySQL, MongoDB, and PostgreSQL) into Pulsar.
 

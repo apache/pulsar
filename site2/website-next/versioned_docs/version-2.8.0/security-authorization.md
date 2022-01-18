@@ -1,13 +1,9 @@
 ---
 id: security-authorization
 title: Authentication and authorization in Pulsar
-sidebar_label: Authorization and ACLs
+sidebar_label: "Authorization and ACLs"
 original_id: security-authorization
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 
 In Pulsar, the [authentication provider](security-overview.md#authentication-providers) is responsible for properly identifying clients and associating the clients with [role tokens](security-overview.md#role-tokens). If you only enable authentication, an authenticated role token has the ability to access all resources in the cluster. *Authorization* is the process that determines *what* clients are able to do.
@@ -115,3 +111,4 @@ PulsarAdmin admin = PulsarAdmin.builder()
                     .build();
 
 ```
+

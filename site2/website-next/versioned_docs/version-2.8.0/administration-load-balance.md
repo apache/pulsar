@@ -1,13 +1,9 @@
 ---
 id: administration-load-balance
 title: Pulsar load balance
-sidebar_label: Load balance
+sidebar_label: "Load balance"
 original_id: administration-load-balance
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 ## Load balance across Pulsar brokers
 

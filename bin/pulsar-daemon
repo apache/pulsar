@@ -30,6 +30,7 @@ where command is one of:
     functions-worker    Run a functions worker server
     standalone          Run a standalone Pulsar service
     proxy               Run a Proxy Pulsar service
+    autorecovery        Run an autorecovery service
 
 where argument is one of:
     -force (accepted only with stop command): Decides whether to stop the server forcefully if not stopped by normal shutdown
@@ -102,6 +103,9 @@ case $command in
     (proxy)
         echo "doing $startStop $command ..."
         ;;
+    (autorecovery)
+        echo "doing $startStop $command ..."
+        ;;
     (*)
         echo "Error: unknown service name $command"
         usage
@@ -134,11 +138,9 @@ rotate_out_log ()
     fi
 }
 
-mkdir -p "$PULSAR_LOG_DIR"
-
-case $startStop in
-  (start)
-    if [ -f $pid ]; then
+start ()
+{
+  if [ -f $pid ]; then
       if kill -0 `cat $pid` > /dev/null 2>&1; then
         echo $command running as process `cat $pid`.  Stop it first.
         exit 1
@@ -149,119 +151,90 @@ case $startStop in
     echo starting $command, logging to $logfile
     echo Note: Set immediateFlush to true in conf/log4j2.yaml will guarantee the logging event is flushing to disk immediately. The default behavior is switched off due to performance considerations.
     pulsar=$PULSAR_HOME/bin/pulsar
-    nohup $pulsar $command "$@" > "$out" 2>&1 < /dev/null &
+    nohup $pulsar $command "$1" > "$out" 2>&1 < /dev/null &
     echo $! > $pid
     sleep 1; head $out
     sleep 2;
     if ! ps -p $! > /dev/null ; then
       exit 1
     fi
+}
+
+stop ()
+{
+  if [ -f $pid ]; then
+      TARGET_PID=$(cat $pid)
+      if kill -0 $TARGET_PID > /dev/null 2>&1; then
+        echo "stopping $command"
+        kill $TARGET_PID
+
+        count=0
+        location=$PULSAR_LOG_DIR
+        while ps -p $TARGET_PID > /dev/null;
+         do
+          echo "Shutdown is in progress... Please wait..."
+          sleep 1
+          count=`expr $count + 1`
+
+          if [ "$count" = "$PULSAR_STOP_TIMEOUT" ]; then
+                break
+          fi
+         done
+
+        if [ "$count" != "$PULSAR_STOP_TIMEOUT" ]; then
+            echo "Shutdown completed."
+        fi
+
+        if kill -0 $TARGET_PID > /dev/null 2>&1; then
+              fileName=$location/$command.out
+              $JAVA_HOME/bin/jstack $TARGET_PID > $fileName
+              echo "Thread dumps are taken for analysis at $fileName"
+              if [ "$1" == "-force" ]
+              then
+                 echo "forcefully stopping $command"
+                 kill -9 $TARGET_PID >/dev/null 2>&1
+                 echo Successfully stopped the process
+              else
+                 echo "WARNNING :  $command is not stopped completely."
+                 exit 1
+              fi
+        fi
+      else
+        echo "no $command to stop"
+      fi
+      rm $pid
+    else
+      echo no "$command to stop"
+    fi
+}
+
+mkdir -p "$PULSAR_LOG_DIR"
+
+case $startStop in
+  (start)
+    start "$*"
     ;;
 
   (stop)
-    if [ -f $pid ]; then
-      TARGET_PID=$(cat $pid)
-      if kill -0 $TARGET_PID > /dev/null 2>&1; then
-        echo "stopping $command"
-        kill $TARGET_PID
-
-        count=0
-        location=$PULSAR_LOG_DIR
-        while ps -p $TARGET_PID > /dev/null;
-         do
-          echo "Shutdown is in progress... Please wait..."
-          sleep 1
-          count=`expr $count + 1`
-
-          if [ "$count" = "$PULSAR_STOP_TIMEOUT" ]; then
-                break
-          fi
-         done
-
-        if [ "$count" != "$PULSAR_STOP_TIMEOUT" ]; then
-            echo "Shutdown completed."
-        fi
-
-        if kill -0 $TARGET_PID > /dev/null 2>&1; then
-              fileName=$location/$command.out
-              $JAVA_HOME/bin/jstack $TARGET_PID > $fileName
-              echo "Thread dumps are taken for analysis at $fileName"
-              if [ "$1" == "-force" ]
-              then
-                 echo "forcefully stopping $command"
-                 kill -9 $TARGET_PID >/dev/null 2>&1
-                 echo Successfully stopped the process
-              else
-                 echo "WARNNING :  $command is not stopped completely."
-                 exit 1
-              fi
-        fi
-      else
-        echo "no $command to stop"
-      fi
-      rm $pid
-    else
-      echo no "$command to stop"
-    fi
+    stop $1
     ;;
 
   (restart)
-   if [ -f $pid ]; then
-      TARGET_PID=$(cat $pid)
-      if kill -0 $TARGET_PID > /dev/null 2>&1; then
-        echo "stopping $command"
-        kill $TARGET_PID
-
-        count=0
-        location=$PULSAR_LOG_DIR
-        while ps -p $TARGET_PID > /dev/null;
-         do
-          echo "Shutdown is in progress... Please wait..."
-          sleep 1
-          count=`expr $count + 1`
-
-          if [ "$count" = "$PULSAR_STOP_TIMEOUT" ]; then
-                break
-          fi
-         done
-
-        if [ "$count" != "$PULSAR_STOP_TIMEOUT" ]; then
-            echo "Shutdown completed."
-        fi
-
-        if kill -0 $TARGET_PID > /dev/null 2>&1; then
-              fileName=$location/$command.out
-              $JAVA_HOME/bin/jstack $TARGET_PID > $fileName
-              echo "Thread dumps are taken for analysis at $fileName"
-              if [ "$1" == "-force" ]
-              then
-                 echo "forcefully stopping $command"
-                 kill -9 $TARGET_PID >/dev/null 2>&1
-                 echo Successfully stopped the process
-              else
-                 echo "WARNNING :  $command is not stopped completely."
-                 exit 1
-              fi
-        fi
-      else
-        echo "no $command to stop"
-      fi
-      rm $pid
+    forceStopFlag=$(echo "$*"|grep "\-force")
+    if [[ "$forceStopFlag" != "" ]]
+    then
+      stop "-force"
     else
-      echo no "$command to stop"
+      stop
     fi
-    sleep 3
-
-    rotate_out_log $out
-    echo restarting $command, logging to $logfile
-    echo Note: Set immediateFlush to true in conf/log4j2.yaml will guarantee the logging event is flushing to disk immediately. The default behavior is switched off due to performance considerations.
-    pulsar=$PULSAR_HOME/bin/pulsar
-    nohup $pulsar $command "$@" > "$out" 2>&1 < /dev/null &
-    echo $! > $pid
-    sleep 1; head $out
-    sleep 2;
-    if ! ps -p $! > /dev/null ; then
-      exit 1
+    if [ "$?" == 0 ]
+    then
+       sleep 3
+       paramaters="$*"
+       startParamaters=${paramaters//-force/}
+       start "$startParamaters"
+    else
+       echo "WARNNING :  $command failed restart, for $command is not stopped completely."
     fi
     ;;
 

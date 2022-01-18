@@ -24,14 +24,106 @@ pulsar.entry-read-batch-size=100
 
 # default number of splits to use per query
 pulsar.target-num-splits=4
-```
 
+# max size of one batch message (default value is 5MB)
+pulsar.max-message-size=5242880
+
+# number of split used when querying data from pulsar
+pulsar.target-num-splits=2
+
+# size of queue to buffer entry read from pulsar
+pulsar.max-split-entry-queue-size=1000
+
+# size of queue to buffer message extract from entries
+pulsar.max-split-message-queue-size=10000
+
+# status provider to record connector metrics
+pulsar.stats-provider=org.apache.bookkeeper.stats.NullStatsProvider
+
+# config in map format for stats provider e.g. {"key1":"val1","key2":"val2"}
+pulsar.stats-provider-configs={}
+
+# whether to rewrite Pulsar's default topic delimiter '/'
+pulsar.namespace-delimiter-rewrite-enable=false
+
+# delimiter used to rewrite Pulsar's default delimiter '/', use if default is causing incompatibility with other system like Superset
+pulsar.rewrite-namespace-delimiter=“/”
+
+# maximum number of thread pool size for ledger offloader.
+pulsar.managed-ledger-offload-max-threads=2
+
+# driver used to offload or read cold data to or from long-term storage
+pulsar.managed-ledger-offload-driver=null
+
+# directory to load offloaders nar file.
+pulsar.offloaders-directory="./offloaders"
+
+# properties and configurations related to specific offloader implementation as map e.g. {"key1":"val1","key2":"val2"}
+pulsar.offloader-properties={}
+
+# authentication plugin used to authenticate to Pulsar cluster
+pulsar.auth-plugin=null
+
+# authentication parameter used to authenticate to the Pulsar cluster as a string e.g. "key1:val1,key2:val2".
+pulsar.auth-params=null
+
+# whether the Pulsar client accept an untrusted TLS certificate from broker
+pulsar.tls-allow-insecure-connection=null
+
+# whether to allow hostname verification when a client connects to broker over TLS.
+pulsar.tls-hostname-verification-enable=null
+
+# path for the trusted TLS certificate file of Pulsar broker
+pulsar.tls-trust-cert-file-path=null
+
+# set the threshold for BookKeeper request throttle, default is disabled
+pulsar.bookkeeper-throttle-value=0
+
+# set the number of IO thread
+pulsar.bookkeeper-num-io-threads=2 * Runtime.getRuntime().availableProcessors()
+
+# set the number of worker thread
+pulsar.bookkeeper-num-worker-threads=Runtime.getRuntime().availableProcessors()
+
+# whether to use BookKeeper V2 wire protocol
+pulsar.bookkeeper-use-v2-protocol=true
+
+# interval to check the need for sending an explicit LAC, default is disabled
+pulsar.bookkeeper-explicit-interval=0
+
+# size for managed ledger entry cache (in MB).
+pulsar.managed-ledger-cache-size-MB=0
+
+# number of threads to be used for managed ledger tasks dispatching
+pulsar.managed-ledger-num-worker-threads=Runtime.getRuntime().availableProcessors()
+
+# number of threads to be used for managed ledger scheduled tasks
+pulsar.managed-ledger-num-scheduler-threads=Runtime.getRuntime().availableProcessors()
+
+# directory used to store extraction NAR file
+pulsar.nar-extraction-directory=System.getProperty("java.io.tmpdir")
+```
 You can connect Presto to a Pulsar cluster with multiple hosts. To configure multiple hosts for brokers, add multiple URLs to `pulsar.web-service-url`. To configure multiple hosts for ZooKeeper, add multiple URIs to `pulsar.zookeeper-uri`. The following is an example.
   
 ```
 pulsar.web-service-url=http://localhost:8080,localhost:8081,localhost:8082
 pulsar.zookeeper-uri=localhost1,localhost2:2181
 ```
+
+A frequently asked question is why my latest message not showing up when querying with Pulsar SQL.
+It's not a bug but controlled by a setting, by default BookKeeper LAC only advanced when subsequent entries are added.
+If there is no subsequent entries added, the last entry written will not be visible to readers until the ledger is closed.
+This is not a problem for Pulsar which uses managed ledger, but Pulsar SQL directly read from BookKeeper ledger.
+We can add following setting to change the behavior:
+In Broker config, set
+bookkeeperExplicitLacIntervalInMills > 0
+bookkeeperUseV2WireProtocol=false
+
+And in Presto config, set
+pulsar.bookkeeper-explicit-interval > 0
+pulsar.bookkeeper-use-v2-protocol=false
+
+However,keep in mind that using bk V3 protocol will introduce additional GC overhead to BK as it uses Protobuf.
 
 ## Query data from existing Presto clusters
 

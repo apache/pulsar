@@ -24,6 +24,7 @@ import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -69,6 +70,7 @@ import org.slf4j.LoggerFactory;
 public class BrokersBase extends PulsarWebResource {
     private static final Logger LOG = LoggerFactory.getLogger(BrokersBase.class);
     private static final Duration HEALTHCHECK_READ_TIMEOUT = Duration.ofSeconds(10);
+    public static final String HEALTH_CHECK_TOPIC_SUFFIX = "healthcheck";
 
     @GET
     @Path("/{cluster}")
@@ -181,7 +183,7 @@ public class BrokersBase extends PulsarWebResource {
     public Map<String, String> getAllDynamicConfigurations() throws Exception {
         validateSuperUserAccess();
         try {
-            return dynamicConfigurationResources().getDynamicConfiguration();
+            return dynamicConfigurationResources().getDynamicConfiguration().orElseGet(Collections::emptyMap);
         } catch (RestException e) {
             LOG.error("[{}] couldn't find any configuration in zk {}", clientAppId(), e.getMessage(), e);
             throw e;
@@ -316,7 +318,7 @@ public class BrokersBase extends PulsarWebResource {
                             pulsar().getConfiguration());
 
 
-            topic = String.format("persistent://%s/healthcheck", heartbeatNamespace);
+            topic = String.format("persistent://%s/%s", heartbeatNamespace, HEALTH_CHECK_TOPIC_SUFFIX);
 
             LOG.info("Running healthCheck with topic={}", topic);
 

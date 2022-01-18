@@ -34,8 +34,17 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 
 public abstract class PulsarTestBase extends TestRetrySupport {
+
+    @DataProvider(name = "TopicDomain")
+    public Object[][] topicDomain() {
+        return new Object[][] {
+                {"persistent"},
+                {"non-persistent"}
+        };
+    }
 
     public static String randomName(int numChars) {
         StringBuilder sb = new StringBuilder();
@@ -67,7 +76,7 @@ public abstract class PulsarTestBase extends TestRetrySupport {
         }
     }
 
-    public void testPublishAndConsume(String serviceUrl, boolean isPersistent) throws Exception {
+    protected void testPublishAndConsume(String serviceUrl, boolean isPersistent) throws Exception {
         String topicName = generateTopicName("testpubconsume", isPersistent);
 
         int numMessages = 10;
@@ -98,7 +107,7 @@ public abstract class PulsarTestBase extends TestRetrySupport {
         }
     }
 
-    public void testBatchMessagePublishAndConsume(String serviceUrl, boolean isPersistent) throws Exception {
+    protected void testBatchMessagePublishAndConsume(String serviceUrl, boolean isPersistent) throws Exception {
         String topicName = generateTopicName("test-batch-publish-consume", isPersistent);
 
         final int numMessages = 10000;
@@ -133,7 +142,7 @@ public abstract class PulsarTestBase extends TestRetrySupport {
         }
     }
 
-    public void testBatchIndexAckDisabled(String serviceUrl) throws Exception {
+    protected void testBatchIndexAckDisabled(String serviceUrl) throws Exception {
         String topicName = generateTopicName("test-batch-index-ack-disabled", true);
         final int numMessages = 100;
         try (PulsarClient client = PulsarClient.builder()

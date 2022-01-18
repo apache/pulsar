@@ -1,12 +1,8 @@
 ---
 id: administration-stats
 title: Pulsar stats
-sidebar_label: Pulsar statistics
+sidebar_label: "Pulsar statistics"
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 ## Partitioned topics
 

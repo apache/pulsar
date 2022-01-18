@@ -18,12 +18,10 @@
  */
 package org.apache.pulsar.io.kafka;
 
-import lombok.Value;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.common.schema.SchemaInfo;
-
 import java.nio.ByteBuffer;
 import java.util.function.Supplier;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
  * This is a ByteBuffer schema that reports SchemaInfo from another Schema instance.

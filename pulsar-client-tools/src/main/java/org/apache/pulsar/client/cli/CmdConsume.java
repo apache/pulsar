@@ -20,7 +20,6 @@ package org.apache.pulsar.client.cli;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.client.internal.PulsarClientImplementationBinding.getBytes;
-
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
@@ -30,7 +29,6 @@ import com.google.common.util.concurrent.RateLimiter;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
@@ -46,9 +44,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
-
 import org.apache.commons.io.HexDump;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -120,8 +116,8 @@ public class CmdConsume {
 
     @Parameter(names = { "--regex" }, description = "Indicate the topic name is a regex pattern")
     private boolean isRegex = false;
-    
-    @Parameter(names = { "-q", "--queue-size" }, description = "Consumer receiver queue size.")
+
+    @Parameter(names = {"-q", "--queue-size"}, description = "Consumer receiver queue size.")
     private int receiverQueueSize = 0;
 
     @Parameter(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
@@ -136,7 +132,8 @@ public class CmdConsume {
                     + "file:///path/to/private.key or data:application/x-pem-file;base64,*****")
     private String encKeyValue;
 
-    @Parameter(names = { "-st", "--schema-type"}, description = "Set a schema type on the consumer, it can be 'bytes' or 'auto_consume'")
+    @Parameter(names = { "-st", "--schema-type"},
+            description = "Set a schema type on the consumer, it can be 'bytes' or 'auto_consume'")
     private String schematype = "bytes";
 
     @Parameter(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = 1)
@@ -161,7 +158,7 @@ public class CmdConsume {
     }
 
     /**
-     * Interprets the message to create a string representation
+     * Interprets the message to create a string representation.
      *
      * @param message
      *            The message to interpret
@@ -271,18 +268,21 @@ public class CmdConsume {
      * @return 0 for success, < 0 otherwise
      */
     public int run() throws PulsarClientException, IOException {
-        if (mainOptions.size() != 1)
+        if (mainOptions.size() != 1) {
             throw (new ParameterException("Please provide one and only one topic name."));
-        if (this.subscriptionName == null || this.subscriptionName.isEmpty())
+        }
+        if (this.subscriptionName == null || this.subscriptionName.isEmpty()) {
             throw (new ParameterException("Subscription name is not provided."));
-        if (this.numMessagesToConsume < 0)
+        }
+        if (this.numMessagesToConsume < 0) {
             throw (new ParameterException("Number of messages should be zero or positive."));
+        }
 
         String topic = this.mainOptions.get(0);
 
-        if(this.serviceURL.startsWith("ws")) {
+        if (this.serviceURL.startsWith("ws")) {
             return consumeFromWebSocket(topic);
-        }else {
+        } else {
             return consume(topic);
         }
     }
@@ -345,7 +345,7 @@ public class CmdConsume {
                             System.out.println(output);
                         } else if (numMessagesConsumed % 1000 == 0) {
                             System.out.println("Received " + numMessagesConsumed + " messages");
-                        }  
+                        }
                         consumer.acknowledge(msg);
                     } finally {
                         msg.release();
@@ -420,7 +420,7 @@ public class CmdConsume {
         }
 
         try {
-            LOG.info("Trying to create websocket session..{}",consumerUri);
+            LOG.info("Trying to create websocket session..{}", consumerUri);
             consumeClient.connect(consumerSocket, consumerUri, consumeRequest);
             connected.get();
         } catch (Exception e) {

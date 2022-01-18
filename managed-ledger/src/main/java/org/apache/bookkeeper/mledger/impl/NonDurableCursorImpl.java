@@ -33,9 +33,13 @@ import org.slf4j.LoggerFactory;
 
 public class NonDurableCursorImpl extends ManagedCursorImpl {
 
+    private final boolean readCompacted;
+
     NonDurableCursorImpl(BookKeeper bookkeeper, ManagedLedgerConfig config, ManagedLedgerImpl ledger, String cursorName,
-                         PositionImpl startCursorPosition, CommandSubscribe.InitialPosition initialPosition) {
+                         PositionImpl startCursorPosition, CommandSubscribe.InitialPosition initialPosition,
+                         boolean isReadCompacted) {
         super(bookkeeper, config, ledger, cursorName);
+        this.readCompacted = isReadCompacted;
 
         // Compare with "latest" position marker by using only the ledger id. Since the C++ client is using 48bits to
         // store the entryId, it's not able to pass a Long.max() as entryId. In this case there's no point to require
@@ -50,7 +54,7 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
                     initializeCursorPosition(ledger.getFirstPositionAndCounter());
                     break;
             }
-        } else if (startCursorPosition.getLedgerId() == PositionImpl.earliest.getLedgerId()) {
+        } else if (startCursorPosition.getLedgerId() == PositionImpl.EARLIEST.getLedgerId()) {
             // Start from invalid ledger to read from first available entry
             recoverCursor(ledger.getPreviousPosition(ledger.getFirstPosition()));
         } else {
@@ -65,7 +69,7 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
 
     private void recoverCursor(PositionImpl mdPosition) {
         Pair<PositionImpl, Long> lastEntryAndCounter = ledger.getLastPositionAndCounter();
-        this.readPosition = ledger.getNextValidPosition(mdPosition);
+        this.readPosition = isReadCompacted() ? mdPosition.getNext() : ledger.getNextValidPosition(mdPosition);
         markDeletePosition = mdPosition;
 
         // Initialize the counter such that the difference between the messages written on the ML and the
@@ -114,6 +118,22 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
     public void asyncDeleteCursor(final String consumerName, final DeleteCursorCallback callback, final Object ctx) {
         /// No-Op
         callback.deleteCursorComplete(ctx);
+    }
+
+    public boolean isReadCompacted() {
+        return readCompacted;
+    }
+
+    @Override
+    public void rewind() {
+        // For reading the compacted data,
+        // we couldn't reset the read position to the next valid position of the original topic.
+        // Otherwise, the remaining data in the compacted ledger will be skipped.
+        if (!readCompacted) {
+            super.rewind();
+        } else {
+            readPosition = markDeletePosition.getNext();
+        }
     }
 
     @Override

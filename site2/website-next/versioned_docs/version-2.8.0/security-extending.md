@@ -1,13 +1,9 @@
 ---
 id: security-extending
 title: Extending Authentication and Authorization in Pulsar
-sidebar_label: Extending
+sidebar_label: "Extending"
 original_id: security-extending
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 Pulsar provides a way to use custom authentication and authorization mechanisms.
 
@@ -55,6 +51,7 @@ In `conf/broker.conf` you can choose to specify a list of valid providers:
 authenticationProviders=
 
 ```
+
 To implement `org.apache.pulsar.broker.authentication.AuthenticationProvider` on one single interface:
 
 ```java
@@ -110,10 +107,10 @@ the Authorization plugin is designed only for use on the Broker however the Prox
 To provide a custom provider, you need to implement the `org.apache.pulsar.broker.authorization.AuthorizationProvider` interface, put this class in the Pulsar broker classpath and configure the class in `conf/broker.conf`:
 
  ```properties
-
+ 
  # Authorization provider fully qualified class-name
  authorizationProvider=org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider
-
+ 
  ```
 
 ```java
@@ -207,3 +204,4 @@ public interface AuthorizationProvider extends Closeable {
 }
 
 ```
+

@@ -18,13 +18,13 @@
  */
 package org.apache.pulsar.common.naming;
 
-import com.google.common.base.Objects;
 import com.google.common.base.Splitter;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.StringUtils;
@@ -63,6 +63,9 @@ public class TopicName implements ServiceUnitId {
     public static final TopicName TRANSACTION_COORDINATOR_ASSIGN = TopicName.get(TopicDomain.persistent.value(),
             NamespaceName.SYSTEM_NAMESPACE, "transaction_coordinator_assign");
 
+    public static final TopicName TRANSACTION_COORDINATOR_LOG = TopicName.get(TopicDomain.persistent.value(),
+            NamespaceName.SYSTEM_NAMESPACE, "__transaction_log_");
+
     public static TopicName get(String domain, NamespaceName namespaceName, String topic) {
         String name = domain + "://" + namespaceName.toString() + '/' + topic;
         return TopicName.get(name);
@@ -85,6 +88,14 @@ public class TopicName implements ServiceUnitId {
         } catch (ExecutionException | UncheckedExecutionException e) {
             throw (RuntimeException) e.getCause();
         }
+    }
+
+    public static TopicName getPartitionedTopicName(String topic) {
+        TopicName topicName = TopicName.get(topic);
+        if (topicName.isPartitioned()) {
+            return TopicName.get(topicName.getPartitionedTopicName());
+        }
+        return topicName;
     }
 
     public static boolean isValid(String topic) {
@@ -361,7 +372,7 @@ public class TopicName implements ServiceUnitId {
     public boolean equals(Object obj) {
         if (obj instanceof TopicName) {
             TopicName other = (TopicName) obj;
-            return Objects.equal(completeTopicName, other.completeTopicName);
+            return Objects.equals(completeTopicName, other.completeTopicName);
         }
 
         return false;

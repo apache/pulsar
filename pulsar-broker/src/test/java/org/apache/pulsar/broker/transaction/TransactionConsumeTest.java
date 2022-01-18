@@ -36,14 +36,17 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.TxnAction;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.awaitility.Awaitility;
@@ -75,6 +78,11 @@ public class TransactionConsumeTest extends TransactionTestBase {
                 new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace("public/txn", 10);
         admin.topics().createNonPartitionedTopic(CONSUME_TOPIC);
+
+        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
+                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
+        admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
+        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 1);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -229,7 +237,12 @@ public class TransactionConsumeTest extends TransactionTestBase {
 
     private List<MessageIdData> appendTransactionMessages(
             TxnID txnID, PersistentTopic topic, int transactionMsgCnt, List<String> sendMessageList)
-            throws ExecutionException, InterruptedException {
+            throws ExecutionException, InterruptedException, PulsarClientException {
+        //Change the state of TB to Ready.
+        @Cleanup
+        Producer<String> producer = PulsarClient.builder().serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl())
+                .enableTransaction(true).build()
+                .newProducer(Schema.STRING).topic(CONSUME_TOPIC).sendTimeout(0, TimeUnit.SECONDS).create();
         List<MessageIdData> positionList = new ArrayList<>();
         for (int i = 0; i < transactionMsgCnt; i++) {
             final int j = i;
@@ -239,7 +252,6 @@ public class TransactionConsumeTest extends TransactionTestBase {
                     .setTxnidMostBits(txnID.getMostSigBits())
                     .setTxnidLeastBits(txnID.getLeastSigBits())
                     .setPublishTime(System.currentTimeMillis());
-
             String msg = TXN_MSG_CONTENT + i;
             sendMessageList.add(msg);
             ByteBuf headerAndPayload = Commands.serializeMetadataAndPayload(

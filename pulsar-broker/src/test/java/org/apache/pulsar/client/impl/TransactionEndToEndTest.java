@@ -23,10 +23,9 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
-import com.google.common.collect.Sets;
-
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.ArrayList;
@@ -63,11 +62,8 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.api.proto.CommandAck;
-import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
@@ -87,42 +83,14 @@ import org.testng.annotations.Test;
 public class TransactionEndToEndTest extends TransactionTestBase {
 
     private static final int TOPIC_PARTITION = 3;
-
-    private static final String TENANT = "tnx";
-    private static final String NAMESPACE1 = TENANT + "/ns1";
     private static final String TOPIC_OUTPUT = NAMESPACE1 + "/output";
     private static final String TOPIC_MESSAGE_ACK_TEST = NAMESPACE1 + "/message-ack-test";
     private static final int NUM_PARTITIONS = 16;
     @BeforeMethod
     protected void setup() throws Exception {
-        setBrokerCount(1);
-        internalSetup();
-
-        String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
-        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:" + webServicePort).build());
-        admin.tenants().createTenant(TENANT,
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
-        admin.namespaces().createNamespace(NAMESPACE1);
-        admin.topics().createPartitionedTopic(TOPIC_OUTPUT, TOPIC_PARTITION);
+        setUpBase(1, NUM_PARTITIONS, TOPIC_OUTPUT, TOPIC_PARTITION);
         admin.topics().createPartitionedTopic(TOPIC_MESSAGE_ACK_TEST, 1);
-
-        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
-        admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
-        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), NUM_PARTITIONS);
-
-        if (pulsarClient != null) {
-            pulsarClient.close();
-        }
-        pulsarClient = PulsarClient.builder()
-                .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
-                .statsInterval(0, TimeUnit.SECONDS)
-                .enableTransaction(true)
-                .build();
-
-        // wait tc init success to ready state
-        waitForCoordinatorToBeAvailable(NUM_PARTITIONS);    }
+    }
 
     @AfterMethod(alwaysRun = true)
     protected void cleanup() {
@@ -377,6 +345,23 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     }
 
     @Test
+    public void testAfterDeleteTopicOtherTopicCanRecover() throws Exception {
+        String topicOne = "persistent://" + NAMESPACE1 + "/topic-one";
+        String topicTwo = "persistent://" + NAMESPACE1 + "/topic-two";
+        String sub = "test";
+        admin.topics().createNonPartitionedTopic(topicOne);
+        admin.topics().createSubscription(topicOne, "test", MessageId.earliest);
+        admin.topics().delete(topicOne);
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicTwo).create();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicTwo).subscriptionName(sub).subscribe();
+        String content = "test";
+        producer.send(content);
+        assertEquals(consumer.receive().getValue(), content);
+    }
+
+    @Test
     public void txnMessageAckTest() throws Exception {
         String topic = TOPIC_MESSAGE_ACK_TEST;
         final String subName = "test";
@@ -430,7 +415,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Assert.assertNull(message);
 
         String checkTopic = TopicName.get(topic).getPartition(0).toString();
-        PersistentTopicInternalStats stats = admin.topics().getInternalStats(checkTopic, false);;
+        PersistentTopicInternalStats stats = admin.topics().getInternalStats(checkTopic, false);
 
         Assert.assertNotEquals(stats.cursors.get(subName).markDeletePosition, stats.lastConfirmedEntry);
 
@@ -787,16 +772,43 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             }
         });
 
+        Class<TransactionImpl> transactionClass = TransactionImpl.class;
+        Constructor<TransactionImpl> constructor = transactionClass
+                .getDeclaredConstructor(PulsarClientImpl.class, long.class, long.class, long.class);
+        constructor.setAccessible(true);
+
+        TransactionImpl timeoutTxnSkipClientTimeout = constructor.newInstance(pulsarClient, 5,
+                        timeoutTxn.getTxnID().getLeastSigBits(), timeoutTxn.getTxnID().getMostSigBits());
+
         try {
-            timeoutTxn.commit().get();
+            timeoutTxnSkipClientTimeout.commit().get();
             fail();
         } catch (Exception e) {
             assertTrue(e.getCause() instanceof TransactionNotFoundException);
         }
         Field field = TransactionImpl.class.getDeclaredField("state");
         field.setAccessible(true);
-        TransactionImpl.State state = (TransactionImpl.State) field.get(timeoutTxn);
+        TransactionImpl.State state = (TransactionImpl.State) field.get(timeoutTxnSkipClientTimeout);
         assertEquals(state, TransactionImpl.State.ERROR);
+    }
+
+    @Test
+    public void testTxnTimeoutAtTransactionMetadataStore() throws Exception{
+        TxnID txnID = pulsarServiceList.get(0).getTransactionMetadataStoreService()
+                .newTransaction(new TransactionCoordinatorID(0), 1).get();
+        Awaitility.await().until(() -> {
+            try {
+               getPulsarServiceList().get(0).getTransactionMetadataStoreService().getTxnMeta(txnID).get();
+                return false;
+            } catch (Exception e) {
+                return true;
+            }
+        });
+        Collection<TransactionMetadataStore> transactionMetadataStores =
+                getPulsarServiceList().get(0).getTransactionMetadataStoreService().getStores().values();
+        long timeoutCount = transactionMetadataStores.stream()
+                .mapToLong(store -> store.getMetadataStoreStats().timeoutCount).sum();
+        Assert.assertEquals(timeoutCount, 1);
     }
 
     @Test
@@ -959,5 +971,39 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             }
         }
         assertTrue(flag);
+    }
+
+    @Test
+    public void testTxnTimeOutInClient() throws Exception{
+        String topic = NAMESPACE1 + "/testTxnTimeOutInClient";
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).producerName("testTxnTimeOut_producer")
+                .topic(topic).sendTimeout(0, TimeUnit.SECONDS).enableBatching(false).create();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).consumerName("testTxnTimeOut_consumer")
+                .topic(topic).subscriptionName("testTxnTimeOut_sub").subscribe();
+
+        Transaction transaction = pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.SECONDS)
+                .build().get();
+        producer.newMessage().send();
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(((TransactionImpl)transaction).getState(), TransactionImpl.State.TIMEOUT);
+        });
+
+        try {
+            producer.newMessage(transaction).send();
+            Assert.fail();
+        } catch (Exception e) {
+            Assert.assertTrue(e.getCause().getCause() instanceof TransactionCoordinatorClientException
+                    .InvalidTxnStatusException);
+        }
+        try {
+            Message<String> message = consumer.receive();
+            consumer.acknowledgeAsync(message.getMessageId(), transaction).get();
+            Assert.fail();
+        } catch (Exception e) {
+            Assert.assertTrue(e.getCause() instanceof TransactionCoordinatorClientException
+                    .InvalidTxnStatusException);
+        }
     }
 }

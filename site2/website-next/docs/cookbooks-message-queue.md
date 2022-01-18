@@ -1,12 +1,8 @@
 ---
 id: cookbooks-message-queue
 title: Using Pulsar as a message queue
-sidebar_label: Message queue
+sidebar_label: "Message queue"
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 Message queues are essential components of many large-scale data architectures. If every single work object that passes through your system absolutely *must* be processed in spite of the slowness or downright failure of this or that system component, there's a good chance that you'll need a message queue to step in and ensure that unprocessed data is retained---with correct ordering---until the required actions are taken.
 
@@ -127,3 +123,4 @@ if err != nil {
 }
 
 ```
+

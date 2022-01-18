@@ -19,9 +19,12 @@
 package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertTrue;
+import java.io.File;
+import java.util.UUID;
 import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
 import org.apache.pulsar.tests.TestRetrySupport;
+import org.assertj.core.util.Files;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -40,7 +43,16 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
     @Override
     public final void cleanup() throws Exception {
         markCurrentSetupNumberCleaned();
-        zks.close();
+        if (zks != null) {
+            zks.close();
+            zks = null;
+        }
+    }
+
+    private static String createTempFolder() {
+        File temp = Files.newTemporaryFolder();
+        temp.deleteOnExit();
+        return temp.getAbsolutePath();
     }
 
     @DataProvider(name = "impl")
@@ -52,7 +64,8 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
         // Supplier<String> lambda is used for providing the value.
         return new Object[][] {
                 { "ZooKeeper", stringSupplier(() -> zks.getConnectionString()) },
-                { "Memory", stringSupplier(() -> "memory://local") },
+                { "Memory", stringSupplier(() -> "memory://" + UUID.randomUUID()) },
+                { "RocksDB", stringSupplier(() -> "rocksdb://" + createTempFolder()) },
         };
     }
 
