@@ -152,6 +152,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                     acceptQueue.clear();
                     changeToErrorState();
                     log.error("PendingAckHandleImpl init fail! TopicName : {}, SubName: {}", topicName, subName, e);
+                    exceptionHandleFuture(e.getCause());
                     return null;
                 });
             }
@@ -167,12 +168,12 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     public void internalIndividualAcknowledgeMessage(TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions,
                                                      CompletableFuture<Void> completableFuture) {
         if (txnID == null) {
-            FutureUtil.failedFuture(new NotAllowedException("TransactionID can not be null."));
+            completableFuture.completeExceptionally(new NotAllowedException("Positions can not be null."));
             return;
 
         }
         if (positions == null) {
-            FutureUtil.failedFuture(new NotAllowedException("Positions can not be null."));
+            completableFuture.completeExceptionally(new NotAllowedException("Positions can not be null."));
             return;
         }
 
@@ -271,8 +272,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     @Override
     public CompletableFuture<Void> individualAcknowledgeMessage(TxnID txnID,
-                                                                List<MutablePair<PositionImpl, Integer>> positions,
-                                                                boolean isInCacheRequest) {
+                                                                List<MutablePair<PositionImpl, Integer>> positions) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         internalPinnedExecutor.execute(() -> {
             if (!checkIfReady()) {
@@ -311,11 +311,11 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                                                      List<PositionImpl> positions,
                                                      CompletableFuture<Void> completableFuture) {
         if (txnID == null) {
-            FutureUtil.failedFuture(new NotAllowedException("TransactionID can not be null."));
+            completableFuture.completeExceptionally(new NotAllowedException("TransactionID can not be null."));
             return;
         }
         if (positions == null) {
-            FutureUtil.failedFuture(new NotAllowedException("Positions can not be null."));
+            completableFuture.completeExceptionally(new NotAllowedException("Positions can not be null."));
             return;
         }
 
@@ -323,7 +323,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID
                     + " invalid cumulative ack received with multiple message ids.";
             log.error(errorMsg);
-            FutureUtil.failedFuture(new NotAllowedException(errorMsg));
+            completableFuture.completeExceptionally(new NotAllowedException(errorMsg));
             return;
         }
 
@@ -374,9 +374,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     @Override
-    public CompletableFuture<Void> cumulativeAcknowledgeMessage(TxnID txnID,
-                                                                List<PositionImpl> positions,
-                                                                boolean isInCacheRequest) {
+    public CompletableFuture<Void> cumulativeAcknowledgeMessage(TxnID txnID, List<PositionImpl> positions) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         internalPinnedExecutor.execute(() -> {
             if (!checkIfReady()) {
@@ -471,8 +469,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     @Override
-    public CompletableFuture<Void> commitTxn(TxnID txnID, Map<String, Long> properties,
-                                                          long lowWaterMark, boolean isInCacheRequest) {
+    public CompletableFuture<Void> commitTxn(TxnID txnID, Map<String, Long> properties, long lowWaterMark) {
         CompletableFuture<Void> commitFuture = new CompletableFuture<>();
         internalPinnedExecutor.execute(() -> {
             if (!checkIfReady()) {
@@ -566,8 +563,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     @Override
-    public CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer,
-                                                         long lowWaterMark, boolean isInCacheRequest) {
+    public CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer, long lowWaterMark) {
         CompletableFuture<Void> abortFuture = new CompletableFuture<>();
         internalPinnedExecutor.execute(() -> {
             if (!checkIfReady()) {
