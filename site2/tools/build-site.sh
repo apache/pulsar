@@ -23,7 +23,7 @@ VERSION=$(${ROOT_DIR}/src/get-project-version.py)
 
 NEXT=$1
 WEBSITE_DIR="website"
-if [ ! -n "$NEXT" ]; then
+if [ -n "$NEXT" ]; then
   WEBSITE_DIR="website-"$NEXT
 fi
 
@@ -97,15 +97,15 @@ cd ${ROOT_DIR}/site2/$WEBSITE_DIR
 
 yarn
 
-if [ ! -n "$NEXT" ]; then
+if [ -n "$NEXT" ]; then
+  node scripts/replace.js
+  node ./scripts/split-swagger-by-version.js
+  yarn build
+else
   crowdin
   yarn build
   node ./scripts/replace.js
   node ./scripts/split-swagger-by-version.js
-else
-  node scripts/replace.js
-  node ./scripts/split-swagger-by-version.js
-  yarn build
 fi
 
 # Generate document for command line tools.

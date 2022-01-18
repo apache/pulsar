@@ -27,7 +27,7 @@ echo "ORIGIN_REPO: $ORIGIN_REPO"
 
 NEXT=$1
 BRANCH_CONTENT="asf-site"
-if [ ! -n "$NEXT" ]; then
+if [ -n "$NEXT" ]; then
   BRANCH_CONTENT="asf-site-"$NEXT
 fi
 
