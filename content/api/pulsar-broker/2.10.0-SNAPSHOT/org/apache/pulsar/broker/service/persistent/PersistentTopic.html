@@ -26,7 +26,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":10,"i16":10,"i17":10,"i18":10,"i19":10,"i20":10,"i21":10,"i22":10,"i23":10,"i24":10,"i25":10,"i26":10,"i27":10,"i28":10,"i29":10,"i30":10,"i31":10,"i32":10,"i33":10,"i34":10,"i35":10,"i36":10,"i37":10,"i38":10,"i39":10,"i40":10,"i41":10,"i42":10,"i43":10,"i44":10,"i45":10,"i46":10,"i47":10,"i48":10,"i49":10,"i50":10,"i51":10,"i52":10,"i53":10,"i54":10,"i55":10,"i56":10,"i57":10,"i58":10,"i59":10,"i60":10,"i61":10,"i62":10,"i63":10,"i64":10,"i65":10,"i66":10,"i67":10,"i68":10,"i69":10,"i70":10,"i71":10,"i72":10,"i73":10,"i74":10,"i75":10,"i76":10,"i77":10,"i78":10,"i79":10,"i80":10,"i81":10,"i82":10,"i83":10,"i84":10,"i85":10,"i86":10,"i87":10,"i88":10,"i89":10,"i90":10,"i91":10,"i92":10,"i93":10,"i94":10,"i95":10,"i96":10};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":10,"i16":10,"i17":10,"i18":10,"i19":10,"i20":10,"i21":10,"i22":10,"i23":10,"i24":10,"i25":10,"i26":10,"i27":10,"i28":10,"i29":10,"i30":10,"i31":10,"i32":10,"i33":10,"i34":10,"i35":10,"i36":10,"i37":10,"i38":10,"i39":10,"i40":10,"i41":10,"i42":10,"i43":10,"i44":10,"i45":10,"i46":10,"i47":10,"i48":10,"i49":10,"i50":10,"i51":10,"i52":10,"i53":10,"i54":10,"i55":10,"i56":10,"i57":10,"i58":10,"i59":10,"i60":10,"i61":10,"i62":10,"i63":10,"i64":10,"i65":10,"i66":10,"i67":10,"i68":10,"i69":10,"i70":10,"i71":10,"i72":10,"i73":10,"i74":10,"i75":10,"i76":10,"i77":10,"i78":10,"i79":10,"i80":10,"i81":10,"i82":10,"i83":10,"i84":10,"i85":10,"i86":10,"i87":10,"i88":10,"i89":10,"i90":10,"i91":10,"i92":10,"i93":10,"i94":10,"i95":10,"i96":10,"i97":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -666,61 +666,66 @@ implements <a href="../Topic.html" title="interface in org.apache.pulsar.broker.
 </tr>
 <tr id="i73" class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isReplicated()">isReplicated</a></span>()</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isPersistent()">isPersistent</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i74" class="altColor">
 <td class="colFirst"><code>boolean</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isSizeBacklogExceeded()">isSizeBacklogExceeded</a></span>()</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isReplicated()">isReplicated</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i75" class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isSystemTopic()">isSystemTopic</a></span>()</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isSizeBacklogExceeded()">isSizeBacklogExceeded</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i76" class="altColor">
+<td class="colFirst"><code>boolean</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isSystemTopic()">isSystemTopic</a></span>()</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i77" class="rowColor">
 <td class="colFirst"><code>protected boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isTerminated()">isTerminated</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i77" class="rowColor">
+<tr id="i78" class="altColor">
 <td class="colFirst"><code>boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isTimeBacklogExceeded()">isTimeBacklogExceeded</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i78" class="altColor">
+<tr id="i79" class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isTxnAborted(org.apache.pulsar.client.api.transaction.TxnID)">isTxnAborted</a></span>&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnID)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i79" class="rowColor">
+<tr id="i80" class="altColor">
 <td class="colFirst"><code>org.apache.pulsar.client.admin.OffloadProcessStatus</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#offloadStatus()">offloadStatus</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i80" class="altColor">
+<tr id="i81" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#onPoliciesUpdate(org.apache.pulsar.common.policies.data.Policies)">onPoliciesUpdate</a></span>&#8203;(org.apache.pulsar.common.policies.data.Policies&nbsp;data)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i81" class="rowColor">
+<tr id="i82" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#onUpdate(org.apache.pulsar.common.policies.data.TopicPolicies)">onUpdate</a></span>&#8203;(org.apache.pulsar.common.policies.data.TopicPolicies&nbsp;policies)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i82" class="altColor">
+<tr id="i83" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#preCreateSubscriptionForCompactionIfNeeded()">preCreateSubscriptionForCompactionIfNeeded</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i83" class="rowColor">
+<tr id="i84" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#publishMessage(io.netty.buffer.ByteBuf,org.apache.pulsar.broker.service.Topic.PublishContext)">publishMessage</a></span>&#8203;(io.netty.buffer.ByteBuf&nbsp;headersAndPayload,
               <a href="../Topic.PublishContext.html" title="interface in org.apache.pulsar.broker.service">Topic.PublishContext</a>&nbsp;publishContext)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i84" class="altColor">
+<tr id="i85" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#publishTxnMessage(org.apache.pulsar.client.api.transaction.TxnID,io.netty.buffer.ByteBuf,org.apache.pulsar.broker.service.Topic.PublishContext)">publishTxnMessage</a></span>&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnID,
                  io.netty.buffer.ByteBuf&nbsp;headersAndPayload,
@@ -729,29 +734,29 @@ implements <a href="../Topic.html" title="interface in org.apache.pulsar.broker.
 <div class="block">Publish Transaction message to this Topic's TransactionBuffer.</div>
 </td>
 </tr>
-<tr id="i85" class="rowColor">
+<tr id="i86" class="altColor">
 <td class="colFirst"><code>protected java.util.concurrent.CompletableFuture&lt;java.lang.Long&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setTopicEpoch(long)">setTopicEpoch</a></span>&#8203;(long&nbsp;newEpoch)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i86" class="altColor">
+<tr id="i87" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#startReplProducers()">startReplProducers</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i87" class="rowColor">
+<tr id="i88" class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#stopReplProducers()">stopReplProducers</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i88" class="altColor">
+<tr id="i89" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#subscribe(org.apache.pulsar.broker.service.SubscriptionOption)">subscribe</a></span>&#8203;(<a href="../SubscriptionOption.html" title="class in org.apache.pulsar.broker.service">SubscriptionOption</a>&nbsp;option)</code></th>
 <td class="colLast">
 <div class="block">Subscribe a topic.</div>
 </td>
 </tr>
-<tr id="i89" class="rowColor">
+<tr id="i90" class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#subscribe(org.apache.pulsar.broker.service.TransportCnx,java.lang.String,long,org.apache.pulsar.common.api.proto.CommandSubscribe.SubType,int,java.lang.String,boolean,org.apache.pulsar.client.api.MessageId,java.util.Map,boolean,org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition,long,boolean,org.apache.pulsar.common.api.proto.KeySharedMeta)">subscribe</a></span>&#8203;(<a href="../TransportCnx.html" title="interface in org.apache.pulsar.broker.service">TransportCnx</a>&nbsp;cnx,
          java.lang.String&nbsp;subscriptionName,
@@ -769,36 +774,36 @@ implements <a href="../Topic.html" title="interface in org.apache.pulsar.broker.
          org.apache.pulsar.common.api.proto.KeySharedMeta&nbsp;keySharedMeta)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i90" class="altColor">
+<tr id="i91" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;org.apache.pulsar.client.api.MessageId&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#terminate()">terminate</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i91" class="rowColor">
+<tr id="i92" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#triggerCompaction()">triggerCompaction</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i92" class="altColor">
+<tr id="i93" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#triggerOffload(org.apache.pulsar.client.impl.MessageIdImpl)">triggerOffload</a></span>&#8203;(org.apache.pulsar.client.impl.MessageIdImpl&nbsp;messageId)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i93" class="rowColor">
+<tr id="i94" class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#truncate()">truncate</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Truncate a topic.</div>
 </td>
 </tr>
-<tr id="i94" class="altColor">
+<tr id="i95" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#unsubscribe(java.lang.String)">unsubscribe</a></span>&#8203;(java.lang.String&nbsp;subscriptionName)</code></th>
 <td class="colLast">
 <div class="block">Delete the cursor ledger for a given subscription.</div>
 </td>
 </tr>
-<tr id="i95" class="rowColor">
+<tr id="i96" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#updateRates(org.apache.pulsar.broker.stats.NamespaceStats,org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats,org.apache.pulsar.utils.StatsOutputStream,org.apache.pulsar.broker.stats.ClusterReplicationMetrics,java.lang.String,boolean)">updateRates</a></span>&#8203;(<a href="../../stats/NamespaceStats.html" title="class in org.apache.pulsar.broker.stats">NamespaceStats</a>&nbsp;nsStats,
            org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats&nbsp;bundleStats,
@@ -808,7 +813,7 @@ implements <a href="../Topic.html" title="interface in org.apache.pulsar.broker.
            boolean&nbsp;hydratePublishers)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i96" class="altColor">
+<tr id="i97" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#updateUnackedMessagesAppliedOnSubscription(org.apache.pulsar.common.policies.data.Policies)">updateUnackedMessagesAppliedOnSubscription</a></span>&#8203;(org.apache.pulsar.common.policies.data.Policies&nbsp;policies)</code></th>
 <td class="colLast">&nbsp;</td>
@@ -1909,6 +1914,19 @@ implements <a href="../Topic.html" title="interface in org.apache.pulsar.broker.
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
 <dd><code><a href="../Topic.html#isSystemTopic()">isSystemTopic</a></code>&nbsp;in interface&nbsp;<code><a href="../Topic.html" title="interface in org.apache.pulsar.broker.service">Topic</a></code></dd>
+</dl>
+</li>
+</ul>
+<a id="isPersistent()">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>isPersistent</h4>
+<pre class="methodSignature">public&nbsp;boolean&nbsp;isPersistent()</pre>
+<dl>
+<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
+<dd><code><a href="../Topic.html#isPersistent()">isPersistent</a></code>&nbsp;in interface&nbsp;<code><a href="../Topic.html" title="interface in org.apache.pulsar.broker.service">Topic</a></code></dd>
 </dl>
 </li>
 </ul>
