@@ -586,10 +586,13 @@ public class Namespaces extends NamespacesBase {
     @Path("/{property}/{namespace}/publishRate")
     @ApiOperation(hidden = true, value = "Set publish-rate throttling for all topics of the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public void setPublishRate(@PathParam("property") String property, @PathParam("namespace") String namespace,
+    public void setPublishRate(
+            @PathParam("property") String property,
+            @PathParam("namespace") String namespace,
+            @QueryParam("updateMode") @DefaultValue("false") boolean updateMode,
             @ApiParam(value = "Publish rate for all topics of the specified namespace") PublishRate publishRate) {
         validateNamespaceName(property, namespace);
-        internalSetPublishRate(publishRate);
+        internalSetPublishRate(updateMode, publishRate);
     }
 
     @DELETE
@@ -619,11 +622,14 @@ public class Namespaces extends NamespacesBase {
     @Path("/{tenant}/{namespace}/dispatchRate")
     @ApiOperation(value = "Set dispatch-rate throttling for all topics of the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public void setDispatchRate(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+    public void setDispatchRate(
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @QueryParam("updateMode") @DefaultValue("false") boolean updateMode,
             @ApiParam(value = "Dispatch rate for all topics of the specified namespace")
                     DispatchRateImpl dispatchRate) {
         validateNamespaceName(tenant, namespace);
-        internalSetTopicDispatchRate(dispatchRate);
+        internalSetTopicDispatchRate(updateMode, dispatchRate);
     }
 
     @DELETE
@@ -652,11 +658,12 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Set Subscription dispatch-rate throttling for all topics of the namespace")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
     public void setSubscriptionDispatchRate(@PathParam("tenant") String tenant,
-                                            @PathParam("namespace") String namespace, @ApiParam(value =
-            "Subscription dispatch rate for all topics of the specified namespace")
-                                                        DispatchRateImpl dispatchRate) {
+                                            @PathParam("namespace") String namespace,
+                                            @QueryParam("updateMode") @DefaultValue("false") boolean updateMode,
+                                            @ApiParam(value =
+            "Subscription dispatch rate for all topics of the specified namespace") DispatchRateImpl dispatchRate) {
         validateNamespaceName(tenant, namespace);
-        internalSetSubscriptionDispatchRate(dispatchRate);
+        internalSetSubscriptionDispatchRate(updateMode, dispatchRate);
     }
 
     @GET
@@ -696,9 +703,10 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Set subscribe-rate throttling for all topics of the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public void setSubscribeRate(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+            @QueryParam("updateMode") @DefaultValue("false") boolean updateMode,
             @ApiParam(value = "Subscribe rate for all topics of the specified namespace") SubscribeRate subscribeRate) {
         validateNamespaceName(tenant, namespace);
-        internalSetSubscribeRate(subscribeRate);
+        internalSetSubscribeRate(updateMode, subscribeRate);
     }
 
     @GET
@@ -728,11 +736,12 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Set replicator dispatch-rate throttling for all topics of the namespace")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
     public void setReplicatorDispatchRate(@PathParam("tenant") String tenant,
-                                          @PathParam("namespace") String namespace, @ApiParam(value =
-            "Replicator dispatch rate for all topics of the specified namespace")
-                                                      DispatchRateImpl dispatchRate) {
+                                          @PathParam("namespace") String namespace,
+                                          @QueryParam("updateMode") @DefaultValue("false") boolean updateMode,
+                                          @ApiParam(value =
+            "Replicator dispatch rate for all topics of the specified namespace") DispatchRateImpl dispatchRate) {
         validateNamespaceName(tenant, namespace);
-        internalSetReplicatorDispatchRate(dispatchRate);
+        internalSetReplicatorDispatchRate(updateMode, dispatchRate);
     }
 
     @GET

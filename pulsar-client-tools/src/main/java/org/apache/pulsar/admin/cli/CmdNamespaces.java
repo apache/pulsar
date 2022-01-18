@@ -919,10 +919,15 @@ public class CmdNamespaces extends CmdBase {
                 + "then broker will apply throttling value to (publish-rate + dispatch rate))", required = false)
         private boolean relativeToPublishRate = false;
 
+        @Parameter(names = {"--update-mode",
+                "-um"}, description = "update dispatch rate. If it is true then merging the previous and current rate "
+                + "(only for --msg-dispatch-rate and --byte-dispatch-rate)")
+        private boolean updateMode;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            getAdmin().namespaces().setDispatchRate(namespace,
+            getAdmin().namespaces().setDispatchRate(namespace, updateMode,
                     DispatchRate.builder()
                             .dispatchThrottlingRateInMsg(msgDispatchRate)
                             .dispatchThrottlingRateInByte(byteDispatchRate)
@@ -972,10 +977,15 @@ public class CmdNamespaces extends CmdBase {
                 + "(default 30 second will be overwrite if not passed)", required = false)
         private int subscribeRatePeriodSec = 30;
 
+        @Parameter(names = {"--update-mode",
+                "-um"}, description = "update subscribe rate. If it is true then merging the previous and current rate "
+                + "(only for --subscribe-rate)")
+        private boolean updateMode;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            getAdmin().namespaces().setSubscribeRate(namespace,
+            getAdmin().namespaces().setSubscribeRate(namespace, updateMode,
                     new SubscribeRate(subscribeRate, subscribeRatePeriodSec));
         }
     }
@@ -1029,10 +1039,15 @@ public class CmdNamespaces extends CmdBase {
                 + "then broker will apply throttling value to (publish-rate + dispatch rate))", required = false)
         private boolean relativeToPublishRate = false;
 
+        @Parameter(names = {"--update-mode",
+                "-um"}, description = "update subscription dispatch rate. If it is true then merging the previous and "
+                + "current rate (only for --msg-dispatch-rate and --byte-dispatch-rate)")
+        private boolean updateMode;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            getAdmin().namespaces().setSubscriptionDispatchRate(namespace,
+            getAdmin().namespaces().setSubscriptionDispatchRate(namespace, updateMode,
                     DispatchRate.builder()
                             .dispatchThrottlingRateInMsg(msgDispatchRate)
                             .dispatchThrottlingRateInByte(byteDispatchRate)
@@ -1081,10 +1096,14 @@ public class CmdNamespaces extends CmdBase {
             "-b" }, description = "byte-publish-rate (default -1 will be overwrite if not passed)", required = false)
         private long bytePublishRate = -1;
 
+        @Parameter(names = {"--update-mode",
+                "-um"}, description = "update publish rate. If it is true then merging the previous and current rate")
+        private boolean updateMode;
+
          @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            getAdmin().namespaces().setPublishRate(namespace,
+            getAdmin().namespaces().setPublishRate(namespace, updateMode,
                 new PublishRate(msgPublishRate, bytePublishRate));
         }
     }
@@ -1133,10 +1152,15 @@ public class CmdNamespaces extends CmdBase {
                 + "(default 1 second will be overwrite if not passed)", required = false)
         private int dispatchRatePeriodSec = 1;
 
+        @Parameter(names = {"--update-mode",
+                "-um"}, description = "update replicator dispatch rate. If it is true then merging the previous and "
+                + "current rate (only for --msg-dispatch-rate and --byte-dispatch-rate)")
+        private boolean updateMode;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            getAdmin().namespaces().setReplicatorDispatchRate(namespace,
+            getAdmin().namespaces().setReplicatorDispatchRate(namespace, updateMode,
                     DispatchRate.builder()
                             .dispatchThrottlingRateInMsg(msgDispatchRate)
                             .dispatchThrottlingRateInByte(byteDispatchRate)

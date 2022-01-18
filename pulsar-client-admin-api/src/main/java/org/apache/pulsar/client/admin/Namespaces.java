@@ -2086,7 +2086,21 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
+    @Deprecated
     void setPublishRate(String namespace, PublishRate publishMsgRate) throws PulsarAdminException;
+
+    /**
+     * Set message-publish-rate (topics under this namespace can publish this many messages per second).
+     *
+     * @param namespace
+     * @param updateMode
+     *            update publish rate. If it is true then merging the previous and current rate
+     * @param publishMsgRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setPublishRate(String namespace, boolean updateMode, PublishRate publishMsgRate) throws PulsarAdminException;
 
     /**
      * Remove message-publish-rate (topics under this namespace can publish this many messages per second).
@@ -2104,7 +2118,19 @@ public interface Namespaces {
      * @param publishMsgRate
      *            number of messages per second
      */
+    @Deprecated
     CompletableFuture<Void> setPublishRateAsync(String namespace, PublishRate publishMsgRate);
+
+    /**
+     * Set message-publish-rate (topics under this namespace can publish this many messages per second) asynchronously.
+     *
+     * @param namespace
+     * @param updateMode
+     *            update publish rate. If it is true then merging the previous and current rate
+     * @param publishMsgRate
+     *            number of messages per second
+     */
+    CompletableFuture<Void> setPublishRateAsync(String namespace, boolean updateMode, PublishRate publishMsgRate);
 
     /**
      * Remove message-publish-rate asynchronously.
@@ -2153,7 +2179,21 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
+    @Deprecated
     void setDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException;
+
+    /**
+     * Set message-dispatch-rate (topics under this namespace can dispatch this many messages per second).
+     *
+     * @param namespace
+     * @param updateMode
+     *            update dispatch rate. If it is true then merging the previous and current rate
+     * @param dispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setDispatchRate(String namespace, boolean updateMode, DispatchRate dispatchRate) throws PulsarAdminException;
 
     /**
      * Set message-dispatch-rate asynchronously.
@@ -2164,7 +2204,21 @@ public interface Namespaces {
      * @param dispatchRate
      *            number of messages per second
      */
+    @Deprecated
     CompletableFuture<Void> setDispatchRateAsync(String namespace, DispatchRate dispatchRate);
+
+    /**
+     * Set message-dispatch-rate asynchronously.
+     * <p/>
+     * topics under this namespace can dispatch this many messages per second
+     *
+     * @param namespace
+     * @param updateMode
+     *            update dispatch rate. If it is true then merging the previous and current rate
+     * @param dispatchRate
+     *            number of messages per second
+     */
+    CompletableFuture<Void> setDispatchRateAsync(String namespace, boolean updateMode, DispatchRate dispatchRate);
 
     /**
      * Get message-dispatch-rate (topics under this namespace can dispatch this many messages per second).
@@ -2197,7 +2251,23 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
+    @Deprecated
     void setSubscribeRate(String namespace, SubscribeRate subscribeRate) throws PulsarAdminException;
+
+    /**
+     * Set namespace-subscribe-rate (topics under this namespace will limit by subscribeRate).
+     *
+     * @param namespace
+     * @param updateMode
+     *            update subscribe rate. If it is true then merging the previous and current rate
+     * @param subscribeRate
+     *            consumer subscribe limit by this subscribeRate
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setSubscribeRate(String namespace,
+                          boolean updateMode,
+                          SubscribeRate subscribeRate) throws PulsarAdminException;
 
     /**
      * Set namespace-subscribe-rate (topics under this namespace will limit by subscribeRate) asynchronously.
@@ -2206,7 +2276,19 @@ public interface Namespaces {
      * @param subscribeRate
      *            consumer subscribe limit by this subscribeRate
      */
+    @Deprecated
     CompletableFuture<Void> setSubscribeRateAsync(String namespace, SubscribeRate subscribeRate);
+
+    /**
+     * Set namespace-subscribe-rate (topics under this namespace will limit by subscribeRate) asynchronously.
+     *
+     * @param namespace
+     * @param updateMode
+     *            update subscribe rate. If it is true then merging the previous and current rate
+     * @param subscribeRate
+     *            consumer subscribe limit by this subscribeRate
+     */
+    CompletableFuture<Void> setSubscribeRateAsync(String namespace, boolean updateMode, SubscribeRate subscribeRate);
 
     /**
      * Remove namespace-subscribe-rate (topics under this namespace will limit by subscribeRate).
@@ -2268,7 +2350,25 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
+    @Deprecated
     void setSubscriptionDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException;
+
+    /**
+     * Set subscription-message-dispatch-rate.
+     * <p/>
+     * Subscriptions under this namespace can dispatch this many messages per second
+     *
+     * @param namespace
+     * @param updateMode
+     *            update subscription dispatch rate. If it is true then merging the previous and current rate
+     * @param dispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setSubscriptionDispatchRate(String namespace,
+                                     boolean updateMode,
+                                     DispatchRate dispatchRate) throws PulsarAdminException;
 
     /**
      * Set subscription-message-dispatch-rate asynchronously.
@@ -2279,7 +2379,23 @@ public interface Namespaces {
      * @param dispatchRate
      *            number of messages per second
      */
+    @Deprecated
     CompletableFuture<Void> setSubscriptionDispatchRateAsync(String namespace, DispatchRate dispatchRate);
+
+    /**
+     * Set subscription-message-dispatch-rate asynchronously.
+     * <p/>
+     * Subscriptions under this namespace can dispatch this many messages per second.
+     *
+     * @param namespace
+     * @param updateMode
+     *            update subscription dispatch rate. If it is true then merging the previous and current rate
+     * @param dispatchRate
+     *            number of messages per second
+     */
+    CompletableFuture<Void> setSubscriptionDispatchRateAsync(String namespace,
+                                                             boolean updateMode,
+                                                             DispatchRate dispatchRate);
 
     /**
      * Get subscription-message-dispatch-rate.
@@ -2316,7 +2432,25 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
+    @Deprecated
     void setReplicatorDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException;
+
+    /**
+     * Set replicator-message-dispatch-rate.
+     * <p/>
+     * Replicators under this namespace can dispatch this many messages per second.
+     *
+     * @param namespace
+     * @param updateMode
+     *            update replicator dispatch rate. If it is true then merging the previous and current rate
+     * @param dispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setReplicatorDispatchRate(String namespace,
+                                   boolean updateMode,
+                                   DispatchRate dispatchRate) throws PulsarAdminException;
 
     /**
      * Set replicator-message-dispatch-rate asynchronously.
@@ -2327,7 +2461,23 @@ public interface Namespaces {
      * @param dispatchRate
      *            number of messages per second
      */
+    @Deprecated
     CompletableFuture<Void> setReplicatorDispatchRateAsync(String namespace, DispatchRate dispatchRate);
+
+    /**
+     * Set replicator-message-dispatch-rate asynchronously.
+     * <p/>
+     * Replicators under this namespace can dispatch this many messages per second.
+     *
+     * @param namespace
+     * @param updateMode
+     *            update replicator dispatch rate. If it is true then merging the previous and current rate
+     * @param dispatchRate
+     *            number of messages per second
+     */
+    CompletableFuture<Void> setReplicatorDispatchRateAsync(String namespace,
+                                                           boolean updateMode,
+                                                           DispatchRate dispatchRate);
 
     /**
      * Remove replicator-message-dispatch-rate.

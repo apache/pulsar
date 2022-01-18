@@ -667,10 +667,14 @@ public class Namespaces extends NamespacesBase {
     @Path("/{property}/{cluster}/{namespace}/publishRate")
     @ApiOperation(hidden = true, value = "Set publish-rate throttling for all topics of the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public void setPublishRate(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, PublishRate publishRate) {
+    public void setPublishRate(
+            @PathParam("property") String property,
+            @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace,
+            @QueryParam("updateMode") @DefaultValue("false") boolean updateMode,
+            PublishRate publishRate) {
         validateNamespaceName(property, cluster, namespace);
-        internalSetPublishRate(publishRate);
+        internalSetPublishRate(updateMode, publishRate);
     }
 
     @GET
@@ -690,10 +694,14 @@ public class Namespaces extends NamespacesBase {
     @Path("/{property}/{cluster}/{namespace}/dispatchRate")
     @ApiOperation(hidden = true, value = "Set dispatch-rate throttling for all topics of the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public void setDispatchRate(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, DispatchRateImpl dispatchRate) {
+    public void setDispatchRate(
+            @PathParam("property") String property,
+            @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace,
+            @QueryParam("updateMode") @DefaultValue("false") boolean updateMode,
+            DispatchRateImpl dispatchRate) {
         validateNamespaceName(property, cluster, namespace);
-        internalSetTopicDispatchRate(dispatchRate);
+        internalSetTopicDispatchRate(updateMode, dispatchRate);
     }
 
     @GET
@@ -716,9 +724,10 @@ public class Namespaces extends NamespacesBase {
     public void setSubscriptionDispatchRate(@PathParam("property") String property,
                                             @PathParam("cluster") String cluster,
                                             @PathParam("namespace") String namespace,
+                                            @QueryParam("updateMode") @DefaultValue("false") boolean updateMode,
                                             DispatchRateImpl dispatchRate) {
         validateNamespaceName(property, cluster, namespace);
-        internalSetSubscriptionDispatchRate(dispatchRate);
+        internalSetSubscriptionDispatchRate(updateMode, dispatchRate);
     }
 
     @GET
@@ -755,10 +764,11 @@ public class Namespaces extends NamespacesBase {
     public void setReplicatorDispatchRate(
             @PathParam("tenant") String tenant,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+            @QueryParam("updateMode") @DefaultValue("false") boolean updateMode,
             @ApiParam(value = "Replicator dispatch rate for all topics of the specified namespace")
                     DispatchRateImpl dispatchRate) {
         validateNamespaceName(tenant, cluster, namespace);
-        internalSetReplicatorDispatchRate(dispatchRate);
+        internalSetReplicatorDispatchRate(updateMode, dispatchRate);
     }
 
     @GET
