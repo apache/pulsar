@@ -48,8 +48,9 @@ PULSAR_SITE_TMP=/tmp/pulsar-site
   git checkout $BRANCH_CONTENT
 
   # copy the apache generated dir
-  rm -rf $PULSAR_SITE_TMP/content/
-  mkdir -p $PULSAR_SITE_TMP/content/
+  if [ ! -d "$PULSAR_SITE_TMP/content/" ]; then
+    mkdir -p $PULSAR_SITE_TMP/content/
+  fi
   cp -r $GENERATED_SITE_DIR/content/* $PULSAR_SITE_TMP/content
 
   git add -A .
