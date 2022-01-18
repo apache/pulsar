@@ -40,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.RandomUtils;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.CompressionType;
@@ -62,6 +63,7 @@ import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -165,6 +167,29 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         producer.close();
         log.info("-- Exiting {} test --", methodName);
 
+    }
+
+    @Test
+    public void testChunkingWithOrderingKey() throws Exception {
+        this.conf.setMaxMessageSize(5);
+
+        final String topicName = "persistent://my-property/my-ns/testChunkingWithOrderingKey";
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableChunking(true)
+                .enableBatching(false).create();
+
+        byte[] data = RandomUtils.nextBytes(20);
+        byte[] ok = RandomUtils.nextBytes(10);
+        producer.newMessage().value(data).orderingKey(ok).send();
+
+        Message<byte[]> msg = consumer.receive();
+        Assert.assertEquals(msg.getData(), data);
+        Assert.assertEquals(msg.getOrderingKey(), ok);
     }
 
     @Test(dataProvider = "ackReceiptEnabled")
