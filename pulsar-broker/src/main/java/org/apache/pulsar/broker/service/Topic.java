@@ -105,6 +105,10 @@ public interface Topic {
         default Object getProperty(String propertyName) {
             return null;
         }
+
+        default boolean isChunked() {
+            return false;
+        }
     }
 
     CompletableFuture<Void> initialize();
