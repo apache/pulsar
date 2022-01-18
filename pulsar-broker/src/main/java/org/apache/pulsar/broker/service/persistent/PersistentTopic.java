@@ -2699,6 +2699,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return this.dispatchRateLimiter;
     }
 
+    @Override
+    public Optional<DispatchRateLimiter> getBrokerDispatchRateLimiter() {
+        return Optional.ofNullable(this.brokerService.getBrokerDispatchRateLimiter());
+    }
+
     public Optional<SubscribeRateLimiter> getSubscribeRateLimiter() {
         return this.subscribeRateLimiter;
     }
