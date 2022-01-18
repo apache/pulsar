@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import static org.apache.commons.lang3.StringUtils.isBlank;
 import io.netty.buffer.ByteBuf;
 import io.prometheus.client.Counter;
 import java.net.InetSocketAddress;
@@ -45,8 +44,8 @@ import org.slf4j.LoggerFactory;
 
 public class LookupProxyHandler {
     private final String throttlingErrorMessage = "Too many concurrent lookup and partitionsMetadata requests";
-    private final ProxyService service;
     private final ProxyConnection proxyConnection;
+    private final BrokerDiscoveryProvider discoveryProvider;
     private final boolean connectWithTLS;
 
     private final SocketAddress clientAddress;
@@ -84,8 +83,8 @@ public class LookupProxyHandler {
     private final Semaphore lookupRequestSemaphore;
 
     public LookupProxyHandler(ProxyService proxy, ProxyConnection proxyConnection) {
-        this.service = proxy;
-        this.lookupRequestSemaphore = this.service.getLookupRequestSemaphore();
+        this.discoveryProvider = proxy.getDiscoveryProvider();
+        this.lookupRequestSemaphore = proxy.getLookupRequestSemaphore();
         this.proxyConnection = proxyConnection;
         this.clientAddress = proxyConnection.clientAddress();
         this.connectWithTLS = proxy.getConfiguration().isTlsEnabledWithBroker();
@@ -101,25 +100,10 @@ public class LookupProxyHandler {
         if (lookupRequestSemaphore.tryAcquire()) {
             try {
                 LOOKUP_REQUESTS.inc();
-                String topic = lookup.getTopic();
-                String serviceUrl;
-                if (isBlank(brokerServiceURL)) {
-                    ServiceLookupData availableBroker = null;
-                    try {
-                        availableBroker = service.getDiscoveryProvider().nextBroker();
-                    } catch (Exception e) {
-                        log.warn("[{}] Failed to get next active broker {}", clientAddress, e.getMessage(), e);
-                        proxyConnection.ctx().writeAndFlush(Commands.newLookupErrorResponse(ServerError.ServiceNotReady,
-                                e.getMessage(), clientRequestId));
-                        return;
-                    }
-                    serviceUrl = this.connectWithTLS ? availableBroker.getPulsarServiceUrlTls()
-                            : availableBroker.getPulsarServiceUrl();
-                } else {
-                    serviceUrl = this.connectWithTLS ? service.getConfiguration().getBrokerServiceURLTLS()
-                            : service.getConfiguration().getBrokerServiceURL();
+                String serviceUrl = getBrokerServiceUrl(clientRequestId);
+                if (serviceUrl != null) {
+                    performLookup(clientRequestId, lookup.getTopic(), serviceUrl, false, 10);
                 }
-                performLookup(clientRequestId, topic, serviceUrl, false, 10);
             } finally {
                 lookupRequestSemaphore.release();
             }
@@ -419,12 +403,11 @@ public class LookupProxyHandler {
      **/
     private String getBrokerServiceUrl(long clientRequestId) {
         if (StringUtils.isNotBlank(brokerServiceURL)) {
-            return this.connectWithTLS ? service.getConfiguration().getBrokerServiceURLTLS()
-                    : service.getConfiguration().getBrokerServiceURL();
+            return brokerServiceURL;
         }
         ServiceLookupData availableBroker;
         try {
-            availableBroker = service.getDiscoveryProvider().nextBroker();
+            availableBroker = discoveryProvider.nextBroker();
         } catch (Exception e) {
             log.warn("[{}] Failed to get next active broker {}", clientAddress, e.getMessage(), e);
             proxyConnection.ctx().writeAndFlush(Commands.newError(
