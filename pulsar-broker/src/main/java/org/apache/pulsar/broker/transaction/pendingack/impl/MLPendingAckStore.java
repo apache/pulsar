@@ -110,7 +110,7 @@ public class MLPendingAckStore implements PendingAckStore {
     //TODO can control the number of entry to read
     private void readAsync(int numberOfEntriesToRead,
                            AsyncCallbacks.ReadEntriesCallback readEntriesCallback) {
-        cursor.asyncReadEntries(numberOfEntriesToRead, readEntriesCallback, System.nanoTime(), PositionImpl.latest);
+        cursor.asyncReadEntries(numberOfEntriesToRead, readEntriesCallback, System.nanoTime(), PositionImpl.LATEST);
     }
 
     @Override
@@ -285,7 +285,7 @@ public class MLPendingAckStore implements PendingAckStore {
                 buf.release();
                 completableFuture.completeExceptionally(new PersistenceException(exception));
             }
-        } , null);
+        }, null);
         return completableFuture;
     }
 
@@ -303,6 +303,8 @@ public class MLPendingAckStore implements PendingAckStore {
         public void run() {
             try {
                 if (cursor.isClosed()) {
+                    pendingAckReplyCallBack.replayFailed(new ManagedLedgerException
+                            .CursorAlreadyClosedException("MLPendingAckStore cursor have been closed."));
                     log.warn("[{}] MLPendingAckStore cursor have been closed, close replay thread.",
                             cursor.getManagedLedger().getName());
                     return;
@@ -350,6 +352,7 @@ public class MLPendingAckStore implements PendingAckStore {
                     }
                 }
             } catch (Exception e) {
+                pendingAckReplyCallBack.replayFailed(e);
                 log.error("[{}] Pending ack recover fail!", subManagedCursor.getManagedLedger().getName(), e);
                 return;
             }

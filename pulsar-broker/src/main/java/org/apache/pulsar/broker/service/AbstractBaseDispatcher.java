@@ -43,9 +43,6 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 
@@ -251,32 +248,8 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
      */
     protected abstract boolean isConsumersExceededOnSubscription();
 
-    protected boolean isConsumersExceededOnSubscription(BrokerService brokerService,
-                                                        String topic, int consumerSize) {
-        Policies policies = null;
-        Integer maxConsumersPerSubscription = null;
-        try {
-            maxConsumersPerSubscription = brokerService
-                    .getTopicPolicies(TopicName.get(topic))
-                    .map(TopicPolicies::getMaxConsumersPerSubscription)
-                    .orElse(null);
-            if (maxConsumersPerSubscription == null) {
-                // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks in addConsumer
-                policies = brokerService.pulsar().getPulsarResources().getNamespaceResources()
-                        .getPoliciesIfCached(TopicName.get(topic).getNamespaceObject()).orElse(null);
-            }
-        } catch (Exception e) {
-            log.debug("Get topic or namespace policies fail", e);
-        }
-
-        if (maxConsumersPerSubscription == null) {
-            maxConsumersPerSubscription = policies != null
-                    && policies.max_consumers_per_subscription != null
-                    && policies.max_consumers_per_subscription >= 0
-                    ? policies.max_consumers_per_subscription :
-                    brokerService.pulsar().getConfiguration().getMaxConsumersPerSubscription();
-        }
-
+    protected boolean isConsumersExceededOnSubscription(AbstractTopic topic, int consumerSize) {
+        Integer maxConsumersPerSubscription = topic.getHierarchyTopicPolicies().getMaxConsumersPerSubscription().get();
         return maxConsumersPerSubscription > 0 && maxConsumersPerSubscription <= consumerSize;
     }
 

@@ -312,7 +312,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             final ByteBuf payload = (ByteBuf) invocationOnMock.getArguments()[0];
             final AddEntryCallback callback = (AddEntryCallback) invocationOnMock.getArguments()[1];
             final Topic.PublishContext ctx = (Topic.PublishContext) invocationOnMock.getArguments()[2];
-            callback.addComplete(PositionImpl.latest, payload, ctx);
+            callback.addComplete(PositionImpl.LATEST, payload, ctx);
             return null;
         }).when(ledgerMock).asyncAddEntry(any(ByteBuf.class), any(AddEntryCallback.class), any());
 
@@ -329,8 +329,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         final Topic.PublishContext publishContext = new Topic.PublishContext() {
             @Override
             public void completed(Exception e, long ledgerId, long entryId) {
-                assertEquals(ledgerId, PositionImpl.latest.getLedgerId());
-                assertEquals(entryId, PositionImpl.latest.getEntryId());
+                assertEquals(ledgerId, PositionImpl.LATEST.getLedgerId());
+                assertEquals(entryId, PositionImpl.LATEST.getEntryId());
                 latch.countDown();
             }
 
@@ -1873,9 +1873,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         NamespaceResources nsr = pulsar.getPulsarResources().getNamespaceResources();
         NamespaceName ns = TopicName.get(successTopicName).getNamespaceObject();
-        doReturn(Optional.of(policies)).when(nsr).getPolicies(ns);
+        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(nsr).getPoliciesAsync(ns);
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        topic.initialize().get();
 
         topic.checkCompaction();
 
@@ -1907,9 +1908,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         NamespaceResources nsr = pulsar.getPulsarResources().getNamespaceResources();
         NamespaceName ns = TopicName.get(successTopicName).getNamespaceObject();
-        doReturn(Optional.of(policies)).when(nsr).getPolicies(ns);
+        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(nsr).getPoliciesAsync(ns);
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        topic.initialize().get();
 
         topic.checkCompaction();
 
@@ -1936,11 +1938,12 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         NamespaceResources nsr = pulsar.getPulsarResources().getNamespaceResources();
         NamespaceName ns = TopicName.get(successTopicName).getNamespaceObject();
-        doReturn(Optional.of(policies)).when(nsr).getPolicies(ns);
+        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(nsr).getPoliciesAsync(ns);
 
         doReturn(1000L).when(ledgerMock).getEstimatedBacklogSize();
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        topic.initialize().get();
         topic.checkCompaction();
         verify(compactor, times(0)).compact(anyString());
     }

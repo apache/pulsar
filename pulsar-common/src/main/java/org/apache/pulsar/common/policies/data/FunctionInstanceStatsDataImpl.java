@@ -34,7 +34,9 @@ import lombok.EqualsAndHashCode;
 @JsonInclude(JsonInclude.Include.ALWAYS)
 @JsonPropertyOrder({ "receivedTotal", "processedSuccessfullyTotal", "systemExceptionsTotal",
         "userExceptionsTotal", "avgProcessLatency", "1min", "lastInvocation", "userMetrics" })
-public class FunctionInstanceStatsDataImpl extends FunctionInstanceStatsDataBaseImpl implements FunctionInstanceStatsData {
+public class FunctionInstanceStatsDataImpl
+        extends FunctionInstanceStatsDataBaseImpl
+        implements FunctionInstanceStatsData {
     @JsonProperty("1min")
     public FunctionInstanceStatsDataBaseImpl oneMin = new FunctionInstanceStatsDataBaseImpl();
 

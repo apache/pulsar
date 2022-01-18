@@ -25,6 +25,7 @@ import Logo from "@theme/Logo";
 import IconMenu from "@theme/IconMenu";
 import IconClose from "@theme/IconClose";
 import styles from "./styles.module.css"; // retrocompatible with v1
+import { docUrl, getCache } from "../../utils/index.js";
 
 const DefaultNavItemPosition = "right";
 const versions = require("../../../versions.json");
@@ -32,11 +33,14 @@ const restApiVersions = require("../../../static/swagger/restApiVersions.json");
 const latestStableVersion = versions[0];
 
 function setVersion(version) {
-  localStorage.setItem("version", latestStableVersion);
+  getCache().setItem("version", version == "next" ? "master" : version);
 }
 
 function getVersion() {
-  return localStorage.getItem("version") || latestStableVersion;
+  if (!getCache()) {
+    return latestStableVersion;
+  }
+  return getCache().getItem("version") || latestStableVersion;
 }
 
 function getApiVersion(anchor) {
@@ -48,6 +52,10 @@ function getApiVersion(anchor) {
     apiVersion = restApiVersions[version][1]["version"];
   }
   return apiVersion;
+}
+
+function getLauguage() {
+  return "";
 }
 
 function useNavbarItems() {
@@ -309,7 +317,7 @@ function Navbar() {
             }}
           />
           <a className="font-bold underline mr-4 -ml-4" href="/versions/">
-            {getVersion()}
+            {getVersion() == "master" ? "next" : getVersion()}
           </a>
           {leftItems.map((item, i) => {
             if (item.label == "REST APIs") {
@@ -340,6 +348,16 @@ function Navbar() {
                   ...e,
                   link: e.to + "?version=" + getVersion(),
                 };
+              });
+            } else if (item.label == "Community") {
+              item.items = item.items.map((e) => {
+                if (e.to) {
+                  return {
+                    ...e,
+                    to: e.to.replace(/\/:locale/g, getLauguage()),
+                  };
+                }
+                return e;
               });
             }
             return <NavbarItem {...item} key={i} />;

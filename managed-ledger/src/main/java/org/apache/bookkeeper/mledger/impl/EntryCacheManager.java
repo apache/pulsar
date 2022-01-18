@@ -20,7 +20,6 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Longs;
@@ -242,7 +241,8 @@ public class EntryCacheManager {
                                 ml.getMBean().addReadEntriesSample(1, returnEntry.getLength());
                                 callback.readEntryComplete(returnEntry, ctx);
                             } else {
-                                callback.readEntryFailed(new ManagedLedgerException("Could not read given position"), ctx);
+                                callback.readEntryFailed(new ManagedLedgerException("Could not read given position"),
+                                        ctx);
                             }
                         } finally {
                             ledgerEntries.close();
@@ -273,8 +273,8 @@ public class EntryCacheManager {
             processorHandle = interceptor
                     .processPayloadBeforeEntryCache(duplicateBuffer);
             if (processorHandle != null) {
-                ledgerEntry  = LedgerEntryImpl.create(ledgerEntry.getLedgerId(),ledgerEntry.getEntryId(),
-                        ledgerEntry.getLength(),processorHandle.getProcessedPayload());
+                ledgerEntry  = LedgerEntryImpl.create(ledgerEntry.getLedgerId(), ledgerEntry.getEntryId(),
+                        ledgerEntry.getLength(), processorHandle.getProcessedPayload());
             } else {
                 duplicateBuffer.release();
             }

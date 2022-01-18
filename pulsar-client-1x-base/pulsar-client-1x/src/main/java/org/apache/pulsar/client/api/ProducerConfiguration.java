@@ -19,21 +19,18 @@
 package org.apache.pulsar.client.api;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
+import lombok.EqualsAndHashCode;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 
-import lombok.EqualsAndHashCode;
-
 /**
- * Producer's configuration
+ * Producer's configuration.
  *
  * @deprecated use {@link PulsarClient#newProducer()} to construct and configure a {@link Producer} instance
  */
@@ -233,7 +230,7 @@ public class ProducerConfiguration implements Serializable {
     }
 
     /**
-     * Set a custom message routing policy by passing an implementation of MessageRouter
+     * Set a custom message routing policy by passing an implementation of MessageRouter.
      *
      *
      * @param messageRouter
@@ -307,7 +304,7 @@ public class ProducerConfiguration implements Serializable {
     }
 
     /**
-     * Sets a {@link CryptoKeyReader}
+     * Sets a {@link CryptoKeyReader}.
      *
      * @param cryptoKeyReader
      *            CryptoKeyReader object
@@ -329,7 +326,7 @@ public class ProducerConfiguration implements Serializable {
 
     /**
      *
-     * Returns true if encryption keys are added
+     * Returns true if encryption keys are added.
      *
      */
     public boolean isEncryptionEnabled() {
@@ -354,7 +351,7 @@ public class ProducerConfiguration implements Serializable {
     }
 
     /**
-     * Sets the ProducerCryptoFailureAction to the value specified
+     * Sets the ProducerCryptoFailureAction to the value specified.
      *
      * @param action
      *            The producer action
@@ -457,7 +454,7 @@ public class ProducerConfiguration implements Serializable {
     }
 
     /**
-     * Add all the properties in the provided map
+     * Add all the properties in the provided map.
      *
      * @param properties
      * @return

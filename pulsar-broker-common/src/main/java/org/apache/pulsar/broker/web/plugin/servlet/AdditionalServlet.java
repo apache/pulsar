@@ -29,21 +29,21 @@ import org.eclipse.jetty.servlet.ServletHolder;
 public interface AdditionalServlet extends AutoCloseable {
 
     /**
-     * load plugin config
+     * load plugin config.
      *
      * @param pulsarConfiguration
      */
     void loadConfig(PulsarConfiguration pulsarConfiguration);
 
     /**
-     * Get the base path of prometheus metrics
+     * Get the base path of prometheus metrics.
      *
      * @return the base path of prometheus metrics
      */
     String getBasePath();
 
     /**
-     * Get the servlet holder
+     * Get the servlet holder.
      *
      * @return the servlet holder
      */

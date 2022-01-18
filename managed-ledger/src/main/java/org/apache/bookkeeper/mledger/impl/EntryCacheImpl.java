@@ -21,17 +21,13 @@ package org.apache.bookkeeper.mledger.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
-
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Longs;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
-
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-
 import org.apache.bookkeeper.client.api.BKException;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
@@ -301,8 +297,7 @@ public class EntryCacheImpl implements EntryCache {
                         try {
                             // We got the entries, we need to transform them to a List<> type
                             long totalSize = 0;
-                            final List<EntryImpl> entriesToReturn
-                                = Lists.newArrayListWithExpectedSize(entriesToRead);
+                            final List<EntryImpl> entriesToReturn = Lists.newArrayListWithExpectedSize(entriesToRead);
                             for (LedgerEntry e : ledgerEntries) {
                                 EntryImpl entry = EntryCacheManager.create(e, interceptor);
 
@@ -319,7 +314,7 @@ public class EntryCacheImpl implements EntryCache {
                         }
                     }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception -> {
                         if (exception instanceof BKException
-                                && ((BKException)exception).getCode() == BKException.Code.TooManyRequestsException) {
+                                && ((BKException) exception).getCode() == BKException.Code.TooManyRequestsException) {
                             callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
                         } else {
                             ml.invalidateLedgerHandle(lh);

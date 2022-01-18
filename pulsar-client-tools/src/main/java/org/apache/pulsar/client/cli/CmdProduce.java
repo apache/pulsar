@@ -140,6 +140,10 @@ public class CmdProduce {
                     + "file:///path/to/public.key or data:application/x-pem-file;base64,*****")
     private String encKeyValue = null;
 
+    @Parameter(names = { "-dr",
+            "--disable-replication" }, description = "Disable geo-replication for messages.")
+    private boolean disableReplication = false;
+
     private ClientBuilder clientBuilder;
     private Authentication authentication;
     private String serviceURL;
@@ -295,6 +299,10 @@ public class CmdProduce {
                             break;
                         default:
                             throw new IllegalStateException();
+                    }
+
+                    if (disableReplication) {
+                        message.disableReplication();
                     }
 
                     message.send();
