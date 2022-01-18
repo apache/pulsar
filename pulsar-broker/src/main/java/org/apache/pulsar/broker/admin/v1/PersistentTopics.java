@@ -198,7 +198,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        createNonPartitionedTopic(tenant, cluster, namespace, encodedTopic, authoritative);
+        validateNamespaceName(tenant, cluster, namespace);
+        validateTopicName(tenant, cluster, namespace, encodedTopic);
+        validateGlobalNamespaceOwnership();
+        internalCreateNonPartitionedTopic(authoritative, null);
     }
 
     /**
