@@ -75,8 +75,17 @@ jobs:
       - name: run OWASP Dependency Check for distribution/server (-DfailBuildOnAnyVulnerability=true)
         run: mvn -B -ntp -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -pl distribution/server -DfailBuildOnAnyVulnerability=true
 
+      - name: run OWASP Dependency Check for distribution/offloaders (-DfailBuildOnAnyVulnerability=true)
+        run: mvn -B -ntp -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -pl distribution/offloaders -DfailBuildOnAnyVulnerability=true
+        if: ${{ matrix.checkout_branch == "master" }}
+
+      - name: run OWASP Dependency Check for distribution/io and pulsar-sql/presto-distribution
+        run: mvn -B -ntp -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -pl distribution/io,pulsar-sql/presto-distribution
+        if: ${{ matrix.checkout_branch == "master" }}
+
       - name: run OWASP Dependency Check for distribution/offloaders, distribution/io and pulsar-sql/presto-distribution
         run: mvn -B -ntp -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -pl distribution/offloaders,distribution/io,pulsar-sql/presto-distribution
+        if: ${{ matrix.checkout_branch != "master" }}
 
       - name: Upload OWASP Dependency Check reports
         uses: actions/upload-artifact@v2
