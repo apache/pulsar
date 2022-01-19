@@ -916,11 +916,15 @@ public class Consumer {
     }
 
     private int addAndGetUnAckedMsgs(Consumer consumer, int ackedMessages) {
+        int unackedMsgs = 0;
         if (Subscription.isIndividualAckMode(subType)) {
             subscription.addUnAckedMessages(ackedMessages);
-            return UNACKED_MESSAGES_UPDATER.addAndGet(consumer, ackedMessages);
+            unackedMsgs = UNACKED_MESSAGES_UPDATER.addAndGet(consumer, ackedMessages);
         }
-        return 0;
+        if (unackedMsgs < 0) {
+            log.error("unackedMsgs is : {}, ackedMessages : {}, consumer : {}", unackedMsgs, ackedMessages, consumer);
+        }
+        return unackedMsgs;
     }
 
     private void clearUnAckedMsgs() {
