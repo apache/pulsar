@@ -25,3 +25,11 @@ export function pageUrl(page, language) {
 export function githubUrl() {
   return siteConfig.customFields.githubUrl;
 }
+
+export function getCache() {
+  const windowGlobal = typeof window !== "undefined" && window;
+  if (!windowGlobal) {
+    return null;
+  }
+  return windowGlobal.localStorage;
+}

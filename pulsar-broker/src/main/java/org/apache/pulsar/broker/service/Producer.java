@@ -349,6 +349,7 @@ public class Producer {
             return sequenceId;
         }
 
+        @Override
         public boolean isChunked() {
             return chunked;
         }

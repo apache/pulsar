@@ -39,6 +39,7 @@ import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RestException;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 
 /**
  * Provider of authorization mechanism.
@@ -226,14 +227,17 @@ public interface AuthorizationProvider extends Closeable {
     /**
      * Grant authorization-action permission on a topic to the given client.
      *
+     * NOTE: used to complete with {@link IllegalArgumentException} when namespace not found or with
+     * {@link IllegalStateException} when failed to grant permission. This behavior is now deprecated.
+     * Please use the appropriate {@link MetadataStoreException}.
+     *
      * @param topicName
      * @param role
      * @param authDataJson
      *            additional authdata in json format
      * @return CompletableFuture
-     * @completesWith <br/>
-     *                IllegalArgumentException when namespace not found<br/>
-     *                IllegalStateException when failed to grant permission
+     * @completesWith null once the permissions are updated successfully.
+     * @completesWith {@link MetadataStoreException} when the MetadataStore is not updated.
      */
     CompletableFuture<Void> grantPermissionAsync(TopicName topicName, Set<AuthAction> actions, String role,
             String authDataJson);
