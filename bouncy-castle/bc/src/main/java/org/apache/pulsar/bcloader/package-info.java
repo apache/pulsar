@@ -18,6 +18,6 @@
  */
 
 /**
- * Helper class to access AirCompressor package private classes.
+ * Package for Bouncy Castle provider Loader.
  */
 package org.apache.pulsar.bcloader;
