@@ -40,6 +40,7 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import lombok.Getter;
+import lombok.Setter;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerEventListener;
@@ -93,6 +94,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected static final AtomicLongFieldUpdater<ConsumerBase> CONSUMER_EPOCH =
             AtomicLongFieldUpdater.newUpdater(ConsumerBase.class, "consumerEpoch");
 
+    @Setter
+    @Getter
     protected volatile long consumerEpoch;
 
     // this present broker version don't have consumerEpoch feature,
@@ -1066,9 +1069,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                     topic, message.getMessageId(), consumerEpoch);
             message.release();
             message.recycle();
-            return true;
+            return false;
         }
-        return false;
+        return true;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerBase.class);

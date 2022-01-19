@@ -330,7 +330,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     // If message consumer epoch is smaller than consumer epoch present that
     // it has been sent to the client before the user calls redeliverUnacknowledgedMessages, this message is invalid.
     // so we should release this message and receive again
-    private boolean checkTopicMessageConsumerEpochIsSmallerThanConsumer(Message<T> message) {
+    private boolean isValidConsumerEpoch(Message<T> message) {
         return isValidConsumerEpoch(((MessageImpl<T>) (((TopicMessageImpl<T>) message))
                 .getMessage()));
     }
@@ -342,7 +342,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             message = incomingMessages.take();
             decreaseIncomingMessageSize(message);
             checkState(message instanceof TopicMessageImpl);
-            if (checkTopicMessageConsumerEpochIsSmallerThanConsumer(message)) {
+            if (!isValidConsumerEpoch(message)) {
                 resumeReceivingFromPausedConsumersIfNeeded();
                 message.release();
                 return internalReceive();
@@ -365,7 +365,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             if (message != null) {
                 decreaseIncomingMessageSize(message);
                 checkArgument(message instanceof TopicMessageImpl);
-                if (checkTopicMessageConsumerEpochIsSmallerThanConsumer(message)) {
+                if (!isValidConsumerEpoch(message)) {
                     long executionTime = System.currentTimeMillis() - callTime;
                     if (executionTime >= unit.toMillis(timeout)) {
                         return null;
@@ -411,7 +411,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     Message<T> msg = incomingMessages.poll();
                     if (msg != null) {
                         decreaseIncomingMessageSize(msg);
-                        if (checkTopicMessageConsumerEpochIsSmallerThanConsumer(msg)) {
+                        if (!isValidConsumerEpoch(msg)) {
                             msgPeeked = incomingMessages.peek();
                             continue;
                         }

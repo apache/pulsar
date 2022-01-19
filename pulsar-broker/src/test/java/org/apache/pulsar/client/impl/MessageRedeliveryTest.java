@@ -30,6 +30,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -261,11 +263,11 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
     public void testRedeliveryAddEpoch(boolean enableBatch) throws Exception{
         final String topic = "testRedeliveryAddEpoch";
         final String subName = "my-sub";
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        ConsumerBase<String> consumer = ((ConsumerBase<String>) pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Failover)
-                .subscribe();
+                .subscribe());
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
@@ -282,9 +284,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         PersistentDispatcherSingleActiveConsumer persistentDispatcherSingleActiveConsumer =
                 (PersistentDispatcherSingleActiveConsumer) persistentTopic.getSubscription(subName).getDispatcher();
 
-        Field field = ConsumerBase.class.getDeclaredField("consumerEpoch");
-        field.setAccessible(true);
-        field.set(consumer, 1);
+        consumer.setConsumerEpoch(1);
         Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
         assertNull(message);
         consumer.redeliverUnacknowledgedMessages();
@@ -293,7 +293,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         consumer.acknowledgeCumulativeAsync(message).get();
         assertEquals(message.getValue(), test1);
 
-        field.set(consumer, 3);
+        consumer.setConsumerEpoch(3);
 
         producer.send(test2);
         message = consumer.receive(3, TimeUnit.SECONDS);
@@ -306,11 +306,12 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         assertNotNull(message);
         assertEquals(message.getValue(), test2);
 
-        field.set(consumer, 6);
+        consumer.setConsumerEpoch(6);
         producer.send(test3);
         message = consumer.receive(3, TimeUnit.SECONDS);
         assertNull(message);
-        field = consumer.getClass().getDeclaredField("connectionHandler");
+
+        Field field = consumer.getClass().getDeclaredField("connectionHandler");
         field.setAccessible(true);
         ConnectionHandler connectionHandler = (ConnectionHandler) field.get(consumer);
 

@@ -411,7 +411,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         try {
             message = incomingMessages.take();
             messageProcessed(message);
-            if (isValidConsumerEpoch(message)) {
+            if (!isValidConsumerEpoch(message)) {
                 return internalReceive();
             }
             return beforeConsume(message);
@@ -436,7 +436,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
             } else {
                 messageProcessed(message);
-                if (isValidConsumerEpoch(message)) {
+                if (!isValidConsumerEpoch(message)) {
                     pendingReceives.add(result);
                     cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
                     return;
@@ -458,7 +458,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return null;
             }
             messageProcessed(message);
-            if (isValidConsumerEpoch(message)) {
+            if (!isValidConsumerEpoch(message)) {
                 long executionTime = System.currentTimeMillis() - callTime;
                 if (executionTime >= unit.toMillis(timeout)) {
                     return null;
@@ -505,7 +505,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     Message<T> msg = incomingMessages.poll();
                     if (msg != null) {
                         messageProcessed(msg);
-                        if (isValidConsumerEpoch(msg)) {
+                        if (!isValidConsumerEpoch(msg)) {
                             msgPeeked = incomingMessages.peek();
                             continue;
                         }
@@ -796,7 +796,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     conf.isReplicateSubscriptionState(),
                     InitialPosition.valueOf(subscriptionInitialPosition.getValue()),
                     startMessageRollbackDuration, si, createTopicIfDoesNotExist, conf.getKeySharedPolicy(),
-                    // this.consumerEpoch will increase
+                    // Use the current epoch to subscribe.
                     conf.getSubscriptionProperties(), CONSUMER_EPOCH.get(this));
 
             cnx.sendRequestWithId(request, requestId).thenRun(() -> {
@@ -1789,12 +1789,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             clearIncomingMessages();
             unAckedMessageTracker.clear();
 
+            // we should increase epoch every time, because MultiTopicsConsumerImpl also increase it,
+            // we need to keep both epochs the same
+            if (conf.getSubscriptionType() == SubscriptionType.Failover
+                    || conf.getSubscriptionType() == SubscriptionType.Exclusive) {
+                CONSUMER_EPOCH.incrementAndGet(this);
+            }
             // is channel is connected, we should send redeliver command to broker
-            if (isConnected(cnx) && cnx != null) {
-                if (conf.getSubscriptionType() == SubscriptionType.Failover
-                        || conf.getSubscriptionType() == SubscriptionType.Exclusive) {
-                    CONSUMER_EPOCH.incrementAndGet(this);
-                }
+            if (cnx != null && isConnected(cnx)) {
                 cnx.ctx().writeAndFlush(Commands.newRedeliverUnacknowledgedMessages(
                         consumerId, CONSUMER_EPOCH.get(this)), cnx.ctx().voidPromise());
                 if (currentSize > 0) {
