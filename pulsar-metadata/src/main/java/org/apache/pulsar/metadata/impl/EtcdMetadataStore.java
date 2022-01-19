@@ -26,6 +26,7 @@ import io.etcd.jetcd.Txn;
 import io.etcd.jetcd.kv.DeleteResponse;
 import io.etcd.jetcd.kv.GetResponse;
 import io.etcd.jetcd.kv.PutResponse;
+import io.etcd.jetcd.kv.TxnResponse;
 import io.etcd.jetcd.lease.LeaseKeepAliveResponse;
 import io.etcd.jetcd.op.Cmp;
 import io.etcd.jetcd.op.CmpTarget;
@@ -223,17 +224,14 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
                         OpGetChildren opGetChildren = op.asGetChildren();
                         String path = opGetChildren.getPath();
 
-                        ByteSequence firstKey =
-                                ByteSequence.from(path.equals("/") ? path : path + "/",
-                                        StandardCharsets.UTF_8);
-                        ByteSequence lastKey = ByteSequence.from(path.equals("/") ? "0" : path + "0",
-                                StandardCharsets.UTF_8); // '0' is lexicographically just after '/'
+                        ByteSequence prefix =
+                                ByteSequence.from(path.equals("/") ? path : path + "/", StandardCharsets.UTF_8);
 
-                        txn.Then(Op.get(firstKey, GetOption.newBuilder()
+                        txn.Then(Op.get(prefix, GetOption.newBuilder()
                                 .withKeysOnly(true)
                                 .withSortField(GetOption.SortTarget.KEY)
                                 .withSortOrder(GetOption.SortOrder.ASCEND)
-                                .withRange(lastKey)
+                                .withPrefix(prefix)
                                 .build()));
                         break;
                     }
@@ -241,82 +239,7 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
             });
 
             txn.commit().thenAccept(txnResponse -> {
-                if (!txnResponse.isSucceeded()) {
-                    if (ops.size() > 1) {
-                        // Retry individually
-                        ops.forEach(o -> batchOperation(Collections.singletonList(o)));
-                    } else {
-                        ops.get(0).getFuture()
-                                .completeExceptionally(new MetadataStoreException.BadVersionException("Bad version"));
-                    }
-                    return;
-                }
-
-                int getIdx = 0;
-                int deletedIdx = 0;
-                int putIdx = 0;
-                for (MetadataOp op : ops) {
-                    switch (op.getType()) {
-                        case GET: {
-                            OpGet get = op.asGet();
-                            GetResponse gr = txnResponse.getGetResponses().get(getIdx++);
-                            if (gr.getCount() == 0) {
-                                get.getFuture().complete(Optional.empty());
-                            } else {
-                                KeyValue kv = gr.getKvs().get(0);
-                                boolean isEphemeral = kv.getLease() != 0;
-                                boolean createdBySelf = kv.getLease() == leaseId;
-                                get.getFuture().complete(Optional.of(
-                                                new GetResult(
-                                                        kv.getValue().getBytes(),
-                                                        new Stat(get.getPath(), kv.getVersion() - 1, 0, 0, isEphemeral,
-                                                                createdBySelf)
-                                                )
-                                        )
-                                );
-                            }
-                            break;
-                        }
-                        case PUT: {
-                            OpPut put = op.asPut();
-                            PutResponse pr = txnResponse.getPutResponses().get(putIdx++);
-                            KeyValue prevKv = pr.getPrevKv();
-                            if (prevKv == null) {
-                                put.getFuture().complete(new Stat(put.getPath(),
-                                        0, 0, 0, put.isEphemeral(), true));
-                            } else {
-                                put.getFuture().complete(new Stat(put.getPath(),
-                                        prevKv.getVersion(), 0, 0, put.isEphemeral(), true));
-                            }
-
-                            break;
-                        }
-                        case DELETE: {
-                            OpDelete del = op.asDelete();
-                            DeleteResponse dr = txnResponse.getDeleteResponses().get(deletedIdx++);
-                            if (dr.getDeleted() == 0) {
-                                del.getFuture().completeExceptionally(new MetadataStoreException.NotFoundException());
-                            } else {
-                                del.getFuture().complete(null);
-                            }
-                            break;
-                        }
-                        case GET_CHILDREN: {
-                            OpGetChildren getChildren = op.asGetChildren();
-                            GetResponse gr = txnResponse.getGetResponses().get(getIdx++);
-                            String basePath = getChildren.getPath() + "/";
-
-                            Set<String> children = gr.getKvs().stream()
-                                    .map(kv -> kv.getKey().toString(StandardCharsets.UTF_8))
-                                    .map(p -> p.replace(basePath, ""))
-                                    // Only return first-level children
-                                    .map(k -> k.split("/", 2)[0])
-                                    .collect(Collectors.toCollection(TreeSet::new));
-
-                            getChildren.getFuture().complete(new ArrayList<>(children));
-                        }
-                    }
-                }
+                handleBatchOperationResult(txnResponse, ops);
             }).exceptionally(ex -> {
                 Throwable cause = ex.getCause();
                 if (cause instanceof ExecutionException || cause instanceof CompletionException) {
@@ -336,13 +259,97 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
                     }
                 } else {
                     log.warn("Failed to commit: {}", cause.getMessage());
-                    ops.forEach(o -> o.getFuture().completeExceptionally(ex));
+                    executor.execute(() -> {
+                        ops.forEach(o -> o.getFuture().completeExceptionally(ex));
+                    });
                 }
                 return null;
             });
         } catch (Throwable t) {
             log.warn("Error in committing batch: {}", t.getMessage());
         }
+    }
+
+    private void handleBatchOperationResult(TxnResponse txnResponse,
+                                            List<MetadataOp> ops) {
+        executor.execute(() -> {
+            if (!txnResponse.isSucceeded()) {
+                if (ops.size() > 1) {
+                    // Retry individually
+                    ops.forEach(o -> batchOperation(Collections.singletonList(o)));
+                } else {
+                    ops.get(0).getFuture()
+                            .completeExceptionally(new MetadataStoreException.BadVersionException("Bad version"));
+                }
+                return;
+            }
+
+            int getIdx = 0;
+            int deletedIdx = 0;
+            int putIdx = 0;
+            for (MetadataOp op : ops) {
+                switch (op.getType()) {
+                    case GET: {
+                        OpGet get = op.asGet();
+                        GetResponse gr = txnResponse.getGetResponses().get(getIdx++);
+                        if (gr.getCount() == 0) {
+                            get.getFuture().complete(Optional.empty());
+                        } else {
+                            KeyValue kv = gr.getKvs().get(0);
+                            boolean isEphemeral = kv.getLease() != 0;
+                            boolean createdBySelf = kv.getLease() == leaseId;
+                            get.getFuture().complete(Optional.of(
+                                            new GetResult(
+                                                    kv.getValue().getBytes(),
+                                                    new Stat(get.getPath(), kv.getVersion() - 1, 0, 0, isEphemeral,
+                                                            createdBySelf)
+                                            )
+                                    )
+                            );
+                        }
+                        break;
+                    }
+                    case PUT: {
+                        OpPut put = op.asPut();
+                        PutResponse pr = txnResponse.getPutResponses().get(putIdx++);
+                        KeyValue prevKv = pr.getPrevKv();
+                        if (prevKv == null) {
+                            put.getFuture().complete(new Stat(put.getPath(),
+                                    0, 0, 0, put.isEphemeral(), true));
+                        } else {
+                            put.getFuture().complete(new Stat(put.getPath(),
+                                    prevKv.getVersion(), 0, 0, put.isEphemeral(), true));
+                        }
+
+                        break;
+                    }
+                    case DELETE: {
+                        OpDelete del = op.asDelete();
+                        DeleteResponse dr = txnResponse.getDeleteResponses().get(deletedIdx++);
+                        if (dr.getDeleted() == 0) {
+                            del.getFuture().completeExceptionally(new MetadataStoreException.NotFoundException());
+                        } else {
+                            del.getFuture().complete(null);
+                        }
+                        break;
+                    }
+                    case GET_CHILDREN: {
+                        OpGetChildren getChildren = op.asGetChildren();
+                        GetResponse gr = txnResponse.getGetResponses().get(getIdx++);
+                        String basePath = getChildren.getPath() + "/";
+
+                        Set<String> children = gr.getKvs().stream()
+                                .map(kv -> kv.getKey().toString(StandardCharsets.UTF_8))
+                                .map(p -> p.replace(basePath, ""))
+                                // Only return first-level children
+                                .map(k -> k.split("/", 2)[0])
+                                .collect(Collectors.toCollection(TreeSet::new));
+
+                        getChildren.getFuture().complete(new ArrayList<>(children));
+                    }
+                }
+            }
+        });
     }
 
     private synchronized CompletableFuture<Void> createLease(boolean retryOnFailure) {
