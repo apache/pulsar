@@ -92,24 +92,20 @@ public class CmdResourceGroups extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "--msg-publish-rate",
-                "-mp" }, description = "message-publish-rate "
-                + "(default -1 will be overwrite if not passed)", required = false)
+                "-mp" }, description = "message-publish-rate ", required = false)
         private Integer publishRateInMsgs;
 
         @Parameter(names = { "--byte-publish-rate",
-                "-bp" }, description = "byte-publish-rate "
-                + "(default -1 will be overwrite if not passed)", required = false)
+                "-bp" }, description = "byte-publish-rate ", required = false)
         private Long publishRateInBytes;
 
 
         @Parameter(names = { "--msg-dispatch-rate",
-                "-md" }, description = "message-dispatch-rate "
-                + "(default -1 will be overwrite if not passed)", required = false)
+                "-md" }, description = "message-dispatch-rate ", required = false)
         private Integer dispatchRateInMsgs;
 
         @Parameter(names = { "--byte-dispatch-rate",
-                "-bd" }, description = "byte-dispatch-rate "
-                + "(default -1 will be overwrite if not passed)", required = false)
+                "-bd" }, description = "byte-dispatch-rate ", required = false)
         private Long dispatchRateInBytes;
 
         @Override
