@@ -332,7 +332,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         // Throw an exception first, create successfully after retrying
         doThrow(new PulsarClientException("test")).doReturn(reader).when(client).newReader();
 
-        SystemTopicClient.Reader<PulsarEvent> reader1 = service.creatSystemTopicClientWithRetry(null).get();
+        SystemTopicClient.Reader<PulsarEvent> reader1 = service.createSystemTopicClientWithRetry(null).get();
 
         assertEquals(reader1, reader);
     }

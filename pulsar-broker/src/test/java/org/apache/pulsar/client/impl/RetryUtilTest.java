@@ -45,11 +45,13 @@ public class RetryUtilTest {
                 .setMandatoryStop(5000, TimeUnit.MILLISECONDS)
                 .create();
         RetryUtil.retryAsynchronously(() -> {
+            CompletableFuture<Boolean> future = new CompletableFuture<>();
             atomicInteger.incrementAndGet();
             if (atomicInteger.get() < 5) {
-                throw new RuntimeException("fail");
+                future.completeExceptionally(new RuntimeException("fail"));
             }
-            return true;
+            future.complete(true);
+            return future;
         }, backoff, executor, callback);
         assertTrue(callback.get());
         assertEquals(atomicInteger.get(), 5);
@@ -67,7 +69,9 @@ public class RetryUtilTest {
                 .create();
         long start = System.currentTimeMillis();
         RetryUtil.retryAsynchronously(() -> {
-            throw new RuntimeException("fail");
+            CompletableFuture<Boolean> future = new CompletableFuture<>();
+            future.completeExceptionally(new RuntimeException("fail"));
+            return future;
         }, backoff, executor, callback);
         try {
             callback.get();
