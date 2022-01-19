@@ -84,6 +84,7 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
         this.rgservice = new ResourceGroupService(pulsar, TimeUnit.SECONDS, transportMgr, dummyQuotaCalc);
 
         this.prepareRGs();
+        Thread.sleep(2000);
     }
 
     @AfterClass(alwaysRun = true)
@@ -164,22 +165,22 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
                     sentNumBytes += mesg.length;
                     sentNumMsgs++;
                     log.debug("Producer={}, sent msg-ix={}, msgId={}", producerId, ix, msgId);
-                } catch (PulsarClientException p) {
+                } catch (PulsarClientException e) {
                     numExceptions++;
-                    log.info("Producer={} got exception while sending {}-th time: ex={}",
-                            producerId, ix, p.getMessage());
+                    log.error("Producer={} got exception while sending {}-th time: ex={}",
+                            producerId, ix, e.getMessage());
                 }
             }
             try {
                 producer.flush();
                 producer.close();
-            } catch (PulsarClientException p) {
+            } catch (PulsarClientException e) {
                 numExceptions++;
-                log.info("Producer={} got exception while closing producer: ex={}",
-                        producerId, p.getMessage());
+                log.error("Producer={} got exception while closing producer: ex={}",
+                        producerId, e.getMessage());
             }
 
-            log.debug("Producer={} done with topic={}; got {} exceptions", producerId, myProduceTopic, numExceptions);
+            log.info("Producer={} done with topic={}; got {} exceptions", producerId, myProduceTopic, numExceptions);
         }
     }
 
