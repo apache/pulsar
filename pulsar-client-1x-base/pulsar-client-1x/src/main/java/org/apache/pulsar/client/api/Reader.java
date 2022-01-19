@@ -34,7 +34,7 @@ public interface Reader extends Closeable {
     String getTopic();
 
     /**
-     * Read the next message in the topic
+     * Read the next message in the topic.
      *
      * @return the next messasge
      * @throws PulsarClientException
@@ -53,14 +53,14 @@ public interface Reader extends Closeable {
     CompletableFuture<Message<byte[]>> readNextAsync();
 
     /**
-     * Asynchronously close the reader and stop the broker to push more messages
+     * Asynchronously close the reader and stop the broker to push more messages.
      *
      * @return a future that can be used to track the completion of the operation
      */
     CompletableFuture<Void> closeAsync();
 
     /**
-     * Return true if the topic was terminated and this reader has reached the end of the topic
+     * Return true if the topic was terminated and this reader has reached the end of the topic.
      */
     boolean hasReachedEndOfTopic();
 
