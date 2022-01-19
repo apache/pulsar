@@ -46,24 +46,25 @@ public class RetryUtil {
     private static <T> void executeWithRetry(Supplier<CompletableFuture<T>> supplier, Backoff backoff,
                                              ScheduledExecutorService scheduledExecutorService,
                                              CompletableFuture<T> callback) {
-        if (supplier.get() == null) {
+        if (supplier == null || supplier.get() == null) {
             throw new RuntimeException("Miss retry execution supplier.");
         }
-        supplier.get().whenComplete((obj, e) -> {
+        supplier.get().whenComplete((result, e) -> {
             if (e != null) {
                 long next = backoff.next();
                 boolean isMandatoryStop = backoff.isMandatoryStopMade();
                 if (isMandatoryStop) {
                     callback.completeExceptionally(e);
                 } else {
-                    log.info("Execution with retry fail, because of {}, will retry in {} ms", e.getMessage(), next);
+                    log.warn("Execution with retry fail, because of {}, will retry in {} ms", e.getMessage(), next);
                     scheduledExecutorService.schedule(() ->
                                     executeWithRetry(supplier, backoff, scheduledExecutorService, callback),
                             next, TimeUnit.MILLISECONDS);
                 }
                 return;
             }
-            callback.complete(obj);
+            callback.complete(result);
         });
     }
+
 }
