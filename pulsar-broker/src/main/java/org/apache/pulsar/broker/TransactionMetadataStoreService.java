@@ -319,8 +319,14 @@ public class TransactionMetadataStoreService {
         return store.updateTxnStatus(txnId, newStatus, expectedStatus, isTimeout);
     }
 
-    public CompletableFuture<Void> endTransaction(TxnID txnID, int txnAction, boolean isTimeout) {
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+    public CompletableFuture<Void> endTransaction(TxnID txnID, int txnAction, boolean isTimeout,
+                                                  CompletableFuture<Void> future) {
+        CompletableFuture<Void> completableFuture;
+        if (future == null) {
+            completableFuture = new CompletableFuture<>();
+        } else {
+            completableFuture = future;
+        }
         TxnStatus newStatus;
         switch (txnAction) {
             case TxnAction.COMMIT_VALUE:
@@ -352,8 +358,9 @@ public class TransactionMetadataStoreService {
                                             + "TxnAction : {}", txnID, txnAction, e);
                                 }
                                 transactionOpRetryTimer.newTimeout(timeout ->
-                                        endTransaction(txnID, txnAction, isTimeout),
+                                        endTransaction(txnID, txnAction, isTimeout, completableFuture),
                                         endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
+                                return null;
 
                             }
                             completableFuture.completeExceptionally(e.getCause());
@@ -367,8 +374,9 @@ public class TransactionMetadataStoreService {
                             LOG.debug("EndTransaction UpdateTxnStatus op retry! TxnId : {}, "
                                     + "TxnAction : {}", txnID, txnAction, e);
                         }
-                        transactionOpRetryTimer.newTimeout(timeout -> endTransaction(txnID, txnAction, isTimeout),
-                                endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
+                        transactionOpRetryTimer.newTimeout(timeout -> endTransaction(txnID, txnAction,
+                                isTimeout, completableFuture), endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
+                        return null;
 
                     }
                     completableFuture.completeExceptionally(e.getCause());
@@ -385,8 +393,9 @@ public class TransactionMetadataStoreService {
                                         + "TxnAction : {}", txnID, txnAction, e);
                             }
                             transactionOpRetryTimer.newTimeout(timeout ->
-                                            endTransaction(txnID, txnAction, isTimeout),
+                                            endTransaction(txnID, txnAction, isTimeout, completableFuture),
                                     endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
+                            return null;
                         } else {
                             LOG.error("EndTxnInTransactionBuffer fail! TxnId : {}, "
                                     + "TxnAction : {}", txnID, txnAction, e);
@@ -406,8 +415,9 @@ public class TransactionMetadataStoreService {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("End transaction op retry! TxnId : {}, TxnAction : {}", txnID, txnAction, e);
                 }
-                transactionOpRetryTimer.newTimeout(timeout -> endTransaction(txnID, txnAction, isTimeout),
-                        endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
+                transactionOpRetryTimer.newTimeout(timeout -> endTransaction(txnID, txnAction, isTimeout,
+                        completableFuture), endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
+                return null;
             }
             completableFuture.completeExceptionally(e.getCause());
             return null;
@@ -426,13 +436,13 @@ public class TransactionMetadataStoreService {
     public void endTransactionForTimeout(TxnID txnID) {
         getTxnMeta(txnID).thenCompose(txnMeta -> {
             if (txnMeta.status() == TxnStatus.OPEN) {
-                return endTransaction(txnID, TxnAction.ABORT_VALUE, true);
+                return endTransaction(txnID, TxnAction.ABORT_VALUE, true, null);
             } else {
                 return null;
             }
         }).exceptionally(e -> {
             if (isRetryableException(e.getCause())) {
-                endTransaction(txnID, TxnAction.ABORT_VALUE, true);
+                endTransaction(txnID, TxnAction.ABORT_VALUE, true, null);
             } else {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Transaction have been handle complete, "
