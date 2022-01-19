@@ -83,7 +83,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
     private String offloadersDirectory = DEFAULT_OFFLOADER_DIRECTORY;
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
-    private String managedLedgerOffloadDriver = "filesystem";
+    private String managedLedgerOffloadDriver;
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Integer managedLedgerOffloadMaxThreads = DEFAULT_OFFLOAD_MAX_THREADS;
