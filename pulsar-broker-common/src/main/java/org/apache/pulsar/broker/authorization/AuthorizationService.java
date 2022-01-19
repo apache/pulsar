@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.broker.authorization;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -34,15 +39,9 @@ import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RestException;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.ws.rs.core.Response;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-
-import static java.util.concurrent.TimeUnit.SECONDS;
 
 /**
  * Authorization service that manages pluggable authorization provider and authorize requests accordingly.
@@ -91,7 +90,7 @@ public class AuthorizationService {
 
     /**
      *
-     * Grant authorization-action permission on a namespace to the given client
+     * Grant authorization-action permission on a namespace to the given client.
      *
      * @param namespace
      * @param actions
@@ -114,7 +113,7 @@ public class AuthorizationService {
     }
 
     /**
-     * Grant permission to roles that can access subscription-admin api
+     * Grant permission to roles that can access subscription-admin api.
      *
      * @param namespace
      * @param subscriptionName
@@ -133,7 +132,7 @@ public class AuthorizationService {
     }
 
     /**
-     * Revoke subscription admin-api access for a role
+     * Revoke subscription admin-api access for a role.
      *
      * @param namespace
      * @param subscriptionName
@@ -149,15 +148,17 @@ public class AuthorizationService {
     }
 
     /**
-     * Grant authorization-action permission on a topic to the given client
+     * Grant authorization-action permission on a topic to the given client.
+     *
+     * NOTE: used to complete with {@link IllegalArgumentException} when namespace not found or with
+     * {@link IllegalStateException} when failed to grant permission.
      *
      * @param topicname
      * @param role
      * @param authDataJson
      *            additional authdata in json for targeted authorization provider
-     * @return IllegalArgumentException when namespace not found
-     * @throws IllegalStateException
-     *             when failed to grant permission
+     * @completesWith null when the permissions are updated successfully.
+     * @completesWith {@link MetadataStoreException} when the MetadataStore is not updated.
      */
     public CompletableFuture<Void> grantPermissionAsync(TopicName topicname, Set<AuthAction> actions, String role,
                                                         String authDataJson) {
@@ -206,7 +207,8 @@ public class AuthorizationService {
      *            the subscription name defined by the client
      */
     public CompletableFuture<Boolean> canConsumeAsync(TopicName topicName, String role,
-                                                      AuthenticationDataSource authenticationData, String subscription) {
+                                                      AuthenticationDataSource authenticationData,
+                                                      String subscription) {
         if (!this.conf.isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(true);
         }
@@ -328,7 +330,8 @@ public class AuthorizationService {
             // Request has come from a proxy
             if (StringUtils.isBlank(originalPrincipal)) {
                 log.warn("Original principal empty in request authenticated as {}", authenticatedPrincipal);
-                throw new RestException(Response.Status.UNAUTHORIZED, "Original principal cannot be empty if the request is via proxy.");
+                throw new RestException(Response.Status.UNAUTHORIZED, "Original principal cannot be empty if the "
+                        + "request is via proxy.");
             }
             if (proxyRoles.contains(originalPrincipal)) {
                 log.warn("Original principal {} cannot be a proxy role ({})", originalPrincipal, proxyRoles);
@@ -342,7 +345,7 @@ public class AuthorizationService {
     }
 
     /**
-     * Grant authorization-action permission on a tenant to the given client
+     * Grant authorization-action permission on a tenant to the given client.
      *
      * @param tenantName tenant name
      * @param operation tenant operation
@@ -365,8 +368,8 @@ public class AuthorizationService {
             return provider.allowTenantOperationAsync(tenantName, role, operation, authData);
         }
 
-        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for " +
-                "allowTenantOperationAsync"));
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for "
+                + "allowTenantOperationAsync"));
     }
 
     public CompletableFuture<Boolean> allowTenantOperationAsync(String tenantName,
@@ -403,7 +406,7 @@ public class AuthorizationService {
     }
 
     /**
-     * Grant authorization-action permission on a namespace to the given client
+     * Grant authorization-action permission on a namespace to the given client.
      *
      * @param namespaceName
      * @param operation
@@ -426,8 +429,8 @@ public class AuthorizationService {
             return provider.allowNamespaceOperationAsync(namespaceName, role, operation, authData);
         }
 
-        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for " +
-                "allowNamespaceOperationAsync"));
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for "
+                + "allowNamespaceOperationAsync"));
     }
 
     public CompletableFuture<Boolean> allowNamespaceOperationAsync(NamespaceName namespaceName,
@@ -464,7 +467,7 @@ public class AuthorizationService {
     }
 
     /**
-     * Grant authorization-action permission on a namespace to the given client
+     * Grant authorization-action permission on a namespace to the given client.
      *
      * @param namespaceName
      * @param operation
@@ -488,8 +491,8 @@ public class AuthorizationService {
             return provider.allowNamespacePolicyOperationAsync(namespaceName, policy, operation, role, authData);
         }
 
-        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for " +
-                "allowNamespacePolicyOperationAsync"));
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for "
+                + "allowNamespacePolicyOperationAsync"));
     }
 
     public CompletableFuture<Boolean> allowNamespacePolicyOperationAsync(NamespaceName namespaceName,
@@ -528,7 +531,7 @@ public class AuthorizationService {
     }
 
     /**
-     * Grant authorization-action permission on a topic to the given client
+     * Grant authorization-action permission on a topic to the given client.
      *
      * @param topicName
      * @param policy
@@ -550,8 +553,8 @@ public class AuthorizationService {
             return provider.allowTopicPolicyOperationAsync(topicName, role, policy, operation, authData);
         }
 
-        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for " +
-                "allowTopicPolicyOperationAsync"));
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for "
+                + "allowTopicPolicyOperationAsync"));
     }
 
     public CompletableFuture<Boolean> allowTopicPolicyOperationAsync(TopicName topicName,
@@ -592,7 +595,7 @@ public class AuthorizationService {
     }
 
     /**
-     * Grant authorization-action permission on a topic to the given client
+     * Grant authorization-action permission on a topic to the given client.
      *
      * @param topicName
      * @param operation
@@ -639,8 +642,8 @@ public class AuthorizationService {
             }
         }
 
-        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for " +
-                "allowTopicOperationAsync"));
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for "
+                + "allowTopicOperationAsync"));
     }
 
     public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topicName,

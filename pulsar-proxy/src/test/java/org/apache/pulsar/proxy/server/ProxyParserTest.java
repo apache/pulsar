@@ -82,7 +82,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
 
         Optional<Integer> proxyLogLevel = Optional.of(2);
-        assertEquals( proxyLogLevel , proxyService.getConfiguration().getProxyLogLevel());
+        assertEquals( proxyLogLevel, proxyService.getConfiguration().getProxyLogLevel());
         proxyService.start();
     }
 

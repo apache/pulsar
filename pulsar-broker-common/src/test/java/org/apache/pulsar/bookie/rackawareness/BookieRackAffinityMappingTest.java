@@ -19,6 +19,7 @@
 package org.apache.pulsar.bookie.rackawareness;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import java.util.HashMap;
@@ -77,7 +78,30 @@ public class BookieRackAffinityMappingTest {
                 .resolve(Lists.newArrayList(BOOKIE1.getHostName(), BOOKIE2.getHostName(), BOOKIE3.getHostName()));
         assertEquals(racks1.get(0), "/rack0");
         assertEquals(racks1.get(1), "/rack1");
-        assertEquals(racks1.get(2), null);
+        assertNull(racks1.get(2));
+    }
+
+    @Test
+    public void testInvalidRackName() {
+        String data = "{\"group1\": {\"" + BOOKIE1
+                + "\": {\"rack\": \"/\", \"hostname\": \"bookie1.example.com\"}, \"" + BOOKIE2
+                + "\": {\"rack\": \"\", \"hostname\": \"bookie2.example.com\"}}}";
+
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, data.getBytes(), Optional.empty()).join();
+
+        // Case1: ZKCache is given
+        BookieRackAffinityMapping mapping1 = new BookieRackAffinityMapping();
+        ClientConfiguration bkClientConf1 = new ClientConfiguration();
+        bkClientConf1.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+
+        mapping1.setBookieAddressResolver(BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
+        mapping1.setConf(bkClientConf1);
+        List<String> racks1 = mapping1
+                .resolve(Lists.newArrayList(BOOKIE1.getHostName(), BOOKIE2.getHostName(), BOOKIE3.getHostName()));
+
+        assertNull(racks1.get(0));
+        assertNull(racks1.get(1));
+        assertNull(racks1.get(2));
     }
 
     @Test

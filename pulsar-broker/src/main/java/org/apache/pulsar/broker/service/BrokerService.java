@@ -235,6 +235,7 @@ public class BrokerService implements Closeable {
     private ScheduledExecutorService brokerPublishRateLimiterMonitor;
     private ScheduledExecutorService deduplicationSnapshotMonitor;
     protected volatile PublishRateLimiter brokerPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
+    protected volatile DispatchRateLimiter brokerDispatchRateLimiter = null;
 
     private DistributedIdGenerator producerNameGenerator;
 
@@ -495,6 +496,7 @@ public class BrokerService implements Closeable {
         this.startConsumedLedgersMonitor();
         this.startBacklogQuotaChecker();
         this.updateBrokerPublisherThrottlingMaxRate();
+        this.updateBrokerDispatchThrottlingMaxRate();
         this.startCheckReplicationPolicies();
         this.startDeduplicationSnapshotMonitor();
     }
@@ -1683,7 +1685,7 @@ public class BrokerService implements Closeable {
             if (t instanceof PersistentTopic) {
                 Optional.ofNullable(((PersistentTopic) t).getManagedLedger()).ifPresent(
                         managedLedger -> {
-                            managedLedger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
+                            managedLedger.trimConsumedLedgersInBackground(Futures.nullPromise_);
                         }
                 );
             }
@@ -2146,7 +2148,13 @@ public class BrokerService implements Closeable {
         registerConfigurationListener("brokerPublisherThrottlingMaxByteRate",
                 (brokerPublisherThrottlingMaxByteRate) ->
                         updateBrokerPublisherThrottlingMaxRate());
-
+        // add listener to notify broker dispatch-rate dynamic config
+        registerConfigurationListener("dispatchThrottlingRateInMsg",
+                (dispatchThrottlingRateInMsg) ->
+                        updateBrokerDispatchThrottlingMaxRate());
+        registerConfigurationListener("dispatchThrottlingRateInByte",
+                (dispatchThrottlingRateInByte) ->
+                        updateBrokerDispatchThrottlingMaxRate());
         // add listener to notify topic publish-rate monitoring
         if (!preciseTopicPublishRateLimitingEnable) {
             registerConfigurationListener("topicPublisherThrottlingTickTimeMillis",
@@ -2159,6 +2167,14 @@ public class BrokerService implements Closeable {
         registerConfigurationListener("subscriptionTypesEnabled", this::updateBrokerSubscriptionTypesEnabled);
 
         // add more listeners here
+    }
+
+    private void updateBrokerDispatchThrottlingMaxRate() {
+        if (brokerDispatchRateLimiter == null) {
+            brokerDispatchRateLimiter = new DispatchRateLimiter(this);
+        } else {
+            brokerDispatchRateLimiter.updateDispatchRate();
+        }
     }
 
     private void updateBrokerPublisherThrottlingMaxRate() {

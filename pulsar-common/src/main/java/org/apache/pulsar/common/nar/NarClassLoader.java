@@ -23,9 +23,6 @@
  */
 package org.apache.pulsar.common.nar;
 
-import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileFilter;
@@ -36,7 +33,6 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -45,6 +41,8 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * <p>
@@ -193,13 +191,7 @@ public class NarClassLoader extends URLClassLoader {
         updateClasspath(narWorkingDirectory);
 
         for (String jar : additionalJars) {
-            if (jar.startsWith("/")) {
-                addURL(new URL("file://" + jar));
-            } else {
-                Path currentRelativePath = Paths.get("");
-                String cwd = currentRelativePath.toAbsolutePath().toString();
-                addURL(new URL("file://" + cwd + "/" + jar));
-            }
+            addURL(Paths.get(jar).toUri().toURL());
         }
 
         if (log.isDebugEnabled()) {

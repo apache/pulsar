@@ -95,8 +95,7 @@ export default function VersionsTable(props) {
                 href={row.releaseNote}
                 underline="none"
               >
-                {/* <Translate>Release Notes</Translate> */}
-                {row.releaseNote}
+                <Translate>Release Notes</Translate>
               </Link>
             </TableCell>
           </TableRow>

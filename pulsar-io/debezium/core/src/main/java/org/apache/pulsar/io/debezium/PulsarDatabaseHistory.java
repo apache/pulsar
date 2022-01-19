@@ -103,12 +103,12 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
         }
         this.topicName = config.getString(TOPIC);
 
-        if (config.getString(CLIENT_BUILDER) == null && config.getString(SERVICE_URL) == null) {
+        String clientBuilderBase64Encoded = config.getString(CLIENT_BUILDER);
+        if (isBlank(clientBuilderBase64Encoded) && isBlank(config.getString(SERVICE_URL))) {
             throw new IllegalArgumentException("Neither Pulsar Service URL nor ClientBuilder provided.");
         }
-        String clientBuilderBase64Encoded = config.getString(CLIENT_BUILDER);
         this.clientBuilder = PulsarClient.builder();
-        if (null != clientBuilderBase64Encoded) {
+        if (!isBlank(clientBuilderBase64Encoded)) {
             // deserialize the client builder to the same classloader
             this.clientBuilder = (ClientBuilder) SerDeUtils.deserialize(clientBuilderBase64Encoded,
                     this.clientBuilder.getClass().getClassLoader());

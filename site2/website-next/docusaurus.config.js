@@ -121,6 +121,12 @@ module.exports = {
         },
         { to: "/download", label: "Download", position: "left" },
         {
+          type: "doc",
+          docId: "client-libraries",
+          position: "left",
+          label: "Clients",
+        },
+        {
           label: "REST APIs",
           position: "left",
           items: [
@@ -177,18 +183,18 @@ module.exports = {
               label: "Contact",
               to: "/:locale/contact",
             },
-            // {
-            //   label: "Contributing",
-            //   to: "/:locale/contributing",
-            // },
-            // {
-            //   label: "Coding guide",
-            //   to: "/:locale/coding-guide",
-            // },
-            // {
-            //   label: "Events",
-            //   to: "/:locale/events",
-            // },
+            {
+              label: "Contributing",
+              to: "/:locale/contributing",
+            },
+            {
+              label: "Coding guide",
+              to: "/:locale/coding-guide",
+            },
+            {
+              label: "Events",
+              to: "/:locale/events",
+            },
             {
               label: "Twitter",
               href: "https://twitter.com/Apache_Pulsar",
@@ -205,18 +211,18 @@ module.exports = {
               label: "Pulsar Summit",
               href: "https://pulsar-summit.org/",
             },
-            // {
-            //   label: "Resources",
-            //   to: "/:locale/resources",
-            // },
-            // {
-            //   label: "Team",
-            //   to: "/:locale/team",
-            // },
-            // {
-            //   label: "Powered By",
-            //   to: "/:locale/powered-by",
-            // },
+            {
+              label: "Resources",
+              to: "/:locale/resources",
+            },
+            {
+              label: "Team",
+              to: "/:locale/team",
+            },
+            {
+              label: "Powered By",
+              to: "/:locale/powered-by",
+            },
           ],
         },
         {

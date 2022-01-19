@@ -315,6 +315,10 @@ ZK_OPTS=" -Dzookeeper.4lw.commands.whitelist=* -Dzookeeper.snapshot.trust.empty=
 
 LOG4J2_SHUTDOWN_HOOK_DISABLED="-Dlog4j.shutdownHookEnabled=false"
 
+# Adding pulsar metadata as a recognized provider
+BK_METADATA_OPTIONS="-Dbookkeeper.metadata.bookie.drivers=org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver -Dbookkeeper.metadata.client.drivers=org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver"
+OPTS="$OPTS $BK_METADATA_OPTIONS"
+
 #Change to PULSAR_HOME to support relative paths
 cd "$PULSAR_HOME"
 if [ $COMMAND == "broker" ]; then

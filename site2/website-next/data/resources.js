@@ -1,5 +1,75 @@
 module.exports = {
   articles: [
+  {
+      forum: 'Pedro Silvestre',
+      forum_link: 'https://www.doc.ic.ac.uk/~pms20/',
+      date: 'Oct 2021',
+      title: "On the Internals of Stream Processing Systems",
+      link: 'https://www.doc.ic.ac.uk/~pms20/post/stream-processing-thread-model/'
+    },
+    {
+      forum: 'Memgraph Blog',
+      forum_link: 'https://memgraph.com/blog',
+      date: 'Nov 2021',
+      title: "Announcing Memgraph 2.1",
+      link: 'https://memgraph.com/blog/memgraph-2-1-release'
+    },
+    {
+      forum: 'DataStax Blog',
+      forum_link: 'https://www.datastax.com/blog',
+      date: 'Nov 2021',
+      title: "Infinite Scale without Fail",
+      link: 'https://www.datastax.com/blog/infinite-scale-without-fail-starlight-rabbitmq'
+    },
+    {
+      forum: 'Splunk-MaaS',
+      forum_link: 'https://medium.com/splunk-maas',
+      date: 'Oct/Nov 2021',
+      title: "Apache BookKeeper Observability — Part 1 of 5  ",
+      link: 'https://medium.com/splunk-maas/apache-bookkeeper-observability-part-1-introducing-the-metrics-7f0acb32d0dc'
+    },
+    {
+      forum: 'BetterProgramming',
+      forum_link: 'https://betterprogramming.pub/',
+      date: 'Nov 2021',
+      title: "Distributed Locks With Apache Pulsar",
+      link: 'https://betterprogramming.pub/distributed-locks-with-apache-pulsar-2d95a4d5ff5e'
+    },
+    {
+      forum: 'Data in Motion',
+      forum_link: 'https://www.datainmotion.dev/',
+      date: 'Nov 2021',
+      title: "Producing and Consuming Pulsar messages with Apache NiFi",
+      link: 'https://www.datainmotion.dev/2021/11/producing-and-consuming-pulsar-messages.html'
+    },
+    {
+      forum: 'Umut Bayram\'s Medium',
+      forum_link: 'https://medium.com/@ubayram',
+      date: 'Nov 2021',
+      title: "Apache Pulsar- Apache Kafka vs Apache Pulsar (Turkish)",
+      link: 'https://medium.com/@ubayram/apache-pulsar-apache-kafka-vs-apache-pulsar-418a998084d'
+    },
+    {
+      forum: 'StreamNative Blog ',
+      forum_link: 'https://streamnative.io/blogs/',
+      date: 'Nov 2021',
+      title: "Building Edge Applications With Apache Pulsar",
+      link: 'https://streamnative.io/blog/engineering/2021-11-17-building-edge-applications-with-apache-pulsar/'
+    },
+    {
+      forum: 'The New Stack',
+      forum_link: 'https://thenewstack.io/',
+      date: 'Nov 2021',
+      title: "Apache Pulsar: A Unified Queueing and Streaming Platform",
+      link: 'https://thenewstack.io/apache-pulsar-a-unified-queueing-and-streaming-platform/'
+    },
+    {
+      forum: 'jaxenter',
+      forum_link: 'https://jaxenter.com/',
+      date: 'Nov 2021',
+      title: "Why Pulsar Beats Kafka for a Scalable, Distributed Data Architecture",
+      link: 'https://jaxenter.com/pulsar-kafka-175830.html'
+    },
     {
       forum: 'RT Instights',
       forum_link: 'https://www.rtinsights.com/',
@@ -57,6 +127,31 @@ module.exports = {
    * 
    ******************************/ 
   presentations: [
+   {
+      forum: 'P99Conf',
+      forum_link: 'https://www.p99conf.io/',
+      presenter: 'Karthik Ramasamy',
+      date: 'Oct 2021',
+      title: "Scaling Apache Pulsar to 10 PB/day",
+      link: 'https://www.youtube.com/watch?v=x76sX4BU2mA'
+    },
+   {
+      forum: 'Apache Pulsar Summit',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Many',
+      date: 'Oct 2021',
+      title: "Apache Pulsar Summit Europe 2021 Playlist",
+      link: 'https://www.youtube.com/playlist?list=PLqRma1oIkcWh7zes7mNeTUCr2iU-2C1jB'
+    },
+
+    {
+      forum: 'ApacheCon @Home 2021',
+      forum_link: 'https://www.apachecon.com/acah2021/',
+      presenter: 'Many',
+      date: 'Sept 2021',
+      title: "Apache Pulsar Playlist",
+      link: 'https://www.youtube.com/watch?v=igwxegspSGw&list=PLIt9PL1-3shvC0dGjaPyd0Rqfg1_PZLvS'
+    },
    {
       forum: 'Apache Pulsar Neighborhood YouTube',
       forum_link: 'https://www.youtube.com/apachepulsarneighborhood',
