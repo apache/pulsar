@@ -105,6 +105,10 @@ public interface Topic {
         default Object getProperty(String propertyName) {
             return null;
         }
+
+        default boolean isChunked() {
+            return false;
+        }
     }
 
     CompletableFuture<Void> initialize();
@@ -274,9 +278,15 @@ public interface Topic {
         return Optional.empty();
     }
 
+    default Optional<DispatchRateLimiter> getBrokerDispatchRateLimiter() {
+        return Optional.empty();
+    }
+
     default boolean isSystemTopic() {
         return false;
     }
+
+    boolean isPersistent();
 
     /* ------ Transaction related ------ */
 

@@ -18,6 +18,6 @@
  */
 
 /**
- * Helper class to access AirCompressor package private classes.
+ * Helper class to for message encrypt or decrypt.
  */
 package org.apache.pulsar.client.impl.crypto;

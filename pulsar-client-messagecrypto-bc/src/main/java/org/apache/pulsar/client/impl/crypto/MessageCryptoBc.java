@@ -104,6 +104,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
     // Map of key name and encrypted gcm key, metadata pair which is sent with encrypted message
     private ConcurrentHashMap<String, EncryptionKeyInfo> encryptedDataKeyMap;
 
+
     private static final SecureRandom secureRandom;
     static {
         SecureRandom rand = null;
@@ -385,6 +386,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             return;
         }
 
+        msgMetadata.clearEncryptionKeys();
         // Update message metadata with encrypted data key
         for (String keyName : encKeys) {
             if (encryptedDataKeyMap.get(keyName) == null) {
@@ -417,7 +419,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
 
         // Create gcm param
         // TODO: Replace random with counter and periodic refreshing based on timer/counter value
-        secureRandom.nextBytes(iv);
+        SECURERANDOM.nextBytes(iv);
         GCMParameterSpec gcmParam = new GCMParameterSpec(tagLen, iv);
 
         // Update message metadata with encryption param
