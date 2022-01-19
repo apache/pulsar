@@ -387,8 +387,7 @@ public class ConsumerConfiguration implements Serializable {
      * Default value is: ExponentialRedeliveryBackoff
      * @return the {@link ConsumerConfiguration}
      */
-    public ConsumerConfiguration setNegativeAckRedeliveryBackoff(
-            NegativeAckRedeliveryBackoff negativeAckRedeliveryBackoff) {
+    public ConsumerConfiguration setNegativeAckRedeliveryBackoff(RedeliveryBackoff negativeAckRedeliveryBackoff) {
         conf.setNegativeAckRedeliveryBackoff(negativeAckRedeliveryBackoff);
         return this;
     }
