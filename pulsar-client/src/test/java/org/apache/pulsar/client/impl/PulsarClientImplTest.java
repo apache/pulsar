@@ -48,10 +48,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.regex.Pattern;
 
+import lombok.Cleanup;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -216,5 +218,35 @@ public class PulsarClientImplTest {
             // Externally passed eventLoopGroup should not be shutdown.
             assertFalse(eventLoopGroup.isShutdown());
         }
+    }
+
+    @Test
+    public void testInitializingWithExecutorProviders() throws PulsarClientException {
+        ClientConfigurationData conf = clientImpl.conf;
+        @Cleanup("shutdownNow")
+        ExecutorProvider executorProvider = new ExecutorProvider(2, "shared-executor");
+        @Cleanup
+        PulsarClientImpl client2 = PulsarClientImpl.builder().conf(conf)
+                .internalExecutorProvider(executorProvider)
+                .externalExecutorProvider(executorProvider)
+                .build();
+        @Cleanup
+        PulsarClientImpl client3 = PulsarClientImpl.builder().conf(conf)
+                .internalExecutorProvider(executorProvider)
+                .externalExecutorProvider(executorProvider)
+                .build();
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Both externalExecutorProvider and internalExecutorProvider must be " +
+                    "specified or unspecified.")
+    public void testBothExecutorProvidersMustBeSpecified() throws PulsarClientException {
+        ClientConfigurationData conf = clientImpl.conf;
+        @Cleanup("shutdownNow")
+        ExecutorProvider executorProvider = new ExecutorProvider(2, "shared-executor");
+        @Cleanup
+        PulsarClientImpl client2 = PulsarClientImpl.builder().conf(conf)
+                .internalExecutorProvider(executorProvider)
+                .build();
     }
 }
