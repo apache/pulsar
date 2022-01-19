@@ -492,8 +492,8 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 | brokerPublisherThrottlingMaxByteRate | Maximum rate (in 1 second) of bytes allowed to publish for a broker if the  byte rate limiting is enabled. When the value is set to 0, the byte rate limiting is disabled. | 0 |
 |subscribeThrottlingRatePerConsumer|Too many subscribe requests from a consumer can cause broker rewinding consumer cursors and loading data from bookies, hence causing high network bandwidth usage. When the positive value is set, broker will throttle the subscribe requests for one consumer. Otherwise, the throttling will be disabled. By default, throttling is disabled.|0|
 |subscribeRatePeriodPerConsumerInSecond|Rate period for {subscribeThrottlingRatePerConsumer}. By default, it is 30s.|30|
-| dispatchThrottlingRateInMsg | Default messages (per second) dispatch throttling-limit for whole broker. When the value is set to 0, default message dispatch throttling-limit is disabled. |0|
-| dispatchThrottlingRateInByte | Default byte (per second) dispatch throttling-limit for whole broker. When the value is set to 0, default byte dispatch throttling-limit is disabled. |0|
+|dispatchThrottlingRateInMsg| Dispatch throttling-limit of messages for a broker (per second). 0 means the dispatch throttling-limit is disabled. |0|
+|dispatchThrottlingRateInByte| Dispatch throttling-limit of bytes for a broker (per second). 0 means the dispatch throttling-limit is disabled. |0|
 | dispatchThrottlingRatePerTopicInMsg | Default messages (per second) dispatch throttling-limit for every topic. When the value is set to 0, default message dispatch throttling-limit is disabled. |0 |
 | dispatchThrottlingRatePerTopicInByte | Default byte (per second) dispatch throttling-limit for every topic. When the value is set to 0, default byte dispatch throttling-limit is disabled. | 0|
 | dispatchThrottlingOnBatchMessageEnabled |Apply dispatch rate limiting on batch message instead individual messages with in batch message. (Default is disabled). | false|
