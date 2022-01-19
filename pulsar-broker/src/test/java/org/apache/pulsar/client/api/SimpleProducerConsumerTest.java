@@ -77,6 +77,7 @@ import org.apache.avro.Schema.Parser;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -2618,6 +2619,38 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.acknowledgeCumulative(msg);
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test
+    public void testCryptoWithChunking() throws Exception {
+        final String topic = "persistent://my-property/my-ns/testCryptoWithChunking" + System.currentTimeMillis();
+        final String ecdsaPublicKeyFile = "file:./src/test/resources/certificate/public-key.client-ecdsa.pem";
+        final String ecdsaPrivateKeyFile = "file:./src/test/resources/certificate/private-key.client-ecdsa.pem";
+
+        this.conf.setMaxMessageSize(1000);
+
+        @Cleanup
+        PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+
+        @Cleanup
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
+                .defaultCryptoKeyReader(ecdsaPrivateKeyFile).subscribe();
+        @Cleanup
+        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topic)
+                .enableChunking(true)
+                .enableBatching(false)
+                .addEncryptionKey("client-ecdsa.pem")
+                .defaultCryptoKeyReader(ecdsaPublicKeyFile)
+                .create();
+
+        byte[] data = RandomUtils.nextBytes(5100);
+        MessageId id = producer1.send(data);
+        log.info("Message Id={}", id);
+
+        MessageImpl<byte[]> message;
+        message = (MessageImpl<byte[]>) consumer1.receive();
+        Assert.assertEquals(message.getData(), data);
+        Assert.assertEquals(message.getEncryptionCtx().get().getKeys().size(), 1);
     }
 
     @Test

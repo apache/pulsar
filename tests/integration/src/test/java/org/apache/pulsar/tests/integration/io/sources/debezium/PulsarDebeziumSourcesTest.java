@@ -45,19 +45,25 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
 
     @Test(groups = "source")
     public void testDebeziumMySqlSourceJson() throws Exception {
-        testDebeziumMySqlConnect("org.apache.kafka.connect.json.JsonConverter", true);
+        testDebeziumMySqlConnect("org.apache.kafka.connect.json.JsonConverter", true, false);
+    }
+
+    @Test(groups = "source")
+    public void testDebeziumMySqlSourceJsonWithClientBuilder() throws Exception {
+        testDebeziumMySqlConnect("org.apache.kafka.connect.json.JsonConverter", true, true);
     }
 
     @Test(groups = "source")
     public void testDebeziumMySqlSourceAvro() throws Exception {
         testDebeziumMySqlConnect(
-                "org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroConverter", false);
+                "org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroConverter", false, false);
     }
 
     @Test(groups = "source")
     public void testDebeziumPostgreSqlSource() throws Exception {
         testDebeziumPostgreSqlConnect("org.apache.kafka.connect.json.JsonConverter", true);
     }
+
 
     @Test(groups = "source")
     public void testDebeziumMongoDbSource() throws Exception{
@@ -69,7 +75,8 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         testDebeziumMsSqlConnect("org.apache.kafka.connect.json.JsonConverter", true);
     }
 
-    private void testDebeziumMySqlConnect(String converterClassName, boolean jsonWithEnvelope) throws Exception {
+    private void testDebeziumMySqlConnect(String converterClassName, boolean jsonWithEnvelope,
+                                          boolean testWithClientBuilder) throws Exception {
 
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
@@ -104,7 +111,7 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         admin.topics().createNonPartitionedTopic(outputTopicName);
 
         @Cleanup
-        DebeziumMySqlSourceTester sourceTester = new DebeziumMySqlSourceTester(pulsarCluster, converterClassName);
+        DebeziumMySqlSourceTester sourceTester = new DebeziumMySqlSourceTester(pulsarCluster, converterClassName, testWithClientBuilder);
         sourceTester.getSourceConfig().put("json-with-envelope", jsonWithEnvelope);
 
         // setup debezium mysql server
