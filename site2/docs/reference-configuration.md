@@ -775,3 +775,12 @@ server.3=zk3.us-west.example.com:2888:3888
 ```
 
 > We strongly recommend consulting the [ZooKeeper Administrator's Guide](https://zookeeper.apache.org/doc/current/zookeeperAdmin.html) for a more thorough and comprehensive introduction to ZooKeeper configuration
+
+
+## RocksDB
+
+Standalone Pulsar uses [RocksDB](http://rocksdb.org/) rather than ZooKeeper. The default configuration file for RocksDB is in the `conf/rocksdb.conf` file in your Pulsar installation. The following parameters are available:
+
+
+|Name|Description|Default|
+|---|---|---|
