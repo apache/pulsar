@@ -62,6 +62,7 @@ import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
@@ -92,6 +93,8 @@ public class ProxyService implements Closeable {
 
     private final EventLoopGroup acceptorGroup;
     private final EventLoopGroup workerGroup;
+    private final ExecutorProvider brokerClientSharedInternalExecutorProvider;
+    private final ExecutorProvider brokerClientSharedExternalExecutorProvider;
     private final List<EventLoopGroup> extensionsWorkerGroups = new ArrayList<>();
 
     private Channel listenChannel;
@@ -156,6 +159,12 @@ public class ProxyService implements Closeable {
         }
         this.acceptorGroup = EventLoopUtil.newEventLoopGroup(1, false, acceptorThreadFactory);
         this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, false, workersThreadFactory);
+        this.brokerClientSharedInternalExecutorProvider =
+                new ExecutorProvider(proxyConfig.getBrokerClientNumIOThreads(), "shared-internal-executor");
+        // the external executor is not used in the Pulsar Proxy since this executor is used for consumer listeners
+        // since an instance is required, a single threaded shared instance is used for all broker client instances
+        this.brokerClientSharedExternalExecutorProvider = new ExecutorProvider(1, "shared-external-executor");
+
         this.authenticationService = authenticationService;
 
         // Initialize the message protocol handlers
@@ -308,6 +317,8 @@ public class ProxyService implements Closeable {
                 .eventLoopGroup(getWorkerGroup())
                 .connectionPool(connectionPool)
                 .timer(getTimer())
+                .internalExecutorProvider(brokerClientSharedInternalExecutorProvider)
+                .externalExecutorProvider(brokerClientSharedExternalExecutorProvider)
                 .build();
     }
 
@@ -351,6 +362,8 @@ public class ProxyService implements Closeable {
                 throw new IOException(e);
             }
         }
+        brokerClientSharedExternalExecutorProvider.shutdownNow();
+        brokerClientSharedInternalExecutorProvider.shutdownNow();
         acceptorGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
         for (EventLoopGroup group : extensionsWorkerGroups) {

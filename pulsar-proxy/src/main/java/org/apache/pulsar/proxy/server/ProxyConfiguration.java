@@ -286,6 +286,13 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private int maxConcurrentLookupRequests = 50000;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Number of shared threads to use for broker clients."
+                    + " Default is set to `2 * Runtime.getRuntime().availableProcessors()`"
+    )
+    private int brokerClientNumIOThreads = 2 * Runtime.getRuntime().availableProcessors();
+
+    @FieldContext(
         category = CATEGORY_CLIENT_AUTHENTICATION,
         doc = "The authentication plugin used by the Pulsar proxy to authenticate with Pulsar brokers"
     )
