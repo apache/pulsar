@@ -1504,7 +1504,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             // Return ManagedLedgerFencedException to addFailed callback
                             // to indicate that the ledger is now fenced and topic needs to be closed
                             clearPendingAddEntries(new ManagedLedgerFencedException(e));
-                            // Do not need to unlock ledgersListMutex here because we are going to close to topic
+                            // Do not need to unlock metadataMutex here because we are going to close to topic
                             // anyways
                             return;
                         }
@@ -1638,7 +1638,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             STATE_UPDATER.set(this, State.CreatingLedger);
             this.lastLedgerCreationInitiationTimestamp = System.currentTimeMillis();
             mbean.startDataLedgerCreateOp();
-            asyncCreateLedger(bookKeeper, config, digestType, this, Collections.emptyMap());
+            // Use the executor here is to avoid use the Zookeeper thread to create the ledger which will lead
+            // to deadlock at the zookeeper client, details to see https://github.com/apache/pulsar/issues/13736
+            this.executor.execute(() ->
+                    asyncCreateLedger(bookKeeper, config, digestType, this, Collections.emptyMap()));
         }
     }
 

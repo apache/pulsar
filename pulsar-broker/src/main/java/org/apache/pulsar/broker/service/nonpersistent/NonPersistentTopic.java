@@ -167,7 +167,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
     @Override
     public void publishMessage(ByteBuf data, PublishContext callback) {
-        if (isExceedMaximumMessageSize(data.readableBytes())) {
+        if (isExceedMaximumMessageSize(data.readableBytes(), callback)) {
             callback.completed(new NotAllowedException("Exceed maximum message size")
                     , -1, -1);
             return;
@@ -1106,6 +1106,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     protected boolean isTerminated() {
+        return false;
+    }
+
+    @Override
+    public boolean isPersistent() {
         return false;
     }
 }
