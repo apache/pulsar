@@ -25,6 +25,7 @@ import Logo from "@theme/Logo";
 import IconMenu from "@theme/IconMenu";
 import IconClose from "@theme/IconClose";
 import styles from "./styles.module.css"; // retrocompatible with v1
+import { docUrl, getCache } from "../../utils/index.js";
 
 const DefaultNavItemPosition = "right";
 const versions = require("../../../versions.json");
@@ -32,11 +33,14 @@ const restApiVersions = require("../../../static/swagger/restApiVersions.json");
 const latestStableVersion = versions[0];
 
 function setVersion(version) {
-  localStorage.setItem("version", version == "next" ? "master" : version);
+  getCache().setItem("version", version == "next" ? "master" : version);
 }
 
 function getVersion() {
-  return localStorage.getItem("version") || latestStableVersion;
+  if (!getCache()) {
+    return latestStableVersion;
+  }
+  return getCache().getItem("version") || latestStableVersion;
 }
 
 function getApiVersion(anchor) {

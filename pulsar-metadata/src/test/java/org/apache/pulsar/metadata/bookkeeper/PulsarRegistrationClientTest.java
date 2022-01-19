@@ -22,7 +22,7 @@ import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.Mockito.mock;
-import com.google.common.collect.Lists;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -76,7 +76,7 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
         RegistrationClient rc = new PulsarRegistrationClient(store, ledgersRoot);
 
         Set<BookieId> addresses = prepareNBookies(10);
-        List<String> children = Lists.newArrayList();
+        List<String> children = new ArrayList<>();
         for (BookieId address : addresses) {
             children.add(address.toString());
             rm.registerBookie(address, false, new BookieServiceInfo());
@@ -103,7 +103,7 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
         RegistrationClient rc = new PulsarRegistrationClient(store, ledgersRoot);
 
         Set<BookieId> addresses = prepareNBookies(10);
-        List<String> children = Lists.newArrayList();
+        List<String> children = new ArrayList<>();
         for (BookieId address : addresses) {
             children.add(address.toString());
             rm.registerBookie(address, true, new BookieServiceInfo());
@@ -129,7 +129,7 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
         RegistrationClient rc = new PulsarRegistrationClient(store, ledgersRoot);
 
         Set<BookieId> addresses = prepareNBookies(10);
-        List<String> children = Lists.newArrayList();
+        List<String> children = new ArrayList<>();
         for (BookieId address : addresses) {
             children.add(address.toString());
             boolean isReadOnly = children.size() % 2 == 0;

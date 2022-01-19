@@ -121,6 +121,12 @@ module.exports = {
         },
         { to: "/download", label: "Download", position: "left" },
         {
+          type: "doc",
+          docId: "client-libraries",
+          position: "left",
+          label: "Clients",
+        },
+        {
           label: "REST APIs",
           position: "left",
           items: [
@@ -205,18 +211,18 @@ module.exports = {
               label: "Pulsar Summit",
               href: "https://pulsar-summit.org/",
             },
-            // {
-            //   label: "Resources",
-            //   to: "/:locale/resources",
-            // },
+            {
+              label: "Resources",
+              to: "/:locale/resources",
+            },
             {
               label: "Team",
               to: "/:locale/team",
             },
-            // {
-            //   label: "Powered By",
-            //   to: "/:locale/powered-by",
-            // },
+            {
+              label: "Powered By",
+              to: "/:locale/powered-by",
+            },
           ],
         },
         {

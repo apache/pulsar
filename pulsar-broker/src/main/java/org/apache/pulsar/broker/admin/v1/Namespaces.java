@@ -122,8 +122,7 @@ public class Namespaces extends NamespacesBase {
     @Path("/{property}/{cluster}/{namespace}/destinations")
     @ApiOperation(hidden = true, value = "Get the list of all the topics under a certain namespace.",
             response = String.class, responseContainer = "Set")
-    @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "Don't have admin or operate permission on the namespace"),
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist")})
     public void getTopics(@PathParam("property") String property,
                                   @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
@@ -914,8 +913,7 @@ public class Namespaces extends NamespacesBase {
     @POST
     @Path("/{property}/{cluster}/{namespace}/clearBacklog")
     @ApiOperation(hidden = true, value = "Clear backlog for all topics on a namespace.")
-    @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "Don't have admin or operate permission on the namespace"),
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
     public void clearNamespaceBacklog(@Suspended final AsyncResponse asyncResponse,
             @PathParam("property") String property, @PathParam("cluster") String cluster,
@@ -936,7 +934,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(hidden = true, value = "Clear backlog for all topics on a namespace bundle.")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
-            @ApiResponse(code = 403, message = "Don't have admin or operate permission on the namespace"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
     public void clearNamespaceBundleBacklog(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
@@ -949,8 +947,7 @@ public class Namespaces extends NamespacesBase {
     @POST
     @Path("/{property}/{cluster}/{namespace}/clearBacklog/{subscription}")
     @ApiOperation(hidden = true, value = "Clear backlog for a given subscription on all topics on a namespace.")
-    @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "Don't have admin or operate permission on the namespace"),
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
     public void clearNamespaceBacklogForSubscription(@Suspended final AsyncResponse asyncResponse,
             @PathParam("property") String property, @PathParam("cluster") String cluster,
@@ -971,7 +968,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(hidden = true, value = "Clear backlog for a given subscription on all topics on a namespace bundle.")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
-            @ApiResponse(code = 403, message = "Don't have admin or operate permission on the namespace"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
     public void clearNamespaceBundleBacklogForSubscription(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
@@ -984,8 +981,7 @@ public class Namespaces extends NamespacesBase {
     @POST
     @Path("/{property}/{cluster}/{namespace}/unsubscribe/{subscription}")
     @ApiOperation(hidden = true, value = "Unsubscribes the given subscription on all topics on a namespace.")
-    @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "Don't have admin or operate permission on the namespace"),
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
     public void unsubscribeNamespace(@Suspended final AsyncResponse asyncResponse,
             @PathParam("property") String property, @PathParam("cluster") String cluster,

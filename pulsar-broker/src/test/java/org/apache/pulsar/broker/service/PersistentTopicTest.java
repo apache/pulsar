@@ -2259,7 +2259,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     public void testGetReplicationClusters() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         topic.initialize();
-        assertNull(topic.getHierarchyTopicPolicies().getReplicationClusters().get());
+        assertEquals(topic.getHierarchyTopicPolicies().getReplicationClusters().get(), Collections.emptyList());
 
         PulsarResources pulsarResources = spyWithClassAndConstructorArgs(PulsarResources.class, store, store);
         NamespaceResources nsr = spyWithClassAndConstructorArgs(NamespaceResources.class, store, store, 30);
