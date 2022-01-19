@@ -57,7 +57,11 @@ import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.ConnectionPool;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
@@ -295,6 +299,16 @@ public class ProxyService implements Closeable {
             throw new IOException("Failed to bind extension `" + extensionName + "` on " + address, e);
         }
         LOG.info("Successfully bound extension `{}` on {}", extensionName, address);
+    }
+
+    public PulsarClientImpl createClientImpl(ClientConfigurationData clientConf, ConnectionPool connectionPool)
+            throws PulsarClientException {
+        return PulsarClientImpl.builder()
+                .conf(clientConf)
+                .eventLoopGroup(getWorkerGroup())
+                .connectionPool(connectionPool)
+                .timer(getTimer())
+                .build();
     }
 
     public BrokerDiscoveryProvider getDiscoveryProvider() {

@@ -301,10 +301,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
 
             // authn not enabled, complete
             if (!service.getConfiguration().isAuthenticationEnabled()) {
-                this.connectionPool = new ProxyConnectionPool(clientConf, service.getWorkerGroup(),
-                        () -> new ClientCnx(clientConf, service.getWorkerGroup(), protocolVersion));
-                this.client =
-                        new PulsarClientImpl(clientConf, service.getWorkerGroup(), connectionPool, service.getTimer());
+                this.client = createClientNoAuthentication(protocolVersion);
 
                 completeConnect();
                 return;
@@ -441,7 +438,13 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         this.connectionPool = new ProxyConnectionPool(clientConf, service.getWorkerGroup(),
                 () -> new ProxyClientCnx(clientConf, service.getWorkerGroup(), clientAuthRole, clientAuthData,
                         clientAuthMethod, protocolVersion));
-        return new PulsarClientImpl(clientConf, service.getWorkerGroup(), connectionPool, service.getTimer());
+        return service.createClientImpl(clientConf, this.connectionPool);
+    }
+
+    private PulsarClientImpl createClientNoAuthentication(int protocolVersion) throws PulsarClientException {
+        this.connectionPool = new ProxyConnectionPool(clientConf, service.getWorkerGroup(),
+                () -> new ClientCnx(clientConf, service.getWorkerGroup(), protocolVersion));
+        return service.createClientImpl(clientConf, this.connectionPool);
     }
 
     private static int getProtocolVersionToAdvertise(CommandConnect connect) {
