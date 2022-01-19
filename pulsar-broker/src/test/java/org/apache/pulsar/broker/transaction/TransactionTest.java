@@ -27,6 +27,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -34,6 +35,7 @@ import static org.testng.Assert.fail;
 
 import io.netty.buffer.Unpooled;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
@@ -153,7 +155,7 @@ public class TransactionTest extends TransactionTestBase {
         try {
             admin.topics().getSubscriptions(topicName);
             fail();
-        } catch (PulsarAdminException.ConflictException e) {
+        } catch (PulsarAdminException e) {
             assertEquals(e.getMessage(), "Can not create transaction system topic " + topicName);
         }
 
@@ -161,7 +163,7 @@ public class TransactionTest extends TransactionTestBase {
         try {
             admin.topics().createPartitionedTopic(topicName, 3);
             fail();
-        } catch (PulsarAdminException.ConflictException e) {
+        } catch (PulsarAdminException e) {
             assertEquals(e.getMessage(), "Cannot create topic in system topic format!");
         }
 
@@ -169,7 +171,7 @@ public class TransactionTest extends TransactionTestBase {
         try {
             admin.topics().createNonPartitionedTopic(topicName);
             fail();
-        } catch (PulsarAdminException.ConflictException e) {
+        } catch (PulsarAdminException e) {
             assertEquals(e.getMessage(), "Cannot create topic in system topic format!");
         }
     }
@@ -696,4 +698,35 @@ public class TransactionTest extends TransactionTestBase {
         commitTxn.commit();
     }
 
+    @Test
+    public void testNoEntryCanBeReadWhenRecovery() throws Exception {
+        String topic = NAMESPACE1 + "/test";
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsarServiceList.get(0).getBrokerService()
+                        .getTopic(TopicName.get(topic).toString(), true)
+                        .get()
+                        .get();
+
+        Class<PersistentTopic> persistentTopicClass = PersistentTopic.class;
+        Field filed1 = persistentTopicClass.getDeclaredField("ledger");
+        Field field2 = persistentTopicClass.getDeclaredField("transactionBuffer");
+        filed1.setAccessible(true);
+        field2.setAccessible(true);
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) spy(filed1.get(persistentTopic));
+        filed1.set(persistentTopic, managedLedger);
+
+        TopicTransactionBuffer topicTransactionBuffer = (TopicTransactionBuffer) field2.get(persistentTopic);
+        Method method = TopicTransactionBuffer.class.getDeclaredMethod("takeSnapshot");
+        method.setAccessible(true);
+        CompletableFuture<Void> completableFuture = (CompletableFuture<Void>) method.invoke(topicTransactionBuffer);
+        completableFuture.get();
+
+        doReturn(PositionImpl.LATEST).when(managedLedger).getLastConfirmedEntry();
+        ManagedCursorImpl managedCursor = mock(ManagedCursorImpl.class);
+        doReturn(false).when(managedCursor).hasMoreEntries();
+        doReturn(managedCursor).when(managedLedger).newNonDurableCursor(any(), any());
+
+        TopicTransactionBuffer transactionBuffer = new TopicTransactionBuffer(persistentTopic);
+        Awaitility.await().untilAsserted(() -> Assert.assertTrue(transactionBuffer.checkIfReady()));
+    }
 }
