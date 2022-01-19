@@ -18,13 +18,10 @@
  */
 package org.apache.pulsar.client.api;
 
-import org.apache.commons.lang3.StringUtils;
-
 import static com.google.common.base.Preconditions.checkArgument;
-
 import java.io.Serializable;
 import java.util.Objects;
-
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.client.impl.v1.ReaderV1Impl;
 
@@ -88,7 +85,7 @@ public class ReaderConfiguration implements Serializable {
     }
 
     /**
-     * Sets a {@link CryptoKeyReader}
+     * Sets a {@link CryptoKeyReader}.
      *
      * @param cryptoKeyReader
      *            CryptoKeyReader object
@@ -100,7 +97,7 @@ public class ReaderConfiguration implements Serializable {
     }
 
     /**
-     * Sets the ConsumerCryptoFailureAction to the value specified
+     * Sets the ConsumerCryptoFailureAction to the value specified.
      *
      * @param action
      *            The action to take when the decoding fails
