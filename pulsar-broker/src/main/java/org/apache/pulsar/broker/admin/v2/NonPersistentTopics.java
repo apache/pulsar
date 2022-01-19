@@ -196,15 +196,14 @@ public class NonPersistentTopics extends PersistentTopics {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "The number of partitions for the topic",
-                    required = true, type = "int", defaultValue = "0")
-                    int numPartitions,
+            @ApiParam(value = "The metadata for the topic",
+                    required = true, type = "PartitionedTopicMetadata") PartitionedTopicMetadata metadata,
             @QueryParam("createLocalTopicOnly") @DefaultValue("false") boolean createLocalTopicOnly) {
         try {
             validateNamespaceName(tenant, namespace);
             validateGlobalNamespaceOwnership();
             validateTopicName(tenant, namespace, encodedTopic);
-            internalCreatePartitionedTopic(asyncResponse, numPartitions, createLocalTopicOnly);
+            internalCreatePartitionedTopic(asyncResponse, metadata.partitions, createLocalTopicOnly);
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
             resumeAsyncResponseExceptionally(asyncResponse, e);

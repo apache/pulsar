@@ -162,11 +162,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            int numPartitions,
+            @ApiParam(value = "The metadata for the topic", required = true, type = "PartitionedTopicMetadata")
+                    PartitionedTopicMetadata metadata,
             @QueryParam("createLocalTopicOnly") @DefaultValue("false") boolean createLocalTopicOnly) {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
-            internalCreatePartitionedTopic(asyncResponse, numPartitions, createLocalTopicOnly);
+            internalCreatePartitionedTopic(asyncResponse, metadata.partitions, createLocalTopicOnly,
+                    metadata.properties);
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
             resumeAsyncResponseExceptionally(asyncResponse, e);
@@ -197,11 +199,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Is authentication required to perform this operation")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @ApiParam(value = "Key value pair properties for the topic metadata") Map<String, String> topicMetadata) {
         validateNamespaceName(tenant, cluster, namespace);
         validateTopicName(tenant, cluster, namespace, encodedTopic);
         validateGlobalNamespaceOwnership();
-        internalCreateNonPartitionedTopic(authoritative, null);
+        internalCreateNonPartitionedTopic(authoritative, topicMetadata);
     }
 
     /**

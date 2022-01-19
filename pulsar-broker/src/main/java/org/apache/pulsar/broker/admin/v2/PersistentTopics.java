@@ -225,50 +225,9 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "The number of partitions for the topic",
-                    required = true, type = "int", defaultValue = "0")
-                    int numPartitions,
+            @ApiParam(value = "The metadata for the topic",
+                    required = true, type = "PartitionedTopicMetadata") PartitionedTopicMetadata metadata,
             @QueryParam("createLocalTopicOnly") @DefaultValue("false") boolean createLocalTopicOnly) {
-        try {
-            validateNamespaceName(tenant, namespace);
-            validateGlobalNamespaceOwnership();
-            validatePartitionedTopicName(tenant, namespace, encodedTopic);
-            validateTopicPolicyOperation(topicName, PolicyName.PARTITION, PolicyOperation.WRITE);
-            validateCreateTopic(topicName);
-            internalCreatePartitionedTopic(asyncResponse, numPartitions, createLocalTopicOnly, null);
-        } catch (Exception e) {
-            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
-            resumeAsyncResponseExceptionally(asyncResponse, e);
-        }
-    }
-
-    @PUT
-    @Path("/{tenant}/{namespace}/{topic}/partitions/properties")
-    @ApiOperation(value = "Create a partitioned topic.",
-            notes = "It needs to be called before creating a producer on a partitioned topic.")
-    @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
-            @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Tenant does not exist"),
-            @ApiResponse(code = 406, message = "The number of partitions should be more than 0 and"
-                    + " less than or equal to maxNumPartitionsPerPartitionedTopic"),
-            @ApiResponse(code = 409, message = "Partitioned topic already exist"),
-            @ApiResponse(code = 412,
-                    message = "Failed Reason : Name is invalid or Namespace does not have any clusters configured"),
-            @ApiResponse(code = 500, message = "Internal server error"),
-            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")
-    })
-    public void createPartitionedTopic(
-            @Suspended final AsyncResponse asyncResponse,
-            @ApiParam(value = "Specify the tenant", required = true)
-            @PathParam("tenant") String tenant,
-            @ApiParam(value = "Specify the namespace", required = true)
-            @PathParam("namespace") String namespace,
-            @ApiParam(value = "Specify topic name", required = true)
-            @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("createLocalTopicOnly") @DefaultValue("false") boolean createLocalTopicOnly,
-            PartitionedTopicMetadata metadata) {
         try {
             validateNamespaceName(tenant, namespace);
             validateGlobalNamespaceOwnership();
@@ -285,32 +244,6 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @PUT
     @Path("/{tenant}/{namespace}/{topic}")
-    @ApiOperation(value = "Create a non-partitioned topic.",
-            notes = "This is the only REST endpoint from which non-partitioned topics could be created.")
-    @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
-            @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 409, message = "Partitioned topic already exist"),
-            @ApiResponse(code = 412,
-                    message = "Failed Reason : Name is invalid or Namespace does not have any clusters configured"),
-            @ApiResponse(code = 500, message = "Internal server error"),
-            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")
-    })
-    public void createNonPartitionedTopic(
-            @ApiParam(value = "Specify the tenant", required = true)
-            @PathParam("tenant") String tenant,
-            @ApiParam(value = "Specify the namespace", required = true)
-            @PathParam("namespace") String namespace,
-            @ApiParam(value = "Specify topic name", required = true)
-            @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        createNonPartitionedTopic(tenant, namespace, encodedTopic, authoritative, null);
-    }
-
-    @PUT
-    @Path("/{tenant}/{namespace}/{topic}/properties")
     @ApiOperation(value = "Create a non-partitioned topic.",
             notes = "This is the only REST endpoint from which non-partitioned topics could be created.")
     @ApiResponses(value = {

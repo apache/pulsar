@@ -330,7 +330,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public CompletableFuture<Void> createNonPartitionedTopicAsync(String topic, Map<String, String> properties){
         TopicName tn = validateTopic(topic);
-        WebTarget path = topicPath(tn, "properties");
+        WebTarget path = topicPath(tn);
         properties = properties == null ? new HashMap<>() : properties;
         return asyncPutRequest(path, Entity.entity(properties, MediaType.APPLICATION_JSON));
     }
@@ -345,7 +345,7 @@ public class TopicsImpl extends BaseResource implements Topics {
             String topic, int numPartitions, boolean createLocalTopicOnly, Map<String, String> properties) {
         checkArgument(numPartitions > 0, "Number of partitions should be more than 0");
         TopicName tn = validateTopic(topic);
-        WebTarget path = topicPath(tn, "partitions", "properties")
+        WebTarget path = topicPath(tn, "partitions")
                 .queryParam("createLocalTopicOnly", Boolean.toString(createLocalTopicOnly));
         PartitionedTopicMetadata metadata = new PartitionedTopicMetadata(numPartitions, properties);
         return asyncPutRequest(path, Entity.entity(metadata, MediaType.APPLICATION_JSON));
