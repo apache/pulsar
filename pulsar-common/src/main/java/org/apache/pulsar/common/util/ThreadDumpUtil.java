@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests;
+package org.apache.pulsar.common.util;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -72,7 +72,7 @@ public class ThreadDumpUtil {
         for (Map.Entry<Thread, StackTraceElement[]> e : stackTraces.entrySet()) {
             Thread thread = e.getKey();
             dump.append('\n');
-            dump.append(String.format("\"%s\" %s prio=%d tid=%d %s\njava.lang.Thread.State: %s", thread.getName(),
+            dump.append(String.format("\"%s\" %s prio=%d tid=%d %s%njava.lang.Thread.State: %s", thread.getName(),
                     (thread.isDaemon() ? "daemon" : ""), thread.getPriority(), thread.getId(),
                     Thread.State.WAITING.equals(thread.getState()) ? "in Object.wait()" : thread.getState().name(),
                     Thread.State.WAITING.equals(thread.getState()) ? "WAITING (on object monitor)"
