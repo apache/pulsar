@@ -350,7 +350,7 @@ All the bundle metrics are labelled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - broker: broker=${broker}. ${broker} is the IP address of the broker
 - bundle: bundle=${bundle}. ${bundle} is the bundle range on this broker
-- metric: metric="loadBalancing".
+- metric: metric="bundle".
 
 | Name | Type | Description |
 | --- | --- | --- |
