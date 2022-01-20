@@ -165,7 +165,7 @@ consumer.acknowledgeCumulative(msg);
 
 ### Negative acknowledgement
 
-The negative acknowledgement mechanism allows you to send a notification to the broker indicating the consumer did not process a message.  When a consumer fails to consume a message and needs to re-consume it, the consumer sends a negative acknowledgement (nack) to the broker, triggering the broker to redeliver this message to the consumer.
+The [negative acknowledgement](#negative-acknowledgement) mechanism allows you to send a notification to the broker indicating the consumer did not process a message.  When a consumer fails to consume a message and needs to re-consume it, the consumer sends a negative acknowledgement (nack) to the broker, triggering the broker to redeliver this message to the consumer.
 
 Messages are negatively acknowledged individually or cumulatively, depending on the consumption subscription type.
 
@@ -220,7 +220,7 @@ You can configure the acknowledgement timeout mechanism to redeliver the message
 
 > **Note**  
 > - If batching is enabled, all messages in one batch are redelivered to the consumer.  
-> - Compared with acknowledgement timeout, negative acknowledgement is preferred. First, it is difficult to set a timeout value. Second, broker resends messages when the message processing time exceeds the acknowledgement timeout, but these messages might not need to be re-consumed.
+> - Compared with acknowledgement timeout, negative acknowledgement is preferred. First, it is difficult to set a timeout value. Second, a broker resends messages when the message processing time exceeds the acknowledgement timeout, but these messages might not need to be re-consumed.
 
 Use the following API to enable acknowledgement timeout.
 
