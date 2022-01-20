@@ -333,8 +333,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         // since an instance is required, a single threaded shared instance is used for all broker client instances
         this.brokerClientSharedExternalExecutorProvider =
                 new ExecutorProvider(1, "broker-client-shared-external-executor");
-        this.brokerClientSharedTimer = new HashedWheelTimer(new DefaultThreadFactory("broker-client-shared-timer",
-                Thread.currentThread().isDaemon()), 1, TimeUnit.MILLISECONDS);
+        this.brokerClientSharedTimer =
+                new HashedWheelTimer(new DefaultThreadFactory("broker-client-shared-timer"), 1, TimeUnit.MILLISECONDS);
     }
 
     public MetadataStore createConfigurationMetadataStore() throws MetadataStoreException {
