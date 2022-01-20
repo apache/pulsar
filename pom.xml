@@ -153,7 +153,7 @@ flexible messaging model and an intuitive client API.</description>
     <mariadb-jdbc.version>2.6.0</mariadb-jdbc.version>
     <hdfs-offload-version3>3.3.1</hdfs-offload-version3>
     <json-smart.version>2.4.7</json-smart.version>
-    <elasticsearch.version>7.16.3</elasticsearch.version>
+    <opensearch.version>1.2.4</opensearch.version>
     <presto.version>332</presto.version>
     <scala.binary.version>2.13</scala.binary.version>
     <scala-library.version>2.13.6</scala-library.version>
@@ -1116,9 +1116,9 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>org.elasticsearch.client</groupId>
-        <artifactId>elasticsearch-rest-high-level-client</artifactId>
-        <version>${elasticsearch.version}</version>
+        <groupId>org.opensearch.client</groupId>
+        <artifactId>opensearch-rest-high-level-client</artifactId>
+        <version>${opensearch.version}</version>
       </dependency>
 
       <dependency>

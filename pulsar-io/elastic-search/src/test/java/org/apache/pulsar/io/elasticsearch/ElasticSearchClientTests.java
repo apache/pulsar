@@ -25,10 +25,10 @@ import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.elasticsearch.testcontainers.ElasticToxiproxiContainer;
 import org.awaitility.Awaitility;
-import org.elasticsearch.action.delete.DeleteRequest;
-import org.elasticsearch.action.index.IndexRequest;
 import org.junit.AfterClass;
 import org.mockito.Mockito;
+import org.opensearch.action.delete.DeleteRequest;
+import org.opensearch.action.index.IndexRequest;
 import org.testcontainers.containers.Network;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testng.annotations.BeforeClass;
@@ -308,7 +308,7 @@ public class ElasticSearchClientTests {
 
                     log.info("starting the toxic");
                     toxiproxy.getProxy().setConnectionCut(false);
-                    toxiproxy.getProxy().toxics().latency("elasticpause", ToxicDirection.DOWNSTREAM, 35000);
+                    toxiproxy.getProxy().toxics().latency("elasticpause", ToxicDirection.DOWNSTREAM, 30000);
                     toxiproxy.removeToxicAfterDelay("elasticpause", 30000);
 
                     long start = System.currentTimeMillis();
@@ -322,7 +322,7 @@ public class ElasticSearchClientTests {
                     log.info("elapsed = {}", elapsed);
                     assertTrue(elapsed > 29000); // bulkIndex was blocking while elasticsearch was down or busy
 
-                    Thread.sleep(1000L);
+                    Thread.sleep(3000L);
                     assertEquals(mockRecord.acked, 15);
                     assertEquals(mockRecord.failed, 0);
                     assertEquals(client.records.size(), 0);
