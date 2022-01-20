@@ -1112,8 +1112,8 @@ public class PersistentTopicsBase extends AdminResource {
                             resumeAsyncResponseExceptionally(asyncResponse, ex);
                             return null;
                         });
-                    }})
-                .exceptionally(ex -> {
+                    }
+                }).exceptionally(ex -> {
                     Throwable cause = ex.getCause();
                     log.error("[{}] Failed to get subscriptions for topic {}", clientAppId(), topicName, cause);
                     resumeAsyncResponseExceptionally(asyncResponse, cause);
