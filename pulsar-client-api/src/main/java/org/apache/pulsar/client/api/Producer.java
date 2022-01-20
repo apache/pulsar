@@ -77,6 +77,8 @@ public interface Producer<T> extends Closeable {
      */
     CompletableFuture<MessageId> sendAsync(T message);
 
+    CompletableFuture<MessageId> sendAsync(T message, Progress progress);
+
     /**
      * Flush all the messages buffered in the client and wait until all messages have been successfully persisted.
      *
@@ -199,4 +201,11 @@ public interface Producer<T> extends Closeable {
      * @return the number of partitions per topic.
      */
     int getNumOfPartitions();
+
+    void loadProgress(byte[] progressBuf);
+
+    byte[] saveProgress();
+
+    Progress queryMinProgress();
+
 }

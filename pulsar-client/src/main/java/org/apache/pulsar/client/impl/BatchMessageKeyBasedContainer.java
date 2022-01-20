@@ -141,7 +141,8 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
         ByteBufPair cmd = producer.sendMessage(producer.producerId, keyedBatch.sequenceId, numMessagesInBatch,
                 keyedBatch.messageMetadata, encryptedPayload);
 
-        ProducerImpl.OpSendMsg op = ProducerImpl.OpSendMsg.create(keyedBatch.messages, cmd, keyedBatch.sequenceId, keyedBatch.firstCallback);
+        ProducerImpl.OpSendMsg op = ProducerImpl.OpSendMsg.create(keyedBatch.messages, cmd, keyedBatch.sequenceId,
+                keyedBatch.firstCallback, keyedBatch.previousCallback);
 
         op.setNumMessagesInBatch(numMessagesInBatch);
         op.setBatchSizeByte(currentBatchSizeBytes);

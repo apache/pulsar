@@ -113,6 +113,8 @@ public interface TypedMessageBuilder<T> extends Serializable {
      */
     TypedMessageBuilder<T> orderingKey(byte[] orderingKey);
 
+    TypedMessageBuilder<T> progress(Progress progress);
+
     /**
      * Set a domain object on the message.
      *

@@ -22,13 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.concurrent.CompletableFuture;
 
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SchemaSerializationException;
-import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
@@ -67,6 +61,18 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     public CompletableFuture<MessageId> sendAsync(T message) {
         try {
             return newMessage().value(message).sendAsync();
+        } catch (SchemaSerializationException e) {
+            return FutureUtil.failedFuture(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<MessageId> sendAsync(T message, Progress progress) {
+        if (!conf.isNeedProgress()) {
+            // exception
+        }
+        try {
+            return newMessage().value(message).progress(progress).sendAsync();
         } catch (SchemaSerializationException e) {
             return FutureUtil.failedFuture(e);
         }

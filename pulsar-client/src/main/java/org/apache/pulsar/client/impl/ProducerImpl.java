@@ -60,18 +60,9 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.function.Consumer;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableInt;
-import org.apache.pulsar.client.api.BatcherBuilder;
-import org.apache.pulsar.client.api.CompressionType;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageCrypto;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerAccessMode;
-import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
-import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
-import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
@@ -154,6 +145,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<Throwable>();
 
     private boolean errorState;
+
+    private ProgressManager progressManager;
 
     @SuppressWarnings("rawtypes")
     private static final AtomicLongFieldUpdater<ProducerImpl> msgIdGeneratorUpdater = AtomicLongFieldUpdater
@@ -252,6 +245,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             metadata = Collections.unmodifiableMap(new HashMap<>(conf.getProperties()));
         }
 
+        if (conf.isNeedProgress()) {
+            progressManager = new ProgressManager();
+        }
+
         this.connectionHandler = new ConnectionHandler(this,
         	new BackoffBuilder()
         	    .setInitialTime(client.getConfiguration().getInitialBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
@@ -261,6 +258,33 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             this);
 
         grabCnx();
+    }
+
+    @Override
+    public void loadProgress(byte[] progressBuf) {
+        if (conf.isNeedProgress() && progressManager != null) {
+           ProgressInfo progressInfo = progressManager.loadProgress(progressBuf);
+            this.lastSequenceIdPublished = progressInfo.getSequenceId();
+            this.lastSequenceIdPushed = progressInfo.getSequenceId();
+            this.msgIdGenerator = progressInfo.getSequenceId() + 1L;
+        }
+    }
+
+    @Override
+    public byte[] saveProgress() {
+        if (conf.isNeedProgress() && progressManager != null) {
+            return progressManager.saveProgress();
+        }
+        return null;
+    }
+
+    @Override
+    public Progress queryMinProgress() {
+        ProgressInfo persistentProgressInfos = progressManager.getPersistentProgressInfos();
+        if (persistentProgressInfos != null) {
+            return persistentProgressInfos.getProgress();
+        }
+        return null;
     }
 
     protected void semaphoreRelease(final int releaseCountRequest) {
@@ -317,71 +341,163 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (interceptors != null) {
             interceptorMessage.getProperties();
         }
-        sendAsync(interceptorMessage, new SendCallback() {
-            SendCallback nextCallback = null;
-            MessageImpl<?> nextMsg = null;
-            long createdAt = System.nanoTime();
-
-            @Override
-            public CompletableFuture<MessageId> getFuture() {
+        if (conf.isNeedProgress()) {
+            ProgressMessageImpl<?> progressMessage = (ProgressMessageImpl) message;
+            Progress progress = progressMessage.progress;
+            // progress duplicate
+            Progress pushedProgress = progressManager.getPublishedProgressInfos().getProgress();
+            Progress persistentProgress = progressManager.getPersistentProgressInfos().getProgress();
+            if (progress.compare(pushedProgress) <= 0) {
+                if (progress.compare(persistentProgress) <= 0) {
+                    MessageId messageId = new MessageIdImpl(-1, -1, partitionIndex);
+                    log.warn("Message with progress {} is definitely a duplicate", progress);
+                    future.complete(messageId);
+                } else {
+                    log.info("Message with progress {} might be a duplicate but cannot be determined at this time.",
+                            progress);
+                }
                 return future;
             }
+            progressManager.updatePushedProgress(progress, -1);
 
-            @Override
-            public SendCallback getNextSendCallback() {
-                return nextCallback;
-            }
+            ProgressSendCallback progressSendCallback = new ProgressSendCallback() {
+                Progress progress;
+                ProgressSendCallback nextCallback = null;
+                MessageImpl<?> nextMsg = null;
+                long createdAt = System.nanoTime();
 
-            @Override
-            public MessageImpl<?> getNextMessage() {
-                return nextMsg;
-            }
-
-            @Override
-            public void sendComplete(Exception e) {
-                try {
-                    if (e != null) {
-                        stats.incrementSendFailed();
-                        onSendAcknowledgement(interceptorMessage, null, e);
-                        future.completeExceptionally(e);
-                    } else {
-                        onSendAcknowledgement(interceptorMessage, interceptorMessage.getMessageId(), null);
-                        future.complete(interceptorMessage.getMessageId());
-                        stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
-                    }
-                } finally {
-                    interceptorMessage.getDataBuffer().release();
+                @Override
+                public CompletableFuture<MessageId> getFuture() {
+                    return future;
                 }
 
-                while (nextCallback != null) {
-                    SendCallback sendCallback = nextCallback;
-                    MessageImpl<?> msg = nextMsg;
-                    //Retain the buffer used by interceptors callback to get message. Buffer will release after complete interceptors.
+                @Override
+                public SendCallback getNextSendCallback() {
+                    return nextCallback;
+                }
+
+                @Override
+                public MessageImpl<?> getNextMessage() {
+                    return nextMsg;
+                }
+
+                @Override
+                public void sendComplete(Exception e) {
                     try {
-                        msg.getDataBuffer().retain();
                         if (e != null) {
                             stats.incrementSendFailed();
-                            onSendAcknowledgement(msg, null, e);
-                            sendCallback.getFuture().completeExceptionally(e);
+                            onSendAcknowledgement(interceptorMessage, null, e);
+                            future.completeExceptionally(e);
                         } else {
-                            onSendAcknowledgement(msg, msg.getMessageId(), null);
-                            sendCallback.getFuture().complete(msg.getMessageId());
+
+                            onSendAcknowledgement(interceptorMessage, interceptorMessage.getMessageId(), null);
+                            future.complete(interceptorMessage.getMessageId());
                             stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
                         }
-                        nextMsg = nextCallback.getNextMessage();
-                        nextCallback = nextCallback.getNextSendCallback();
                     } finally {
-                        msg.getDataBuffer().release();
+                        interceptorMessage.getDataBuffer().release();
+                    }
+
+                    while (nextCallback != null) {
+                        ProgressSendCallback sendCallback = nextCallback;
+                        MessageImpl<?> msg = nextMsg;
+                        //Retain the buffer used by interceptors callback to get message. Buffer will release after complete interceptors.
+                        try {
+                            msg.getDataBuffer().retain();
+                            if (e != null) {
+                                stats.incrementSendFailed();
+                                onSendAcknowledgement(msg, null, e);
+                                sendCallback.getFuture().completeExceptionally(e);
+                            } else {
+                                onSendAcknowledgement(msg, msg.getMessageId(), null);
+                                sendCallback.getFuture().complete(msg.getMessageId());
+                                stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
+                            }
+                            nextMsg = nextCallback.getNextMessage();
+                            nextCallback = (ProgressSendCallback) nextCallback.getNextSendCallback();
+                        } finally {
+                            msg.getDataBuffer().release();
+                        }
                     }
                 }
-            }
 
-            @Override
-            public void addCallback(MessageImpl<?> msg, SendCallback scb) {
-                nextMsg = msg;
-                nextCallback = scb;
-            }
-        });
+                @Override
+                public void addCallback(MessageImpl<?> msg, SendCallback scb) {
+                    nextMsg = msg;
+                    nextCallback = (ProgressSendCallback) scb;
+                }
+            };
+            progressSendCallback.setProgress(progress);
+            sendAsync(interceptorMessage, progressSendCallback);
+        } else {
+            SendCallback sendCallback = new SendCallback() {
+                SendCallback nextCallback = null;
+                MessageImpl<?> nextMsg = null;
+                long createdAt = System.nanoTime();
+
+                @Override
+                public CompletableFuture<MessageId> getFuture() {
+                    return future;
+                }
+
+                @Override
+                public SendCallback getNextSendCallback() {
+                    return nextCallback;
+                }
+
+                @Override
+                public MessageImpl<?> getNextMessage() {
+                    return nextMsg;
+                }
+
+                @Override
+                public void sendComplete(Exception e) {
+                    try {
+                        if (e != null) {
+                            stats.incrementSendFailed();
+                            onSendAcknowledgement(interceptorMessage, null, e);
+                            future.completeExceptionally(e);
+                        } else {
+                            onSendAcknowledgement(interceptorMessage, interceptorMessage.getMessageId(), null);
+                            future.complete(interceptorMessage.getMessageId());
+                            interceptorMessage.getSequenceId();
+                            stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
+                        }
+                    } finally {
+                        interceptorMessage.getDataBuffer().release();
+                    }
+
+                    while (nextCallback != null) {
+                        SendCallback sendCallback = nextCallback;
+                        MessageImpl<?> msg = nextMsg;
+                        //Retain the buffer used by interceptors callback to get message. Buffer will release after complete interceptors.
+                        try {
+                            msg.getDataBuffer().retain();
+                            if (e != null) {
+                                stats.incrementSendFailed();
+                                onSendAcknowledgement(msg, null, e);
+                                sendCallback.getFuture().completeExceptionally(e);
+                            } else {
+                                onSendAcknowledgement(msg, msg.getMessageId(), null);
+                                sendCallback.getFuture().complete(msg.getMessageId());
+                                stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
+                            }
+                            nextMsg = nextCallback.getNextMessage();
+                            nextCallback = nextCallback.getNextSendCallback();
+                        } finally {
+                            msg.getDataBuffer().release();
+                        }
+                    }
+                }
+
+                @Override
+                public void addCallback(MessageImpl<?> msg, SendCallback scb) {
+                    nextMsg = msg;
+                    nextCallback = scb;
+                }
+            };
+            sendAsync(interceptorMessage, sendCallback);
+        }
         return future;
     }
 
@@ -1032,6 +1148,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
 
         OpSendMsg finalOp = op;
+        if (conf.isNeedProgress() && progressManager != null) {
+            ProgressSendCallback progressSendCallback = (ProgressSendCallback) finalOp.lastCallback;
+            progressManager.updatePersistentProgress(progressSendCallback.getProgress(), highestSequenceId);
+        }
+
         LAST_SEQ_ID_PUBLISHED_UPDATER.getAndUpdate(this, last -> Math.max(last, getHighestSequenceId(finalOp)));
         op.setMessageId(ledgerId, entryId, partitionIndex);
         if (op.totalChunks > 1) {
@@ -1237,6 +1358,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         List<MessageImpl<?>> msgs;
         ByteBufPair cmd;
         SendCallback callback;
+        SendCallback lastCallback;
         Runnable rePopulate;
         ChunkedMessageCtx chunkedMessageCtx;
         long uncompressedSize;
@@ -1262,7 +1384,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return op;
         }
 
-        static OpSendMsg create(List<MessageImpl<?>> msgs, ByteBufPair cmd, long sequenceId, SendCallback callback) {
+        static OpSendMsg create(List<MessageImpl<?>> msgs, ByteBufPair cmd, long sequenceId,
+                                SendCallback callback, SendCallback lastCallback) {
             OpSendMsg op = RECYCLER.get();
             op.msgs = msgs;
             op.cmd = cmd;
@@ -1270,6 +1393,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             op.sequenceId = sequenceId;
             op.createdAt = System.nanoTime();
             op.uncompressedSize = 0;
+            op.lastCallback = lastCallback;
             for (int i = 0; i < msgs.size(); i++) {
                 op.uncompressedSize += msgs.get(i).getUncompressedSize();
             }
@@ -1277,7 +1401,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
 
         static OpSendMsg create(List<MessageImpl<?>> msgs, ByteBufPair cmd, long lowestSequenceId,
-                                long highestSequenceId,  SendCallback callback) {
+                                long highestSequenceId,  SendCallback callback, SendCallback lastCallback) {
             OpSendMsg op = RECYCLER.get();
             op.msgs = msgs;
             op.cmd = cmd;
@@ -1286,6 +1410,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             op.highestSequenceId = highestSequenceId;
             op.createdAt = System.nanoTime();
             op.uncompressedSize = 0;
+            op.lastCallback = lastCallback;
             for (int i = 0; i < msgs.size(); i++) {
                 op.uncompressedSize += msgs.get(i).getUncompressedSize();
             }

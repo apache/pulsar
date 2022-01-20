@@ -29,11 +29,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -51,6 +47,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     private transient final Schema<T> schema;
     private transient ByteBuffer content;
     private transient final TransactionImpl txn;
+    private transient Progress progress;
 
     public TypedMessageBuilderImpl(ProducerBase<?> producer, Schema<T> schema) {
         this(producer, schema, null);
@@ -139,6 +136,12 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     @Override
     public TypedMessageBuilder<T> orderingKey(byte[] orderingKey) {
         msgMetadata.setOrderingKey(orderingKey);
+        return this;
+    }
+
+    @Override
+    public TypedMessageBuilder<T> progress(Progress progress) {
+        this.progress = progress;
         return this;
     }
 
@@ -283,8 +286,13 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     public Message<T> getMessage() {
         beforeSend();
-        return MessageImpl.create(msgMetadata, content, schema, producer != null ? producer.getTopic() : null);
+        MessageImpl<T> messageImpl = MessageImpl.create(msgMetadata, content, schema, producer != null ? producer.getTopic() : null);
+        if (progress != null) {
+            return new ProgressMessageImpl<>(messageImpl, progress);
+        }
+        return messageImpl;
     }
+
 
     public long getPublishTime() {
         return msgMetadata.getPublishTime();
