@@ -32,13 +32,11 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
-import org.apache.pulsar.broker.rest.Topics;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.Schema;
@@ -54,14 +52,11 @@ import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.mockito.Mockito;
-import org.powermock.api.mockito.PowerMockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-import static org.powermock.api.mockito.PowerMockito.mock;
-import static org.powermock.api.mockito.PowerMockito.spy;
 
 public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
 
@@ -122,84 +117,39 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
 
     @Test(dataProvider = "variations")
     public void testProduceToNonPartitionedTopic(String token, int status) throws Exception {
-        admin.topics().createNonPartitionedTopic("persistent://" + testTenant + "/"
-                + testNamespace + "/" + testTopicName);
-        Schema<String> schema = StringSchema.utf8();
-        ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setKeySchema(ObjectMapperFactory.getThreadLocal().
-                writeValueAsString(schema.getSchemaInfo()));
-        producerMessages.setValueSchema(ObjectMapperFactory.getThreadLocal().
-                writeValueAsString(schema.getSchemaInfo()));
-        String message = "[" +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}]";
-        producerMessages.setMessages(ObjectMapperFactory.getThreadLocal().readValue(message,
-                new TypeReference<List<ProducerMessage>>() {
-                }));
-
-        WebTarget root = buildWebClient();
-        Response response = root.path("/topics/persistent/" + testTenant + "/" + testNamespace + "/"
-                + testTopicName).request(MediaType.APPLICATION_JSON)
-                .header("Authorization", "Bearer " + token)
-                .post(Entity.json(producerMessages));
-        Assert.assertEquals(response.getStatus(), status);
+        innerTestProduce(testTopicName, true, false, token, status);
     }
 
     @Test(dataProvider = "variations")
     public void testProduceToPartitionedTopic(String token, int status) throws Exception {
-        admin.topics().createPartitionedTopic("persistent://" + testTenant + "/"
-                + testNamespace + "/" + testTopicName, 5);
-        Schema<String> schema = StringSchema.utf8();
-        ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setKeySchema(ObjectMapperFactory.getThreadLocal().
-                writeValueAsString(schema.getSchemaInfo()));
-        producerMessages.setValueSchema(ObjectMapperFactory.getThreadLocal().
-                writeValueAsString(schema.getSchemaInfo()));
-        String message = "[" +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}]";
-        producerMessages.setMessages(ObjectMapperFactory.getThreadLocal().readValue(message,
-                new TypeReference<List<ProducerMessage>>() {
-                }));
-
-        WebTarget root = buildWebClient();
-        Response response = root.path("/topics/persistent/" + testTenant + "/" + testNamespace + "/" + testTopicName
-                + "/partitions/2")
-                .request(MediaType.APPLICATION_JSON)
-                .header("Authorization", "Bearer " + token)
-                .post(Entity.json(producerMessages));
-        Assert.assertEquals(response.getStatus(), status);
+        innerTestProduce(testTopicName, true, true, token, status);
     }
 
     @Test(dataProvider = "variations")
     public void testProduceOnNonPersistentNonPartitionedTopic(String token, int status) throws Exception {
-        admin.topics().createNonPartitionedTopic("non-persistent://" + testTenant + "/"
-                + testNamespace + "/" + testTopicName);
-        Schema<String> schema = StringSchema.utf8();
-        ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setKeySchema(ObjectMapperFactory.getThreadLocal().
-                writeValueAsString(schema.getSchemaInfo()));
-        producerMessages.setValueSchema(ObjectMapperFactory.getThreadLocal().
-                writeValueAsString(schema.getSchemaInfo()));
-        String message = "[" +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}]";
-        producerMessages.setMessages(ObjectMapperFactory.getThreadLocal().readValue(message,
-                new TypeReference<List<ProducerMessage>>() {
-                }));
-
-        WebTarget root = buildWebClient();
-        Response response = root.path("/topics/non-persistent/" + testTenant + "/" + testNamespace + "/"
-                + testTopicName).request(MediaType.APPLICATION_JSON)
-                .header("Authorization", "Bearer " + token)
-                .post(Entity.json(producerMessages));
-        Assert.assertEquals(response.getStatus(), status);
+        innerTestProduce(testTopicName, false, false, token, status);
     }
 
     @Test(dataProvider = "variations")
     public void testProduceOnNonPersistentPartitionedTopic(String token, int status) throws Exception {
-        admin.topics().createPartitionedTopic("non-persistent://" + testTenant + "/"
-                + testNamespace + "/" + testTopicName, 5);
+        innerTestProduce(testTopicName, false, true, token, status);
+    }
+
+    private void innerTestProduce(String createTopicName, boolean isPersistent, boolean isPartition,
+                                  String token, int status) throws Exception {
+        String topicPrefix = null;
+        if (isPersistent == true) {
+            topicPrefix = "persistent";
+        } else {
+            topicPrefix = "non-persistent";
+        }
+        if (isPartition == true) {
+            admin.topics().createPartitionedTopic(topicPrefix + "://" + testTenant + "/"
+                    + testNamespace + "/" + createTopicName, 5);
+        } else {
+            admin.topics().createNonPartitionedTopic(topicPrefix + "://" + testTenant + "/"
+                    + testNamespace + "/" + createTopicName);
+        }
         Schema<String> schema = StringSchema.utf8();
         ProducerMessages producerMessages = new ProducerMessages();
         producerMessages.setKeySchema(ObjectMapperFactory.getThreadLocal().
@@ -214,8 +164,15 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
                 }));
 
         WebTarget root = buildWebClient();
-        Response response = root.path("/topics/non-persistent/" + testTenant + "/" + testNamespace + "/" + testTopicName
-                + "/partitions/2")
+        String requestPath = null;
+        if (isPartition == true) {
+            requestPath = "/topics/" + topicPrefix + "/" + testTenant + "/" + testNamespace + "/"
+                    + createTopicName + "/partitions/2";
+        } else {
+            requestPath = "/topics/" + topicPrefix + "/" + testTenant + "/" + testNamespace + "/" + createTopicName;
+        }
+
+        Response response = root.path(requestPath)
                 .request(MediaType.APPLICATION_JSON)
                 .header("Authorization", "Bearer " + token)
                 .post(Entity.json(producerMessages));
