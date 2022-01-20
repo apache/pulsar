@@ -128,7 +128,6 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
     public void testProduceToNonPartitionedTopic(String token, int status) throws Exception {
         admin.topics().createNonPartitionedTopic("persistent://" + testTenant + "/"
                 + testNamespace + "/" + testTopicName);
-        AsyncResponse asyncResponse = PowerMockito.mock(AsyncResponse.class);
         Schema<String> schema = StringSchema.utf8();
         ProducerMessages producerMessages = new ProducerMessages();
         producerMessages.setKeySchema(ObjectMapperFactory.getThreadLocal().
@@ -154,7 +153,6 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
     public void testProduceToPartitionedTopic(String token, int status) throws Exception {
         admin.topics().createPartitionedTopic("persistent://" + testTenant + "/"
                 + testNamespace + "/" + testTopicName, 5);
-        AsyncResponse asyncResponse = mock(AsyncResponse.class);
         Schema<String> schema = StringSchema.utf8();
         ProducerMessages producerMessages = new ProducerMessages();
         producerMessages.setKeySchema(ObjectMapperFactory.getThreadLocal().
@@ -181,7 +179,6 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
     public void testProduceOnNonPersistentNonPartitionedTopic(String token, int status) throws Exception {
         admin.topics().createNonPartitionedTopic("non-persistent://" + testTenant + "/"
                 + testNamespace + "/" + testTopicName);
-        AsyncResponse asyncResponse = PowerMockito.mock(AsyncResponse.class);
         Schema<String> schema = StringSchema.utf8();
         ProducerMessages producerMessages = new ProducerMessages();
         producerMessages.setKeySchema(ObjectMapperFactory.getThreadLocal().
@@ -207,7 +204,6 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
     public void testProduceOnNonPersistentPartitionedTopic(String token, int status) throws Exception {
         admin.topics().createPartitionedTopic("non-persistent://" + testTenant + "/"
                 + testNamespace + "/" + testTopicName, 5);
-        AsyncResponse asyncResponse = mock(AsyncResponse.class);
         Schema<String> schema = StringSchema.utf8();
         ProducerMessages producerMessages = new ProducerMessages();
         producerMessages.setKeySchema(ObjectMapperFactory.getThreadLocal().
