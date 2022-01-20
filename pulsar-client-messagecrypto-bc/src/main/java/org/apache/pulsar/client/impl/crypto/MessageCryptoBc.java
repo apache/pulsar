@@ -419,7 +419,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
 
         // Create gcm param
         // TODO: Replace random with counter and periodic refreshing based on timer/counter value
-        SECURERANDOM.nextBytes(iv);
+        secureRandom.nextBytes(iv);
         GCMParameterSpec gcmParam = new GCMParameterSpec(tagLen, iv);
 
         // Update message metadata with encryption param
