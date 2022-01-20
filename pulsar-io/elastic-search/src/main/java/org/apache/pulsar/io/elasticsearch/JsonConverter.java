@@ -23,18 +23,12 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.math.BigDecimal;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalTime;
+import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-import org.apache.avro.Conversion;
-import org.apache.avro.Conversions;
 import org.apache.avro.Schema;
-import org.apache.avro.data.TimeConversions;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
 
@@ -43,7 +37,7 @@ import org.apache.avro.generic.GenericRecord;
  */
 public class JsonConverter {
 
-    private static Map<String, LogicalTypeConverter<?>> logicalTypeConverters = new HashMap<>();
+    private static final Map<String, LogicalTypeConverter> logicalTypeConverters = new HashMap<>();
     private static final JsonNodeFactory jsonNodeFactory = JsonNodeFactory.withExactBigDecimals(true);
 
     public static JsonNode toJson(GenericRecord genericRecord) {
@@ -64,73 +58,80 @@ public class JsonConverter {
         if (value == null) {
             return jsonNodeFactory.nullNode();
         }
-        switch(schema.getType()) {
-            case NULL: // this should not happen
-                return jsonNodeFactory.nullNode();
-            case INT:
-                return jsonNodeFactory.numberNode((Integer) value);
-            case LONG:
-                return jsonNodeFactory.numberNode((Long) value);
-            case DOUBLE:
-                return jsonNodeFactory.numberNode((Double) value);
-            case FLOAT:
-                return jsonNodeFactory.numberNode((Float) value);
-            case BOOLEAN:
-                return jsonNodeFactory.booleanNode((Boolean) value);
-            case BYTES:
-                return jsonNodeFactory.binaryNode((byte[]) value);
-            case FIXED:
-                return jsonNodeFactory.binaryNode(((GenericFixed) value).bytes());
-            case ENUM: // GenericEnumSymbol
-            case STRING:
-                return jsonNodeFactory.textNode(value.toString()); // can be a String or org.apache.avro.util.Utf8
-            case ARRAY: {
-                Schema elementSchema = schema.getElementType();
-                ArrayNode arrayNode = jsonNodeFactory.arrayNode();
-                for (Object elem : (Object[]) value) {
-                    JsonNode fieldValue = toJson(elementSchema, elem);
-                    arrayNode.add(fieldValue);
-                }
-                return arrayNode;
-            }
-            case MAP: {
-                Map<String, Object> map = (Map<String, Object>) value;
-                ObjectNode objectNode = jsonNodeFactory.objectNode();
-                for (Map.Entry<String, Object> entry : map.entrySet()) {
-                    JsonNode jsonNode = toJson(schema.getValueType(), entry.getValue());
-                    objectNode.set(entry.getKey(), jsonNode);
-                }
-                return objectNode;
-            }
-            case RECORD:
-                return toJson((GenericRecord) value);
-            case UNION:
-                for (Schema s : schema.getTypes()) {
-                    if (s.getType() == Schema.Type.NULL) {
-                        continue;
+        try {
+            switch (schema.getType()) {
+                case NULL: // this should not happen
+                    return jsonNodeFactory.nullNode();
+                case INT:
+                    return jsonNodeFactory.numberNode((Integer) value);
+                case LONG:
+                    return jsonNodeFactory.numberNode((Long) value);
+                case DOUBLE:
+                    return jsonNodeFactory.numberNode((Double) value);
+                case FLOAT:
+                    return jsonNodeFactory.numberNode((Float) value);
+                case BOOLEAN:
+                    return jsonNodeFactory.booleanNode((Boolean) value);
+                case BYTES:
+                    return jsonNodeFactory.binaryNode((byte[]) value);
+                case FIXED:
+                    return jsonNodeFactory.binaryNode(((GenericFixed) value).bytes());
+                case ENUM: // GenericEnumSymbol
+                case STRING:
+                    return jsonNodeFactory.textNode(value.toString()); // can be a String or org.apache.avro.util.Utf8
+                case ARRAY: {
+                    Schema elementSchema = schema.getElementType();
+                    ArrayNode arrayNode = jsonNodeFactory.arrayNode();
+                    for (Object elem : (Object[]) value) {
+                        JsonNode fieldValue = toJson(elementSchema, elem);
+                        arrayNode.add(fieldValue);
                     }
-                    return toJson(s, value);
+                    return arrayNode;
                 }
-                // this case should not happen
-                return jsonNodeFactory.textNode(value.toString());
-            default:
-                throw new UnsupportedOperationException("Unknown AVRO schema type=" + schema.getType());
+                case MAP: {
+                    Map<String, Object> map = (Map<String, Object>) value;
+                    ObjectNode objectNode = jsonNodeFactory.objectNode();
+                    for (Map.Entry<String, Object> entry : map.entrySet()) {
+                        JsonNode jsonNode = toJson(schema.getValueType(), entry.getValue());
+                        objectNode.set(entry.getKey(), jsonNode);
+                    }
+                    return objectNode;
+                }
+                case RECORD:
+                    return toJson((GenericRecord) value);
+                case UNION:
+                    for (Schema s : schema.getTypes()) {
+                        if (s.getType() == Schema.Type.NULL) {
+                            continue;
+                        }
+                        return toJson(s, value);
+                    }
+                    // this case should not happen
+                    return jsonNodeFactory.textNode(value.toString());
+                default:
+                    throw new UnsupportedOperationException("Unknown AVRO schema type=" + schema.getType());
+            }
+        } catch (ClassCastException error) {
+            throw new IllegalArgumentException("Error while converting a value of type " + value.getClass() + " to a " + schema.getType()
+                    + ": " + error, error);
         }
     }
 
-    abstract static class LogicalTypeConverter<T> {
-        final Conversion<T> conversion;
-
-        public LogicalTypeConverter(Conversion<T> conversion) {
-            this.conversion = conversion;
-        }
-
+    abstract static class LogicalTypeConverter {
         abstract JsonNode toJson(Schema schema, Object value);
     }
 
+    private static void checkTypeAndNotNull(Object value, String name, Class expected) {
+        if (value == null) {
+            throw new IllegalArgumentException("Invalid type for " + name + ", expected " + expected.getName() + " but was NULL");
+        }
+        if (!expected.isInstance(value)) {
+            throw new IllegalArgumentException("Invalid type for " + name + ", expected " + expected.getName() + " but was " + value.getClass());
+        }
+    }
+
     static {
-        logicalTypeConverters.put("decimal", new JsonConverter.LogicalTypeConverter<BigDecimal>(
-                new Conversions.DecimalConversion()) {
+        logicalTypeConverters.put("decimal", new JsonConverter.LogicalTypeConverter() {
             @Override
             JsonNode toJson(Schema schema, Object value) {
                 if (!(value instanceof BigDecimal)) {
@@ -141,8 +142,7 @@ public class JsonConverter {
                 return jsonNodeFactory.numberNode(decimal);
             }
         });
-        logicalTypeConverters.put("date", new JsonConverter.LogicalTypeConverter<LocalDate>(
-                new TimeConversions.DateConversion()) {
+        logicalTypeConverters.put("date", new JsonConverter.LogicalTypeConverter() {
             @Override
             JsonNode toJson(Schema schema, Object value) {
                 if (!(value instanceof Integer)) {
@@ -153,8 +153,7 @@ public class JsonConverter {
                 return jsonNodeFactory.numberNode(daysFromEpoch);
             }
         });
-        logicalTypeConverters.put("time-millis", new JsonConverter.LogicalTypeConverter<LocalTime>(
-                new TimeConversions.TimeMillisConversion()) {
+        logicalTypeConverters.put("time-millis", new JsonConverter.LogicalTypeConverter() {
             @Override
             JsonNode toJson(Schema schema, Object value) {
                 if (!(value instanceof Integer)) {
@@ -165,8 +164,7 @@ public class JsonConverter {
                 return jsonNodeFactory.numberNode(timeMillis);
             }
         });
-        logicalTypeConverters.put("time-micros", new JsonConverter.LogicalTypeConverter<LocalTime>(
-                new TimeConversions.TimeMicrosConversion()) {
+        logicalTypeConverters.put("time-micros", new JsonConverter.LogicalTypeConverter() {
             @Override
             JsonNode toJson(Schema schema, Object value) {
                 if (!(value instanceof Long)) {
@@ -177,8 +175,7 @@ public class JsonConverter {
                 return jsonNodeFactory.numberNode(timeMicro);
             }
         });
-        logicalTypeConverters.put("timestamp-millis", new JsonConverter.LogicalTypeConverter<Instant>(
-                new TimeConversions.TimestampMillisConversion()) {
+        logicalTypeConverters.put("timestamp-millis", new JsonConverter.LogicalTypeConverter() {
             @Override
             JsonNode toJson(Schema schema, Object value) {
                 if (!(value instanceof Long)) {
@@ -189,8 +186,7 @@ public class JsonConverter {
                 return jsonNodeFactory.numberNode(epochMillis);
             }
         });
-        logicalTypeConverters.put("timestamp-micros", new JsonConverter.LogicalTypeConverter<Instant>(
-                new TimeConversions.TimestampMicrosConversion()) {
+        logicalTypeConverters.put("timestamp-micros", new JsonConverter.LogicalTypeConverter() {
             @Override
             JsonNode toJson(Schema schema, Object value) {
                 if (!(value instanceof Long)) {
@@ -201,11 +197,38 @@ public class JsonConverter {
                 return jsonNodeFactory.numberNode(epochMillis);
             }
         });
-        logicalTypeConverters.put("uuid", new JsonConverter.LogicalTypeConverter<UUID>(
-                new Conversions.UUIDConversion()) {
+        logicalTypeConverters.put("uuid", new JsonConverter.LogicalTypeConverter() {
             @Override
             JsonNode toJson(Schema schema, Object value) {
                 return jsonNodeFactory.textNode(value == null ? null : value.toString());
+            }
+        });
+        // Cassandra CQL types
+        logicalTypeConverters.put("cql_varint", new JsonConverter.LogicalTypeConverter() {
+            @Override
+            JsonNode toJson(Schema schema, Object value) {
+                if (!(value instanceof byte[])) {
+                    throw new IllegalArgumentException("Invalid type for cql_varint, expected byte[] but was "
+                            + value.getClass());
+                }
+                return jsonNodeFactory.numberNode(new BigInteger((byte[]) value));
+            }
+        });
+
+        logicalTypeConverters.put("cql_decimal", new JsonConverter.LogicalTypeConverter() {
+            @Override
+            JsonNode toJson(Schema schema, Object value) {
+                if (value == null) {
+                    return jsonNodeFactory.nullNode();
+                }
+                checkTypeAndNotNull(value, "cql_decimal", GenericRecord.class);
+                GenericRecord record = (GenericRecord) value;
+                Object bigint = record.get("bigint");
+                checkTypeAndNotNull(bigint, "cql_decimal - bigint", byte[].class);
+                Object scale = record.get("scale");
+                checkTypeAndNotNull(scale, "cql_decimal - scale", Integer.class);
+                BigInteger asBigint =  new BigInteger((byte[]) record.get("bigint"));
+                return jsonNodeFactory.numberNode(new BigDecimal(asBigint, (Integer) scale));
             }
         });
     }

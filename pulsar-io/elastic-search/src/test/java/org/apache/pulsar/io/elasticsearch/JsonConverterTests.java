@@ -21,20 +21,17 @@ package org.apache.pulsar.io.elasticsearch;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.google.common.collect.ImmutableMap;
+import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.*;
-import org.apache.avro.specific.SpecificDatumReader;
-import org.apache.avro.specific.SpecificDatumWriter;
 import org.testng.annotations.Test;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
@@ -95,6 +92,24 @@ public class JsonConverterTests {
 
     @Test
     public void testLogicalTypesToJson() throws IOException {
+        org.apache.avro.Schema cqlDecimalType  = new LogicalType("cql_decimal").addToSchema(
+                org.apache.avro.SchemaBuilder.record("record")
+                        .fields()
+                        .name("bigint").type().bytesType().noDefault()
+                        .name("scale").type().intType().noDefault()
+                        .endRecord()
+        );
+        org.apache.avro.Schema cqlVarintType  = new LogicalType("cql_varint").addToSchema(
+                org.apache.avro.Schema.create(org.apache.avro.Schema.Type.BYTES)
+        );
+        org.apache.avro.Schema durationType  = new LogicalType("cql_duration").addToSchema(
+                org.apache.avro.SchemaBuilder.record("record")
+                        .fields()
+                        .name("months").type().intType().noDefault()
+                        .name("days").type().intType().noDefault()
+                        .name("nanoseconds").type().longType().noDefault()
+                        .endRecord()
+        );
         Schema dateType = LogicalTypes.date().addToSchema(Schema.create(Schema.Type.INT));
         Schema timestampMillisType = LogicalTypes.timestampMillis().addToSchema(Schema.create(Schema.Type.LONG));
         Schema timestampMicrosType = LogicalTypes.timestampMicros().addToSchema(Schema.create(Schema.Type.LONG));
@@ -109,12 +124,25 @@ public class JsonConverterTests {
                 .name("timemillis").type(timeMillisType).noDefault()
                 .name("timemicros").type(timeMicrosType).noDefault()
                 .name("myuuid").type(uuidType).noDefault()
+                .name("myCQLVarint").type(cqlVarintType).noDefault()
+                .name("myduration").type(durationType).noDefault()
+                .name("myCQLDecimal").type(cqlDecimalType).noDefault()
+
                 .endRecord();
 
         final long MILLIS_PER_DAY = 24 * 60 * 60 * 1000;
         BigDecimal myDecimal = new BigDecimal("100.003");
         UUID myUuid = UUID.randomUUID();
         Calendar calendar = new GregorianCalendar(TimeZone.getTimeZone("Europe/Copenhagen"));
+        GenericRecord myCQLDecimal = new GenericData.Record(cqlDecimalType);
+        myCQLDecimal.put("bigint", BigInteger.valueOf(123).toByteArray());
+        myCQLDecimal.put("scale", 2);
+
+        GenericRecord myduration = new GenericData.Record(durationType);
+        myduration.put("months", 5);
+        myduration.put("days", 2);
+        myduration.put("nanoseconds", 1000 * 1000 * 1000 * 30L); // 30 seconds
+
         GenericRecord genericRecord = new GenericData.Record(schema);
         genericRecord.put("mydate", (int)calendar.toInstant().getEpochSecond());
         genericRecord.put("tsmillis", calendar.getTimeInMillis());
@@ -122,30 +150,21 @@ public class JsonConverterTests {
         genericRecord.put("timemillis", (int)(calendar.getTimeInMillis() % MILLIS_PER_DAY));
         genericRecord.put("timemicros", (calendar.getTimeInMillis() %MILLIS_PER_DAY) * 1000);
         genericRecord.put("myuuid", myUuid.toString());
+        genericRecord.put("myCQLVarint", BigInteger.valueOf(12234).toByteArray());
+        genericRecord.put("myCQLDecimal", myCQLDecimal);
+        genericRecord.put("myduration", myduration);
 
-        GenericRecord genericRecord2 = deserialize(serialize(genericRecord, schema), schema);
-        JsonNode jsonNode = JsonConverter.toJson(genericRecord2);
+        JsonNode jsonNode = JsonConverter.toJson(genericRecord);
+        assertEquals(jsonNode.get("myCQLDecimal").asText(), "1.23");
+        assertEquals(jsonNode.get("myCQLVarint").asLong(), 12234);
         assertEquals(jsonNode.get("mydate").asInt(), calendar.toInstant().getEpochSecond());
         assertEquals(jsonNode.get("tsmillis").asInt(), (int)calendar.getTimeInMillis());
         assertEquals(jsonNode.get("tsmicros").asLong(), calendar.getTimeInMillis() * 1000);
         assertEquals(jsonNode.get("timemillis").asInt(), (int)(calendar.getTimeInMillis() % MILLIS_PER_DAY));
         assertEquals(jsonNode.get("timemicros").asLong(), (calendar.getTimeInMillis() %MILLIS_PER_DAY) * 1000);
+        assertEquals(jsonNode.get("myduration").get("months").asInt(), 5);
+        assertEquals(jsonNode.get("myduration").get("days").asInt(), 2);
+        assertEquals(jsonNode.get("myduration").get("nanoseconds").asLong(), 30000000000L);
         assertEquals(UUID.fromString(jsonNode.get("myuuid").asText()), myUuid);
-    }
-
-    public static byte[] serialize(GenericRecord record, Schema schema) throws IOException {
-        SpecificDatumWriter<GenericRecord> datumWriter = new SpecificDatumWriter<>(schema);
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        BinaryEncoder binaryEncoder = new EncoderFactory().binaryEncoder(byteArrayOutputStream, null);
-        datumWriter.write(record, binaryEncoder);
-        binaryEncoder.flush();
-        return byteArrayOutputStream.toByteArray();
-    }
-
-    public static GenericRecord  deserialize(byte[] recordBytes, Schema schema) throws IOException {
-        DatumReader<GenericRecord> datumReader = new SpecificDatumReader<>(schema);
-        ByteArrayInputStream stream = new ByteArrayInputStream(recordBytes);
-        BinaryDecoder binaryDecoder = new DecoderFactory().binaryDecoder(stream, null);
-        return datumReader.read(null, binaryDecoder);
     }
 }
