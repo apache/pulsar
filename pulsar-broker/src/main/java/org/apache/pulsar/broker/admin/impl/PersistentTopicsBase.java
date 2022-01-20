@@ -1048,7 +1048,7 @@ public class PersistentTopicsBase extends AdminResource {
         CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
             future = validateGlobalNamespaceOwnershipAsync(namespaceName);
-        }else {
+        } else {
             future = CompletableFuture.completedFuture(null);
         }
         future.thenAccept(__ -> validateTopicOwnershipAsync(topicName, authoritative))
@@ -1114,16 +1114,16 @@ public class PersistentTopicsBase extends AdminResource {
                             }
                         }).exceptionally(ex -> {
                             Throwable cause = ex.getCause();
-                            log.error("[{}] Failed to get partitioned topic metadata while get" +
-                            " subscriptions for topic {}", clientAppId(), topicName, cause);
+                            log.error("[{}] Failed to get partitioned topic metadata while get"
+                                    + " subscriptions for topic {}", clientAppId(), topicName, cause);
                             resumeAsyncResponseExceptionally(asyncResponse, cause);
                             return null;
                         });
                     }
                 }).exceptionally(ex -> {
                     Throwable cause = ex.getCause();
-                    log.error("[{}] Failed to validate the global namespace/topic ownership while get subscriptions" +
-                            " for topic {}", clientAppId(), topicName, cause);
+                    log.error("[{}] Failed to validate the global namespace/topic ownership while get subscriptions"
+                            + " for topic {}", clientAppId(), topicName, cause);
                     resumeAsyncResponseExceptionally(asyncResponse, cause);
                     return null;
                 });
