@@ -1113,9 +1113,10 @@ public class PersistentTopicsBase extends AdminResource {
                                 internalGetSubscriptionsForNonPartitionedTopic(asyncResponse, authoritative);
                             }
                         }).exceptionally(ex -> {
+                            Throwable cause = ex.getCause();
                             log.error("[{}] Failed to get partitioned topic metadata while get" +
-                                    " subscriptions for topic {}", clientAppId(), topicName, ex);
-                            resumeAsyncResponseExceptionally(asyncResponse, ex);
+                            " subscriptions for topic {}", clientAppId(), topicName, cause);
+                            resumeAsyncResponseExceptionally(asyncResponse, cause);
                             return null;
                         });
                     }
