@@ -1281,7 +1281,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void internalGetManagedLedgerInfoForNonPartitionedTopic(AsyncResponse asyncResponse) {
         validateTopicOperationAsync(topicName, TopicOperation.GET_STATS)
-                .thenAccept(__ ->{
+                .thenAccept(__ -> {
                     String managedLedger = topicName.getPersistenceNamingEncoding();
                     pulsar().getManagedLedgerFactory()
                             .asyncGetManagedLedgerInfo(managedLedger, new ManagedLedgerInfoCallback() {
