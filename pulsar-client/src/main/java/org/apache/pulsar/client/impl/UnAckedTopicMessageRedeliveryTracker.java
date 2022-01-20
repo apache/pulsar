@@ -47,6 +47,7 @@ public class UnAckedTopicMessageRedeliveryTracker extends UnAckedMessageRedelive
                         exist.remove(messageIdWrapper);
                     }
                     iterator.remove();
+                    messageIdWrapper.recycle();
                     removed++;
                 }
             }

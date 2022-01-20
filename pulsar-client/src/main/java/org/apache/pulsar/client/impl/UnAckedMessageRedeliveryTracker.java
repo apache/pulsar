@@ -70,6 +70,7 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
                         headPartition.forEach(unackMessageIdWrapper -> {
                             addAckTimeoutMessages(unackMessageIdWrapper);
                             redeliveryMessageIdPartitionMap.remove(unackMessageIdWrapper);
+                            unackMessageIdWrapper.recycle();
                         });
                     }
                     headPartition.clear();
@@ -113,7 +114,12 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
             });
             if (!messageIds.isEmpty()) {
                 log.info("[{}] {} messages will be re-delivered", consumerBase, messageIds.size());
-                messageIds.forEach(ackTimeoutMessages::remove);
+                Iterator<MessageId> iterator = messageIds.iterator();
+                while (iterator.hasNext()) {
+                    MessageId messageId= iterator.next();
+                    ackTimeoutMessages.remove(messageId);
+                    iterator.remove();
+                }
             }
         } finally {
             if (messageIds.size() > 0) {
@@ -138,7 +144,11 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
         writeLock.lock();
         try {
             redeliveryMessageIdPartitionMap.clear();
-            redeliveryTimePartitions.forEach(tp -> tp.clear());
+            redeliveryTimePartitions.forEach(tp -> {
+                        tp.forEach(unackMessageIdWrapper -> unackMessageIdWrapper.recycle());
+                        tp.clear();
+                    }
+            );
             ackTimeoutMessages.clear();
         } finally {
             writeLock.unlock();
@@ -161,6 +171,7 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
             if (previousPartition == null) {
                 return partition.add(messageIdWrapper);
             } else {
+                messageIdWrapper.recycle();
                 return false;
             }
         } finally {
@@ -171,15 +182,16 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
     @Override
     public boolean remove(MessageId messageId) {
         writeLock.lock();
+        UnackMessageIdWrapper messageIdWrapper = UnackMessageIdWrapper.valueOf(messageId);
         try {
             boolean removed = false;
-            UnackMessageIdWrapper messageIdWrapper = UnackMessageIdWrapper.valueOf(messageId);
             ConcurrentOpenHashSet<UnackMessageIdWrapper> exist = redeliveryMessageIdPartitionMap.remove(messageIdWrapper);
             if (exist != null) {
                 removed = exist.remove(messageIdWrapper);
             }
             return removed || ackTimeoutMessages.remove(messageId) != null;
         } finally {
+            messageIdWrapper.recycle();
             writeLock.unlock();
         }
     }
@@ -209,6 +221,7 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
                         exist.remove(messageIdWrapper);
                     }
                     iterator.remove();
+                    messageIdWrapper.recycle();
                     removed++;
                 }
             }

@@ -18,15 +18,15 @@
  */
 package org.apache.pulsar.client.api;
 
-import org.apache.pulsar.client.impl.ExponentialRedeliveryBackoff;
+import org.apache.pulsar.client.impl.MultiplierRedeliveryBackoff;
 import org.testng.annotations.Test;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 
 /**
- * Unit test of {@link ExponentialRedeliveryBackoff}.
+ * Unit test of {@link MultiplierRedeliveryBackoff}.
  */
-public class ExponentialRedeliveryBackoffTest {
+public class MultiplierRedeliveryBackoffTest {
 
     @SuppressWarnings("deprecation")
     @Test
@@ -36,7 +36,7 @@ public class ExponentialRedeliveryBackoffTest {
         long maxDelayMs = 1000 * 60 * 10;
 
         RedeliveryBackoff redeliveryBackoff = spy(
-                ExponentialRedeliveryBackoff.builder()
+                MultiplierRedeliveryBackoff.builder()
                         .minDelayMs(minDelayMs)
                         .maxDelayMs(maxDelayMs)
                         .build());
@@ -55,7 +55,7 @@ public class ExponentialRedeliveryBackoffTest {
         maxDelayMs = 10000 * 60 * 10;
         int multiplier = 5;
         redeliveryBackoff = spy(
-                ExponentialRedeliveryBackoff.builder()
+                MultiplierRedeliveryBackoff.builder()
                         .minDelayMs(minDelayMs)
                         .maxDelayMs(maxDelayMs)
                         .multiplier(multiplier)

@@ -90,7 +90,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         if (isRedeliveryTracker) {
             consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                     .receiverQueueSize(7).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
-                    .ackTimeoutRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
+                    .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
                             .minDelayMs(1000)
                             .maxDelayMs(20000).build())
                     .subscribe();
@@ -157,7 +157,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         if (isRedeliveryTracker) {
             consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                     .receiverQueueSize(7).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
-                    .ackTimeoutRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
+                    .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
                             .minDelayMs(1000)
                             .maxDelayMs(20000).build())
                     .subscribe();
@@ -218,14 +218,14 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
             consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                     .receiverQueueSize(100).subscriptionType(SubscriptionType.Shared)
                     .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
-                    .ackTimeoutRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
+                    .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
                             .minDelayMs(1000)
                             .maxDelayMs(20000).build())
                     .consumerName("Consumer-1").subscribe();
             consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                     .receiverQueueSize(100).subscriptionType(SubscriptionType.Shared)
                     .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
-                    .ackTimeoutRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
+                    .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
                             .minDelayMs(1000)
                             .maxDelayMs(20000).build())
                     .consumerName("Consumer-2").subscribe();
@@ -327,7 +327,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
                     .receiverQueueSize(7)
                     .subscriptionType(SubscriptionType.Shared)
                     .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
-                    .ackTimeoutRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
+                    .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
                             .minDelayMs(1000)
                             .maxDelayMs(20000).build())
                     .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
@@ -339,7 +339,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
                     .receiverQueueSize(7)
                     .subscriptionType(SubscriptionType.Shared)
                     .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
-                    .ackTimeoutRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
+                    .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
                             .minDelayMs(1000)
                             .maxDelayMs(20000).build())
                     .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
@@ -428,7 +428,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
             pulsarClient.newConsumer().ackTimeout(999, TimeUnit.MILLISECONDS);
             Assert.fail("Exception should have been thrown since the set timeout is less than min timeout.");
             pulsarClient.newConsumer().ackTimeout(2000, TimeUnit.MILLISECONDS)
-            .ackTimeoutRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
+            .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
                     .minDelayMs(1000)
                     .maxDelayMs(60000)
                     .multiplier(0).build());
@@ -514,7 +514,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(7).subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
-                .ackTimeoutRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
+                .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
                         .minDelayMs(minDelayMs)
                         .maxDelayMs(maxDelayMs)
                         .multiplier(multiplier).build())
@@ -581,7 +581,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
                 .topic(topicName)
                 .subscriptionName("subscription")
                 .ackTimeout(1, TimeUnit.HOURS)
-                .ackTimeoutRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
+                .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
                         .minDelayMs(1000)
                         .maxDelayMs(60000).build())
                 .subscribe();

@@ -306,7 +306,7 @@ public class ConsumerBuilderImplTest {
 
     @Test
     public void testNegativeAckRedeliveryBackoff() {
-        consumerBuilderImpl.negativeAckRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
+        consumerBuilderImpl.negativeAckRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
                 .minDelayMs(1000)
                 .maxDelayMs(10 * 1000)
                 .build());

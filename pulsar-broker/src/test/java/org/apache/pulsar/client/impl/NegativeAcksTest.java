@@ -211,7 +211,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
                 .subscriptionName("sub1")
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
                 .subscriptionType(subscriptionType)
-                .negativeAckRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
+                .negativeAckRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
                         .minDelayMs(minNackTimeMs)
                         .maxDelayMs(maxNackTimeMs)
                         .build())

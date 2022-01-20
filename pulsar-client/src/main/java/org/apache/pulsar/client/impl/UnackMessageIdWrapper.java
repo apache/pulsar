@@ -18,35 +18,48 @@
  */
 package org.apache.pulsar.client.impl;
 
+import io.netty.util.Recycler;
 import lombok.Getter;
 import org.apache.pulsar.client.api.MessageId;
 
 @Getter
 public class UnackMessageIdWrapper {
 
+    private static final Recycler<UnackMessageIdWrapper> RECYCLER = new Recycler<UnackMessageIdWrapper>() {
+        @Override
+        protected UnackMessageIdWrapper newObject(Handle<UnackMessageIdWrapper> handle) {
+            return new UnackMessageIdWrapper(handle);
+        }
+    };
+
+    private final Recycler.Handle<UnackMessageIdWrapper> recyclerHandle;
     private MessageId messageId;
     private int redeliveryCount = 0;
 
-    private UnackMessageIdWrapper(MessageId messageId) {
-        this(messageId, 0);
+    private UnackMessageIdWrapper(Recycler.Handle<UnackMessageIdWrapper> recyclerHandle) {
+        this.recyclerHandle = recyclerHandle;
     }
 
-    @Override
-    public String toString() {
-        return "UnackMessageIdWrapper [messageId=" + messageId + ", redeliveryCount=" + redeliveryCount + "]";
+    private static UnackMessageIdWrapper create(MessageId messageId, int redeliveryCount) {
+        UnackMessageIdWrapper unackMessageIdWrapper = RECYCLER.get();
+        unackMessageIdWrapper.messageId = messageId;
+        unackMessageIdWrapper.redeliveryCount = redeliveryCount;
+        return unackMessageIdWrapper;
     }
 
-    private UnackMessageIdWrapper(MessageId messageId, int redeliveryCount) {
-        this.messageId = messageId;
-        this.redeliveryCount = redeliveryCount;
-    }
 
     public static UnackMessageIdWrapper valueOf(MessageId messageId) {
-        return new UnackMessageIdWrapper(messageId);
+        return create(messageId, 0);
     }
 
     public static UnackMessageIdWrapper valueOf(MessageId messageId, int redeliveryCount) {
-        return new UnackMessageIdWrapper(messageId, redeliveryCount);
+        return create(messageId, redeliveryCount);
+    }
+
+    public void recycle() {
+        messageId = null;
+        redeliveryCount = 0;
+        recyclerHandle.recycle(this);
     }
 
     @Override
@@ -71,6 +84,11 @@ public class UnackMessageIdWrapper {
     @Override
     public int hashCode() {
         return (messageId == null ? 0 : messageId.hashCode());
+    }
+
+    @Override
+    public String toString() {
+        return "UnackMessageIdWrapper [messageId=" + messageId + ", redeliveryCount=" + redeliveryCount + "]";
     }
 
 }

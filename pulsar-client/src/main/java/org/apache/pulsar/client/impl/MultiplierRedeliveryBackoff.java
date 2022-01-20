@@ -22,16 +22,16 @@ import com.google.common.base.Preconditions;
 import org.apache.pulsar.client.api.RedeliveryBackoff;
 
 /**
- * ExponentialRedeliveryBackoff
+ * MultiplierRedeliveryBackoff
  */
-public class ExponentialRedeliveryBackoff implements RedeliveryBackoff {
+public class MultiplierRedeliveryBackoff implements RedeliveryBackoff {
 
     private final long minDelayMs;
     private final long maxDelayMs;
     private final int multiplier;
     private final int maxMultiplierPow;
 
-    private ExponentialRedeliveryBackoff(long minDelayMs, long maxDelayMs, int multiplier) {
+    private MultiplierRedeliveryBackoff(long minDelayMs, long maxDelayMs, int multiplier) {
         this.minDelayMs = minDelayMs;
         this.maxDelayMs = maxDelayMs;
         this.multiplier = multiplier;
@@ -39,8 +39,8 @@ public class ExponentialRedeliveryBackoff implements RedeliveryBackoff {
                 (int) (Math.log((double) maxDelayMs / minDelayMs) / Math.log(multiplier)) + 1;
     }
 
-    public static ExponentialRedeliveryBackoff.ExponentialRedeliveryBackoffBuilder builder() {
-        return new ExponentialRedeliveryBackoff.ExponentialRedeliveryBackoffBuilder();
+    public static MultiplierRedeliveryBackoff.MultiplierRedeliveryBackoffBuilder builder() {
+        return new MultiplierRedeliveryBackoff.MultiplierRedeliveryBackoffBuilder();
     }
 
     public long getMinDelayMs() {
@@ -63,33 +63,33 @@ public class ExponentialRedeliveryBackoff implements RedeliveryBackoff {
     }
 
     /**
-     * Builder of ExponentialRedeliveryBackoff.
+     * Builder of MultiplierRedeliveryBackoff.
      */
-    public static class ExponentialRedeliveryBackoffBuilder {
+    public static class MultiplierRedeliveryBackoffBuilder {
         private long minDelayMs = 1000 * 10;
         private long maxDelayMs = 1000 * 60 * 10;
         private int multiplier = 2;
 
-        public ExponentialRedeliveryBackoffBuilder minDelayMs(long minDelayMs) {
+        public MultiplierRedeliveryBackoffBuilder minDelayMs(long minDelayMs) {
             this.minDelayMs = minDelayMs;
             return this;
         }
 
-        public ExponentialRedeliveryBackoffBuilder maxDelayMs(long maxDelayMs) {
+        public MultiplierRedeliveryBackoffBuilder maxDelayMs(long maxDelayMs) {
             this.maxDelayMs = maxDelayMs;
             return this;
         }
 
-        public ExponentialRedeliveryBackoffBuilder multiplier(int multiplier) {
+        public MultiplierRedeliveryBackoffBuilder multiplier(int multiplier) {
             this.multiplier = multiplier;
             return this;
         }
 
-        public ExponentialRedeliveryBackoff build() {
+        public MultiplierRedeliveryBackoff build() {
             Preconditions.checkArgument(minDelayMs >= 0, "min delay time must be >= 0");
             Preconditions.checkArgument(maxDelayMs >= minDelayMs, "maxDelayMs must be >= minDelayMs");
             Preconditions.checkArgument(multiplier > 0, "multiplier must be > 0");
-            return new ExponentialRedeliveryBackoff(minDelayMs, maxDelayMs, multiplier);
+            return new MultiplierRedeliveryBackoff(minDelayMs, maxDelayMs, multiplier);
         }
     }
 }
