@@ -866,7 +866,7 @@ public abstract class PulsarWebResource {
         }
     }
 
-    public void validateNamespaceOperation(NamespaceName namespaceName, NamespaceOperation operation){
+    public void validateNamespaceOperation(NamespaceName namespaceName, NamespaceOperation operation) {
         try {
             validateNamespaceOperationAsync(namespaceName, operation).get();
         } catch (InterruptedException e) {

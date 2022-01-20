@@ -97,7 +97,7 @@ public class FutureUtilTest {
     }
 
     @Test
-    public void testGetOriginalException(){
+    public void testGetOriginalException() {
         CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
         CompletableFuture<Void> exceptionFuture = future.thenAccept(__ -> {
             throw new IllegalStateException("Illegal state");
@@ -112,7 +112,7 @@ public class FutureUtilTest {
         CompletableFuture<Object> exceptionFuture2 = new CompletableFuture<>();
         exceptionFuture2.completeExceptionally(new IllegalStateException("Completed exception"));
         final List<Throwable> future2Exception = Lists.newArrayList();
-        exceptionFuture2.exceptionally(ex ->{
+        exceptionFuture2.exceptionally(ex -> {
             future2Exception.add(FutureUtil.getOriginalException(ex));
             return null;
         });
