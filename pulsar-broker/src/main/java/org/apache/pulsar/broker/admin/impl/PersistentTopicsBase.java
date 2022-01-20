@@ -1219,7 +1219,7 @@ public class PersistentTopicsBase extends AdminResource {
                             TopicName topicNamePartition = topicName.getPartition(i);
                             try {
                                 futures.add(pulsar().getAdminClient().topics()
-                                        .getInternalInfoAsync( topicNamePartition.toString())
+                                        .getInternalInfoAsync(topicNamePartition.toString())
                                         .whenComplete((response, throwable) -> {
                                             if (throwable != null) {
                                                 log.error("[{}] Failed to get managed info for {}",
