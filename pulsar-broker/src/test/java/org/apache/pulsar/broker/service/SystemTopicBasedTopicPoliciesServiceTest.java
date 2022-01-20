@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -56,6 +55,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -313,7 +313,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         try {
             service.getTopicPoliciesAsyncWithRetry(TOPIC1, backoff, pulsar.getExecutor()).get();
         } catch (Exception e) {
-            assertTrue(e.getCause().getCause() instanceof TopicPoliciesCacheNotInitException);
+            assertTrue(e.getCause() instanceof TopicPoliciesCacheNotInitException);
         }
         long cost = System.currentTimeMillis() - start;
         assertTrue("actual:" + cost, cost >= 5000 - 1000);
@@ -333,9 +333,10 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
 
         SystemTopicClient.Reader<PulsarEvent> reader = mock(SystemTopicClient.Reader.class);
         // Throw an exception first, create successfully after retrying
-        doThrow(new PulsarClientException("test")).doReturn(reader).when(client).newReader();
+        doReturn(FutureUtil.failedFuture(new PulsarClientException("test")))
+                .doReturn(CompletableFuture.completedFuture(reader)).when(client).newReaderAsync();
 
-        SystemTopicClient.Reader<PulsarEvent> reader1 = service.creatSystemTopicClientWithRetry(null).get();
+        SystemTopicClient.Reader<PulsarEvent> reader1 = service.createSystemTopicClientWithRetry(null).get();
 
         assertEquals(reader1, reader);
     }
