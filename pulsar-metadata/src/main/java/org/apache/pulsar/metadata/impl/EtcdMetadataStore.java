@@ -136,7 +136,7 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
     @Override
     protected CompletableFuture<Boolean> existsFromStore(String path) {
         return kv.get(ByteSequence.from(path, StandardCharsets.UTF_8), EXISTS_GET_OPTION)
-                .thenApply(gr -> gr.getCount() == 1);
+                .thenApplyAsync(gr -> gr.getCount() == 1, executor);
     }
 
     @Override
@@ -152,7 +152,9 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
             }
             return super.storePut(parent, new byte[0], Optional.empty(), EnumSet.noneOf(CreateOption.class))
                     // Then create the unique key with the version added in the path
-                    .thenCompose(stat -> super.storePut(path + stat.getVersion(), data, optExpectedVersion, options));
+                    .thenComposeAsync(
+                            stat -> super.storePut(path + stat.getVersion(), data, optExpectedVersion, options),
+                            executor);
         }
     }
 
@@ -240,7 +242,7 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
 
             txn.commit().thenAccept(txnResponse -> {
                 handleBatchOperationResult(txnResponse, ops);
-            }).exceptionally(ex -> {
+            }).exceptionallyAsync(ex -> {
                 Throwable cause = ex.getCause();
                 if (cause instanceof ExecutionException || cause instanceof CompletionException) {
                     cause = cause.getCause();
@@ -259,12 +261,10 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
                     }
                 } else {
                     log.warn("Failed to commit: {}", cause.getMessage());
-                    executor.execute(() -> {
-                        ops.forEach(o -> o.getFuture().completeExceptionally(ex));
-                    });
+                    ops.forEach(o -> o.getFuture().completeExceptionally(ex));
                 }
                 return null;
-            });
+            }, executor);
         } catch (Throwable t) {
             log.warn("Error in committing batch: {}", t.getMessage());
         }
