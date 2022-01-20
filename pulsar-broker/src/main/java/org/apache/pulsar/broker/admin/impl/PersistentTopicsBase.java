@@ -1218,8 +1218,7 @@ public class PersistentTopicsBase extends AdminResource {
                         for (int i = 0; i < partitionMetadata.partitions; i++) {
                             TopicName topicNamePartition = topicName.getPartition(i);
                             try {
-                                futures.add(pulsar()
-                                        .getAdminClient().topics()
+                                futures.add(pulsar().getAdminClient().topics()
                                         .getInternalInfoAsync( topicNamePartition.toString())
                                         .whenComplete((response, throwable) -> {
                                             if (throwable != null) {
@@ -1233,10 +1232,10 @@ public class PersistentTopicsBase extends AdminResource {
                                                                 .readValue(response, ManagedLedgerInfo.class));
                                             } catch (JsonProcessingException ex) {
                                                 log.error("[{}] Failed to parse ManagedLedgerInfo for {} from [{}]",
-                                                        clientAppId(),
-                                                        topicNamePartition, response, ex);
+                                                        clientAppId(), topicNamePartition, response, ex);
                                             }
-                                        }));
+                                        })
+                                );
                             } catch (Exception e) {
                                 log.error("[{}] Failed to get managed info for {}", clientAppId(),
                                         topicNamePartition, e);
@@ -1268,7 +1267,7 @@ public class PersistentTopicsBase extends AdminResource {
                     return null;
                 });
             }
-        }).exceptionally(ex ->{
+        }).exceptionally(ex -> {
             Throwable cause = ex.getCause();
             log.error("[{}] Failed to get managed info for {}", clientAppId(), topicName, cause);
             resumeAsyncResponseExceptionally(asyncResponse, cause);
