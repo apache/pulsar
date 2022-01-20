@@ -46,9 +46,6 @@ public class RetryUtil {
     private static <T> void executeWithRetry(Supplier<CompletableFuture<T>> supplier, Backoff backoff,
                                              ScheduledExecutorService scheduledExecutorService,
                                              CompletableFuture<T> callback) {
-        if (supplier == null || supplier.get() == null) {
-            throw new RuntimeException("Miss retry execution supplier.");
-        }
         supplier.get().whenComplete((result, e) -> {
             if (e != null) {
                 long next = backoff.next();
