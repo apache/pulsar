@@ -153,7 +153,7 @@ flexible messaging model and an intuitive client API.</description>
     <mariadb-jdbc.version>2.6.0</mariadb-jdbc.version>
     <hdfs-offload-version3>3.3.1</hdfs-offload-version3>
     <json-smart.version>2.4.7</json-smart.version>
-    <elasticsearch.version>7.16.3</elasticsearch.version>
+    <elasticsearch.version>7.9.1</elasticsearch.version>
     <presto.version>332</presto.version>
     <scala.binary.version>2.13</scala.binary.version>
     <scala-library.version>2.13.6</scala-library.version>
@@ -1328,7 +1328,6 @@ flexible messaging model and an intuitive client API.</description>
         </dependencies>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
           <encoding>UTF-8</encoding>
@@ -1846,7 +1845,6 @@ flexible messaging model and an intuitive client API.</description>
         <pluginManagement>
           <plugins>
             <plugin>
-              <groupId>org.apache.maven.plugins</groupId>
               <artifactId>maven-compiler-plugin</artifactId>
               <configuration>
                 <!-- for some reason, setting maven.compiler.release property alone doesn't work -->
