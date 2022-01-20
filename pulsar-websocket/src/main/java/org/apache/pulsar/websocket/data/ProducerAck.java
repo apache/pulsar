@@ -19,7 +19,6 @@
 package org.apache.pulsar.websocket.data;
 
 import static com.google.common.base.Joiner.on;
-
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import lombok.AllArgsConstructor;
