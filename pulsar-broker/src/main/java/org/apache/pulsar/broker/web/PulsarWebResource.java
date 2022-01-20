@@ -887,7 +887,8 @@ public abstract class PulsarWebResource {
         if (pulsar().getConfiguration().isAuthenticationEnabled()
             && pulsar().getBrokerService().isAuthorizationEnabled()) {
             if (!isClientAuthenticated(clientAppId())) {
-                throw new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request");
+                return FutureUtil.failedFuture(
+                        new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request"));
             }
 
             return pulsar().getBrokerService().getAuthorizationService()
