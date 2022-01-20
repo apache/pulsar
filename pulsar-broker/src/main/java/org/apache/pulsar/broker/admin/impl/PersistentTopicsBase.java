@@ -714,9 +714,11 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void internalUnloadTopic(AsyncResponse asyncResponse, boolean authoritative) {
         log.info("[{}] Unloading topic {}", clientAppId(), topicName);
-        CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
+        CompletableFuture<Void> future = null;
         if (topicName.isGlobal()) {
             future = validateGlobalNamespaceOwnershipAsync(namespaceName);
+        } else {
+            future = CompletableFuture.completedFuture(null);
         }
        future.thenAccept(__ -> {
            // If the topic name is a partition name, no need to get partition topic metadata again
