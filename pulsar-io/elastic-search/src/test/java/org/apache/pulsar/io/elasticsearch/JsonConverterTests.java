@@ -57,6 +57,8 @@ public class JsonConverterTests {
                 .name("d").type().doubleType().doubleDefault(10.0)
                 .name("f").type().floatType().floatDefault(10.0f)
                 .name("s").type().stringType().stringDefault("titi")
+                .name("fi").type().fixed("fi").size(3).fixedDefault(new byte[]{1,2,3})
+                .name("en").type().enumeration("en").symbols("a","b","c").enumDefault("b")
                 .name("array").type().optional().array().items(SchemaBuilder.builder().stringType())
                 .name("map").type().optional().map().values(SchemaBuilder.builder().intType())
                 .endRecord();
@@ -69,6 +71,8 @@ public class JsonConverterTests {
         genericRecord.put("d", 10.0);
         genericRecord.put("f", 10.0f);
         genericRecord.put("s", "toto");
+        genericRecord.put("fi", GenericData.get().createFixed(null, new byte[]{'a','b','c'}, schema.getField("fi").schema()));
+        genericRecord.put("en", GenericData.get().createEnum("b", schema.getField("en").schema()));
         genericRecord.put("array", new String[] {"toto"});
         genericRecord.put("map", ImmutableMap.of("a",10));
         JsonNode jsonNode = JsonConverter.toJson(genericRecord);
@@ -77,6 +81,8 @@ public class JsonConverterTests {
         assertEquals(jsonNode.get("i").asInt(), 1);
         assertEquals(jsonNode.get("b").asBoolean(), true);
         assertEquals(jsonNode.get("bb").binaryValue(), "10".getBytes(StandardCharsets.UTF_8));
+        assertEquals(jsonNode.get("fi").binaryValue(), "abc".getBytes(StandardCharsets.UTF_8));
+        assertEquals(jsonNode.get("en").textValue(), "b");
         assertEquals(jsonNode.get("d").asDouble(), 10.0);
         assertEquals(jsonNode.get("f").numberValue(), 10.0f);
         assertEquals(jsonNode.get("s").asText(), "toto");
