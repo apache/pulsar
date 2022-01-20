@@ -1199,9 +1199,11 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalGetManagedLedgerInfo(AsyncResponse asyncResponse, boolean authoritative) {
-        CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
+        CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
             future = validateGlobalNamespaceOwnershipAsync(namespaceName);
+        } else {
+            future = CompletableFuture.completedFuture(null);
         }
         future.thenAccept(__ -> {
             // If the topic name is a partition name, no need to get partition topic metadata again
@@ -1211,10 +1213,9 @@ public class PersistentTopicsBase extends AdminResource {
                 getPartitionedTopicMetadataAsync(topicName, authoritative, false)
                         .thenAccept(partitionMetadata -> {
                     if (partitionMetadata.partitions > 0) {
-                        final List<CompletableFuture<String>> futures = Lists.newArrayList();
-
+                        final List<CompletableFuture<String>> futures
+                                = Lists.newArrayListWithCapacity(partitionMetadata.partitions);
                         PartitionedManagedLedgerInfo partitionedManagedLedgerInfo = new PartitionedManagedLedgerInfo();
-
                         for (int i = 0; i < partitionMetadata.partitions; i++) {
                             TopicName topicNamePartition = topicName.getPartition(i);
                             try {
@@ -1262,14 +1263,17 @@ public class PersistentTopicsBase extends AdminResource {
                         internalGetManagedLedgerInfoForNonPartitionedTopic(asyncResponse);
                     }
                 }).exceptionally(ex -> {
-                    log.error("[{}] Failed to get managed info for {}", clientAppId(), topicName, ex);
-                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    Throwable cause = ex.getCause();
+                    log.error("[{}] Failed to get partitioned metadata while get managed info for {}",
+                    clientAppId(), topicName, cause);
+                    resumeAsyncResponseExceptionally(asyncResponse, cause);
                     return null;
                 });
             }
         }).exceptionally(ex -> {
             Throwable cause = ex.getCause();
-            log.error("[{}] Failed to get managed info for {}", clientAppId(), topicName, cause);
+            log.error("[{}] Failed to validate the global namespace ownership while get managed info for {}",
+                    clientAppId(), topicName, cause);
             resumeAsyncResponseExceptionally(asyncResponse, cause);
             return null;
         });
