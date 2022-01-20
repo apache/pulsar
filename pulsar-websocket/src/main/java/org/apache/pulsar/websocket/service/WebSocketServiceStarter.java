@@ -96,7 +96,8 @@ public class WebSocketServiceStarter {
                 new WebSocketProducerServlet(service));
         proxyServer.addWebSocketServlet(WebSocketConsumerServlet.SERVLET_PATH_V2,
                 new WebSocketConsumerServlet(service));
-        proxyServer.addWebSocketServlet(WebSocketReaderServlet.SERVLET_PATH_V2, new WebSocketReaderServlet(service));
+        proxyServer.addWebSocketServlet(WebSocketReaderServlet.SERVLET_PATH_V2,
+                new WebSocketReaderServlet(service));
         proxyServer.addWebSocketServlet(WebSocketPingPongServlet.SERVLET_PATH_V2,
                 new WebSocketPingPongServlet(service));
 

@@ -61,7 +61,8 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
     protected final Map<String, String> queryParams;
 
 
-    public AbstractWebSocketHandler(WebSocketService service, HttpServletRequest request,
+    public AbstractWebSocketHandler(WebSocketService service,
+                                    HttpServletRequest request,
                                     ServletUpgradeResponse response) {
         this.service = service;
         this.request = new WebSocketHttpServletRequestWrapper(request);
@@ -220,17 +221,17 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         checkArgument(parts.get(domainIndex).equals("persistent")
                 || parts.get(domainIndex).equals("non-persistent"));
 
-
         final String domain = parts.get(domainIndex);
         final NamespaceName namespace = isV2Format ? NamespaceName.get(parts.get(5), parts.get(6)) :
                 NamespaceName.get(parts.get(4), parts.get(5), parts.get(6));
-        //The topic name which contains slashes is also split ， so it needs to be jointed
+
+        // The topic name which contains slashes is also split，so it needs to be jointed
         int startPosition = 7;
         boolean isConsumer = "consumer".equals(parts.get(2)) || "consumer".equals(parts.get(3));
         int endPosition = isConsumer ? parts.size() - 1 : parts.size();
         StringBuilder topicName = new StringBuilder(parts.get(startPosition));
         while (++startPosition < endPosition) {
-            if (StringUtils.isEmpty(parts.get(startPosition))){
+            if (StringUtils.isEmpty(parts.get(startPosition))) {
                continue;
             }
             topicName.append("/").append(parts.get(startPosition));
@@ -240,8 +241,8 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         return TopicName.get(domain, namespace, name);
     }
 
-    protected abstract Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData)
-            throws Exception;
+    protected abstract Boolean isAuthorized(String authRole,
+                                            AuthenticationDataSource authenticationData) throws Exception;
 
     private static final Logger log = LoggerFactory.getLogger(AbstractWebSocketHandler.class);
 }

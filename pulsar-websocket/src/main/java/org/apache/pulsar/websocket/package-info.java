@@ -16,8 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-/**
- * Helper class to access AirCompressor package private classes.
- */
 package org.apache.pulsar.websocket;

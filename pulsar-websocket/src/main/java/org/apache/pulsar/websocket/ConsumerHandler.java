@@ -137,8 +137,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     private void receiveMessage() {
         if (log.isDebugEnabled()) {
-            log.debug("[{}:{}] [{}] [{}] Receive next message", request.getRemoteAddr(), request.getRemotePort(),
-                    topic, subscription);
+            log.debug("[{}:{}] [{}] [{}] Receive next message",
+                    request.getRemoteAddr(), request.getRemotePort(), topic, subscription);
         }
 
         consumer.receiveAsync().thenAccept(msg -> {

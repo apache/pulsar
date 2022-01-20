@@ -19,7 +19,6 @@
 package org.apache.pulsar.bcloader;
 
 import static org.apache.pulsar.common.util.SecurityUtility.BC;
-
 import java.security.Provider;
 import java.security.Security;
 import lombok.extern.slf4j.Slf4j;

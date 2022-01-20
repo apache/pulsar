@@ -42,8 +42,9 @@ import org.apache.pulsar.websocket.stats.ProxyTopicStat;
 public class WebSocketProxyStatsV2 extends WebSocketProxyStatsBase {
     @GET
     @Path("/metrics")
-    @ApiOperation(value = "Gets the metrics for Monitoring", notes = "Requested should be executed by Monitoring agent"
-            + " on each proxy to fetch the metrics", response = Metrics.class, responseContainer = "List")
+    @ApiOperation(value = "Gets the metrics for Monitoring",
+                  notes = "Requested should be executed by Monitoring agent on each proxy to fetch the metrics",
+                  response = Metrics.class, responseContainer = "List")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public Collection<Metrics> internalGetMetrics() throws Exception {
         return super.internalGetMetrics();

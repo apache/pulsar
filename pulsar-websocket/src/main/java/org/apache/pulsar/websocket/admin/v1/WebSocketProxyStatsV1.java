@@ -43,8 +43,9 @@ public class WebSocketProxyStatsV1 extends WebSocketProxyStatsBase {
 
     @GET
     @Path("/metrics")
-    @ApiOperation(value = "Gets the metrics for Monitoring", notes = "Requested should be executed by Monitoring agent"
-            + " on each proxy to fetch the metrics", response = Metrics.class, responseContainer = "List")
+    @ApiOperation(value = "Gets the metrics for Monitoring",
+                  notes = "Requested should be executed by Monitoring agent on each proxy to fetch the metrics",
+                  response = Metrics.class, responseContainer = "List")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public Collection<Metrics> internalGetMetrics() throws Exception {
         return super.internalGetMetrics();
@@ -57,7 +58,8 @@ public class WebSocketProxyStatsV1 extends WebSocketProxyStatsBase {
             @ApiResponse(code = 404, message = "Topic does not exist") })
     public ProxyTopicStat getStats(@PathParam("tenant") String tenant, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic) {
-        return super.internalGetStats(TopicName.get("persistent", tenant, cluster, namespace, decode(encodedTopic)));
+        return super.internalGetStats(
+                TopicName.get("persistent", tenant, cluster, namespace, decode(encodedTopic)));
     }
 
     @GET
