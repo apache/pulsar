@@ -714,7 +714,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void internalUnloadTopic(AsyncResponse asyncResponse, boolean authoritative) {
         log.info("[{}] Unloading topic {}", clientAppId(), topicName);
-        CompletableFuture<Void> future = null;
+        CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
             future = validateGlobalNamespaceOwnershipAsync(namespaceName);
         } else {
@@ -732,8 +732,8 @@ public class PersistentTopicsBase extends AdminResource {
                getPartitionedTopicMetadataAsync(topicName, authoritative, false)
                        .thenAccept(meta -> {
                            if (meta.partitions > 0) {
-                               final List<CompletableFuture<Void>> futures = Lists.newArrayList();
-
+                               final List<CompletableFuture<Void>> futures =
+                                       Lists.newArrayListWithCapacity(meta.partitions);
                                for (int i = 0; i < meta.partitions; i++) {
                                    TopicName topicNamePartition = topicName.getPartition(i);
                                    try {
@@ -768,7 +768,8 @@ public class PersistentTopicsBase extends AdminResource {
                                internalUnloadNonPartitionedTopicAsync(asyncResponse, authoritative);
                            }
                        }).exceptionally(t -> {
-                           log.error("[{}] Failed to unload topic {}", clientAppId(), topicName, t);
+                           log.error("[{}] Failed to get partitioned metadata while unloading topic {}",
+                                   clientAppId(), topicName, t);
                            if (t instanceof WebApplicationException) {
                                asyncResponse.resume(t);
                            } else {
@@ -779,7 +780,8 @@ public class PersistentTopicsBase extends AdminResource {
            }
        }).exceptionally(ex -> {
            Throwable cause = ex.getCause();
-           log.error("[{}] Failed to unload topic {}", clientAppId(), topicName, cause);
+           log.error("[{}] Failed to validate the global namespace ownership while unloading topic {}",
+                   clientAppId(), topicName, cause);
            resumeAsyncResponseExceptionally(asyncResponse, cause);
            return null;
        });
