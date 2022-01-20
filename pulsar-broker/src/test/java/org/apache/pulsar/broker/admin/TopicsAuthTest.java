@@ -65,8 +65,6 @@ import static org.powermock.api.mockito.PowerMockito.spy;
 
 public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
 
-
-    private Topics topics;
     private final String testLocalCluster = "test";
     private final String testTenant = "my-tenant";
     private final String testNamespace = "my-namespace";
@@ -92,8 +90,6 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
         providers.add(AuthenticationProviderToken.class.getName());
         conf.setAuthenticationProviders(providers);
         super.internalSetup();
-        topics = spy(new Topics());
-        topics.setPulsar(pulsar);
         PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(brokerUrl != null
                 ? brokerUrl.toString() : brokerUrlTls.toString())
                 .authentication(AuthenticationToken.class.getName(),
