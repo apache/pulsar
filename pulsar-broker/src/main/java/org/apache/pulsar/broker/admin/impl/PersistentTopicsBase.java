@@ -1213,8 +1213,8 @@ public class PersistentTopicsBase extends AdminResource {
                 getPartitionedTopicMetadataAsync(topicName, authoritative, false)
                         .thenAccept(partitionMetadata -> {
                     if (partitionMetadata.partitions > 0) {
-                        final List<CompletableFuture<String>> futures
-                                = Lists.newArrayListWithCapacity(partitionMetadata.partitions);
+                        final List<CompletableFuture<String>> futures =
+                                Lists.newArrayListWithCapacity(partitionMetadata.partitions);
                         PartitionedManagedLedgerInfo partitionedManagedLedgerInfo = new PartitionedManagedLedgerInfo();
                         for (int i = 0; i < partitionMetadata.partitions; i++) {
                             TopicName topicNamePartition = topicName.getPartition(i);
