@@ -16,32 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.sql.presto.util;
-
 /**
- * Cache size allocator.
+ * Implementation of the connector to the Presto engine.
  */
-public interface CacheSizeAllocator {
-
-    /**
-     * Get available cache size.
-     *
-     * @return available cache size
-     */
-    long getAvailableCacheSize();
-
-    /**
-     * Cost available cache.
-     *
-     * @param size allocate size
-     */
-    void allocate(long size);
-
-    /**
-     * Release allocated cache size.
-     *
-     * @param size release size
-     */
-    void release(long size);
-
-}
+package org.openjdk.jol.info;
