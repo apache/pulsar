@@ -699,7 +699,7 @@ public class PersistentTopicsBase extends AdminResource {
                 asyncResponse.resume(new RestException(e1));
             }
         }).exceptionally(ex ->{
-            Throwable cause = ex.getCause();
+            Throwable cause = FutureUtil.getOriginalException(ex);
             if (cause instanceof  WebApplicationException && ((WebApplicationException) cause).getResponse().getStatus()
                     == Status.TEMPORARY_REDIRECT.getStatusCode()) {
                 if (log.isDebugEnabled()) {

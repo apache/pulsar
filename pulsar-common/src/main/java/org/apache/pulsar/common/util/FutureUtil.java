@@ -174,6 +174,16 @@ public class FutureUtil {
         }
     }
 
+    public static Throwable getOriginalException(Throwable ex) {
+        if (ex instanceof CompletionException) {
+            return ex.getCause();
+        } else if (ex instanceof ExecutionException) {
+            return ex.getCause();
+        } else {
+            return ex;
+        }
+    }
+
     public static <T> Optional<Throwable> getException(CompletableFuture<T> future) {
         if (future != null && future.isCompletedExceptionally()) {
             try {
