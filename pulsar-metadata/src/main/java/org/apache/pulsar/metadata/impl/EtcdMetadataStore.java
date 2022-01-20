@@ -242,7 +242,7 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
 
             txn.commit().thenAccept(txnResponse -> {
                 handleBatchOperationResult(txnResponse, ops);
-            }).exceptionallyAsync(ex -> {
+            }).exceptionally(ex -> {
                 Throwable cause = ex.getCause();
                 if (cause instanceof ExecutionException || cause instanceof CompletionException) {
                     cause = cause.getCause();
@@ -261,10 +261,12 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
                     }
                 } else {
                     log.warn("Failed to commit: {}", cause.getMessage());
-                    ops.forEach(o -> o.getFuture().completeExceptionally(ex));
+                    executor.execute(() -> {
+                        ops.forEach(o -> o.getFuture().completeExceptionally(ex));
+                    });
                 }
                 return null;
-            }, executor);
+            });
         } catch (Throwable t) {
             log.warn("Error in committing batch: {}", t.getMessage());
         }
