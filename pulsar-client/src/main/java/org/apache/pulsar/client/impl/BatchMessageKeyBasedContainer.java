@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import com.google.common.collect.ComparisonChain;
-import com.google.common.collect.Lists;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.ReferenceCountUtil;
@@ -142,7 +141,8 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
         ByteBufPair cmd = producer.sendMessage(producer.producerId, keyedBatch.sequenceId, numMessagesInBatch,
                 keyedBatch.messageMetadata, encryptedPayload);
 
-        ProducerImpl.OpSendMsg op = ProducerImpl.OpSendMsg.create(keyedBatch.messages, cmd, keyedBatch.sequenceId, keyedBatch.firstCallback);
+        ProducerImpl.OpSendMsg op = ProducerImpl.OpSendMsg.create(keyedBatch.messages, cmd, keyedBatch.sequenceId,
+                keyedBatch.firstCallback, keyedBatch.previousCallback);
 
         op.setNumMessagesInBatch(numMessagesInBatch);
         op.setBatchSizeByte(currentBatchSizeBytes);
@@ -191,7 +191,7 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
         // sequence id for this batch which will be persisted as a single entry by broker
         private long sequenceId = -1;
         private ByteBuf batchedMessageMetadataAndPayload;
-        private List<MessageImpl<?>> messages = Lists.newArrayList();
+        private List<MessageImpl<?>> messages = new ArrayList<>();
         private SendCallback previousCallback = null;
         private CompressionType compressionType;
         private CompressionCodec compressor;
@@ -249,7 +249,7 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
         }
 
         public void clear() {
-            messages = Lists.newArrayList();
+            messages = new ArrayList<>();
             firstCallback = null;
             previousCallback = null;
             messageMetadata.clear();

@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import io.netty.util.Timeout;
@@ -28,6 +27,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
@@ -36,18 +36,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.MessageRouter;
-import org.apache.pulsar.client.api.MessageRoutingMode;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerAccessMode;
-import org.apache.pulsar.client.api.PulsarClientException;
+
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.api.PulsarClientException.NotSupportedException;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -111,7 +105,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
 
         switch (messageRouteMode) {
             case CustomPartition:
-                messageRouter = checkNotNull(conf.getCustomMessageRouter());
+                messageRouter = Objects.requireNonNull(conf.getCustomMessageRouter());
                 break;
             case SinglePartition:
                 messageRouter = new SinglePartitionMessageRouterImpl(
@@ -191,6 +185,10 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
 
     @Override
     CompletableFuture<MessageId> internalSendWithTxnAsync(Message<?> message, Transaction txn) {
+        CompletableFuture<MessageId> completableFuture = new CompletableFuture<>();
+        if (txn != null && !((TransactionImpl)txn).checkIfOpen(completableFuture)) {
+            return completableFuture;
+        }
         int partition = routerPolicy.choosePartition(message, topicMetadata);
         checkArgument(partition >= 0 && partition < topicMetadata.numPartitions(),
                 "Illegal partition index chosen by the message routing policy: " + partition);
@@ -436,6 +434,53 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     @VisibleForTesting
     public Timeout getPartitionsAutoUpdateTimeout() {
         return partitionsAutoUpdateTimeout;
+    }
+
+    @Override
+    public int getNumOfPartitions() {
+        return topicMetadata.numPartitions();
+    }
+
+    @Override
+    public void loadProgress(byte[] progressBuf) {
+        if (!conf.isNeedProgress()) {
+            return;
+        }
+        producers.values().stream().forEach(producer -> {
+            byte[] partitionProgressBuf = null;
+            // split progressBuf
+            producer.loadProgress(partitionProgressBuf);});
+    }
+
+    @Override
+    public byte[] saveProgress() {
+        if (!conf.isNeedProgress()) {
+            return null;
+        }
+        byte[] progressBuf = null;
+        producers.values().stream().forEach(
+                producer -> {
+                    byte[] partitionProgressBuf = producer.saveProgress();
+                    // assembling progressBuf
+                }
+        );
+        return progressBuf;
+    }
+
+    @Override
+    public Progress queryMinProgress() {
+        Progress minProgress = null;
+        for (ProducerImpl<T> producer : producers.values()) {
+            Progress progress = producer.queryMinProgress();
+            if (minProgress == null) {
+                minProgress = progress;
+            } else {
+                if (minProgress.compare(progress) < 0) {
+                    minProgress = progress;
+                }
+            }
+        }
+        return null;
     }
 
 }
