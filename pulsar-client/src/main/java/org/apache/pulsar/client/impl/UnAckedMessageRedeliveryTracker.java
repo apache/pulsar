@@ -20,12 +20,10 @@ package org.apache.pulsar.client.impl;
 
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
-import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayDeque;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 import org.apache.pulsar.client.api.MessageId;
@@ -118,7 +116,6 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
                 while (iterator.hasNext()) {
                     MessageId messageId= iterator.next();
                     ackTimeoutMessages.remove(messageId);
-                    iterator.remove();
                 }
             }
         } finally {

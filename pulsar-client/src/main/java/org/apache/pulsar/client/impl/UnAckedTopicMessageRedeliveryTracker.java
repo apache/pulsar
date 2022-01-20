@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.Iterator;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 
-import java.util.Iterator;
 
 public class UnAckedTopicMessageRedeliveryTracker extends UnAckedMessageRedeliveryTracker {
 

@@ -495,8 +495,8 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
     }
 
     @Test(dataProvider = "variationsBackoff")
-    public void testCheckUnAcknowledgedMessageRedeliveryTimer(long ackTimeOutMillis , long minDelayMs,
-                                                              long  maxDelayMs, int multiplier)
+    public void testCheckUnAcknowledgedMessageRedeliveryTimer(long ackTimeOutMillis, long minDelayMs,
+                                                              long maxDelayMs, int multiplier)
             throws PulsarClientException, InterruptedException {
         String key = "testCheckUnAcknowledgedMessageRedeliveryTimer";
         final String topicName = "persistent://prop/ns-abc/topic-" + key;
