@@ -227,7 +227,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         }
         // Ensure caches are invalidated before the operation is confirmed
         return storeDelete(path, expectedVersion)
-                .thenRun(() -> {
+                .thenRunAsync(() -> {
                     existsCache.synchronous().invalidate(path);
                     String parent = parent(path);
                     if (parent != null) {
@@ -235,7 +235,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                     }
 
                     metadataCaches.forEach(c -> c.invalidate(path));
-                });
+                }, executor);
     }
 
     @Override
@@ -266,7 +266,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         }
         // Ensure caches are invalidated before the operation is confirmed
         return storePut(path, data, optExpectedVersion, options)
-                .thenApply(stat -> {
+                .thenApplyAsync(stat -> {
                     NotificationType type = stat.getVersion() == 0 ? NotificationType.Created
                             : NotificationType.Modified;
                     if (type == NotificationType.Created) {
@@ -279,7 +279,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
                     metadataCaches.forEach(c -> c.refresh(path));
                     return stat;
-                });
+                }, executor);
     }
 
     @Override
