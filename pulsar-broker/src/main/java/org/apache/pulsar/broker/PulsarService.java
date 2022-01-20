@@ -136,6 +136,7 @@ import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ThreadDumpUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.TwoPhaseCompactor;
@@ -838,7 +839,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         LOG.info("Received metadata service session event: {}", e);
         if (e == SessionEvent.SessionLost
                 && config.getZookeeperSessionExpiredPolicy() == MetadataSessionExpiredPolicy.shutdown) {
-            LOG.warn("The session with metadata service was lost. Shutting down.");
+            LOG.warn("The session with metadata service was lost. Shutting down.\n{}\n",
+                    ThreadDumpUtil.buildThreadDiagnosticString());
             shutdownNow();
         }
     }

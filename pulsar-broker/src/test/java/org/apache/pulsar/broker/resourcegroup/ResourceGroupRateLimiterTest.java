@@ -148,9 +148,9 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
     }
 
     private void prepareData() {
-        testAddRg.setPublishRateInBytes(MESSAGE_SIZE);
+        testAddRg.setPublishRateInBytes(Long.valueOf(MESSAGE_SIZE));
         testAddRg.setPublishRateInMsgs(1);
         testAddRg.setDispatchRateInMsgs(-1);
-        testAddRg.setDispatchRateInBytes(-1);
+        testAddRg.setDispatchRateInBytes(Long.valueOf(-1));
     }
 }

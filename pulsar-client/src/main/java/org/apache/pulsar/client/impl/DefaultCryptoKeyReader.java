@@ -93,12 +93,16 @@ public class DefaultCryptoKeyReader implements CryptoKeyReader {
     private byte[] loadKey(String keyUrl) throws IOException, IllegalAccessException, InstantiationException {
         try {
             URLConnection urlConnection = new URL(keyUrl).openConnection();
-            String protocol = urlConnection.getURL().getProtocol();
-            if ("data".equals(protocol) && !APPLICATION_X_PEM_FILE.equals(urlConnection.getContentType())) {
-                throw new IllegalArgumentException(
-                        "Unsupported media type or encoding format: " + urlConnection.getContentType());
+            try {
+                String protocol = urlConnection.getURL().getProtocol();
+                if ("data".equals(protocol) && !APPLICATION_X_PEM_FILE.equals(urlConnection.getContentType())) {
+                    throw new IllegalArgumentException(
+                            "Unsupported media type or encoding format: " + urlConnection.getContentType());
+                }
+                return IOUtils.toByteArray(urlConnection);
+            } finally {
+                IOUtils.close(urlConnection);
             }
-            return IOUtils.toByteArray(urlConnection);
         } catch (URISyntaxException e) {
             throw new IllegalArgumentException("Invalid key format");
         }

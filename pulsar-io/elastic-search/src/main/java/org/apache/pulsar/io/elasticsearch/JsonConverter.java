@@ -35,6 +35,7 @@ import org.apache.avro.Conversion;
 import org.apache.avro.Conversions;
 import org.apache.avro.Schema;
 import org.apache.avro.data.TimeConversions;
+import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
 
 /**
@@ -64,6 +65,8 @@ public class JsonConverter {
             return jsonNodeFactory.nullNode();
         }
         switch(schema.getType()) {
+            case NULL: // this should not happen
+                return jsonNodeFactory.nullNode();
             case INT:
                 return jsonNodeFactory.numberNode((Integer) value);
             case LONG:
@@ -76,6 +79,9 @@ public class JsonConverter {
                 return jsonNodeFactory.booleanNode((Boolean) value);
             case BYTES:
                 return jsonNodeFactory.binaryNode((byte[]) value);
+            case FIXED:
+                return jsonNodeFactory.binaryNode(((GenericFixed) value).bytes());
+            case ENUM: // GenericEnumSymbol
             case STRING:
                 return jsonNodeFactory.textNode(value.toString()); // can be a String or org.apache.avro.util.Utf8
             case ARRAY: {
@@ -105,6 +111,8 @@ public class JsonConverter {
                     }
                     return toJson(s, value);
                 }
+                // this case should not happen
+                return jsonNodeFactory.textNode(value.toString());
             default:
                 throw new UnsupportedOperationException("Unknown AVRO schema type=" + schema.getType());
         }

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.ClientCredentialsExchangeRequest;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.ClientCredentialsExchanger;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenClient;
@@ -139,18 +140,22 @@ class ClientCredentialsFlow extends FlowBase {
     private static KeyFile loadPrivateKey(String privateKeyURL) throws IOException {
         try {
             URLConnection urlConnection = new org.apache.pulsar.client.api.url.URL(privateKeyURL).openConnection();
-
-            String protocol = urlConnection.getURL().getProtocol();
-            String contentType = urlConnection.getContentType();
-            if ("data".equals(protocol) && !"application/json".equals(contentType)) {
-                throw new IllegalArgumentException(
-                        "Unsupported media type or encoding format: " + urlConnection.getContentType());
+            try {
+                String protocol = urlConnection.getURL().getProtocol();
+                String contentType = urlConnection.getContentType();
+                if ("data".equals(protocol) && !"application/json".equals(contentType)) {
+                    throw new IllegalArgumentException(
+                            "Unsupported media type or encoding format: " + urlConnection.getContentType());
+                }
+                KeyFile privateKey;
+                try (Reader r = new InputStreamReader((InputStream) urlConnection.getContent(),
+                        StandardCharsets.UTF_8)) {
+                    privateKey = KeyFile.fromJson(r);
+                }
+                return privateKey;
+            } finally {
+                IOUtils.close(urlConnection);
             }
-            KeyFile privateKey;
-            try (Reader r = new InputStreamReader((InputStream) urlConnection.getContent(), StandardCharsets.UTF_8)) {
-                privateKey = KeyFile.fromJson(r);
-            }
-            return privateKey;
         } catch (URISyntaxException | InstantiationException | IllegalAccessException e) {
             throw new IOException("Invalid privateKey format", e);
         }
