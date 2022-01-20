@@ -3564,7 +3564,7 @@ public class PersistentTopicsBase extends AdminResource {
                 getPartitionedTopicMetadataAsync(topicName, authoritative, false).thenAccept(partitionMetadata -> {
                     final int numPartitions = partitionMetadata.partitions;
                     if (numPartitions > 0) {
-                        final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+                        final List<CompletableFuture<Void>> futures = Lists.newArrayListWithCapacity(numPartitions);
 
                         for (int i = 0; i < numPartitions; i++) {
                             TopicName topicNamePartition = topicName.getPartition(i);
@@ -3619,8 +3619,10 @@ public class PersistentTopicsBase extends AdminResource {
                         asyncResponse.resume(Response.noContent().build());
                     }
                 }).exceptionally(ex -> {
-                    log.error("[{}] Failed to trigger compaction on topic {}", clientAppId(), topicName, ex);
-                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    Throwable cause = ex.getCause();
+                    log.error("[{}] Failed to validate global namespace ownership to trigger compaction on topic {}",
+                            clientAppId(), topicName, cause);
+                    resumeAsyncResponseExceptionally(asyncResponse, cause);
                     return null;
                 });
             }
