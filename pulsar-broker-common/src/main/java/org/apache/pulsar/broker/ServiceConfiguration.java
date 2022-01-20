@@ -246,13 +246,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int numIOThreads = 2 * Runtime.getRuntime().availableProcessors();
 
     @FieldContext(
-            category = CATEGORY_SERVER,
-            doc = "Number of shared threads to use for broker clients."
-                    + " Default is set to `2 * Runtime.getRuntime().availableProcessors()`"
-    )
-    private int brokerClientNumIOThreads = 2 * Runtime.getRuntime().availableProcessors();
-
-    @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Number of threads to use for orderedExecutor."
             + " The ordered executor is used to operate with zookeeper, such as init zookeeper client,"

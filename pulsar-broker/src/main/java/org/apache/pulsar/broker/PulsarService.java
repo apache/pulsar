@@ -323,9 +323,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
         this.ioEventLoopGroup = EventLoopUtil.newEventLoopGroup(config.getNumIOThreads(), config.isEnableBusyWait(),
                 new DefaultThreadFactory("pulsar-io"));
+        // the internal executor is not used in the broker client or replication clients since this executor is
+        // used for consumers and the transaction support in the client.
+        // since an instance is required, a single threaded shared instance is used for all broker client instances
         this.brokerClientSharedInternalExecutorProvider =
-                new ExecutorProvider(config.getBrokerClientNumIOThreads(), "broker-client-shared-internal-executor");
-        // the external executor is not used in the Pulsar Proxy since this executor is used for consumer listeners
+                new ExecutorProvider(1, "broker-client-shared-internal-executor");
+        // the external executor is not used in the broker client or replication clients since this executor is
+        // used for consumer listeners.
         // since an instance is required, a single threaded shared instance is used for all broker client instances
         this.brokerClientSharedExternalExecutorProvider =
                 new ExecutorProvider(1, "broker-client-shared-external-executor");
