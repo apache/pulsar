@@ -4130,7 +4130,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     /**
      * During the execution of this method, lock {@code metadataMutex} needs to be held
-     * because the {@code propertiesMap} would be updated (not thread-safe)
+     * because the {@code propertiesMap} would be updated (not thread-safe).
      * @param deletableLedgerIds
      */
     @Override
@@ -4182,7 +4182,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     /**
      * During the execution of this method, lock {@code metadataMutex} needs to be held
-     * because the {@code propertiesMap} would be updated (not thread-safe)
+     * because the {@code propertiesMap} would be updated (not thread-safe).
      */
     @Override
     public void removeAllDeletableLedgers() {
@@ -4300,8 +4300,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
 
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Successfully delete bookkeeper ledgers: {} and offloaded ledgers: {}. " +
-                                "Failed to delete bookkeeper ledgers: {} and offloaded ledgers: {}", name,
+                log.debug("[{}] Successfully delete bookkeeper ledgers: {} and offloaded ledgers: {}. "
+                                + "Failed to delete bookkeeper ledgers: {} and offloaded ledgers: {}", name,
                         succeedDeletedLedgers, succeedDeletedOffloadedLedgers,
                         failDeletedLedgers, failDeletedOffloadedLedgers);
             }
