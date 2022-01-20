@@ -30,6 +30,7 @@ import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -1044,9 +1045,11 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalGetSubscriptions(AsyncResponse asyncResponse, boolean authoritative) {
-        CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
+        CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
             future = validateGlobalNamespaceOwnershipAsync(namespaceName);
+        }else {
+            future = CompletableFuture.completedFuture(null);
         }
         future.thenAccept(__ -> validateTopicOwnershipAsync(topicName, authoritative))
                 .thenAccept(unused -> {
@@ -1058,7 +1061,9 @@ public class PersistentTopicsBase extends AdminResource {
                                 .thenAccept(partitionMetadata -> {
                             if (partitionMetadata.partitions > 0) {
                                 try {
-                                    final Set<String> subscriptions = Sets.newConcurrentHashSet();
+                                    final Set<String> subscriptions =
+                                            Collections.newSetFromMap(
+                                                    new ConcurrentHashMap<>(partitionMetadata.partitions));
                                     final List<CompletableFuture<Object>> subscriptionFutures = Lists.newArrayList();
                                     if (topicName.getDomain() == TopicDomain.persistent) {
                                         final Map<Integer, CompletableFuture<Boolean>> existsFutures =
@@ -1108,14 +1113,16 @@ public class PersistentTopicsBase extends AdminResource {
                                 internalGetSubscriptionsForNonPartitionedTopic(asyncResponse, authoritative);
                             }
                         }).exceptionally(ex -> {
-                            log.error("[{}] Failed to get subscriptions for topic {}", clientAppId(), topicName, ex);
+                            log.error("[{}] Failed to get partitioned topic metadata while get" +
+                                    " subscriptions for topic {}", clientAppId(), topicName, ex);
                             resumeAsyncResponseExceptionally(asyncResponse, ex);
                             return null;
                         });
                     }
                 }).exceptionally(ex -> {
                     Throwable cause = ex.getCause();
-                    log.error("[{}] Failed to get subscriptions for topic {}", clientAppId(), topicName, cause);
+                    log.error("[{}] Failed to validate the global namespace/topic ownership while get subscriptions" +
+                            " for topic {}", clientAppId(), topicName, cause);
                     resumeAsyncResponseExceptionally(asyncResponse, cause);
                     return null;
                 });
