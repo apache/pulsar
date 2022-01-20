@@ -218,6 +218,11 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
         return consumer != null && consumer.getAvailablePermits() > 0 && consumer.isWritable();
     }
 
+    @Override
+    protected void reScheduleRead() {
+        // No-op
+    }
+
     private static final Logger log = LoggerFactory.getLogger(NonPersistentDispatcherMultipleConsumers.class);
 
 }

@@ -33,7 +33,6 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -192,13 +191,7 @@ public class NarClassLoader extends URLClassLoader {
         updateClasspath(narWorkingDirectory);
 
         for (String jar : additionalJars) {
-            if (jar.startsWith("/")) {
-                addURL(new URL("file://" + jar));
-            } else {
-                Path currentRelativePath = Paths.get("");
-                String cwd = currentRelativePath.toAbsolutePath().toString();
-                addURL(new URL("file://" + cwd + "/" + jar));
-            }
+            addURL(Paths.get(jar).toUri().toURL());
         }
 
         if (log.isDebugEnabled()) {

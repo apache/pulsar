@@ -19,7 +19,7 @@
 package org.apache.pulsar.metadata.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -221,9 +221,9 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
         }
 
         public PulsarZooKeeperClient build() throws IOException, KeeperException, InterruptedException {
-            checkNotNull(connectString);
+            requireNonNull(connectString);
             checkArgument(sessionTimeoutMs > 0);
-            checkNotNull(statsLogger);
+            requireNonNull(statsLogger);
             checkArgument(retryExecThreadCount > 0);
 
             if (null == connectRetryPolicy) {
