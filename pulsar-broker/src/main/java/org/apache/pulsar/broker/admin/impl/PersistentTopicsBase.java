@@ -718,7 +718,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (topicName.isGlobal()) {
             future = validateGlobalNamespaceOwnershipAsync(namespaceName);
         }
-       future.thenAccept(__ ->{
+       future.thenAccept(__ -> {
            // If the topic name is a partition name, no need to get partition topic metadata again
            if (topicName.isPartitioned()) {
                if (checkTopicIsTransactionCoordinatorAssign(topicName)) {
