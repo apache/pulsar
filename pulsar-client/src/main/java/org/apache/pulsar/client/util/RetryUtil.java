@@ -30,7 +30,7 @@ import java.util.function.Supplier;
 public class RetryUtil {
     private static final Logger log = LoggerFactory.getLogger(RetryUtil.class);
 
-    public static <T> void retryAsynchronously(Supplier<T> supplier, Backoff backoff,
+    public static <T> void retryAsynchronously(Supplier<CompletableFuture<T>> supplier, Backoff backoff,
                                                ScheduledExecutorService scheduledExecutorService,
                                                CompletableFuture<T> callback) {
         if (backoff.getMax() <= 0) {
@@ -43,26 +43,24 @@ public class RetryUtil {
                 executeWithRetry(supplier, backoff, scheduledExecutorService, callback));
     }
 
-    private static <T> void executeWithRetry(Supplier<T> supplier, Backoff backoff,
+    private static <T> void executeWithRetry(Supplier<CompletableFuture<T>> supplier, Backoff backoff,
                                              ScheduledExecutorService scheduledExecutorService,
                                              CompletableFuture<T> callback) {
-        try {
-            T result = supplier.get();
-            callback.complete(result);
-        } catch (Exception e) {
-            long next = backoff.next();
-            boolean isMandatoryStop = backoff.isMandatoryStopMade();
-            if (isMandatoryStop) {
-                callback.completeExceptionally(e);
-            } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("execute with retry fail, will retry in {} ms", next, e);
+        supplier.get().whenComplete((result, e) -> {
+            if (e != null) {
+                long next = backoff.next();
+                boolean isMandatoryStop = backoff.isMandatoryStopMade();
+                if (isMandatoryStop) {
+                    callback.completeExceptionally(e);
+                } else {
+                    log.warn("Execution with retry fail, because of {}, will retry in {} ms", e.getMessage(), next);
+                    scheduledExecutorService.schedule(() ->
+                                    executeWithRetry(supplier, backoff, scheduledExecutorService, callback),
+                            next, TimeUnit.MILLISECONDS);
                 }
-                log.info("Because of {} , will retry in {} ms", e.getMessage(), next);
-                scheduledExecutorService.schedule(() ->
-                                executeWithRetry(supplier, backoff, scheduledExecutorService, callback),
-                        next, TimeUnit.MILLISECONDS);
+                return;
             }
-        }
+            callback.complete(result);
+        });
     }
 }
