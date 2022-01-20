@@ -41,3 +41,6 @@ github:
     merge:   false
     # disable rebase button:
     rebase:  false
+staging:
+  profile: next
+  whoami:  asf-site-next
