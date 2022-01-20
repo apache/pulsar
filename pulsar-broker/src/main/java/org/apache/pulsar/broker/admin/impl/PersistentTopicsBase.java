@@ -1067,7 +1067,7 @@ public class PersistentTopicsBase extends AdminResource {
                                     final List<CompletableFuture<Object>> subscriptionFutures = Lists.newArrayList();
                                     if (topicName.getDomain() == TopicDomain.persistent) {
                                         final Map<Integer, CompletableFuture<Boolean>> existsFutures =
-                                                Maps.newConcurrentMap();
+                                                new ConcurrentHashMap<>(partitionMetadata.partitions);
                                         for (int i = 0; i < partitionMetadata.partitions; i++) {
                                             existsFutures.put(i,
                                                     topicResources().persistentTopicExists(topicName.getPartition(i)));
