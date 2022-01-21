@@ -95,6 +95,7 @@ import org.slf4j.LoggerFactory;
 public class TopicsImpl extends BaseResource implements Topics {
     private final WebTarget adminTopics;
     private final WebTarget adminV2Topics;
+    private final WebTarget adminV3Topics;
     // CHECKSTYLE.OFF: MemberName
     private static final String BATCH_HEADER = "X-Pulsar-num-batch-message";
     private static final String BATCH_SIZE_HEADER = "X-Pulsar-batch-size";
@@ -132,6 +133,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         super(auth, readTimeoutMs);
         adminTopics = web.path("/admin");
         adminV2Topics = web.path("/admin/v2");
+        adminV3Topics = web.path("/admin/v3");
     }
 
     @Override
@@ -345,10 +347,16 @@ public class TopicsImpl extends BaseResource implements Topics {
             String topic, int numPartitions, boolean createLocalTopicOnly, Map<String, String> properties) {
         checkArgument(numPartitions > 0, "Number of partitions should be more than 0");
         TopicName tn = validateTopic(topic);
-        WebTarget path = topicPath(tn, "partitions")
+        WebTarget path = topicPath(tn, properties, "partitions")
                 .queryParam("createLocalTopicOnly", Boolean.toString(createLocalTopicOnly));
-        PartitionedTopicMetadata metadata = new PartitionedTopicMetadata(numPartitions, properties);
-        return asyncPutRequest(path, Entity.entity(metadata, MediaType.APPLICATION_JSON));
+        Entity entity;
+        if (properties != null) {
+            PartitionedTopicMetadata metadata = new PartitionedTopicMetadata(numPartitions, properties);
+            entity = Entity.entity(metadata, MediaType.APPLICATION_JSON);
+        } else {
+            entity = Entity.entity(numPartitions, MediaType.APPLICATION_JSON);
+        }
+        return asyncPutRequest(path, entity);
     }
 
     @Override
@@ -1241,6 +1249,13 @@ public class TopicsImpl extends BaseResource implements Topics {
         WebTarget namespacePath = base.path(domain).path(namespace.toString());
         namespacePath = WebTargets.addParts(namespacePath, parts);
         return namespacePath;
+    }
+
+    private WebTarget topicPath(TopicName topic, Map<String, String> metadata, String... parts) {
+        final WebTarget base = metadata != null ? adminV3Topics : (topic.isV2() ? adminV2Topics : adminTopics);
+        WebTarget topicPath = base.path(topic.getRestPath());
+        topicPath = WebTargets.addParts(topicPath, parts);
+        return topicPath;
     }
 
     private WebTarget topicPath(TopicName topic, String... parts) {
