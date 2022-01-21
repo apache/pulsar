@@ -299,7 +299,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             result.complete(null);
         } catch (NotFoundException e) {
             log.warn("[{}] Failed to set permissions for namespace {}: does not exist", role, namespaceName);
-            result.completeExceptionally(new IllegalArgumentException("Namespace does not exist " + namespaceName));
+            result.completeExceptionally(new IllegalArgumentException("Namespace does not exist" + namespaceName));
         } catch (BadVersionException e) {
             log.warn("[{}] Failed to set permissions for namespace {}: concurrent modification", role, namespaceName);
             result.completeExceptionally(new IllegalStateException(
