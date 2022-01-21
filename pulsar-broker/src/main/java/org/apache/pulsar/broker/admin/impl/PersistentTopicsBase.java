@@ -3527,9 +3527,6 @@ public class PersistentTopicsBase extends AdminResource {
                                                                     + " message expiration not finished or invalid "
                                                                     + "message position provided.");
                                                         }
-                                                    } catch (NullPointerException npe) {
-                                                        throw new RestException(Status.NOT_FOUND, "Subscription not "
-                                                                + "found");
                                                     } catch (Exception exception) {
                                                         log.error("[{}] Failed to expire messages up to {} on {} with "
                                                                         + "subscription {} {}",
