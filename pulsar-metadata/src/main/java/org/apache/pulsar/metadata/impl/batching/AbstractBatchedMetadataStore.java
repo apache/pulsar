@@ -18,12 +18,15 @@
  */
 package org.apache.pulsar.metadata.impl.batching;
 
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -50,6 +53,8 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     private final int maxOperations;
     private final int maxSize;
 
+    protected final ScheduledExecutorService batchScheduleExecutor;
+
     protected AbstractBatchedMetadataStore(MetadataStoreConfig conf) {
         super();
 
@@ -61,9 +66,12 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
         if (enabled) {
             readOps = new MpscUnboundedArrayQueue<>(10_000);
             writeOps = new MpscUnboundedArrayQueue<>(10_000);
-            scheduledTask =
-                    executor.scheduleAtFixedRate(this::flush, maxDelayMillis, maxDelayMillis, TimeUnit.MILLISECONDS);
+            batchScheduleExecutor = Executors.newSingleThreadScheduledExecutor(
+                    new DefaultThreadFactory("metadata-store-batch-schedule"));
+            scheduledTask = batchScheduleExecutor.scheduleAtFixedRate(this::flush, maxDelayMillis, maxDelayMillis,
+                    TimeUnit.MILLISECONDS);
         } else {
+            batchScheduleExecutor = null;
             scheduledTask = null;
             readOps = null;
             writeOps = null;
@@ -79,6 +87,9 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
             writeOps.drain(op -> op.getFuture().completeExceptionally(ex));
 
             scheduledTask.cancel(true);
+
+            batchScheduleExecutor.shutdownNow();
+            batchScheduleExecutor.awaitTermination(10, TimeUnit.SECONDS);
         }
         super.close();
     }
@@ -151,7 +162,7 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
                 return;
             }
             if (queue.size() > maxOperations && flushInProgress.compareAndSet(false, true)) {
-                executor.execute(this::flush);
+                batchScheduleExecutor.execute(this::flush);
             }
         } else {
             batchOperation(Collections.singletonList(op));

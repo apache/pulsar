@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -122,20 +123,23 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
             // Recreate the persistent watch on the new session
             zkc.addWatch("/", this::handleWatchEvent, AddWatchMode.PERSISTENT_RECURSIVE,
                     (rc, path, ctx) -> {
-                        if (rc == Code.OK.intValue()) {
-                            super.receivedSessionEvent(event);
-                        } else {
-                            log.error("Failed to recreate persistent watch on ZooKeeper: {}", Code.get(rc));
-                            sessionWatcher.ifPresent(ZKSessionWatcher::setSessionInvalid);
-                            // On the reconnectable client, mark the session as expired to trigger a new reconnect and
-                            // we will have the chance to set the watch again.
-                            if (zkc instanceof PulsarZooKeeperClient) {
-                                ((PulsarZooKeeperClient) zkc).process(
-                                        new WatchedEvent(Watcher.Event.EventType.None,
-                                                Watcher.Event.KeeperState.Expired,
-                                                null));
-                             }
-                        }
+                        execute(() -> {
+                            if (rc == Code.OK.intValue()) {
+                                super.receivedSessionEvent(event);
+                            } else {
+                                log.error("Failed to recreate persistent watch on ZooKeeper: {}", Code.get(rc));
+                                sessionWatcher.ifPresent(ZKSessionWatcher::setSessionInvalid);
+                                // On the reconnectable client, mark the session as expired to trigger a new
+                                // reconnect and
+                                // we will have the chance to set the watch again.
+                                if (zkc instanceof PulsarZooKeeperClient) {
+                                    ((PulsarZooKeeperClient) zkc).process(
+                                            new WatchedEvent(Watcher.Event.EventType.None,
+                                                    Watcher.Event.KeeperState.Expired,
+                                                    null));
+                                }
+                            }
+                        });
                     }, null);
         } else {
             super.receivedSessionEvent(event);
@@ -146,48 +150,50 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
     protected void batchOperation(List<MetadataOp> ops) {
         try {
             zkc.multi(ops.stream().map(this::convertOp).collect(Collectors.toList()), (rc, path, ctx, results) -> {
-                if (results == null) {
-                    Code code = Code.get(rc);
-                    if (code == Code.CONNECTIONLOSS) {
-                        // There is the chance that we caused a connection reset by sending or requesting a batch
-                        // that passed the max ZK limit. Retry with the individual operations
-                        executor.schedule(() -> {
-                            ops.forEach(o -> batchOperation(Collections.singletonList(o)));
-                        }, 100, TimeUnit.MILLISECONDS);
-                    } else {
-                        MetadataStoreException e = getException(code, path);
-                        ops.forEach(o -> o.getFuture().completeExceptionally(e));
+                execute(() -> {
+                    if (results == null) {
+                        Code code = Code.get(rc);
+                        if (code == Code.CONNECTIONLOSS) {
+                            // There is the chance that we caused a connection reset by sending or requesting a batch
+                            // that passed the max ZK limit. Retry with the individual operations
+                            batchScheduleExecutor.schedule(() -> {
+                                ops.forEach(o -> batchOperation(Collections.singletonList(o)));
+                            }, 100, TimeUnit.MILLISECONDS);
+                        } else {
+                            MetadataStoreException e = getException(code, path);
+                            ops.forEach(o -> o.getFuture().completeExceptionally(e));
+                        }
+                        return;
                     }
-                    return;
-                }
 
-                // Trigger all the futures in the batch
-                for (int i = 0; i < ops.size(); i++) {
-                    OpResult opr = results.get(i);
-                    MetadataOp op = ops.get(i);
+                    // Trigger all the futures in the batch
+                    for (int i = 0; i < ops.size(); i++) {
+                        OpResult opr = results.get(i);
+                        MetadataOp op = ops.get(i);
 
-                    switch (op.getType()) {
-                        case PUT:
-                            handlePutResult(op.asPut(), opr);
-                            break;
-                        case DELETE:
-                            handleDeleteResult(op.asDelete(), opr);
-                            break;
-                        case GET:
-                            handleGetResult(op.asGet(), opr);
-                            break;
-                        case GET_CHILDREN:
-                            handleGetChildrenResult(op.asGetChildren(), opr);
-                            break;
+                        switch (op.getType()) {
+                            case PUT:
+                                handlePutResult(op.asPut(), opr);
+                                break;
+                            case DELETE:
+                                handleDeleteResult(op.asDelete(), opr);
+                                break;
+                            case GET:
+                                handleGetResult(op.asGet(), opr);
+                                break;
+                            case GET_CHILDREN:
+                                handleGetChildrenResult(op.asGetChildren(), opr);
+                                break;
 
-                        default:
-                            op.getFuture().completeExceptionally(new MetadataStoreException(
-                                    "Operation type not supported in multi: " + op.getType()));
+                            default:
+                                op.getFuture().completeExceptionally(new MetadataStoreException(
+                                        "Operation type not supported in multi: " + op.getType()));
+                        }
                     }
-                }
+                });
             }, null);
         } catch (Throwable t) {
-            ops.forEach(o -> o.getFuture().completeExceptionally(new MetadataStoreException(t)));
+            execute(() -> ops.forEach(o -> o.getFuture().completeExceptionally(new MetadataStoreException(t))));
         }
     }
 
@@ -560,6 +566,21 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         latch.await();
         if (rc.get() != Code.OK.intValue()) {
             throw KeeperException.create(Code.get(rc.get()));
+        }
+    }
+
+    private void execute(Runnable command) {
+        execute(command, null);
+    }
+
+    private void execute(Runnable command, CompletableFuture<?> future) {
+        try{
+            ForkJoinPool.commonPool().execute(command);
+        }catch (Exception e) {
+            log.warn("failed to execute ZK callback", e);
+            if (future !=null){
+                future.completeExceptionally(e);
+            }
         }
     }
 }

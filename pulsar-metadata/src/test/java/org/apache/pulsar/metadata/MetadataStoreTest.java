@@ -31,6 +31,7 @@ import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -447,5 +448,31 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
 
         assertEquals(successWrites.get(), maxValue);
         assertEquals(store.get(path).get().get().getValue()[0], maxValue);
+    }
+
+    @Test(dataProvider = "impl")
+    public void testMultipleCallback(String provider, Supplier<String> urlSupplier) throws Exception {
+        testMultipleCallback(provider, urlSupplier, true);
+        testMultipleCallback(provider, urlSupplier, false);
+    }
+
+    private void testMultipleCallback(String provider, Supplier<String> urlSupplier, boolean batching)
+            throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().batchingEnabled(batching).build());
+
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+
+        store.get("/").thenAccept((unused) -> {
+            store.get("/").join();
+            store.get("/").thenAccept((unused2) -> {
+                countDownLatch.countDown();
+            });
+        });
+
+        if (!countDownLatch.await(5, TimeUnit.SECONDS)) {
+            fail("failed to test multiple callback, need to check deadlock");
+        }
     }
 }
