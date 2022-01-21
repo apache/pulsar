@@ -18,24 +18,28 @@
     under the License.
 
 -->
-# Docker Compose
 
-To start the cluster, run the following command in the current folder: 
+# How to use 
 
-```
-docker-compose up
-```
+## Step 1: prepare PulsarApi.proto file
+You need to put PulsarApi.proto to a separate path.
 
-## Available endpoints
+1. Open your Wireshark.
 
-The following endpoints are available (assuming Docker Compose exposes ports on `localhost`):
+2. Go to **Edit > Preferences > Protocols > ProtoBuf > Protobuf**, and then search paths.
 
-* [web-dashboard](http://localhost:80) - Pulsar dashboard, shows various metrics and metadata information about the cluster
-* `http://localhost:8080` - broker HTTP REST API URL, for both administrative tasks and for topic lookup by producers and consumers
-* `pulsar://locahost:6650` - broker binary protocol URL, for all data transferred by producers and consumers
+3. Add the path of PulsarApi.proto.
 
-To shut down the cluster, run the following command in the current folder:
+## Step 2: add pulsar.lua to plugins
 
-```
-docker-compose down
-```
+1. Open Wireshark.
+
+2. Go to **About Wireshark > Folders > Personal Lua Plugins > Plugin Path**.
+
+3. Add pulsar.lua to this path.
+
+## Step 3: start to use
+
+This plugin registers a Pulsar protocol automatically in 6650. You can use it to decode Pulsar messages now.
+
+

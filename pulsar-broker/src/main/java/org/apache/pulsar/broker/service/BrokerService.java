@@ -128,7 +128,6 @@ import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.BindAddress;
@@ -235,6 +234,7 @@ public class BrokerService implements Closeable {
     private ScheduledExecutorService brokerPublishRateLimiterMonitor;
     private ScheduledExecutorService deduplicationSnapshotMonitor;
     protected volatile PublishRateLimiter brokerPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
+    protected volatile DispatchRateLimiter brokerDispatchRateLimiter = null;
 
     private DistributedIdGenerator producerNameGenerator;
 
@@ -495,6 +495,7 @@ public class BrokerService implements Closeable {
         this.startConsumedLedgersMonitor();
         this.startBacklogQuotaChecker();
         this.updateBrokerPublisherThrottlingMaxRate();
+        this.updateBrokerDispatchThrottlingMaxRate();
         this.startCheckReplicationPolicies();
         this.startDeduplicationSnapshotMonitor();
     }
@@ -1201,7 +1202,7 @@ public class BrokerService implements Closeable {
                 }
                 // Share all the IO threads across broker and client connections
                 ClientConfigurationData conf = ((ClientBuilderImpl) clientBuilder).getClientConfigurationData();
-                return new PulsarClientImpl(conf, workerGroup);
+                return pulsar.createClientImpl(conf);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -2149,7 +2150,13 @@ public class BrokerService implements Closeable {
         registerConfigurationListener("brokerPublisherThrottlingMaxByteRate",
                 (brokerPublisherThrottlingMaxByteRate) ->
                         updateBrokerPublisherThrottlingMaxRate());
-
+        // add listener to notify broker dispatch-rate dynamic config
+        registerConfigurationListener("dispatchThrottlingRateInMsg",
+                (dispatchThrottlingRateInMsg) ->
+                        updateBrokerDispatchThrottlingMaxRate());
+        registerConfigurationListener("dispatchThrottlingRateInByte",
+                (dispatchThrottlingRateInByte) ->
+                        updateBrokerDispatchThrottlingMaxRate());
         // add listener to notify topic publish-rate monitoring
         if (!preciseTopicPublishRateLimitingEnable) {
             registerConfigurationListener("topicPublisherThrottlingTickTimeMillis",
@@ -2162,6 +2169,14 @@ public class BrokerService implements Closeable {
         registerConfigurationListener("subscriptionTypesEnabled", this::updateBrokerSubscriptionTypesEnabled);
 
         // add more listeners here
+    }
+
+    private void updateBrokerDispatchThrottlingMaxRate() {
+        if (brokerDispatchRateLimiter == null) {
+            brokerDispatchRateLimiter = new DispatchRateLimiter(this);
+        } else {
+            brokerDispatchRateLimiter.updateDispatchRate();
+        }
     }
 
     private void updateBrokerPublisherThrottlingMaxRate() {
