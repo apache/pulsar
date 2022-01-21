@@ -4573,26 +4573,24 @@ public class PersistentTopicsBase extends AdminResource {
             return;
         }
 
-        // Permission to consume this topic is required
-        try {
-            validateTopicOperation(topicName, TopicOperation.SET_REPLICATED_SUBSCRIPTION_STATUS, subName);
-        } catch (Exception e) {
-            resumeAsyncResponseExceptionally(asyncResponse, e);
-            return;
-        }
+        // 1.Permission to consume this topic is required
+        // 2.Redirect the request to the peer-cluster if the local cluster is not included in the replication clusters
+        CompletableFuture<Void> future =
+                validateTopicOperationAsync(topicName, TopicOperation.SET_REPLICATED_SUBSCRIPTION_STATUS, subName)
+                        .thenCompose(__-> validateGlobalNamespaceOwnershipAsync(namespaceName));
 
-        // Redirect the request to the peer-cluster if the local cluster is not included in the replication clusters
-        try {
-            validateGlobalNamespaceOwnership(namespaceName);
-        } catch (Exception e) {
-            resumeAsyncResponseExceptionally(asyncResponse, e);
-            return;
-        }
 
         // If the topic name is a partition name, no need to get partition topic metadata again
         if (topicName.isPartitioned()) {
-            internalSetReplicatedSubscriptionStatusForNonPartitionedTopic(asyncResponse, subName, authoritative,
-                    enabled);
+            future.thenCompose(
+                    __ -> internalSetReplicatedSubscriptionStatusForNonPartitionedTopicAsync(asyncResponse, subName,
+                            authoritative, enabled))
+                    .exceptionally(ex -> {
+                        log.warn("[{}] Failed to change replicated subscription status to {} - {} {}", clientAppId(),
+                                enabled, topicName, subName, ex);
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                        return null;
+                    });
         } else {
             getPartitionedTopicMetadataAsync(topicName, authoritative, false).thenAccept(partitionMetadata -> {
                 if (partitionMetadata.partitions > 0) {
@@ -4634,8 +4632,8 @@ public class PersistentTopicsBase extends AdminResource {
                         return null;
                     });
                 } else {
-                    internalSetReplicatedSubscriptionStatusForNonPartitionedTopic(asyncResponse, subName, authoritative,
-                            enabled);
+                    internalSetReplicatedSubscriptionStatusForNonPartitionedTopicAsync(asyncResponse, subName,
+                            authoritative, enabled);
                 }
             }).exceptionally(ex -> {
                 log.warn("[{}] Failed to change replicated subscription status to {} - {} {}", clientAppId(), enabled,
@@ -4646,12 +4644,10 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    private void internalSetReplicatedSubscriptionStatusForNonPartitionedTopic(AsyncResponse asyncResponse,
-            String subName, boolean authoritative, boolean enabled) {
-        try {
-            // Redirect the request to the appropriate broker if this broker is not the owner of the topic
-            validateTopicOwnership(topicName, authoritative);
-
+    private CompletableFuture<Void> internalSetReplicatedSubscriptionStatusForNonPartitionedTopicAsync(AsyncResponse asyncResponse,
+        String subName,boolean authoritative,boolean enabled) {
+        // Redirect the request to the appropriate broker if this broker is not the owner of the topic
+        return validateTopicOwnershipAsync(topicName, authoritative).thenRun(() -> {
             Topic topic = getTopicReference(topicName);
             if (topic == null) {
                 asyncResponse.resume(new RestException(Status.NOT_FOUND, "Topic not found"));
@@ -4672,16 +4668,18 @@ public class PersistentTopicsBase extends AdminResource {
                 }
 
                 ((PersistentTopic) topic).checkReplicatedSubscriptionControllerState();
-                log.info("[{}] Changed replicated subscription status to {} - {} {}", clientAppId(), enabled, topicName,
+                log.info("[{}] Changed replicated subscription status to {} - {} {}", clientAppId(), enabled,
+                        topicName,
                         subName);
                 asyncResponse.resume(Response.noContent().build());
             } else {
                 asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
                         "Cannot enable/disable replicated subscriptions on non-persistent topics"));
             }
-        } catch (Exception e) {
+        }).exceptionally(e -> {
             resumeAsyncResponseExceptionally(asyncResponse, e);
-        }
+            return null;
+        });
     }
 
     protected void internalGetReplicatedSubscriptionStatus(AsyncResponse asyncResponse,
