@@ -604,9 +604,10 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     }
 
     public byte[] getTlsTrustChainBytes() {
-        if (StringUtils.isNotEmpty(getTlsTrustCertsFilePath()) && Files.exists(Paths.get(getTlsTrustCertsFilePath()))) {
+        if (StringUtils.isNotEmpty(getBrokerClientTrustCertsFilePath())
+                && Files.exists(Paths.get(getBrokerClientTrustCertsFilePath()))) {
             try {
-                return Files.readAllBytes(Paths.get(getTlsTrustCertsFilePath()));
+                return Files.readAllBytes(Paths.get(getBrokerClientTrustCertsFilePath()));
             } catch (IOException e) {
                 throw new IllegalStateException("Failed to read CA bytes", e);
             }
