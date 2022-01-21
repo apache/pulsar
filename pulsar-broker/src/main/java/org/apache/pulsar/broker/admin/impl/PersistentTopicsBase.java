@@ -4114,7 +4114,21 @@ public class PersistentTopicsBase extends AdminResource {
                             asyncResponse.resume(v);
                         }
                     });
-                });
+                }).exceptionally(ex -> {
+                    Throwable cause = ex.getCause();
+                    if (cause instanceof WebApplicationException
+                            && ((WebApplicationException) cause).getResponse().getStatus()
+                            == Status.TEMPORARY_REDIRECT.getStatusCode()) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Failed to get last messageId {}, redirecting to other brokers.",
+                                    clientAppId(), topicName, ex);
+                        }
+                    } else {
+                        log.error("[{}] Failed to get last messageId {}", clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, cause);
+                    return null;
+        });
     }
 
     protected CompletableFuture<DispatchRateImpl> internalGetDispatchRate(boolean applied, boolean isGlobal) {
