@@ -2393,34 +2393,33 @@ public class PersistentTopicsBase extends AdminResource {
                     } else {
                         ret = CompletableFuture.completedFuture(null);
                     }
-                    return ret.thenCompose(ignore -> {
-                        return getTopicReferenceAsync(topicName)
-                                .thenAccept(topic -> {
-                                    ManagedLedgerImpl ledger =
-                                            (ManagedLedgerImpl) ((PersistentTopic) topic).getManagedLedger();
-                                    ledger.asyncReadEntry(new PositionImpl(ledgerId, entryId),
-                                            new AsyncCallbacks.ReadEntryCallback() {
-                                                @Override
-                                                public void readEntryFailed(ManagedLedgerException exception,
-                                                                            Object ctx) {
-                                                    asyncResponse.resume(new RestException(exception));
-                                                }
+                    return ret;
+                })
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                .thenAccept(topic -> {
+                    ManagedLedgerImpl ledger =
+                            (ManagedLedgerImpl) ((PersistentTopic) topic).getManagedLedger();
+                    ledger.asyncReadEntry(new PositionImpl(ledgerId, entryId),
+                            new AsyncCallbacks.ReadEntryCallback() {
+                                @Override
+                                public void readEntryFailed(ManagedLedgerException exception,
+                                                            Object ctx) {
+                                    asyncResponse.resume(new RestException(exception));
+                                }
 
-                                                @Override
-                                                public void readEntryComplete(Entry entry, Object ctx) {
-                                                    try {
-                                                        asyncResponse.resume(generateResponseWithEntry(entry));
-                                                    } catch (IOException exception) {
-                                                        asyncResponse.resume(new RestException(exception));
-                                                    } finally {
-                                                        if (entry != null) {
-                                                            entry.release();
-                                                        }
-                                                    }
-                                                }
-                                            }, null);
-                                });
-                    });
+                                @Override
+                                public void readEntryComplete(Entry entry, Object ctx) {
+                                    try {
+                                        asyncResponse.resume(generateResponseWithEntry(entry));
+                                    } catch (IOException exception) {
+                                        asyncResponse.resume(new RestException(exception));
+                                    } finally {
+                                        if (entry != null) {
+                                            entry.release();
+                                        }
+                                    }
+                                }
+                            }, null);
                 }).exceptionally(ex -> {
                     Throwable cause = ex.getCause();
                     log.error("[{}] Failed to get message with ledgerId {} entryId {} from {}",
