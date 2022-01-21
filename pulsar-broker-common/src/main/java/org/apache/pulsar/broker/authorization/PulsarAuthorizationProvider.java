@@ -286,6 +286,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             validatePoliciesReadOnlyAccess();
         } catch (Exception e) {
             result.completeExceptionally(e);
+            return result;
         }
 
         try {
