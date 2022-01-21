@@ -305,37 +305,27 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     @Override
     public CompletableFuture<Void> grantPermissionAsync(NamespaceName namespaceName, Set<AuthAction> actions,
             String role, String authDataJson) {
-        CompletableFuture<Void> result = new CompletableFuture<>();
-
         try {
             validatePoliciesReadOnlyAccess();
         } catch (Exception e) {
-            result.completeExceptionally(e);
-            return result;
+            return FutureUtil.failedFuture(e);
         }
 
-        try {
-            pulsarResources.getNamespaceResources().setPolicies(namespaceName, policies -> {
-                policies.auth_policies.getNamespaceAuthentication().put(role, actions);
-                return policies;
-            });
-            log.info("[{}] Successfully granted access for role {}: {} - namespace {}", role, role, actions,
-                    namespaceName);
-            result.complete(null);
-        } catch (NotFoundException e) {
-            log.warn("[{}] Failed to set permissions for namespace {}: does not exist", role, namespaceName);
-            result.completeExceptionally(new IllegalArgumentException("Namespace does not exist" + namespaceName));
-        } catch (BadVersionException e) {
-            log.warn("[{}] Failed to set permissions for namespace {}: concurrent modification", role, namespaceName);
-            result.completeExceptionally(new IllegalStateException(
-                    "Concurrent modification on metadata: " + namespaceName + ", " + e.getMessage()));
-        } catch (Exception e) {
-            log.error("[{}] Failed to get permissions for namespace {}", role, namespaceName, e);
-            result.completeExceptionally(
-                    new IllegalStateException("Failed to get permissions for namespace " + namespaceName));
-        }
+        CompletableFuture<Void> future = pulsarResources.getNamespaceResources()
+                .setPoliciesAsync(namespaceName, policies -> {
+                    policies.auth_policies.getNamespaceAuthentication().put(role, actions);
+                    return policies;
+                }).thenRun(() -> {
+                    log.info("[{}] Successfully granted access for role {}: {} - namespace {}", role, role, actions,
+                            namespaceName);
+                });
 
-        return result;
+        future.exceptionally(ex -> {
+            log.error("[{}] Failed to set permissions for role {} namespace {}", role, role, namespaceName, ex);
+            return null;
+        });
+
+        return future;
     }
 
     @Override
