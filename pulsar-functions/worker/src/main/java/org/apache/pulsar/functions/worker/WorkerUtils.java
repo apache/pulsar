@@ -180,7 +180,7 @@ public final class WorkerUtils {
         BKDLConfig dlConfig = new BKDLConfig(ledgersStoreServers, ledgersRootPath);
         DLMetadata dlMetadata = DLMetadata.create(dlConfig);
 
-        URI dlogUri = newDlogNamespaceURI(internalConf.getZookeeperServers());
+        URI dlogUri = newDlogNamespaceURI(ledgersStoreServers);
         try {
             dlMetadata.create(dlogUri);
         } catch (ZKException e) {
