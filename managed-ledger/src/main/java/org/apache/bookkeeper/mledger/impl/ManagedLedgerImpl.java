@@ -3226,26 +3226,30 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         metadataMap.putAll(offloadDriverMetadata);
         metadataMap.put("ManagedLedgerName", name);
 
-        config.getLedgerOffloader()
-                .deleteOffloaded(ledgerId, uuid, metadataMap)
-                .whenComplete((ignored, exception) -> {
-                    if (exception != null) {
-                        log.warn("[{}] Error cleaning up offload for {}, (cleanup reason: {})",
-                                name, ledgerId, cleanupReason, exception);
-                        scheduledExecutor.schedule(
-                                safeRun(() -> cleanupOffloaded(
-                                        ledgerId,
-                                        uuid,
-                                        offloadDriverName,
-                                        offloadDriverMetadata,
-                                        cleanupReason,
-                                        retry - 1,
-                                        callback)),
-                                DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC, TimeUnit.SECONDS);
-                        return;
-                    }
-                    callback.deleteLedgerComplete(null);
-                });
+        try {
+            config.getLedgerOffloader()
+                    .deleteOffloaded(ledgerId, uuid, metadataMap)
+                    .whenComplete((ignored, exception) -> {
+                        if (exception != null) {
+                            log.warn("[{}] Error cleaning up offload for {}, (cleanup reason: {})",
+                                    name, ledgerId, cleanupReason, exception);
+                            scheduledExecutor.schedule(
+                                    safeRun(() -> cleanupOffloaded(
+                                            ledgerId,
+                                            uuid,
+                                            offloadDriverName,
+                                            offloadDriverMetadata,
+                                            cleanupReason,
+                                            retry - 1,
+                                            callback)),
+                                    DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC, TimeUnit.SECONDS);
+                            return;
+                        }
+                        callback.deleteLedgerComplete(null);
+                    });
+        } catch (Exception e) {
+            log.warn("[{}] Failed to cleanup offloaded ledgers.", name, e);
+        }
     }
 
     /**
