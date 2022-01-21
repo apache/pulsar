@@ -26,18 +26,26 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.SortedMap;
 import java.util.TreeMap;
+
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
+import org.apache.distributedlog.ZooKeeperClientBuilder;
+import org.apache.distributedlog.exceptions.ZKException;
+import org.apache.distributedlog.impl.metadata.BKDLConfig;
+import org.apache.distributedlog.metadata.DLMetadata;
 import org.apache.pulsar.PulsarClusterMetadataSetup;
 import org.apache.pulsar.PulsarInitialNamespaceSetup;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TenantResources;
+import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
@@ -45,6 +53,7 @@ import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.server.NIOServerCnxnFactory;
 import org.apache.zookeeper.server.ZooKeeperServer;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -183,6 +192,50 @@ public class ClusterMetadataSetupTest {
             List<String> namespaces = tenantResources.getListOfNamespaces("test");
             assertEquals(new HashSet<>(namespaces), new HashSet<>(Arrays.asList("test/a", "test/b", "test/c")));
         }
+    }
+
+    @Test
+    public void testInitialNamespaceSetupZKDefaultsFallback() throws Exception {
+
+        final String zkServers = "127.0.0.1:" + localZkS.getZookeeperPort();
+        String[] args = {
+                "--cluster", "testInitialNamespaceSetupZKDefaultsFallback-cluster",
+                "--configuration-store", zkServers,
+                "--zookeeper", zkServers, // omit ledgers path on purpose
+                "--web-service-url", "http://127.0.0.1:8080",
+                "--web-service-url-tls", "https://127.0.0.1:8443",
+                "--broker-service-url", "pulsar://127.0.0.1:6650",
+                "--broker-service-url-tls", "pulsar+ssl://127.0.0.1:6651"
+        };
+        PulsarClusterMetadataSetup.main(args);
+        log.info("zkdata:" + localZkS.dumpData());
+        BKDLConfig dlConfig = new BKDLConfig(zkServers, "/ledgers");
+        DLMetadata dlMetadata = DLMetadata.create(dlConfig);
+
+        URI dlogUri = WorkerUtils.newDlogNamespaceURI(zkServers);
+
+
+        try {
+            dlMetadata.create(dlogUri);
+            Assert.fail("DLog Metadata hasn't been initialized correctly");
+        } catch (ZKException e) {
+            if (e.getKeeperExceptionCode() == KeeperException.Code.NODEEXISTS) {
+                log.info("OK. DLog Metadata has been initialized correctly");
+            } else {
+                throw e;
+            }
+        }
+
+        @Cleanup
+        final org.apache.distributedlog.ZooKeeperClient zkc = ZooKeeperClientBuilder
+                .newBuilder()
+                .zkServers(zkServers)
+                .sessionTimeoutMs(20000)
+                .zkAclId(null)
+                .build();
+        BKDLConfig bkdlConfigFromZk = BKDLConfig.resolveDLConfig(zkc, dlogUri);
+        assertEquals(bkdlConfigFromZk.getBkLedgersPath(), "/ledgers");
+
     }
 
     @BeforeMethod
