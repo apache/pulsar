@@ -21,6 +21,7 @@ package org.apache.pulsar.tests.integration.functions;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -70,6 +71,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
 import org.apache.pulsar.functions.api.examples.AvroSchemaTestFunction;
 import org.apache.pulsar.functions.api.examples.MergeTopicFunction;
+import org.apache.pulsar.functions.api.examples.InitFunction;
 import org.apache.pulsar.functions.api.examples.pojo.AvroTestObject;
 import org.apache.pulsar.functions.api.examples.pojo.Users;
 import org.apache.pulsar.functions.api.examples.serde.CustomObject;
@@ -1431,6 +1433,37 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         getFunctionInfoNotFound(functionName);
     }
 
+
+    protected void testInitFunction(Runtime runtime) throws Exception {
+        if (runtime != Runtime.JAVA) {
+            // only java support init function
+            return;
+        }
+
+        Schema<?> schema = Schema.STRING;
+
+        String inputTopicName = "persistent://public/default/test-init-" + runtime + "-input-" + randomName(8);
+        String outputTopicName = "test-init-" + runtime + "-output-" + randomName(8);
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
+            admin.topics().createNonPartitionedTopic(inputTopicName);
+            admin.topics().createNonPartitionedTopic(outputTopicName);
+        }
+
+        String functionName = "test-rich-fn-" + randomName(8);
+        final int numMessages = 10;
+
+        // submit the exclamation function
+        submitFunction(runtime, inputTopicName, outputTopicName, functionName, null, InitFunction.class.getName(), schema);
+
+        // publish and consume result
+        publishAndConsumeMessages(inputTopicName, outputTopicName, numMessages);
+
+        // delete function
+        deleteFunction(functionName);
+
+        assertFalse(InitFunction.initialized);
+    }
+
     protected void testLoggingFunction(Runtime runtime) throws Exception {
         if (functionRuntimeType == FunctionRuntimeType.THREAD && runtime == Runtime.PYTHON) {
             // python can only run on process mode
@@ -1464,30 +1497,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         submitJavaLoggingFunction(
                 inputTopicName, logTopicName, functionName, schema);
 
-        // get function info
-        getFunctionInfoSuccess(functionName);
-
-        // get function stats
-        getFunctionStatsEmpty(functionName);
-
         // publish and consume result
         publishAndConsumeMessages(inputTopicName, logTopicName, numMessages, "-log");
-
-        // get function status
-        getFunctionStatus(functionName, numMessages, true);
-
-        // get function stats
-        getFunctionStats(functionName, numMessages);
 
         // delete function
         deleteFunction(functionName);
 
-        // get function info
-        getFunctionInfoNotFound(functionName);
-
-        // make sure subscriptions are cleanup
-        checkSubscriptionsCleanup(inputTopicName);
-        checkPublisherCleanup(logTopicName);
 
     }
 
