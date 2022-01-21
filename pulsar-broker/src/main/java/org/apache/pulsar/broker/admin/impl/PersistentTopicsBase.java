@@ -3622,7 +3622,7 @@ public class PersistentTopicsBase extends AdminResource {
                     } catch (Exception e) {
                         log.error("[{}] Failed to trigger compaction on topic {}", clientAppId(),
                                 topicName, e);
-                        resumeAsyncResponseExceptionally(asyncResponse, new RestException(new RestException(e)));
+                        resumeAsyncResponseExceptionally(asyncResponse, new RestException(e));
                         return;
                     }
                 }).exceptionally(ex -> {
