@@ -2074,103 +2074,101 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void internalCreateSubscription(AsyncResponse asyncResponse, String subscriptionName,
             MessageIdImpl messageId, boolean authoritative, boolean replicated) {
+        CompletableFuture<Void> ret;
         if (topicName.isGlobal()) {
-            try {
-                validateGlobalNamespaceOwnership(namespaceName);
-            } catch (Exception e) {
-                log.error("[{}] Failed to create subscription {} on topic {}",
-                        clientAppId(), subscriptionName, topicName, e);
-                resumeAsyncResponseExceptionally(asyncResponse, e);
-                return;
-            }
-        }
-        final MessageIdImpl targetMessageId = messageId == null ? (MessageIdImpl) MessageId.latest : messageId;
-        log.info("[{}][{}] Creating subscription {} at message id {}", clientAppId(), topicName, subscriptionName,
-                targetMessageId);
-        // If the topic name is a partition name, no need to get partition topic metadata again
-        if (topicName.isPartitioned()) {
-            internalCreateSubscriptionForNonPartitionedTopic(asyncResponse,
-                    subscriptionName, targetMessageId, authoritative, replicated);
+            ret = validateGlobalNamespaceOwnershipAsync(namespaceName);
         } else {
-            boolean allowAutoTopicCreation = pulsar().getBrokerService().isAllowAutoTopicCreation(topicName);
-            getPartitionedTopicMetadataAsync(topicName,
-                    authoritative, allowAutoTopicCreation).thenAccept(partitionMetadata -> {
-                final int numPartitions = partitionMetadata.partitions;
-                if (numPartitions > 0) {
-                    final CompletableFuture<Void> future = new CompletableFuture<>();
-                    final AtomicInteger count = new AtomicInteger(numPartitions);
-                    final AtomicInteger failureCount = new AtomicInteger(0);
-                    final AtomicReference<Throwable> partitionException = new AtomicReference<>();
-
-                    // Create the subscription on each partition
-                    for (int i = 0; i < numPartitions; i++) {
-                        TopicName topicNamePartition = topicName.getPartition(i);
-                        try {
-                            pulsar().getAdminClient().topics()
-                                    .createSubscriptionAsync(topicNamePartition.toString(),
-                                            subscriptionName, targetMessageId)
-                                    .handle((r, ex) -> {
-                                        if (ex != null) {
-                                            // fail the operation on unknown exception or
-                                            // if all the partitioned failed due to
-                                            // subscription-already-exist
-                                            if (failureCount.incrementAndGet() == numPartitions
-                                                    || !(ex instanceof PulsarAdminException.ConflictException)) {
-                                                partitionException.set(ex);
-                                            }
-                                        }
-
-                                        if (count.decrementAndGet() == 0) {
-                                            future.complete(null);
-                                        }
-
-                                        return null;
-                                    });
-                        } catch (Exception e) {
-                            log.warn("[{}] [{}] Failed to create subscription {} at message id {}", clientAppId(),
-                                    topicNamePartition, subscriptionName, targetMessageId, e);
-                            future.completeExceptionally(e);
-                        }
-                    }
-
-                    future.whenComplete((r, ex) -> {
-                        if (ex != null) {
-                            if (ex instanceof PulsarAdminException) {
-                                asyncResponse.resume(new RestException((PulsarAdminException) ex));
-                                return;
-                            } else {
-                                asyncResponse.resume(new RestException(ex));
-                                return;
-                            }
-                        }
-
-                        if (partitionException.get() != null) {
-                            log.warn("[{}] [{}] Failed to create subscription {} at message id {}",
-                                    clientAppId(), topicName,
-                                    subscriptionName, targetMessageId, partitionException.get());
-                            if (partitionException.get() instanceof PulsarAdminException) {
-                                asyncResponse.resume(
-                                        new RestException((PulsarAdminException) partitionException.get()));
-                                return;
-                            } else {
-                                asyncResponse.resume(new RestException(partitionException.get()));
-                                return;
-                            }
-                        }
-
-                        asyncResponse.resume(Response.noContent().build());
-                    });
-                } else {
-                    internalCreateSubscriptionForNonPartitionedTopic(asyncResponse,
-                            subscriptionName, targetMessageId, authoritative, replicated);
-                }
-            }).exceptionally(ex -> {
-                log.error("[{}] Failed to create subscription {} on topic {}",
-                        clientAppId(), subscriptionName, topicName, ex);
-                resumeAsyncResponseExceptionally(asyncResponse, ex);
-                return null;
-            });
+            ret = CompletableFuture.completedFuture(null);
         }
+        ret.thenAccept(__ -> {
+            final MessageIdImpl targetMessageId = messageId == null ? (MessageIdImpl) MessageId.latest : messageId;
+            log.info("[{}][{}] Creating subscription {} at message id {}", clientAppId(), topicName, subscriptionName,
+                    targetMessageId);
+            // If the topic name is a partition name, no need to get partition topic metadata again
+            if (topicName.isPartitioned()) {
+                internalCreateSubscriptionForNonPartitionedTopic(asyncResponse,
+                        subscriptionName, targetMessageId, authoritative, replicated);
+            } else {
+                boolean allowAutoTopicCreation = pulsar().getBrokerService().isAllowAutoTopicCreation(topicName);
+                getPartitionedTopicMetadataAsync(topicName,
+                        authoritative, allowAutoTopicCreation).thenAccept(partitionMetadata -> {
+                    final int numPartitions = partitionMetadata.partitions;
+                    if (numPartitions > 0) {
+                        final CompletableFuture<Void> future = new CompletableFuture<>();
+                        final AtomicInteger count = new AtomicInteger(numPartitions);
+                        final AtomicInteger failureCount = new AtomicInteger(0);
+                        final AtomicReference<Throwable> partitionException = new AtomicReference<>();
+
+                        // Create the subscription on each partition
+                        for (int i = 0; i < numPartitions; i++) {
+                            TopicName topicNamePartition = topicName.getPartition(i);
+                            try {
+                                pulsar().getAdminClient().topics()
+                                        .createSubscriptionAsync(topicNamePartition.toString(),
+                                                subscriptionName, targetMessageId)
+                                        .handle((r, ex) -> {
+                                            if (ex != null) {
+                                                // fail the operation on unknown exception or
+                                                // if all the partitioned failed due to
+                                                // subscription-already-exist
+                                                if (failureCount.incrementAndGet() == numPartitions
+                                                        || !(ex instanceof PulsarAdminException.ConflictException)) {
+                                                    partitionException.set(ex);
+                                                }
+                                            }
+
+                                            if (count.decrementAndGet() == 0) {
+                                                future.complete(null);
+                                            }
+
+                                            return null;
+                                        });
+                            } catch (Exception e) {
+                                log.warn("[{}] [{}] Failed to create subscription {} at message id {}", clientAppId(),
+                                        topicNamePartition, subscriptionName, targetMessageId, e);
+                                future.completeExceptionally(e);
+                            }
+                        }
+
+                        future.whenComplete((r, ex) -> {
+                            if (ex != null) {
+                                if (ex instanceof PulsarAdminException) {
+                                    asyncResponse.resume(new RestException((PulsarAdminException) ex));
+                                    return;
+                                } else {
+                                    asyncResponse.resume(new RestException(ex));
+                                    return;
+                                }
+                            }
+
+                            if (partitionException.get() != null) {
+                                log.warn("[{}] [{}] Failed to create subscription {} at message id {}",
+                                        clientAppId(), topicName,
+                                        subscriptionName, targetMessageId, partitionException.get());
+                                if (partitionException.get() instanceof PulsarAdminException) {
+                                    asyncResponse.resume(
+                                            new RestException((PulsarAdminException) partitionException.get()));
+                                    return;
+                                } else {
+                                    asyncResponse.resume(new RestException(partitionException.get()));
+                                    return;
+                                }
+                            }
+
+                            asyncResponse.resume(Response.noContent().build());
+                        });
+                    } else {
+                        internalCreateSubscriptionForNonPartitionedTopic(asyncResponse,
+                                subscriptionName, targetMessageId, authoritative, replicated);
+                    }
+                }).exceptionally(ex -> {
+                    log.error("[{}] Failed to create subscription {} on topic {}",
+                            clientAppId(), subscriptionName, topicName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+            }
+        });
     }
 
     private void internalCreateSubscriptionForNonPartitionedTopic(
