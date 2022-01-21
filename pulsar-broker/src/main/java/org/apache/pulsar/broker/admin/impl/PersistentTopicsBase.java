@@ -2818,6 +2818,11 @@ public class PersistentTopicsBase extends AdminResource {
                                         } else {
                                             asyncResponse.resume(managedLedger.getEstimatedBacklogSize(pos));
                                         }
+                                    }).exceptionally(ex -> {
+                                        Throwable cause = ex.getCause();
+                                        log.error("[{}] Failed to get backlog size for topic {}", clientAppId(), topicName, ex);
+                                        resumeAsyncResponseExceptionally(asyncResponse, cause);
+                                        return null;
                                     });
                         }
                     }).exceptionally(ex -> {
