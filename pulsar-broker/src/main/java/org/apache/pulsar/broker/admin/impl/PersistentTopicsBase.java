@@ -1237,8 +1237,8 @@ public class PersistentTopicsBase extends AdminResource {
                                             }
                                         })
                                 );
-                            } catch (Exception e) {
-                                log.error("[{}] Failed to get managed info for {}", clientAppId(),
+                            } catch (PulsarServerException e) {
+                                log.error("[{}] Failed to get admin client while get managed info for {}", clientAppId(),
                                         topicNamePartition, e);
                                 throw new RestException(e);
                             }
