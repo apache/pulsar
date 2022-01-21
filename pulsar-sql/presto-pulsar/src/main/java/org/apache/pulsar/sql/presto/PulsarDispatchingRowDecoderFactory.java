@@ -19,18 +19,13 @@
 package org.apache.pulsar.sql.presto;
 
 import static java.lang.String.format;
-
 import com.google.inject.Inject;
-
 import io.airlift.log.Logger;
-
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.spi.connector.ColumnMetadata;
 import io.prestosql.spi.type.TypeManager;
-
 import java.util.List;
 import java.util.Set;
-
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -70,7 +65,7 @@ public class PulsarDispatchingRowDecoderFactory {
             return new PulsarAvroRowDecoderFactory(typeManager);
         } else if (SchemaType.JSON.equals(schemaInfo.getType())) {
             return new PulsarJsonRowDecoderFactory(typeManager);
-        }else if (SchemaType.PROTOBUF_NATIVE.equals(schemaInfo.getType())) {
+        } else if (SchemaType.PROTOBUF_NATIVE.equals(schemaInfo.getType())) {
             return new PulsarProtobufNativeRowDecoderFactory(typeManager);
         } else if (schemaInfo.getType().isPrimitive()) {
             return new PulsarPrimitiveRowDecoderFactory();

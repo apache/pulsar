@@ -46,6 +46,7 @@ $ROOT_DIR/bin/pulsar-admin documents generate tenants > $ROOT_DIR/site2/website/
 $ROOT_DIR/bin/pulsar-admin documents generate resource-quotas > $ROOT_DIR/site2/website/brodocs/documents/resource-quotas.md
 $ROOT_DIR/bin/pulsar-admin documents generate schemas > $ROOT_DIR/site2/website/brodocs/documents/schemas.md
 $ROOT_DIR/bin/pulsar-admin documents generate packages > $ROOT_DIR/site2/website/brodocs/documents/packages.md
+$ROOT_DIR/bin/pulsar-admin documents generate bookies > $ROOT_DIR/site2/website/brodocs/documents/bookies.md
 
 cd $ROOT_DIR/site2/website/brodocs
 cp pulsar-admin-manifest.json manifest.json
