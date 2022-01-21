@@ -4102,6 +4102,10 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.PEEK_MESSAGES))
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
                 .thenAccept(topic -> {
+                    if (topic == null) {
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND, "Topic not found"));
+                        return;
+                    }
                     if (!(topic instanceof PersistentTopic)) {
                         log.error("[{}] Not supported operation of non-persistent topic {}", clientAppId(), topicName);
                         asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
