@@ -32,7 +32,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.functions.api.RichFunction;
+import org.apache.pulsar.functions.api.InitializableFunction;
 
 /**
  * This is the Java Instance. This is started by the runtimeSpawner using the JavaInstanceClient
@@ -156,12 +156,12 @@ public class JavaInstance implements AutoCloseable {
 
     }
 
-    public void setup() throws Exception {
-        if (function instanceof RichFunction) {
-            ((RichFunction) function).setup(context);
+    public void initialize() throws Exception {
+        if (function instanceof InitializableFunction) {
+            ((InitializableFunction) function).initialize(context);
         }
-        if (javaUtilFunction instanceof RichFunction) {
-            ((RichFunction) javaUtilFunction).setup(context);
+        if (javaUtilFunction instanceof InitializableFunction) {
+            ((InitializableFunction) javaUtilFunction).initialize(context);
         }
     }
 
@@ -170,16 +170,16 @@ public class JavaInstance implements AutoCloseable {
         context.close();
         executor.shutdown();
 
-        if (function instanceof RichFunction) {
+        if (function instanceof InitializableFunction) {
             try {
-                ((RichFunction) function).tearDown();
+                ((InitializableFunction) function).close();
             } catch (Exception e) {
                 log.error("function closeResource occurred exception", e);
             }
         }
-        if (javaUtilFunction instanceof RichFunction) {
+        if (javaUtilFunction instanceof InitializableFunction) {
             try {
-                ((RichFunction) javaUtilFunction).tearDown();
+                ((InitializableFunction) javaUtilFunction).close();
             } catch (Exception e) {
                 log.error("function closeResource occurred exception", e);
             }

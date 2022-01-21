@@ -26,19 +26,21 @@ import org.apache.pulsar.common.classification.InterfaceAudience;
  * Provide setup and tearDown interface to initial and close any resource used in function
  */
 @InterfaceAudience.Public
-public interface RichFunction extends Function{
+public interface InitializableFunction<I, O> extends Function<I, O>{
 
     /**
      * Called when function instance start
      *
+     * @param context The Function context
+     *
      * @throws Exception
      */
-    void setup(Context context) throws Exception;
+    void initialize(Context context) throws Exception;
 
     /**
      * Called when function instance close
      *
      * @throws Exception
      */
-    void tearDown() throws Exception;
+    void close() throws Exception;
 }
