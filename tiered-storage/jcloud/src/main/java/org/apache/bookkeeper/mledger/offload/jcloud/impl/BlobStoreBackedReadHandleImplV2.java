@@ -276,7 +276,8 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
     public static ReadHandle open(ScheduledExecutorService executor,
                                   BlobStore blobStore, String bucket, List<String> keys, List<String> indexKeys,
                                   VersionCheck versionCheck,
-                                  long ledgerId, int readBufferSize, LedgerOffloaderMXBeanImpl mbean, String managedLedgerName)
+                                  long ledgerId, int readBufferSize, LedgerOffloaderMXBeanImpl mbean,
+                                  String managedLedgerName)
             throws IOException {
         List<BackedInputStream> inputStreams = new LinkedList<>();
         List<OffloadIndexBlockV2> indice = new LinkedList<>();

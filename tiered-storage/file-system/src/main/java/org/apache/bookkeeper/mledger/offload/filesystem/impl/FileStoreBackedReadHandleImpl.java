@@ -124,7 +124,8 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
                 while (entriesToRead > 0) {
                     long startReadTime = System.nanoTime();
                     reader.next(key, value);
-                    mxBean.recordReadOffloadDataLatency(managedLedgerName, System.nanoTime() - startReadTime, TimeUnit.NANOSECONDS);
+                    mxBean.recordReadOffloadDataLatency(managedLedgerName, System.nanoTime() - startReadTime,
+                            TimeUnit.NANOSECONDS);
                     int length = value.getLength();
                     long entryId = key.get();
                     if (entryId == nextExpectedId) {

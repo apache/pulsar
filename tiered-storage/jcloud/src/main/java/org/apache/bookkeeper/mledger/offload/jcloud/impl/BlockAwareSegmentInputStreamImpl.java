@@ -80,7 +80,8 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
         this.entriesByteBuf = Lists.newLinkedList();
     }
 
-    public BlockAwareSegmentInputStreamImpl(ReadHandle ledger, long startEntryId, int blockSize, LedgerOffloaderMXBeanImpl mxBean, String ledgerName) {
+    public BlockAwareSegmentInputStreamImpl(ReadHandle ledger, long startEntryId, int blockSize,
+                                            LedgerOffloaderMXBeanImpl mxBean, String ledgerName) {
         this(ledger, startEntryId, blockSize);
         this.mxBean = mxBean;
         this.ledgerNameForMetrics = ledgerName;
@@ -125,12 +126,13 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
         long end = Math.min(start + maxNumberEntries - 1, ledger.getLastAddConfirmed());
         long startTime = System.nanoTime();
         try (LedgerEntries ledgerEntriesOnce = ledger.readAsync(start, end).get()) {
-            if(log.isDebugEnabled()) {
+            if (log.isDebugEnabled()) {
                 log.debug("read ledger entries. start: {}, end: {} cost {}", start, end,
                         TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - startTime));
             }
             if (mxBean != null && ledgerNameForMetrics != null) {
-                mxBean.recordReadLedgerLatency(ledgerNameForMetrics, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+                mxBean.recordReadLedgerLatency(ledgerNameForMetrics, System.nanoTime() - startTime,
+                        TimeUnit.NANOSECONDS);
             }
 
             List<ByteBuf> entries = Lists.newLinkedList();
