@@ -760,6 +760,50 @@ pulsarClient.newReader()
 
 Total hash range size is 65536, so the max end of the range should be less than or equal to 65535.
 
+
+## TableView
+
+The TableView interface serves an encapsulated access pattern, providing a key-value map view of the compacted topic data that is constantly updated with the latest values of each key. Messages without keys will be ignored.
+
+With TableView, Pulsar clients can fetch all the message updates from a topic and construct a map with the latest values of each key. It can be used to construct a local cache of data. In addition, you can register consumers with the TableView by specifying a listener to perform a scan of the map and then receive notifications when new messages are received. Consequently, event handling can be triggered to serve use cases, such as event-driven applications, message monitoring.
+
+![TableView](assets/tableview.png)
+
+Each TableView uses multiple Reader instances, one per partition, and will always specify to read the topic starting from the compacted view. You can control the creation time of a TableView by [configuring the topic compaction policies](cookbooks-compaction.md#configuring-compaction-to-run-automatically) for the given topic or namespace. More frequent compaction can lead to very short startup times because fewer data will be replayed to reconstruct the TableView of the topic.
+
+### Configure TableView
+ 
+The following is an example of how to configure a TableView.
+
+```
+try (TableView<byte[]> tv = client.newTableViewBuilder(Schema.BYTES)
+        .topic("public/default/tableview-test")
+        .autoUpdatePartitionsInterval(60, TimeUnit.SECONDS)
+        .create()) {
+     System.out.println("start tv size: " + tv.size());
+     tv.forEachAndListen((k, v) -> System.out.println(k + "->" + Arrays.toString(v)));
+
+     while (true) {
+         Thread.sleep(20000);
+         System.out.println(tv.size());
+         tv.forEach((k, v) -> System.out.println("checkpoint: " + k + "->" + Arrays.toString(v)));
+     }
+}
+```
+
+You can use the available parameters in the `loadConf` configuration to customize your TableView. 
+
+| Name | Type|  <div style="width:300px">Description</div> | Default
+|---|---|---|---
+| `topic` | string | The topic name of the TableView. | my-topic
+| `autoUpdatePartitionInterval` | int | The interval of updating partitions. | 60 (seconds)
+| `forEachAndListen` | string | Register listeners for both existing messages on the topic and new messages coming into the topic. | N/A
+| `forEach` | string | Run the specified action one time for all available messages. | N/A
+
+For a comprehensive parameter list, see the Javadoc for the [TableViewBuilder](https://pulsar.apache.org/api/client/2.10.0-SNAPSHOT/org/apache/pulsar/client/api/TableViewBuilder.html) class.
+
+
+
 ## Schema
 
 In Pulsar, all message data consists of byte arrays "under the hood." [Message schemas](schema-get-started.md) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producer) without specifying a schema, then the producer can only produce messages of type `byte[]`. The following is an example.
