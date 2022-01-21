@@ -202,6 +202,7 @@ flexible messaging model and an intuitive client API.</description>
     <cron-utils.version>9.1.6</cron-utils.version>
     <spring-context.version>5.3.15</spring-context.version>
     <apache-http-client.version>4.5.13</apache-http-client.version>
+    <jetcd.version>0.5.11</jetcd.version>
     <snakeyaml.version>1.30</snakeyaml.version>
 
     <!-- test dependencies -->
@@ -863,6 +864,18 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>io.etcd</groupId>
+        <artifactId>jetcd-core</artifactId>
+        <version>${jetcd.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.etcd</groupId>
+        <artifactId>jetcd-test</artifactId>
+        <version>${jetcd.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-streaming_2.10</artifactId>
         <version>${spark-streaming_2.10.version}</version>
@@ -938,7 +951,43 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>io.grpc</groupId>
+        <artifactId>grpc-api</artifactId>
+        <version>${grpc.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.grpc</groupId>
         <artifactId>grpc-core</artifactId>
+        <version>${grpc.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-netty</artifactId>
+        <version>${grpc.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-protobuf</artifactId>
+        <version>${grpc.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-grpclb</artifactId>
+        <version>${grpc.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-alts</artifactId>
+        <version>${grpc.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-netty-shaded</artifactId>
         <version>${grpc.version}</version>
       </dependency>
 

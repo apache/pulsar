@@ -252,8 +252,23 @@ The Apache Software License, Version 2.0
     - netty-transport-native-epoll-4.1.72.Final-linux-x86_64.jar
     - netty-transport-native-unix-common-4.1.72.Final.jar
     - netty-transport-native-unix-common-4.1.72.Final-linux-x86_64.jar
+    - netty-codec-http2-4.1.72.Final.jar
+ * GRPC
+    - grpc-api-1.42.1.jar
+    - grpc-context-1.42.1.jar
+    - grpc-core-1.42.1.jar
+    - grpc-grpclb-1.42.1.jar
+    - grpc-netty-1.42.1.jar
+    - grpc-protobuf-1.42.1.jar
+    - grpc-protobuf-lite-1.42.1.jar
+    - grpc-stub-1.42.1.jar
+  * JEtcd
+    - jetcd-common-0.5.11.jar
+    - jetcd-core-0.5.11.jar
+
  * Joda Time
     - joda-time-2.10.5.jar
+    - failsafe-2.4.4.jar
   * Jetty
     - http2-client-9.4.44.v20210927.jar
     - http2-common-9.4.44.v20210927.jar
@@ -457,10 +472,16 @@ The Apache Software License, Version 2.0
     - audience-annotations-0.5.0.jar
   * Swagger
     - swagger-annotations-1.6.2.jar
+  * Perfmark
+    - perfmark-api-0.19.0.jar
+  * Annotations
+    - auto-service-annotations-1.0.jar
 
 Protocol Buffers License
  * Protocol Buffers
    - protobuf-java-3.16.1.jar
+   - protobuf-java-util-3.16.1.jar
+   - proto-google-common-protos-2.0.1.jar
 
 BSD 3-clause "New" or "Revised" License
   *  RE2J TD -- re2j-td-1.4.jar
@@ -491,6 +512,9 @@ MIT License
    - jul-to-slf4j-1.7.32.jar
  * Checker Qual
    - checker-qual-3.12.0.jar 
+ * Annotations
+   - animal-sniffer-annotations-1.19.jar
+   - annotations-4.1.1.4.jar
 
 CDDL - 1.0
  * OSGi Resource Locator
