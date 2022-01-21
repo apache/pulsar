@@ -3328,7 +3328,7 @@ public class PersistentTopicsBase extends AdminResource {
             getPartitionedTopicMetadataAsync(topicName, authoritative, false)
                     .thenAccept(partitionMetadata -> {
                         if (topicName.isPartitioned()) {
-                            internalExpireMessagesByTimestampForSinglePartitionAsyn(partitionMetadata, subName,
+                            internalExpireMessagesByTimestampForSinglePartitionAsync(partitionMetadata, subName,
                                     expireTimeInSeconds, authoritative)
                                     .thenAccept(unused -> asyncResponse.resume(Response.noContent().build()))
                                     .exceptionally(e -> {
@@ -3378,7 +3378,7 @@ public class PersistentTopicsBase extends AdminResource {
                                     return null;
                                 });
                             } else {
-                                internalExpireMessagesByTimestampForSinglePartitionAsyn(partitionMetadata, subName,
+                                internalExpireMessagesByTimestampForSinglePartitionAsync(partitionMetadata, subName,
                                         expireTimeInSeconds, authoritative)
                                         .thenAccept(unused -> asyncResponse.resume(Response.noContent().build()))
                                         .exceptionally(e -> {
@@ -3465,7 +3465,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    private CompletableFuture<Void> internalExpireMessagesByTimestampForSinglePartitionAsyn(
+    private CompletableFuture<Void> internalExpireMessagesByTimestampForSinglePartitionAsync(
             PartitionedTopicMetadata partitionMetadata, String subName, int expireTimeInSeconds,
             boolean authoritative) {
         if (!topicName.isPartitioned() && partitionMetadata.partitions > 0) {
