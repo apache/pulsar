@@ -275,7 +275,6 @@ public class AuthorizationService {
                 return provider.canLookupAsync(topicName, role, authenticationData);
             }
         });
-
     }
 
     public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,
