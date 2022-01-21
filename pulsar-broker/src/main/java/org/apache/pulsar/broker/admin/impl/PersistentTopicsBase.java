@@ -2383,42 +2383,55 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void internalGetMessageById(AsyncResponse asyncResponse, long ledgerId, long entryId,
                                               boolean authoritative) {
-        try {
-            // will redirect if the topic not owned by current broker
-            validateTopicOwnership(topicName, authoritative);
-            validateTopicOperation(topicName, TopicOperation.PEEK_MESSAGES);
-
-            if (topicName.isGlobal()) {
-                validateGlobalNamespaceOwnership(namespaceName);
-            }
-            PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
-            ManagedLedgerImpl ledger = (ManagedLedgerImpl) topic.getManagedLedger();
-            ledger.asyncReadEntry(new PositionImpl(ledgerId, entryId), new AsyncCallbacks.ReadEntryCallback() {
-                @Override
-                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                    asyncResponse.resume(new RestException(exception));
-                }
-
-                @Override
-                public void readEntryComplete(Entry entry, Object ctx) {
-                    try {
-                        asyncResponse.resume(generateResponseWithEntry(entry));
-                    } catch (IOException exception) {
-                        asyncResponse.resume(new RestException(exception));
-                    } finally {
-                        if (entry != null) {
-                            entry.release();
-                        }
+        // will redirect if the topic not owned by current broker
+        validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.PEEK_MESSAGES))
+                .thenCompose(__ -> {
+                    CompletableFuture<Void> ret;
+                    if (topicName.isGlobal()) {
+                        ret = validateGlobalNamespaceOwnershipAsync(namespaceName);
+                    } else {
+                        ret = CompletableFuture.completedFuture(null);
                     }
-                }
-            }, null);
-        } catch (NullPointerException npe) {
-            asyncResponse.resume(new RestException(Status.NOT_FOUND, "Message not found"));
-        } catch (Exception exception) {
-            log.error("[{}] Failed to get message with ledgerId {} entryId {} from {}",
-                    clientAppId(), ledgerId, entryId, topicName, exception);
-            asyncResponse.resume(new RestException(exception));
-        }
+                    return ret.thenCompose(ignore -> {
+                        return getTopicReferenceAsync(topicName)
+                                .thenAccept(topic -> {
+                                    ManagedLedgerImpl ledger =
+                                            (ManagedLedgerImpl) ((PersistentTopic) topic).getManagedLedger();
+                                    ledger.asyncReadEntry(new PositionImpl(ledgerId, entryId),
+                                            new AsyncCallbacks.ReadEntryCallback() {
+                                                @Override
+                                                public void readEntryFailed(ManagedLedgerException exception,
+                                                                            Object ctx) {
+                                                    asyncResponse.resume(new RestException(exception));
+                                                }
+
+                                                @Override
+                                                public void readEntryComplete(Entry entry, Object ctx) {
+                                                    try {
+                                                        asyncResponse.resume(generateResponseWithEntry(entry));
+                                                    } catch (IOException exception) {
+                                                        asyncResponse.resume(new RestException(exception));
+                                                    } finally {
+                                                        if (entry != null) {
+                                                            entry.release();
+                                                        }
+                                                    }
+                                                }
+                                            }, null);
+                                });
+                    });
+                }).exceptionally(ex -> {
+                    Throwable cause = ex.getCause();
+                    if (cause instanceof NullPointerException) {
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND, "Message not found"));
+                    } else {
+                        log.error("[{}] Failed to get message with ledgerId {} entryId {} from {}",
+                                clientAppId(), ledgerId, entryId, topicName, cause);
+                        asyncResponse.resume(new RestException(cause));
+                    }
+                    return null;
+                });
     }
 
     protected CompletableFuture<MessageId> internalGetMessageIdByTimestamp(long timestamp, boolean authoritative) {
