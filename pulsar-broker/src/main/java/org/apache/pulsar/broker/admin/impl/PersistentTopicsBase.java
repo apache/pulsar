@@ -995,7 +995,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     private void internalUnloadTransactionCoordinatorAsync(AsyncResponse asyncResponse, boolean authoritative) {
         validateTopicOperationAsync(topicName, TopicOperation.UNLOAD)
-                .thenAccept(__ -> validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative)
                         .thenCompose(v -> pulsar()
                                 .getTransactionMetadataStoreService()
                                 .removeTransactionMetadataStore(
