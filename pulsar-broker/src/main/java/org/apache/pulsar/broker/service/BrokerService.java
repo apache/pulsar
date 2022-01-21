@@ -75,6 +75,7 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import javax.ws.rs.core.Response;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
@@ -89,8 +90,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoun
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.ImmutableTriple;
-import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -215,8 +214,7 @@ public class BrokerService implements Closeable {
             prepareDynamicConfigurationMap();
     private final ConcurrentOpenHashMap<String, Consumer<?>> configRegisteredListeners;
 
-    private final ConcurrentLinkedQueue<Triple<String, CompletableFuture<Optional<Topic>>, Map<String, String>>>
-            pendingTopicLoadingQueue;
+    private final ConcurrentLinkedQueue<TopicLoadingContext> pendingTopicLoadingQueue;
 
     private AuthorizationService authorizationService = null;
     private final ScheduledExecutorService statsUpdater;
@@ -1311,7 +1309,7 @@ public class BrokerService implements Closeable {
                             return null;
                         });
                     } else {
-                        pendingTopicLoadingQueue.add(new ImmutableTriple<>(topic, topicFuture, properties));
+                        pendingTopicLoadingQueue.add(new TopicLoadingContext(topic, topicFuture, properties));
                         if (log.isDebugEnabled()) {
                             log.debug("topic-loading for {} added into pending queue", topic);
                         }
@@ -2405,18 +2403,17 @@ public class BrokerService implements Closeable {
      * permit if it was successful to acquire it.
      */
     private void createPendingLoadTopic() {
-        Triple<String, CompletableFuture<Optional<Topic>>, Map<String, String>> pendingTopic =
-                pendingTopicLoadingQueue.poll();
+        TopicLoadingContext pendingTopic = pendingTopicLoadingQueue.poll();
         if (pendingTopic == null) {
             return;
         }
 
-        final String topic = pendingTopic.getLeft();
+        final String topic = pendingTopic.getTopic();
         checkTopicNsOwnership(topic).thenRun(() -> {
-            CompletableFuture<Optional<Topic>> pendingFuture = pendingTopic.getMiddle();
+            CompletableFuture<Optional<Topic>> pendingFuture = pendingTopic.getTopicFuture();
             final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
             final boolean acquiredPermit = topicLoadSemaphore.tryAcquire();
-            createPersistentTopic(topic, true, pendingFuture, pendingTopic.getRight());
+            createPersistentTopic(topic, true, pendingFuture, pendingTopic.getProperties());
             pendingFuture.handle((persistentTopic, ex) -> {
                 // release permit and process next pending topic
                 if (acquiredPermit) {
@@ -2427,7 +2424,7 @@ public class BrokerService implements Closeable {
             });
         }).exceptionally(e -> {
             log.error("Failed to create pending topic {}", topic, e);
-            pendingTopic.getMiddle()
+            pendingTopic.getTopicFuture()
                     .completeExceptionally((e instanceof RuntimeException && e.getCause() != null) ? e.getCause() : e);
             // schedule to process next pending topic
             inactivityMonitor.schedule(this::createPendingLoadTopic, 100, TimeUnit.MILLISECONDS);
@@ -2828,5 +2825,13 @@ public class BrokerService implements Closeable {
     @VisibleForTesting
     public void setPulsarChannelInitializerFactory(PulsarChannelInitializer.Factory factory) {
         this.pulsarChannelInitFactory = factory;
+    }
+
+    @AllArgsConstructor
+    @Getter
+    private static class TopicLoadingContext {
+        private final String topic;
+        private final CompletableFuture<Optional<Topic>> topicFuture;
+        private final Map<String, String> properties;
     }
 }

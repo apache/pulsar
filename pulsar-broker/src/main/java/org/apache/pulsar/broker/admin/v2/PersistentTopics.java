@@ -225,8 +225,9 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "The metadata for the topic",
-                    required = true, type = "PartitionedTopicMetadata") PartitionedTopicMetadata metadata,
+            @ApiParam(value = "The number of partitions for the topic",
+                    required = true, type = "int", defaultValue = "0")
+                    int numPartitions,
             @QueryParam("createLocalTopicOnly") @DefaultValue("false") boolean createLocalTopicOnly) {
         try {
             validateNamespaceName(tenant, namespace);
@@ -234,8 +235,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             validatePartitionedTopicName(tenant, namespace, encodedTopic);
             validateTopicPolicyOperation(topicName, PolicyName.PARTITION, PolicyOperation.WRITE);
             validateCreateTopic(topicName);
-            internalCreatePartitionedTopic(asyncResponse, metadata.partitions, createLocalTopicOnly,
-                    metadata.properties);
+            internalCreatePartitionedTopic(asyncResponse, numPartitions, createLocalTopicOnly);
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
             resumeAsyncResponseExceptionally(asyncResponse, e);
