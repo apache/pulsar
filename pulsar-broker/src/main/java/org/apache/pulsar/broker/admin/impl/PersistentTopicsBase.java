@@ -3598,12 +3598,17 @@ public class PersistentTopicsBase extends AdminResource {
                     }
                 }).exceptionally(ex -> {
                     Throwable cause = ex.getCause();
-                    log.error("[{}] Failed to validate global namespace ownership to trigger compaction on topic {}",
-                            clientAppId(), topicName, cause);
+                    log.error("[{}] Failed to trigger compaction on topic {}", clientAppId(), topicName, cause);
                     resumeAsyncResponseExceptionally(asyncResponse, cause);
                     return null;
                 });
             }
+        }).exceptionally(ex -> {
+            Throwable cause = ex.getCause();
+            log.error("[{}] Failed to validate global namespace ownership to trigger compaction on topic {}",
+                    clientAppId(), topicName, cause);
+            resumeAsyncResponseExceptionally(asyncResponse, cause);
+            return null;
         });
     }
 
