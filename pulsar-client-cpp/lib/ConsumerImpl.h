@@ -193,10 +193,8 @@ class ConsumerImpl : public ConsumerImplBase,
     bool hasParent_;
     ConsumerTopicType consumerTopicType_;
 
-    Commands::SubscriptionMode subscriptionMode_;
-    Optional<MessageId> startMessageId_;
+    const Commands::SubscriptionMode subscriptionMode_;
 
-    Optional<MessageId> lastDequedMessage_;
     UnboundedBlockingQueue<Message> incomingMessages_;
     std::queue<ReceiveCallback> pendingReceives_;
     std::atomic_int availablePermits_;
@@ -217,17 +215,11 @@ class ConsumerImpl : public ConsumerImplBase,
     MessageCryptoPtr msgCrypto_;
     const bool readCompacted_;
 
-    Optional<MessageId> lastMessageInBroker_;
-    void brokerGetLastMessageIdListener(Result res, MessageId messageId,
-                                        BrokerGetLastMessageIdCallback callback);
-
-    const MessageId& lastMessageIdDequed() {
-        return lastDequedMessage_.is_present() ? lastDequedMessage_.value() : MessageId::earliest();
-    }
-
-    const MessageId& lastMessageIdInBroker() {
-        return lastMessageInBroker_.is_present() ? lastMessageInBroker_.value() : MessageId::earliest();
-    }
+    // Make the access to `startMessageId_`, `lastDequedMessageId_` and `lastMessageIdInBroker_` thread safe
+    mutable std::mutex mutexForMessageId_;
+    Optional<MessageId> startMessageId_;
+    MessageId lastDequedMessageId_{MessageId::earliest()};
+    MessageId lastMessageIdInBroker_{MessageId::earliest()};
 
     class ChunkedMessageCtx {
        public:
