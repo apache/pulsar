@@ -2423,13 +2423,9 @@ public class PersistentTopicsBase extends AdminResource {
                     });
                 }).exceptionally(ex -> {
                     Throwable cause = ex.getCause();
-                    if (cause instanceof NullPointerException) {
-                        asyncResponse.resume(new RestException(Status.NOT_FOUND, "Message not found"));
-                    } else {
-                        log.error("[{}] Failed to get message with ledgerId {} entryId {} from {}",
-                                clientAppId(), ledgerId, entryId, topicName, cause);
-                        asyncResponse.resume(new RestException(cause));
-                    }
+                    log.error("[{}] Failed to get message with ledgerId {} entryId {} from {}",
+                            clientAppId(), ledgerId, entryId, topicName, cause);
+                    asyncResponse.resume(new RestException(cause));
                     return null;
                 });
     }
