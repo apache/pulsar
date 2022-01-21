@@ -163,6 +163,6 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
 
     @Override
     public int available() throws IOException {
-        return (int)(objectLen - cursor) + buffer.readableBytes();
+        return (int) (objectLen - cursor) + buffer.readableBytes();
     }
 }

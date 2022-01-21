@@ -27,7 +27,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
-
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
@@ -78,6 +77,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
         this.mxBean = mxBean;
         this.managedLedgerName = managedLedgerName;
     }
+
     @Override
     public long getId() {
         return ledgerId;
@@ -131,7 +131,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
 
                 while (entriesToRead > 0) {
                     if (state == State.Closed) {
-                        log.warn("Reading a closed read handler. Ledger ID: {}, Read range: {}-{}", ledgerId, firstEntry, lastEntry);
+                        log.warn("Reading a closed read handler. Ledger ID: {}, Read range: {}-{}",
+                                ledgerId, firstEntry, lastEntry);
                         throw new BKException.BKUnexpectedConditionException();
                     }
                     int length = dataStream.readInt();

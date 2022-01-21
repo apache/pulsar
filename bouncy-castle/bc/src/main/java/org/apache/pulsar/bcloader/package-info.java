@@ -18,6 +18,6 @@
  */
 
 /**
- * Helper class to for message encrypt or decrypt.
+ * Package for Bouncy Castle provider Loader.
  */
-package org.apache.pulsar.client.impl.crypto;
+package org.apache.pulsar.bcloader;
