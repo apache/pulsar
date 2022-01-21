@@ -174,7 +174,7 @@ public class FutureUtil {
         }
     }
 
-    public static Throwable getOriginalException(Throwable ex) {
+    public static Throwable unwrapException(Throwable ex) {
         if (ex instanceof CompletionException) {
             return ex.getCause();
         } else if (ex instanceof ExecutionException) {
