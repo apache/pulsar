@@ -25,6 +25,7 @@
 #include "pulsar/Result.h"
 #include "pulsar/MessageId.h"
 #include "Utils.h"
+#include "MessageIdUtil.h"
 #include "AckGroupingTracker.h"
 #include "AckGroupingTrackerEnabled.h"
 #include "AckGroupingTrackerDisabled.h"
@@ -1283,17 +1284,35 @@ void ConsumerImpl::hasMessageAvailableAsync(HasMessageAvailableCallback callback
     Lock lock(mutexForMessageId_);
     const auto messageId =
         (lastDequedMessageId_ == MessageId::earliest()) ? startMessageId_.value() : lastDequedMessageId_;
-    const auto lastMessageIdInBroker = lastMessageIdInBroker_;
-    lock.unlock();
 
-    if (hasMoreMessages(lastMessageIdInBroker, messageId)) {
-        callback(ResultOk, true);
-        return;
+    if (messageId == MessageId::latest()) {
+        lock.unlock();
+        getLastMessageIdAsync([callback](Result result, const GetLastMessageIdResponse& response) {
+            if (result != ResultOk) {
+                callback(result, {});
+                return;
+            }
+            if (response.hasMarkDeletePosition() && response.getLastMessageId().entryId() >= 0) {
+                // We only care about comparing ledger ids and entry ids as mark delete position doesn't have
+                // other ids such as batch index
+                callback(ResultOk, compareLedgerAndEntryId(response.getMarkDeletePosition(),
+                                                           response.getLastMessageId()) < 0);
+            } else {
+                callback(ResultOk, false);
+            }
+        });
+    } else {
+        if (hasMoreMessages(lastMessageIdInBroker_, messageId)) {
+            lock.unlock();
+            callback(ResultOk, true);
+            return;
+        }
+        lock.unlock();
+
+        getLastMessageIdAsync([callback, messageId](Result result, const GetLastMessageIdResponse& response) {
+            callback(result, (result == ResultOk) && hasMoreMessages(response.getLastMessageId(), messageId));
+        });
     }
-
-    getLastMessageIdAsync([callback, messageId](Result result, const MessageId& lastMessageIdInBroker) {
-        callback(result, (result == ResultOk) && hasMoreMessages(lastMessageIdInBroker, messageId));
-    });
 }
 
 void ConsumerImpl::getLastMessageIdAsync(BrokerGetLastMessageIdCallback callback) {
@@ -1318,16 +1337,16 @@ void ConsumerImpl::getLastMessageIdAsync(BrokerGetLastMessageIdCallback callback
 
             auto self = shared_from_this();
             cnx->newGetLastMessageId(consumerId_, requestId)
-                .addListener([this, self, callback](Result result, const MessageId& messageId) {
+                .addListener([this, self, callback](Result result, const GetLastMessageIdResponse& response) {
                     if (result == ResultOk) {
-                        LOG_DEBUG(getName() << "getLastMessageId: " << messageId);
+                        LOG_DEBUG(getName() << "getLastMessageId: " << response);
                         Lock lock(mutexForMessageId_);
-                        lastMessageIdInBroker_ = messageId;
+                        lastMessageIdInBroker_ = response.getLastMessageId();
                         lock.unlock();
                     } else {
                         LOG_ERROR(getName() << "Failed to getLastMessageId: " << result);
                     }
-                    callback(result, messageId);
+                    callback(result, response);
                 });
         } else {
             LOG_ERROR(getName() << " Operation not supported since server protobuf version "

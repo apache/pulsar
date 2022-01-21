@@ -33,6 +33,7 @@
 #include "lib/UnAckedMessageTrackerDisabled.h"
 #include "MessageCrypto.h"
 #include "AckGroupingTracker.h"
+#include "GetLastMessageIdResponse.h"
 
 #include "CompressionCodec.h"
 #include <boost/dynamic_bitset.hpp>
@@ -54,7 +55,7 @@ class ExecutorService;
 class ConsumerImpl;
 class BatchAcknowledgementTracker;
 typedef std::shared_ptr<MessageCrypto> MessageCryptoPtr;
-typedef std::function<void(Result result, MessageId messageId)> BrokerGetLastMessageIdCallback;
+typedef std::function<void(Result, const GetLastMessageIdResponse&)> BrokerGetLastMessageIdCallback;
 
 enum ConsumerTopicType
 {
