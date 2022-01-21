@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "docusaurus": "docusaurus",
-    "start": "NODE_OPTIONS=--max_old_space_size=20480 docusaurus start",
-    "build": "docusaurus build",
+    "start": "NODE_OPTIONS=--max_old_space_size=8192 docusaurus start",
+    "build": "NODE_OPTIONS=--max_old_space_size=8192 docusaurus build",
     "preview": "npm run build && git checkout . && sh scripts/docker.sh",
     "swizzle": "docusaurus swizzle",
     "deploy": "docusaurus deploy",

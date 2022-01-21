@@ -44,7 +44,7 @@ PULSAR_SITE_TMP=/tmp/pulsar-site
 
   git clone "https://$GH_TOKEN@$ORIGIN_REPO" .
   git config user.name "Pulsar Site Updater"
-  git config user.email "dev@pulsar.incubator.apache.org"
+  git config user.email "dev@pulsar.apache.org"
   git checkout $BRANCH_CONTENT
 
   # copy the apache generated dir
