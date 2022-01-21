@@ -8,6 +8,7 @@ Pulsar offers several command-line tools that you can use for managing Pulsar in
 
 All Pulsar command-line tools can be run from the `bin` directory of your [installed Pulsar package](getting-started-standalone.md). The following tools are currently documented:
 
+* [`pulsar-admin`](#pulsar-admin)
 * [`pulsar`](#pulsar)
 * [`pulsar-client`](#pulsar-client)
 * [`pulsar-daemon`](#pulsar-daemon)
@@ -17,13 +18,33 @@ All Pulsar command-line tools can be run from the `bin` directory of your [insta
 
 > **Important** 
 >
-> - This page only shows **some frequently used commands**. For the latest information about `pulsar`, `pulsar-client`, and `pulsar-perf`, including commands, flags, descriptions, and more information, see [Pulsar tools](https://pulsar.apache.org/tools/).
+> - This page only shows **some frequently used commands**. For the latest information about `pulsar-admin`, `pulsar`, `pulsar-client`, `pulsar-perf`, and more, including commands, flags, descriptions, and more information, see [Pulsar tools](https://pulsar.apache.org/tools/).
 >  
 > - You can get help for any CLI tool, command, or subcommand using the `--help` flag, or `-h` for short. Here's an example:
 > 
 > ```shell
 > $ bin/pulsar broker --help
 > ```
+
+## `pulsar-admin`
+
+The `pulsar-admin` tool enables you to manage Pulsar entities, such as clusters, brokers, namespaces, tenants, and more. `pulsar-admin` uses the `conf/client.conf` file.
+
+### Usage
+
+```bash
+pulsar-admin bookies [command] [command options]
+```
+### Commands
+
+Below are commands for `pulsar-admin bookies`.
+#### set-bookie-rack
+
+Options
+
+|Flag|Description|Default|
+|---|---|---|
+`-r, --rack`|Bookie rack name. <br /><br />If you set a bookie rack name to slash (`/`) or an empty string (`""`): <li>If you use Pulsar earlier than 2.7.5, 2.8.3, and 2.9.2, an exception is thrown.</li> <li>If you use Pulsar later than 2.7.5, 2.8.3, and 2.9.2, it falls back to `/default-rack` or `/default-region/default-rack`.</li> 
 
 ## `pulsar`
 
