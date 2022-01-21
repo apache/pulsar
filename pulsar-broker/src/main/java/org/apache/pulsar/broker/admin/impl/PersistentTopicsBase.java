@@ -562,7 +562,7 @@ public class PersistentTopicsBase extends AdminResource {
                                                   boolean force, boolean deleteSchema) {
         CompletableFuture<PartitionedTopicMetadata> partitionedTopicMetadataCompletableFuture =
                 validateNamespaceOperationAsync(topicName.getNamespaceObject(), NamespaceOperation.DELETE_TOPIC)
-                .thenAccept(__ -> validateTopicOwnershipAsync(topicName, authoritative))
+                .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
                 .thenCompose(__ -> pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName));
         final CompletableFuture<Void> future = new CompletableFuture<>();
         partitionedTopicMetadataCompletableFuture.thenAccept(partitionMeta -> {
