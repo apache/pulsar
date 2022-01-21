@@ -112,8 +112,8 @@ public class JsonConverter {
                     throw new UnsupportedOperationException("Unknown AVRO schema type=" + schema.getType());
             }
         } catch (ClassCastException error) {
-            throw new IllegalArgumentException("Error while converting a value of type " + value.getClass() + " to a " + schema.getType()
-                    + ": " + error, error);
+            throw new IllegalArgumentException("Error while converting a value of type "
+                    + value.getClass() + " to a " + schema.getType() + ": " + error, error);
         }
     }
 
@@ -123,10 +123,12 @@ public class JsonConverter {
 
     private static void checkTypeAndNotNull(Object value, String name, Class expected) {
         if (value == null) {
-            throw new IllegalArgumentException("Invalid type for " + name + ", expected " + expected.getName() + " but was NULL");
+            throw new IllegalArgumentException("Invalid type for " + name
+                    + ", expected " + expected.getName() + " but was NULL");
         }
         if (!expected.isInstance(value)) {
-            throw new IllegalArgumentException("Invalid type for " + name + ", expected " + expected.getName() + " but was " + value.getClass());
+            throw new IllegalArgumentException("Invalid type for " + name
+                    + ", expected " + expected.getName() + " but was " + value.getClass());
         }
     }
 
