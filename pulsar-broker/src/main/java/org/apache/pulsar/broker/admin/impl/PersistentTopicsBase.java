@@ -3552,14 +3552,7 @@ public class PersistentTopicsBase extends AdminResource {
         future.thenAccept(__ -> {
             // If the topic name is a partition name, no need to get partition topic metadata again
             if (topicName.isPartitioned()) {
-                try {
-                    internalTriggerCompactionNonPartitionedTopic(authoritative);
-                } catch (Exception e) {
-                    log.error("[{}] Failed to trigger compaction on topic {}", clientAppId(), topicName, e);
-                    resumeAsyncResponseExceptionally(asyncResponse, e);
-                    return;
-                }
-                asyncResponse.resume(Response.noContent().build());
+                internalTriggerCompactionNonPartitionedTopic(asyncResponse, authoritative);
             } else {
                 getPartitionedTopicMetadataAsync(topicName, authoritative, false).thenAccept(partitionMetadata -> {
                     final int numPartitions = partitionMetadata.partitions;
@@ -3601,22 +3594,7 @@ public class PersistentTopicsBase extends AdminResource {
                             return null;
                         });
                     } else {
-                        try {
-                            internalTriggerCompactionNonPartitionedTopic(authoritative);
-                        } catch (Exception e) {
-                            if (e instanceof WebApplicationException) {
-                                if (log.isDebugEnabled()) {
-                                    log.debug("[{}] Failed to trigger compaction on topic {}, "
-                                            + "redirecting to other brokers.", clientAppId(), topicName, e);
-                                }
-                                resumeAsyncResponseExceptionally(asyncResponse, e);
-                                return;
-                            }
-                            log.error("[{}] Failed to trigger compaction on topic {}", clientAppId(), topicName, e);
-                            resumeAsyncResponseExceptionally(asyncResponse, e);
-                            return;
-                        }
-                        asyncResponse.resume(Response.noContent().build());
+                        internalTriggerCompactionNonPartitionedTopic(asyncResponse, authoritative);
                     }
                 }).exceptionally(ex -> {
                     Throwable cause = ex.getCause();
@@ -3629,19 +3607,40 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
-    protected void internalTriggerCompactionNonPartitionedTopic(boolean authoritative) {
-        validateTopicOwnership(topicName, authoritative);
-        validateTopicOperation(topicName, TopicOperation.COMPACT);
-
-        PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
-        try {
-            topic.triggerCompaction();
-        } catch (AlreadyRunningException e) {
-            throw new RestException(Status.CONFLICT, e.getMessage());
-        } catch (Exception e) {
-            log.error("[{}] Failed to trigger compaction on topic {}", clientAppId(), topicName, e);
-            throw new RestException(e);
-        }
+    protected void internalTriggerCompactionNonPartitionedTopic(AsyncResponse asyncResponse, boolean authoritative) {
+        validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.COMPACT))
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                .thenAccept(topic -> {
+                    try {
+                        ((PersistentTopic) topic).triggerCompaction();
+                        asyncResponse.resume(Response.noContent().build());
+                    } catch (AlreadyRunningException e) {
+                        resumeAsyncResponseExceptionally(asyncResponse,
+                                new RestException(Status.CONFLICT, e.getMessage()));
+                        return;
+                    } catch (Exception e) {
+                        log.error("[{}] Failed to trigger compaction on topic {}", clientAppId(),
+                                topicName, e);
+                        resumeAsyncResponseExceptionally(asyncResponse, new RestException(new RestException(e)));
+                        return;
+                    }
+                }).exceptionally(ex -> {
+                    Throwable cause = ex.getCause();
+                    if (cause instanceof WebApplicationException
+                            && ((WebApplicationException) cause).getResponse().getStatus()
+                            == Status.TEMPORARY_REDIRECT.getStatusCode()) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Failed to trigger compaction on non-partitioned topic {},"
+                                    + " redirecting to other brokers.", clientAppId(), topicName, cause);
+                        }
+                    } else {
+                        log.error("[{}] Failed to trigger compaction for {}", clientAppId(), topicName, cause);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, cause);
+                    return null;
+                }
+        );
     }
 
     protected LongRunningProcessStatus internalCompactionStatus(boolean authoritative) {
