@@ -294,6 +294,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             validatePoliciesReadOnlyAccess();
         } catch (Exception e) {
             result.completeExceptionally(e);
+            return result;
         }
 
         final String policiesPath = String.format("/%s/%s/%s", "admin", POLICIES, namespaceName.toString());
