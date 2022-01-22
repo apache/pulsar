@@ -1433,8 +1433,9 @@ public class PersistentTopicsBase extends AdminResource {
                 return null;
             });
         }).exceptionally(ex -> {
-            log.error("[{}] Failed to get partitioned internal stats for {}", clientAppId(), topicName, ex);
-            resumeAsyncResponseExceptionally(asyncResponse, ex);
+            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+            log.error("[{}] Failed to get partitioned internal stats for {}", clientAppId(), topicName, cause);
+            resumeAsyncResponseExceptionally(asyncResponse, cause);
             return null;
         });
     }
