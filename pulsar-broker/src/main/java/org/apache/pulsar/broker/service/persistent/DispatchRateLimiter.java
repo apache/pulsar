@@ -177,10 +177,10 @@ public class DispatchRateLimiter {
                 }
                 updateDispatchRate(dispatchRateOp.get());
                 if (type == Type.BROKER) {
-                  log.info("configured broker message-dispatch rate {}", dispatchRate.get());
+                  log.info("configured broker message-dispatch rate {}", dispatchRateOp.get());
                 } else {
                   log.info("[{}] configured {} message-dispatch rate at broker {}",
-                          this.topicName, type, dispatchRate.get());
+                          this.topicName, type, dispatchRateOp.get());
                 }
             }).exceptionally(ex -> {
                 log.error("[{}] failed to get the dispatch rate policy from the namespace resource for type {}",
