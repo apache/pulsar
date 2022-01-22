@@ -1651,118 +1651,125 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalSkipAllMessages(AsyncResponse asyncResponse, String subName, boolean authoritative) {
+        CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
-            try {
-                validateGlobalNamespaceOwnership(namespaceName);
-            } catch (Exception e) {
-                log.error("[{}] Failed to skip all messages for subscription {} on topic {}",
-                        clientAppId(), subName, topicName, e);
-                resumeAsyncResponseExceptionally(asyncResponse, e);
-                return;
-            }
+            future = validateGlobalNamespaceOwnershipAsync(namespaceName);
+        } else {
+            future = CompletableFuture.completedFuture(null);
         }
 
-        validateTopicOwnership(topicName, authoritative);
-        validateTopicOperation(topicName, TopicOperation.SKIP, subName);
-
-        // If the topic name is a partition name, no need to get partition topic metadata again
-        if (topicName.isPartitioned()) {
-            internalSkipAllMessagesForNonPartitionedTopic(asyncResponse, subName, authoritative);
-        } else {
-            getPartitionedTopicMetadataAsync(topicName,
-                    authoritative, false).thenAccept(partitionMetadata -> {
-                if (partitionMetadata.partitions > 0) {
-                    final List<CompletableFuture<Void>> futures = Lists.newArrayList();
-
-                    for (int i = 0; i < partitionMetadata.partitions; i++) {
-                        TopicName topicNamePartition = topicName.getPartition(i);
-                        try {
-                            futures.add(pulsar()
-                                    .getAdminClient()
-                                    .topics()
-                                    .skipAllMessagesAsync(topicNamePartition.toString(),
-                                            subName));
-                        } catch (Exception e) {
-                            log.error("[{}] Failed to skip all messages {} {}",
-                                    clientAppId(), topicNamePartition, subName, e);
-                            asyncResponse.resume(new RestException(e));
-                            return;
-                        }
-                    }
-
-                    FutureUtil.waitForAll(futures).handle((result, exception) -> {
-                        if (exception != null) {
-                            Throwable t = exception.getCause();
-                            if (t instanceof NotFoundException) {
-                                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Subscription not found"));
-                                return null;
-                            } else {
-                                log.error("[{}] Failed to skip all messages {} {}",
-                                        clientAppId(), topicName, subName, t);
-                                asyncResponse.resume(new RestException(t));
-                                return null;
-                            }
-                        }
-
-                        asyncResponse.resume(Response.noContent().build());
-                        return null;
-                    });
+        future.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
+            .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.SKIP, subName))
+            .thenCompose(__ -> {
+                // If the topic name is a partition name, no need to get partition topic metadata again
+                if (topicName.isPartitioned()) {
+                    return internalSkipAllMessagesForNonPartitionedTopicAsync(asyncResponse, subName, authoritative);
                 } else {
-                    internalSkipAllMessagesForNonPartitionedTopic(asyncResponse, subName, authoritative);
+                    return getPartitionedTopicMetadataAsync(topicName,
+                        authoritative, false).thenCompose(partitionMetadata -> {
+                        if (partitionMetadata.partitions > 0) {
+                            final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+
+                            for (int i = 0; i < partitionMetadata.partitions; i++) {
+                                TopicName topicNamePartition = topicName.getPartition(i);
+                                try {
+                                    futures.add(pulsar()
+                                        .getAdminClient()
+                                        .topics()
+                                        .skipAllMessagesAsync(topicNamePartition.toString(),
+                                            subName));
+                                } catch (Exception e) {
+                                    log.error("[{}] Failed to skip all messages {} {}",
+                                        clientAppId(), topicNamePartition, subName, e);
+                                    asyncResponse.resume(new RestException(e));
+                                    return CompletableFuture.completedFuture(null);
+                                }
+                            }
+
+                            return FutureUtil.waitForAll(futures).handle((result, exception) -> {
+                                if (exception != null) {
+                                    Throwable t = exception.getCause();
+                                    if (t instanceof NotFoundException) {
+                                        asyncResponse.resume(
+                                            new RestException(Status.NOT_FOUND, "Subscription not found"));
+                                    } else {
+                                        log.error("[{}] Failed to skip all messages {} {}",
+                                            clientAppId(), topicName, subName, t);
+                                        asyncResponse.resume(new RestException(t));
+                                    }
+                                    return null;
+                                }
+                                asyncResponse.resume(Response.noContent().build());
+                                return null;
+                            });
+                        } else {
+                            return internalSkipAllMessagesForNonPartitionedTopicAsync(asyncResponse, subName,
+                                authoritative);
+                        }
+                    });
                 }
             }).exceptionally(ex -> {
+                Throwable cause = FutureUtil.unwrapCompletionException(ex);
                 log.error("[{}] Failed to skip all messages for subscription {} on topic {}",
-                        clientAppId(), subName, topicName, ex);
-                resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    clientAppId(), subName, topicName, cause);
+                resumeAsyncResponseExceptionally(asyncResponse, cause);
                 return null;
             });
-        }
     }
 
-    private void internalSkipAllMessagesForNonPartitionedTopic(AsyncResponse asyncResponse,
-                                                               String subName, boolean authoritative) {
-        try {
-            validateTopicOwnership(topicName, authoritative);
-            validateTopicOperation(topicName, TopicOperation.SKIP, subName);
-
-            PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
-            BiConsumer<Void, Throwable> biConsumer = (v, ex) -> {
-                if (ex != null) {
-                    asyncResponse.resume(new RestException(ex));
-                    log.error("[{}] Failed to skip all messages {} {}", clientAppId(), topicName, subName, ex);
-                } else {
-                    asyncResponse.resume(Response.noContent().build());
-                    log.info("[{}] Cleared backlog on {} {}", clientAppId(), topicName, subName);
-                }
-            };
-            if (subName.startsWith(topic.getReplicatorPrefix())) {
-                String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
-                PersistentReplicator repl = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
-                if (repl == null) {
-                    asyncResponse.resume(new RestException(Status.NOT_FOUND, "Subscription not found"));
-                    return;
-                }
-                repl.clearBacklog().whenComplete(biConsumer);
-            } else {
-                PersistentSubscription sub = topic.getSubscription(subName);
-                if (sub == null) {
-                    asyncResponse.resume(new RestException(Status.NOT_FOUND, "Subscription not found"));
-                    return;
-                }
-                sub.clearBacklog().whenComplete(biConsumer);
-            }
-        } catch (WebApplicationException wae) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Failed to skip all messages for subscription on topic {},"
-                                + " redirecting to other brokers.",
-                        clientAppId(), topicName, wae);
-            }
-            resumeAsyncResponseExceptionally(asyncResponse, wae);
-        } catch (Exception e) {
-            log.error("[{}] Failed to skip all messages for subscription {} on topic {}",
-                    clientAppId(), subName, topicName, e);
-            resumeAsyncResponseExceptionally(asyncResponse, e);
-        }
+    private CompletableFuture<Void> internalSkipAllMessagesForNonPartitionedTopicAsync(AsyncResponse asyncResponse,
+                                                                                       String subName,
+                                                                                       boolean authoritative) {
+        return validateTopicOwnershipAsync(topicName, authoritative)
+            .thenCompose(__ ->
+                validateTopicOperationAsync(topicName, TopicOperation.SKIP, subName))
+            .thenCompose(__ ->
+                getTopicReferenceAsync(topicName).thenCompose(t -> {
+                    PersistentTopic topic = (PersistentTopic) t;
+                    BiConsumer<Void, Throwable> biConsumer = (v, ex) -> {
+                        if (ex != null) {
+                            asyncResponse.resume(new RestException(ex));
+                            log.error("[{}] Failed to skip all messages {} {}",
+                                clientAppId(), topicName, subName, ex);
+                        } else {
+                            asyncResponse.resume(Response.noContent().build());
+                            log.info("[{}] Cleared backlog on {} {}", clientAppId(), topicName, subName);
+                        }
+                    };
+                    if (subName.startsWith(topic.getReplicatorPrefix())) {
+                        String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
+                        PersistentReplicator repl =
+                            (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
+                        if (repl == null) {
+                            asyncResponse.resume(new RestException(Status.NOT_FOUND, "Subscription not found"));
+                            return CompletableFuture.completedFuture(null);
+                        }
+                        return repl.clearBacklog().whenComplete(biConsumer);
+                    } else {
+                        PersistentSubscription sub = topic.getSubscription(subName);
+                        if (sub == null) {
+                            asyncResponse.resume(new RestException(Status.NOT_FOUND, "Subscription not found"));
+                            return CompletableFuture.completedFuture(null);
+                        }
+                        return sub.clearBacklog().whenComplete(biConsumer);
+                    }
+                })
+                .exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof WebApplicationException) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Failed to skip all messages for subscription on topic {},"
+                                    + " redirecting to other brokers.",
+                                clientAppId(), topicName, cause);
+                        }
+                        resumeAsyncResponseExceptionally(asyncResponse, cause);
+                    } else {
+                        log.error("[{}] Failed to skip all messages for subscription {} on topic {}",
+                            clientAppId(), subName, topicName, cause);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, cause);
+                    return null;
+                }));
     }
 
     protected void internalSkipMessages(String subName, int numMessages, boolean authoritative) {
