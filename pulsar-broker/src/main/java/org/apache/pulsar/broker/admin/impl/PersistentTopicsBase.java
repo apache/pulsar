@@ -3271,8 +3271,7 @@ public class PersistentTopicsBase extends AdminResource {
             future = CompletableFuture.completedFuture(null);
         }
 
-        future.thenAccept(__ -> validateTopicOwnershipAsync(topicName, authoritative)
-                .thenCompose(unused -> validateTopicOperationAsync(topicName, TopicOperation.TERMINATE))
+        future.thenAccept(__ -> validateTopicOperationAsync(topicName, TopicOperation.TERMINATE)
                 .thenCompose(unused -> getPartitionedTopicMetadataAsync(topicName, authoritative, false))
                 .thenAccept(partitionMetadata -> {
                     if (partitionMetadata.partitions == 0) {
@@ -3280,50 +3279,49 @@ public class PersistentTopicsBase extends AdminResource {
                                 + ", please use terminate commands";
                         log.error("[{}] [{}] {}", clientAppId(), topicName, msg);
                         asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED, msg));
+                        return;
                     }
                     if (partitionMetadata.partitions > 0) {
-                        Map<Integer, MessageId> messageIds = new ConcurrentHashMap<>(partitionMetadata.partitions);
-                        final List<CompletableFuture<MessageId>> futures =
-                                Lists.newArrayListWithCapacity(partitionMetadata.partitions);
+                        validateTopicOwnershipAsync(topicName, authoritative).thenAccept(unused -> {
+                            Map<Integer, MessageId> messageIds = new ConcurrentHashMap<>(partitionMetadata.partitions);
+                            final List<CompletableFuture<MessageId>> futures =
+                                    Lists.newArrayListWithCapacity(partitionMetadata.partitions);
 
-                        for (int i = 0; i < partitionMetadata.partitions; i++) {
-                            TopicName topicNamePartition = topicName.getPartition(i);
-                            try {
-                                int finalI = i;
-                                futures.add(pulsar().getAdminClient().topics()
-                                        .terminateTopicAsync(topicNamePartition.toString())
-                                        .whenComplete((messageId, throwable) -> {
-                                            if (throwable != null) {
-                                                log.error("[{}] Failed to terminate topic {}", clientAppId(),
-                                                        topicNamePartition, throwable);
-                                                asyncResponse.resume(new RestException(throwable));
-                                            }
-                                            messageIds.put(finalI, messageId);
-                                        }));
-                            } catch (Exception e) {
-                                log.error("[{}] Failed to terminate topic {}", clientAppId(), topicNamePartition, e);
-                                throw new RestException(e);
-                            }
-                        }
-                        FutureUtil.waitForAll(futures).handle((result, exception) -> {
-                            if (exception != null) {
-                                Throwable t = exception.getCause();
-                                if (t instanceof NotFoundException) {
-                                    asyncResponse.resume(new RestException(Status.NOT_FOUND, "Topic not found"));
-                                } else {
-                                    log.error("[{}] Failed to terminate topic {}", clientAppId(), topicName, t);
-                                    asyncResponse.resume(new RestException(t));
+                            for (int i = 0; i < partitionMetadata.partitions; i++) {
+                                TopicName topicNamePartition = topicName.getPartition(i);
+                                try {
+                                    int finalI = i;
+                                    futures.add(pulsar().getAdminClient().topics()
+                                            .terminateTopicAsync(topicNamePartition.toString())
+                                            .whenComplete((messageId, throwable) -> {
+                                                if (throwable != null) {
+                                                    log.error("[{}] Failed to terminate topic {}", clientAppId(),
+                                                            topicNamePartition, throwable);
+                                                    asyncResponse.resume(new RestException(throwable));
+                                                }
+                                                messageIds.put(finalI, messageId);
+                                            }));
+                                } catch (Exception e) {
+                                    log.error("[{}] Failed to terminate topic {}", clientAppId(), topicNamePartition,
+                                            e);
+                                    throw new RestException(e);
                                 }
                             }
-                            asyncResponse.resume(messageIds);
-                            return null;
+                            FutureUtil.waitForAll(futures).handle((result, exception) -> {
+                                if (exception != null) {
+                                    Throwable t = exception.getCause();
+                                    if (t instanceof NotFoundException) {
+                                        asyncResponse.resume(new RestException(Status.NOT_FOUND, "Topic not found"));
+                                    } else {
+                                        log.error("[{}] Failed to terminate topic {}", clientAppId(), topicName, t);
+                                        asyncResponse.resume(new RestException(t));
+                                    }
+                                }
+                                asyncResponse.resume(messageIds);
+                                return null;
+                            });
                         });
                     }
-                }).exceptionally(e -> {
-                    Throwable cause = e.getCause();
-                    log.error("[{}] Failed to terminate topic {}", clientAppId(), topicName, cause);
-                    resumeAsyncResponseExceptionally(asyncResponse, cause);
-                    return null;
                 })
         ).exceptionally(e -> {
             Throwable cause = e.getCause();
