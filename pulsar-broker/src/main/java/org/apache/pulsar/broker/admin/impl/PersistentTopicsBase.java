@@ -3431,8 +3431,8 @@ public class PersistentTopicsBase extends AdminResource {
             log.error("[{}] {} {} {}", clientAppId(), msg, topicName, subName);
             return FutureUtil.failedFuture(new IllegalStateException(msg));
         } else {
-            return validateTopicOwnershipAsync(topicName, authoritative)
-                    .thenCompose(unused -> validateTopicOperationAsync(topicName, TopicOperation.EXPIRE_MESSAGES))
+            return validateTopicOperationAsync(topicName, TopicOperation.EXPIRE_MESSAGES)
+                    .thenCompose(unused -> validateTopicOwnershipAsync(topicName, authoritative))
                     .thenAccept(unused -> getTopicReferenceAsync(topicName).thenAccept(t -> {
                         if (t == null) {
                             throw new RestException(Status.NOT_FOUND, "Topic not found");
