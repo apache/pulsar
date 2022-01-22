@@ -3407,61 +3407,19 @@ public class PersistentTopicsBase extends AdminResource {
 
     }
 
+    // this method used in internalExpireMessagesForAllSubscriptionsForNonPartitionedTopic,
     private void internalExpireMessagesByTimestampForSinglePartition(String subName, int expireTimeInSeconds,
             boolean authoritative) {
-        if (topicName.isGlobal()) {
-            validateGlobalNamespaceOwnership(namespaceName);
-        }
-        // If the topic name is a partition name, no need to get partition topic metadata again
-        if (!topicName.isPartitioned() && getPartitionedTopicMetadata(topicName, authoritative, false).partitions > 0) {
-            String msg = "This method should not be called for partitioned topic";
-            log.error("[{}] {} {} {}", clientAppId(), msg, topicName, subName);
-            throw new IllegalStateException(msg);
-        }
-
-        validateTopicOwnership(topicName, authoritative);
-        validateTopicOperation(topicName, TopicOperation.EXPIRE_MESSAGES);
-
-        if (!(getTopicReference(topicName) instanceof PersistentTopic)) {
-            log.error("[{}] Not supported operation of non-persistent topic {} {}", clientAppId(), topicName, subName);
-            throw new RestException(Status.METHOD_NOT_ALLOWED,
-                    "Expire messages on a non-persistent topic is not allowed");
-        }
-
-        PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
         try {
-            boolean issued;
-            if (subName.startsWith(topic.getReplicatorPrefix())) {
-                String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
-                PersistentReplicator repl = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
-                checkNotNull(repl);
-                issued = repl.expireMessages(expireTimeInSeconds);
+            internalExpireMessagesByTimestampForSinglePartitionAsync(partitionMetadata, subName, expireTimeInSeconds,
+                    authoritative).join();
+        } catch (CompletionException ce) {
+            if (ce.getCause() instanceof WebApplicationException) {
+                throw (WebApplicationException) ce.getCause();
             } else {
-                PersistentSubscription sub = topic.getSubscription(subName);
-                checkNotNull(sub);
-                issued = sub.expireMessages(expireTimeInSeconds);
+                throw new RestException(ce.getCause());
             }
-            if (issued) {
-                log.info("[{}] Message expire started up to {} on {} {}", clientAppId(), expireTimeInSeconds, topicName,
-                        subName);
-            } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("Expire message by timestamp not issued on topic {} for subscription {} due to ongoing "
-                            + "message expiration not finished or subscription almost catch up. If it's performed on "
-                            + "a partitioned topic operation might succeeded on other partitions, please check "
-                            + "stats of individual partition.", topicName, subName);
-                }
-                throw new RestException(Status.CONFLICT, "Expire message by timestamp not issued on topic "
-                + topicName + " for subscription " + subName + " due to ongoing message expiration not finished or "
-                + " subscription almost catch up. If it's performed on a partitioned topic operation might succeeded "
-                + "on other partitions, please check stats of individual partition.");
-            }
-        } catch (NullPointerException npe) {
-            throw new RestException(Status.NOT_FOUND, "Subscription not found");
-        } catch (Exception exception) {
-            log.error("[{}] Failed to expire messages up to {} on {} with subscription {} {}", clientAppId(),
-                    expireTimeInSeconds, topicName, subName, exception);
-            throw new RestException(exception);
         }
     }
 
