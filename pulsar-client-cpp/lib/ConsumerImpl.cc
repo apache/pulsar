@@ -63,7 +63,9 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
       negativeAcksTracker_(client, *this, conf),
       ackGroupingTrackerPtr_(std::make_shared<AckGroupingTracker>()),
       readCompacted_(conf.isReadCompacted()),
-      lastMessageInBroker_(Optional<MessageId>::of(MessageId())) {
+      lastMessageInBroker_(Optional<MessageId>::of(MessageId())),
+      maxPendingChunkedMessage_(conf.getMaxPendingChunkedMessage()),
+      autoAckOldestChunkedMessageOnQueueFull_(conf.isAutoOldestChunkedMessageOnQueueFull()) {
     std::stringstream consumerStrStream;
     consumerStrStream << "[" << topic_ << ", " << subscription_ << ", " << consumerId_ << "] ";
     consumerStr_ = consumerStrStream.str();
@@ -308,6 +310,80 @@ void ConsumerImpl::handleUnsubscribe(Result result, ResultCallback callback) {
     callback(result);
 }
 
+Optional<SharedBuffer> ConsumerImpl::processMessageChunk(const SharedBuffer& payload,
+                                                         const proto::MessageMetadata& metadata,
+                                                         const MessageId& messageId,
+                                                         const proto::MessageIdData& messageIdData,
+                                                         const ClientConnectionPtr& cnx) {
+    const auto chunkId = metadata.chunk_id();
+    const auto uuid = metadata.uuid();
+    LOG_DEBUG("Process message chunk (chunkId: " << chunkId << ", uuid: " << uuid
+                                                 << ", messageId: " << messageId << ") of "
+                                                 << payload.readableBytes() << " bytes");
+
+    Lock lock(chunkProcessMutex_);
+    auto it = chunkedMessageCache_.find(uuid);
+
+    if (chunkId == 0) {
+        if (it == chunkedMessageCache_.end()) {
+            it = chunkedMessageCache_.putIfAbsent(
+                uuid, ChunkedMessageCtx{metadata.num_chunks_from_msg(), metadata.total_chunk_msg_size()});
+        }
+        if (maxPendingChunkedMessage_ > 0 && chunkedMessageCache_.size() >= maxPendingChunkedMessage_) {
+            chunkedMessageCache_.removeOldestValues(
+                chunkedMessageCache_.size() - maxPendingChunkedMessage_ + 1,
+                [this, messageId](const std::string& uuid, const ChunkedMessageCtx& ctx) {
+                    if (autoAckOldestChunkedMessageOnQueueFull_) {
+                        doAcknowledgeIndividual(messageId, [uuid, messageId](Result result) {
+                            if (result != ResultOk) {
+                                LOG_WARN("Failed to acknowledge discarded chunk, uuid: "
+                                         << uuid << ", messageId: " << messageId);
+                            }
+                        });
+                    } else {
+                        trackMessage(messageId);
+                    }
+                });
+            it = chunkedMessageCache_.putIfAbsent(
+                uuid, ChunkedMessageCtx{metadata.num_chunks_from_msg(), metadata.total_chunk_msg_size()});
+        }
+    }
+
+    auto& chunkedMsgCtx = it->second;
+    if (it == chunkedMessageCache_.end() || !chunkedMsgCtx.validateChunkId(chunkId)) {
+        if (it == chunkedMessageCache_.end()) {
+            LOG_ERROR("Received an uncached chunk (uuid: " << uuid << " chunkId: " << chunkId
+                                                           << ", messageId: " << messageId << ")");
+        } else {
+            LOG_ERROR("Received a chunk whose chunk id is invalid (uuid: "
+                      << uuid << " chunkId: " << chunkId << ", messageId: " << messageId << ")");
+            chunkedMessageCache_.remove(uuid);
+        }
+        lock.unlock();
+        increaseAvailablePermits(cnx);
+        trackMessage(messageId);
+        return Optional<SharedBuffer>::empty();
+    }
+
+    chunkedMsgCtx.appendChunk(messageId, payload);
+    if (!chunkedMsgCtx.isCompleted()) {
+        lock.unlock();
+        increaseAvailablePermits(cnx);
+        return Optional<SharedBuffer>::empty();
+    }
+
+    LOG_DEBUG("Chunked message completed chunkId: " << chunkId << ", ChunkedMessageCtx: " << chunkedMsgCtx
+                                                    << ", sequenceId: " << metadata.sequence_id());
+
+    auto wholePayload = chunkedMsgCtx.getBuffer();
+    chunkedMessageCache_.remove(uuid);
+    if (uncompressMessageIfNeeded(cnx, messageIdData, metadata, wholePayload, false)) {
+        return Optional<SharedBuffer>::of(wholePayload);
+    } else {
+        return Optional<SharedBuffer>::empty();
+    }
+}
+
 void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::CommandMessage& msg,
                                    bool& isChecksumValid, proto::MessageMetadata& metadata,
                                    SharedBuffer& payload) {
@@ -318,15 +394,37 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
         return;
     }
 
-    if (!uncompressMessageIfNeeded(cnx, msg, metadata, payload)) {
-        // Message was discarded on decompression error
-        return;
-    }
-
     if (!isChecksumValid) {
         // Message discarded for checksum error
         discardCorruptedMessage(cnx, msg.message_id(), proto::CommandAck::ChecksumMismatch);
         return;
+    }
+
+    const bool isMessageDecryptable =
+        metadata.encryption_keys_size() <= 0 || config_.getCryptoKeyReader().get() ||
+        config_.getCryptoFailureAction() == ConsumerCryptoFailureAction::CONSUME;
+
+    const bool isChunkedMessage = metadata.num_chunks_from_msg() > 1 &&
+                                  config_.getConsumerType() != ConsumerType::ConsumerShared &&
+                                  config_.getConsumerType() != ConsumerType::ConsumerKeyShared;
+    if (isMessageDecryptable && !isChunkedMessage) {
+        if (!uncompressMessageIfNeeded(cnx, msg.message_id(), metadata, payload, true)) {
+            // Message was discarded on decompression error
+            return;
+        }
+    }
+
+    // Only a non-batched messages can be a chunk
+    if (!metadata.has_num_messages_in_batch() && isChunkedMessage) {
+        const auto& messageIdData = msg.message_id();
+        MessageId messageId(messageIdData.partition(), messageIdData.ledgerid(), messageIdData.entryid(),
+                            messageIdData.batch_index());
+        auto optionalPayload = processMessageChunk(payload, metadata, messageId, messageIdData, cnx);
+        if (optionalPayload.is_present()) {
+            payload = optionalPayload.value();
+        } else {
+            return;
+        }
     }
 
     Message m(msg, metadata, payload, partitionIndex_);
@@ -528,8 +626,10 @@ bool ConsumerImpl::decryptMessageIfNeeded(const ClientConnectionPtr& cnx, const 
     return false;
 }
 
-bool ConsumerImpl::uncompressMessageIfNeeded(const ClientConnectionPtr& cnx, const proto::CommandMessage& msg,
-                                             const proto::MessageMetadata& metadata, SharedBuffer& payload) {
+bool ConsumerImpl::uncompressMessageIfNeeded(const ClientConnectionPtr& cnx,
+                                             const proto::MessageIdData& messageIdData,
+                                             const proto::MessageMetadata& metadata, SharedBuffer& payload,
+                                             bool checkMaxMessageSize) {
     if (!metadata.has_compression()) {
         return true;
     }
@@ -539,12 +639,11 @@ bool ConsumerImpl::uncompressMessageIfNeeded(const ClientConnectionPtr& cnx, con
     uint32_t uncompressedSize = metadata.uncompressed_size();
     uint32_t payloadSize = payload.readableBytes();
     if (cnx) {
-        if (payloadSize > ClientConnection::getMaxMessageSize()) {
+        if (checkMaxMessageSize && payloadSize > ClientConnection::getMaxMessageSize()) {
             // Uncompressed size is itself corrupted since it cannot be bigger than the MaxMessageSize
             LOG_ERROR(getName() << "Got corrupted payload message size " << payloadSize  //
-                                << " at  " << msg.message_id().ledgerid() << ":"
-                                << msg.message_id().entryid());
-            discardCorruptedMessage(cnx, msg.message_id(), proto::CommandAck::UncompressedSizeCorruption);
+                                << " at  " << messageIdData.ledgerid() << ":" << messageIdData.entryid());
+            discardCorruptedMessage(cnx, messageIdData, proto::CommandAck::UncompressedSizeCorruption);
             return false;
         }
     } else {
@@ -554,8 +653,8 @@ bool ConsumerImpl::uncompressMessageIfNeeded(const ClientConnectionPtr& cnx, con
 
     if (!CompressionCodecProvider::getCodec(compressionType).decode(payload, uncompressedSize, payload)) {
         LOG_ERROR(getName() << "Failed to decompress message with " << uncompressedSize  //
-                            << " at  " << msg.message_id().ledgerid() << ":" << msg.message_id().entryid());
-        discardCorruptedMessage(cnx, msg.message_id(), proto::CommandAck::DecompressionError);
+                            << " at  " << messageIdData.ledgerid() << ":" << messageIdData.entryid());
+        discardCorruptedMessage(cnx, messageIdData, proto::CommandAck::DecompressionError);
         return false;
     }
 
@@ -584,7 +683,7 @@ void ConsumerImpl::internalListener() {
         // This will only happen when the connection got reset and we cleared the queue
         return;
     }
-    trackMessage(msg);
+    trackMessage(msg.getMessageId());
     try {
         consumerStatsBasePtr_->receivedMessage(msg, ResultOk);
         lastDequedMessage_ = Optional<MessageId>::of(msg.getMessageId());
@@ -732,7 +831,7 @@ void ConsumerImpl::messageProcessed(Message& msg, bool track) {
 
     increaseAvailablePermits(currentCnx);
     if (track) {
-        trackMessage(msg);
+        trackMessage(msg.getMessageId());
     }
 }
 
@@ -1240,11 +1339,11 @@ void ConsumerImpl::setNegativeAcknowledgeEnabledForTesting(bool enabled) {
     negativeAcksTracker_.setEnabledForTesting(enabled);
 }
 
-void ConsumerImpl::trackMessage(const Message& msg) {
+void ConsumerImpl::trackMessage(const MessageId& messageId) {
     if (hasParent_) {
-        unAckedMessageTrackerPtr_->remove(msg.getMessageId());
+        unAckedMessageTrackerPtr_->remove(messageId);
     } else {
-        unAckedMessageTrackerPtr_->add(msg.getMessageId());
+        unAckedMessageTrackerPtr_->add(messageId);
     }
 }
 
