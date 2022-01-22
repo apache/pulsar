@@ -270,9 +270,9 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "memoryLimitBytes",
-            value = "Limit of client memory usage (in byte)."
+            value = "Limit of client memory usage (in byte). The 64M default can guarantee a high producer throughput."
     )
-    private long memoryLimitBytes = 0;
+    private long memoryLimitBytes = 64 * 1024 * 1024;
 
     @ApiModelProperty(
             name = "proxyServiceUrl",
