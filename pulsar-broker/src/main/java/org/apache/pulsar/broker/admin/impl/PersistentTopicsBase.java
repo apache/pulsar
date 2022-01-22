@@ -3323,7 +3323,7 @@ public class PersistentTopicsBase extends AdminResource {
         } else {
             future = CompletableFuture.completedFuture(null);
         }
-        future.thenAccept(__ -> {
+        future.thenAccept(__ ->
             // If the topic name is a partition name, no need to get partition topic metadata again
             getPartitionedTopicMetadataAsync(topicName, authoritative, false)
                     .thenAccept(partitionMetadata -> {
@@ -3392,19 +3392,17 @@ public class PersistentTopicsBase extends AdminResource {
                         }
                     }).exceptionally(e -> {
                         Throwable cause = e.getCause();
-                        log.error("[{}] Failed to expire messages up to {} on {}", clientAppId(),
-                                expireTimeInSeconds, topicName, cause);
+                        log.error("[{}] Failed to expire messages up to {} on {}", clientAppId(), expireTimeInSeconds,
+                                topicName, cause);
+                        resumeAsyncResponseExceptionally(asyncResponse, cause);
+                        return null;
+                    })).exceptionally(e -> {
+                        Throwable cause = e.getCause();
+                        log.error("[{}] Failed to validate global namespace ownership to expire messages up to {} on {}"
+                                , clientAppId(), expireTimeInSeconds, topicName, cause);
                         resumeAsyncResponseExceptionally(asyncResponse, cause);
                         return null;
                     });
-        }).exceptionally(e -> {
-            Throwable cause = e.getCause();
-            log.error("[{}] Failed to validate global namespace ownership to expire messages up to {} on {}",
-                    clientAppId(), expireTimeInSeconds, topicName, cause);
-            resumeAsyncResponseExceptionally(asyncResponse, cause);
-            return null;
-        });
-
     }
 
     // this method used in internalExpireMessagesForAllSubscriptionsForNonPartitionedTopic,
@@ -3428,20 +3426,21 @@ public class PersistentTopicsBase extends AdminResource {
             boolean authoritative) {
         if (!topicName.isPartitioned() && partitionMetadata.partitions > 0) {
             String msg = "This method should not be called for partitioned topic";
-            log.error("[{}] {} {} {}", clientAppId(), msg, topicName, subName);
             return FutureUtil.failedFuture(new IllegalStateException(msg));
         } else {
-            return validateTopicOperationAsync(topicName, TopicOperation.EXPIRE_MESSAGES)
+            final CompletableFuture<Void> resultFuture = new CompletableFuture<>();
+            try {
+                validateTopicOperationAsync(topicName, TopicOperation.EXPIRE_MESSAGES)
                     .thenCompose(unused -> validateTopicOwnershipAsync(topicName, authoritative))
                     .thenAccept(unused -> getTopicReferenceAsync(topicName).thenAccept(t -> {
                         if (t == null) {
-                            throw new RestException(Status.NOT_FOUND, "Topic not found");
+                            resultFuture.completeExceptionally(new RestException(Status.NOT_FOUND, "Topic not found"));
+                            return;
                         }
                         if (!(t instanceof PersistentTopic)) {
-                            log.error("[{}] Not supported operation of non-persistent topic {} {}", clientAppId(),
-                                    topicName, subName);
-                            throw new RestException(Status.METHOD_NOT_ALLOWED,
-                                    "Expire messages on a non-persistent topic is not allowed");
+                            resultFuture.completeExceptionally(new RestException(Status.METHOD_NOT_ALLOWED,
+                                    "Expire messages on a non-persistent topic is not allowed"));
+                            return;
                         }
                         PersistentTopic topic = (PersistentTopic) t;
                         try {
@@ -3463,25 +3462,38 @@ public class PersistentTopicsBase extends AdminResource {
                             } else {
                                 if (log.isDebugEnabled()) {
                                     log.debug("Expire message by timestamp not issued on topic {} for subscription {} "
-                                              + "due to ongoing message expiration not finished or subscription almost"
-                                              + " catch up. If it's performed on a partitioned topic operation might "
-                                              + "succeeded on other partitions, please check stats of individual "
-                                              + "partition.", topicName, subName);
+                                            + "due to ongoing message expiration not finished or subscription almost"
+                                            + " catch up. If it's performed on a partitioned topic operation might "
+                                            + "succeeded on other partitions, please check stats of individual "
+                                            + "partition.", topicName, subName);
                                 }
-                                throw new RestException(Status.CONFLICT, "Expire message by timestamp not issued on "
-                                        + "topic " + topicName + " for subscription " + subName + " due to ongoing "
-                                        + "message expiration not finished or subscription almost catch up. If it's "
-                                        + "performed on a partitioned topic operation might succeeded on other "
-                                        + "partitions, please check stats of individual partition.");
+                                resultFuture.completeExceptionally(new RestException(Status.CONFLICT, "Expire message "
+                                        + "by timestamp not issued on topic " + topicName + " for subscription "
+                                        + subName + " due to ongoing message expiration not finished or subscription "
+                                        + "almost catch  up. If it's performed on a partitioned topic operation might"
+                                        + " succeeded on other partitions, please check stats of individual partition."
+                                ));
+                                return;
                             }
                         } catch (NullPointerException npe) {
-                            throw new RestException(Status.NOT_FOUND, "Subscription not found");
+                            resultFuture.completeExceptionally(new RestException(Status.NOT_FOUND, "Subscription not "
+                                    + "found"));
                         } catch (Exception exception) {
-                            log.error("[{}] Failed to expire messages up to {} on {} with subscription {} {}",
-                                    clientAppId(), expireTimeInSeconds, topicName, subName, exception);
-                            throw new RestException(exception);
+                            resultFuture.completeExceptionally(exception);
                         }
-                    }));
+                        }).exceptionally(e -> {
+                                resultFuture.completeExceptionally(e);
+                                return null;
+                        })
+                    ).exceptionally(e -> {
+                        resultFuture.completeExceptionally(e);
+                        return null;
+                    });
+                } catch (Exception e) {
+                    resultFuture.completeExceptionally(e);
+                    return null;
+                }
+            return resultFuture;
         }
     }
 
