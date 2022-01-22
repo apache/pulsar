@@ -217,6 +217,10 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a41bda460479f628ebfe753fef81ea5fe"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3047640889e4ce12f129c30159fbcab2"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_producer_configuration.html">ProducerConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer_configuration.html#a3047640889e4ce12f129c30159fbcab2">setProperties</a> (const std::map&lt; std::string, std::string &gt; &amp;properties)</td></tr>
 <tr class="separator:a3047640889e4ce12f129c30159fbcab2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a259efb00b66989ee88a0da7d1ab11e87"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_producer_configuration.html">ProducerConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer_configuration.html#a259efb00b66989ee88a0da7d1ab11e87">setChunkingEnabled</a> (bool chunkingEnabled)</td></tr>
+<tr class="separator:a259efb00b66989ee88a0da7d1ab11e87"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a46d2bb0dba7a7c342fcedafe17bad471"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer_configuration.html#a46d2bb0dba7a7c342fcedafe17bad471">isChunkingEnabled</a> () const </td></tr>
+<tr class="separator:a46d2bb0dba7a7c342fcedafe17bad471"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="friends"></a>
 Friends</h2></td></tr>
@@ -664,6 +668,22 @@ false if the property is not defined </dd></dl>
 
 </div>
 </div>
+<a class="anchor" id="a46d2bb0dba7a7c342fcedafe17bad471"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool pulsar::ProducerConfiguration::isChunkingEnabled </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>The getter associated with <a class="el" href="classpulsar_1_1_producer_configuration.html#a259efb00b66989ee88a0da7d1ab11e87">setChunkingEnabled()</a>. </p>
+
+</div>
+</div>
 <a class="anchor" id="a552eb084a8c8a4e12b90c7cb247f7763"></a>
 <div class="memitem">
 <div class="memproto">
@@ -805,6 +825,37 @@ false if the property is not defined </dd></dl>
       </table>
 </div><div class="memdoc">
 <p>The setter associated with <a class="el" href="classpulsar_1_1_producer_configuration.html#a64ad8c3d8de82ab1c518d37038d9e938">getBlockIfQueueFull()</a> </p>
+
+</div>
+</div>
+<a class="anchor" id="a259efb00b66989ee88a0da7d1ab11e87"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classpulsar_1_1_producer_configuration.html">ProducerConfiguration</a>&amp; pulsar::ProducerConfiguration::setChunkingEnabled </td>
+          <td>(</td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>chunkingEnabled</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>If message size is higher than allowed max publish-payload size by broker then enableChunking helps producer to split message into multiple chunks and publish them to broker separately in order. So, it allows client to successfully publish large size of messages in pulsar.</p>
+<p>Set it true to enable this feature. If so, you must disable batching (see setBatchingEnabled), otherwise the producer creation will fail.</p>
+<p>There are some other recommendations when it's enabled:</p><ol type="1">
+<li>This features is right now only supported for non-shared subscription and persistent-topic.</li>
+<li>It's better to reduce setMaxPendingMessages to avoid producer accupying large amount of memory by buffered messages.</li>
+<li>Set message-ttl on the namespace to cleanup chunked messages. Sometimes due to broker-restart or publish time, producer might fail to publish entire large message. So, consumer will not be able to consume and ack those messages.</li>
+</ol>
+<p>Default: false</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">chunkingEnabled</td><td>whether chunking is enabled </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>the <a class="el" href="classpulsar_1_1_producer_configuration.html">ProducerConfiguration</a> self </dd></dl>
 
 </div>
 </div>

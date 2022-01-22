@@ -103,22 +103,21 @@ tar xvfz apache-pulsar-offloaders-2.5.1-bin.tar.gz
 ls offloaders
 </code></pre>
 <p><strong>输出</strong></p>
-<p>如输出所示，Pulsar 使用<a href="https://jclouds.apache.org"> Apache jclouds </a>来支持<a href="https://aws.amazon.com/s3/"> AWS S3 </a>和<a href="https://cloud.google.com/storage/"> GCS </a>进行长期存储。</p></li>
-</ol>
-<pre><code class="hljs">```
-tiered-storage-file-system-2.5.1.nar
-tiered-storage-jcloud-2.5.1.nar
-```
-
-&gt; #### 备注
-&gt; 
-&gt; * 如果在一个裸机集群中运行 Pulsar，请确保`offloaders`安装包已经在 broker 的所有 pulsar 目录下解压缩。
-&gt; 
-&gt; * 如果你在 Docker 中运行 Pulsar 或者通过 Docker 镜像 (如K8s和DCOS) 部署 Pulsar，你可以使用 `apachepulsar/pulsar-all` 镜像代替 `apachepulsar/pulsar` 镜像。 `apachepulsar/pulsar-all` 镜像已经绑定了分层存储 offloader。
+<p>如输出所示，Pulsar 使用<a href="https://jclouds.apache.org"> Apache jclouds </a>来支持<a href="https://aws.amazon.com/s3/"> AWS S3 </a>和<a href="https://cloud.google.com/storage/"> GCS </a>进行长期存储。</p>
+<pre><code class="hljs"><span class="hljs-selector-tag">tiered-storage-file-system-2</span><span class="hljs-selector-class">.5</span><span class="hljs-selector-class">.1</span><span class="hljs-selector-class">.nar</span>
+<span class="hljs-selector-tag">tiered-storage-jcloud-2</span><span class="hljs-selector-class">.5</span><span class="hljs-selector-class">.1</span><span class="hljs-selector-class">.nar</span>
 </code></pre>
-<h2><a class="anchor" aria-hidden="true" id="配置"></a><a href="#配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置</h2>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="备注"></a><a href="#备注" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>备注</h4>
+<ul>
+<li><p>如果在一个裸机集群中运行 Pulsar，请确保<code>offloaders</code>安装包已经在 broker 的所有 pulsar 目录下解压缩。</p></li>
+<li><p>如果你在 Docker 中运行 Pulsar 或者通过 Docker 镜像 (如K8s和DCOS) 部署 Pulsar，你可以使用 <code>apachepulsar/pulsar-all</code> 镜像代替 <code>apachepulsar/pulsar</code> 镜像。 <code>apachepulsar/pulsar-all</code> 镜像已经绑定了分层存储 offloader。</p></li>
+</ul>
+</blockquote></li>
+</ol>
+<h2><a class="anchor" aria-hidden="true" id="配置"></a><a href="#配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置</h2>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="备注-1"></a><a href="#备注-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>备注</h4>
 <p>在将数据从 BookKeeper 转移到 AWS S3 之前，你需要配置 AWS S3 offload 驱动程序的一些属性。</p>
 </blockquote>
 <p>此外，你还可以配置亚马逊 AWS S3 offloader 的自动触发和手动触发机制。</p>
@@ -223,27 +222,21 @@ tiered-storage-jcloud-2.5.1.nar
 </code></pre>
 <p><strong>输出</strong></p>
 <pre><code class="hljs"><span class="hljs-attribute">Offload was a success</span>
-</code></pre></li>
-</ul>
-<pre><code class="hljs">如果卸载时出现错误，错误会返回到 `pulsar-admin topics offload-status` 命令。
-
-```bash
-bin/pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
-```
-
-**输出**
-
-```
-Error in offload
-null
-
-Reason: Error offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: java.util.concurrent.CompletionException: com.amazonaws.services.s3.model.AmazonS3Exception: Anonymous users cannot initiate multipart uploads.  Please authenticate. (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; Request ID: 798758DE3F1776DF; S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=), S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=
-```
-
-&gt; #### 提示
-&gt; 
-&gt; 关于 `pulsar-admin topics offload-status options` 命令的更多信息，比如参数、描述和默认值等，可参见[此处](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-offload-status-em-)。
 </code></pre>
+<p>如果卸载时出现错误，错误会返回到 <code>pulsar-admin topics offload-status</code> 命令。</p>
+<pre><code class="hljs css language-bash">bin/pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
+</code></pre>
+<p><strong>输出</strong></p>
+<pre><code class="hljs"><span class="hljs-builtin-name">Error</span> <span class="hljs-keyword">in</span> offload
+<span class="hljs-literal">null</span>
+
+Reason: <span class="hljs-builtin-name">Error</span> offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: java.util.concurrent.CompletionException: com.amazonaws.services.s3.model.AmazonS3Exception: Anonymous<span class="hljs-built_in"> users </span>cannot initiate multipart uploads.  Please authenticate. (Service: Amazon S3; Status Code: 403; <span class="hljs-builtin-name">Error</span> Code: AccessDenied; Request ID: 798758DE3F1776DF; S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=), S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=
+</code></pre>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="提示-3"></a><a href="#提示-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
+<p>关于 <code>pulsar-admin topics offload-status options</code> 命令的更多信息，比如参数、描述和默认值等，可参见<a href="https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-offload-status-em-">此处</a>。</p>
+</blockquote></li>
+</ul>
 <h2><a class="anchor" aria-hidden="true" id="教程"></a><a href="#教程" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>教程</h2>
 <p>有关如何在 Pulsar 中使用 AWS S3 offloader 的完整和分解讲解，请参阅<a href="https://hub.streamnative.io/offloaders/aws-s3/2.5.1#usage">这里</a>。</p>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/tiered-storage-overview"><span class="arrow-prev">← </span><span>概述</span></a><a class="docs-next button" href="/docs/zh-CN/next/tiered-storage-gcs"><span>GCS offloader</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a><ul class="toc-headings"><li><a href="#前提条件">前提条件</a></li><li><a href="#步骤">步骤</a></li></ul></li><li><a href="#配置">配置</a><ul class="toc-headings"><li><a href="#配置亚马逊-aws-s3-offloader-driver">配置亚马逊 AWS S3 offloader driver</a></li><li><a href="#配置亚马逊-aws-s3-offloader-自动运行">配置亚马逊 AWS S3 offloader 自动运行</a></li><li><a href="#配置亚马逊-aws-s3-offloader-手动运行">配置亚马逊 AWS S3 offloader 手动运行</a></li></ul></li><li><a href="#教程">教程</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>

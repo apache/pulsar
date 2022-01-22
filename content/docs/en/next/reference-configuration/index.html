@@ -239,6 +239,14 @@
 <tr><td>brokerDeduplicationEntriesInterval</td><td>The number of entries after which a deduplication informational snapshot is taken. A larger interval will lead to fewer snapshots being taken, though this would also lengthen the topic recovery time (the time required for entries published after the snapshot to be replayed).</td><td>1000</td></tr>
 <tr><td>brokerDeduplicationProducerInactivityTimeoutMinutes</td><td>The time of inactivity (in minutes) after which the broker will discard deduplication information related to a disconnected producer.</td><td>360</td></tr>
 <tr><td>brokerDeduplicationSnapshotFrequencyInSeconds</td><td>How often is the thread pool scheduled to check whether a snapshot needs to be taken. The value of <code>0</code> means it is disabled.</td><td>120</td></tr>
+<tr><td>dispatchThrottlingRateInMsg</td><td>Dispatch throttling-limit of messages for a broker (per second). 0 means the dispatch throttling-limit is disabled.</td><td>0</td></tr>
+<tr><td>dispatchThrottlingRateInByte</td><td>Dispatch throttling-limit of bytes for a broker (per second). 0 means the dispatch throttling-limit is disabled.</td><td>0</td></tr>
+<tr><td>dispatchThrottlingRatePerTopicInMsg</td><td>Dispatch throttling-limit of messages for every topic (per second). 0 means the dispatch throttling-limit is disabled.</td><td>0</td></tr>
+<tr><td>dispatchThrottlingRatePerTopicInByte</td><td>Dispatch throttling-limit of bytes for every topic (per second). 0 means the dispatch throttling-limit is disabled.</td><td>0</td></tr>
+<tr><td>dispatchThrottlingOnBatchMessageEnabled</td><td>Apply dispatch rate limiting on batch message instead individual messages with in batch message. (Default is disabled).</td><td>false</td></tr>
+<tr><td>dispatchThrottlingRateRelativeToPublishRate</td><td>Enable dispatch rate-limiting relative to publish rate.</td><td>false</td></tr>
+<tr><td>dispatchThrottlingRatePerSubscriptionInMsg</td><td>Dispatch throttling-limit of messages for a subscription. 0 means the dispatch throttling-limit is disabled.</td><td>0</td></tr>
+<tr><td>dispatchThrottlingRatePerSubscriptionInByte</td><td>Dispatch throttling-limit of bytes for a subscription. 0 means the dispatch throttling-limit is disabled.</td><td>0</td></tr>
 <tr><td>dispatchThrottlingRatePerReplicatorInMsg</td><td>The default messages per second dispatch throttling-limit for every replicator in replication. The value of <code>0</code> means disabling replication message dispatch-throttling</td><td>0</td></tr>
 <tr><td>dispatchThrottlingRatePerReplicatorInByte</td><td>The default bytes per second dispatch throttling-limit for every replicator in replication. The value of <code>0</code> means disabling replication message-byte dispatch-throttling</td><td>0</td></tr>
 <tr><td>zooKeeperSessionTimeoutMillis</td><td>Zookeeper session timeout in milliseconds</td><td>30000</td></tr>
@@ -561,12 +569,16 @@
 <tr><td>brokerPublisherThrottlingMaxByteRate</td><td>Maximum rate (in 1 second) of bytes allowed to publish for a broker if the  byte rate limiting is enabled. When the value is set to 0, the byte rate limiting is disabled.</td><td>0</td></tr>
 <tr><td>subscribeThrottlingRatePerConsumer</td><td>Too many subscribe requests from a consumer can cause broker rewinding consumer cursors and loading data from bookies, hence causing high network bandwidth usage. When the positive value is set, broker will throttle the subscribe requests for one consumer. Otherwise, the throttling will be disabled. By default, throttling is disabled.</td><td>0</td></tr>
 <tr><td>subscribeRatePeriodPerConsumerInSecond</td><td>Rate period for {subscribeThrottlingRatePerConsumer}. By default, it is 30s.</td><td>30</td></tr>
+<tr><td>dispatchThrottlingRateInMsg</td><td>Dispatch throttling-limit of messages for a broker (per second). 0 means the dispatch throttling-limit is disabled.</td><td>0</td></tr>
+<tr><td>dispatchThrottlingRateInByte</td><td>Dispatch throttling-limit of bytes for a broker (per second). 0 means the dispatch throttling-limit is disabled.</td><td>0</td></tr>
 <tr><td>dispatchThrottlingRatePerTopicInMsg</td><td>Default messages (per second) dispatch throttling-limit for every topic. When the value is set to 0, default message dispatch throttling-limit is disabled.</td><td>0</td></tr>
 <tr><td>dispatchThrottlingRatePerTopicInByte</td><td>Default byte (per second) dispatch throttling-limit for every topic. When the value is set to 0, default byte dispatch throttling-limit is disabled.</td><td>0</td></tr>
 <tr><td>dispatchThrottlingOnBatchMessageEnabled</td><td>Apply dispatch rate limiting on batch message instead individual messages with in batch message. (Default is disabled).</td><td>false</td></tr>
 <tr><td>dispatchThrottlingRateRelativeToPublishRate</td><td>Enable dispatch rate-limiting relative to publish rate.</td><td>false</td></tr>
 <tr><td>dispatchThrottlingRatePerSubscriptionInMsg</td><td>The defaulted number of message dispatching throttling-limit for a subscription. The value of 0 disables message dispatch-throttling.</td><td>0</td></tr>
 <tr><td>dispatchThrottlingRatePerSubscriptionInByte</td><td>The default number of message-bytes dispatching throttling-limit for a subscription. The value of 0 disables message-byte dispatch-throttling.</td><td>0</td></tr>
+<tr><td>dispatchThrottlingRatePerReplicatorInMsg</td><td>Dispatch throttling-limit of messages for every replicator in replication (per second). 0 means the dispatch throttling-limit in replication is disabled.</td><td>0</td></tr>
+<tr><td>dispatchThrottlingRatePerReplicatorInByte</td><td>Dispatch throttling-limit of bytes for every replicator in replication (per second). 0 means the dispatch throttling-limit is disabled.</td><td>0</td></tr>
 <tr><td>dispatchThrottlingOnNonBacklogConsumerEnabled</td><td>Enable dispatch-throttling for both caught up consumers as well as consumers who have backlogs.</td><td>true</td></tr>
 <tr><td>dispatcherMaxReadBatchSize</td><td>The maximum number of entries to read from BookKeeper. By default, it is 100 entries.</td><td>100</td></tr>
 <tr><td>dispatcherMaxReadSizeBytes</td><td>The maximum size in bytes of entries to read from BookKeeper. By default, it is 5MB.</td><td>5242880</td></tr>

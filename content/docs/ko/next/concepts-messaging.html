@@ -76,7 +76,7 @@
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/ko" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">메시징</h1></header><article><div><span><p>Pulsar is built on the <a href="https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern">publish-subscribe</a> pattern (often abbreviated to pub-sub). In this pattern, <a href="#producers">producers</a> publish messages to <a href="#topics">topics</a>; <a href="#consumers">consumers</a> <a href="#subscription-types">subscribe</a> to those topics, process incoming messages, and send <a href="#acknowledgement">acknowledgements</a> to the broker when processing is finished.</p>
 <p>When a subscription is created, Pulsar <a href="/docs/ko/next/concepts-architecture-overview#persistent-storage">retains</a> all messages, even if the consumer is disconnected. The retained messages are discarded only when a consumer acknowledges that all these messages are processed successfully.</p>
-<p>If the consumption of a message fails and you want this message to be consumed again, then you can enable the automatic redelivery of this message by sending a <a href="#negative-acknowledgement">negative acknowledgement</a> to the broker or enabling the <a href="#acknowledgement-timeout">acknowledgement timeout</a> for unacknowledged messages.</p>
+<p>If the consumption of a message fails and you want this message to be consumed again, you can enable <a href="#message-redelivery">message redelivery mechanism</a> to request the broker to resend this message.</p>
 <h2><a class="anchor" aria-hidden="true" id="messages"></a><a href="#messages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Messages</h2>
 <p>Messages are the basic &quot;unit&quot; of Pulsar. The following table lists the components of messages.</p>
 <table>
@@ -195,63 +195,91 @@ nettyMaxFrameSizeBytes=5253120
 Cumulative acknowledgement cannot be used in <a href="#subscription-types">Shared subscription type</a>, because Shared subscription type involves multiple consumers which have access to the same subscription. In Shared subscription type, messages are acknowledged individually.</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="부정적-알림"></a><a href="#부정적-알림" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>부정적 알림</h3>
-<p>When a consumer fails to consume a message and intends to consume it again, this consumer should send a negative acknowledgement to the broker. Then, the broker will redeliver this message to the consumer.</p>
+<p>The <a href="#negative-acknowledgement">negative acknowledgement</a> mechanism allows you to send a notification to the broker indicating the consumer did not process a message. When a consumer fails to consume a message and needs to re-consume it, the consumer sends a negative acknowledgement (nack) to the broker, triggering the broker to redeliver this message to the consumer.</p>
 <p>Messages are negatively acknowledged individually or cumulatively, depending on the consumption subscription type.</p>
 <p>In Exclusive and Failover subscription types, consumers only negatively acknowledge the last message they receive.</p>
 <p>In Shared and Key_Shared subscription types, consumers can negatively acknowledge messages individually.</p>
 <p>Be aware that negative acknowledgments on ordered subscription types, such as Exclusive, Failover and Key_Shared, might cause failed messages being sent to consumers out of the original order.</p>
-<p>If you want to acknowledge messages negatively, you can use the following API.</p>
-<pre><code class="hljs css language-java"><span class="hljs-comment">//With calling this api, messages are negatively acknowledged </span>
-consumer.negativeAcknowledge(msg);
+<p>Use the following API to negatively acknowledge message consumption.</p>
+<pre><code class="hljs css language-java">Consumer&lt;<span class="hljs-keyword">byte</span>[]&gt; consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName(<span class="hljs-string">"sub-negative-ack"</span>)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .negativeAckRedeliveryDelay(<span class="hljs-number">2</span>, TimeUnit.SECONDS) <span class="hljs-comment">// the default value is 1 min</span>
+                .subscribe();
+
+Message&lt;<span class="hljs-keyword">byte</span>[]&gt; message = consumer.receive();
+
+<span class="hljs-comment">// call the API to send negative acknowledgement</span>
+consumer.negativeAcknowledge(message);
+
+message = consumer.receive();
+consumer.acknowledge(message);
 </code></pre>
 <blockquote>
 <p><strong>Note</strong>  <br>
 If batching is enabled, all messages in one batch are redelivered to the consumer.</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="negative-redelivery-backoff"></a><a href="#negative-redelivery-backoff" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Negative redelivery backoff</h3>
-<p>In general, consumers are not able to process messages successfully. In this case, you can use <a href="/docs/ko/next/concepts-messaging#negative-acknowledgement">negative acknowledgement</a> and redeliver the messages after processing message failures, so that the messages can be redelivered to other consumers (for the Shared subscription).</p>
-<p>But this is not flexible enough. A better way is to use the <strong>redelivery backoff mechanism</strong>. You can redeliver messages with different delays by setting the number of times the messages is retried.</p>
-<p>If you want to use <code>Negative Redelivery Backoff</code>, you can use the following API.</p>
+<p>It happens sometimes that consumers fail to process messages successfully. In this case, you can use <a href="#negative-acknowledgement">negative acknowledgement</a> to redeliver the messages after consumption failures. For the Shared subscription type, the messages are redelivered to other consumers; for other subscription types, the messages are redelivered to the same consumer.</p>
+<p>But this is not flexible enough. A better way is to use the <strong>redelivery backoff mechanism</strong>. You can redeliver messages with different delays by setting the number of times the messages are retried.</p>
+<p>Use the following API to enable <code>Negative Redelivery Backoff</code>.</p>
 <pre><code class="hljs css language-java">consumer.negativeAckRedeliveryBackoff(NegativeAckRedeliveryExponentialBackoff.builder()
         .minNackTimeMs(<span class="hljs-number">1000</span>)
         .maxNackTimeMs(<span class="hljs-number">60</span> * <span class="hljs-number">1000</span>)
         .build())
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="알림-타임아웃"></a><a href="#알림-타임아웃" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>알림 타임아웃</h3>
-<p>If a message is not consumed successfully, and you want the broker to redeliver this message automatically, then you can enable automatic redelivery mechanism for unacknowledged messages. With automatic redelivery enabled, the client tracks the unacknowledged messages within the entire <code>acktimeout</code> time range, and sends a <code>redeliver unacknowledged messages</code> request to the broker automatically when the acknowledgement timeout is specified.</p>
+<p>The acknowledgement timeout mechanism allows you to set a time range during which the client tracks the unacknowledged messages. After this acknowledgement timeout (<code>ackTimeout</code>) period, the client sends <code>redeliver unacknowledged messages</code> request to the broker, thus the broker resends the unacknowledged messages to the consumer.</p>
+<p>You can configure the acknowledgement timeout mechanism to redeliver the message if it is not acknowledged after <code>ackTimeout</code> or to execute a timer task to check the acknowledgement timeout messages during every <code>ackTimeoutTickTime</code> period.</p>
 <blockquote>
 <p><strong>Note</strong></p>
 <ul>
 <li>If batching is enabled, all messages in one batch are redelivered to the consumer.</li>
-<li>The negative acknowledgement is preferable over the acknowledgement timeout, since negative acknowledgement controls the redelivery of individual messages more precisely and avoids invalid redeliveries when the message processing time exceeds the acknowledgement timeout.</li>
+<li>Compared with acknowledgement timeout, negative acknowledgement is preferred. First, it is difficult to set a timeout value. Second, a broker resends messages when the message processing time exceeds the acknowledgement timeout, but these messages might not need to be re-consumed.</li>
 </ul>
 </blockquote>
+<p>Use the following API to enable acknowledgement timeout.</p>
+<pre><code class="hljs css language-java">Consumer&lt;<span class="hljs-keyword">byte</span>[]&gt; consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .ackTimeout(<span class="hljs-number">2</span>, TimeUnit.SECONDS) <span class="hljs-comment">// the default value is 0</span>
+                .ackTimeoutTickTime(<span class="hljs-number">1</span>, TimeUnit.SECONDS)
+                .subscriptionName(<span class="hljs-string">"sub"</span>)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+Message&lt;<span class="hljs-keyword">byte</span>[]&gt; message = consumer.receive();
+
+<span class="hljs-comment">// wait at least 2 seconds</span>
+message = consumer.receive();
+consumer.acknowledge(message);
+</code></pre>
 <h3><a class="anchor" aria-hidden="true" id="데드-레터-토픽"></a><a href="#데드-레터-토픽" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>데드 레터 토픽</h3>
-<p>Dead letter topic enables you to consume new messages when some messages cannot be consumed successfully by a consumer. In this mechanism, messages that are failed to be consumed are stored in a separate topic, which is called dead letter topic. You can decide how to handle messages in the dead letter topic.</p>
-<p>The following example shows how to enable dead letter topic in a Java client using the default dead letter topic:</p>
+<p>Dead letter topic allows you to continue message consumption even some messages are not consumed successfully. The messages that are failed to be consumed are stored in a specific topic, which is called dead letter topic. You can decide how to handle the messages in the dead letter topic.</p>
+<p>Enable dead letter topic in a Java client using the default dead letter topic.</p>
 <pre><code class="hljs css language-java">Consumer&lt;<span class="hljs-keyword">byte</span>[]&gt; consumer = pulsarClient.newConsumer(Schema.BYTES)
-              .topic(topic)
-              .subscriptionName(<span class="hljs-string">"my-subscription"</span>)
-              .subscriptionType(SubscriptionType.Shared)
-              .deadLetterPolicy(DeadLetterPolicy.builder()
-                    .maxRedeliverCount(maxRedeliveryCount)
-                    .build())
-              .subscribe();
+                .topic(topic)
+                .subscriptionName(<span class="hljs-string">"my-subscription"</span>)
+                .subscriptionType(SubscriptionType.Shared)
+                .deadLetterPolicy(DeadLetterPolicy.builder()
+                      .maxRedeliverCount(maxRedeliveryCount)
+                      .build())
+                .subscribe();
 
 </code></pre>
 <p>The default dead letter topic uses this format:</p>
 <pre><code class="hljs">&lt;topicname&gt;-&lt;subscriptionname&gt;-DLQ
 </code></pre>
-<p>If you want to specify the name of the dead letter topic, use this Java client example:</p>
+<p>Use the Java client to specify the name of the dead letter topic.</p>
 <pre><code class="hljs css language-java">Consumer&lt;<span class="hljs-keyword">byte</span>[]&gt; consumer = pulsarClient.newConsumer(Schema.BYTES)
-              .topic(topic)
-              .subscriptionName(<span class="hljs-string">"my-subscription"</span>)
-              .subscriptionType(SubscriptionType.Shared)
-              .deadLetterPolicy(DeadLetterPolicy.builder()
-                    .maxRedeliverCount(maxRedeliveryCount)
-                    .deadLetterTopic(<span class="hljs-string">"your-topic-name"</span>)
-                    .build())
-              .subscribe();
+                .topic(topic)
+                .subscriptionName(<span class="hljs-string">"my-subscription"</span>)
+                .subscriptionType(SubscriptionType.Shared)
+                .deadLetterPolicy(DeadLetterPolicy.builder()
+                      .maxRedeliverCount(maxRedeliveryCount)
+                      .deadLetterTopic(<span class="hljs-string">"your-topic-name"</span>)
+                      .build())
+                .subscribe();
 
 </code></pre>
 <p>Dead letter topic depends on message redelivery. Messages are redelivered either due to <a href="#acknowledgement-timeout">acknowledgement timeout</a> or <a href="#negative-acknowledgement">negative acknowledgement</a>. If you are going to use negative acknowledgement on a message, make sure it is negatively acknowledged before the acknowledgement timeout.</p>
@@ -260,9 +288,9 @@ If batching is enabled, all messages in one batch are redelivered to the consume
 Currently, dead letter topic is enabled in Shared and Key_Shared subscription types.</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="retry-letter-topic"></a><a href="#retry-letter-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Retry letter topic</h3>
-<p>For many online business systems, a message is re-consumed due to exception occurs in the business logic processing. To configure the delay time for re-consuming the failed messages, you can configure the producer to send messages to both the business topic and the retry letter topic, and enable automatic retry on the consumer. When automatic retry is enabled on the consumer, a message is stored in the retry letter topic if the messages are not consumed, and therefore the consumer automatically consumes the failed messages from the retry letter topic after a specified delay time.</p>
+<p>For many online business systems, a message is re-consumed when exception occurs in the business logic processing. To configure the delay time for re-consuming the failed messages, you can configure the producer to send messages to both the business topic and the retry letter topic, and enable automatic retry on the consumer. With this setting, the messages that are not consumed will be stored in the retry letter topic. After the specified delay time, the consumer automatically consumes these messages from the retry letter topic.</p>
 <p>By default, automatic retry is disabled. You can set <code>enableRetry</code> to <code>true</code> to enable automatic retry on the consumer.</p>
-<p>This example shows how to consume messages from a retry letter topic.</p>
+<p>Use the following API to consume messages from a retry letter topic.</p>
 <pre><code class="hljs css language-java">Consumer&lt;<span class="hljs-keyword">byte</span>[]&gt; consumer = pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName(<span class="hljs-string">"my-subscription"</span>)
@@ -276,17 +304,17 @@ Currently, dead letter topic is enabled in Shared and Key_Shared subscription ty
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 </code></pre>
-<p>Retry letter message contains some special properties created by a client automatically.</p>
+<p>The messages in the retry letter topic contain some special properties that are automatically created by the client.</p>
 <p>Special property | Description :--------------------|:----------- <code>REAL_TOPIC</code> | The real topic name. <code>ORIGIN_MESSAGE_ID</code> | The origin message ID. It is crucial for message tracking. <code>RECONSUMETIMES</code> | The retry consume times. <code>DELAY_TIME</code> | Message delay timeMs. <strong>Example</strong></p>
 <pre><code class="hljs">REAL_TOPIC = persistent://public/default/my-topic
 ORIGIN_MESSAGE_ID = 1:0:-1:0
 RECONSUMETIMES = 6
 DELAY_TIME = 3000
 </code></pre>
-<p>If you want to put messages into a retrial queue, you can use the following API.</p>
+<p>Use the following API to store the messages in a retrial queue.</p>
 <pre><code class="hljs css language-java">consumer.reconsumeLater(msg, <span class="hljs-number">3</span>, TimeUnit.SECONDS);
 </code></pre>
-<p>If you want to add custom properties for the <code>reconsumeLater</code>, you can use the following API.</p>
+<p>Use the following API to add custom properties for the <code>reconsumeLater</code> function.</p>
 <pre><code class="hljs css language-java">Map&lt;String, String&gt; customProperties = <span class="hljs-keyword">new</span> HashMap&lt;String, String&gt;();
 customProperties.put(<span class="hljs-string">"custom-key-1"</span>, <span class="hljs-string">"custom-value-1"</span>);
 customProperties.put(<span class="hljs-string">"custom-key-2"</span>, <span class="hljs-string">"custom-value-2"</span>);
@@ -491,6 +519,19 @@ Consumer&lt;<span class="hljs-keyword">byte</span>[]&gt; consumer = client.newCo
                 .topic(npTopic)
                 .create();
 </code></pre>
+<h2><a class="anchor" aria-hidden="true" id="message-redelivery"></a><a href="#message-redelivery" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Message redelivery</h2>
+<p>Apache Pulsar supports graceful failure handling and ensures critical data is not lost. Software will always have unexpected conditions and at times messages may not be delivered successfully. Therefore, it is important to have a built-in mechanism that handles failure, particularly in asynchronous messaging as highlighted in the following examples.</p>
+<ul>
+<li>Consumers get disconnected from the database or the HTTP server. When this happens, the database is temporarily offline while the consumer is writing the data to it and the external HTTP server that the consumer calls is momentarily unavailable.</li>
+<li>Consumers get disconnected from a broker due to consumer crashes, broken connections, etc. As a consequence, the unacknowledged messages are delivered to other available consumers.</li>
+</ul>
+<p>Apache Pulsar avoids these and other message delivery failures using at-least-once delivery semantics that ensure Pulsar processes a message more than once.</p>
+<p>To utilize message redelivery, you need to enable this mechanism before the broker can resend the unacknowledged messages in Apache Pulsar client. You can activate the message redelivery mechanism in Apache Pulsar using three methods.</p>
+<ul>
+<li><a href="#negative-acknowledgement">Negative Acknowledgment</a></li>
+<li><a href="#acknowledgement-timeout">Acknowledgement Timeout</a></li>
+<li><a href="#retry-letter-topic">Retry letter topic</a></li>
+</ul>
 <h2><a class="anchor" aria-hidden="true" id="message-retention-and-expiry"></a><a href="#message-retention-and-expiry" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Message retention and expiry</h2>
 <p>By default, Pulsar message brokers:</p>
 <ul>
@@ -526,7 +567,7 @@ Consumer&lt;<span class="hljs-keyword">byte</span>[]&gt; consumer = client.newCo
 <p>You can find more in-depth information in <a href="https://www.splunk.com/en_us/blog/it/exactly-once-is-not-exactly-the-same.html">this post</a>.</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="지연된-메시지-전송"></a><a href="#지연된-메시지-전송" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>지연된 메시지 전송</h2>
-<p>Delayed message delivery enables you to consume a message later rather than immediately. In this mechanism, a message is stored in BookKeeper, <code>DelayedDeliveryTracker</code> maintains the time index(time -&gt; messageId) in memory after published to a broker, and it is delivered to a consumer once the specific delayed time is passed.</p>
+<p>Delayed message delivery enables you to consume a message later. In this mechanism, a message is stored in BookKeeper. The <code>DelayedDeliveryTracker</code> maintains the time index (time -&gt; messageId) in memory after the message is published to a broker. This message will be delivered to a consumer once the specified delay is over.</p>
 <p>Delayed message delivery only works in Shared subscription type. In Exclusive and Failover subscription types, the delayed message is dispatched immediately.</p>
 <p>The diagram below illustrates the concept of delayed message delivery:</p>
 <p><img src="/docs/assets/message_delay.png" alt="Delayed Message Delivery"></p>
@@ -547,7 +588,7 @@ delayedDeliveryTickTimeMillis=1000
 <pre><code class="hljs css language-java"><span class="hljs-comment">// 설정된 지연 간격 대로 전송될 메시지</span>
 producer.newMessage().deliverAfter(<span class="hljs-number">3L</span>, TimeUnit.Minute).value(<span class="hljs-string">"Hello Pulsar!"</span>).send();
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ko/next/concepts-overview"><span class="arrow-prev">← </span><span>Overview</span></a><a class="docs-next button" href="/docs/ko/next/concepts-architecture-overview"><span>Architecture</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#messages">Messages</a></li><li><a href="#producers">Producers</a><ul class="toc-headings"><li><a href="#송신-모드">송신 모드</a></li><li><a href="#access-mode">Access mode</a></li><li><a href="#압축">압축</a></li><li><a href="#대량순차작업batching">대량순차작업(Batching)</a></li><li><a href="#chunking">Chunking</a></li></ul></li><li><a href="#consumers">Consumers</a><ul class="toc-headings"><li><a href="#수신-모드">수신 모드</a></li><li><a href="#listeners">Listeners</a></li><li><a href="#acknowledgement">Acknowledgement</a></li><li><a href="#부정적-알림">부정적 알림</a></li><li><a href="#negative-redelivery-backoff">Negative redelivery backoff</a></li><li><a href="#알림-타임아웃">알림 타임아웃</a></li><li><a href="#데드-레터-토픽">데드 레터 토픽</a></li><li><a href="#retry-letter-topic">Retry letter topic</a></li></ul></li><li><a href="#topics">Topics</a></li><li><a href="#네임스페이스">네임스페이스</a></li><li><a href="#구독">구독</a><ul class="toc-headings"><li><a href="#subscription-types">Subscription types</a></li><li><a href="#subscription-modes">Subscription modes</a></li></ul></li><li><a href="#다중-토픽-구독">다중 토픽 구독</a></li><li><a href="#partitioned-topics">Partitioned topics</a><ul class="toc-headings"><li><a href="#routing-modes">Routing modes</a></li><li><a href="#ordering-guarantee">Ordering guarantee</a></li><li><a href="#hashing-scheme">Hashing scheme</a></li></ul></li><li><a href="#비지속적인-토픽">비지속적인 토픽</a><ul class="toc-headings"><li><a href="#performance">Performance</a></li><li><a href="#client-api">Client API</a></li></ul></li><li><a href="#message-retention-and-expiry">Message retention and expiry</a></li><li><a href="#message-deduplication">Message deduplication</a><ul class="toc-headings"><li><a href="#producer-idempotency">Producer idempotency</a></li><li><a href="#deduplication-and-effectively-once-semantics">Deduplication and effectively-once semantics</a></li></ul></li><li><a href="#지연된-메시지-전송">지연된 메시지 전송</a><ul class="toc-headings"><li><a href="#broker">Broker</a></li><li><a href="#producer">Producer</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ko/next/concepts-overview"><span class="arrow-prev">← </span><span>Overview</span></a><a class="docs-next button" href="/docs/ko/next/concepts-architecture-overview"><span>Architecture</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#messages">Messages</a></li><li><a href="#producers">Producers</a><ul class="toc-headings"><li><a href="#송신-모드">송신 모드</a></li><li><a href="#access-mode">Access mode</a></li><li><a href="#압축">압축</a></li><li><a href="#대량순차작업batching">대량순차작업(Batching)</a></li><li><a href="#chunking">Chunking</a></li></ul></li><li><a href="#consumers">Consumers</a><ul class="toc-headings"><li><a href="#수신-모드">수신 모드</a></li><li><a href="#listeners">Listeners</a></li><li><a href="#acknowledgement">Acknowledgement</a></li><li><a href="#부정적-알림">부정적 알림</a></li><li><a href="#negative-redelivery-backoff">Negative redelivery backoff</a></li><li><a href="#알림-타임아웃">알림 타임아웃</a></li><li><a href="#데드-레터-토픽">데드 레터 토픽</a></li><li><a href="#retry-letter-topic">Retry letter topic</a></li></ul></li><li><a href="#topics">Topics</a></li><li><a href="#네임스페이스">네임스페이스</a></li><li><a href="#구독">구독</a><ul class="toc-headings"><li><a href="#subscription-types">Subscription types</a></li><li><a href="#subscription-modes">Subscription modes</a></li></ul></li><li><a href="#다중-토픽-구독">다중 토픽 구독</a></li><li><a href="#partitioned-topics">Partitioned topics</a><ul class="toc-headings"><li><a href="#routing-modes">Routing modes</a></li><li><a href="#ordering-guarantee">Ordering guarantee</a></li><li><a href="#hashing-scheme">Hashing scheme</a></li></ul></li><li><a href="#비지속적인-토픽">비지속적인 토픽</a><ul class="toc-headings"><li><a href="#performance">Performance</a></li><li><a href="#client-api">Client API</a></li></ul></li><li><a href="#message-redelivery">Message redelivery</a></li><li><a href="#message-retention-and-expiry">Message retention and expiry</a></li><li><a href="#message-deduplication">Message deduplication</a><ul class="toc-headings"><li><a href="#producer-idempotency">Producer idempotency</a></li><li><a href="#deduplication-and-effectively-once-semantics">Deduplication and effectively-once semantics</a></li></ul></li><li><a href="#지연된-메시지-전송">지연된 메시지 전송</a><ul class="toc-headings"><li><a href="#broker">Broker</a></li><li><a href="#producer">Producer</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

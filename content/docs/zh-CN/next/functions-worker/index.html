@@ -172,10 +172,23 @@ Escape character is '^]'.
 <li><code>clientAuthenticationPlugin</code></li>
 <li><code>clientAuthenticationParameters</code></li>
 </ul>
+<h4><a class="anchor" aria-hidden="true" id="customize-java-runtime-options"></a><a href="#customize-java-runtime-options" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Customize Java runtime options</h4>
+<p>If you want to pass additional arguments to the JVM command line to every process started by a function worker, you can configure the <code>additionalJavaRuntimeArguments</code> parameter.</p>
+<pre><code class="hljs">additionalJavaRuntimeArguments: ['-XX:+ExitOnOutOfMemoryError','-Dfoo=bar']
+</code></pre>
+<p>This is very useful in case you want to:</p>
+<ul>
+<li>add JMV flags, like <code>-XX:+ExitOnOutOfMemoryError</code></li>
+<li>pass custom system properties, like <code>-Dlog4j2.formatMsgNoLookups</code></li>
+</ul>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>This feature applies only to Process and Kubernetes runtimes.</p>
+</blockquote>
 <h4><a class="anchor" aria-hidden="true" id="安全设置"></a><a href="#安全设置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安全设置</h4>
 <p>If you want to enable security on functions workers, you <em>should</em>:</p>
 <ul>
-<li><a href="#enable-tls-transport-encryption">启用 TLS 传输加密</a></li>
+<li><a href="#enable-tls-transport-encryption">Enable TLS transport encryption</a></li>
 <li><a href="#enable-authentication-provider">启用身份验证提供程序</a></li>
 <li><a href="#enable-authorization-provider">启用授权提供程序</a></li>
 <li><a href="#enable-end-to-end-encryption">启用端到端加密</a></li>
@@ -204,7 +217,7 @@ brokerClientTrustCertsFilePath: /path/to/ca.cert.pem
 <pre><code class="hljs">authenticationEnabled: true
 authenticationProviders: [ provider1, provider2 ]
 </code></pre>
-<p>对于 <em>TLS Authentication</em> 提供的认证，参考如下示例添加必要的配置。 查看 <a href="/docs/zh-CN/next/security-tls-authentication">TLS 认证</a> 可以了解到详细的信息。</p>
+<p>For <em>TLS Authentication</em> provider, follow the example below to add the necessary settings. 查看 <a href="/docs/zh-CN/next/security-tls-authentication">TLS 认证</a> 可以了解到详细的信息。</p>
 <pre><code class="hljs">brokerClientAuthenticationPlugin: org.apache.pulsar.client.impl.auth.AuthenticationTls
 brokerClientAuthenticationParameters: tlsCertFile:/path/to/admin.cert.pem,tlsKeyFile:/path/to/admin.key-pk8.pem
 
@@ -216,7 +229,7 @@ authenticationProviders: ['org.apache.pulsar.broker.authentication.Authenticatio
   saslJaasClientAllowedIds: .*pulsar.*
   saslJaasBrokerSectionName: Broker
 </code></pre>
-<p>对于 <em>Token Authentication</em> 提供的认证，如果需要的话，也可以给 <code>properties</code> 添加必要的配置。 更多详细信息，请参阅 <a href="/docs/zh-CN/next/security-jwt">Token Authentication</a>。 注意：秘钥文件必须是 DER 编码</p>
+<p>For <em>Token Authentication</em> provider, add necessary settings for <code>properties</code> if needed. 更多详细信息，请参阅 <a href="/docs/zh-CN/next/security-jwt">Token Authentication</a>。 注意：秘钥文件必须是 DER 编码</p>
 <pre><code class="hljs">properties:
   tokenSecretKey:       file://my/secret.key 
   # If using public/private

@@ -85,7 +85,7 @@
 <li>A two-bookie BookKeeper cluster</li>
 <li>A three-node ZooKeeper cluster</li>
 <li>A three-broker Pulsar cluster</li>
-<li>A <a href="">monitoring stack</a> consisting of <a href="https://prometheus.io/">Prometheus</a>, <a href="https://grafana.com">Grafana</a>, and the <a href="/docs/ja/2.2.0/administration-dashboard">Pulsar dashboard</a></li>
+<li>A <a href="">monitoring stack</a> consisting of <a href="https://prometheus.io/">Prometheus</a>, <a href="https://grafana.com">Grafana</a>, and the <a href="administration-dashboard.md">Pulsar dashboard</a></li>
 <li>A <a href="https://kubernetes.io/docs/concepts/workloads/pods/pod/">pod</a> from which you can run administrative commands using the <a href="/docs/ja/2.2.0/pulsar-admin"><code>pulsar-admin</code></a> CLI tool</li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="setup"></a><a href="#setup" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Setup</h2>
@@ -212,7 +212,7 @@ zk-2      0/1       Running            6          15m
   --broker-service-url pulsar://broker.default.svc.cluster.local:6650/
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="deploy-the-rest-of-the-components"></a><a href="#deploy-the-rest-of-the-components" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Deploy the rest of the components</h3>
-<p>Once cluster metadata has been successfully initialized, you can then deploy the bookies, brokers, monitoring stack (<a href="https://prometheus.io">Prometheus</a>, <a href="https://grafana.com">Grafana</a>, and the <a href="/docs/ja/2.2.0/administration-dashboard">Pulsar dashboard</a>), and Pulsar cluster proxy:</p>
+<p>Once cluster metadata has been successfully initialized, you can then deploy the bookies, brokers, monitoring stack (<a href="https://prometheus.io">Prometheus</a>, <a href="https://grafana.com">Grafana</a>, and the <a href="administration-dashboard.md">Pulsar dashboard</a>), and Pulsar cluster proxy:</p>
 <pre><code class="hljs css language-bash">$ kubectl apply -f bookie.yaml
 $ kubectl apply -f broker.yaml
 $ kubectl apply -f proxy.yaml
@@ -264,7 +264,7 @@ ten/ns
 <pre><code class="hljs css language-bash">$ pulsar-admin persistent stats persistent://public/default/my-topic
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="monitoring"></a><a href="#monitoring" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Monitoring</h3>
-<p>The default monitoring stack for Pulsar on Kubernetes has consists of <a href="#prometheus">Prometheus</a>, <a href="#grafana">Grafana</a>, and the <a href="/docs/ja/2.2.0/administration-dashboard">Pulsar dashboard</a>.</p>
+<p>The default monitoring stack for Pulsar on Kubernetes has consists of <a href="#prometheus">Prometheus</a>, <a href="#grafana">Grafana</a>, and the <a href="administration-dashboard.md">Pulsar dashboard</a>.</p>
 <blockquote>
 <p>If you deployed the cluster to Minikube, the following monitoring ports are mapped at the minikube VM:</p>
 <ul>
@@ -283,7 +283,7 @@ ten/ns
 </code></pre>
 <p>You can then access the dashboard in your web browser at <a href="http://localhost:3000">localhost:3000</a>.</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-dashboard"></a><a href="#pulsar-dashboard" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar dashboard</h4>
-<p>While Grafana and Prometheus are used to provide graphs with historical data, <a href="/docs/ja/2.2.0/administration-dashboard">Pulsar dashboard</a> reports more detailed current data for individual <a href="/docs/ja/2.2.0/reference-terminology#topic">topics</a>.</p>
+<p>While Grafana and Prometheus are used to provide graphs with historical data, <a href="administration-dashboard.md">Pulsar dashboard</a> reports more detailed current data for individual <a href="/docs/ja/2.2.0/reference-terminology#topic">topics</a>.</p>
 <p>For example, you can have sortable tables showing all namespaces, topics, and broker stats, with details on the IP address for consumers, how long they've been connected, and much more.</p>
 <p>You can access to the pod serving the Pulsar dashboard using <code>kubectl</code>'s <a href="https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster"><code>port-forward</code></a> command:</p>
 <pre><code class="hljs css language-bash">$ kubectl port-forward \

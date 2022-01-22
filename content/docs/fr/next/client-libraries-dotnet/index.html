@@ -98,7 +98,7 @@
 </code></pre></li>
 <li><p>After the command completes, open the <code>.csproj</code> file to see the added reference.</p>
 <pre><code class="hljs css language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">ItemGroup</span>&gt;</span>
-  <span class="hljs-tag">&lt;<span class="hljs-name">PackageReference</span> <span class="hljs-attr">Include</span>=<span class="hljs-string">"DotPulsar"</span> <span class="hljs-attr">Version</span>=<span class="hljs-string">"0.11.0"</span> /&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">PackageReference</span> <span class="hljs-attr">Include</span>=<span class="hljs-string">"DotPulsar"</span> <span class="hljs-attr">Version</span>=<span class="hljs-string">"2.0.1"</span> /&gt;</span>
 <span class="hljs-tag">&lt;/<span class="hljs-name">ItemGroup</span>&gt;</span>
 </code></pre></li>
 </ol></li>
@@ -107,7 +107,9 @@
 <p>This section describes some configuration examples for the Pulsar C# client.</p>
 <h3><a class="anchor" aria-hidden="true" id="create-client"></a><a href="#create-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create client</h3>
 <p>This example shows how to create a Pulsar C# client connected to localhost.</p>
-<pre><code class="hljs css language-c#"><span class="hljs-keyword">var</span> client = PulsarClient.Builder().Build();
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">using</span> DotPulsar;
+
+<span class="hljs-keyword">var</span> client = PulsarClient.Builder().Build();
 </code></pre>
 <p>To create a Pulsar C# client by using the builder, you can specify the following options.</p>
 <table>
@@ -123,12 +125,17 @@
 <p>This section describes how to create a producer.</p>
 <ul>
 <li><p>Create a producer by using the builder.</p>
-<pre><code class="hljs css language-c#"><span class="hljs-keyword">var</span> producer = client.NewProducer()
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">using</span> DotPulsar;
+<span class="hljs-keyword">using</span> DotPulsar.Extensions;
+
+<span class="hljs-keyword">var</span> producer = client.NewProducer())
                      .Topic(<span class="hljs-string">"persistent://public/default/mytopic"</span>)
                      .Create();
 </code></pre></li>
 <li><p>Create a producer without using the builder.</p>
-<pre><code class="hljs css language-c#"><span class="hljs-keyword">var</span> options = <span class="hljs-keyword">new</span> ProducerOptions(<span class="hljs-string">"persistent://public/default/mytopic"</span>);
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">using</span> DotPulsar;
+
+<span class="hljs-keyword">var</span> options = <span class="hljs-keyword">new</span> ProducerOptions&lt;<span class="hljs-keyword">byte</span>[]&gt;(<span class="hljs-string">"persistent://public/default/mytopic"</span>, Schema.ByteArray);
 <span class="hljs-keyword">var</span> producer = client.CreateProducer(options);
 </code></pre></li>
 </ul>
@@ -136,13 +143,18 @@
 <p>This section describes how to create a consumer.</p>
 <ul>
 <li><p>Create a consumer by using the builder.</p>
-<pre><code class="hljs css language-c#"><span class="hljs-keyword">var</span> consumer = client.NewConsumer()
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">using</span> DotPulsar;
+<span class="hljs-keyword">using</span> DotPulsar.Extensions;
+
+<span class="hljs-keyword">var</span> consumer = client.NewConsumer()
                      .SubscriptionName(<span class="hljs-string">"MySubscription"</span>)
                      .Topic(<span class="hljs-string">"persistent://public/default/mytopic"</span>)
                      .Create();
 </code></pre></li>
 <li><p>Create a consumer without using the builder.</p>
-<pre><code class="hljs css language-c#"><span class="hljs-keyword">var</span> options = <span class="hljs-keyword">new</span> ConsumerOptions(<span class="hljs-string">"MySubscription"</span>, <span class="hljs-string">"persistent://public/default/mytopic"</span>);
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">using</span> DotPulsar;
+
+<span class="hljs-keyword">var</span> options = <span class="hljs-keyword">new</span> ConsumerOptions&lt;<span class="hljs-keyword">byte</span>[]&gt;(<span class="hljs-string">"MySubscription"</span>, <span class="hljs-string">"persistent://public/default/mytopic"</span>, Schema.ByteArray);
 <span class="hljs-keyword">var</span> consumer = client.CreateConsumer(options);
 </code></pre></li>
 </ul>
@@ -150,13 +162,18 @@
 <p>This section describes how to create a reader.</p>
 <ul>
 <li><p>Create a reader by using the builder.</p>
-<pre><code class="hljs css language-c#"><span class="hljs-keyword">var</span> reader = client.NewReader()
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">using</span> DotPulsar;
+<span class="hljs-keyword">using</span> DotPulsar.Extensions;
+
+<span class="hljs-keyword">var</span> reader = client.NewReader()
                    .StartMessageId(MessageId.Earliest)
                    .Topic(<span class="hljs-string">"persistent://public/default/mytopic"</span>)
                    .Create();
 </code></pre></li>
 <li><p>Create a reader without using the builder.</p>
-<pre><code class="hljs css language-c#"><span class="hljs-keyword">var</span> options = <span class="hljs-keyword">new</span> ReaderOptions(MessageId.Earliest, <span class="hljs-string">"persistent://public/default/mytopic"</span>);
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">using</span> DotPulsar;
+
+<span class="hljs-keyword">var</span> options = <span class="hljs-keyword">new</span> ReaderOptions&lt;<span class="hljs-keyword">byte</span>[]&gt;(MessageId.Earliest, <span class="hljs-string">"persistent://public/default/mytopic"</span>, Schema.ByteArray);
 <span class="hljs-keyword">var</span> reader = client.CreateReader(options);
 </code></pre></li>
 </ul>
@@ -169,7 +186,9 @@
 <li><code>PreferEncrypted</code>: use encrypted connections, if possible.</li>
 </ul>
 <p>This example shows how to set the <code>EnforceUnencrypted</code> encryption policy.</p>
-<pre><code class="hljs css language-c#"><span class="hljs-keyword">var</span> client = PulsarClient.Builder()
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">using</span> DotPulsar;
+
+<span class="hljs-keyword">var</span> client = PulsarClient.Builder()
                          .ConnectionSecurity(EncryptionPolicy.EnforceEncrypted)
                          .Build();
 </code></pre>
@@ -181,7 +200,10 @@
 <pre><code class="hljs css language-c#">openssl pkcs12 -export -keypbe NONE -certpbe NONE -<span class="hljs-keyword">out</span> admin.pfx -inkey admin.key.pem -<span class="hljs-keyword">in</span> admin.cert.pem -passout pass:
 </code></pre></li>
 <li><p>Use the admin.pfx file to create an X509Certificate2 and pass it to the Pulsar C# client.</p>
-<pre><code class="hljs css language-c#"><span class="hljs-keyword">var</span> clientCertificate = <span class="hljs-keyword">new</span> X509Certificate2(<span class="hljs-string">"admin.pfx"</span>);
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">using</span> System.Security.Cryptography.X509Certificates;
+<span class="hljs-keyword">using</span> DotPulsar;
+
+<span class="hljs-keyword">var</span> clientCertificate = <span class="hljs-keyword">new</span> X509Certificate2(<span class="hljs-string">"admin.pfx"</span>);
 <span class="hljs-keyword">var</span> client = PulsarClient.Builder()
                          .AuthenticateUsingClientCertificate(clientCertificate)
                          .Build();
@@ -197,8 +219,7 @@
 <h3><a class="anchor" aria-hidden="true" id="send-messages-with-customized-metadata"></a><a href="#send-messages-with-customized-metadata" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Send messages with customized metadata</h3>
 <ul>
 <li><p>Send messages with customized metadata by using the builder.</p>
-<pre><code class="hljs css language-c#"><span class="hljs-keyword">var</span> data = Encoding.UTF8.GetBytes(<span class="hljs-string">"Hello World"</span>);
-<span class="hljs-keyword">var</span> messageId = <span class="hljs-keyword">await</span> producer.NewMessage()
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">var</span> messageId = <span class="hljs-keyword">await</span> producer.NewMessage()
                               .Property(<span class="hljs-string">"SomeKey"</span>, <span class="hljs-string">"SomeValue"</span>)
                               .Send(data);
 </code></pre></li>
@@ -260,6 +281,7 @@ metadata[<span class="hljs-string">"SomeKey"</span>] = <span class="hljs-string"
 <tr><td>Connected</td><td>All is well.</td></tr>
 <tr><td>Disconnected</td><td>The connection is lost and attempts are being made to reconnect.</td></tr>
 <tr><td>Faulted</td><td>An unrecoverable error has occurred.</td></tr>
+<tr><td>PartiallyConnected</td><td>Some of the sub-producers are disconnected.</td></tr>
 </tbody>
 </table>
 <p>This example shows how to monitor the producer state.</p>
@@ -269,7 +291,7 @@ metadata[<span class="hljs-string">"SomeKey"</span>] = <span class="hljs-string"
 
     <span class="hljs-keyword">while</span> (!cancellationToken.IsCancellationRequested)
     {
-        state = <span class="hljs-keyword">await</span> producer.StateChangedFrom(state, cancellationToken);
+        state = (<span class="hljs-keyword">await</span> producer.StateChangedFrom(state, cancellationToken)).ProducerState;
 
         <span class="hljs-keyword">var</span> stateMessage = state <span class="hljs-keyword">switch</span>
         {
@@ -277,6 +299,7 @@ metadata[<span class="hljs-string">"SomeKey"</span>] = <span class="hljs-string"
             ProducerState.Disconnected =&gt; <span class="hljs-string">$"The producer is disconnected"</span>,
             ProducerState.Closed =&gt; <span class="hljs-string">$"The producer has closed"</span>,
             ProducerState.Faulted =&gt; <span class="hljs-string">$"The producer has faulted"</span>,
+            ProducerState.PartiallyConnected =&gt; <span class="hljs-string">$"The producer is partially connected."</span>,
             _ =&gt; <span class="hljs-string">$"The producer has an unknown state '<span class="hljs-subst">{state}</span>'"</span>
         };
 
@@ -300,6 +323,7 @@ metadata[<span class="hljs-string">"SomeKey"</span>] = <span class="hljs-string"
 <tr><td>Disconnected</td><td>The connection is lost and attempts are being made to reconnect.</td></tr>
 <tr><td>Faulted</td><td>An unrecoverable error has occurred.</td></tr>
 <tr><td>ReachedEndOfTopic</td><td>No more messages are delivered.</td></tr>
+<tr><td>Unsubscribed</td><td>The consumer has unsubscribed.</td></tr>
 </tbody>
 </table>
 <p>This example shows how to monitor the consumer state.</p>
@@ -309,7 +333,7 @@ metadata[<span class="hljs-string">"SomeKey"</span>] = <span class="hljs-string"
 
     <span class="hljs-keyword">while</span> (!cancellationToken.IsCancellationRequested)
     {
-        state = <span class="hljs-keyword">await</span> consumer.StateChangedFrom(state, cancellationToken);
+        state = (<span class="hljs-keyword">await</span> consumer.StateChangedFrom(state, cancellationToken)).ConsumerState;
 
         <span class="hljs-keyword">var</span> stateMessage = state <span class="hljs-keyword">switch</span>
         {
@@ -319,6 +343,7 @@ metadata[<span class="hljs-string">"SomeKey"</span>] = <span class="hljs-string"
             ConsumerState.Closed =&gt; <span class="hljs-string">"The consumer has closed"</span>,
             ConsumerState.ReachedEndOfTopic =&gt; <span class="hljs-string">"The consumer has reached end of topic"</span>,
             ConsumerState.Faulted =&gt; <span class="hljs-string">"The consumer has faulted"</span>,
+            ConsumerState.Unsubscribed =&gt; <span class="hljs-string">"The consumer is unsubscribed."</span>,
             _ =&gt; <span class="hljs-string">$"The consumer has an unknown state '<span class="hljs-subst">{state}</span>'"</span>
         };
 
@@ -350,7 +375,7 @@ metadata[<span class="hljs-string">"SomeKey"</span>] = <span class="hljs-string"
 
     <span class="hljs-keyword">while</span> (!cancellationToken.IsCancellationRequested)
     {
-        state = <span class="hljs-keyword">await</span> reader.StateChangedFrom(state, cancellationToken);
+        state = (<span class="hljs-keyword">await</span> reader.StateChangedFrom(state, cancellationToken)).ReaderState;
 
         <span class="hljs-keyword">var</span> stateMessage = state <span class="hljs-keyword">switch</span>
         {
