@@ -3453,121 +3453,42 @@ public class PersistentTopicsBase extends AdminResource {
         } else {
             future = CompletableFuture.completedFuture(null);
         }
+
         future.thenAccept(__ -> {
-            validateTopicOwnershipAsync(topicName, authoritative)
-                    .thenCompose(unused -> validateTopicOperationAsync(topicName, TopicOperation.EXPIRE_MESSAGES))
+            validateTopicOperationAsync(topicName, TopicOperation.EXPIRE_MESSAGES)
+                    .thenCompose(unused -> validateTopicOwnershipAsync(topicName, authoritative))
                     .thenAccept(unused -> {
                         log.info("[{}][{}] received expire messages on subscription {} to position {}", clientAppId(),
                                 topicName, subName, messageId);
                         getPartitionedTopicMetadataAsync(topicName, authoritative, false)
-                                .thenAccept(partitionMetadata -> {
-                                    if (!topicName.isPartitioned() && partitionMetadata.partitions > 0) {
-                                        log.warn("[{}] Not supported operation expire message up to {} on "
-                                                 + "partitioned-topic {} {}", clientAppId(), messageId, topicName,
-                                                subName);
-                                        asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
-                                                "Expire message at position is not supported for partitioned-topic"));
-                                        return;
-                                    } else if (messageId.getPartitionIndex() != topicName.getPartitionIndex()) {
-                                        log.warn("[{}] Invalid parameter for expire message by position, partition "
-                                                 + "index of passed in message position {} doesn't match partition "
-                                                 + "index of topic requested {}.", clientAppId(), messageId, topicName);
-                                        asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
-                                                "Invalid parameter for expire message by position, partition index of "
-                                                + "message position passed in doesn't match partition index for the "
-                                                + "topic."));
-                                        return;
-                                    } else {
-                                        getTopicReferenceAsync(topicName).thenAccept(t -> {
-                                            PersistentTopic topic = (PersistentTopic) t;
-                                            if (topic == null) {
-                                                asyncResponse.resume(new RestException(Status.NOT_FOUND,
-                                                        "Topic not found"));
-                                                return;
-                                            }
-                                            try {
-                                                PersistentSubscription sub = topic.getSubscription(subName);
-                                                if (sub == null) {
-                                                    asyncResponse.resume(new RestException(Status.NOT_FOUND,
-                                                            "Subscription not found"));
-                                                    return;
-                                                }
-                                                CompletableFuture<Integer> batchSizeFuture = new CompletableFuture<>();
-                                                getEntryBatchSize(batchSizeFuture, topic, messageId, batchIndex);
-                                                batchSizeFuture.thenAccept(bi -> {
-                                                    PositionImpl position = calculatePositionAckSet(isExcluded, bi,
-                                                            batchIndex, messageId);
-                                                    boolean issued;
-                                                    try {
-                                                        if (subName.startsWith(topic.getReplicatorPrefix())) {
-                                                            String remoteCluster = PersistentReplicator
-                                                                    .getRemoteCluster(subName);
-                                                            PersistentReplicator repl = (PersistentReplicator)
-                                                                    topic.getPersistentReplicator(remoteCluster);
-                                                            checkNotNull(repl);
-                                                            issued = repl.expireMessages(position);
-                                                        } else {
-                                                            checkNotNull(sub);
-                                                            issued = sub.expireMessages(position);
-                                                        }
-                                                        if (issued) {
-                                                            log.info("[{}] Message expire started up to {} on {} {}",
-                                                                    clientAppId(), position, topicName, subName);
-                                                        } else {
-                                                            if (log.isDebugEnabled()) {
-                                                                log.debug("Expire message by position not issued on "
-                                                                        + "topic {} for subscription {} due to ongoing "
-                                                                        + "message expiration not finished or "
-                                                                        + "subscription almost catch up.", topicName,
-                                                                        subName);
-                                                            }
-                                                            throw new RestException(Status.CONFLICT, "Expire message by"
-                                                                    + " position not issued on topic " + topicName
-                                                                    + " for subscription " + subName + " due to ongoing"
-                                                                    + " message expiration not finished or invalid "
-                                                                    + "message position provided.");
-                                                        }
-                                                    } catch (Exception exception) {
-                                                        log.error("[{}] Failed to expire messages up to {} on {} with "
-                                                                        + "subscription {} {}",
-                                                                clientAppId(), position, topicName, subName, exception);
-                                                        throw new RestException(exception);
-                                                    }
-                                                    asyncResponse.resume(Response.noContent().build());
-                                                }).exceptionally(e -> {
-                                                    log.error("[{}] Failed to expire messages up to {} on {} with "
-                                                              + "subscription {} {}", clientAppId(), messageId,
-                                                            topicName, subName, e);
-                                                    asyncResponse.resume(e);
-                                                    return null;
-                                                });
-                                            } catch (Exception e) {
-                                                log.warn("[{}][{}] Failed to expire messages up to {} on subscription "
-                                                         + "{} to position {}", clientAppId(), topicName, messageId,
-                                                        subName, messageId, e);
-                                                resumeAsyncResponseExceptionally(asyncResponse, e);
-                                            }
-                                        }).exceptionally(ex -> {
-                                            Throwable cause = ex.getCause();
-                                            log.error("[{}] Failed to expire messages up to {} on subscription {} to "
-                                                    + "position {}", clientAppId(), topicName, subName, messageId,
-                                                    cause);
-                                            resumeAsyncResponseExceptionally(asyncResponse, cause);
-                                            return null;
-                                        });
-                                    }
-                                }).exceptionally(ex -> {
-                                    Throwable cause = ex.getCause();
-                                    log.error("[{}] Failed to expire messages up to {} on subscription {} to position "
-                                               + "{}", clientAppId(), topicName, subName, messageId, cause);
-                                    resumeAsyncResponseExceptionally(asyncResponse, cause);
-                                    return null;
-                                });
+                            .thenAccept(partitionMetadata -> {
+                                if (!topicName.isPartitioned() && partitionMetadata.partitions > 0) {
+                                    String msg = "Expire message at position is not supported for partitioned-topic";
+                                    log.warn("[{}] {} {}({}) {}", clientAppId(), msg, topicName, messageId, subName);
+                                    asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED, msg));
+                                    return;
+                                } else if (messageId.getPartitionIndex() != topicName.getPartitionIndex()) {
+                                    String msg = "Invalid parameter for expire message by position, partition index of "
+                                            + "passed in message position doesn't match partition index for the topic";
+                                    log.warn("[{}] {} {}({}).", clientAppId(), msg, topicName, messageId);
+                                    asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED, msg));
+                                    return;
+                                } else {
+                                    internalExpireMessagesNonPartitionedTopicByPosition(asyncResponse, subName,
+                                            messageId, isExcluded, batchIndex);
+                                }
+                            }).exceptionally(ex -> {
+                            Throwable cause = ex.getCause();
+                            log.error("[{}] Failed to expire messages up to {} on subscription {} to position "
+                                    + "{}", clientAppId(), topicName, subName, messageId, cause);
+                            resumeAsyncResponseExceptionally(asyncResponse, cause);
+                            return null;
+                        });
                             }
                     ).exceptionally(ex -> {
                         Throwable cause = ex.getCause();
-                        log.error("[{}] Failed to expire messages up to {} on subscription {} to position "
-                                + "{}", clientAppId(), topicName, subName, messageId, cause);
+                        log.error("[{}] Failed to expire messages up to {} on subscription {} to position {}",
+                                clientAppId(), topicName, subName, messageId, cause);
                         resumeAsyncResponseExceptionally(asyncResponse, cause);
                         return null;
                     });
@@ -3576,6 +3497,79 @@ public class PersistentTopicsBase extends AdminResource {
             Throwable cause = ex.getCause();
             log.error("[{}] Failed to validate the global namespace ownership while expire messages up to {} on "
                       + "subscription {} to position {}", clientAppId(), topicName, messageId, cause);
+            resumeAsyncResponseExceptionally(asyncResponse, cause);
+            return null;
+        });
+    }
+
+    private CompletableFuture<Void> internalExpireMessagesNonPartitionedTopicByPosition(AsyncResponse asyncResponse,
+                                                                                        String subName,
+                                                                                        MessageIdImpl messageId,
+                                                                                        boolean isExcluded,
+                                                                                        int batchIndex) {
+        return getTopicReferenceAsync(topicName).thenAccept(t -> {
+            PersistentTopic topic = (PersistentTopic) t;
+            if (topic == null) {
+                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Topic not found"));
+                return;
+            }
+            try {
+                PersistentSubscription sub = topic.getSubscription(subName);
+                if (sub == null) {
+                    asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                            "Subscription not found"));
+                    return;
+                }
+                CompletableFuture<Integer> batchSizeFuture = new CompletableFuture<>();
+                getEntryBatchSize(batchSizeFuture, topic, messageId, batchIndex);
+                batchSizeFuture.thenAccept(bi -> {
+                    PositionImpl position = calculatePositionAckSet(isExcluded, bi, batchIndex, messageId);
+                    boolean issued;
+                    try {
+                        if (subName.startsWith(topic.getReplicatorPrefix())) {
+                            String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
+                            PersistentReplicator repl = (PersistentReplicator)
+                                    topic.getPersistentReplicator(remoteCluster);
+                            checkNotNull(repl);
+                            issued = repl.expireMessages(position);
+                        } else {
+                            checkNotNull(sub);
+                            issued = sub.expireMessages(position);
+                        }
+                        if (issued) {
+                            log.info("[{}] Message expire started up to {} on {} {}", clientAppId(), position,
+                                    topicName, subName);
+                        } else {
+                            if (log.isDebugEnabled()) {
+                                log.debug("Expire message by position not issued on topic {} for subscription {} "
+                                        + "due to ongoing message expiration not finished or subscription almost "
+                                        + "catch up.", topicName, subName);
+                            }
+                            throw new RestException(Status.CONFLICT, "Expire message by position not issued on topic "
+                                    + topicName + " for subscription " + subName + " due to ongoing"
+                                    + " message expiration not finished or invalid message position provided.");
+                        }
+                    } catch (Exception exception) {
+                        log.error("[{}] Failed to expire messages up to {} on {} with subscription {} {}",
+                                clientAppId(), position, topicName, subName, exception);
+                        throw new RestException(exception);
+                    }
+                    asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(e -> {
+                    log.error("[{}] Failed to expire messages up to {} on {} with subscription {} {}",
+                            clientAppId(), messageId, topicName, subName, e);
+                    asyncResponse.resume(e);
+                    return null;
+                });
+            } catch (Exception e) {
+                log.warn("[{}][{}] Failed to expire messages up to {} on subscription {} to position {}",
+                        clientAppId(), topicName, messageId, subName, messageId, e);
+                resumeAsyncResponseExceptionally(asyncResponse, e);
+            }
+        }).exceptionally(ex -> {
+            Throwable cause = ex.getCause();
+            log.error("[{}] Failed to expire messages up to {} on subscription {} to position {}", clientAppId(),
+                    topicName, subName, messageId, cause);
             resumeAsyncResponseExceptionally(asyncResponse, cause);
             return null;
         });
