@@ -282,23 +282,21 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         }
 
         String topicUri = topicName.toString();
-        CompletableFuture<Void> future = pulsarResources.getNamespaceResources()
+        return pulsarResources.getNamespaceResources()
                 .setPoliciesAsync(topicName.getNamespaceObject(), policies -> {
                     policies.auth_policies.getTopicAuthentication()
                             .computeIfAbsent(topicUri, __ -> new HashMap<>())
                             .put(role, actions);
                     return policies;
-                }).thenRun(() -> {
-                    log.info("[{}] Successfully granted access for role {}: {} - topic {}", role, role, actions,
-                            topicUri);
+                }).whenComplete((__, throwable) -> {
+                    if (throwable != null) {
+                        log.error("[{}] Failed to set permissions for role {} on topic {}", role, role, topicName,
+                                throwable.getCause());
+                    } else {
+                        log.info("[{}] Successfully granted access for role {}: {} - topic {}", role, role, actions,
+                                topicUri);
+                    }
                 });
-
-        future.exceptionally(ex -> {
-            log.error("[{}] Failed to set permissions for role {} on topic {}", role, role, topicName, ex);
-            return null;
-        });
-
-        return future;
     }
 
     @Override
@@ -310,21 +308,19 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             return FutureUtil.failedFuture(e);
         }
 
-        CompletableFuture<Void> future = pulsarResources.getNamespaceResources()
+        return pulsarResources.getNamespaceResources()
                 .setPoliciesAsync(namespaceName, policies -> {
                     policies.auth_policies.getNamespaceAuthentication().put(role, actions);
                     return policies;
-                }).thenRun(() -> {
-                    log.info("[{}] Successfully granted access for role {}: {} - namespace {}", role, role, actions,
-                            namespaceName);
+                }).whenComplete((__, throwable) -> {
+                    if (throwable != null) {
+                        log.error("[{}] Failed to set permissions for role {} namespace {}", role, role, namespaceName,
+                                throwable.getCause());
+                    } else {
+                        log.info("[{}] Successfully granted access for role {}: {} - namespace {}", role, role, actions,
+                                namespaceName);
+                    }
                 });
-
-        future.exceptionally(ex -> {
-            log.error("[{}] Failed to set permissions for role {} namespace {}", role, role, namespaceName, ex);
-            return null;
-        });
-
-        return future;
     }
 
     @Override
@@ -348,8 +344,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             return FutureUtil.failedFuture(e);
         }
 
-        CompletableFuture<Void> future =
-                pulsarResources.getNamespaceResources().setPoliciesAsync(namespace, policies -> {
+        return pulsarResources.getNamespaceResources()
+                .setPoliciesAsync(namespace, policies -> {
                     if (remove) {
                         Set<String> subscriptionAuth =
                                 policies.auth_policies.getSubscriptionAuthentication().get(subscriptionName);
@@ -364,18 +360,15 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         policies.auth_policies.getSubscriptionAuthentication().put(subscriptionName, roles);
                     }
                     return policies;
-                }).thenRun(() -> {
-                    log.info("[{}] Successfully granted access for role {} for sub = {}", namespace, subscriptionName,
-                            roles);
+                }).whenComplete((__, throwable) -> {
+                    if (throwable != null) {
+                        log.error("[{}] Failed to get permissions for role {} on namespace {}", subscriptionName, roles,
+                                namespace, throwable.getCause());
+                    } else {
+                        log.info("[{}] Successfully granted access for role {} for sub = {}", namespace,
+                                subscriptionName, roles);
+                    }
                 });
-
-        future.exceptionally(ex -> {
-            log.error("[{}] Failed to get permissions for role {} on namespace {}", subscriptionName, roles, namespace,
-                    ex);
-            return null;
-        });
-
-        return future;
     }
 
     private CompletableFuture<Boolean> checkAuthorization(TopicName topicName, String role, AuthAction action) {
