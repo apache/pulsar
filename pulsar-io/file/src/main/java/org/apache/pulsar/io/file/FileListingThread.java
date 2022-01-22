@@ -190,6 +190,7 @@ public class FileListingThread extends Thread {
                         .endsWith(processedFileSuffix)) {
                     return false;
                 }
+
                 return filePattern.matcher(file.getName()).matches();
             }
         };
