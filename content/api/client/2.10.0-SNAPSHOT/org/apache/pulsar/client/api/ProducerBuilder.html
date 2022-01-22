@@ -26,7 +26,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6,"i22":6,"i23":6,"i24":38,"i25":6,"i26":6,"i27":6,"i28":6,"i29":6,"i30":6,"i31":6,"i32":6,"i33":6,"i34":6,"i35":6};
+var data = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6,"i22":6,"i23":6,"i24":38,"i25":6,"i26":6,"i27":38,"i28":6,"i29":6,"i30":6,"i31":6,"i32":6,"i33":6,"i34":6,"i35":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],32:["t6","Deprecated Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -355,7 +355,7 @@ extends java.lang.Cloneable</pre>
 <td class="colFirst"><code><a href="ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#maxPendingMessagesAcrossPartitions(int)">maxPendingMessagesAcrossPartitions</a></span>&#8203;(int&nbsp;maxPendingMessagesAcrossPartitions)</code></th>
 <td class="colLast">
-<div class="block">Set the number of max pending messages across all the partitions.</div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 </td>
 </tr>
 <tr id="i28" class="altColor">
@@ -635,7 +635,7 @@ extends java.lang.Cloneable</pre>
  the client application. Until, the producer gets a successful acknowledgment back from the broker,
  it will keep in memory (direct memory pool) all the messages in the pending queue.
 
- <p>Default is 1000.</div>
+ <p>Default is 0, disable the pending messages check.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>maxPendingMessages</code> - the max size of the pending messages queue for the producer</dd>
@@ -650,7 +650,9 @@ extends java.lang.Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>maxPendingMessagesAcrossPartitions</h4>
-<pre class="methodSignature"><a href="ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&nbsp;maxPendingMessagesAcrossPartitions&#8203;(int&nbsp;maxPendingMessagesAcrossPartitions)</pre>
+<pre class="methodSignature">@Deprecated
+<a href="ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&nbsp;maxPendingMessagesAcrossPartitions&#8203;(int&nbsp;maxPendingMessagesAcrossPartitions)</pre>
+<div class="deprecationBlock"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Set the number of max pending messages across all the partitions.
 
  <p>This setting will be used to lower the max pending messages for each partition
@@ -658,7 +660,7 @@ extends java.lang.Cloneable</pre>
  The purpose of this setting is to have an upper-limit on the number
  of pending messages when publishing on a partitioned topic.
 
- <p>Default is 50000.
+ <p>Default is 0, disable the pending messages across partitions check.
 
  <p>If publishing at high rate over a topic with many partitions (especially when publishing messages without a
  partitioning key), it might be beneficial to increase this parameter to allow for more pipelining within the
