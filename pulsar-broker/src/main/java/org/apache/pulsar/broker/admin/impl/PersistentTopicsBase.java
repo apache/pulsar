@@ -3431,8 +3431,8 @@ public class PersistentTopicsBase extends AdminResource {
             final CompletableFuture<Void> resultFuture = new CompletableFuture<>();
             try {
                 validateTopicOperationAsync(topicName, TopicOperation.EXPIRE_MESSAGES)
-                    .thenCompose(unused -> validateTopicOwnershipAsync(topicName, authoritative))
-                    .thenAccept(unused -> getTopicReferenceAsync(topicName).thenAccept(t -> {
+                    .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
+                    .thenAccept(__ -> getTopicReferenceAsync(topicName).thenAccept(t -> {
                         if (t == null) {
                             resultFuture.completeExceptionally(new RestException(Status.NOT_FOUND, "Topic not found"));
                             return;
@@ -3459,6 +3459,7 @@ public class PersistentTopicsBase extends AdminResource {
                             if (issued) {
                                 log.info("[{}] Message expire started up to {} on {} {}", clientAppId(),
                                         expireTimeInSeconds, topicName, subName);
+                                resultFuture.complete(__);
                             } else {
                                 if (log.isDebugEnabled()) {
                                     log.debug("Expire message by timestamp not issued on topic {} for subscription {} "
