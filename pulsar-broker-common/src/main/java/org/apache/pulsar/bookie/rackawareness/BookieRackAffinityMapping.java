@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import org.apache.bookkeeper.client.ITopologyAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackChangeNotifier;
 import org.apache.bookkeeper.net.AbstractDNSToSwitchMapping;
@@ -52,10 +53,10 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
 
     public static final String BOOKIE_INFO_ROOT_PATH = "/bookies";
     public static final String METADATA_STORE_INSTANCE = "METADATA_STORE_INSTANCE";
-    private static final String LEDGERS_DEFAULT_ROOT_PATH = "/ledgers";
 
     private MetadataCache<BookiesRackConfiguration> bookieMappingCache = null;
     private ITopologyAwareEnsemblePlacementPolicy<BookieNode> rackawarePolicy = null;
+    private List<BookieId> bookieAddressListLastTime = new ArrayList<>();
 
     private volatile BookiesRackConfiguration racksWithHost = new BookiesRackConfiguration();
     private volatile Map<String, BookieInfo> bookieInfoMap = new HashMap<>();
@@ -77,6 +78,19 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
 
         bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
         bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).join();
+        try {
+            for (Map<String, BookieInfo> bookieMapping : bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).get()
+                    .map(Map::values).orElse(Collections.emptyList())) {
+                for (String address : bookieMapping.keySet()) {
+                    bookieAddressListLastTime.add(BookieId.parse(address));
+                }
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("BookieRackAffinityMapping init, bookieAddressListLastTime {}", bookieAddressListLastTime);
+                }
+            }
+        } catch (InterruptedException | ExecutionException e) {
+            LOG.warn("Failed to init BookieId list", e);
+        }
         store.registerListener(this::handleUpdates);
 
         // A previous version of this code tried to eagerly load the cache. However, this is invalid
@@ -201,7 +215,16 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                                 bookieAddressList.add(BookieId.parse(addr));
                             }
                         }
-                        rackawarePolicy.onBookieRackChange(bookieAddressList);
+                        if (LOG.isDebugEnabled()) {
+                            LOG.debug("Bookies with rack update from {} to {}", bookieAddressListLastTime,
+                                    bookieAddressList);
+                        }
+                        if (bookieAddressListLastTime.size() > bookieAddressList.size()) {
+                            rackawarePolicy.onBookieRackChange(bookieAddressListLastTime);
+                        } else {
+                            rackawarePolicy.onBookieRackChange(bookieAddressList);
+                        }
+                        bookieAddressListLastTime = bookieAddressList;
                     });
         }
     }
