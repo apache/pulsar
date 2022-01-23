@@ -23,6 +23,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -64,6 +65,9 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
 
     private static final Map<String, NavigableMap<String, Value>> STATIC_MAPS = new MapMaker()
             .weakValues().makeMap();
+    // Manage all instances to facilitate registration to the same listener
+    private static final Map<String, Set<AbstractMetadataStore>> STATIC_INSTANCE = new MapMaker()
+            .weakValues().makeMap();
     private static final Map<String, AtomicLong> STATIC_ID_GEN_MAP = new MapMaker()
             .weakValues().makeMap();
 
@@ -84,6 +88,14 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
             // Use a reference from a shared data set
             String name = uri.getHost();
             map = STATIC_MAPS.computeIfAbsent(name, __ -> new TreeMap<>());
+            STATIC_INSTANCE.compute(name, (key, value) -> {
+                if (value == null) {
+                    value = new HashSet<>();
+                }
+                value.forEach(v -> registerListener(v));
+                value.add(this);
+                return value;
+            });
             sequentialIdGenerator = STATIC_ID_GEN_MAP.computeIfAbsent(name, __ -> new AtomicLong());
             log.info("Created LocalMemoryDataStore for '{}'", name);
         }
