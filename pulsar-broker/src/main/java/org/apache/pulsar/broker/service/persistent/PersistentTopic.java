@@ -2375,32 +2375,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      * marked as inactive.
      */
     private boolean shouldTopicBeRetained() {
-        RetentionPolicies retentionPolicies = null;
-        try {
-            retentionPolicies = getTopicPolicies()
-                    .map(TopicPolicies::getRetentionPolicies)
-                    .orElse(null);
-            if (retentionPolicies == null){
-                TopicName name = TopicName.get(topic);
-                retentionPolicies = brokerService.pulsar().getPulsarResources().getNamespaceResources()
-                        .getPolicies(name.getNamespaceObject())
-                        .map(p -> p.retention_policies)
-                        .orElse(null);
-            }
-            if (retentionPolicies == null){
-                // If no policies, the default is to have no retention and delete the inactive topic
-                retentionPolicies = new RetentionPolicies(
-                        brokerService.pulsar().getConfiguration().getDefaultRetentionTimeInMinutes(),
-                        brokerService.pulsar().getConfiguration().getDefaultRetentionSizeInMB());
-            }
-        } catch (Exception e) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Error getting policies", topic);
-            }
-            // Don't delete in case we cannot get the policies
-            return true;
-        }
-
+        RetentionPolicies retentionPolicies = topicPolicies.getRetentionPolicies().get();
         long retentionTime = TimeUnit.MINUTES.toNanos(retentionPolicies.getRetentionTimeInMinutes());
         // Negative retention time means the topic should be retained indefinitely,
         // because its own data has to be retained
