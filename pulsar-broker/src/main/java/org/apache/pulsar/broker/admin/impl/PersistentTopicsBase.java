@@ -1801,124 +1801,119 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalExpireMessagesForAllSubscriptions(AsyncResponse asyncResponse, int expireTimeInSeconds,
-            boolean authoritative) {
+                                                             boolean authoritative) {
+        CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
-            try {
-                validateGlobalNamespaceOwnership(namespaceName);
-            } catch (Exception e) {
-                log.error("[{}] Failed to expire messages for all subscription on topic {}",
-                        clientAppId(), topicName, e);
-                resumeAsyncResponseExceptionally(asyncResponse, e);
-                return;
-            }
-        }
-        // If the topic name is a partition name, no need to get partition topic metadata again
-        if (topicName.isPartitioned()) {
-            internalExpireMessagesForAllSubscriptionsForNonPartitionedTopic(asyncResponse,
-                    expireTimeInSeconds, authoritative);
+            future = validateGlobalNamespaceOwnershipAsync(namespaceName);
         } else {
-            getPartitionedTopicMetadataAsync(topicName,
-                    authoritative, false).thenAccept(partitionMetadata -> {
-                if (partitionMetadata.partitions > 0) {
-                    final List<CompletableFuture<Void>> futures = Lists.newArrayList();
-
-                    // expire messages for each partition topic
-                    for (int i = 0; i < partitionMetadata.partitions; i++) {
-                        TopicName topicNamePartition = topicName.getPartition(i);
-                        try {
-                            futures.add(pulsar()
-                                    .getAdminClient()
-                                    .topics()
-                                    .expireMessagesForAllSubscriptionsAsync(
-                                            topicNamePartition.toString(), expireTimeInSeconds));
-                        } catch (Exception e) {
-                            log.error("[{}] Failed to expire messages up to {} on {}",
-                                    clientAppId(), expireTimeInSeconds,
-                                    topicNamePartition, e);
-                            asyncResponse.resume(new RestException(e));
-                            return;
-                        }
-                    }
-
-                    FutureUtil.waitForAll(futures).handle((result, exception) -> {
-                        if (exception != null) {
-                            Throwable t = exception.getCause();
-                            log.error("[{}] Failed to expire messages up to {} on {}",
-                                    clientAppId(), expireTimeInSeconds,
-                                    topicName, t);
-                            asyncResponse.resume(new RestException(t));
-                            return null;
-                        }
-
-                        asyncResponse.resume(Response.noContent().build());
-                        return null;
-                    });
-                } else {
-                    internalExpireMessagesForAllSubscriptionsForNonPartitionedTopic(asyncResponse,
-                            expireTimeInSeconds, authoritative);
-                }
-            }).exceptionally(ex -> {
-                log.error("[{}] Failed to expire messages for all subscription on topic {}",
-                        clientAppId(), topicName, ex);
-                resumeAsyncResponseExceptionally(asyncResponse, ex);
-                return null;
-            });
+            future = CompletableFuture.completedFuture(null);
         }
+        future.thenCompose(__ -> {
+            // If the topic name is a partition name, no need to get partition topic metadata again
+            if (topicName.isPartitioned()) {
+                return internalExpireMessagesForAllSubscriptionsForNonPartitionedTopicAsync(asyncResponse,
+                    expireTimeInSeconds, authoritative);
+            } else {
+                return getPartitionedTopicMetadataAsync(topicName, authoritative, false)
+                    .thenCompose(partitionMetadata -> {
+                        if (partitionMetadata.partitions > 0) {
+                            final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+
+                            // expire messages for each partition topic
+                            for (int i = 0; i < partitionMetadata.partitions; i++) {
+                                TopicName topicNamePartition = topicName.getPartition(i);
+                                try {
+                                    futures.add(pulsar()
+                                        .getAdminClient()
+                                        .topics()
+                                        .expireMessagesForAllSubscriptionsAsync(
+                                            topicNamePartition.toString(), expireTimeInSeconds));
+                                } catch (Exception e) {
+                                    log.error("[{}] Failed to expire messages up to {} on {}",
+                                        clientAppId(), expireTimeInSeconds,
+                                        topicNamePartition, e);
+                                    asyncResponse.resume(new RestException(e));
+                                    return CompletableFuture.completedFuture(null);
+                                }
+                            }
+
+                            return FutureUtil.waitForAll(futures).handle((result, exception) -> {
+                                if (exception != null) {
+                                    Throwable t = exception.getCause();
+                                    log.error("[{}] Failed to expire messages up to {} on {}",
+                                        clientAppId(), expireTimeInSeconds,
+                                        topicName, t);
+                                    asyncResponse.resume(new RestException(t));
+                                    return null;
+                                }
+                                asyncResponse.resume(Response.noContent().build());
+                                return null;
+                            });
+                        } else {
+                            return internalExpireMessagesForAllSubscriptionsForNonPartitionedTopicAsync(asyncResponse,
+                                expireTimeInSeconds, authoritative);
+                        }
+                    });
+            }
+        }).exceptionally(ex -> {
+            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+            log.error("[{}] Failed to expire messages for all subscription on topic {}",
+                clientAppId(), topicName, cause);
+            resumeAsyncResponseExceptionally(asyncResponse, cause);
+            return null;
+        });
     }
 
-    private void internalExpireMessagesForAllSubscriptionsForNonPartitionedTopic(AsyncResponse asyncResponse,
-                                                                                 int expireTimeInSeconds,
-                                                                                 boolean authoritative) {
+    private CompletableFuture<Void> internalExpireMessagesForAllSubscriptionsForNonPartitionedTopicAsync(
+        AsyncResponse asyncResponse,
+        int expireTimeInSeconds,
+        boolean authoritative) {
         // validate ownership and redirect if current broker is not owner
-        PersistentTopic topic;
-        try {
-            validateTopicOwnership(topicName, authoritative);
-            validateTopicOperation(topicName, TopicOperation.EXPIRE_MESSAGES);
-            topic = (PersistentTopic) getTopicReference(topicName);
-        } catch (WebApplicationException wae) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Failed to expire messages for all subscription on topic {},"
-                                + " redirecting to other brokers.",
-                        clientAppId(), topicName, wae);
-            }
-            resumeAsyncResponseExceptionally(asyncResponse, wae);
-            return;
-        } catch (Exception e) {
-            log.error("[{}] Failed to expire messages for all subscription on topic {}",
-                    clientAppId(), topicName, e);
-            resumeAsyncResponseExceptionally(asyncResponse, e);
-            return;
-        }
-        final AtomicReference<Throwable> exception = new AtomicReference<>();
+        CompletableFuture<Void> future = validateTopicOwnershipAsync(topicName, authoritative)
+            .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.EXPIRE_MESSAGES))
+            .thenCompose(__ -> getTopicReferenceAsync(topicName))
+            .thenCompose(t -> {
+                PersistentTopic topic = (PersistentTopic) t;
+                List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
-        topic.getReplicators().forEach((subName, replicator) -> {
-            try {
-                internalExpireMessagesByTimestampForSinglePartition(subName, expireTimeInSeconds, authoritative);
-            } catch (Throwable t) {
-                exception.set(t);
-            }
-        });
+                topic.getReplicators().forEach((subName, replicator) ->
+                    futures.add(
+                        internalExpireMessagesByTimestampForSinglePartitionAsync(subName, expireTimeInSeconds,
+                            authoritative)));
 
-        topic.getSubscriptions().forEach((subName, subscriber) -> {
-            try {
-                internalExpireMessagesByTimestampForSinglePartition(subName, expireTimeInSeconds, authoritative);
-            } catch (Throwable t) {
-                exception.set(t);
-            }
-        });
-
-        if (exception.get() != null) {
-            if (exception.get() instanceof WebApplicationException) {
-                WebApplicationException wae = (WebApplicationException) exception.get();
-                asyncResponse.resume(wae);
-                return;
+                topic.getSubscriptions().forEach((subName, subscriber) ->
+                    futures.add(
+                        internalExpireMessagesByTimestampForSinglePartitionAsync(subName, expireTimeInSeconds,
+                            authoritative)));
+                return FutureUtil.waitForAll(futures).handle((result, exception) -> {
+                    if (exception != null) {
+                        Throwable cause = FutureUtil.unwrapCompletionException(exception);
+                        if (cause instanceof WebApplicationException) {
+                            asyncResponse.resume(cause);
+                        } else {
+                            asyncResponse.resume(new RestException(cause));
+                        }
+                        return null;
+                    }
+                    asyncResponse.resume(Response.noContent().build());
+                    return null;
+                });
+            });
+        return future.exceptionally(ex -> {
+            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+            if (cause instanceof WebApplicationException) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Failed to expire messages for all subscription on topic {},"
+                            + " redirecting to other brokers.",
+                        clientAppId(), topicName, cause);
+                }
             } else {
-                asyncResponse.resume(new RestException(exception.get()));
-                return;
+                log.error("[{}] Failed to expire messages for all subscription on topic {}",
+                    clientAppId(), topicName, cause);
             }
-        }
-
-        asyncResponse.resume(Response.noContent().build());
+            resumeAsyncResponseExceptionally(asyncResponse, cause);
+            return null;
+        });
     }
 
     protected void internalResetCursor(AsyncResponse asyncResponse, String subName, long timestamp,
@@ -3443,6 +3438,92 @@ public class PersistentTopicsBase extends AdminResource {
                     expireTimeInSeconds, topicName, subName, exception);
             throw new RestException(exception);
         }
+    }
+
+    private CompletableFuture<Void> internalExpireMessagesByTimestampForSinglePartitionAsync(String subName,
+                                                                                             int expireTimeInSeconds,
+                                                                                             boolean authoritative) {
+        CompletableFuture<Void> future;
+        if (topicName.isGlobal()) {
+            future = validateGlobalNamespaceOwnershipAsync(namespaceName);
+        } else {
+            future = CompletableFuture.completedFuture(null);
+        }
+
+        return future.thenCompose(__ -> {
+            // If the topic name is a partition name, no need to get partition topic metadata again
+            if (!topicName.isPartitioned()) {
+                return getPartitionedTopicMetadataAsync(topicName, authoritative, false)
+                    .thenCompose(metadata -> {
+                        if (metadata.partitions > 0) {
+                            String msg = "This method should not be called for partitioned topic";
+                            log.error("[{}] {} {} {}", clientAppId(), msg, topicName, subName);
+                            throw new IllegalStateException(msg);
+                        } else {
+                            return doInternalExpireMessagesByTimestampForSinglePartitionAsync(subName,
+                                expireTimeInSeconds, authoritative);
+                        }
+                    });
+
+            }
+            return doInternalExpireMessagesByTimestampForSinglePartitionAsync(subName, expireTimeInSeconds,
+                authoritative);
+        });
+    }
+
+    private CompletableFuture<Void> doInternalExpireMessagesByTimestampForSinglePartitionAsync(String subName,
+                                                                                               int expireTimeInSeconds,
+                                                                                               boolean authoritative) {
+        return validateTopicOwnershipAsync(topicName, authoritative)
+            .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.EXPIRE_MESSAGES))
+            .thenCompose(__ -> getTopicReferenceAsync(topicName))
+            .thenAccept(t -> {
+                if (!(t instanceof PersistentTopic)) {
+                    log.error("[{}] Not supported operation of non-persistent topic {} {}", clientAppId(), topicName,
+                        subName);
+                    throw new RestException(Status.METHOD_NOT_ALLOWED,
+                        "Expire messages on a non-persistent topic is not allowed");
+                }
+
+                PersistentTopic topic = (PersistentTopic) t;
+                try {
+                    boolean issued;
+                    if (subName.startsWith(topic.getReplicatorPrefix())) {
+                        String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
+                        PersistentReplicator repl = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
+                        checkNotNull(repl);
+                        issued = repl.expireMessages(expireTimeInSeconds);
+                    } else {
+                        PersistentSubscription sub = topic.getSubscription(subName);
+                        checkNotNull(sub);
+                        issued = sub.expireMessages(expireTimeInSeconds);
+                    }
+                    if (issued) {
+                        log.info("[{}] Message expire started up to {} on {} {}", clientAppId(), expireTimeInSeconds,
+                            topicName,
+                            subName);
+                    } else {
+                        if (log.isDebugEnabled()) {
+                            log.debug(
+                                "Expire message by timestamp not issued on topic {} for subscription {} due to ongoing "
+                                    + "message expiration not finished or subscription almost catch up. If it's "
+                                    + "performed on a partitioned topic operation might succeeded on other partitions, "
+                                    + "please check stats of individual partition.", topicName, subName);
+                        }
+                        throw new RestException(Status.CONFLICT, "Expire message by timestamp not issued on topic "
+                            + topicName + " for subscription " + subName
+                            + " due to ongoing message expiration not finished or subscription almost catch up. If"
+                            + " it's performed on a partitioned topic operation might succeeded on other partitions,"
+                            + " please check stats of individual partition.");
+                    }
+                } catch (NullPointerException npe) {
+                    throw new RestException(Status.NOT_FOUND, "Subscription not found");
+                } catch (Exception exception) {
+                    log.error("[{}] Failed to expire messages up to {} on {} with subscription {} {}", clientAppId(),
+                        expireTimeInSeconds, topicName, subName, exception);
+                    throw new RestException(exception);
+                }
+            });
     }
 
     protected void internalExpireMessagesByPosition(AsyncResponse asyncResponse, String subName, boolean authoritative,
