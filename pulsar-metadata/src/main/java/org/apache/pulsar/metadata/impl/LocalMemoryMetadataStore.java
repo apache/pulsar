@@ -178,7 +178,8 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
                     receivedNotification(new Notification(NotificationType.Created, path));
                     notifyParentChildrenChanged(path);
                     String finalPath = path;
-                    execute(() -> future.complete(new Stat(finalPath, 0, now, now, newValue.isEphemeral(), true)), future);
+                    execute(() -> future.complete(new Stat(finalPath, 0, now, now, newValue.isEphemeral(),
+                            true)), future);
                 }
             } else {
                 Value existingValue = map.get(path);
