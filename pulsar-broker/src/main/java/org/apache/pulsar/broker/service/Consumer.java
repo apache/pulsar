@@ -765,21 +765,26 @@ public class Consumer {
                 .add("consumerName", consumerName).add("address", this.cnx.clientAddress()).toString();
     }
 
-    public void checkPermissions() {
+    public CompletableFuture<Void> checkPermissionsAsync() {
         TopicName topicName = TopicName.get(subscription.getTopicName());
         if (cnx.getBrokerService().getAuthorizationService() != null) {
-            try {
-                if (cnx.getBrokerService().getAuthorizationService().canConsume(topicName, appId,
-                        cnx.getAuthenticationData(), subscription.getName())) {
-                    return;
-                }
-            } catch (Exception e) {
-                log.warn("[{}] Get unexpected error while autorizing [{}]  {}", appId, subscription.getTopicName(),
-                        e.getMessage(), e);
-            }
-            log.info("[{}] is not allowed to consume from topic [{}] anymore", appId, subscription.getTopicName());
-            disconnect();
+            return cnx.getBrokerService().getAuthorizationService().canConsumeAsync(topicName, appId,
+                            cnx.getAuthenticationData(), subscription.getName())
+                    .handle((ok, e) -> {
+                        if (e != null) {
+                            log.warn("[{}] Get unexpected error while autorizing [{}]  {}", appId,
+                                    subscription.getTopicName(), e.getMessage(), e);
+                        }
+
+                        if (ok == null || !ok) {
+                            log.info("[{}] is not allowed to consume from topic [{}] anymore", appId,
+                                    subscription.getTopicName());
+                            disconnect();
+                        }
+                        return null;
+                    });
         }
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override

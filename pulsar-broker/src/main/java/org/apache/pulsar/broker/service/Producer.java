@@ -647,21 +647,26 @@ public class Producer {
         return pendingPublishAcks;
     }
 
-    public void checkPermissions() {
+    public CompletableFuture<Void> checkPermissionsAsync() {
         TopicName topicName = TopicName.get(topic.getName());
         if (cnx.getBrokerService().getAuthorizationService() != null) {
-            try {
-                if (cnx.getBrokerService().getAuthorizationService().canProduce(topicName, appId,
-                        cnx.getAuthenticationData())) {
-                    return;
-                }
-            } catch (Exception e) {
-                log.warn("[{}] Get unexpected error while autorizing [{}]  {}", appId, topic.getName(), e.getMessage(),
-                        e);
-            }
-            log.info("[{}] is not allowed to produce on topic [{}] anymore", appId, topic.getName());
-            disconnect();
+            return cnx.getBrokerService().getAuthorizationService()
+                    .canProduceAsync(topicName, appId, cnx.getAuthenticationData())
+                    .handle((ok, ex) -> {
+                        if (ex != null) {
+                            log.warn("[{}] Get unexpected error while autorizing [{}]  {}", appId, topic.getName(),
+                                    ex.getMessage(), ex);
+                        }
+
+                        if (ok == null || !ok) {
+                            log.info("[{}] is not allowed to produce on topic [{}] anymore", appId, topic.getName());
+                            disconnect();
+                        }
+
+                        return null;
+                    });
         }
+        return CompletableFuture.completedFuture(null);
     }
 
     public void checkEncryption() {
