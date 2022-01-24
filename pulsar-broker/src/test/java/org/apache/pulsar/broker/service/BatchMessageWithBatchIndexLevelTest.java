@@ -68,7 +68,7 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
                 .newProducer()
                 .topic(topicName)
                 .batchingMaxMessages(20)
-                .batchingMaxPublishDelay(200, TimeUnit.MILLISECONDS)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
                 .enableBatching(true)
                 .create();
 

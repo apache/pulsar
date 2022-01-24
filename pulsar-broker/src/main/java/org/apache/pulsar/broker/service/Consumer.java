@@ -40,7 +40,6 @@ import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap.LongPair;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.MutablePair;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.MessageId;
@@ -129,6 +128,7 @@ public class Consumer {
     private PositionImpl readPositionWhenJoining;
     private final String clientAddress; // IP address only, no port number included
     private final MessageId startMessageId;
+    private final boolean isAcknowledgmentAtBatchIndexLevelEnabled;
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
@@ -185,6 +185,8 @@ public class Consumer {
         }
 
         this.clientAddress = cnx.clientSourceAddress();
+        this.isAcknowledgmentAtBatchIndexLevelEnabled = subscription.getTopic().getBrokerService()
+                .getPulsar().getConfiguration().isAcknowledgmentAtBatchIndexLevelEnabled();
     }
 
     public SubType subType() {
@@ -411,7 +413,7 @@ public class Consumer {
                 }
             } else {
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
-                if (isDeletionAtBatchIndexLevelEnabled()) {
+                if (isAcknowledgmentAtBatchIndexLevelEnabled) {
                     long[] cursorAckSet = getCursorAckSet(position);
                     if (cursorAckSet != null) {
                         ackedCount = batchSize - BitSet.valueOf(cursorAckSet).cardinality();
@@ -519,7 +521,7 @@ public class Consumer {
 
     private long getAckedCountForBatchIndexLevelEnabled(PositionImpl position, long batchSize, long[] ackSets) {
         long ackedCount = 0;
-        if (isDeletionAtBatchIndexLevelEnabled()) {
+        if (isAcknowledgmentAtBatchIndexLevelEnabled) {
             long[] cursorAckSet = getCursorAckSet(position);
             if (cursorAckSet != null) {
                 BitSetRecyclable cursorBitSet = BitSetRecyclable.create().resetWords(cursorAckSet);
@@ -539,7 +541,7 @@ public class Consumer {
 
     private long getUnAckedCountForBatchIndexLevelEnabled(PositionImpl position, long batchSize) {
         long unAckedCount = batchSize;
-        if (isDeletionAtBatchIndexLevelEnabled()) {
+        if (isAcknowledgmentAtBatchIndexLevelEnabled) {
             long[] cursorAckSet = getCursorAckSet(position);
             if (cursorAckSet != null) {
                 BitSetRecyclable cursorBitSet = BitSetRecyclable.create().resetWords(cursorAckSet);
@@ -573,11 +575,6 @@ public class Consumer {
             }
         }
         return ackOwnerConsumer;
-    }
-
-    private boolean isDeletionAtBatchIndexLevelEnabled() {
-        ServiceConfiguration configuration = subscription.getTopic().getBrokerService().getPulsar().getConfiguration();
-        return configuration.isAcknowledgmentAtBatchIndexLevelEnabled();
     }
 
     private long[] getCursorAckSet(PositionImpl position) {
@@ -875,7 +872,7 @@ public class Consumer {
             LongPair longPair = pendingAcks.get(position.getLedgerId(), position.getEntryId());
             if (longPair != null) {
                 long batchSize = longPair.first;
-                if (isDeletionAtBatchIndexLevelEnabled()) {
+                if (isAcknowledgmentAtBatchIndexLevelEnabled) {
                     long[] cursorAckSet = getCursorAckSet(position);
                     if (cursorAckSet != null) {
                         batchSize -= BitSet.valueOf(cursorAckSet).cardinality();
