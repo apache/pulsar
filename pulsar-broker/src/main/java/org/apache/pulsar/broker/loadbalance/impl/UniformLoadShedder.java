@@ -97,10 +97,10 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
         // find the difference between two brokers based on msgRate and throughout and check if the load distribution
         // discrepancy is higher than threshold. if that matches then try to unload bundle from overloaded brokers to
         // give chance of uniform load distribution.
-        if (abs(minMsgRate.getValue()) <= EPS) {
+        if (minMsgRate.getValue() <= EPS && minMsgRate.getValue() >= -EPS) {
             minMsgRate.setValue(1.0);
         }
-        if (abs(minThroughputRate.getValue()) <= EPS) {
+        if (minThroughputRate.getValue() <= EPS && minThroughputRate.getValue() >= -EPS) {
             minThroughputRate.setValue(1.0);
         }
         double msgRateDifferencePercentage = ((maxMsgRate.getValue() - minMsgRate.getValue()) * 100)
