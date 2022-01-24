@@ -2800,49 +2800,62 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void internalGetBacklogSizeByMessageId(AsyncResponse asyncResponse,
                                                      MessageIdImpl messageId, boolean authoritative) {
+        CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
-            try {
-                validateGlobalNamespaceOwnership(namespaceName);
-            } catch (Exception e) {
-                log.error("[{}] Failed to get backlog size for topic {}", clientAppId(), topicName, e);
-                resumeAsyncResponseExceptionally(asyncResponse, e);
-                return;
-            }
-        }
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName,
-                authoritative, false);
-        if (!topicName.isPartitioned() && partitionMetadata.partitions > 0) {
-            log.warn("[{}] Not supported calculate backlog size operation on partitioned-topic {}",
-                    clientAppId(), topicName);
-            asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
-                    "calculate backlog size is not allowed for partitioned-topic"));
+            future = validateGlobalNamespaceOwnershipAsync(namespaceName);
         } else {
-            validateTopicOwnership(topicName, authoritative);
-            validateTopicOperation(topicName, TopicOperation.GET_BACKLOG_SIZE);
-            PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
-            PositionImpl pos = new PositionImpl(messageId.getLedgerId(), messageId.getEntryId());
-            if (topic == null) {
-                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Topic not found"));
-                return;
-            }
-            try {
-                ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) topic.getManagedLedger();
-                if (messageId.getLedgerId() == -1) {
-                    asyncResponse.resume(managedLedger.getTotalSize());
-                } else {
-                    asyncResponse.resume(managedLedger.getEstimatedBacklogSize(pos));
-                }
-            } catch (WebApplicationException wae) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Failed to get backlog size for topic {}, redirecting to other brokers.",
-                            clientAppId(), topicName, wae);
-                }
-                resumeAsyncResponseExceptionally(asyncResponse, wae);
-            } catch (Exception e) {
-                log.error("[{}] Failed to get backlog size for topic {}", clientAppId(), topicName, e);
-                resumeAsyncResponseExceptionally(asyncResponse, e);
-            }
+            future = CompletableFuture.completedFuture(null);
         }
+        future.thenAccept(__ -> {
+            getPartitionedTopicMetadataAsync(topicName, authoritative, false)
+                    .thenAccept(partitionMetadata -> {
+                        if (!topicName.isPartitioned() && partitionMetadata.partitions > 0) {
+                            log.warn("[{}] Not supported calculate backlog size operation on partitioned-topic {}",
+                                    clientAppId(), topicName);
+                            asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
+                                    "calculate backlog size is not allowed for partitioned-topic"));
+                        } else {
+                            validateTopicOwnershipAsync(topicName, authoritative)
+                                    .thenCompose(unused -> validateTopicOperationAsync(topicName,
+                                            TopicOperation.GET_BACKLOG_SIZE))
+                                    .thenCompose(unused -> getTopicReferenceAsync(topicName))
+                                    .thenAccept(t -> {
+                                        PersistentTopic topic = (PersistentTopic) t;
+                                        PositionImpl pos = new PositionImpl(messageId.getLedgerId(),
+                                                messageId.getEntryId());
+                                        if (topic == null) {
+                                            asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                                    "Topic not found"));
+                                            return;
+                                        }
+                                        ManagedLedgerImpl managedLedger =
+                                                (ManagedLedgerImpl) topic.getManagedLedger();
+                                        if (messageId.getLedgerId() == -1) {
+                                            asyncResponse.resume(managedLedger.getTotalSize());
+                                        } else {
+                                            asyncResponse.resume(managedLedger.getEstimatedBacklogSize(pos));
+                                        }
+                                    }).exceptionally(ex -> {
+                                        Throwable cause = ex.getCause();
+                                        log.error("[{}] Failed to get backlog size for topic {}", clientAppId(),
+                                                topicName, ex);
+                                        resumeAsyncResponseExceptionally(asyncResponse, cause);
+                                        return null;
+                                    });
+                        }
+                    }).exceptionally(ex -> {
+                        Throwable cause = ex.getCause();
+                        log.error("[{}] Failed to get backlog size for topic {}", clientAppId(), topicName, ex);
+                        resumeAsyncResponseExceptionally(asyncResponse, cause);
+                        return null;
+            });
+        }).exceptionally(ex -> {
+            Throwable cause = ex.getCause();
+            log.error("[{}] Failed to validate global namespace ownership to get backlog size for topic "
+                    + "{}", clientAppId(), topicName, cause);
+            resumeAsyncResponseExceptionally(asyncResponse, cause);
+            return null;
+        });
     }
 
     protected CompletableFuture<Void> internalSetBacklogQuota(BacklogQuota.BacklogQuotaType backlogQuotaType,
