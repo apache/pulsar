@@ -4,9 +4,9 @@ title: Pulsar Java client
 sidebar_label: Java
 ---
 
-You can use a Pulsar Java client to create the Java [producer](#producer), [consumer](#consumer), and [readers](#reader) of messages and to perform [administrative tasks](admin-api-overview.md). The current Java client version is **{{pulsar:version}}**.
+You can use a Pulsar Java client to create the Java [producer](#producer), [consumer](#consumer), [readers](#reader) and [TableView]](#tableview) of messages and to perform [administrative tasks](admin-api-overview.md). The current Java client version is **{{pulsar:version}}**.
 
-All the methods in [producer](#producer), [consumer](#consumer), and [reader](#reader) of a Java client are thread-safe.
+All the methods in [producer](#producer), [consumer](#consumer), [readers](#reader) and [TableView]](#tableview) of a Java client are thread-safe.
 
 Javadoc for the Pulsar client is divided into two domains by package as follows.
 
