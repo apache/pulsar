@@ -38,4 +38,20 @@ public interface Function<I, O> {
      * @return the output
      */
     O process(I input, Context context) throws Exception;
+
+    /**
+     * Called when function instance start
+     *
+     * @param context The Function context
+     *
+     * @throws Exception
+     */
+    default void initialize(Context context) throws Exception {}
+
+    /**
+     * Called when function instance close
+     *
+     * @throws Exception
+     */
+    default void close() throws Exception {}
 }

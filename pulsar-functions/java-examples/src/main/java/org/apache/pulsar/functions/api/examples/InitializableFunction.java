@@ -16,31 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api;
+package org.apache.pulsar.functions.api.examples;
 
-import org.apache.pulsar.common.classification.InterfaceAudience;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
 
-/**
- * An interface for richFunction
- * Extension for Function interface
- * Provide setup and tearDown interface to initial and close any resource used in function
- */
-@InterfaceAudience.Public
-public interface InitializableFunction<I, O> extends Function<I, O>{
+@Slf4j
+public class InitializableFunction implements Function<String, String> {
 
-    /**
-     * Called when function instance start
-     *
-     * @param context The Function context
-     *
-     * @throws Exception
-     */
-    void initialize(Context context) throws Exception;
+    public static boolean initialized = false;
 
-    /**
-     * Called when function instance close
-     *
-     * @throws Exception
-     */
-    void close() throws Exception;
+    @Override
+    public void initialize(Context context) throws Exception {
+        initialized = true;
+    }
+
+    @Override
+    public void close() throws Exception {
+        initialized = false;
+    }
+
+    @Override
+    public String process(String input, Context context) throws Exception {
+        if (!initialized) {
+            throw new Exception("function not initialized");
+        }
+        return "message";
+    }
 }

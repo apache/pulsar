@@ -71,7 +71,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
 import org.apache.pulsar.functions.api.examples.AvroSchemaTestFunction;
 import org.apache.pulsar.functions.api.examples.MergeTopicFunction;
-import org.apache.pulsar.functions.api.examples.InitFunction;
+import org.apache.pulsar.functions.api.examples.InitializableFunction;
 import org.apache.pulsar.functions.api.examples.pojo.AvroTestObject;
 import org.apache.pulsar.functions.api.examples.pojo.Users;
 import org.apache.pulsar.functions.api.examples.serde.CustomObject;
@@ -1453,7 +1453,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final int numMessages = 10;
 
         // submit the exclamation function
-        submitFunction(runtime, inputTopicName, outputTopicName, functionName, null, InitFunction.class.getName(), schema);
+        submitFunction(runtime, inputTopicName, outputTopicName, functionName, null, InitializableFunction.class.getName(), schema);
 
         // publish and consume result
         publishAndConsumeMessages(inputTopicName, outputTopicName, numMessages);
@@ -1461,7 +1461,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // delete function
         deleteFunction(functionName);
 
-        assertFalse(InitFunction.initialized);
+        assertFalse(InitializableFunction.initialized);
     }
 
     protected void testLoggingFunction(Runtime runtime) throws Exception {
