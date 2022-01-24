@@ -23,7 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Context;
 
 @Slf4j
-public class InitializableFunction extends TypedMessageBuilderPublish {
+public class InitializableFunction extends PublishFunction {
 
     private static boolean initialized = false;
 

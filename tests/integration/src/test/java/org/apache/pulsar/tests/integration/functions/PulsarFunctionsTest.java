@@ -1449,7 +1449,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             admin.topics().createNonPartitionedTopic(outputTopicName);
         }
 
-        String functionName = "test-rich-fn-" + randomName(8);
+        String functionName = "test-init-fn-" + randomName(8);
         final int numMessages = 10;
 
         // submit the exclamation function
@@ -1461,6 +1461,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // delete function
         deleteFunction(functionName);
 
+        // close method is called after function deleted
         assertFalse(InitializableFunction.isInitialized());
     }
 
