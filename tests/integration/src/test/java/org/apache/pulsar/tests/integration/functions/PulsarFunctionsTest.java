@@ -1461,7 +1461,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // delete function
         deleteFunction(functionName);
 
-        assertFalse(InitializableFunction.initialized);
+        assertFalse(InitializableFunction.isInitialized());
     }
 
     protected void testLoggingFunction(Runtime runtime) throws Exception {
