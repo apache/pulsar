@@ -87,7 +87,7 @@ public class CmdBookies extends CmdBase {
 
         @Parameter(names = { "-r", "--rack" }, description = "Bookie rack name. "
                 + "If you set a bookie rack name to slash (/) "
-                + "or an empty string (""): "
+                + "or an empty string (\"\"): "
                 + "if you use Pulsar earlier than 2.7.5, 2.8.3, and 2.9.2, "
                 + "an an exception is thrown; "
                 + "if you use Pulsar later than 2.7.5, 2.8.3, and 2.9.2, "
