@@ -37,6 +37,7 @@
 #include "ProducerImpl.h"
 #include "ConsumerImpl.h"
 #include "checksum/ChecksumProvider.h"
+#include "MessageIdUtil.h"
 
 DECLARE_LOG_OBJECT()
 
@@ -1052,7 +1053,7 @@ void ClientConnection::handleIncomingCommand() {
                         PendingGetLastMessageIdRequestsMap::iterator it =
                             pendingGetLastMessageIdRequests_.find(error.request_id());
                         if (it != pendingGetLastMessageIdRequests_.end()) {
-                            Promise<Result, MessageId> getLastMessageIdPromise = it->second;
+                            auto getLastMessageIdPromise = it->second;
                             pendingGetLastMessageIdRequests_.erase(it);
                             lock.unlock();
 
@@ -1168,15 +1169,18 @@ void ClientConnection::handleIncomingCommand() {
                         pendingGetLastMessageIdRequests_.find(getLastMessageIdResponse.request_id());
 
                     if (it != pendingGetLastMessageIdRequests_.end()) {
-                        Promise<Result, MessageId> getLastMessageIdPromise = it->second;
+                        auto getLastMessageIdPromise = it->second;
                         pendingGetLastMessageIdRequests_.erase(it);
                         lock.unlock();
 
-                        MessageIdData messageIdData = getLastMessageIdResponse.last_message_id();
-                        MessageId messageId = MessageId(messageIdData.partition(), messageIdData.ledgerid(),
-                                                        messageIdData.entryid(), messageIdData.batch_index());
-
-                        getLastMessageIdPromise.setValue(messageId);
+                        if (getLastMessageIdResponse.has_consumer_mark_delete_position()) {
+                            getLastMessageIdPromise.setValue(
+                                {toMessageId(getLastMessageIdResponse.last_message_id()),
+                                 toMessageId(getLastMessageIdResponse.consumer_mark_delete_position())});
+                        } else {
+                            getLastMessageIdPromise.setValue(
+                                {toMessageId(getLastMessageIdResponse.last_message_id())});
+                        }
                     } else {
                         lock.unlock();
                         LOG_WARN(
@@ -1585,9 +1589,10 @@ Commands::ChecksumType ClientConnection::getChecksumType() const {
     return getServerProtocolVersion() >= proto::v6 ? Commands::Crc32c : Commands::None;
 }
 
-Future<Result, MessageId> ClientConnection::newGetLastMessageId(uint64_t consumerId, uint64_t requestId) {
+Future<Result, GetLastMessageIdResponse> ClientConnection::newGetLastMessageId(uint64_t consumerId,
+                                                                               uint64_t requestId) {
     Lock lock(mutex_);
-    Promise<Result, MessageId> promise;
+    Promise<Result, GetLastMessageIdResponse> promise;
     if (isClosed()) {
         lock.unlock();
         LOG_ERROR(cnxString_ << " Client is not connected to the broker");

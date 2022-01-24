@@ -33,6 +33,7 @@
 #include "lib/UnAckedMessageTrackerDisabled.h"
 #include "MessageCrypto.h"
 #include "AckGroupingTracker.h"
+#include "GetLastMessageIdResponse.h"
 
 #include "CompressionCodec.h"
 #include <boost/dynamic_bitset.hpp>
@@ -53,7 +54,7 @@ class ExecutorService;
 class ConsumerImpl;
 class BatchAcknowledgementTracker;
 typedef std::shared_ptr<MessageCrypto> MessageCryptoPtr;
-typedef std::function<void(Result result, MessageId messageId)> BrokerGetLastMessageIdCallback;
+typedef std::function<void(Result, const GetLastMessageIdResponse&)> BrokerGetLastMessageIdCallback;
 
 enum ConsumerTopicType
 {
@@ -186,10 +187,8 @@ class ConsumerImpl : public ConsumerImplBase,
     bool hasParent_;
     ConsumerTopicType consumerTopicType_;
 
-    Commands::SubscriptionMode subscriptionMode_;
-    Optional<MessageId> startMessageId_;
+    const Commands::SubscriptionMode subscriptionMode_;
 
-    Optional<MessageId> lastDequedMessage_;
     UnboundedBlockingQueue<Message> incomingMessages_;
     std::queue<ReceiveCallback> pendingReceives_;
     std::atomic_int availablePermits_;
@@ -210,17 +209,11 @@ class ConsumerImpl : public ConsumerImplBase,
     MessageCryptoPtr msgCrypto_;
     const bool readCompacted_;
 
-    Optional<MessageId> lastMessageInBroker_;
-    void brokerGetLastMessageIdListener(Result res, MessageId messageId,
-                                        BrokerGetLastMessageIdCallback callback);
-
-    const MessageId& lastMessageIdDequed() {
-        return lastDequedMessage_.is_present() ? lastDequedMessage_.value() : MessageId::earliest();
-    }
-
-    const MessageId& lastMessageIdInBroker() {
-        return lastMessageInBroker_.is_present() ? lastMessageInBroker_.value() : MessageId::earliest();
-    }
+    // Make the access to `startMessageId_`, `lastDequedMessageId_` and `lastMessageIdInBroker_` thread safe
+    mutable std::mutex mutexForMessageId_;
+    Optional<MessageId> startMessageId_;
+    MessageId lastDequedMessageId_{MessageId::earliest()};
+    MessageId lastMessageIdInBroker_{MessageId::earliest()};
 
     friend class PulsarFriend;
 

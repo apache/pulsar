@@ -25,6 +25,7 @@
 #include "pulsar/Result.h"
 #include "pulsar/MessageId.h"
 #include "Utils.h"
+#include "MessageIdUtil.h"
 #include "AckGroupingTracker.h"
 #include "AckGroupingTrackerEnabled.h"
 #include "AckGroupingTrackerDisabled.h"
@@ -50,7 +51,6 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
       hasParent_(hasParent),
       consumerTopicType_(consumerTopicType),
       subscriptionMode_(subscriptionMode),
-      startMessageId_(startMessageId),
       // This is the initial capacity of the queue
       incomingMessages_(std::max(config_.getReceiverQueueSize(), 1)),
       availablePermits_(0),
@@ -62,7 +62,7 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
       negativeAcksTracker_(client, *this, conf),
       ackGroupingTrackerPtr_(std::make_shared<AckGroupingTracker>()),
       readCompacted_(conf.isReadCompacted()),
-      lastMessageInBroker_(Optional<MessageId>::of(MessageId())) {
+      startMessageId_(startMessageId) {
     std::stringstream consumerStrStream;
     consumerStrStream << "[" << topic_ << ", " << subscription_ << ", " << consumerId_ << "] ";
     consumerStr_ = consumerStrStream.str();
@@ -158,29 +158,31 @@ void ConsumerImpl::start() {
 
 void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
     Lock lock(mutex_);
-    if (state_ == Closed) {
-        lock.unlock();
+    const auto state = state_;
+    lock.unlock();
+    if (state == Closed) {
         LOG_DEBUG(getName() << "connectionOpened : Consumer is already closed");
         return;
     }
 
+    Lock lockForMessageId(mutexForMessageId_);
     Optional<MessageId> firstMessageInQueue = clearReceiveQueue();
-    unAckedMessageTrackerPtr_->clear();
-    batchAcknowledgementTracker_.clear();
-
     if (subscriptionMode_ == Commands::SubscriptionModeNonDurable) {
         // Update startMessageId so that we can discard messages after delivery
         // restarts
         startMessageId_ = firstMessageInQueue;
     }
+    const auto startMessageId = startMessageId_;
+    lockForMessageId.unlock();
 
-    lock.unlock();
+    unAckedMessageTrackerPtr_->clear();
+    batchAcknowledgementTracker_.clear();
 
     ClientImplPtr client = client_.lock();
     uint64_t requestId = client->newRequestId();
     SharedBuffer cmd = Commands::newSubscribe(
         topic_, subscription_, consumerId_, requestId, getSubType(), consumerName_, subscriptionMode_,
-        startMessageId_, readCompacted_, config_.getProperties(), config_.getSchema(), getInitialPosition(),
+        startMessageId, readCompacted_, config_.getProperties(), config_.getSchema(), getInitialPosition(),
         config_.isReplicateSubscriptionStateEnabled(), config_.getKeySharedPolicy());
     cnx->sendRequestWithId(cmd, requestId)
         .addListener(
@@ -416,6 +418,9 @@ uint32_t ConsumerImpl::receiveIndividualMessagesFromBatch(const ClientConnection
     batchAcknowledgementTracker_.receivedMessage(batchedMessage);
     LOG_DEBUG("Received Batch messages of size - " << batchSize
                                                    << " -- msgId: " << batchedMessage.getMessageId());
+    Lock lock(mutexForMessageId_);
+    const auto startMessageId = startMessageId_;
+    lock.unlock();
 
     int skippedMessages = 0;
 
@@ -425,14 +430,14 @@ uint32_t ConsumerImpl::receiveIndividualMessagesFromBatch(const ClientConnection
         msg.impl_->setRedeliveryCount(redeliveryCount);
         msg.impl_->setTopicName(batchedMessage.getTopicName());
 
-        if (startMessageId_.is_present()) {
+        if (startMessageId.is_present()) {
             const MessageId& msgId = msg.getMessageId();
 
             // If we are receiving a batch message, we need to discard messages that were prior
             // to the startMessageId
-            if (msgId.ledgerId() == startMessageId_.value().ledgerId() &&
-                msgId.entryId() == startMessageId_.value().entryId() &&
-                msgId.batchIndex() <= startMessageId_.value().batchIndex()) {
+            if (msgId.ledgerId() == startMessageId.value().ledgerId() &&
+                msgId.entryId() == startMessageId.value().entryId() &&
+                msgId.batchIndex() <= startMessageId.value().batchIndex()) {
                 LOG_DEBUG(getName() << "Ignoring message from before the startMessageId"
                                     << msg.getMessageId());
                 ++skippedMessages;
@@ -563,7 +568,7 @@ void ConsumerImpl::internalListener() {
     trackMessage(msg);
     try {
         consumerStatsBasePtr_->receivedMessage(msg, ResultOk);
-        lastDequedMessage_ = Optional<MessageId>::of(msg.getMessageId());
+        lastDequedMessageId_ = msg.getMessageId();
         messageListener_(Consumer(shared_from_this()), msg);
     } catch (const std::exception& e) {
         LOG_ERROR(getName() << "Exception thrown from listener" << e.what());
@@ -697,8 +702,9 @@ Result ConsumerImpl::receiveHelper(Message& msg, int timeout) {
 }
 
 void ConsumerImpl::messageProcessed(Message& msg, bool track) {
-    Lock lock(mutex_);
-    lastDequedMessage_ = Optional<MessageId>::of(msg.getMessageId());
+    Lock lock(mutexForMessageId_);
+    lastDequedMessageId_ = msg.getMessageId();
+    lock.unlock();
 
     ClientConnectionPtr currentCnx = getCnx().lock();
     if (currentCnx && msg.impl_->cnx_ != currentCnx.get()) {
@@ -730,11 +736,11 @@ Optional<MessageId> ConsumerImpl::clearReceiveQueue() {
             previousMessageId = MessageId(-1, nextMessageId.ledgerId(), nextMessageId.entryId() - 1, -1);
         }
         return Optional<MessageId>::of(previousMessageId);
-    } else if (lastDequedMessage_.is_present()) {
+    } else if (lastDequedMessageId_ != MessageId::earliest()) {
         // If the queue was empty we need to restart from the message just after the last one that has been
         // dequeued
         // in the past
-        return lastDequedMessage_;
+        return Optional<MessageId>::of(lastDequedMessageId_);
     } else {
         // No message was received or dequeued by this consumer. Next message would still be the
         // startMessageId
@@ -1070,6 +1076,9 @@ void ConsumerImpl::brokerConsumerStatsListener(Result res, BrokerConsumerStatsIm
 
 void ConsumerImpl::handleSeek(Result result, ResultCallback callback) {
     if (result == ResultOk) {
+        Lock lock(mutexForMessageId_);
+        lastDequedMessageId_ = MessageId::earliest();
+        lock.unlock();
         LOG_INFO(getName() << "Seek successfully");
     } else {
         LOG_ERROR(getName() << "Failed to seek: " << strResult(result));
@@ -1144,37 +1153,42 @@ void ConsumerImpl::seekAsync(uint64_t timestamp, ResultCallback callback) {
 
 bool ConsumerImpl::isReadCompacted() { return readCompacted_; }
 
-void ConsumerImpl::hasMessageAvailableAsync(HasMessageAvailableCallback callback) {
-    MessageId lastDequed = this->lastMessageIdDequed();
-    MessageId lastInBroker = this->lastMessageIdInBroker();
-    if (lastInBroker > lastDequed && lastInBroker.entryId() != -1) {
-        callback(ResultOk, true);
-        return;
-    }
+inline bool hasMoreMessages(const MessageId& lastMessageIdInBroker, const MessageId& messageId) {
+    return lastMessageIdInBroker > messageId && lastMessageIdInBroker.entryId() != -1;
+}
 
-    getLastMessageIdAsync([lastDequed, callback](Result result, MessageId messageId) {
-        if (result == ResultOk) {
-            if (messageId > lastDequed && messageId.entryId() != -1) {
-                callback(ResultOk, true);
+void ConsumerImpl::hasMessageAvailableAsync(HasMessageAvailableCallback callback) {
+    Lock lock(mutexForMessageId_);
+    const auto messageId =
+        (lastDequedMessageId_ == MessageId::earliest()) ? startMessageId_.value() : lastDequedMessageId_;
+
+    if (messageId == MessageId::latest()) {
+        lock.unlock();
+        getLastMessageIdAsync([callback](Result result, const GetLastMessageIdResponse& response) {
+            if (result != ResultOk) {
+                callback(result, {});
+                return;
+            }
+            if (response.hasMarkDeletePosition() && response.getLastMessageId().entryId() >= 0) {
+                // We only care about comparing ledger ids and entry ids as mark delete position doesn't have
+                // other ids such as batch index
+                callback(ResultOk, compareLedgerAndEntryId(response.getMarkDeletePosition(),
+                                                           response.getLastMessageId()) < 0);
             } else {
                 callback(ResultOk, false);
             }
-        } else {
-            callback(result, false);
-        }
-    });
-}
-
-void ConsumerImpl::brokerGetLastMessageIdListener(Result res, MessageId messageId,
-                                                  BrokerGetLastMessageIdCallback callback) {
-    Lock lock(mutex_);
-    if (messageId > lastMessageIdInBroker()) {
-        lastMessageInBroker_ = Optional<MessageId>::of(messageId);
-        lock.unlock();
-        callback(res, messageId);
+        });
     } else {
+        if (hasMoreMessages(lastMessageIdInBroker_, messageId)) {
+            lock.unlock();
+            callback(ResultOk, true);
+            return;
+        }
         lock.unlock();
-        callback(res, lastMessageIdInBroker());
+
+        getLastMessageIdAsync([callback, messageId](Result result, const GetLastMessageIdResponse& response) {
+            callback(result, (result == ResultOk) && hasMoreMessages(response.getLastMessageId(), messageId));
+        });
     }
 }
 
@@ -1198,9 +1212,19 @@ void ConsumerImpl::getLastMessageIdAsync(BrokerGetLastMessageIdCallback callback
             LOG_DEBUG(getName() << " Sending getLastMessageId Command for Consumer - " << getConsumerId()
                                 << ", requestId - " << requestId);
 
+            auto self = shared_from_this();
             cnx->newGetLastMessageId(consumerId_, requestId)
-                .addListener(std::bind(&ConsumerImpl::brokerGetLastMessageIdListener, shared_from_this(),
-                                       std::placeholders::_1, std::placeholders::_2, callback));
+                .addListener([this, self, callback](Result result, const GetLastMessageIdResponse& response) {
+                    if (result == ResultOk) {
+                        LOG_DEBUG(getName() << "getLastMessageId: " << response);
+                        Lock lock(mutexForMessageId_);
+                        lastMessageIdInBroker_ = response.getLastMessageId();
+                        lock.unlock();
+                    } else {
+                        LOG_ERROR(getName() << "Failed to getLastMessageId: " << result);
+                    }
+                    callback(result, response);
+                });
         } else {
             LOG_ERROR(getName() << " Operation not supported since server protobuf version "
                                 << cnx->getServerProtocolVersion() << " is older than proto::v12");
