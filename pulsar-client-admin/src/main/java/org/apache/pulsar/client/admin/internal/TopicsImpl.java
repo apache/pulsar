@@ -1251,6 +1251,15 @@ public class TopicsImpl extends BaseResource implements Topics {
         return namespacePath;
     }
 
+    /**
+     *  As we support topic metadata, user can add some properties when create topic.
+     *  For compatibility, we have to define a new method, so when metadata is not null, v3 will be called.
+     *  Details could be found here : https://github.com/apache/pulsar/pull/12818#discussion_r789340203
+     * @param topic
+     * @param metadata
+     * @param parts
+     * @return
+     */
     private WebTarget topicPath(TopicName topic, Map<String, String> metadata, String... parts) {
         final WebTarget base = metadata != null ? adminV3Topics : (topic.isV2() ? adminV2Topics : adminTopics);
         WebTarget topicPath = base.path(topic.getRestPath());
