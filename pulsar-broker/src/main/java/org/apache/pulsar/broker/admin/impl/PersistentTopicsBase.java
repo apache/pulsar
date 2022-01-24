@@ -30,6 +30,7 @@ import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -1057,72 +1058,88 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalGetSubscriptions(AsyncResponse asyncResponse, boolean authoritative) {
+        CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
-            try {
-                validateGlobalNamespaceOwnership(namespaceName);
-            } catch (Exception e) {
-                log.error("[{}] Failed to get subscriptions for topic {}", clientAppId(), topicName, e);
-                resumeAsyncResponseExceptionally(asyncResponse, e);
-                return;
-            }
-        }
-
-        validateTopicOwnership(topicName, authoritative);
-
-        // If the topic name is a partition name, no need to get partition topic metadata again
-        if (topicName.isPartitioned()) {
-            internalGetSubscriptionsForNonPartitionedTopic(asyncResponse, authoritative);
+            future = validateGlobalNamespaceOwnershipAsync(namespaceName);
         } else {
-            getPartitionedTopicMetadataAsync(topicName, authoritative,
-                    false).thenAccept(partitionMetadata -> {
-                if (partitionMetadata.partitions > 0) {
-                    try {
-                        final Set<String> subscriptions = Sets.newConcurrentHashSet();
-                        final List<CompletableFuture<Object>> subscriptionFutures = Lists.newArrayList();
-                        if (topicName.getDomain() == TopicDomain.persistent) {
-                            final Map<Integer, CompletableFuture<Boolean>> existsFutures = Maps.newConcurrentMap();
-                            for (int i = 0; i < partitionMetadata.partitions; i++) {
-                                existsFutures.put(i, topicResources().persistentTopicExists(topicName.getPartition(i)));
-                            }
-                            FutureUtil.waitForAll(Lists.newArrayList(existsFutures.values())).thenApply(__ ->
-                                    existsFutures.entrySet().stream().filter(e -> e.getValue().join())
-                                            .map(item -> topicName.getPartition(item.getKey()).toString())
-                                            .collect(Collectors.toList())
-                            ).thenAccept(topics -> {
-                                if (log.isDebugEnabled()) {
-                                    log.debug("activeTopics : {}", topics);
-                                }
-                                topics.forEach(topic -> {
-                                    try {
-                                        CompletableFuture<List<String>> subscriptionsAsync = pulsar().getAdminClient()
-                                                .topics().getSubscriptionsAsync(topic);
-                                        subscriptionFutures.add(subscriptionsAsync.thenApply(subscriptions::addAll));
-                                    } catch (PulsarServerException e) {
-                                        throw new RestException(e);
-                                    }
-                                });
-                            }).thenAccept(__ -> resumeAsyncResponse(asyncResponse, subscriptions, subscriptionFutures));
-                        } else {
-                            for (int i = 0; i < partitionMetadata.partitions; i++) {
-                                CompletableFuture<List<String>> subscriptionsAsync = pulsar().getAdminClient().topics()
-                                        .getSubscriptionsAsync(topicName.getPartition(i).toString());
-                                subscriptionFutures.add(subscriptionsAsync.thenApply(subscriptions::addAll));
-                            }
-                            resumeAsyncResponse(asyncResponse, subscriptions, subscriptionFutures);
-                        }
-                    } catch (Exception e) {
-                        log.error("[{}] Failed to get list of subscriptions for {}", clientAppId(), topicName, e);
-                        asyncResponse.resume(e);
-                    }
-                } else {
-                    internalGetSubscriptionsForNonPartitionedTopic(asyncResponse, authoritative);
-                }
-            }).exceptionally(ex -> {
-                log.error("[{}] Failed to get subscriptions for topic {}", clientAppId(), topicName, ex);
-                resumeAsyncResponseExceptionally(asyncResponse, ex);
-                return null;
-            });
+            future = CompletableFuture.completedFuture(null);
         }
+        future.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
+                .thenAccept(unused -> {
+                    // If the topic name is a partition name, no need to get partition topic metadata again
+                    if (topicName.isPartitioned()) {
+                        internalGetSubscriptionsForNonPartitionedTopic(asyncResponse, authoritative);
+                    } else {
+                        getPartitionedTopicMetadataAsync(topicName, authoritative, false)
+                                .thenAccept(partitionMetadata -> {
+                            if (partitionMetadata.partitions > 0) {
+                                try {
+                                    final Set<String> subscriptions =
+                                            Collections.newSetFromMap(
+                                                    new ConcurrentHashMap<>(partitionMetadata.partitions));
+                                    final List<CompletableFuture<Object>> subscriptionFutures = Lists.newArrayList();
+                                    if (topicName.getDomain() == TopicDomain.persistent) {
+                                        final Map<Integer, CompletableFuture<Boolean>> existsFutures =
+                                                new ConcurrentHashMap<>(partitionMetadata.partitions);
+                                        for (int i = 0; i < partitionMetadata.partitions; i++) {
+                                            existsFutures.put(i,
+                                                    topicResources().persistentTopicExists(topicName.getPartition(i)));
+                                        }
+                                        FutureUtil.waitForAll(Lists.newArrayList(existsFutures.values()))
+                                                .thenApply(__ ->
+                                                existsFutures.entrySet().stream().filter(e -> e.getValue().join())
+                                                        .map(item -> topicName.getPartition(item.getKey()).toString())
+                                                        .collect(Collectors.toList())
+                                        ).thenAccept(topics -> {
+                                            if (log.isDebugEnabled()) {
+                                                log.debug("activeTopics : {}", topics);
+                                            }
+                                            topics.forEach(topic -> {
+                                                try {
+                                                    CompletableFuture<List<String>> subscriptionsAsync = pulsar()
+                                                            .getAdminClient()
+                                                            .topics().getSubscriptionsAsync(topic);
+                                                    subscriptionFutures.add(subscriptionsAsync
+                                                            .thenApply(subscriptions::addAll));
+                                                } catch (PulsarServerException e) {
+                                                    throw new RestException(e);
+                                                }
+                                            });
+                                        }).thenAccept(__ -> resumeAsyncResponse(asyncResponse,
+                                                        subscriptions, subscriptionFutures));
+                                    } else {
+                                        for (int i = 0; i < partitionMetadata.partitions; i++) {
+                                            CompletableFuture<List<String>> subscriptionsAsync = pulsar()
+                                                    .getAdminClient().topics()
+                                                    .getSubscriptionsAsync(topicName.getPartition(i).toString());
+                                            subscriptionFutures.add(subscriptionsAsync
+                                                    .thenApply(subscriptions::addAll));
+                                        }
+                                        resumeAsyncResponse(asyncResponse, subscriptions, subscriptionFutures);
+                                    }
+                                } catch (Exception e) {
+                                    log.error("[{}] Failed to get list of subscriptions for {}",
+                                            clientAppId(), topicName, e);
+                                    asyncResponse.resume(e);
+                                }
+                            } else {
+                                internalGetSubscriptionsForNonPartitionedTopic(asyncResponse, authoritative);
+                            }
+                        }).exceptionally(ex -> {
+                            Throwable cause = ex.getCause();
+                            log.error("[{}] Failed to get partitioned topic metadata while get"
+                                    + " subscriptions for topic {}", clientAppId(), topicName, cause);
+                            resumeAsyncResponseExceptionally(asyncResponse, cause);
+                            return null;
+                        });
+                    }
+                }).exceptionally(ex -> {
+                    Throwable cause = ex.getCause();
+                    log.error("[{}] Failed to validate the global namespace/topic ownership while get subscriptions"
+                            + " for topic {}", clientAppId(), topicName, cause);
+                    resumeAsyncResponseExceptionally(asyncResponse, cause);
+                    return null;
+                });
     }
 
     private void resumeAsyncResponse(AsyncResponse asyncResponse, Set<String> subscriptions,
