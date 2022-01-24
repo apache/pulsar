@@ -165,6 +165,10 @@ void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
         return;
     }
 
+    // Register consumer so that we can handle other incomming commands (e.g. ACTIVE_CONSUMER_CHANGE) after
+    // sending the subscribe request.
+    cnx->registerConsumer(consumerId_, shared_from_this());
+
     Lock lockForMessageId(mutexForMessageId_);
     Optional<MessageId> firstMessageInQueue = clearReceiveQueue();
     if (subscriptionMode_ == Commands::SubscriptionModeNonDurable) {

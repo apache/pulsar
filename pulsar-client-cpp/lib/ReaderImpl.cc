@@ -139,7 +139,9 @@ void ReaderImpl::seekAsync(uint64_t timestamp, ResultCallback callback) {
 }
 
 void ReaderImpl::getLastMessageIdAsync(GetLastMessageIdCallback callback) {
-    consumer_->getLastMessageIdAsync(callback);
+    consumer_->getLastMessageIdAsync([callback](Result result, const GetLastMessageIdResponse& response) {
+        callback(result, response.getLastMessageId());
+    });
 }
 
 ReaderImplWeakPtr ReaderImpl::getReaderImplWeakPtr() { return readerImplWeakPtr_; }
