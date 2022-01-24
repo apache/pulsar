@@ -1455,8 +1455,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // submit the exclamation function
         submitFunction(runtime, inputTopicName, outputTopicName, functionName, null, InitializableFunction.class.getName(), schema);
 
-        // publish and consume result
-        publishAndConsumeMessages(inputTopicName, outputTopicName, numMessages);
+        // check initialize is called when function start
+        assertTrue(InitializableFunction.isInitialized());
 
         // delete function
         deleteFunction(functionName);
