@@ -1515,7 +1515,7 @@ public class PersistentTopicsBase extends AdminResource {
             }
         }).exceptionally(ex -> {
             Throwable cause = FutureUtil.unwrapCompletionException(ex);
-            log.error("[{}] Failed to get partitioned internal stats for {}", clientAppId(), topicName, cause);
+            log.error("[{}] Failed to delete subscription {} from topic {}", clientAppId(), subName, topicName, cause);
             resumeAsyncResponseExceptionally(asyncResponse, cause);
             return null;
         });
@@ -1619,7 +1619,7 @@ public class PersistentTopicsBase extends AdminResource {
             }
         }).exceptionally(ex -> {
             Throwable cause = FutureUtil.unwrapCompletionException(ex);
-            log.error("[{}] Failed to get partitioned internal stats for {}", clientAppId(), topicName, cause);
+            log.error("[{}] Failed to delete subscription {} from topic {}", clientAppId(), subName, topicName, cause);
             resumeAsyncResponseExceptionally(asyncResponse, cause);
             return null;
         });
