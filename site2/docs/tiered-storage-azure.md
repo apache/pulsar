@@ -47,8 +47,6 @@ This example uses Pulsar 2.6.2.
 
     **Output**
 
-    As shown from the output, Pulsar uses [Apache jclouds](https://jclouds.apache.org) to support [AWS S3](https://aws.amazon.com/s3/),  [GCS](https://cloud.google.com/storage/) and [Azure](https://portal.azure.com/#home) for long term storage. 
-
     ```
     tiered-storage-file-system-2.6.2.nar
     tiered-storage-jcloud-2.6.2.nar
@@ -86,8 +84,8 @@ You can configure the Azure BlobStore offloader driver in the configuration file
     |---|---|---
     `managedLedgerOffloadReadBufferSizeInBytes`|Size of block read|1 MB
     `managedLedgerOffloadMaxBlockSizeInBytes`|Size of block write|64 MB
-    `managedLedgerMinLedgerRolloverTimeMinutes`|Minimum time between ledger rollover for a topic<br><br>**Note**: it is not recommended that you set this configuration in the production environment.|2
-    `managedLedgerMaxEntriesPerLedger`|Maximum number of entries to append to a ledger before triggering a rollover.<br><br>**Note**: it is not recommended that you set this configuration in the production environment.|5000
+    `managedLedgerMinLedgerRolloverTimeMinutes`|Minimum time between ledger rollover for a topic<br /><br />**Note**: it is not recommended that you set this configuration in the production environment.|2
+    `managedLedgerMaxEntriesPerLedger`|Maximum number of entries to append to a ledger before triggering a rollover.<br /><br />**Note**: it is not recommended that you set this configuration in the production environment.|5000
 
 #### Bucket (required)
 

@@ -54,9 +54,6 @@ This example uses Pulsar 2.5.1.
 
     **Output**
 
-    As shown in the output, Pulsar uses [Apache jclouds](https://jclouds.apache.org) to support GCS and AWS S3 for long term storage. 
-
-
     ```
     tiered-storage-file-system-2.5.1.nar
     tiered-storage-jcloud-2.5.1.nar
@@ -166,8 +163,8 @@ You can configure the size of a request sent to or read from GCS in the configur
 
 Configuration|Description
 |---|---
-`gcsManagedLedgerOffloadReadBufferSizeInBytes`|Block size for each individual read when reading back data from GCS.<br><br>The **default** value is 1 MB.
-`gcsManagedLedgerOffloadMaxBlockSizeInBytes`|Maximum size of a "part" sent during a multipart upload to GCS. <br><br>It **can not** be smaller than 5 MB. <br><br>The **default** value is 64 MB.
+`gcsManagedLedgerOffloadReadBufferSizeInBytes`|Block size for each individual read when reading back data from GCS.<br /><br />The **default** value is 1 MB.
+`gcsManagedLedgerOffloadMaxBlockSizeInBytes`|Maximum size of a "part" sent during a multipart upload to GCS. <br /><br />It **can not** be smaller than 5 MB. <br /><br />The **default** value is 64 MB.
 
 ### Configure GCS offloader to run automatically
 
