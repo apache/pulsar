@@ -1452,70 +1452,72 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalDeleteSubscription(AsyncResponse asyncResponse, String subName, boolean authoritative) {
+        CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
-            try {
-                validateGlobalNamespaceOwnership(namespaceName);
-            } catch (Exception e) {
-                log.error("[{}] Failed to delete subscription {} from topic {}", clientAppId(), subName, topicName, e);
-                resumeAsyncResponseExceptionally(asyncResponse, e);
-                return;
-            }
-        }
-        validateTopicOwnership(topicName, authoritative);
-        // If the topic name is a partition name, no need to get partition topic metadata again
-        if (topicName.isPartitioned()) {
-            internalDeleteSubscriptionForNonPartitionedTopic(asyncResponse, subName, authoritative);
+            future = validateGlobalNamespaceOwnershipAsync(namespaceName);
         } else {
-            getPartitionedTopicMetadataAsync(topicName,
-                    authoritative, false).thenAcceptAsync(partitionMetadata -> {
-                if (partitionMetadata.partitions > 0) {
-                    final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+            future = CompletableFuture.completedFuture(null);
+        }
 
-                    for (int i = 0; i < partitionMetadata.partitions; i++) {
-                        TopicName topicNamePartition = topicName.getPartition(i);
-                        try {
-                            futures.add(pulsar().getAdminClient().topics()
-                                    .deleteSubscriptionAsync(topicNamePartition.toString(), subName, false));
-                        } catch (Exception e) {
-                            log.error("[{}] Failed to delete subscription {} {}",
-                                    clientAppId(), topicNamePartition, subName,
-                                    e);
-                            asyncResponse.resume(new RestException(e));
-                            return;
-                        }
-                    }
+        future.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative)).thenAccept(__ -> {
+            if (topicName.isPartitioned()) {
+                internalDeleteSubscriptionForNonPartitionedTopic(asyncResponse, subName, authoritative);
+            } else {
+                getPartitionedTopicMetadataAsync(topicName,
+                        authoritative, false).thenAcceptAsync(partitionMetadata -> {
+                    if (partitionMetadata.partitions > 0) {
+                        final List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
-                    FutureUtil.waitForAll(futures).handle((result, exception) -> {
-                        if (exception != null) {
-                            Throwable t = exception.getCause();
-                            if (t instanceof NotFoundException) {
-                                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Subscription not found"));
-                                return null;
-                            } else if (t instanceof PreconditionFailedException) {
-                                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
-                                        "Subscription has active connected consumers"));
-                                return null;
-                            } else {
+                        for (int i = 0; i < partitionMetadata.partitions; i++) {
+                            TopicName topicNamePartition = topicName.getPartition(i);
+                            try {
+                                futures.add(pulsar().getAdminClient().topics()
+                                        .deleteSubscriptionAsync(topicNamePartition.toString(), subName, false));
+                            } catch (Exception e) {
                                 log.error("[{}] Failed to delete subscription {} {}",
-                                        clientAppId(), topicName, subName, t);
-                                asyncResponse.resume(new RestException(t));
-                                return null;
+                                        clientAppId(), topicNamePartition, subName,
+                                        e);
+                                asyncResponse.resume(new RestException(e));
+                                return;
                             }
                         }
 
-                        asyncResponse.resume(Response.noContent().build());
-                        return null;
-                    });
-                } else {
-                    internalDeleteSubscriptionForNonPartitionedTopic(asyncResponse, subName, authoritative);
-                }
-            }, pulsar().getExecutor()).exceptionally(ex -> {
-                log.error("[{}] Failed to delete subscription {} from topic {}",
-                        clientAppId(), subName, topicName, ex);
-                resumeAsyncResponseExceptionally(asyncResponse, ex);
-                return null;
-            });
-        }
+                        FutureUtil.waitForAll(futures).handle((result, exception) -> {
+                            if (exception != null) {
+                                Throwable t = exception.getCause();
+                                if (t instanceof NotFoundException) {
+                                    asyncResponse.resume(new RestException(Status.NOT_FOUND, "Subscription not found"));
+                                    return null;
+                                } else if (t instanceof PreconditionFailedException) {
+                                    asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                                            "Subscription has active connected consumers"));
+                                    return null;
+                                } else {
+                                    log.error("[{}] Failed to delete subscription {} {}",
+                                            clientAppId(), topicName, subName, t);
+                                    asyncResponse.resume(new RestException(t));
+                                    return null;
+                                }
+                            }
+
+                            asyncResponse.resume(Response.noContent().build());
+                            return null;
+                        });
+                    } else {
+                        internalDeleteSubscriptionForNonPartitionedTopic(asyncResponse, subName, authoritative);
+                    }
+                }, pulsar().getExecutor()).exceptionally(ex -> {
+                    log.error("[{}] Failed to delete subscription {} from topic {}",
+                            clientAppId(), subName, topicName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+            }
+        }).exceptionally(e -> {
+            log.error("[{}] Failed to delete subscription {} from topic {}", clientAppId(), subName, topicName, e);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+            return;
+        });
     }
 
     private void internalDeleteSubscriptionForNonPartitionedTopic(AsyncResponse asyncResponse,
@@ -1556,66 +1558,67 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void internalDeleteSubscriptionForcefully(AsyncResponse asyncResponse,
                                                         String subName, boolean authoritative) {
+        CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
-            try {
-                validateGlobalNamespaceOwnership(namespaceName);
-            } catch (Exception e) {
-                log.error("[{}] Failed to delete subscription forcefully {} from topic {}",
-                        clientAppId(), subName, topicName, e);
-                resumeAsyncResponseExceptionally(asyncResponse, e);
-                return;
-            }
-        }
-        // If the topic name is a partition name, no need to get partition topic metadata again
-        if (topicName.isPartitioned()) {
-            internalDeleteSubscriptionForNonPartitionedTopicForcefully(asyncResponse, subName, authoritative);
+            future = validateGlobalNamespaceOwnershipAsync(namespaceName);
         } else {
-            getPartitionedTopicMetadataAsync(topicName,
-                    authoritative, false).thenAccept(partitionMetadata -> {
-                if (partitionMetadata.partitions > 0) {
-                    final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+            future = CompletableFuture.completedFuture(null);
+        }
 
-                    for (int i = 0; i < partitionMetadata.partitions; i++) {
-                        TopicName topicNamePartition = topicName.getPartition(i);
-                        try {
-                            futures.add(pulsar().getAdminClient().topics()
-                                    .deleteSubscriptionAsync(topicNamePartition.toString(), subName, true));
-                        } catch (Exception e) {
-                            log.error("[{}] Failed to delete subscription forcefully {} {}",
-                                    clientAppId(), topicNamePartition, subName,
-                                    e);
-                            asyncResponse.resume(new RestException(e));
-                            return;
-                        }
-                    }
+        future.thenAccept(__ -> {
+            if (topicName.isPartitioned()) {
+                internalDeleteSubscriptionForNonPartitionedTopicForcefully(asyncResponse, subName, authoritative);
+            } else {
+                getPartitionedTopicMetadataAsync(topicName,
+                        authoritative, false).thenAccept(partitionMetadata -> {
+                    if (partitionMetadata.partitions > 0) {
+                        final List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
-                    FutureUtil.waitForAll(futures).handle((result, exception) -> {
-                        if (exception != null) {
-                            Throwable t = exception.getCause();
-                            if (t instanceof NotFoundException) {
-                                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Subscription not found"));
-                                return null;
-                            } else {
+                        for (int i = 0; i < partitionMetadata.partitions; i++) {
+                            TopicName topicNamePartition = topicName.getPartition(i);
+                            try {
+                                futures.add(pulsar().getAdminClient().topics()
+                                        .deleteSubscriptionAsync(topicNamePartition.toString(), subName, true));
+                            } catch (Exception e) {
                                 log.error("[{}] Failed to delete subscription forcefully {} {}",
-                                        clientAppId(), topicName, subName, t);
-                                asyncResponse.resume(new RestException(t));
-                                return null;
+                                        clientAppId(), topicNamePartition, subName,
+                                        e);
+                                asyncResponse.resume(new RestException(e));
+                                return;
                             }
                         }
 
-                        asyncResponse.resume(Response.noContent().build());
-                        return null;
-                    });
-                } else {
-                    internalDeleteSubscriptionForNonPartitionedTopicForcefully(asyncResponse, subName, authoritative);
-                }
-            }).exceptionally(ex -> {
-                log.error("[{}] Failed to delete subscription forcefully {} from topic {}",
-                        clientAppId(), subName, topicName, ex);
-                resumeAsyncResponseExceptionally(asyncResponse, ex);
-                return null;
-            });
-        }
+                        FutureUtil.waitForAll(futures).handle((result, exception) -> {
+                            if (exception != null) {
+                                Throwable t = exception.getCause();
+                                if (t instanceof NotFoundException) {
+                                    asyncResponse.resume(new RestException(Status.NOT_FOUND, "Subscription not found"));
+                                    return null;
+                                } else {
+                                    log.error("[{}] Failed to delete subscription forcefully {} {}",
+                                            clientAppId(), topicName, subName, t);
+                                    asyncResponse.resume(new RestException(t));
+                                    return null;
+                                }
+                            }
+
+                            asyncResponse.resume(Response.noContent().build());
+                            return null;
+                        });
+                    } else {
+                        internalDeleteSubscriptionForNonPartitionedTopicForcefully(asyncResponse, subName, authoritative);
+                    }
+                }).exceptionally(ex -> {
+                    log.error("[{}] Failed to delete subscription forcefully {} from topic {}", clientAppId(), subName, topicName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+            }
+        }).exceptionally(e -> {
+            log.error("[{}] Failed to delete subscription {} from topic {}", clientAppId(), subName, topicName, e);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+            return;
+        });
     }
 
     private void internalDeleteSubscriptionForNonPartitionedTopicForcefully(AsyncResponse asyncResponse,
