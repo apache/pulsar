@@ -1051,7 +1051,7 @@ public class PersistentTopicsBase extends AdminResource {
         } else {
             future = CompletableFuture.completedFuture(null);
         }
-        future.thenAccept(__ -> validateTopicOwnershipAsync(topicName, authoritative))
+        future.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
                 .thenAccept(unused -> {
                     // If the topic name is a partition name, no need to get partition topic metadata again
                     if (topicName.isPartitioned()) {
