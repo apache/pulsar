@@ -164,10 +164,10 @@ public class TransactionMetricsTest extends BrokerTestBase {
         for (int i = 0; i < txnCount; i++) {
             if (i % 2 == 0) {
                 pulsar.getTransactionMetadataStoreService().endTransaction(list.get(i), TxnAction.COMMIT_VALUE,
-                                false, null).get();
+                                false).get();
             } else {
                 pulsar.getTransactionMetadataStoreService().endTransaction(list.get(i), TxnAction.ABORT_VALUE,
-                        false, null).get();
+                        false).get();
             }
         }
 

@@ -319,14 +319,13 @@ public class TransactionMetadataStoreService {
         return store.updateTxnStatus(txnId, newStatus, expectedStatus, isTimeout);
     }
 
+    public CompletableFuture<Void> endTransaction(TxnID txnID, int txnAction, boolean isTimeout) {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        return endTransaction(txnID, txnAction, isTimeout, completableFuture);
+    }
+
     public CompletableFuture<Void> endTransaction(TxnID txnID, int txnAction, boolean isTimeout,
-                                                  CompletableFuture<Void> future) {
-        CompletableFuture<Void> completableFuture;
-        if (future == null) {
-            completableFuture = new CompletableFuture<>();
-        } else {
-            completableFuture = future;
-        }
+                                                  CompletableFuture<Void> completableFuture) {
         TxnStatus newStatus;
         switch (txnAction) {
             case TxnAction.COMMIT_VALUE:
@@ -436,13 +435,13 @@ public class TransactionMetadataStoreService {
     public void endTransactionForTimeout(TxnID txnID) {
         getTxnMeta(txnID).thenCompose(txnMeta -> {
             if (txnMeta.status() == TxnStatus.OPEN) {
-                return endTransaction(txnID, TxnAction.ABORT_VALUE, true, null);
+                return endTransaction(txnID, TxnAction.ABORT_VALUE, true);
             } else {
                 return null;
             }
         }).exceptionally(e -> {
             if (isRetryableException(e.getCause())) {
-                endTransaction(txnID, TxnAction.ABORT_VALUE, true, null);
+                endTransaction(txnID, TxnAction.ABORT_VALUE, true);
             } else {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Transaction have been handle complete, "

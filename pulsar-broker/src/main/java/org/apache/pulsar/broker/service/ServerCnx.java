@@ -2130,7 +2130,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 service.pulsar().getTransactionMetadataStoreService();
 
         transactionMetadataStoreService
-                .endTransaction(txnID, txnAction, false, null)
+                .endTransaction(txnID, txnAction, false)
                 .whenComplete((v, ex) -> {
                     if (ex == null) {
                         ctx.writeAndFlush(Commands.newEndTxnResponse(requestId,

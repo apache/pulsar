@@ -354,7 +354,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
 
         try {
             pulsar.getTransactionMetadataStoreService().endTransaction(txnID, TxnAction.COMMIT.getValue(),
-                    false, null).get();
+                    false).get();
             fail();
         } catch (Exception e) {
             if (txnStatus == TxnStatus.OPEN || txnStatus == TxnStatus.COMMITTING) {
@@ -374,7 +374,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
 
         if (txnStatus == TxnStatus.ABORTING) {
             pulsar.getTransactionMetadataStoreService()
-                    .endTransaction(txnID, TxnAction.ABORT.getValue(), false, null).get();
+                    .endTransaction(txnID, TxnAction.ABORT.getValue(), false).get();
         }
         Awaitility.await().atMost(timeOut, TimeUnit.MILLISECONDS).until(() -> {
             try {
