@@ -727,70 +727,77 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void internalUnloadTopic(AsyncResponse asyncResponse, boolean authoritative) {
         log.info("[{}] Unloading topic {}", clientAppId(), topicName);
-        try {
-            if (topicName.isGlobal()) {
-                validateGlobalNamespaceOwnership(namespaceName);
-            }
-        } catch (Exception e) {
-            log.error("[{}] Failed to unload topic {}", clientAppId(), topicName, e);
-            resumeAsyncResponseExceptionally(asyncResponse, e);
-            return;
-        }
-        // If the topic name is a partition name, no need to get partition topic metadata again
-        if (topicName.isPartitioned()) {
-            if (checkTopicIsTransactionCoordinatorAssign(topicName)) {
-                internalUnloadTransactionCoordinator(asyncResponse, authoritative);
-            } else {
-                internalUnloadNonPartitionedTopic(asyncResponse, authoritative);
-            }
+        CompletableFuture<Void> future;
+        if (topicName.isGlobal()) {
+            future = validateGlobalNamespaceOwnershipAsync(namespaceName);
         } else {
-            getPartitionedTopicMetadataAsync(topicName, authoritative, false)
-                    .thenAccept(meta -> {
-                        if (meta.partitions > 0) {
-                            final List<CompletableFuture<Void>> futures = Lists.newArrayList();
-
-                            for (int i = 0; i < meta.partitions; i++) {
-                                TopicName topicNamePartition = topicName.getPartition(i);
-                                try {
-                                    futures.add(pulsar().getAdminClient().topics().unloadAsync(
-                                            topicNamePartition.toString()));
-                                } catch (Exception e) {
-                                    log.error("[{}] Failed to unload topic {}", clientAppId(), topicNamePartition, e);
-                                    asyncResponse.resume(new RestException(e));
-                                    return;
-                                }
-                            }
-
-                            FutureUtil.waitForAll(futures).handle((result, exception) -> {
-                                if (exception != null) {
-                                    Throwable th = exception.getCause();
-                                    if (th instanceof NotFoundException) {
-                                        asyncResponse.resume(new RestException(Status.NOT_FOUND, th.getMessage()));
-                                    } else if (th instanceof WebApplicationException) {
-                                        asyncResponse.resume(th);
-                                    } else {
-                                        log.error("[{}] Failed to unload topic {}", clientAppId(), topicName,
-                                                exception);
-                                        asyncResponse.resume(new RestException(exception));
-                                    }
-                                } else {
-                                    asyncResponse.resume(Response.noContent().build());
-                                }
-                                return null;
-                            });
-                        } else {
-                            internalUnloadNonPartitionedTopic(asyncResponse, authoritative);
-                        }
-                    }).exceptionally(t -> {
-                log.error("[{}] Failed to unload topic {}", clientAppId(), topicName, t);
-                if (t instanceof WebApplicationException) {
-                    asyncResponse.resume(t);
-                } else {
-                    asyncResponse.resume(new RestException(t));
-                }
-                return null;
-            });
+            future = CompletableFuture.completedFuture(null);
         }
+       future.thenAccept(__ -> {
+           // If the topic name is a partition name, no need to get partition topic metadata again
+           if (topicName.isPartitioned()) {
+               if (checkTopicIsTransactionCoordinatorAssign(topicName)) {
+                   internalUnloadTransactionCoordinatorAsync(asyncResponse, authoritative);
+               } else {
+                   internalUnloadNonPartitionedTopicAsync(asyncResponse, authoritative);
+               }
+           } else {
+               getPartitionedTopicMetadataAsync(topicName, authoritative, false)
+                       .thenAccept(meta -> {
+                           if (meta.partitions > 0) {
+                               final List<CompletableFuture<Void>> futures =
+                                       Lists.newArrayListWithCapacity(meta.partitions);
+                               for (int i = 0; i < meta.partitions; i++) {
+                                   TopicName topicNamePartition = topicName.getPartition(i);
+                                   try {
+                                       futures.add(pulsar().getAdminClient().topics().unloadAsync(
+                                               topicNamePartition.toString()));
+                                   } catch (Exception e) {
+                                       log.error("[{}] Failed to unload topic {}", clientAppId(),
+                                               topicNamePartition, e);
+                                       asyncResponse.resume(new RestException(e));
+                                       return;
+                                   }
+                               }
+
+                               FutureUtil.waitForAll(futures).handle((result, exception) -> {
+                                   if (exception != null) {
+                                       Throwable th = exception.getCause();
+                                       if (th instanceof NotFoundException) {
+                                           asyncResponse.resume(new RestException(Status.NOT_FOUND, th.getMessage()));
+                                       } else if (th instanceof WebApplicationException) {
+                                           asyncResponse.resume(th);
+                                       } else {
+                                           log.error("[{}] Failed to unload topic {}", clientAppId(), topicName,
+                                                   exception);
+                                           asyncResponse.resume(new RestException(exception));
+                                       }
+                                   } else {
+                                       asyncResponse.resume(Response.noContent().build());
+                                   }
+                                   return null;
+                               });
+                           } else {
+                               internalUnloadNonPartitionedTopicAsync(asyncResponse, authoritative);
+                           }
+                       }).exceptionally(t -> {
+                           log.error("[{}] Failed to get partitioned metadata while unloading topic {}",
+                                   clientAppId(), topicName, t);
+                           if (t instanceof WebApplicationException) {
+                               asyncResponse.resume(t);
+                           } else {
+                               asyncResponse.resume(new RestException(t));
+                           }
+                           return null;
+                       });
+           }
+       }).exceptionally(ex -> {
+           Throwable cause = ex.getCause();
+           log.error("[{}] Failed to validate the global namespace ownership while unloading topic {}",
+                   clientAppId(), topicName, cause);
+           resumeAsyncResponseExceptionally(asyncResponse, cause);
+           return null;
+       });
     }
 
     protected CompletableFuture<DelayedDeliveryPolicies> internalGetDelayedDeliveryPolicies(boolean applied,
@@ -983,50 +990,42 @@ public class PersistentTopicsBase extends AdminResource {
             });
     }
 
-    private void internalUnloadNonPartitionedTopic(AsyncResponse asyncResponse, boolean authoritative) {
-        try {
-            validateTopicOperation(topicName, TopicOperation.UNLOAD);
-        } catch (Exception e) {
-            log.error("[{}] Failed to unload topic {},{}", clientAppId(), topicName, e.getMessage());
-            resumeAsyncResponseExceptionally(asyncResponse, e);
-            return;
-        }
-
-        validateTopicOwnershipAsync(topicName, authoritative)
-                .thenCompose(__ -> getTopicReferenceAsync(topicName))
-                .thenCompose(topic -> topic.close(false))
-                .thenRun(() -> {
-                    log.info("[{}] Successfully unloaded topic {}", clientAppId(), topicName);
-                    asyncResponse.resume(Response.noContent().build());
-                })
+    private void internalUnloadNonPartitionedTopicAsync(AsyncResponse asyncResponse, boolean authoritative) {
+        validateTopicOperationAsync(topicName, TopicOperation.UNLOAD)
+                .thenCompose(unused -> validateTopicOwnershipAsync(topicName, authoritative)
+                        .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                        .thenCompose(topic -> topic.close(false))
+                        .thenRun(() -> {
+                            log.info("[{}] Successfully unloaded topic {}", clientAppId(), topicName);
+                            asyncResponse.resume(Response.noContent().build());
+                        }))
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to unload topic {}, {}", clientAppId(), topicName, ex.getMessage());
-                    asyncResponse.resume(ex.getCause());
+                    Throwable cause = ex.getCause();
+                    log.error("[{}] Failed to unload topic {}, {}", clientAppId(), topicName, cause);
+                    resumeAsyncResponseExceptionally(asyncResponse, cause);
                     return null;
                 });
     }
 
-    private void internalUnloadTransactionCoordinator(AsyncResponse asyncResponse, boolean authoritative) {
-        try {
-            validateTopicOperation(topicName, TopicOperation.UNLOAD);
-        } catch (Exception e) {
-            log.error("[{}] Failed to unload tc {},{}", clientAppId(), topicName.getPartitionIndex(), e.getMessage());
-            resumeAsyncResponseExceptionally(asyncResponse, e);
-            return;
-        }
-        validateTopicOwnershipAsync(topicName, authoritative)
-                .thenCompose(v -> pulsar()
-                .getTransactionMetadataStoreService()
-                .removeTransactionMetadataStore(TransactionCoordinatorID.get(topicName.getPartitionIndex())))
-                .thenRun(() -> {
-                    log.info("[{}] Successfully unloaded tc {}", clientAppId(), topicName.getPartitionIndex());
-                    asyncResponse.resume(Response.noContent().build());
-                }).exceptionally(ex -> {
-                    log.error("[{}] Failed to unload tc {}, {}", clientAppId(), topicName.getPartitionIndex(),
-                    ex.getMessage());
-            asyncResponse.resume(ex.getCause());
-            return null;
-        });
+    private void internalUnloadTransactionCoordinatorAsync(AsyncResponse asyncResponse, boolean authoritative) {
+        validateTopicOperationAsync(topicName, TopicOperation.UNLOAD)
+                .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative)
+                        .thenCompose(v -> pulsar()
+                                .getTransactionMetadataStoreService()
+                                .removeTransactionMetadataStore(
+                                        TransactionCoordinatorID.get(topicName.getPartitionIndex())))
+                        .thenRun(() -> {
+                            log.info("[{}] Successfully unloaded tc {}", clientAppId(),
+                                    topicName.getPartitionIndex());
+                            asyncResponse.resume(Response.noContent().build());
+                        }))
+                .exceptionally(ex -> {
+                    Throwable cause = ex.getCause();
+                    log.error("[{}] Failed to unload tc {},{}", clientAppId(),
+                            topicName.getPartitionIndex(), cause);
+                    resumeAsyncResponseExceptionally(asyncResponse, cause);
+                    return null;
+                });
     }
 
     protected void internalDeleteTopic(boolean authoritative, boolean force, boolean deleteSchema) {
