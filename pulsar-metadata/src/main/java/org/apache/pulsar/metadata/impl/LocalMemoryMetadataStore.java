@@ -92,7 +92,10 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
                 if (value == null) {
                     value = new HashSet<>();
                 }
-                value.forEach(v -> registerListener(v));
+                value.forEach(v -> {
+                    registerListener(v);
+                    v.registerListener(this);
+                });
                 value.add(this);
                 return value;
             });
