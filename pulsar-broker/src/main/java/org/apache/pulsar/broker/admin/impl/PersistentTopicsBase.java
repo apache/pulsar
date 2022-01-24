@@ -4110,6 +4110,7 @@ public class PersistentTopicsBase extends AdminResource {
                         log.error("[{}] Not supported operation of non-persistent topic {}", clientAppId(), topicName);
                         asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
                                 "GetLastMessageId on a non-persistent topic is not allowed"));
+                        return;
                     }
                     topic.getLastMessageId().whenComplete((v, e) -> {
                         if (e != null) {
