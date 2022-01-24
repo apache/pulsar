@@ -34,7 +34,6 @@ import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import static java.lang.Math.abs;
 
 /**
  * This strategy tends to distribute load uniformly across all brokers. This strategy checks laod difference between
