@@ -588,8 +588,8 @@ public class PersistentTopicsBase extends AdminResource {
                     asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                    if (realCause instanceof
-                            WebApplicationException && ((WebApplicationException) realCause).getResponse().getStatus()
+                    if (realCause instanceof WebApplicationException
+                            && ((WebApplicationException) realCause).getResponse().getStatus()
                             == Status.TEMPORARY_REDIRECT.getStatusCode()) {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] Failed to delete partitioned topic {}, redirecting to other brokers.",
