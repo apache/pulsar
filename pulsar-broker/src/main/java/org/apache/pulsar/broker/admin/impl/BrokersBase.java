@@ -93,7 +93,7 @@ public class BrokersBase extends PulsarWebResource {
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex ->{
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                    if (realCause instanceof WebApplicationException){
+                    if (realCause instanceof WebApplicationException) {
                         asyncResponse.resume(realCause);
                     } else {
                         asyncResponse.resume(new RestException(realCause));
