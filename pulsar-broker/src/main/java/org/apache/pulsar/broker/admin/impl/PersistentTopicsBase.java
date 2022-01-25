@@ -660,15 +660,31 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private CompletableFuture<Void> internalRemovePartitionsAuthenticationPolicies(int numPartitions) {
-        return pulsar().getPulsarResources().getNamespaceResources()
+        CompletableFuture<Void> setPoliciesFuture = new CompletableFuture<>();
+        pulsar().getPulsarResources().getNamespaceResources()
                 .setPoliciesAsync(topicName.getNamespaceObject(), p -> {
                     IntStream.range(0, numPartitions)
                             .forEach(i -> p.auth_policies.getTopicAuthentication()
                                     .remove(topicName.getPartition(i).toString()));
                     p.auth_policies.getTopicAuthentication().remove(topicName.toString());
                     return p;
-                }).thenAccept(v ->
-                        log.info("Successfully delete authentication policies for partitioned topic {}", topicName));
+                })
+                .whenComplete((r, ex) -> {
+                    if (ex != null){
+                        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                        if (realCause instanceof MetadataStoreException.NotFoundException) {
+                            log.warn("Namespace policies of {} not found", topicName.getNamespaceObject());
+                            setPoliciesFuture.complete(null);
+                        } else {
+                            log.error("Failed to delete authentication policies for partitioned topic {}",
+                                    topicName, ex);
+                            setPoliciesFuture.completeExceptionally(realCause);
+                        }
+                    }
+                    log.info("Successfully delete authentication policies for partitioned topic {}", topicName);
+                    setPoliciesFuture.complete(null);
+                });
+        return setPoliciesFuture;
     }
 
     protected void internalUnloadTopic(AsyncResponse asyncResponse, boolean authoritative) {
