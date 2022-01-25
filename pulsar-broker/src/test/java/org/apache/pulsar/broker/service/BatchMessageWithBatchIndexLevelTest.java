@@ -97,6 +97,10 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
         });
         Message<byte[]> receive5 = consumer.receive();
         consumer.negativeAcknowledge(receive5);
+        Awaitility.await().pollInterval(1, TimeUnit.MILLISECONDS).untilAsserted(() -> {
+            assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 0);
+        });
+        consumer.receive();
         Awaitility.await().untilAsserted(() -> {
             assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 16);
         });

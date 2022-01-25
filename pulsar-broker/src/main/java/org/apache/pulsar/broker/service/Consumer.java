@@ -871,15 +871,9 @@ public class Consumer {
             PositionImpl position = PositionImpl.get(msg.getLedgerId(), msg.getEntryId());
             LongPair longPair = pendingAcks.get(position.getLedgerId(), position.getEntryId());
             if (longPair != null) {
-                long batchSize = longPair.first;
-                if (isAcknowledgmentAtBatchIndexLevelEnabled) {
-                    long[] cursorAckSet = getCursorAckSet(position);
-                    if (cursorAckSet != null) {
-                        batchSize -= BitSet.valueOf(cursorAckSet).cardinality();
-                    }
-                }
+                int unAckedCount = (int) getUnAckedCountForBatchIndexLevelEnabled(position, longPair.first);
                 pendingAcks.remove(position.getLedgerId(), position.getEntryId());
-                totalRedeliveryMessages += batchSize;
+                totalRedeliveryMessages += unAckedCount;
                 pendingPositions.add(position);
             }
         }
