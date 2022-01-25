@@ -106,14 +106,14 @@ public class FutureUtilTest {
         try {
             exceptionFuture.get();
         } catch (InterruptedException | ExecutionException e) {
-            Throwable originalException = FutureUtil.getOriginalException(e);
+            Throwable originalException = FutureUtil.unwrapException(e);
             assertTrue(originalException instanceof IllegalStateException);
         }
         CompletableFuture<Object> exceptionFuture2 = new CompletableFuture<>();
         exceptionFuture2.completeExceptionally(new IllegalStateException("Completed exception"));
         final List<Throwable> future2Exception = Lists.newArrayList();
         exceptionFuture2.exceptionally(ex -> {
-            future2Exception.add(FutureUtil.getOriginalException(ex));
+            future2Exception.add(FutureUtil.unwrapException(ex));
             return null;
         });
         Awaitility.await()
@@ -127,7 +127,7 @@ public class FutureUtilTest {
                     throw new IllegalStateException("Throw illegal exception");
                 })
                 .exceptionally(ex -> {
-                    future3Exception.add(FutureUtil.getOriginalException(ex));
+                    future3Exception.add(FutureUtil.unwrapException(ex));
                     return null;
                 });
         Awaitility.await()

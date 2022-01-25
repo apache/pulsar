@@ -1073,7 +1073,7 @@ public abstract class PulsarWebResource {
         try {
             validateTopicOperationAsync(topicName, operation, subscription).get();
         } catch (InterruptedException | ExecutionException e) {
-            Throwable cause = FutureUtil.getOriginalException(e);
+            Throwable cause = FutureUtil.unwrapException(e);
             if (cause instanceof WebApplicationException){
                 throw (WebApplicationException) cause;
             } else {

@@ -99,14 +99,6 @@ public class FutureUtil {
         return future;
     }
 
-    public static Throwable unwrapCompletionException(Throwable t) {
-        if (t instanceof CompletionException) {
-            return unwrapCompletionException(t.getCause());
-        } else {
-            return t;
-        }
-    }
-
     /**
      * Creates a new {@link CompletableFuture} instance with timeout handling.
      *
