@@ -91,7 +91,7 @@ public class BrokersBase extends PulsarWebResource {
                 .thenCompose(__ -> validateClusterOwnershipAsync(cluster))
                 .thenCompose(__ -> pulsar().getLoadManager().get().getAvailableBrokersAsync())
                 .thenAccept(asyncResponse::resume)
-                .exceptionally(ex ->{
+                .exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                     if (realCause instanceof WebApplicationException) {
                         asyncResponse.resume(realCause);
