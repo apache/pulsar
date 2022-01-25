@@ -77,7 +77,8 @@ public interface Consumer<T> extends Closeable {
     /**
      * Receives a single message.
      *
-     * <p>This calls blocks until a message is available.When thread is Interrupted return a null value and reset Thread.interrupted flag.
+     * <p>This calls blocks until a message is available.When thread is Interrupted return a null value and reset
+     * Thread.interrupted flag.
      *
      * @return the received message
      * @throws PulsarClientException.AlreadyClosedException
