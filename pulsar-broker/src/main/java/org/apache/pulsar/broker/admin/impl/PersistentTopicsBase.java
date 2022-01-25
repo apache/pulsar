@@ -587,7 +587,7 @@ public class PersistentTopicsBase extends AdminResource {
                     log.info("[{}] Deleted partitioned topic {}", clientAppId(), topicName);
                     asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
-                    Throwable realCause = FutureUtil.unwrapException(ex);
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                     if (realCause instanceof
                             WebApplicationException && ((WebApplicationException) realCause).getResponse().getStatus()
                             == Status.TEMPORARY_REDIRECT.getStatusCode()) {
@@ -628,7 +628,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 .deleteAsync(topicNamePartition.toString(), force)
                                 .whenComplete((r, ex) -> {
                                     if (ex != null) {
-                                        Throwable realCause = FutureUtil.unwrapException(ex);
+                                        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                                         if (realCause instanceof NotFoundException){
                                             // if the sub-topic is not found, the client might not have called
                                             // create producer or it might have been deleted earlier,

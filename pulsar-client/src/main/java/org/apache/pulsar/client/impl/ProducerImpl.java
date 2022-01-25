@@ -673,7 +673,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                                         .orElse(Schema.BYTES.getSchemaInfo());
         getOrCreateSchemaAsync(cnx, schemaInfo).handle((v, ex) -> {
             if (ex != null) {
-                Throwable t = FutureUtil.unwrapException(ex);
+                Throwable t = FutureUtil.unwrapCompletionException(ex);
                 log.warn("[{}] [{}] GetOrCreateSchema error", topic, producerName, t);
                 if (t instanceof PulsarClientException.IncompatibleSchemaException) {
                     msg.setSchemaState(MessageImpl.SchemaState.Broken);
