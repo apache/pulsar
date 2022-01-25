@@ -19,9 +19,9 @@
 package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
+import java.time.LocalTime;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-import java.time.LocalTime;
 
 /**
  * A schema for `java.time.LocalTime`.

@@ -23,7 +23,7 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 public class MathUtils {
     /**
-     * Compute sign safe mod
+     * Compute sign safe mod.
      *
      * @param dividend
      * @param divisor
