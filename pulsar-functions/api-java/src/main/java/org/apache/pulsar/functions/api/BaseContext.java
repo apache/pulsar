@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.api;
 
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 import org.slf4j.Logger;
@@ -191,4 +192,16 @@ public interface BaseContext {
      * @param value The value of the metric
      */
     void recordMetric(String metricName, double value);
+
+    /**
+     * Get the pre-configured pulsar client builder.
+     *
+     * You can use this Builder to setup client to connect to the Pulsar cluster.
+     * But you need to close client properly after using it.
+     *
+     * @return the instance of pulsar client builder.
+     */
+    default ClientBuilder getPulsarClientBuilder() {
+        throw new UnsupportedOperationException("not implemented");
+    }
 }

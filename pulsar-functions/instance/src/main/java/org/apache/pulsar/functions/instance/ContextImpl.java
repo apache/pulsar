@@ -40,6 +40,7 @@ import lombok.ToString;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.BatcherBuilder;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -89,6 +90,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     // Per Message related
     private Record<?> record;
 
+    private final ClientBuilder clientBuilder;
     private final PulsarClient client;
     private final PulsarAdmin pulsarAdmin;
     private Map<String, Producer<?>> publishProducers;
@@ -133,9 +135,11 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
                        SecretsProvider secretsProvider, FunctionCollectorRegistry collectorRegistry, String[] metricsLabels,
                        Function.FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager,
-                       StateManager stateManager, PulsarAdmin pulsarAdmin) {
+                       StateManager stateManager, PulsarAdmin pulsarAdmin, ClientBuilder
+                               clientBuilder) throws PulsarClientException {
         this.config = config;
         this.logger = logger;
+        this.clientBuilder = clientBuilder;
         this.client = client;
         this.pulsarAdmin = pulsarAdmin;
         this.topicSchema = new TopicSchema(client);
@@ -494,6 +498,11 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         } else {
             userMetricsSummary.labels(userMetricLabels).observe(value);
         }
+    }
+
+    @Override
+    public ClientBuilder getPulsarClientBuilder() {
+        return clientBuilder;
     }
 
     private <O> Producer<O> getProducer(String topicName, Schema<O> schema) throws PulsarClientException {
