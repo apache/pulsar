@@ -1633,6 +1633,36 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testSetTopicMetadata() throws Exception {
+        Map<String, String> properties = new HashMap<>();
+        properties.put("key1", "value1");
+        properties.put("key2", "value2");
+        final MetaStore store = factory.getMetaStore();
+        final CountDownLatch latch = new CountDownLatch(1);
+        final ManagedLedgerInfo[] storedMLInfo = new ManagedLedgerInfo[1];
+        store.getManagedLedgerInfo("my_test_ledger", true, properties, new MetaStoreCallback<ManagedLedgerInfo>() {
+            @Override
+            public void operationComplete(ManagedLedgerInfo result, Stat version) {
+                storedMLInfo[0] = result;
+                latch.countDown();
+            }
+
+            @Override
+            public void operationFailed(MetaStoreException e) {
+                latch.countDown();
+                fail("Should have failed here");
+            }
+        });
+        latch.await();
+
+        assertEquals(storedMLInfo[0].getPropertiesCount(), 2);
+        assertEquals(storedMLInfo[0].getPropertiesList().get(0).getKey(), "key1");
+        assertEquals(storedMLInfo[0].getPropertiesList().get(0).getValue(), "value1");
+        assertEquals(storedMLInfo[0].getPropertiesList().get(1).getKey(), "key2");
+        assertEquals(storedMLInfo[0].getPropertiesList().get(1).getValue(), "value2");
+    }
+
+    @Test
     public void cursorReadsWithDiscardedEmptyLedgersStillListed() throws Exception {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger");
         ManagedCursor c1 = ledger.openCursor("c1");

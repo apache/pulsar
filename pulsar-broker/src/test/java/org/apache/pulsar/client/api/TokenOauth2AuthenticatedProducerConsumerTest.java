@@ -95,7 +95,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         // AuthenticationOAuth2
         Authentication authentication = AuthenticationFactoryOAuth2.clientCredentials(
                 new URL("https://dev-kt-aa9ne.us.auth0.com"),
-                new URL("file://" + path.toString()),  // key file path
+                path.toUri().toURL(),  // key file path
                 "https://dev-kt-aa9ne.us.auth0.com/api/v2/"
         );
 

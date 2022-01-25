@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 /**
- * Classes to define policies for the load distribution.
+ * Helper class to for message encrypt or decrypt.
  */
 package org.apache.pulsar.client.impl.crypto;

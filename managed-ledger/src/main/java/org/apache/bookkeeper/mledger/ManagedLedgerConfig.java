@@ -73,6 +73,7 @@ public class ManagedLedgerConfig {
     private int newEntriesCheckDelayInMillis = 10;
     private Clock clock = Clock.systemUTC();
     private ManagedLedgerInterceptor managedLedgerInterceptor;
+    private Map<String, String> properties;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -617,6 +618,16 @@ public class ManagedLedgerConfig {
     public void setBookKeeperEnsemblePlacementPolicyProperties(
             Map<String, Object> bookKeeperEnsemblePlacementPolicyProperties) {
         this.bookKeeperEnsemblePlacementPolicyProperties = bookKeeperEnsemblePlacementPolicyProperties;
+    }
+
+
+    public Map<String, String> getProperties() {
+        return properties;
+    }
+
+
+    public void setProperties(Map<String, String> properties) {
+        this.properties = properties;
     }
 
     public boolean isDeletionAtBatchIndexLevelEnabled() {

@@ -95,11 +95,13 @@ public interface TopicPoliciesService {
                 .create() : backoff;
         try {
             RetryUtil.retryAsynchronously(() -> {
+                CompletableFuture<Optional<TopicPolicies>> future = new CompletableFuture<>();
                 try {
-                    return Optional.ofNullable(getTopicPolicies(topicName, isGlobal));
+                    future.complete(Optional.ofNullable(getTopicPolicies(topicName, isGlobal)));
                 } catch (BrokerServiceException.TopicPoliciesCacheNotInitException exception) {
-                    throw new RuntimeException(exception);
+                    future.completeExceptionally(exception);
                 }
+                return future;
             }, usedBackoff, scheduledExecutorService, response);
         } catch (Exception e) {
             response.completeExceptionally(e);

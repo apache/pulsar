@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import org.apache.pulsar.client.util.RetryUtil;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.annotations.Test;
 
 import java.util.concurrent.CompletableFuture;
@@ -45,11 +46,14 @@ public class RetryUtilTest {
                 .setMandatoryStop(5000, TimeUnit.MILLISECONDS)
                 .create();
         RetryUtil.retryAsynchronously(() -> {
+            CompletableFuture<Boolean> future = new CompletableFuture<>();
             atomicInteger.incrementAndGet();
             if (atomicInteger.get() < 5) {
-                throw new RuntimeException("fail");
+                future.completeExceptionally(new RuntimeException("fail"));
+            } else {
+                future.complete(true);
             }
-            return true;
+            return future;
         }, backoff, executor, callback);
         assertTrue(callback.get());
         assertEquals(atomicInteger.get(), 5);
@@ -66,9 +70,8 @@ public class RetryUtilTest {
                 .setMandatoryStop(5000, TimeUnit.MILLISECONDS)
                 .create();
         long start = System.currentTimeMillis();
-        RetryUtil.retryAsynchronously(() -> {
-            throw new RuntimeException("fail");
-        }, backoff, executor, callback);
+        RetryUtil.retryAsynchronously(() ->
+                FutureUtil.failedFuture(new RuntimeException("fail")), backoff, executor, callback);
         try {
             callback.get();
         } catch (Exception e) {
