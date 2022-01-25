@@ -442,7 +442,7 @@ public abstract class PulsarWebResource {
         // redirect to the cluster requested
         pulsar.getPulsarResources().getClusterResources().getClusterAsync(cluster)
                 .whenComplete((clusterDataResult, ex) -> {
-                    if (ex != null){
+                    if (ex != null) {
                         clusterDataFuture.completeExceptionally(FutureUtil.unwrapCompletionException(ex));
                         return;
                     }
