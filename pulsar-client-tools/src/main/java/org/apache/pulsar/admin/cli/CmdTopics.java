@@ -371,7 +371,7 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             print(getTopics().getList(namespace, topicDomain));
-            BrokerClientIntegrationTest.java}
+        }
     }
 
     @Parameters(commandDescription = "Get the list of partitioned topics under a namespace.")
