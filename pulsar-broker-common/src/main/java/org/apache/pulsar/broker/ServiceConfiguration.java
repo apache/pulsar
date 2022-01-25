@@ -35,6 +35,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import org.apache.bookkeeper.client.api.DigestType;
+import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.Category;
@@ -2580,7 +2581,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         } else {
             // Fallback to same metadata service used by broker, adding the "metadata-store" to specify the BK
             // metadata adapter
-            return "metadata-store:" + getMetadataStoreUrl();
+            String suffix;
+            if (StringUtils.isNotBlank(metadataStoreUrl)) {
+                suffix =  metadataStoreUrl;
+            } else {
+                // Fallback to old setting
+                suffix = new ClientConfiguration().setZkServers(zookeeperServers).getMetadataServiceUriUnchecked();
+            }
+            return "metadata-store:" + suffix;
         }
     }
 
