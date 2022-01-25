@@ -199,4 +199,158 @@
         <sha1>d90276fff414f06cb375f2057f6778cd63c6082f</sha1>
         <cve>CVE-2021-42550</cve>
     </suppress>
+
+    <!-- jetcd matched against ETCD server CVEs-->
+    <suppress>
+        <notes><![CDATA[
+       file name: jetcd-core-0.5.11.jar
+       ]]></notes>
+        <sha1>c85851ca3ea8128d480d3f75c568a37e64e8a77b</sha1>
+        <cve>CVE-2020-15106</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+       file name: jetcd-core-0.5.11.jar
+       ]]></notes>
+        <sha1>c85851ca3ea8128d480d3f75c568a37e64e8a77b</sha1>
+        <cve>CVE-2020-15112</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+       file name: jetcd-core-0.5.11.jar
+       ]]></notes>
+        <sha1>c85851ca3ea8128d480d3f75c568a37e64e8a77b</sha1>
+        <cve>CVE-2020-15113</cve>
+    </suppress>
+
+    <suppress>
+        <notes><![CDATA[
+       file name: jetcd-common-0.5.11.jar
+       ]]></notes>
+        <sha1>6dac6efe035a2be9ba299fbf31be5f903401869f</sha1>
+        <cve>CVE-2020-15106</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+       file name: jetcd-common-0.5.11.jar
+       ]]></notes>
+        <sha1>6dac6efe035a2be9ba299fbf31be5f903401869f</sha1>
+        <cve>CVE-2020-15112</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+       file name: jetcd-common-0.5.11.jar
+       ]]></notes>
+        <sha1>6dac6efe035a2be9ba299fbf31be5f903401869f</sha1>
+        <cve>CVE-2020-15113</cve>
+    </suppress>
+
+    <!-- bouncycastle misdetections -->
+    <suppress>
+        <notes><![CDATA[
+       file name: bc-fips-1.0.2.jar
+       ]]></notes>
+        <sha1>4fb5db5f03d00f6a94e43b78d097978190e4abb2</sha1>
+        <cve>CVE-2020-26939</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+       file name: bcpkix-fips-1.0.2.jar
+       ]]></notes>
+        <sha1>543bc7a08cdba0172e95e536b5f7ca61f021253d</sha1>
+        <cve>CVE-2020-15522</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+       file name: bcpkix-fips-1.0.2.jar
+       ]]></notes>
+        <sha1>543bc7a08cdba0172e95e536b5f7ca61f021253d</sha1>
+        <cve>CVE-2020-26939</cve>
+    </suppress>
+
+    <!-- jclouds/openswift misdetections -->
+    <suppress>
+        <notes><![CDATA[
+       file name: openstack-swift-2.4.0.jar
+       ]]></notes>
+        <sha1>3f8f54bbcb73608ac8b66f186a824b75065eb413</sha1>
+        <cve>CVE-2016-0738</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+       file name: openstack-swift-2.4.0.jar
+       ]]></notes>
+        <sha1>3f8f54bbcb73608ac8b66f186a824b75065eb413</sha1>
+        <cve>CVE-2017-16613</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+       file name: openstack-swift-2.4.0.jar
+       ]]></notes>
+        <sha1>3f8f54bbcb73608ac8b66f186a824b75065eb413</sha1>
+        <cve>CVE-2017-8761</cve>
+    </suppress>
+
+    <suppress>
+        <notes><![CDATA[
+       file name: openstack-keystone-2.4.0.jar
+       ]]></notes>
+        <sha1>4f47a6b485371d357827b6a517ba54d073dc7b8b</sha1>
+        <cve>CVE-2018-14432</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+       file name: openstack-keystone-2.4.0.jar
+       ]]></notes>
+        <sha1>4f47a6b485371d357827b6a517ba54d073dc7b8b</sha1>
+        <cve>CVE-2018-20170</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+       file name: openstack-keystone-2.4.0.jar
+       ]]></notes>
+        <sha1>4f47a6b485371d357827b6a517ba54d073dc7b8b</sha1>
+        <cve>CVE-2020-12689</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+       file name: openstack-keystone-2.4.0.jar
+       ]]></notes>
+        <sha1>4f47a6b485371d357827b6a517ba54d073dc7b8b</sha1>
+        <cve>CVE-2020-12690</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+       file name: openstack-keystone-2.4.0.jar
+       ]]></notes>
+        <sha1>4f47a6b485371d357827b6a517ba54d073dc7b8b</sha1>
+        <cve>CVE-2020-12691</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+       file name: openstack-keystone-2.4.0.jar
+       ]]></notes>
+        <sha1>4f47a6b485371d357827b6a517ba54d073dc7b8b</sha1>
+        <cve>CVE-2020-12692</cve>
+    </suppress>
+
+    <!-- Solr misdetection.
+    Cannot be tied to a sha1,
+    mismatches org.apache.pulsar:pulsar-io-solr:2.10.0-SNAPSHOT
+    -->
+    <suppress>
+        <notes><![CDATA[
+       file name: org.apache.pulsar:pulsar-io-solr:2.10.0-SNAPSHOT
+       ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.pulsar/pulsar\-io\-solr@.*-SNAPSHOT$</packageUrl>
+        <cpe>cpe:/a:apache:pulsar</cpe>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+       file name: org.apache.pulsar:pulsar-io-solr:2.10.0-SNAPSHOT
+       ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.pulsar/pulsar\-io\-solr@.*-SNAPSHOT$</packageUrl>
+        <cpe>cpe:/a:apache:solr</cpe>
+    </suppress>
+
 </suppressions>
