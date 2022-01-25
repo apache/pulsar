@@ -114,7 +114,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private boolean autoAckOldestChunkedMessageOnQueueFull = false;
 
-    private long expireTimeOfIncompleteChunkedMessageMillis = TimeUnit.HOURS.toMillis(1);
+    private long expireTimeOfIncompleteChunkedMessageMillis = TimeUnit.MINUTES.toMillis(1);
 
     @JsonIgnore
     private CryptoKeyReader cryptoKeyReader = null;
