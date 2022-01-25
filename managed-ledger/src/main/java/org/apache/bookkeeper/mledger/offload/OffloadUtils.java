@@ -19,14 +19,12 @@
 package org.apache.bookkeeper.mledger.offload;
 
 import com.google.common.collect.Maps;
-
+import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
-import com.google.protobuf.ByteString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerMetadataBuilder;
@@ -109,7 +107,8 @@ public final class OffloadUtils {
                 .setAckQuorumSize(metadata.getAckQuorumSize())
                 .setEnsembleSize(metadata.getEnsembleSize())
                 .setLength(metadata.getLength())
-                .setState(metadata.isClosed() ? DataFormats.LedgerMetadataFormat.State.CLOSED : DataFormats.LedgerMetadataFormat.State.OPEN)
+                .setState(metadata.isClosed() ? DataFormats.LedgerMetadataFormat.State.CLOSED :
+                        DataFormats.LedgerMetadataFormat.State.OPEN)
                 .setLastEntryId(metadata.getLastEntryId())
                 .setCtime(metadata.getCtime())
                 .setDigestType(BookKeeper.DigestType.toProtoDigestType(
@@ -130,7 +129,8 @@ public final class OffloadUtils {
     }
 
     public static LedgerMetadata parseLedgerMetadata(long id, byte[] bytes) throws IOException {
-        DataFormats.LedgerMetadataFormat ledgerMetadataFormat = DataFormats.LedgerMetadataFormat.newBuilder().mergeFrom(bytes).build();
+        DataFormats.LedgerMetadataFormat ledgerMetadataFormat = DataFormats.LedgerMetadataFormat.newBuilder()
+                .mergeFrom(bytes).build();
         LedgerMetadataBuilder builder = LedgerMetadataBuilder.create()
                 .withLastEntryId(ledgerMetadataFormat.getLastEntryId())
                 .withPassword(ledgerMetadataFormat.getPassword().toByteArray())
@@ -175,7 +175,8 @@ public final class OffloadUtils {
                 builder.withDigestType(DigestType.DUMMY);
                 break;
             default:
-                throw new IllegalArgumentException("Unable to convert digest type " + ledgerMetadataFormat.getDigestType());
+                throw new IllegalArgumentException("Unable to convert digest type "
+                        + ledgerMetadataFormat.getDigestType());
         }
 
         return builder.build();

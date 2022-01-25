@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl.v1;
 
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;

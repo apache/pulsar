@@ -98,6 +98,17 @@ public interface Topic {
         default boolean isMarkerMessage() {
             return false;
         }
+
+        default void setProperty(String propertyName, Object value) {
+        }
+
+        default Object getProperty(String propertyName) {
+            return null;
+        }
+
+        default boolean isChunked() {
+            return false;
+        }
     }
 
     CompletableFuture<Void> initialize();
@@ -220,7 +231,12 @@ public interface Topic {
 
     ConcurrentOpenHashMap<String, ? extends Replicator> getReplicators();
 
-    TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize);
+    TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
+                            boolean getEarliestTimeInBacklog);
+
+    CompletableFuture<? extends TopicStatsImpl> asyncGetStats(boolean getPreciseBacklog,
+                                                              boolean subscriptionBacklogSize,
+                                                              boolean getEarliestTimeInBacklog);
 
     CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata);
 
@@ -262,9 +278,15 @@ public interface Topic {
         return Optional.empty();
     }
 
+    default Optional<DispatchRateLimiter> getBrokerDispatchRateLimiter() {
+        return Optional.empty();
+    }
+
     default boolean isSystemTopic() {
         return false;
     }
+
+    boolean isPersistent();
 
     /* ------ Transaction related ------ */
 

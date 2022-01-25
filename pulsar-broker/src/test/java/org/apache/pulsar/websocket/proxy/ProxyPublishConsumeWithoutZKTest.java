@@ -19,17 +19,15 @@
 package org.apache.pulsar.websocket.proxy;
 
 import static java.util.concurrent.Executors.newFixedThreadPool;
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
-
 import java.net.URI;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
@@ -63,7 +61,7 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
         config.setClusterName("test");
         config.setServiceUrl(pulsar.getSafeWebServiceAddress());
         config.setServiceUrlTls(pulsar.getWebServiceAddressTls());
-        service = spy(new WebSocketService(config));
+        service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(service).createMetadataStore(anyString(), anyInt());
         proxyServer = new ProxyServer(config);
         WebSocketServiceStarter.start(proxyServer, service);

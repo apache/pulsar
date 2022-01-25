@@ -22,17 +22,21 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.apache.avro.Conversion;
-import org.apache.avro.Conversions;
-import org.apache.avro.Schema;
-import org.apache.avro.data.TimeConversions;
-import org.apache.avro.generic.GenericRecord;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.apache.avro.Conversion;
+import org.apache.avro.Conversions;
+import org.apache.avro.Schema;
+import org.apache.avro.data.TimeConversions;
+import org.apache.avro.generic.GenericFixed;
+import org.apache.avro.generic.GenericRecord;
 
 /**
  * Convert an AVRO GenericRecord to a JsonNode.
@@ -47,7 +51,7 @@ public class JsonConverter {
             return null;
         }
         ObjectNode objectNode = jsonNodeFactory.objectNode();
-        for(Schema.Field field: genericRecord.getSchema().getFields()) {
+        for (Schema.Field field : genericRecord.getSchema().getFields()) {
             objectNode.set(field.name(), toJson(field.schema(), genericRecord.get(field.name())));
         }
         return objectNode;
@@ -61,6 +65,8 @@ public class JsonConverter {
             return jsonNodeFactory.nullNode();
         }
         switch(schema.getType()) {
+            case NULL: // this should not happen
+                return jsonNodeFactory.nullNode();
             case INT:
                 return jsonNodeFactory.numberNode((Integer) value);
             case LONG:
@@ -73,12 +79,15 @@ public class JsonConverter {
                 return jsonNodeFactory.booleanNode((Boolean) value);
             case BYTES:
                 return jsonNodeFactory.binaryNode((byte[]) value);
+            case FIXED:
+                return jsonNodeFactory.binaryNode(((GenericFixed) value).bytes());
+            case ENUM: // GenericEnumSymbol
             case STRING:
                 return jsonNodeFactory.textNode(value.toString()); // can be a String or org.apache.avro.util.Utf8
             case ARRAY: {
                 Schema elementSchema = schema.getElementType();
                 ArrayNode arrayNode = jsonNodeFactory.arrayNode();
-                for(Object elem : (Object[]) value) {
+                for (Object elem : (Object[]) value) {
                     JsonNode fieldValue = toJson(elementSchema, elem);
                     arrayNode.add(fieldValue);
                 }
@@ -87,7 +96,7 @@ public class JsonConverter {
             case MAP: {
                 Map<String, Object> map = (Map<String, Object>) value;
                 ObjectNode objectNode = jsonNodeFactory.objectNode();
-                for(Map.Entry<String, Object> entry : map.entrySet()) {
+                for (Map.Entry<String, Object> entry : map.entrySet()) {
                     JsonNode jsonNode = toJson(schema.getValueType(), entry.getValue());
                     objectNode.set(entry.getKey(), jsonNode);
                 }
@@ -96,13 +105,16 @@ public class JsonConverter {
             case RECORD:
                 return toJson((GenericRecord) value);
             case UNION:
-                for(Schema s: schema.getTypes()) {
-                    if (s.getType() == Schema.Type.NULL)
+                for (Schema s : schema.getTypes()) {
+                    if (s.getType() == Schema.Type.NULL) {
                         continue;
+                    }
                     return toJson(s, value);
                 }
+                // this case should not happen
+                return jsonNodeFactory.textNode(value.toString());
             default:
-                throw new UnsupportedOperationException("Unknown AVRO schema type="+schema.getType());
+                throw new UnsupportedOperationException("Unknown AVRO schema type=" + schema.getType());
         }
     }
 
@@ -117,74 +129,83 @@ public class JsonConverter {
     }
 
     static {
-        logicalTypeConverters.put("decimal", new JsonConverter.LogicalTypeConverter<BigDecimal>(new Conversions.DecimalConversion()) {
+        logicalTypeConverters.put("decimal", new JsonConverter.LogicalTypeConverter<BigDecimal>(
+                new Conversions.DecimalConversion()) {
             @Override
             JsonNode toJson(Schema schema, Object value) {
                 if (!(value instanceof BigDecimal)) {
-                    throw new IllegalArgumentException("Invalid type for Decimal, expected BigDecimal but was " + value.getClass());
+                    throw new IllegalArgumentException("Invalid type for Decimal, expected BigDecimal but was "
+                            + value.getClass());
                 }
-                BigDecimal decimal = (BigDecimal)value;
+                BigDecimal decimal = (BigDecimal) value;
                 return jsonNodeFactory.numberNode(decimal);
             }
         });
-        logicalTypeConverters.put("date", new JsonConverter.LogicalTypeConverter<LocalDate>(new TimeConversions.DateConversion()) {
+        logicalTypeConverters.put("date", new JsonConverter.LogicalTypeConverter<LocalDate>(
+                new TimeConversions.DateConversion()) {
             @Override
             JsonNode toJson(Schema schema, Object value) {
                 if (!(value instanceof Integer)) {
-                    throw new IllegalArgumentException("Invalid type for date, expected Integer but was " + value.getClass());
+                    throw new IllegalArgumentException("Invalid type for date, expected Integer but was "
+                            + value.getClass());
                 }
-                Integer daysFromEpoch = (Integer)value;
+                Integer daysFromEpoch = (Integer) value;
                 return jsonNodeFactory.numberNode(daysFromEpoch);
             }
         });
-        logicalTypeConverters.put("time-millis", new JsonConverter.LogicalTypeConverter<LocalTime>(new TimeConversions.TimeMillisConversion()) {
+        logicalTypeConverters.put("time-millis", new JsonConverter.LogicalTypeConverter<LocalTime>(
+                new TimeConversions.TimeMillisConversion()) {
             @Override
             JsonNode toJson(Schema schema, Object value) {
                 if (!(value instanceof Integer)) {
-                    throw new IllegalArgumentException("Invalid type for time-millis, expected Integer but was " + value.getClass());
+                    throw new IllegalArgumentException("Invalid type for time-millis, expected Integer but was "
+                            + value.getClass());
                 }
-                Integer timeMillis = (Integer)value;
+                Integer timeMillis = (Integer) value;
                 return jsonNodeFactory.numberNode(timeMillis);
             }
         });
-        logicalTypeConverters.put("time-micros", new JsonConverter.LogicalTypeConverter<LocalTime>(new TimeConversions.TimeMicrosConversion()) {
+        logicalTypeConverters.put("time-micros", new JsonConverter.LogicalTypeConverter<LocalTime>(
+                new TimeConversions.TimeMicrosConversion()) {
             @Override
             JsonNode toJson(Schema schema, Object value) {
                 if (!(value instanceof Long)) {
-                    throw new IllegalArgumentException("Invalid type for time-micros, expected Long but was " + value.getClass());
+                    throw new IllegalArgumentException("Invalid type for time-micros, expected Long but was "
+                            + value.getClass());
                 }
-                Long timeMicro = (Long)value;
+                Long timeMicro = (Long) value;
                 return jsonNodeFactory.numberNode(timeMicro);
             }
         });
-        logicalTypeConverters.put("timestamp-millis", new JsonConverter.LogicalTypeConverter<Instant>(new TimeConversions.TimestampMillisConversion()) {
+        logicalTypeConverters.put("timestamp-millis", new JsonConverter.LogicalTypeConverter<Instant>(
+                new TimeConversions.TimestampMillisConversion()) {
             @Override
             JsonNode toJson(Schema schema, Object value) {
                 if (!(value instanceof Long)) {
-                    throw new IllegalArgumentException("Invalid type for timestamp-millis, expected Long but was " + value.getClass());
+                    throw new IllegalArgumentException("Invalid type for timestamp-millis, expected Long but was "
+                            + value.getClass());
                 }
-                Long epochMillis = (Long)value;
+                Long epochMillis = (Long) value;
                 return jsonNodeFactory.numberNode(epochMillis);
             }
         });
-        logicalTypeConverters.put("timestamp-micros", new JsonConverter.LogicalTypeConverter<Instant>(new TimeConversions.TimestampMicrosConversion()) {
+        logicalTypeConverters.put("timestamp-micros", new JsonConverter.LogicalTypeConverter<Instant>(
+                new TimeConversions.TimestampMicrosConversion()) {
             @Override
             JsonNode toJson(Schema schema, Object value) {
                 if (!(value instanceof Long)) {
-                    throw new IllegalArgumentException("Invalid type for timestamp-micros, expected Long but was " + value.getClass());
+                    throw new IllegalArgumentException("Invalid type for timestamp-micros, expected Long but was "
+                            + value.getClass());
                 }
-                Long epochMillis = (Long)value;
+                Long epochMillis = (Long) value;
                 return jsonNodeFactory.numberNode(epochMillis);
             }
         });
-        logicalTypeConverters.put("uuid", new JsonConverter.LogicalTypeConverter<UUID>(new Conversions.UUIDConversion()) {
+        logicalTypeConverters.put("uuid", new JsonConverter.LogicalTypeConverter<UUID>(
+                new Conversions.UUIDConversion()) {
             @Override
             JsonNode toJson(Schema schema, Object value) {
-                if (!(value instanceof String)) {
-                    throw new IllegalArgumentException("Invalid type for uuid, expected String but was " + value.getClass());
-                }
-                String uuidString = (String)value;
-                return jsonNodeFactory.textNode(uuidString);
+                return jsonNodeFactory.textNode(value == null ? null : value.toString());
             }
         });
     }

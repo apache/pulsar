@@ -21,15 +21,12 @@ package org.apache.pulsar.websocket.service;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
-
+import java.util.TreeSet;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
-
-import com.google.common.collect.Sets;
-
-import lombok.Getter;
-import lombok.Setter;
 
 @Getter
 @Setter
@@ -84,7 +81,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private Optional<Integer> webServicePortTls = Optional.empty();
 
     @FieldContext(doc = "Hostname or IP address the service binds on, default is 0.0.0.0.")
-    private String bindAddress;
+    private String bindAddress = "0.0.0.0";
 
     @FieldContext(doc = "Maximum size of a text message during parsing in WebSocket proxy")
     private int webSocketMaxTextFrameSize = 1024 * 1024;
@@ -93,7 +90,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private boolean authenticationEnabled;
 
     @FieldContext(doc = "Authentication provider name list, which is a list of class names")
-    private Set<String> authenticationProviders = Sets.newTreeSet();
+    private Set<String> authenticationProviders = new TreeSet<>();
 
     @FieldContext(doc = "Enforce authorization")
     private boolean authorizationEnabled;
@@ -103,7 +100,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(doc = "Role names that are treated as \"super-user\", "
             + "which means they can do all admin operations and publish to or consume from all topics")
-    private Set<String> superUserRoles = Sets.newTreeSet();
+    private Set<String> superUserRoles = new TreeSet<>();
 
     @FieldContext(doc = "Allow wildcard matching in authorization "
             + "(wildcard matching only applicable if wildcard-char: "
@@ -134,7 +131,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "When this parameter is not empty, unauthenticated users perform as anonymousUserRole")
     private String anonymousUserRole = null;
 
-    /***** --- TLS --- ****/
+    /* --- TLS --- */
     @Deprecated
     private boolean tlsEnabled = false;
 

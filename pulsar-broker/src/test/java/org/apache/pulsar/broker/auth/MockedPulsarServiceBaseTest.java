@@ -18,17 +18,16 @@
  */
 package org.apache.pulsar.broker.auth;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
-
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
-
-import java.lang.reflect.Field;
 import io.netty.channel.EventLoopGroup;
+import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URL;
@@ -38,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -61,13 +59,12 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.tests.TestRetrySupport;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
-import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.ACL;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.slf4j.Logger;
@@ -180,6 +177,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         this.conf.setWebServicePort(Optional.of(0));
         this.conf.setWebServicePortTls(Optional.of(0));
         this.conf.setNumExecutorThreadPoolSize(5);
+        this.conf.setExposeBundlesMetricsInPrometheus(true);
     }
 
     protected final void init() throws Exception {
@@ -246,6 +244,11 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
             }
             bkExecutor = null;
         }
+        onCleanup();
+    }
+
+    protected void onCleanup() {
+
     }
 
     protected abstract void setup() throws Exception;
@@ -317,10 +320,10 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     protected void setupBrokerMocks(PulsarService pulsar) throws Exception {
         // Override default providers with mocked ones
         doReturn(mockBookKeeperClientFactory).when(pulsar).newBookKeeperClientFactory();
-        doReturn(new ZKMetadataStore(mockZooKeeper)).when(pulsar).createLocalMetadataStore();
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(pulsar).createConfigurationMetadataStore();
+        doReturn(createLocalMetadataStore()).when(pulsar).createLocalMetadataStore();
+        doReturn(createConfigurationMetadataStore()).when(pulsar).createConfigurationMetadataStore();
 
-        Supplier<NamespaceService> namespaceServiceSupplier = () -> spy(new NamespaceService(pulsar));
+        Supplier<NamespaceService> namespaceServiceSupplier = () -> spyWithClassAndConstructorArgs(NamespaceService.class, pulsar);
         doReturn(namespaceServiceSupplier).when(pulsar).getNamespaceServiceProvider();
 
         doReturn(sameThreadOrderedSafeExecutor).when(pulsar).getOrderedExecutor();
@@ -330,6 +333,14 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         if (enableBrokerInterceptor) {
             mockConfigBrokerInterceptors(pulsar);
         }
+    }
+
+    protected MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
+        return new ZKMetadataStore(mockZooKeeper);
+    }
+
+    protected MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
+        return new ZKMetadataStore(mockZooKeeperGlobal);
     }
 
     private void mockConfigBrokerInterceptors(PulsarService pulsarService) {
@@ -376,7 +387,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     public static NonClosableMockBookKeeper createMockBookKeeper(OrderedExecutor executor) throws Exception {
-        return spy(new NonClosableMockBookKeeper(executor));
+        return spyWithClassAndConstructorArgs(NonClosableMockBookKeeper.class, executor);
     }
 
     // Prevent the MockBookKeeper instance from being closed when the broker is restarted within a test
@@ -400,22 +411,6 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
             super.shutdown();
         }
     }
-
-    protected ZooKeeperClientFactory mockZooKeeperClientFactory = new ZooKeeperClientFactory() {
-
-        @Override
-        public CompletableFuture<ZooKeeper> create(String serverList, SessionType sessionType,
-                int zkSessionTimeoutMillis) {
-
-            if (serverList != null
-                    && (serverList.equalsIgnoreCase(conf.getConfigurationStoreServers())
-                    || serverList.equalsIgnoreCase(GLOBAL_DUMMY_VALUE))) {
-                return CompletableFuture.completedFuture(mockZooKeeperGlobal);
-            }
-
-            return CompletableFuture.completedFuture(mockZooKeeper);
-        }
-    };
 
     private final BookKeeperClientFactory mockBookKeeperClientFactory = new BookKeeperClientFactory() {
 

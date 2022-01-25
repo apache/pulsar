@@ -87,7 +87,10 @@ public final class PublicSuffixMatcher {
         }
     }
 
-    private static boolean hasEntry(final Map<String, DomainType> map, final String rule, final DomainType expectedType) {
+    private static boolean hasEntry(
+            final Map<String, DomainType> map,
+            final String rule,
+            final DomainType expectedType) {
         if (map == null) {
             return false;
         }

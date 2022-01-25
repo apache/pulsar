@@ -356,7 +356,7 @@ public class TransactionMetadataStoreService {
                                         endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
 
                             }
-                            completableFuture.completeExceptionally(e);
+                            completableFuture.completeExceptionally(e.getCause());
                             return null;
                         })).exceptionally(e -> {
                     if (!isRetryableException(e.getCause())) {
@@ -371,7 +371,7 @@ public class TransactionMetadataStoreService {
                                 endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
 
                     }
-                    completableFuture.completeExceptionally(e);
+                    completableFuture.completeExceptionally(e.getCause());
                     return null;
                 });
             } else {
@@ -391,7 +391,7 @@ public class TransactionMetadataStoreService {
                             LOG.error("EndTxnInTransactionBuffer fail! TxnId : {}, "
                                     + "TxnAction : {}", txnID, txnAction, e);
                         }
-                        completableFuture.completeExceptionally(e);
+                        completableFuture.completeExceptionally(e.getCause());
                         return null;
                     });
                 } else {
@@ -409,7 +409,7 @@ public class TransactionMetadataStoreService {
                 transactionOpRetryTimer.newTimeout(timeout -> endTransaction(txnID, txnAction, isTimeout),
                         endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
             }
-            completableFuture.completeExceptionally(e);
+            completableFuture.completeExceptionally(e.getCause());
             return null;
         });
         return completableFuture;

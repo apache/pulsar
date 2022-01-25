@@ -235,7 +235,7 @@ public class Consumer {
         }
 
         // Note
-        // Must ensure that the message is written to the pendingAcks before sent is first , because this consumer
+        // Must ensure that the message is written to the pendingAcks before sent is first, because this consumer
         // is possible to disconnect at this time.
         if (pendingAcks != null) {
             for (int i = 0; i < entries.size(); i++) {
@@ -347,7 +347,7 @@ public class Consumer {
                 log.warn("[{}] [{}] Received cumulative ack on shared subscription, ignoring",
                         subscription, consumerId);
             }
-            PositionImpl position = PositionImpl.earliest;
+            PositionImpl position = PositionImpl.EARLIEST;
             if (ack.getMessageIdsCount() == 1) {
                 MessageIdData msgId = ack.getMessageIdAt(0);
                 if (msgId.getAckSetsCount() > 0) {
@@ -652,21 +652,26 @@ public class Consumer {
                 .add("consumerName", consumerName).add("address", this.cnx.clientAddress()).toString();
     }
 
-    public void checkPermissions() {
+    public CompletableFuture<Void> checkPermissionsAsync() {
         TopicName topicName = TopicName.get(subscription.getTopicName());
         if (cnx.getBrokerService().getAuthorizationService() != null) {
-            try {
-                if (cnx.getBrokerService().getAuthorizationService().canConsume(topicName, appId,
-                        cnx.getAuthenticationData(), subscription.getName())) {
-                    return;
-                }
-            } catch (Exception e) {
-                log.warn("[{}] Get unexpected error while autorizing [{}]  {}", appId, subscription.getTopicName(),
-                        e.getMessage(), e);
-            }
-            log.info("[{}] is not allowed to consume from topic [{}] anymore", appId, subscription.getTopicName());
-            disconnect();
+            return cnx.getBrokerService().getAuthorizationService().canConsumeAsync(topicName, appId,
+                            cnx.getAuthenticationData(), subscription.getName())
+                    .handle((ok, e) -> {
+                        if (e != null) {
+                            log.warn("[{}] Get unexpected error while autorizing [{}]  {}", appId,
+                                    subscription.getTopicName(), e.getMessage(), e);
+                        }
+
+                        if (ok == null || !ok) {
+                            log.info("[{}] is not allowed to consume from topic [{}] anymore", appId,
+                                    subscription.getTopicName());
+                            disconnect();
+                        }
+                        return null;
+                    });
         }
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -846,6 +851,10 @@ public class Consumer {
 
     public MessageId getStartMessageId() {
         return startMessageId;
+    }
+
+    public Map<String, String> getMetadata() {
+        return metadata;
     }
 
     private int getStickyKeyHash(Entry entry) {

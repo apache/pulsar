@@ -1,13 +1,9 @@
 ---
 id: develop-cpp
 title: Building Pulsar C++ client
-sidebar_label: Building Pulsar C++ client
+sidebar_label: "Building Pulsar C++ client"
 original_id: develop-cpp
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 ## Supported platforms
 
@@ -115,3 +111,4 @@ $ cmake .
 $ make
 
 ```
+

@@ -21,15 +21,14 @@ package org.apache.pulsar.io.rabbitmq;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.base.Preconditions;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.experimental.Accessors;
-import org.apache.pulsar.io.core.annotations.FieldDoc;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.experimental.Accessors;
+import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @Data
 @EqualsAndHashCode(callSuper = false)
@@ -57,7 +56,7 @@ public class RabbitMQSourceConfig extends RabbitMQAbstractConfig implements Seri
     private boolean prefetchGlobal = false;
 
     @FieldDoc(
-            required=false,
+            required = false,
             defaultValue = "false",
             help = "Set true if the queue should be declared passively - ie to preserve durability/timeout settings")
     private boolean passive = false;

@@ -47,8 +47,6 @@ import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Slf4j
 public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlacementPolicy {
@@ -180,13 +178,15 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         return Optional.empty();
     }
 
-    private static Pair<Set<String>, Set<String>> getIsolationGroup(EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig) {
+    private static Pair<Set<String>, Set<String>> getIsolationGroup(
+            EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig) {
         MutablePair<Set<String>, Set<String>> pair = new MutablePair<>();
         String className = IsolatedBookieEnsemblePlacementPolicy.class.getName();
         if (ensemblePlacementPolicyConfig.getPolicyClass().getName().equals(className)) {
             Map<String, Object> properties = ensemblePlacementPolicyConfig.getProperties();
             String primaryIsolationGroupString = castToString(properties.getOrDefault(ISOLATION_BOOKIE_GROUPS, ""));
-            String secondaryIsolationGroupString = castToString(properties.getOrDefault(SECONDARY_ISOLATION_BOOKIE_GROUPS, ""));
+            String secondaryIsolationGroupString =
+                    castToString(properties.getOrDefault(SECONDARY_ISOLATION_BOOKIE_GROUPS, ""));
             if (!primaryIsolationGroupString.isEmpty()) {
                 pair.setLeft(new HashSet(Arrays.asList(primaryIsolationGroupString.split(","))));
             }
@@ -249,8 +249,8 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                 // if primary-isolated-bookies are not enough then add consider secondary isolated bookie group as well.
                 if (totalAvailableBookiesInPrimaryGroup < ensembleSize) {
                     log.info(
-                        "Not found enough available-bookies from primary isolation group [{}] , checking secondary group [{}]",
-                        primaryIsolationGroup, secondaryIsolationGroup);
+                        "Not found enough available-bookies from primary isolation group [{}], checking secondary "
+                                + "group [{}]", primaryIsolationGroup, secondaryIsolationGroup);
                     for (String group : secondaryIsolationGroup) {
                         Map<String, BookieInfo> bookieGroup = allGroupsBookieMapping.get(group);
                         if (bookieGroup != null && !bookieGroup.isEmpty()) {

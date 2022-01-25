@@ -77,6 +77,12 @@ module.exports = {
       roles: 'Committer'
     },
     {
+      name: 'Haiting Jiang',
+      apacheId: 'jianghaiting',
+      org: 'DiDi',
+      roles: 'Committer'
+    },
+    {
       name: 'Hang Chen',
       apacheId: 'chenhang',
       org: 'BIGO Technology',
@@ -154,6 +160,12 @@ module.exports = {
       roles: 'Committer, PMC'
     },
     {
+      name: 'Marvin Cai',
+      apacheId: 'xxc',
+      org: 'StreamNative',
+      roles: 'Committer'
+    },
+    {
       name: 'Masakazu Kitajo',
       apacheId: 'maskit',
       org: '',
@@ -164,6 +176,12 @@ module.exports = {
       apacheId: 'mmerli',
       org: 'Streamlio',
       roles: 'Committer, PMC'
+    },
+    {
+      name: 'Michael Marshall',
+      apacheId: 'mmarshall',
+      org: 'DataStax',
+      roles: 'Committer'
     },
     {
       name: 'Nozomi Kurihara',
@@ -269,6 +287,12 @@ module.exports = {
       name: 'Yong Zhang',
       apacheId: 'yong',
       org: 'StreamNative',
+      roles: 'Committer'
+    },
+    {
+      name: 'Zhangjian He',
+      apacheId: 'shoothzj',
+      org: 'HuaWei',
       roles: 'Committer'
     }
   ]

@@ -69,7 +69,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{property}/{cluster}/{namespace}")
     @ApiOperation(hidden = true, value = "Get the list of topics under a namespace.",
             response = String.class, responseContainer = "List")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "Don't have admin or operate permission on the namespace"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist")})
     public void getList(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
@@ -87,7 +88,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{property}/{cluster}/{namespace}/partitioned")
     @ApiOperation(hidden = true, value = "Get the list of partitioned topics under a namespace.",
             response = String.class, responseContainer = "List")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "Don't have admin or operate permission on the namespace"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist")})
     public List<String> getPartitionedTopicList(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
@@ -199,7 +201,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         validateNamespaceName(tenant, cluster, namespace);
         validateTopicName(tenant, cluster, namespace, encodedTopic);
         validateGlobalNamespaceOwnership();
-        internalCreateNonPartitionedTopic(authoritative);
+        internalCreateNonPartitionedTopic(authoritative, null);
     }
 
     /**
@@ -342,7 +344,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        return internalGetStats(authoritative, getPreciseBacklog, false);
+        return internalGetStats(authoritative, getPreciseBacklog, false, false);
     }
 
     @GET
@@ -390,7 +392,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
-            internalGetPartitionedStats(asyncResponse, authoritative, perPartition, false, false);
+            internalGetPartitionedStats(asyncResponse, authoritative, perPartition, false, false, false);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
@@ -638,7 +640,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         try {
             validateTopicName(property, cluster, namespace, topic);
             if (!topicName.isPersistent()) {
-                throw new RestException(Response.Status.BAD_REQUEST, "Create subscription on non-persistent topic"
+                throw new RestException(Response.Status.BAD_REQUEST, "Create subscription on non-persistent topic "
                         + "can only be done through client");
             }
             internalCreateSubscription(asyncResponse, decode(encodedSubName), messageId, authoritative, replicated);

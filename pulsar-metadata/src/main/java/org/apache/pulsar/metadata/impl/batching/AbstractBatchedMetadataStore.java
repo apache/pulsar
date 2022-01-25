@@ -136,14 +136,14 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     }
 
     @Override
-    protected final CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
+    protected CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
                                                EnumSet<CreateOption> options) {
         OpPut op = new OpPut(path, data, optExpectedVersion, options);
         enqueue(writeOps, op);
         return op.getFuture();
     }
 
-    private void enqueue(MessagePassingQueue queue, MetadataOp op) {
+    private void enqueue(MessagePassingQueue<MetadataOp> queue, MetadataOp op) {
         if (enabled) {
             if (!queue.offer(op)) {
                 // Execute individually if we're failing to enqueue

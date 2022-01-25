@@ -31,6 +31,7 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.util.HashedWheelTimer;
+import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -76,7 +77,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
 import org.apache.bookkeeper.mledger.offload.OffloadersCache;
-import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.pulsar.PulsarVersion;
@@ -127,6 +127,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
@@ -137,6 +138,7 @@ import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ThreadDumpUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.TwoPhaseCompactor;
@@ -154,7 +156,6 @@ import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
-import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.packages.management.core.PackagesManagement;
 import org.apache.pulsar.packages.management.core.PackagesStorage;
 import org.apache.pulsar.packages.management.core.PackagesStorageProvider;
@@ -167,7 +168,6 @@ import org.apache.pulsar.websocket.WebSocketPingPongServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
-import org.apache.zookeeper.ZooKeeper;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
 import org.slf4j.Logger;
@@ -229,6 +229,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     private final Consumer<Integer> processTerminator;
     protected final EventLoopGroup ioEventLoopGroup;
+    private final ExecutorProvider brokerClientSharedInternalExecutorProvider;
+    private final ExecutorProvider brokerClientSharedExternalExecutorProvider;
+    private final Timer brokerClientSharedTimer;
 
     private MetricsGenerator metricsGenerator;
 
@@ -266,8 +269,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private final ReentrantLock mutex = new ReentrantLock();
     private final Condition isClosedCondition = mutex.newCondition();
     private volatile CompletableFuture<Void> closeFuture;
-    // key is listener name , value is pulsar address and pulsar ssl address
+    // key is listener name, value is pulsar address and pulsar ssl address
     private Map<String, AdvertisedListener> advertisedListeners;
+    private NamespaceName heartbeatNamespaceV2;
 
     public PulsarService(ServiceConfiguration config) {
         this(config, Optional.empty(), (exitCode) -> {
@@ -320,10 +324,22 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
         this.ioEventLoopGroup = EventLoopUtil.newEventLoopGroup(config.getNumIOThreads(), config.isEnableBusyWait(),
                 new DefaultThreadFactory("pulsar-io"));
+        // the internal executor is not used in the broker client or replication clients since this executor is
+        // used for consumers and the transaction support in the client.
+        // since an instance is required, a single threaded shared instance is used for all broker client instances
+        this.brokerClientSharedInternalExecutorProvider =
+                new ExecutorProvider(1, "broker-client-shared-internal-executor");
+        // the external executor is not used in the broker client or replication clients since this executor is
+        // used for consumer listeners.
+        // since an instance is required, a single threaded shared instance is used for all broker client instances
+        this.brokerClientSharedExternalExecutorProvider =
+                new ExecutorProvider(1, "broker-client-shared-external-executor");
+        this.brokerClientSharedTimer =
+                new HashedWheelTimer(new DefaultThreadFactory("broker-client-shared-timer"), 1, TimeUnit.MILLISECONDS);
     }
 
     public MetadataStore createConfigurationMetadataStore() throws MetadataStoreException {
-        return MetadataStoreFactory.create(config.getConfigurationStoreServers(),
+        return MetadataStoreFactory.create(config.getConfigurationMetadataStoreUrl(),
                 MetadataStoreConfig.builder()
                         .sessionTimeoutMillis((int) config.getZooKeeperSessionTimeoutMillis())
                         .allowReadOnlyOperations(false)
@@ -489,9 +505,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 coordinationService.close();
             }
 
-            if (localMetadataStore != null) {
-                localMetadataStore.close();
-            }
+            closeLocalMetadataStore();
             if (configurationMetadataStore != null && shouldShutdownConfigurationMetadataStore) {
                 configurationMetadataStore.close();
             }
@@ -500,6 +514,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 transactionReplayExecutor.shutdown();
             }
 
+            brokerClientSharedExternalExecutorProvider.shutdownNow();
+            brokerClientSharedInternalExecutorProvider.shutdownNow();
+            brokerClientSharedTimer.stop();
             ioEventLoopGroup.shutdownGracefully();
 
             // add timeout handling for closing executors
@@ -612,7 +629,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             coordinationService = new CoordinationServiceImpl(localMetadataStore);
 
-            if (!StringUtils.equals(config.getConfigurationStoreServers(), config.getZookeeperServers())) {
+            if (config.isConfigurationStoreSeparated()) {
                 configurationMetadataStore = createConfigurationMetadataStore();
                 shouldShutdownConfigurationMetadataStore = true;
             } else {
@@ -637,7 +654,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.bkClientFactory = newBookKeeperClientFactory();
 
             managedLedgerClientFactory = ManagedLedgerStorage.create(
-                config, localMetadataStore, getZkClient(),
+                config, localMetadataStore,
                     bkClientFactory, ioEventLoopGroup
             );
 
@@ -676,6 +693,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             this.addWebServerHandlers(webService, metricsServlet, this.config);
             this.webService.start();
+            heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(this.advertisedAddress, this.config);
 
             // Refresh addresses and update configuration, since the port might have been dynamically assigned
             if (config.getBrokerServicePort().equals(Optional.of(0))) {
@@ -688,6 +706,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.webServiceAddressTls = webAddressTls(config);
             this.brokerServiceUrl = brokerUrl(config);
             this.brokerServiceUrlTls = brokerUrlTls(config);
+
 
             if (null != this.webSocketService) {
                 ClusterDataImpl clusterData = ClusterDataImpl.builder()
@@ -840,7 +859,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         LOG.info("Received metadata service session event: {}", e);
         if (e == SessionEvent.SessionLost
                 && config.getZookeeperSessionExpiredPolicy() == MetadataSessionExpiredPolicy.shutdown) {
-            LOG.warn("The session with metadata service was lost. Shutting down.");
+            LOG.warn("The session with metadata service was lost. Shutting down.\n{}\n",
+                    ThreadDumpUtil.buildThreadDiagnosticString());
             shutdownNow();
         }
     }
@@ -909,7 +929,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     public MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
-        return MetadataStoreExtended.create(config.getZookeeperServers(),
+        return MetadataStoreExtended.create(config.getMetadataStoreUrl(),
                 MetadataStoreConfig.builder()
                         .sessionTimeoutMillis((int) config.getZooKeeperSessionTimeoutMillis())
                         .allowReadOnlyOperations(false)
@@ -919,6 +939,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .batchingMaxOperations(config.getMetadataStoreBatchingMaxOperations())
                         .batchingMaxSizeKb(config.getMetadataStoreBatchingMaxSizeKb())
                         .build());
+    }
+
+    protected void closeLocalMetadataStore() throws Exception {
+        if (localMetadataStore != null) {
+            localMetadataStore.close();
+        }
     }
 
     protected void startLeaderElectionService() {
@@ -1090,26 +1116,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return config.getStatusFilePath();
     }
 
-    /**
-     * Get default bookkeeper metadata service uri.
-     */
-    public String getMetadataServiceUri() {
-        return bookieMetadataServiceUri(this.getConfiguration());
-    }
-
     public InternalConfigurationData getInternalConfigurationData() {
-
-        String metadataServiceUri = getMetadataServiceUri();
-
-        if (StringUtils.isNotBlank(config.getBookkeeperMetadataServiceUri())) {
-            metadataServiceUri = this.getConfiguration().getBookkeeperMetadataServiceUri();
-        }
-
         return new InternalConfigurationData(
-            this.getConfiguration().getZookeeperServers(),
-            this.getConfiguration().getConfigurationStoreServers(),
+            config.getMetadataStoreUrl(),
+            config.getConfigurationMetadataStoreUrl(),
             new ClientConfiguration().getZkLedgersRootPath(),
-            metadataServiceUri,
+            config.isBookkeeperMetadataStoreSeparated() ? config.getBookkeeperMetadataStoreUrl() : null,
             this.getWorkerConfig().map(wc -> wc.getStateStorageServiceUrl()).orElse(null));
     }
 
@@ -1228,7 +1240,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 }
             } else {
                 LOG.info("No ledger offloader configured, using NULL instance");
-                return NullLedgerOffloader.INSTANCE;
+                return NullLedgerOffloader.instance_;
             }
         } catch (Throwable t) {
             throw new PulsarServerException(t);
@@ -1306,6 +1318,17 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return this.offloaderScheduler;
     }
 
+    public PulsarClientImpl createClientImpl(ClientConfigurationData clientConf)
+            throws PulsarClientException {
+        return PulsarClientImpl.builder()
+                .conf(clientConf)
+                .eventLoopGroup(ioEventLoopGroup)
+                .timer(brokerClientSharedTimer)
+                .internalExecutorProvider(brokerClientSharedInternalExecutorProvider)
+                .externalExecutorProvider(brokerClientSharedExternalExecutorProvider)
+                .build();
+    }
+
     public synchronized PulsarClient getClient() throws PulsarServerException {
         if (this.client == null) {
             try {
@@ -1339,7 +1362,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 }
 
                 conf.setStatsIntervalSeconds(0);
-                this.client = new PulsarClientImpl(conf, ioEventLoopGroup);
+                this.client = createClientImpl(conf);
             } catch (Exception e) {
                 throw new PulsarServerException(e);
             }
@@ -1464,26 +1487,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return brokerServiceUrl != null ? brokerServiceUrl : brokerServiceUrlTls;
     }
 
-    /**
-     * Get bookkeeper metadata service uri.
-     *
-     * @param config broker configuration
-     * @return the metadata service uri that bookkeeper is used
-     */
-    public static String bookieMetadataServiceUri(ServiceConfiguration config) {
-        ClientConfiguration bkConf = new ClientConfiguration();
-        // init bookkeeper metadata service uri
-        String metadataServiceUri = null;
-        try {
-            String zkServers = config.getZookeeperServers();
-            bkConf.setZkServers(zkServers);
-            metadataServiceUri = bkConf.getMetadataServiceUri();
-        } catch (ConfigurationException e) {
-            LOG.error("Failed to get bookkeeper metadata service uri", e);
-        }
-        return metadataServiceUri;
-    }
-
     public TopicPoliciesService getTopicPoliciesService() {
         return topicPoliciesService;
     }
@@ -1603,7 +1606,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         workerConfig.setAuthenticationProviders(brokerConfig.getAuthenticationProviders());
         workerConfig.setAuthorizationEnabled(brokerConfig.isAuthorizationEnabled());
         workerConfig.setAuthorizationProvider(brokerConfig.getAuthorizationProvider());
-        workerConfig.setConfigurationStoreServers(brokerConfig.getConfigurationStoreServers());
+        workerConfig.setConfigurationStoreServers(brokerConfig.getConfigurationMetadataStoreUrl());
         workerConfig.setZooKeeperSessionTimeoutMillis(brokerConfig.getZooKeeperSessionTimeoutMillis());
         workerConfig.setZooKeeperOperationTimeoutSeconds(brokerConfig.getZooKeeperOperationTimeoutSeconds());
 
@@ -1668,16 +1671,5 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     @VisibleForTesting
     protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
         return new BrokerService(pulsar, ioEventLoopGroup);
-    }
-
-    /**
-     * This is a temporary solution until we'll have migrated BK metadata to map to MetadataStore interface.
-     */
-    private ZooKeeper getZkClient() {
-        if (localMetadataStore instanceof ZKMetadataStore) {
-            return ((ZKMetadataStore) localMetadataStore).getZkClient();
-        } else {
-            throw new RuntimeException("MetadataStore implemenation is not based on ZooKeeper");
-        }
     }
 }

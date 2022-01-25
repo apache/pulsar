@@ -145,6 +145,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         return this;
     }
 
+    @Deprecated
     @Override
     public ProducerBuilder<T> maxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions) {
         conf.setMaxPendingMessagesAcrossPartitions(maxPendingMessagesAcrossPartitions);

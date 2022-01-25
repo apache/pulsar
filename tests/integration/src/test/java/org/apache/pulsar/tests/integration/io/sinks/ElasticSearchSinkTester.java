@@ -19,7 +19,6 @@
 package org.apache.pulsar.tests.integration.io.sinks;
 
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -40,12 +39,12 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.tests.integration.containers.ElasticSearchContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.awaitility.Awaitility;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestClientBuilder;
-import org.elasticsearch.client.RestHighLevelClient;
+import org.opensearch.action.search.SearchRequest;
+import org.opensearch.action.search.SearchResponse;
+import org.opensearch.client.RequestOptions;
+import org.opensearch.client.RestClient;
+import org.opensearch.client.RestClientBuilder;
+import org.opensearch.client.RestHighLevelClient;
 
 @Slf4j
 public class ElasticSearchSinkTester extends SinkTester<ElasticSearchContainer> {

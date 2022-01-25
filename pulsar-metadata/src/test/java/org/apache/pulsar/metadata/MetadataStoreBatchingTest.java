@@ -20,38 +20,51 @@ package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
-import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
-import org.apache.pulsar.metadata.api.Notification;
-import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.assertj.core.util.Lists;
 import org.testng.annotations.Test;
 
+@Slf4j
 public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
+
+    @Test(dataProvider = "impl")
+    public void testBatchWrite(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder()
+                .batchingEnabled(true)
+                .batchingMaxDelayMillis(1_000)
+                .build());
+
+        String key1 = newKey();
+        CompletableFuture<Stat> f1 = store.put(key1, new byte[0], Optional.empty());
+
+        String key2 = newKey();
+        CompletableFuture<Stat> f2 = store.put(key2, new byte[0], Optional.empty());
+
+        Stat s1 = f1.join();
+        Stat s2 = f2.join();
+        log.info("s1: {}", s1);
+        log.info("s2: {}", s2);
+    }
 
     @Test(dataProvider = "impl")
     public void testBatching(String provider, Supplier<String> urlSupplier) throws Exception {

@@ -337,6 +337,14 @@
     </dependency>
 
     <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-metadata</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>javax.xml.bind</groupId>
       <artifactId>jaxb-api</artifactId>
       <exclusions>
@@ -368,6 +376,11 @@
       <version>${project.version}</version>
     </dependency>
 
+    <dependency>
+      <groupId>io.etcd</groupId>
+      <artifactId>jetcd-test</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -455,6 +468,9 @@
             <pulsar-io-data-generator.nar.path>${project.build.directory}/pulsar-io-data-generator.nar</pulsar-io-data-generator.nar.path>
             <pulsar-functions-api-examples.jar.path>${project.build.directory}/pulsar-functions-api-examples.jar</pulsar-functions-api-examples.jar.path>
             <pulsar-io-batch-data-generator.nar.path>${project.build.directory}/pulsar-io-batch-data-generator.nar</pulsar-io-batch-data-generator.nar.path>
+            <!-- workaround issue #13750 which gets triggered if org.apache.bookkeeper.meta.MetadataDrivers class gets loaded before org.apache.pulsar.metadata.bookkeeper.BKCluster constructor is called -->
+            <bookkeeper.metadata.bookie.drivers>org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver</bookkeeper.metadata.bookie.drivers>
+            <bookkeeper.metadata.client.drivers>org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver</bookkeeper.metadata.client.drivers>
           </systemPropertyVariables>
         </configuration>
       </plugin>
@@ -564,6 +580,14 @@
         <dependency>
           <groupId>${project.groupId}</groupId>
           <artifactId>pulsar-package-core</artifactId>
+          <version>${project.version}</version>
+          <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>pulsar-metadata</artifactId>
           <version>${project.version}</version>
           <type>test-jar</type>
           <scope>test</scope>

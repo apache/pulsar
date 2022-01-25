@@ -271,17 +271,6 @@ public class MessageImpl<T> implements Message<T> {
         return msg;
     }
 
-    public static long getEntryTimestamp( ByteBuf headersAndPayloadWithBrokerEntryMetadata) throws IOException {
-        // get broker timestamp first if BrokerEntryMetadata is enabled with AppendBrokerTimestampMetadataInterceptor
-        BrokerEntryMetadata brokerEntryMetadata =
-                Commands.parseBrokerEntryMetadataIfExist(headersAndPayloadWithBrokerEntryMetadata);
-        if (brokerEntryMetadata != null && brokerEntryMetadata.hasBrokerTimestamp()) {
-            return brokerEntryMetadata.getBrokerTimestamp();
-        }
-        // otherwise get the publish_time
-        return Commands.parseMessageMetadata(headersAndPayloadWithBrokerEntryMetadata).getPublishTime();
-    }
-
     public static boolean isEntryExpired(int messageTTLInSeconds, long entryTimestamp) {
         return messageTTLInSeconds != 0 &&
                 (System.currentTimeMillis() > entryTimestamp + TimeUnit.SECONDS.toMillis(messageTTLInSeconds));
@@ -302,7 +291,6 @@ public class MessageImpl<T> implements Message<T> {
         msg.messageId = null;
         msg.topic = null;
         msg.cnx = null;
-        msg.properties = Collections.emptyMap();
         msg.brokerEntryMetadata = brokerEntryMetadata;
         return msg;
     }
@@ -724,7 +712,7 @@ public class MessageImpl<T> implements Message<T> {
         return msgMetadata.hasReplicatedFrom();
     }
 
-    void setMessageId(MessageIdImpl messageId) {
+    void setMessageId(MessageId messageId) {
         this.messageId = messageId;
     }
 

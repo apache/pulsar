@@ -183,7 +183,7 @@ public class FunctionsImplV2 implements FunctionsV2<PulsarWorkerService> {
     @Override
     public Response stopFunctionInstance(String tenant, String namespace, String functionName, String instanceId, URI
             uri, String clientRole) {
-        delegate.stopFunctionInstance(tenant, namespace, functionName, instanceId, uri, clientRole ,null);
+        delegate.stopFunctionInstance(tenant, namespace, functionName, instanceId, uri, clientRole, null);
         return Response.ok().build();
     }
 

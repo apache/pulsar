@@ -19,20 +19,20 @@
 package org.apache.pulsar.websocket.proxy;
 
 import static java.util.concurrent.Executors.newFixedThreadPool;
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import com.google.gson.reflect.TypeToken;
-
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -43,7 +43,6 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
@@ -51,7 +50,6 @@ import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-
 import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.Producer;
@@ -81,8 +79,6 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
 
 @Test(groups = "websocket")
 public class ProxyPublishConsumeTest extends ProducerConsumerBase {
@@ -104,7 +100,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         config.setWebServicePort(Optional.of(0));
         config.setClusterName("test");
         config.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
-        service = spy(new WebSocketService(config));
+        service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
         doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service).createMetadataStore(anyString(), anyInt());
         proxyServer = new ProxyServer(config);
         WebSocketServiceStarter.start(proxyServer, service);

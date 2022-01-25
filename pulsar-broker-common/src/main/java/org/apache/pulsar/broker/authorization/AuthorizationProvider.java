@@ -23,31 +23,31 @@ import java.io.IOException;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.resources.PulsarResources;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RestException;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 
 /**
- * Provider of authorization mechanism
+ * Provider of authorization mechanism.
  */
 public interface AuthorizationProvider extends Closeable {
 
     /**
-     * Check if specified role is a super user
+     * Check if specified role is a super user.
      * @param role the role to check
      * @param authenticationData authentication data related to the role
      * @return a CompletableFuture containing a boolean in which true means the role is a super user
@@ -73,7 +73,7 @@ public interface AuthorizationProvider extends Closeable {
     }
 
     /**
-     * Check if specified role is an admin of the tenant
+     * Check if specified role is an admin of the tenant.
      * @param tenant the tenant to check
      * @param role the role to check
      * @return a CompletableFuture containing a boolean in which true means the role is an admin user
@@ -81,11 +81,12 @@ public interface AuthorizationProvider extends Closeable {
      */
     default CompletableFuture<Boolean> isTenantAdmin(String tenant, String role, TenantInfo tenantInfo,
                                                      AuthenticationDataSource authenticationData) {
-        return CompletableFuture.completedFuture(role != null && tenantInfo.getAdminRoles() != null && tenantInfo.getAdminRoles().contains(role));
+        return CompletableFuture.completedFuture(role != null && tenantInfo.getAdminRoles() != null
+                && tenantInfo.getAdminRoles().contains(role));
     }
 
     /**
-     * Perform initialization for the authorization provider
+     * Perform initialization for the authorization provider.
      *
      * @param conf
      *            broker config object
@@ -102,7 +103,7 @@ public interface AuthorizationProvider extends Closeable {
     }
 
     /**
-     * Perform initialization for the authorization provider
+     * Perform initialization for the authorization provider.
      *
      * @param conf
      *            broker config object
@@ -154,7 +155,7 @@ public interface AuthorizationProvider extends Closeable {
             AuthenticationDataSource authenticationData);
 
     /**
-     * Allow all function operations with in this namespace
+     * Allow all function operations with in this namespace.
      * @param namespaceName The namespace that the function operations can be executed in
      * @param role The role to check
      * @param authenticationData authentication data related to the role
@@ -164,7 +165,7 @@ public interface AuthorizationProvider extends Closeable {
                                                      AuthenticationDataSource authenticationData);
 
     /**
-     * Allow all source operations with in this namespace
+     * Allow all source operations with in this namespace.
      * @param namespaceName The namespace that the sources operations can be executed in
      * @param role The role to check
      * @param authenticationData authentication data related to the role
@@ -174,7 +175,7 @@ public interface AuthorizationProvider extends Closeable {
                                                    AuthenticationDataSource authenticationData);
 
     /**
-     * Allow all sink operations with in this namespace
+     * Allow all sink operations with in this namespace.
      * @param namespaceName The namespace that the sink operations can be executed in
      * @param role The role to check
      * @param authenticationData authentication data related to the role
@@ -184,18 +185,8 @@ public interface AuthorizationProvider extends Closeable {
                                                  AuthenticationDataSource authenticationData);
 
     /**
-     * Allow consume operations with in this namespace
-     * @param namespaceName The namespace that the consume operations can be executed in
-     * @param role The role to check
-     * @param authenticationData authentication data related to the role
-     * @return a boolean to determine whether authorized or not
-     */
-    CompletableFuture<Boolean> allowConsumeOpsAsync(NamespaceName namespaceName, String role,
-                                                 AuthenticationDataSource authenticationData);
-
-    /**
      *
-     * Grant authorization-action permission on a namespace to the given client
+     * Grant authorization-action permission on a namespace to the given client.
      *
      * @param namespace
      * @param actions
@@ -211,7 +202,7 @@ public interface AuthorizationProvider extends Closeable {
             String authDataJson);
 
     /**
-     * Grant permission to roles that can access subscription-admin api
+     * Grant permission to roles that can access subscription-admin api.
      *
      * @param namespace
      * @param subscriptionName
@@ -220,11 +211,11 @@ public interface AuthorizationProvider extends Closeable {
      *            additional authdata in json format
      * @return
      */
-    CompletableFuture<Void> grantSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName, Set<String> roles,
-            String authDataJson);
+    CompletableFuture<Void> grantSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
+                                                             Set<String> roles, String authDataJson);
 
     /**
-     * Revoke subscription admin-api access for a role
+     * Revoke subscription admin-api access for a role.
      * @param namespace
      * @param subscriptionName
      * @param role
@@ -234,22 +225,25 @@ public interface AuthorizationProvider extends Closeable {
             String role, String authDataJson);
 
     /**
-     * Grant authorization-action permission on a topic to the given client
+     * Grant authorization-action permission on a topic to the given client.
+     *
+     * NOTE: used to complete with {@link IllegalArgumentException} when namespace not found or with
+     * {@link IllegalStateException} when failed to grant permission. This behavior is now deprecated.
+     * Please use the appropriate {@link MetadataStoreException}.
      *
      * @param topicName
      * @param role
      * @param authDataJson
      *            additional authdata in json format
      * @return CompletableFuture
-     * @completesWith <br/>
-     *                IllegalArgumentException when namespace not found<br/>
-     *                IllegalStateException when failed to grant permission
+     * @completesWith null once the permissions are updated successfully.
+     * @completesWith {@link MetadataStoreException} when the MetadataStore is not updated.
      */
     CompletableFuture<Void> grantPermissionAsync(TopicName topicName, Set<AuthAction> actions, String role,
             String authDataJson);
 
     /**
-     * Grant authorization-action permission on a tenant to the given client
+     * Grant authorization-action permission on a tenant to the given client.
      * @param tenantName
      * @param originalRole role not overriden by proxy role if request do pass through proxy
      * @param role originalRole | proxyRole if the request didn't pass through proxy
@@ -294,8 +288,8 @@ public interface AuthorizationProvider extends Closeable {
                                                                  TenantOperation operation,
                                                                  AuthenticationDataSource authData) {
         return FutureUtil.failedFuture(new IllegalStateException(
-            String.format("allowTenantOperation(%s) on tenant %s is not supported by the Authorization" +
-                    " provider you are using.",
+            String.format("allowTenantOperation(%s) on tenant %s is not supported by the Authorization"
+                            + " provider you are using.",
                 operation.toString(), tenantName)));
     }
 
@@ -342,7 +336,7 @@ public interface AuthorizationProvider extends Closeable {
     }
 
     /**
-     * Grant authorization-action permission on a namespace to the given client
+     * Grant authorization-action permission on a namespace to the given client.
      *
      * @param namespaceName
      * @param role
@@ -414,7 +408,7 @@ public interface AuthorizationProvider extends Closeable {
     }
 
     /**
-     * Grant authorization-action permission on a namespace to the given client
+     * Grant authorization-action permission on a namespace to the given client.
      * @param namespaceName
      * @param originalRole role not overriden by proxy role if request do pass through proxy
      * @param role originalRole | proxyRole if the request didn't pass through proxy
@@ -487,7 +481,7 @@ public interface AuthorizationProvider extends Closeable {
     }
 
     /**
-     * Grant authorization-action permission on a topic to the given client
+     * Grant authorization-action permission on a topic to the given client.
      * @param topic
      * @param originalRole role not overriden by proxy role if request do pass through proxy
      * @param role originalRole | proxyRole if the request didn't pass through proxy

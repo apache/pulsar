@@ -91,10 +91,10 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     private OffloadSegmentInfoImpl segmentInfo;
     private AtomicLong bufferLength = new AtomicLong(0);
     private AtomicLong segmentLength = new AtomicLong(0);
-    final private long maxBufferLength;
-    final private ConcurrentLinkedQueue<Entry> offloadBuffer = new ConcurrentLinkedQueue<>();
+    private final long maxBufferLength;
+    private final ConcurrentLinkedQueue<Entry> offloadBuffer = new ConcurrentLinkedQueue<>();
     private CompletableFuture<OffloadResult> offloadResult;
-    private volatile PositionImpl lastOfferedPosition = PositionImpl.latest;
+    private volatile PositionImpl lastOfferedPosition = PositionImpl.LATEST;
     private final Duration maxSegmentCloseTime;
     private final long minSegmentCloseTimeMillis;
     private final long segmentBeginTimeMillis;
@@ -388,8 +388,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             streamingIndexBuilder.withDataBlockHeaderLength(StreamingDataBlockHeaderImpl.getDataStartOffset());
             streamingIndexBuilder.addBlock(blockLedgerId, beginEntryId, partId, blockSize);
             final MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo = ml.getLedgerInfo(blockLedgerId).get();
-            final MLDataFormats.ManagedLedgerInfo.LedgerInfo.Builder ledgerInfoBuilder = MLDataFormats.ManagedLedgerInfo.LedgerInfo
-                    .newBuilder();
+            final MLDataFormats.ManagedLedgerInfo.LedgerInfo.Builder ledgerInfoBuilder =
+                    MLDataFormats.ManagedLedgerInfo.LedgerInfo.newBuilder();
             if (ledgerInfo != null) {
                 ledgerInfoBuilder.mergeFrom(ledgerInfo);
             }
