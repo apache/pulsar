@@ -575,10 +575,10 @@ public class PersistentTopicsBase extends AdminResource {
                                         .deleteSchemaStorage(topicName.getPartition(0).toString())
                                         .thenCompose(unused ->
                                                 internalRemovePartitionsAuthenticationPolicies(numPartitions))
-                                        .thenCompose(unused2 -> internalRemovePartitionsTopic(numPartitions, force));
+                                        .thenCompose(unused2 -> internalRemovePartitionsTopicAsync(numPartitions, force));
                             }
                             return internalRemovePartitionsAuthenticationPolicies(numPartitions)
-                                    .thenCompose(unused -> internalRemovePartitionsTopic(numPartitions, force));
+                                    .thenCompose(unused -> internalRemovePartitionsTopicAsync(numPartitions, force));
                         })
                 // Only tries to delete the znode for partitioned topic when all its partitions are successfully deleted
                 ).thenCompose(__ -> namespaceResources()
@@ -618,7 +618,7 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
-    private CompletableFuture<Void> internalRemovePartitionsTopic(int numPartitions, boolean force) {
+    private CompletableFuture<Void> internalRemovePartitionsTopicAsync(int numPartitions, boolean force) {
         return FutureUtil.waitForAll(IntStream.range(0, numPartitions)
                 .mapToObj(i -> {
                     TopicName topicNamePartition = topicName.getPartition(i);
