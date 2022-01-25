@@ -320,7 +320,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         // 2. Create consumer
         Consumer<byte[]> consumer1 = null;
         Consumer<byte[]> consumer2 = null;
-        if( isRedeliveryTracker ) {
+        if (isRedeliveryTracker) {
             consumer1 = pulsarClient.newConsumer()
                     .topic(topicName)
                     .subscriptionName(subscriptionName)
@@ -428,10 +428,10 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
             pulsarClient.newConsumer().ackTimeout(999, TimeUnit.MILLISECONDS);
             Assert.fail("Exception should have been thrown since the set timeout is less than min timeout.");
             pulsarClient.newConsumer().ackTimeout(2000, TimeUnit.MILLISECONDS)
-            .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
-                    .minDelayMs(1000)
-                    .maxDelayMs(60000)
-                    .multiplier(0).build());
+                    .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+                            .minDelayMs(1000)
+                            .maxDelayMs(60000)
+                            .multiplier(0).build());
             Assert.fail("multiplier must be > 0.");
 
         } catch (Exception ex) {
@@ -465,8 +465,6 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
             producer.send(message.getBytes());
         }
 
-        Thread.sleep((long) (ackTimeOutMillis * 1.1));
-
         for (int i = 0; i < totalMessages; i++) {
             Message<byte[]> msg = consumer.receive();
             if (i != totalMessages - 1) {
@@ -489,8 +487,8 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
     public static Object[][] variationsBackoff() {
         return new Object[][]{
                 // ackTimeOutMillis / minDelayMs / maxDelayMs / multiplier
-                { 2000, 1000, 2000, 2 },
-                { 3000, 1000, 3000, 3 }
+                {2000, 1000, 2000, 2},
+                {3000, 1000, 3000, 3}
         };
     }
 
@@ -527,8 +525,6 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
             producer.send(message.getBytes());
         }
 
-        Thread.sleep((long) (ackTimeOutMillis * 1.1));
-
         for (int i = 0; i < totalMessages; i++) {
             Message<byte[]> msg = consumer.receive();
             if (i != totalMessages - 1) {
@@ -540,8 +536,9 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
             int redeliveryCount = i + 1;
             int redeliveryTime = (int) Math.min(minDelayMs * (int) Math.pow(multiplier, i), maxDelayMs);
             assertEquals(consumer.getUnAckedMessageTracker().size(), 1);
-            Thread.sleep((long) (ackTimeOutMillis + redeliveryTime));
+            long startTime = System.currentTimeMillis();
             Message<byte[]> msg = consumer.receive();
+            assertTrue(System.currentTimeMillis() - startTime >= ackTimeOutMillis + redeliveryTime);
             assertEquals(msg.getRedeliveryCount(), redeliveryCount);
             assertEquals(consumer.getUnAckedMessageTracker().size(), 1);
         }
