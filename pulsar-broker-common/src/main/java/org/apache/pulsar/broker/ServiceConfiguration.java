@@ -2583,7 +2583,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             // metadata adapter
             String suffix;
             if (StringUtils.isNotBlank(metadataStoreUrl)) {
-                suffix =  metadataStoreUrl;
+                suffix = metadataStoreUrl;
             } else {
                 // Fallback to old setting
                 suffix = new ClientConfiguration().setZkServers(zookeeperServers).getMetadataServiceUriUnchecked();
