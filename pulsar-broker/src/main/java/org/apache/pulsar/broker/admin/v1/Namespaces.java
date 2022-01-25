@@ -1004,7 +1004,8 @@ public class Namespaces extends NamespacesBase {
     @POST
     @Path("/{property}/{cluster}/{namespace}/{bundle}/unsubscribe/{subscription}")
     @ApiOperation(hidden = true, value = "Unsubscribes the given subscription on all topics on a namespace bundle.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "Don't have admin or operate permission on the namespace"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
     public void unsubscribeNamespaceBundle(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("subscription") String subscription,

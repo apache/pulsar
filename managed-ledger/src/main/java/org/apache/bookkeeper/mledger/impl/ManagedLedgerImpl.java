@@ -329,7 +329,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         log.info("Opening managed ledger {}", name);
 
         // Fetch the list of existing ledgers in the managed ledger
-        store.getManagedLedgerInfo(name, config.isCreateIfMissing(), new MetaStoreCallback<ManagedLedgerInfo>() {
+        store.getManagedLedgerInfo(name, config.isCreateIfMissing(), config.getProperties(),
+                new MetaStoreCallback<ManagedLedgerInfo>() {
             @Override
             public void operationComplete(ManagedLedgerInfo mlInfo, Stat stat) {
                 ledgersStat = stat;
@@ -1504,7 +1505,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             // Return ManagedLedgerFencedException to addFailed callback
                             // to indicate that the ledger is now fenced and topic needs to be closed
                             clearPendingAddEntries(new ManagedLedgerFencedException(e));
-                            // Do not need to unlock ledgersListMutex here because we are going to close to topic
+                            // Do not need to unlock metadataMutex here because we are going to close to topic
                             // anyways
                             return;
                         }

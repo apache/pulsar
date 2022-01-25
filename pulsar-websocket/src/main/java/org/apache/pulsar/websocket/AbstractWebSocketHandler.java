@@ -18,7 +18,15 @@
  */
 package org.apache.pulsar.websocket;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.base.Splitter;
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -44,16 +52,6 @@ import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-
-import static com.google.common.base.Preconditions.checkArgument;
-
 public abstract class AbstractWebSocketHandler extends WebSocketAdapter implements Closeable {
 
     protected final WebSocketService service;
@@ -63,7 +61,9 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
     protected final Map<String, String> queryParams;
 
 
-    public AbstractWebSocketHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
+    public AbstractWebSocketHandler(WebSocketService service,
+                                    HttpServletRequest request,
+                                    ServletUpgradeResponse response) {
         this.service = service;
         this.request = new WebSocketHttpServletRequestWrapper(request);
         this.topic = extractTopicName(request);
@@ -218,20 +218,20 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
 
         final boolean isV2Format = parts.get(2).equals("v2");
         final int domainIndex = isV2Format ? 4 : 3;
-        checkArgument(parts.get(domainIndex).equals("persistent") ||
-                parts.get(domainIndex).equals("non-persistent"));
-
+        checkArgument(parts.get(domainIndex).equals("persistent")
+                || parts.get(domainIndex).equals("non-persistent"));
 
         final String domain = parts.get(domainIndex);
         final NamespaceName namespace = isV2Format ? NamespaceName.get(parts.get(5), parts.get(6)) :
-                NamespaceName.get( parts.get(4), parts.get(5), parts.get(6));
-        //The topic name which contains slashes is also split ， so it needs to be jointed
+                NamespaceName.get(parts.get(4), parts.get(5), parts.get(6));
+
+        // The topic name which contains slashes is also split，so it needs to be jointed
         int startPosition = 7;
         boolean isConsumer = "consumer".equals(parts.get(2)) || "consumer".equals(parts.get(3));
-        int endPosition = isConsumer ? parts.size() -1 : parts.size();
+        int endPosition = isConsumer ? parts.size() - 1 : parts.size();
         StringBuilder topicName = new StringBuilder(parts.get(startPosition));
         while (++startPosition < endPosition) {
-            if(StringUtils.isEmpty(parts.get(startPosition))){
+            if (StringUtils.isEmpty(parts.get(startPosition))) {
                continue;
             }
             topicName.append("/").append(parts.get(startPosition));
@@ -241,7 +241,8 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         return TopicName.get(domain, namespace, name);
     }
 
-    protected abstract Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception;
+    protected abstract Boolean isAuthorized(String authRole,
+                                            AuthenticationDataSource authenticationData) throws Exception;
 
     private static final Logger log = LoggerFactory.getLogger(AbstractWebSocketHandler.class);
 }

@@ -419,7 +419,8 @@ public abstract class NamespacesBase extends AdminResource {
         }
 
         // remove from owned namespace map and ephemeral node from ZK
-        final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        final List<CompletableFuture<Void>> topicFutures = Lists.newArrayList();
+        final List<CompletableFuture<Void>> bundleFutures = Lists.newArrayList();
         try {
             // firstly remove all topics including system topics
             if (!topics.isEmpty()) {
@@ -433,12 +434,12 @@ public abstract class NamespacesBase extends AdminResource {
                             String partitionedTopic = topicName.getPartitionedTopicName();
                             if (!partitionedTopics.contains(partitionedTopic)) {
                                 // Distinguish partitioned topic to avoid duplicate deletion of the same schema
-                                futures.add(pulsar().getAdminClient().topics().deletePartitionedTopicAsync(
+                                topicFutures.add(pulsar().getAdminClient().topics().deletePartitionedTopicAsync(
                                         partitionedTopic, true, true));
                                 partitionedTopics.add(partitionedTopic);
                             }
                         } else {
-                            futures.add(pulsar().getAdminClient().topics().deleteAsync(
+                            topicFutures.add(pulsar().getAdminClient().topics().deleteAsync(
                                     topic, true, true));
                             nonPartitionedTopics.add(topic);
                         }
@@ -459,14 +460,35 @@ public abstract class NamespacesBase extends AdminResource {
                                     + "and non-partitioned-topics:{} in namespace:{}.",
                             partitionedTopics, nonPartitionedTopics, namespaceName);
                 }
+
+                final CompletableFuture<Throwable> topicFutureEx =
+                        FutureUtil.waitForAll(topicFutures).handle((result, exception) -> {
+                            if (exception != null) {
+                                if (exception.getCause() instanceof PulsarAdminException) {
+                                    asyncResponse
+                                            .resume(new RestException((PulsarAdminException) exception.getCause()));
+                                } else {
+                                    log.error("[{}] Failed to remove forcefully owned namespace {}",
+                                            clientAppId(), namespaceName, exception);
+                                    asyncResponse.resume(new RestException(exception.getCause()));
+                                }
+                                return exception;
+                            }
+
+                            return null;
+                        });
+                if (topicFutureEx.join() != null) {
+                    return;
+                }
             }
+
             // forcefully delete namespace bundles
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
                     .getBundles(namespaceName);
             for (NamespaceBundle bundle : bundles.getBundles()) {
                 // check if the bundle is owned by any broker, if not then we do not need to delete the bundle
                 if (pulsar().getNamespaceService().getOwner(bundle).isPresent()) {
-                    futures.add(pulsar().getAdminClient().namespaces()
+                    bundleFutures.add(pulsar().getAdminClient().namespaces()
                             .deleteNamespaceBundleAsync(namespaceName.toString(), bundle.getBundleRange(), true));
                 }
             }
@@ -476,7 +498,7 @@ public abstract class NamespacesBase extends AdminResource {
             return;
         }
 
-        FutureUtil.waitForAll(futures).handle((result, exception) -> {
+        FutureUtil.waitForAll(bundleFutures).handle((result, exception) -> {
             if (exception != null) {
                 if (exception.getCause() instanceof PulsarAdminException) {
                     asyncResponse.resume(new RestException((PulsarAdminException) exception.getCause()));
@@ -1175,7 +1197,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetPublishRate(PublishRate maxPublishMessageRate) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.WRITE);
+        validateSuperUserAccess();
         log.info("[{}] Set namespace publish-rate {}/{}", clientAppId(), namespaceName, maxPublishMessageRate);
         updatePolicies(namespaceName, policies -> {
             policies.publishMaxMessageRate.put(pulsar().getConfiguration().getClusterName(), maxPublishMessageRate);
@@ -1186,7 +1208,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalRemovePublishRate() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.WRITE);
+        validateSuperUserAccess();
         log.info("[{}] Remove namespace publish-rate {}/{}", clientAppId(), namespaceName, topicName);
         try {
             updatePolicies(namespaceName, policies -> {
@@ -1213,7 +1235,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     @SuppressWarnings("deprecation")
     protected void internalSetTopicDispatchRate(DispatchRateImpl dispatchRate) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.WRITE);
+        validateSuperUserAccess();
         log.info("[{}] Set namespace dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
 
         try {
@@ -1232,7 +1254,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalDeleteTopicDispatchRate() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.WRITE);
+        validateSuperUserAccess();
         try {
             updatePolicies(namespaceName, policies -> {
                 policies.topicDispatchRate.remove(pulsar().getConfiguration().getClusterName());
@@ -1257,7 +1279,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetSubscriptionDispatchRate(DispatchRateImpl dispatchRate) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.WRITE);
+        validateSuperUserAccess();
         log.info("[{}] Set namespace subscription dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
 
         try {
@@ -1275,7 +1297,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalDeleteSubscriptionDispatchRate() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.WRITE);
+        validateSuperUserAccess();
 
         try {
             updatePolicies(namespaceName, policies -> {
@@ -1299,7 +1321,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetSubscribeRate(SubscribeRate subscribeRate) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.WRITE);
+        validateSuperUserAccess();
         log.info("[{}] Set namespace subscribe-rate {}/{}", clientAppId(), namespaceName, subscribeRate);
         try {
             updatePolicies(namespaceName, policies -> {
@@ -1316,7 +1338,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalDeleteSubscribeRate() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.WRITE);
+        validateSuperUserAccess();
         try {
             updatePolicies(namespaceName, policies -> {
                 policies.clusterSubscribeRate.remove(pulsar().getConfiguration().getClusterName());
@@ -1338,7 +1360,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalRemoveReplicatorDispatchRate() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.WRITE);
+        validateSuperUserAccess();
         try {
             updatePolicies(namespaceName, policies -> {
                 policies.replicatorDispatchRate.remove(pulsar().getConfiguration().getClusterName());
@@ -1354,7 +1376,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetReplicatorDispatchRate(DispatchRateImpl dispatchRate) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.WRITE);
+        validateSuperUserAccess();
         log.info("[{}] Set namespace replicator dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
         try {
             updatePolicies(namespaceName, policies -> {
@@ -1755,7 +1777,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetInactiveTopic(InactiveTopicPolicies inactiveTopicPolicies) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.INACTIVE_TOPIC, PolicyOperation.WRITE);
+        validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
         internalSetPolicies("inactive_topic_policies", inactiveTopicPolicies);
     }
@@ -1782,7 +1804,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetDelayedDelivery(DelayedDeliveryPolicies delayedDeliveryPolicies) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.DELAYED_DELIVERY, PolicyOperation.WRITE);
+        validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
         internalSetPolicies("delayed_delivery_policies", delayedDeliveryPolicies);
     }
@@ -1866,7 +1888,7 @@ public abstract class NamespacesBase extends AdminResource {
             return namespaces.stream().filter(ns -> {
                 Optional<LocalPolicies> policies;
                 try {
-                    policies = getLocalPolicies().getLocalPolicies(namespaceName);
+                    policies = getLocalPolicies().getLocalPolicies(NamespaceName.get(ns));
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
@@ -2176,7 +2198,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetMaxSubscriptionsPerTopic(Integer maxSubscriptionsPerTopic){
-        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.WRITE);
+        validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
         if (maxSubscriptionsPerTopic != null && maxSubscriptionsPerTopic < 0) {
             throw new RestException(Status.PRECONDITION_FAILED,
@@ -2382,6 +2404,9 @@ public abstract class NamespacesBase extends AdminResource {
     protected boolean internalGetIsAllowAutoUpdateSchema() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
                 PolicyOperation.READ);
+        if (getNamespacePolicies(namespaceName).is_allow_auto_update_schema == null) {
+            return pulsar().getConfig().isAllowAutoUpdateSchemaEnabled();
+        }
         return getNamespacePolicies(namespaceName).is_allow_auto_update_schema;
     }
 

@@ -22,7 +22,6 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.prestosql.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.prestosql.spi.type.VarcharType.createUnboundedVarcharType;
 import static java.util.stream.Collectors.toList;
-
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.TimestampProto;
@@ -44,7 +43,6 @@ import io.prestosql.spi.type.TypeManager;
 import io.prestosql.spi.type.TypeSignature;
 import io.prestosql.spi.type.TypeSignatureParameter;
 import io.prestosql.spi.type.VarbinaryType;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -71,7 +69,8 @@ public class PulsarProtobufNativeRowDecoderFactory implements PulsarRowDecoderFa
     @Override
     public PulsarRowDecoder createRowDecoder(TopicName topicName, SchemaInfo schemaInfo,
                                              Set<DecoderColumnHandle> columns) {
-        return new PulsarProtobufNativeRowDecoder((GenericProtobufNativeSchema) GenericProtobufNativeSchema.of(schemaInfo), columns);
+        return new PulsarProtobufNativeRowDecoder((GenericProtobufNativeSchema)
+                GenericProtobufNativeSchema.of(schemaInfo), columns);
     }
 
     @Override
@@ -86,7 +85,8 @@ public class PulsarProtobufNativeRowDecoderFactory implements PulsarRowDecoderFa
         Descriptors.Descriptor schema;
         try {
             schema =
-                    ((GenericProtobufNativeSchema) GenericProtobufNativeSchema.of(schemaInfo)).getProtobufNativeSchema();
+                    ((GenericProtobufNativeSchema) GenericProtobufNativeSchema.of(schemaInfo))
+                            .getProtobufNativeSchema();
         } catch (Exception ex) {
             log.error(ex);
             throw new PrestoException(NOT_SUPPORTED, "Topic "
@@ -96,10 +96,10 @@ public class PulsarProtobufNativeRowDecoderFactory implements PulsarRowDecoderFa
         //Protobuf have not yet supported Cyclic Objects.
         columnMetadata = schema.getFields().stream()
                 .map(field ->
-                        new PulsarColumnMetadata(PulsarColumnMetadata.getColumnName(handleKeyValueType, field.getName()),
-                                parseProtobufPrestoType(field), field.getType().toString(), null, false, false,
-                                handleKeyValueType, new PulsarColumnMetadata.DecoderExtraInfo(field.getName(),
-                                null, null))
+                        new PulsarColumnMetadata(PulsarColumnMetadata.getColumnName(handleKeyValueType,
+                                field.getName()), parseProtobufPrestoType(field), field.getType().toString(), null,
+                                false, false, handleKeyValueType,
+                                new PulsarColumnMetadata.DecoderExtraInfo(field.getName(), null, null))
 
                 ).collect(toList());
 
@@ -138,9 +138,11 @@ public class PulsarProtobufNativeRowDecoderFactory implements PulsarRowDecoderFa
                 if (field.isMapField()) {
                     //map
                     TypeSignature keyType =
-                            parseProtobufPrestoType(msg.findFieldByName(PulsarProtobufNativeColumnDecoder.PROTOBUF_MAP_KEY_NAME)).getTypeSignature();
+                            parseProtobufPrestoType(msg.findFieldByName(PulsarProtobufNativeColumnDecoder
+                                    .PROTOBUF_MAP_KEY_NAME)).getTypeSignature();
                     TypeSignature valueType =
-                            parseProtobufPrestoType(msg.findFieldByName(PulsarProtobufNativeColumnDecoder.PROTOBUF_MAP_VALUE_NAME)).getTypeSignature();
+                            parseProtobufPrestoType(msg.findFieldByName(PulsarProtobufNativeColumnDecoder
+                                    .PROTOBUF_MAP_VALUE_NAME)).getTypeSignature();
                     return typeManager.getParameterizedType(StandardTypes.MAP,
                             ImmutableList.of(TypeSignatureParameter.typeParameter(keyType),
                                     TypeSignatureParameter.typeParameter(valueType)));
@@ -158,7 +160,8 @@ public class PulsarProtobufNativeRowDecoderFactory implements PulsarRowDecoderFa
                 }
                 break;
             default:
-                throw new RuntimeException("Unknown type: " + type.toString() + " for FieldDescriptor: " + field.getName());
+                throw new RuntimeException("Unknown type: " + type.toString() + " for FieldDescriptor: "
+                        + field.getName());
         }
         //list
         if (field.isRepeated() && !field.isMapField()) {

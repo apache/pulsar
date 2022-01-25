@@ -2981,4 +2981,35 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     }
 
+    @Test
+    public void testMaxMessageSizeWithChunking() throws Exception {
+        this.conf.setMaxMessageSize(1000);
+
+        @Cleanup
+        PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(persistenceTopic)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
+
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(persistenceTopic,false).join().get();
+
+        // send success when topic level maxMessage is not set.
+        producer.send(new byte[2000]);
+
+        admin.topicPolicies().setMaxMessageSize(persistenceTopic, 500);
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals((int) topic.getHierarchyTopicPolicies().getTopicMaxMessageSize().get(), 500);
+        });
+
+        // non-chunk message send success
+        producer.send(new byte[400]);
+
+        // chunk message send success
+        producer.send(new byte[2000]);
+    }
+
 }

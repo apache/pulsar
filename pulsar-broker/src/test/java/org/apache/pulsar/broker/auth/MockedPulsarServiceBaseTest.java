@@ -177,6 +177,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         this.conf.setWebServicePort(Optional.of(0));
         this.conf.setWebServicePortTls(Optional.of(0));
         this.conf.setNumExecutorThreadPoolSize(5);
+        this.conf.setExposeBundlesMetricsInPrometheus(true);
     }
 
     protected final void init() throws Exception {

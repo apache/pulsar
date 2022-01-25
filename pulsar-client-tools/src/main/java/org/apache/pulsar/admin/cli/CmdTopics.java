@@ -320,6 +320,10 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("set-deduplication");
             cmdUsageFormatter.addDeprecatedCommand("remove-deduplication");
 
+            cmdUsageFormatter.addDeprecatedCommand("get-deduplication-snapshot-interval");
+            cmdUsageFormatter.addDeprecatedCommand("set-deduplication-snapshot-interval");
+            cmdUsageFormatter.addDeprecatedCommand("remove-deduplication-snapshot-interval");
+
             cmdUsageFormatter.addDeprecatedCommand("get-max-unacked-messages-on-subscription");
             cmdUsageFormatter.addDeprecatedCommand("set-max-unacked-messages-on-subscription");
             cmdUsageFormatter.addDeprecatedCommand("remove-max-unacked-messages-on-subscription");
@@ -499,10 +503,29 @@ public class CmdTopics extends CmdBase {
                 "--partitions" }, description = "Number of partitions for the topic", required = true)
         private int numPartitions;
 
+        @Parameter(names = {"--metadata", "-m"}, description = "key value pair properties(a=a,b=b,c=c)")
+        private java.util.List<String> metadata;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            getTopics().createPartitionedTopic(topic, numPartitions);
+            Map<String, String> map = new HashMap<>();
+            if (metadata != null) {
+                for (String property : metadata) {
+                    if (!property.contains("=")) {
+                        throw new ParameterException(String.format("Invalid key value pair '%s', "
+                                + "valid format like 'a=a,b=b,c=c'.", property));
+                    } else {
+                        String[] keyValue = property.split("=");
+                        if (keyValue.length != 2) {
+                            throw new ParameterException(String.format("Invalid key value pair '%s', "
+                                    + "valid format like 'a=a,b=b,c=c'.", property));
+                        }
+                        map.put(keyValue[0], keyValue[1]);
+                    }
+                }
+            }
+            getTopics().createPartitionedTopic(topic, numPartitions, map);
         }
     }
 
@@ -527,10 +550,29 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = {"--metadata", "-m"}, description = "key value pair properties(a=a,b=b,c=c)")
+        private java.util.List<String> metadata;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            getTopics().createNonPartitionedTopic(topic);
+            Map<String, String> map = new HashMap<>();
+            if (metadata != null) {
+                for (String property : metadata) {
+                    if (!property.contains("=")) {
+                        throw new ParameterException(String.format("Invalid key value pair '%s', "
+                                + "valid format like 'a=a,b=b,c=c'.", property));
+                    } else {
+                        String[] keyValue = property.split("=");
+                        if (keyValue.length != 2) {
+                            throw new ParameterException(String.format("Invalid key value pair '%s', "
+                                    + "valid format like 'a=a,b=b,c=c'.", property));
+                        }
+                        map.put(keyValue[0], keyValue[1]);
+                    }
+                }
+            }
+            getTopics().createNonPartitionedTopic(topic, map);
         }
     }
 
