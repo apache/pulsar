@@ -76,6 +76,7 @@ public class MessageImpl<T> implements Message<T> {
     private BrokerEntryMetadata brokerEntryMetadata;
 
     private boolean poolMessage;
+    private boolean dlqMessage;
     
     // Constructor for out-going message
     public static <T> MessageImpl<T> create(MessageMetadata msgMetadata, ByteBuffer payload, Schema<T> schema,
@@ -102,28 +103,28 @@ public class MessageImpl<T> implements Message<T> {
 
     MessageImpl(String topic, MessageIdImpl messageId, MessageMetadata msgMetadata, ByteBuf payload,
                 Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema) {
-        this(topic, messageId, msgMetadata, payload, encryptionCtx, cnx, schema, 0, false);
+        this(topic, messageId, msgMetadata, payload, encryptionCtx, cnx, schema, 0, false, false);
     }
 
     MessageImpl(String topic, MessageIdImpl messageId, MessageMetadata msgMetadata, ByteBuf payload,
                 Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema, int redeliveryCount,
-                boolean pooledMessage) {
+                boolean pooledMessage, boolean dlqMessage) {
         this.msgMetadata = new MessageMetadata();
-        init(this, topic, messageId, msgMetadata, payload, encryptionCtx, cnx, schema, redeliveryCount, pooledMessage);
+        init(this, topic, messageId, msgMetadata, payload, encryptionCtx, cnx, schema, redeliveryCount, pooledMessage, dlqMessage);
     }
 
     public static <T> MessageImpl<T> create(String topic, MessageIdImpl messageId, MessageMetadata msgMetadata,
             ByteBuf payload, Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema,
-            int redeliveryCount, boolean pooledMessage) {
+            int redeliveryCount, boolean pooledMessage, boolean dlqMessage) {
         if (pooledMessage) {
             @SuppressWarnings("unchecked")
             MessageImpl<T> msg = (MessageImpl<T>) RECYCLER.get();
             init(msg, topic, messageId, msgMetadata, payload, encryptionCtx, cnx, schema, redeliveryCount,
-                    pooledMessage);
+                    pooledMessage, dlqMessage);
             return msg;
         } else {
             return new MessageImpl<>(topic, messageId, msgMetadata, payload, encryptionCtx, cnx, schema,
-                    redeliveryCount, pooledMessage);
+                    redeliveryCount, pooledMessage, dlqMessage);
         }
     }
 
@@ -131,46 +132,46 @@ public class MessageImpl<T> implements Message<T> {
             SingleMessageMetadata singleMessageMetadata, ByteBuf payload, Optional<EncryptionContext> encryptionCtx,
             ClientCnx cnx, Schema<T> schema) {
         this(topic, batchMessageIdImpl, msgMetadata, singleMessageMetadata, payload, encryptionCtx, cnx, schema, 0,
-                false);
+                false, false);
     }
 
     MessageImpl(String topic, BatchMessageIdImpl batchMessageIdImpl, MessageMetadata batchMetadata,
             SingleMessageMetadata singleMessageMetadata, ByteBuf payload, Optional<EncryptionContext> encryptionCtx,
-            ClientCnx cnx, Schema<T> schema, int redeliveryCount, boolean keepMessageInDirectMemory) {
+            ClientCnx cnx, Schema<T> schema, int redeliveryCount, boolean pooledMessage, boolean dlqMessage) {
         this.msgMetadata = new MessageMetadata();
         init(this, topic, batchMessageIdImpl, batchMetadata, singleMessageMetadata, payload, encryptionCtx, cnx, schema,
-                redeliveryCount, keepMessageInDirectMemory);
+                redeliveryCount, pooledMessage, dlqMessage);
 
     }
 
     public static <T> MessageImpl<T> create(String topic, BatchMessageIdImpl batchMessageIdImpl,
             MessageMetadata batchMetadata, SingleMessageMetadata singleMessageMetadata, ByteBuf payload,
             Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema, int redeliveryCount,
-            boolean pooledMessage) {
+            boolean pooledMessage, boolean dlqMessage) {
         if (pooledMessage) {
             @SuppressWarnings("unchecked")
             MessageImpl<T> msg = (MessageImpl<T>) RECYCLER.get();
             init(msg, topic, batchMessageIdImpl, batchMetadata, singleMessageMetadata, payload, encryptionCtx, cnx,
-                    schema, redeliveryCount, pooledMessage);
+                    schema, redeliveryCount, pooledMessage, dlqMessage);
             return msg;
         } else {
             return new MessageImpl<>(topic, batchMessageIdImpl, batchMetadata, singleMessageMetadata, payload,
-                    encryptionCtx, cnx, schema, redeliveryCount, pooledMessage);
+                    encryptionCtx, cnx, schema, redeliveryCount, pooledMessage, dlqMessage);
         }
     }
 
     static <T> void init(MessageImpl<T> msg, String topic, MessageIdImpl messageId, MessageMetadata msgMetadata,
             ByteBuf payload, Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema,
-            int redeliveryCount, boolean poolMessage) {
+            int redeliveryCount, boolean poolMessage, boolean dlqMessage) {
         init(msg, topic, null /* batchMessageIdImpl */, msgMetadata, null /* singleMessageMetadata */, payload,
-                encryptionCtx, cnx, schema, redeliveryCount, poolMessage);
+                encryptionCtx, cnx, schema, redeliveryCount, poolMessage, dlqMessage);
         msg.messageId = messageId;
     }
     
     private static <T> void init(MessageImpl<T> msg, String topic, BatchMessageIdImpl batchMessageIdImpl,
             MessageMetadata msgMetadata, SingleMessageMetadata singleMessageMetadata, ByteBuf payload,
             Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema, int redeliveryCount,
-            boolean poolMessage) {
+            boolean poolMessage, boolean dlqMessage) {
         msg.msgMetadata.clear();
         msg.msgMetadata.copyFrom(msgMetadata);
         msg.messageId = batchMessageIdImpl;
@@ -186,6 +187,8 @@ public class MessageImpl<T> implements Message<T> {
         // Message is passed to the user. Also, the passed ByteBuf is coming from network 
         // and is backed by a direct buffer which we could not expose as a byte[]
         msg.payload = poolMessage ? payload.retain() : Unpooled.copiedBuffer(payload);
+
+        msg.dlqMessage = dlqMessage;
         
         if (singleMessageMetadata != null) {
             if (singleMessageMetadata.getPropertiesCount() > 0) {
@@ -647,6 +650,16 @@ public class MessageImpl<T> implements Message<T> {
 
     @Override
     public void release() {
+        // When dlqMessage is set, the message was put into possibleSendToDeadLetterTopicMessages
+        // which means the message will be used when send DLQ message, we should no release it here
+        if (poolMessage && !dlqMessage) {
+            ReferenceCountUtil.safeRelease(payload);
+            recycle();
+        }
+
+    }
+
+    public void releaseDLQ() {
         if (poolMessage) {
             ReferenceCountUtil.safeRelease(payload);
             recycle();

@@ -152,7 +152,7 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         sinkConfig.setMaxMessageRetries(2);
         sinkConfig.setDeadLetterTopic(dlqTopic);
-        sinkConfig.setInputSpecs(Collections.singletonMap(sourceTopic, ConsumerConfig.builder().receiverQueueSize(1000).build()));
+        sinkConfig.setInputSpecs(Collections.singletonMap(sourceTopic, ConsumerConfig.builder().poolMessages(true).receiverQueueSize(1000).build()));
         sinkConfig.setClassName(SinkForTest.class.getName());
         @Cleanup
         LocalRunner localRunner = LocalRunner.builder()
