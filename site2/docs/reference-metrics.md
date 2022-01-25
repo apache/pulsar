@@ -509,17 +509,17 @@ All the offload metrics are labelled with the following labels:
 | Name | Type | Description |
 |---|---|---|
 | pulsar_ledgeroffloader_offloadError | Gauge | The number of offload requests that failed. |
-| pulsar_ledgeroffloader_offloadTime | Gauge | The total time (unit: millisecond) spent on the offload. |
+| pulsar_ledgeroffloader_offloadTime | Gauge | The total time (in milliseconds) spent on the offload. |
 | pulsar_ledgeroffloader_writeRate | Gauge | The total number of bytes written in one second. |
 | pulsar_ledgeroffloader_writeError | Gauge | The total number of write requests that failed. |
 | pulsar_ledgeroffloader_readOffloadError | Gauge | The number of read requests that failed at bookies. |
 | pulsar_ledgeroffloader_readOffloadRate | Gauge | The number of bytes read from bookies in one second. |
 | pulsar_ledgeroffloader_streamingWriteRate | Gauge | The number of bytes written to Blobstore in one second. <br />This metric doesn't apply to the Filesystem offloader. |
 | pulsar_ledgeroffloader_streamingWriteError | Gauge | The number of write requests that failed at Blobstore. <br />This metric doesn't apply to the Filesystem offloader. |
-| pulsar_ledgeroffloader_writeToStorageBuckets | Gauge | The time (unit: microsecond) spent on writing to the storage buckets. |
-| pulsar_ledgeroffloader_readLedgerLatencyBuckets | Gauge | The time (unit: microsecond) spent on reading bookies. |
-| pulsar_readOffload_indexLatencyBuckets | Gauge | The time (unit: microsecond) spent on reading indexes. |
-| pulsar_readOffload_dataLatencyBuckets | Gauge | The time (unit: microsecond) spent on reading Blobstore. <br />This metric doesn't apply to the Filesystem offloader. |
+| pulsar_ledgeroffloader_writeToStorageBuckets | Gauge | The time (in microseconds) spent on writing to the storage buckets. |
+| pulsar_ledgeroffloader_readLedgerLatencyBuckets | Gauge | The time (in microseconds) spent on reading bookies. |
+| pulsar_readOffload_indexLatencyBuckets | Gauge | The time (in microseconds) spent on reading indexes. |
+| pulsar_readOffload_dataLatencyBuckets | Gauge | The time (in microseconds) spent on reading Blobstore. <br />This metric doesn't apply to the Filesystem offloader. |
 
 
 
