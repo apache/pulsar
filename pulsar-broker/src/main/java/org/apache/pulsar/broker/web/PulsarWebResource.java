@@ -375,7 +375,7 @@ public abstract class PulsarWebResource {
         log.info("Successfully validated clusters on tenant [{}]", tenant);
     }
 
-    protected CompletableFuture<Void> validateClusterOwnershipAsync(String cluster){
+    protected CompletableFuture<Void> validateClusterOwnershipAsync(String cluster) {
         return getClusterDataIfDifferentCluster(pulsar(), cluster, clientAppId())
                 .thenAccept(differentClusterData -> {
                     if (differentClusterData != null) {
