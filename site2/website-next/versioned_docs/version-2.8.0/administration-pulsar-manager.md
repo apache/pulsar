@@ -103,7 +103,7 @@ If you want to enable JWT authentication, use one of the following methods.
 
 ```
 
-wget https://dist.apache.org/repos/dist/release/pulsar/pulsar-manager/apache-pulsar-manager-0.2.0/apache-pulsar-manager-0.2.0-bin.tar.gz
+wget hhttps://dist.apache.org/repos/dist/release/pulsar/pulsar-manager/pulsar-manager-0.2.0/apache-pulsar-manager-0.2.0-bin.tar.gz
 tar -zxvf apache-pulsar-manager-0.2.0-bin.tar.gz
 cd pulsar-manager
 tar -zxvf pulsar-manager.tar
