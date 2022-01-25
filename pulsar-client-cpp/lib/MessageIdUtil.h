@@ -16,38 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.partition;
+#include <pulsar/MessageId.h>
+#include "PulsarApi.pb.h"
 
-import java.util.Map;
+namespace pulsar {
 
-/**
- * Metadata of a partitioned topic.
- */
-public class PartitionedTopicMetadata {
-
-    /* Number of partitions for the topic */
-    public int partitions;
-
-    /* Topic properties */
-    public Map<String, String> properties;
-
-    public PartitionedTopicMetadata() {
-        this(0);
-    }
-
-    public PartitionedTopicMetadata(int partitions) {
-        this.partitions = partitions;
-        this.properties = null;
-    }
-
-    public PartitionedTopicMetadata(int partitions, Map<String, String> properties) {
-        this.partitions = partitions;
-        this.properties = properties;
-    }
-
-    /**
-     * A topic with '0' partitions is treated like non-partitioned topic.
-     */
-    public static final int NON_PARTITIONED = 0;
-
+inline MessageId toMessageId(const proto::MessageIdData& messageIdData) {
+    return MessageId{messageIdData.partition(), static_cast<int64_t>(messageIdData.ledgerid()),
+                     static_cast<int64_t>(messageIdData.entryid()), messageIdData.batch_index()};
 }
+
+namespace internal {
+template <typename T>
+static int compare(T lhs, T rhs) {
+    return (lhs < rhs) ? -1 : ((lhs == rhs) ? 0 : 1);
+}
+}  // namespace internal
+
+inline int compareLedgerAndEntryId(const MessageId& lhs, const MessageId& rhs) {
+    auto result = internal::compare(lhs.ledgerId(), rhs.ledgerId());
+    if (result != 0) {
+        return result;
+    }
+    return internal::compare(lhs.entryId(), rhs.entryId());
+}
+
+}  // namespace pulsar
