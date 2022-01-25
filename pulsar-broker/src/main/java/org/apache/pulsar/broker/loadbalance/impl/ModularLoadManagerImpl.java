@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
@@ -354,6 +355,21 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             log.warn("Error when trying to get active brokers", e);
             return loadData.getBrokerData().keySet();
         }
+    }
+
+    @Override
+    public CompletableFuture<Set<String>> getAvailableBrokersAsync() {
+        CompletableFuture<Set<String>> getAvailableBrokersAsync = new CompletableFuture<>();
+        brokersData.listLocks(LoadManager.LOADBALANCE_BROKERS_ROOT)
+                .whenComplete((listLocks, ex) -> {
+                    if (ex != null){
+                        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                        log.warn("Error when trying to get active brokers", realCause);
+                        getAvailableBrokersAsync.complete(loadData.getBrokerData().keySet());
+                    }
+                    getAvailableBrokersAsync.complete(Sets.newHashSet(listLocks));
+                });
+        return getAvailableBrokersAsync;
     }
 
     // Attempt to local the data for the given bundle in metadata store
