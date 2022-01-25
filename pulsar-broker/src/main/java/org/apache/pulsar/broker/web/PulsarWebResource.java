@@ -868,8 +868,9 @@ public abstract class PulsarWebResource {
 
     public void validateNamespaceOperation(NamespaceName namespaceName, NamespaceOperation operation) {
         try {
-            validateNamespaceOperationAsync(namespaceName, operation).get();
-        } catch (InterruptedException e) {
+            int timeout = pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds();
+            validateNamespaceOperationAsync(namespaceName, operation).get(timeout, SECONDS);
+        } catch (InterruptedException | TimeoutException e) {
             throw new RestException(e);
         } catch (ExecutionException e) {
             Throwable cause = e.getCause();
