@@ -40,7 +40,7 @@ public interface Function<I, O> {
     O process(I input, Context context) throws Exception;
 
     /**
-     * Called when function instance start
+     * Called once to initialize resources when function instance is started.
      *
      * @param context The Function context
      *
@@ -49,7 +49,7 @@ public interface Function<I, O> {
     default void initialize(Context context) throws Exception {}
 
     /**
-     * Called when function instance close
+     * Called once to properly close resources when function instance is stopped.
      *
      * @throws Exception
      */

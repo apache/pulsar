@@ -1456,12 +1456,14 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         submitFunction(runtime, inputTopicName, outputTopicName, functionName, null, InitializableFunction.class.getName(), schema);
 
         // check initialize is called when function start
+        TimeUnit.MILLISECONDS.sleep(500);
         assertTrue(InitializableFunction.isInitialized());
 
         // delete function
         deleteFunction(functionName);
 
         // close method is called after function deleted
+        TimeUnit.MILLISECONDS.sleep(500);
         assertFalse(InitializableFunction.isInitialized());
     }
 

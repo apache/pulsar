@@ -163,9 +163,6 @@ public class JavaInstance implements AutoCloseable {
 
     @Override
     public void close() {
-        context.close();
-        executor.shutdown();
-
         if (function != null) {
             try {
                 function.close();
@@ -173,6 +170,9 @@ public class JavaInstance implements AutoCloseable {
                 log.error("function closeResource occurred exception", e);
             }
         }
+
+        context.close();
+        executor.shutdown();
     }
 
     public Map<String, Double> getAndResetMetrics() {

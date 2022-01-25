@@ -458,10 +458,13 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
 
         if (null != javaInstance) {
-            Thread.currentThread().setContextClassLoader(functionClassLoader);
-            javaInstance.close();
-            Thread.currentThread().setContextClassLoader(instanceClassLoader);
-            javaInstance = null;
+            try {
+                Thread.currentThread().setContextClassLoader(functionClassLoader);
+                javaInstance.close();
+            } finally {
+                Thread.currentThread().setContextClassLoader(instanceClassLoader);
+                javaInstance = null;
+            }
         }
 
         if (null != stateManager) {
