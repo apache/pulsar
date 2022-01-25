@@ -23,18 +23,20 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Context;
 
 @Slf4j
-public class InitializableFunction extends PublishFunction {
+public class InitializableFunction extends TypedMessageBuilderPublish {
 
-    private static boolean initialized = false;
+    private boolean initialized = false;
 
     @Override
     public void initialize(Context context) throws Exception {
-        setInitialized(true);
+        log.info("function initialize start");
+        initialized = true;
     }
 
     @Override
     public void close() throws Exception {
-        setInitialized(false);
+        log.info("function close start");
+        initialized = false;
     }
 
     @SneakyThrows
@@ -44,13 +46,5 @@ public class InitializableFunction extends PublishFunction {
             throw new Exception("function not initialized");
         }
         return super.process(input, context);
-    }
-
-    public static boolean isInitialized() {
-        return initialized;
-    }
-
-    private void setInitialized(boolean isInitialized) {
-        initialized = isInitialized;
     }
 }

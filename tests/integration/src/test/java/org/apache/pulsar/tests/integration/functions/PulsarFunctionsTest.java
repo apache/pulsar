@@ -21,7 +21,6 @@ package org.apache.pulsar.tests.integration.functions;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -1453,18 +1452,14 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final int numMessages = 10;
 
         // submit the exclamation function
-        submitFunction(runtime, inputTopicName, outputTopicName, functionName, null, InitializableFunction.class.getName(), schema);
+        submitFunction(runtime, inputTopicName, outputTopicName, functionName, null, InitializableFunction.class.getName(), schema,
+                Collections.singletonMap("publish-topic", outputTopicName), null, null, null);
 
-        // check initialize is called when function start
-        TimeUnit.MILLISECONDS.sleep(5000);
-        assertTrue(InitializableFunction.isInitialized());
+        // publish and consume result
+        publishAndConsumeMessages(inputTopicName, outputTopicName, numMessages);
 
         // delete function
         deleteFunction(functionName);
-
-        // close method is called after function deleted
-        TimeUnit.MILLISECONDS.sleep(5000);
-        assertFalse(InitializableFunction.isInitialized());
     }
 
     protected void testLoggingFunction(Runtime runtime) throws Exception {
