@@ -623,7 +623,7 @@ public class PersistentTopicsBase extends AdminResource {
                 .mapToObj(i -> {
                     TopicName topicNamePartition = topicName.getPartition(i);
                     try {
-                        CompletableFuture<Void> deleteFutures = new CompletableFuture<>();
+                        CompletableFuture<Void> future = new CompletableFuture<>();
                         pulsar().getAdminClient().topics()
                                 .deleteAsync(topicNamePartition.toString(), force)
                                 .whenComplete((r, ex) -> {
@@ -640,17 +640,17 @@ public class PersistentTopicsBase extends AdminResource {
                                                 log.debug("[{}] Partition not found: {}", clientAppId(),
                                                         topicNamePartition);
                                             }
-                                            deleteFutures.complete(null);
+                                            future.complete(null);
                                         } else {
                                             log.error("[{}] Failed to delete partition {}", clientAppId(),
                                                     topicNamePartition, realCause);
-                                            deleteFutures.completeExceptionally(realCause);
+                                            future.completeExceptionally(realCause);
                                         }
                                     } else {
-                                        deleteFutures.complete(null);
+                                        future.complete(null);
                                     }
                                 });
-                        return deleteFutures;
+                        return future;
                     } catch (PulsarServerException ex) {
                         log.error("[{}] Failed to get admin client while delete partition {}",
                                 clientAppId(), topicNamePartition, ex);
@@ -660,7 +660,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private CompletableFuture<Void> internalRemovePartitionsAuthenticationPolicies(int numPartitions) {
-        CompletableFuture<Void> setPoliciesFuture = new CompletableFuture<>();
+        CompletableFuture<Void> future = new CompletableFuture<>();
         pulsar().getPulsarResources().getNamespaceResources()
                 .setPoliciesAsync(topicName.getNamespaceObject(), p -> {
                     IntStream.range(0, numPartitions)
@@ -674,17 +674,18 @@ public class PersistentTopicsBase extends AdminResource {
                         Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                         if (realCause instanceof MetadataStoreException.NotFoundException) {
                             log.warn("Namespace policies of {} not found", topicName.getNamespaceObject());
-                            setPoliciesFuture.complete(null);
+                            future.complete(null);
                         } else {
                             log.error("Failed to delete authentication policies for partitioned topic {}",
                                     topicName, ex);
-                            setPoliciesFuture.completeExceptionally(realCause);
+                            future.completeExceptionally(realCause);
                         }
+                    } else {
+                        log.info("Successfully delete authentication policies for partitioned topic {}", topicName);
+                        future.complete(null);
                     }
-                    log.info("Successfully delete authentication policies for partitioned topic {}", topicName);
-                    setPoliciesFuture.complete(null);
                 });
-        return setPoliciesFuture;
+        return future;
     }
 
     protected void internalUnloadTopic(AsyncResponse asyncResponse, boolean authoritative) {
