@@ -22,6 +22,8 @@ import java.io.IOException;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Map;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.NotImplementedException;
@@ -31,10 +33,22 @@ import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.AuthenticationUtil;
+import org.apache.pulsar.client.impl.Backoff;
+import org.apache.pulsar.client.impl.BackoffBuilder;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
 
 /**
  * Pulsar client authentication provider based on OAuth 2.0.
+ *
+ * The class has an option to preemptively refresh the token by configuring the {@link #expiryAdjustment}. This value
+ * must be greater than 0. When it is less than 1, it is treated as a percentage and is multiplied by the most recent
+ * token's `expires_in` value to determine how early this class should start attempting to retrieve another token. When
+ * it is greater than or equal to 1, this feature is turned off, and the client will only refresh the token when the
+ * client attempts to use an already expired token.
+ *
+ * The current implementation of this class can block the calling thread.
+ *
+ * This class is intended to be called from multiple threads, and is therefore designed to be threadsafe.
  */
 @Slf4j
 public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticationParameterSupport {
@@ -42,20 +56,37 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
     public static final String CONFIG_PARAM_TYPE = "type";
     public static final String TYPE_CLIENT_CREDENTIALS = "client_credentials";
     public static final String AUTH_METHOD_NAME = "token";
-    public static final double EXPIRY_ADJUSTMENT = 0.9;
     private static final long serialVersionUID = 1L;
 
+    private final transient ScheduledThreadPoolExecutor scheduler;
+    private final transient Backoff backoff;
+    private final double expiryAdjustment;
     final Clock clock;
-    Flow flow;
-    transient CachedToken cachedToken;
+    volatile Flow flow;
+    transient volatile CachedToken cachedToken;
 
-    public AuthenticationOAuth2() {
-        this.clock = Clock.systemDefaultZone();
+    private AuthenticationOAuth2(Clock clock, double expiryAdjustment) {
+        if (expiryAdjustment <= 0) {
+            throw new IllegalArgumentException("ExpiryAdjustment must be greater than 0.");
+        }
+        this.clock = clock;
+        this.expiryAdjustment = expiryAdjustment;
+        boolean isPreemptiveTokenRefresh = expiryAdjustment < 1;
+        this.backoff = isPreemptiveTokenRefresh ? new BackoffBuilder()
+                .setInitialTime(100, TimeUnit.MILLISECONDS)
+                .setMax(5, TimeUnit.MINUTES)
+                .setMandatoryStop(0, TimeUnit.MILLISECONDS)
+                .create() : null;
+        this.scheduler =  isPreemptiveTokenRefresh ? new ScheduledThreadPoolExecutor(1) : null;
     }
 
-    AuthenticationOAuth2(Flow flow, Clock clock) {
+    public AuthenticationOAuth2() {
+        this(Clock.systemDefaultZone(), 0.9);
+    }
+
+    AuthenticationOAuth2(Flow flow, Clock clock, double expiryAdjustment) {
+        this(clock, expiryAdjustment);
         this.flow = flow;
-        this.clock = clock;
     }
 
     @Override
@@ -96,13 +127,59 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
         flow.initialize();
     }
 
+    /**
+     * The first time that this method is called, it retrieves a token. All subsequent
+     * calls should get a cached value. However, if there is an issue with the Identity
+     * Provider, there is a chance that the background thread responsible for keeping
+     * the refresh token hot will
+     * @return The authentication data identifying this client that will be sent to the broker
+     * @throws PulsarClientException
+     */
     @Override
     public synchronized AuthenticationDataProvider getAuthData() throws PulsarClientException {
         if (this.cachedToken == null || this.cachedToken.isExpired()) {
-            TokenResult tr = this.flow.authenticate();
-            this.cachedToken = new CachedToken(tr);
+            this.authenticate();
         }
         return this.cachedToken.getAuthData();
+    }
+
+    /**
+     * Retrieve the token (synchronously), and then schedule refresh runnable.
+     */
+    private void authenticate() throws PulsarClientException {
+        if (log.isDebugEnabled()) {
+            log.debug("Attempting to retrieve OAuth2 token now.");
+        }
+        TokenResult tr = this.flow.authenticate();
+        this.cachedToken = new CachedToken(tr);
+        handleSuccessfulTokenRefresh();
+    }
+
+    private void handleSuccessfulTokenRefresh() {
+        if (scheduler != null) {
+            backoff.reset();
+            long expiresInMillis = TimeUnit.SECONDS.toMillis(cachedToken.latest.getExpiresIn());
+            scheduleRefresh((long) (expiresInMillis * expiryAdjustment));
+        }
+    }
+
+    /**
+     * Attempt to refresh the token. If successful, schedule the next refresh task according to the
+     * {@link #expiryAdjustment}. If failed, schedule another attempt to refresh the token according to the
+     * {@link #backoff} policy.
+     */
+    private void refreshToken() {
+        try {
+            this.authenticate();
+        } catch (Throwable e) {
+            long delayMillis = backoff.next();
+            log.error("Error refreshing token. Will retry in {} millis.", delayMillis, e);
+            scheduleRefresh(delayMillis);
+        }
+    }
+
+    private void scheduleRefresh(long delayMillis) {
+        scheduler.schedule(this::refreshToken, delayMillis, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -111,6 +188,10 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
             flow.close();
         } catch (Exception e) {
             throw new IOException(e);
+        } finally {
+            if (scheduler != null) {
+                scheduler.shutdownNow();
+            }
         }
     }
 
@@ -122,8 +203,7 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
 
         public CachedToken(TokenResult latest) {
             this.latest = latest;
-            int adjustedExpiresIn = (int) (latest.getExpiresIn() * EXPIRY_ADJUSTMENT);
-            this.expiresAt = AuthenticationOAuth2.this.clock.instant().plusSeconds(adjustedExpiresIn);
+            this.expiresAt = AuthenticationOAuth2.this.clock.instant().plusSeconds(latest.getExpiresIn());
             this.authData = new AuthenticationDataOAuth2(latest.getAccessToken());
         }
 

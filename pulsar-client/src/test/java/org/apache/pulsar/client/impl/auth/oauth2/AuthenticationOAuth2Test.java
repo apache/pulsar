@@ -56,7 +56,7 @@ public class AuthenticationOAuth2Test {
     public void before() {
         this.clock = new MockClock(Instant.EPOCH, ZoneOffset.UTC);
         this.flow = mock(Flow.class);
-        this.auth = new AuthenticationOAuth2(flow, this.clock);
+        this.auth = new AuthenticationOAuth2(flow, this.clock, 0.9);
     }
 
     @Test

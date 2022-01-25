@@ -60,6 +60,35 @@ public final class AuthenticationFactoryOAuth2 {
                 .audience(audience)
                 .scope(scope)
                 .build();
-        return new AuthenticationOAuth2(flow, Clock.systemDefaultZone());
+        return new AuthenticationOAuth2(flow, Clock.systemDefaultZone(), 0.9);
+    }
+
+    /**
+     * Authenticate with client credentials.
+     *
+     * @param issuerUrl the issuer URL
+     * @param credentialsUrl the credentials URL
+     * @param audience An optional field. The audience identifier used by some Identity Providers, like Auth0.
+     * @param scope An optional field. The value of the scope parameter is expressed as a list of space-delimited,
+     *              case-sensitive strings. The strings are defined by the authorization server.
+     *              If the value contains multiple space-delimited strings, their order does not matter,
+     *              and each string adds an additional access range to the requested scope.
+     *              From here: https://datatracker.ietf.org/doc/html/rfc6749#section-4.4.2
+     * @param expiryAdjustment A field that represents how early to start attempting to refresh the access token.
+     *                         The value must be greater than 0. A value greater than or equal to 1 will turn off
+     *                         preemptive token retrieval. When less than 1, the value represents the percentage
+     *                         of the `expires_in` seconds field from the Access Token Response, and the resulting value
+     *                         will be used to schedule a refresh token task in the client. It defaults to 0.9.
+     * @return an Authentication object
+     */
+    public static Authentication clientCredentials(URL issuerUrl, URL credentialsUrl, String audience, String scope,
+                                                   double expiryAdjustment) {
+        ClientCredentialsFlow flow = ClientCredentialsFlow.builder()
+                .issuerUrl(issuerUrl)
+                .privateKey(credentialsUrl.toExternalForm())
+                .audience(audience)
+                .scope(scope)
+                .build();
+        return new AuthenticationOAuth2(flow, Clock.systemDefaultZone(), expiryAdjustment);
     }
 }
