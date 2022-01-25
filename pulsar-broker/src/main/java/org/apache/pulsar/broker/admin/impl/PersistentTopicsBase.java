@@ -574,10 +574,10 @@ public class PersistentTopicsBase extends AdminResource {
                                 return pulsar().getBrokerService()
                                         .deleteSchemaStorage(topicName.getPartition(0).toString())
                                         .thenCompose(unused ->
-                                                internalRemovePartitionsAuthenticationPolicies(numPartitions))
+                                                internalRemovePartitionsAuthenticationPoliciesAsync(numPartitions))
                                         .thenCompose(unused2 -> internalRemovePartitionsTopicAsync(numPartitions, force));
                             }
-                            return internalRemovePartitionsAuthenticationPolicies(numPartitions)
+                            return internalRemovePartitionsAuthenticationPoliciesAsync(numPartitions)
                                     .thenCompose(unused -> internalRemovePartitionsTopicAsync(numPartitions, force));
                         })
                 // Only tries to delete the znode for partitioned topic when all its partitions are successfully deleted
@@ -659,7 +659,7 @@ public class PersistentTopicsBase extends AdminResource {
                 }).collect(Collectors.toList()));
     }
 
-    private CompletableFuture<Void> internalRemovePartitionsAuthenticationPolicies(int numPartitions) {
+    private CompletableFuture<Void> internalRemovePartitionsAuthenticationPoliciesAsync(int numPartitions) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         pulsar().getPulsarResources().getNamespaceResources()
                 .setPoliciesAsync(topicName.getNamespaceObject(), p -> {
