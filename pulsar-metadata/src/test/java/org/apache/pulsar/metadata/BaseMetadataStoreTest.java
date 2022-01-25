@@ -75,8 +75,8 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
         // Supplier<String> lambda is used for providing the value.
         return new Object[][]{
                 { "ZooKeeper", stringSupplier(() -> zks.getConnectionString()) },
-                { "Memory", stringSupplier(() -> "memory://" + UUID.randomUUID()) },
-                { "RocksDB", stringSupplier(() -> "rocksdb://" + createTempFolder()) },
+                { "Memory", stringSupplier(() -> "memory:" + UUID.randomUUID()) },
+                { "RocksDB", stringSupplier(() -> "rocksdb:" + createTempFolder()) },
                 {"Etcd", stringSupplier(() -> "etcd:" + etcdCluster.getClientEndpoints().stream().map(x -> x.toString())
                         .collect(Collectors.joining(",")))},
         };
