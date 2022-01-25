@@ -662,9 +662,9 @@ public class PersistentTopicsBase extends AdminResource {
     private CompletableFuture<Void> internalRemovePartitionsAuthenticationPolicies(int numPartitions) {
         return pulsar().getPulsarResources().getNamespaceResources()
                 .setPoliciesAsync(topicName.getNamespaceObject(), p -> {
-                    for (int i = 0; i < numPartitions; i++) {
-                        p.auth_policies.getTopicAuthentication().remove(topicName.getPartition(i).toString());
-                    }
+                    IntStream.range(0, numPartitions)
+                            .forEach(i -> p.auth_policies.getTopicAuthentication()
+                                    .remove(topicName.getPartition(i).toString()));
                     p.auth_policies.getTopicAuthentication().remove(topicName.toString());
                     return p;
                 }).thenAccept(v ->
