@@ -141,8 +141,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 anyInt(),
                 anyLong(),
                 anyLong(),
-                any(RedeliveryTracker.class),
-                anyLong()
+                any(RedeliveryTracker.class)
         );
 
         subscriptionMock = mock(PersistentSubscription.class);
@@ -192,8 +191,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 totalMessagesCaptor.capture(),
                 anyLong(),
                 anyLong(),
-                any(RedeliveryTracker.class),
-                anyLong()
+                any(RedeliveryTracker.class)
         );
 
         List<Integer> allTotalMessagesCaptor = totalMessagesCaptor.getAllValues();
@@ -272,8 +270,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                     anyInt(),
                     anyLong(),
                     anyLong(),
-                    any(RedeliveryTracker.class),
-                    anyLong()
+                    any(RedeliveryTracker.class)
             );
 
             persistentDispatcher.addConsumer(consumerMock);
@@ -302,8 +299,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 anyInt(),
                 anyLong(),
                 anyLong(),
-                any(RedeliveryTracker.class),
-                anyLong()
+                any(RedeliveryTracker.class)
         );
         verify(slowConsumerMock, times(0)).sendMessages(
                 anyList(),
@@ -312,8 +308,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 anyInt(),
                 anyLong(),
                 anyLong(),
-                any(RedeliveryTracker.class),
-                anyLong()
+                any(RedeliveryTracker.class)
         );
     }
 
@@ -357,7 +352,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
             }
             return channelMock;
         }).when(consumer1).sendMessages(anyList(), any(EntryBatchSizes.class), any(EntryBatchIndexesAcks.class),
-                anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class), anyLong());
+                anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));
 
         final Consumer consumer2 = mock(Consumer.class);
         doReturn("consumer2").when(consumer2).consumerName();
@@ -372,7 +367,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
             }
             return channelMock;
         }).when(consumer2).sendMessages(anyList(), any(EntryBatchSizes.class), any(EntryBatchIndexesAcks.class),
-                anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class), anyLong());
+                anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));
 
         persistentDispatcher.addConsumer(consumer1);
         persistentDispatcher.addConsumer(consumer2);

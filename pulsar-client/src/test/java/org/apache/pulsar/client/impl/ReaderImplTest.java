@@ -66,10 +66,6 @@ public class ReaderImplTest {
 
     @Test
     void shouldSupportCancellingReadNextAsync() {
-
-        Awaitility.await().untilAsserted(() -> {
-            assertEquals(reader.getConsumer().getState(), HandlerState.State.Ready);
-        });
         // given
         CompletableFuture<Message<byte[]>> future = reader.readNextAsync();
         Awaitility.await().untilAsserted(() -> {

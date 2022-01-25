@@ -140,14 +140,14 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
             };
             return mockPromise;
         }).when(consumerMock).sendMessages(any(List.class), any(EntryBatchSizes.class), any(),
-                anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class), anyLong());
+                anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));
         try {
             nonpersistentDispatcher.sendMessages(entries);
         } catch (Exception e) {
             fail("Failed to sendMessages.", e);
         }
         verify(consumerMock, times(1)).sendMessages(any(List.class), any(EntryBatchSizes.class),
-                eq(null), anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class), anyLong());
+                eq(null), anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));
     }
 
     @Test(timeOut = 10000)
@@ -171,14 +171,14 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
             }
             return mockPromise;
         }).when(consumerMock).sendMessages(any(List.class), any(EntryBatchSizes.class), any(),
-                anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class), anyLong());
+                anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));
         try {
             nonpersistentDispatcher.sendMessages(entries);
         } catch (Exception e) {
             fail("Failed to sendMessages.", e);
         }
         verify(consumerMock, times(0)).sendMessages(any(List.class), any(EntryBatchSizes.class),
-                eq(null), anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class), anyLong());
+                eq(null), anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));
     }
 
     private ByteBuf createMessage(String message, int sequenceId) {
