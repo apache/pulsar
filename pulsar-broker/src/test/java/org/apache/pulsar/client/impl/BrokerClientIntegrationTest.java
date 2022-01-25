@@ -1042,8 +1042,11 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
                     c1.acknowledgeAsync(msg);
                     latch.countDown();
                 }).subscribe();
-            } catch (Exception e) {
-                // Ok
+                if (i == 0) {
+                    fail("Should failed with ConsumerBusyException!");
+                }
+            } catch (PulsarClientException.ConsumerBusyException ignore) {
+               // It's ok.
             }
         }
         assertNotNull(consumer);
