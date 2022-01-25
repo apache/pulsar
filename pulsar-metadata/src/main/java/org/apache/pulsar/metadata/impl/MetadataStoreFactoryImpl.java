@@ -52,6 +52,9 @@ public class MetadataStoreFactoryImpl {
             return RocksdbMetadataStore.get(metadataURL, metadataStoreConfig);
         } else if (metadataURL.startsWith(EtcdMetadataStore.ETCD_SCHEME_IDENTIFIER)) {
             return new EtcdMetadataStore(metadataURL, metadataStoreConfig, enableSessionWatcher);
+        } else if (metadataURL.startsWith(ZKMetadataStore.ZK_SCHEME_IDENTIFIER)) {
+            return new ZKMetadataStore(metadataURL.substring(ZKMetadataStore.ZK_SCHEME_IDENTIFIER.length()),
+                    metadataStoreConfig, enableSessionWatcher);
         } else {
             return new ZKMetadataStore(metadataURL, metadataStoreConfig, enableSessionWatcher);
         }
