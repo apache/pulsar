@@ -433,9 +433,9 @@ public abstract class PulsarWebResource {
                                                                                      String cluster,
                                                                                      String clientAppId) {
         CompletableFuture<ClusterData> clusterDataFuture = new CompletableFuture<>();
-        if (isValidCluster(pulsar, cluster) ||
+        if (isValidCluster(pulsar, cluster)
                 // this code should only happen with a v1 namespace format prop/cluster/namespaces
-                pulsar.getConfiguration().getClusterName().equals(cluster)) {
+                || pulsar.getConfiguration().getClusterName().equals(cluster)) {
             clusterDataFuture.complete(null);
             return clusterDataFuture;
         }
