@@ -75,20 +75,13 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
 
     public LocalMemoryMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig)
             throws MetadataStoreException {
-        URI uri;
-        try {
-            uri = new URI(metadataURL);
-        } catch (URISyntaxException e) {
-            throw new MetadataStoreException(e);
-        }
-
+        String name = metadataURL.substring(MEMORY_SCHEME_IDENTIFIER.length());
         // Local means a private data set
-        if ("local".equals(uri.getHost())) {
+        if ("local".equals(name)) {
             map = new TreeMap<>();
             sequentialIdGenerator = new AtomicLong();
         } else {
             // Use a reference from a shared data set
-            String name = uri.getHost();
             map = STATIC_MAPS.computeIfAbsent(name, __ -> new TreeMap<>());
             STATIC_INSTANCE.compute(name, (key, value) -> {
                 if (value == null) {
