@@ -314,8 +314,9 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                         Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                         log.warn("Error when trying to get active brokers", realCause);
                         getAvailableBrokersAsync.completeExceptionally(realCause);
+                    } else {
+                        getAvailableBrokersAsync.complete(Sets.newHashSet(listLocks));
                     }
-                    getAvailableBrokersAsync.complete(Sets.newHashSet(listLocks));
                 });
         return getAvailableBrokersAsync;
     }

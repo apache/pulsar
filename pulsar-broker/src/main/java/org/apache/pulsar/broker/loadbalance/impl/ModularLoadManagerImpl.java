@@ -359,17 +359,18 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     @Override
     public CompletableFuture<Set<String>> getAvailableBrokersAsync() {
-        CompletableFuture<Set<String>> getAvailableBrokersAsync = new CompletableFuture<>();
+        CompletableFuture<Set<String>> future = new CompletableFuture<>();
         brokersData.listLocks(LoadManager.LOADBALANCE_BROKERS_ROOT)
                 .whenComplete((listLocks, ex) -> {
                     if (ex != null){
                         Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                         log.warn("Error when trying to get active brokers", realCause);
-                        getAvailableBrokersAsync.complete(loadData.getBrokerData().keySet());
+                        future.complete(loadData.getBrokerData().keySet());
+                    } else {
+                        future.complete(Sets.newHashSet(listLocks));
                     }
-                    getAvailableBrokersAsync.complete(Sets.newHashSet(listLocks));
                 });
-        return getAvailableBrokersAsync;
+        return future;
     }
 
     // Attempt to local the data for the given bundle in metadata store
