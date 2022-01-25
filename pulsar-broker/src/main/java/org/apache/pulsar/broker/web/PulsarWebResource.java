@@ -378,7 +378,7 @@ public abstract class PulsarWebResource {
     protected CompletableFuture<Void> validateClusterOwnershipAsync(String cluster){
         return getClusterDataIfDifferentCluster(pulsar(), cluster, clientAppId())
                 .thenAccept(differentClusterData -> {
-                    if (differentClusterData != null){
+                    if (differentClusterData != null) {
                         try {
                             URI redirect = getRedirectionUrl(differentClusterData);
                             // redirect to the cluster requested
