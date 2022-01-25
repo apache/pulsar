@@ -19,8 +19,6 @@
 package org.apache.pulsar.metadata.impl;
 
 import com.google.common.collect.MapMaker;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashSet;
