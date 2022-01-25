@@ -231,10 +231,11 @@ public class PulsarClusterMetadataSetup {
         // Format BookKeeper ledger storage metadata
         ServerConfiguration bkConf = new ServerConfiguration();
         if (arguments.existingBkMetadataServiceUri == null && arguments.bookieMetadataServiceUri == null) {
-            final String fallbackLedgersRootPath = bkConf.getZkLedgersRootPath();
-            bkConf.setMetadataServiceUri("metadata-store:" + arguments.zookeeper + fallbackLedgersRootPath);
+            final ServerConfiguration metadataResolver = new ServerConfiguration();
+            metadataResolver.setZkServers(arguments.zookeeper);
+            bkConf.setMetadataServiceUri("metadata-store:" + metadataResolver.getMetadataServiceUriUnchecked());
             bkConf.setZkTimeout(arguments.zkSessionTimeoutMillis);
-            if (!localStore.exists(fallbackLedgersRootPath).get() // only format if /ledgers doesn't exist
+            if (!localStore.exists("/ledgers").get() // only format if /ledgers doesn't exist
                 && !BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
                 throw new IOException("Failed to initialize BookKeeper metadata");
             }
@@ -247,13 +248,14 @@ public class PulsarClusterMetadataSetup {
             } else if (arguments.bookieMetadataServiceUri != null) {
                 uriStr = arguments.bookieMetadataServiceUri;
             } else {
-                 uriStr = bkConf.getMetadataServiceUri().replace("metadata-store:", "zk://");
+                uriStr = bkConf.getMetadataServiceUri().replace("metadata-store:", "zk://");
             }
-            ServiceURI bkMetadataServiceUri = ServiceURI.create(uriStr);
 
+            log.info("initialDlogNamespaceMetadata uriStr" + uriStr + " " + arguments.configurationStore);
             // initial distributed log metadata
             initialDlogNamespaceMetadata(arguments.configurationStore, uriStr);
 
+            ServiceURI bkMetadataServiceUri = ServiceURI.create(uriStr);
             // Format BookKeeper stream storage metadata
             if (arguments.numStreamStorageContainers > 0) {
                 ClusterInitializer initializer = new ZkClusterInitializer(arguments.metadataStoreUrl);
