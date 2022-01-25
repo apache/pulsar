@@ -575,7 +575,8 @@ public class PersistentTopicsBase extends AdminResource {
                                         .deleteSchemaStorage(topicName.getPartition(0).toString())
                                         .thenCompose(unused ->
                                                 internalRemovePartitionsAuthenticationPoliciesAsync(numPartitions))
-                                        .thenCompose(unused2 -> internalRemovePartitionsTopicAsync(numPartitions, force));
+                                        .thenCompose(unused2 ->
+                                                internalRemovePartitionsTopicAsync(numPartitions, force));
                             }
                             return internalRemovePartitionsAuthenticationPoliciesAsync(numPartitions)
                                     .thenCompose(unused -> internalRemovePartitionsTopicAsync(numPartitions, force));
