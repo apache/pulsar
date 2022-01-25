@@ -1495,12 +1495,30 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         submitJavaLoggingFunction(
                 inputTopicName, logTopicName, functionName, schema);
 
+        // get function info
+        getFunctionInfoSuccess(functionName);
+
+        // get function stats
+        getFunctionStatsEmpty(functionName);
+
         // publish and consume result
         publishAndConsumeMessages(inputTopicName, logTopicName, numMessages, "-log");
+
+        // get function status
+        getFunctionStatus(functionName, numMessages, true);
+
+        // get function stats
+        getFunctionStats(functionName, numMessages);
 
         // delete function
         deleteFunction(functionName);
 
+        // get function info
+        getFunctionInfoNotFound(functionName);
+
+        // make sure subscriptions are cleanup
+        checkSubscriptionsCleanup(inputTopicName);
+        checkPublisherCleanup(logTopicName);
 
     }
 
