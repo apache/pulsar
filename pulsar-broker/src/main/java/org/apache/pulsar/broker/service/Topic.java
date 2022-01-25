@@ -34,6 +34,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
+import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
@@ -327,5 +328,11 @@ public interface Topic {
      * @return
      */
     BrokerService getBrokerService();
+
+    /**
+     * Get HierarchyTopicPolicies
+     * @return
+     */
+    HierarchyTopicPolicies getHierarchyTopicPolicies();
 
 }

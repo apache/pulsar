@@ -104,7 +104,7 @@ public class Consumer {
 
     private final ConsumerStatsImpl stats;
 
-    private volatile int maxUnackedMessages;
+    private final boolean maxUnackedMessagesEnabled;
     private static final AtomicIntegerFieldUpdater<Consumer> UNACKED_MESSAGES_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(Consumer.class, "unackedMessages");
     private volatile int unackedMessages = 0;
@@ -132,7 +132,7 @@ public class Consumer {
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
-                    int maxUnackedMessages, TransportCnx cnx, String appId,
+                    boolean maxUnackedMessagesEnabled, TransportCnx cnx, String appId,
                     Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition,
                     KeySharedMeta keySharedMeta, MessageId startMessageId) {
 
@@ -144,7 +144,7 @@ public class Consumer {
         this.priorityLevel = priorityLevel;
         this.readCompacted = readCompacted;
         this.consumerName = consumerName;
-        this.maxUnackedMessages = maxUnackedMessages;
+        this.maxUnackedMessagesEnabled = maxUnackedMessagesEnabled;
         this.subscriptionInitialPosition = subscriptionInitialPosition;
         this.keySharedMeta = keySharedMeta;
         this.cnx = cnx;
@@ -290,8 +290,8 @@ public class Consumer {
 
     private void incrementUnackedMessages(int ackedMessages) {
         if (Subscription.isIndividualAckMode(subType)
-                && addAndGetUnAckedMsgs(this, ackedMessages) >= maxUnackedMessages
-                && maxUnackedMessages > 0) {
+                && addAndGetUnAckedMsgs(this, ackedMessages) >= getMaxUnackedMessages()
+                && getMaxUnackedMessages() > 0) {
             blockedConsumerOnUnackedMsgs = true;
         }
     }
@@ -624,7 +624,7 @@ public class Consumer {
         checkArgument(additionalNumberOfMessages > 0);
 
         // block shared consumer when unacked-messages reaches limit
-        if (shouldBlockConsumerOnUnackMsgs() && unackedMessages >= maxUnackedMessages) {
+        if (shouldBlockConsumerOnUnackMsgs() && unackedMessages >= getMaxUnackedMessages()) {
             blockedConsumerOnUnackedMsgs = true;
         }
         int oldPermits;
@@ -684,12 +684,12 @@ public class Consumer {
     /**
      * Checks if consumer-blocking on unAckedMessages is allowed for below conditions:<br/>
      * a. consumer must have Shared-subscription<br/>
-     * b. {@link this#maxUnackedMessages} value > 0
+     * b. {@link this#getMaxUnackedMessages()} value > 0
      *
      * @return
      */
     private boolean shouldBlockConsumerOnUnackMsgs() {
-        return Subscription.isIndividualAckMode(subType) && maxUnackedMessages > 0;
+        return Subscription.isIndividualAckMode(subType) && getMaxUnackedMessages() > 0;
     }
 
     public void updateRates() {
@@ -821,7 +821,7 @@ public class Consumer {
             // unblock consumer-throttling when limit check is disabled or receives half of maxUnackedMessages =>
             // consumer can start again consuming messages
             int unAckedMsgs = UNACKED_MESSAGES_UPDATER.get(ackOwnedConsumer);
-            if ((((unAckedMsgs <= maxUnackedMessages / 2) && ackOwnedConsumer.blockedConsumerOnUnackedMsgs)
+            if ((((unAckedMsgs <= getMaxUnackedMessages() / 2) && ackOwnedConsumer.blockedConsumerOnUnackedMsgs)
                     && ackOwnedConsumer.shouldBlockConsumerOnUnackMsgs())
                     || !shouldBlockConsumerOnUnackMsgs()) {
                 ackOwnedConsumer.blockedConsumerOnUnackedMsgs = false;
@@ -937,12 +937,13 @@ public class Consumer {
     }
 
     public int getMaxUnackedMessages() {
-        return maxUnackedMessages;
+        if (maxUnackedMessagesEnabled && subscription != null) {
+            return subscription.getTopic().getHierarchyTopicPolicies().getMaxUnackedMessagesOnConsumer().get();
+        } else {
+            return 0;
+        }
     }
 
-    public void setMaxUnackedMessages(int maxUnackedMessages) {
-        this.maxUnackedMessages = maxUnackedMessages;
-    }
 
     public TransportCnx cnx() {
         return cnx;
