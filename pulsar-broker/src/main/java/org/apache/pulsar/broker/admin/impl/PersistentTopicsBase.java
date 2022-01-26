@@ -3199,28 +3199,36 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> preValidation(boolean authoritative) {
-        checkTopicLevelPolicyEnable();
+        if (!config().isTopicLevelPoliciesEnabled()) {
+            return FutureUtil.failedFuture(new RestException(Status.METHOD_NOT_ALLOWED,
+                    "Topic level policies is disabled, to enable the topic level policy and retry."));
+        }
         if (topicName.isPartitioned()) {
             return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
                     "Not allowed to set/get topic policy for a partition"));
         }
+        CompletableFuture<Void> ret;
         if (topicName.isGlobal()) {
-            validateGlobalNamespaceOwnership(namespaceName);
+            ret = validateGlobalNamespaceOwnershipAsync(namespaceName);
+        } else {
+            ret = CompletableFuture.completedFuture(null);
         }
-        return checkTopicExistsAsync(topicName).thenCompose(exist -> {
-            if (!exist) {
-                throw new RestException(Status.NOT_FOUND, "Topic not found");
-            } else {
-                return getPartitionedTopicMetadataAsync(topicName, false, false)
-                    .thenCompose(metadata -> {
-                        if (metadata.partitions > 0) {
-                            return validateTopicOwnershipAsync(TopicName.get(topicName.toString()
+        return ret
+                .thenCompose(__ -> checkTopicExistsAsync(topicName))
+                .thenCompose(exist -> {
+                    if (!exist) {
+                        throw new RestException(Status.NOT_FOUND, "Topic not found");
+                    } else {
+                        return getPartitionedTopicMetadataAsync(topicName, false, false)
+                            .thenCompose(metadata -> {
+                                if (metadata.partitions > 0) {
+                                    return validateTopicOwnershipAsync(TopicName.get(topicName.toString()
                                     + TopicName.PARTITIONED_TOPIC_SUFFIX + 0), authoritative);
-                        } else {
-                            return validateTopicOwnershipAsync(topicName, authoritative);
-                        }
-                    });
-            }
+                                } else {
+                                    return validateTopicOwnershipAsync(topicName, authoritative);
+                                }
+                        });
+                    }
         });
     }
 
