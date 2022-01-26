@@ -1048,21 +1048,51 @@ public abstract class PulsarWebResource {
     }
 
     public void validateTopicPolicyOperation(TopicName topicName, PolicyName policy, PolicyOperation operation) {
+        try {
+            validateTopicPolicyOperationAsync(topicName, policy, operation).get();
+        } catch (InterruptedException | ExecutionException e) {
+            Throwable cause = FutureUtil.unwrapCompletionException(e);
+            if (cause instanceof WebApplicationException){
+                throw (WebApplicationException) cause;
+            } else {
+                throw new RestException(cause);
+            }
+        }
+    }
+
+    public CompletableFuture<Void> validateTopicPolicyOperationAsync(TopicName topicName, PolicyName policy,
+                                                                     PolicyOperation operation) {
         if (pulsar().getConfiguration().isAuthenticationEnabled()
                 && pulsar().getBrokerService().isAuthorizationEnabled()) {
             if (!isClientAuthenticated(clientAppId())) {
-                throw new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request");
+                return FutureUtil.failedFuture(
+                        new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request"));
             }
-
-            Boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
-                    .allowTopicPolicyOperation(topicName, policy, operation, originalPrincipal(), clientAppId(),
-                            clientAuthData());
-
-            if (!isAuthorized) {
-                throw new RestException(Status.FORBIDDEN, String.format("Unauthorized to validateTopicPolicyOperation"
-                        + " for operation [%s] on topic [%s] on policy [%s]", operation.toString(),
-                        topicName, policy.toString()));
+            final CompletableFuture<Void> resultFuture = new CompletableFuture<>();
+            try {
+                pulsar().getBrokerService().getAuthorizationService()
+                        .allowTopicPolicyOperationAsync(topicName, policy, operation, originalPrincipal(),
+                                clientAppId(), clientAuthData())
+                        .thenAccept(isAuthorized -> {
+                            if (!isAuthorized) {
+                                RestException restException = new RestException(Status.FORBIDDEN, String.format(
+                                        "Unauthorized to validateTopicPolicyOperation for operation [%s] on topic [%s] "
+                                        + "on policy [%s]", operation.toString(), topicName, policy.toString()));
+                                resultFuture.completeExceptionally(restException);
+                            } else {
+                                resultFuture.complete(null);
+                            }
+                        }).exceptionally(e -> {
+                    resultFuture.completeExceptionally(e);
+                    return null;
+                });
+            } catch (Exception e) {
+                resultFuture.completeExceptionally(e);
+                return null;
             }
+            return resultFuture;
+        } else {
+            return CompletableFuture.completedFuture(null);
         }
     }
 
