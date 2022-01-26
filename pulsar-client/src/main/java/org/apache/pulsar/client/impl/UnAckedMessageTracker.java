@@ -18,17 +18,10 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkArgument;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import io.netty.util.concurrent.FastThreadLocal;
-
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.Closeable;
 import java.util.ArrayDeque;
 import java.util.Collections;
@@ -39,6 +32,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class UnAckedMessageTracker implements Closeable {
     private static final Logger log = LoggerFactory.getLogger(UnAckedMessageTracker.class);
@@ -49,9 +46,11 @@ public class UnAckedMessageTracker implements Closeable {
     protected final Lock readLock;
     protected final Lock writeLock;
 
-    public static final UnAckedMessageTrackerDisabled UNACKED_MESSAGE_TRACKER_DISABLED = new UnAckedMessageTrackerDisabled();
-    protected final long ackTimeoutMillis;
-    protected final long tickDurationInMs;
+
+    public static final UnAckedMessageTrackerDisabled UNACKED_MESSAGE_TRACKER_DISABLED =
+            new UnAckedMessageTrackerDisabled();
+    private final long ackTimeoutMillis;
+    private final long tickDurationInMs;
 
     private static class UnAckedMessageTrackerDisabled extends UnAckedMessageTracker {
         @Override
@@ -99,69 +98,84 @@ public class UnAckedMessageTracker implements Closeable {
         this.tickDurationInMs = 0;
     }
 
-    protected static final FastThreadLocal<HashSet<MessageId>> TL_MESSAGE_IDS_SET = new FastThreadLocal<HashSet<MessageId>>() {
-        @Override
-        protected HashSet<MessageId> initialValue() throws Exception {
-            return new HashSet<>();
-        }
-    };
 
-    public UnAckedMessageTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase,
-                                 ConsumerConfigurationData<?> conf) {
-        this.ackTimeoutMillis = conf.getAckTimeoutMillis();
-        this.tickDurationInMs = Math.min(conf.getTickDurationMillis(), conf.getAckTimeoutMillis());
-        Preconditions.checkArgument(tickDurationInMs > 0 && ackTimeoutMillis >= tickDurationInMs);
+    public UnAckedMessageTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase, long ackTimeoutMillis) {
+        this(client, consumerBase, ackTimeoutMillis, ackTimeoutMillis);
+    }
+
+    private static final FastThreadLocal<HashSet<MessageId>> TL_MESSAGE_IDS_SET =
+            new FastThreadLocal<HashSet<MessageId>>() {
+
+                @Override
+                protected HashSet<MessageId> initialValue() throws Exception {
+                    return new HashSet<>();
+                }
+            };
+
+
+    public UnAckedMessageTracker(PulsarClientImpl client,
+                                 ConsumerBase<?> consumerBase,
+                                 long ackTimeoutMillis,
+                                 long tickDurationInMs) {
+        checkArgument(tickDurationInMs > 0 && ackTimeoutMillis >= tickDurationInMs);
+        this.ackTimeoutMillis = ackTimeoutMillis;
+        this.tickDurationInMs = tickDurationInMs;
         ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
         this.readLock = readWriteLock.readLock();
         this.writeLock = readWriteLock.writeLock();
-        if(conf.getAckTimeoutRedeliveryBackoff() == null) {
-            this.messageIdPartitionMap = new ConcurrentHashMap<>();
-            this.timePartitions = new ArrayDeque<>();
+        this.messageIdPartitionMap = new ConcurrentHashMap<>();
+        this.timePartitions = new ArrayDeque<>();
 
-            int blankPartitions = (int) Math.ceil((double) this.ackTimeoutMillis / this.tickDurationInMs);
-            for (int i = 0; i < blankPartitions + 1; i++) {
-                timePartitions.add(new ConcurrentOpenHashSet<>(16, 1));
-            }
-            timeout = client.timer().newTimeout(new TimerTask() {
-                @Override
-                public void run(Timeout t) throws Exception {
-                    Set<MessageId> messageIds = TL_MESSAGE_IDS_SET.get();
-                    messageIds.clear();
-
-                    writeLock.lock();
-                    try {
-                        ConcurrentOpenHashSet<MessageId> headPartition = timePartitions.removeFirst();
-                        if (!headPartition.isEmpty()) {
-                            log.info("[{}] {} messages will be re-delivered", consumerBase, headPartition.size());
-                            headPartition.forEach(messageId -> {
-                                addChunkedMessageIdsAndRemoveFromSequenceMap(messageId, messageIds, consumerBase);
-                                messageIds.add(messageId);
-                                messageIdPartitionMap.remove(messageId);
-                            });
-                        }
-
-                        headPartition.clear();
-                        timePartitions.addLast(headPartition);
-                    } finally {
-                        writeLock.unlock();
-                        if (messageIds.size() > 0) {
-                            consumerBase.onAckTimeoutSend(messageIds);
-                            consumerBase.redeliverUnacknowledgedMessages(messageIds);
-                        }
-                        timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
-                    }
-                }
-            }, this.tickDurationInMs, TimeUnit.MILLISECONDS);
-        } else {
-            this.messageIdPartitionMap = null;
-            this.timePartitions = null;
+        int blankPartitions = (int) Math.ceil((double) this.ackTimeoutMillis / this.tickDurationInMs);
+        for (int i = 0; i < blankPartitions + 1; i++) {
+            timePartitions.add(new ConcurrentOpenHashSet<>(16, 1));
         }
+
+        int blankPartitions = (int) Math.ceil((double) this.ackTimeoutMillis / this.tickDurationInMs);
+        for (int i = 0; i < blankPartitions + 1; i++) {
+            timePartitions.add(new ConcurrentOpenHashSet<>(16, 1));
+        }
+        timeout = client.timer().newTimeout(new TimerTask() {
+            @Override
+            public void run(Timeout t) throws Exception {
+                Set<MessageId> messageIds = TL_MESSAGE_IDS_SET.get();
+                messageIds.clear();
+
+                writeLock.lock();
+                try {
+                    ConcurrentOpenHashSet<MessageId> headPartition = timePartitions.removeFirst();
+                    if (!headPartition.isEmpty()) {
+                        log.info("[{}] {} messages will be re-delivered", consumerBase, headPartition.size());
+                        headPartition.forEach(messageId -> {
+                            addChunkedMessageIdsAndRemoveFromSequenceMap(messageId, messageIds, consumerBase);
+                            messageIds.add(messageId);
+                            messageIdPartitionMap.remove(messageId);
+                        });
+                    }
+
+                    headPartition.clear();
+                    timePartitions.addLast(headPartition);
+                } finally {
+                    writeLock.unlock();
+                    if (messageIds.size() > 0) {
+                        consumerBase.onAckTimeoutSend(messageIds);
+                        consumerBase.redeliverUnacknowledgedMessages(messageIds);
+                    }
+                    timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
+                }
+            }
+        }, this.tickDurationInMs, TimeUnit.MILLISECONDS);
+    } else {
+        this.messageIdPartitionMap = null;
+        this.timePartitions = null;
     }
+}
 
     public static void addChunkedMessageIdsAndRemoveFromSequenceMap(MessageId messageId, Set<MessageId> messageIds,
                                                                     ConsumerBase<?> consumerBase) {
         if (messageId instanceof MessageIdImpl) {
-            MessageIdImpl[] chunkedMsgIds = consumerBase.unAckedChunkedMessageIdSequenceMap.get((MessageIdImpl) messageId);
+            MessageIdImpl[] chunkedMsgIds = consumerBase.unAckedChunkedMessageIdSequenceMap
+                    .get((MessageIdImpl) messageId);
             if (chunkedMsgIds != null && chunkedMsgIds.length > 0) {
                 Collections.addAll(messageIds, chunkedMsgIds);
             }
@@ -244,7 +258,7 @@ public class UnAckedMessageTracker implements Closeable {
                         exist.remove(messageId);
                     }
                     iterator.remove();
-                    removed ++;
+                    removed++;
                 }
             }
             return removed;
