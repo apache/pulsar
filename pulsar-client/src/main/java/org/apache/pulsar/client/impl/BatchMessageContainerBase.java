@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.client.impl;
 
-import org.apache.pulsar.client.api.BatchMessageContainer;
-import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
-
 import java.io.IOException;
 import java.util.List;
+import org.apache.pulsar.client.api.BatchMessageContainer;
+import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
 
 public interface BatchMessageContainerBase extends BatchMessageContainer {
 

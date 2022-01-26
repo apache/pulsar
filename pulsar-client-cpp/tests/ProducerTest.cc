@@ -26,6 +26,7 @@
 #include "lib/Utils.h"
 #include "lib/Latch.h"
 #include "lib/LogUtils.h"
+#include "lib/ProducerImpl.h"
 DECLARE_LOG_OBJECT()
 
 using namespace pulsar;
@@ -240,4 +241,12 @@ TEST(ProducerTest, testSendAsyncCloseAsyncConcurrentlyWithLazyProducers) {
         client.close();
         LOG_INFO("End of run " << run);
     }
+}
+
+TEST(ProducerTest, testGetNumOfChunks) {
+    ASSERT_EQ(ProducerImpl::getNumOfChunks(11, 5), 3);
+    ASSERT_EQ(ProducerImpl::getNumOfChunks(10, 5), 2);
+    ASSERT_EQ(ProducerImpl::getNumOfChunks(8, 5), 2);
+    ASSERT_EQ(ProducerImpl::getNumOfChunks(4, 5), 1);
+    ASSERT_EQ(ProducerImpl::getNumOfChunks(1, 0), 1);
 }

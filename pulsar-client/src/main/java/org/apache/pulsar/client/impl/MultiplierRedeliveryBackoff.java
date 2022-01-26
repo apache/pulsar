@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkArgument;
 import org.apache.pulsar.client.api.RedeliveryBackoff;
 
 /**
- * MultiplierRedeliveryBackoff
+ * MultiplierRedeliveryBackoff.
  */
 public class MultiplierRedeliveryBackoff implements RedeliveryBackoff {
 
@@ -86,9 +86,9 @@ public class MultiplierRedeliveryBackoff implements RedeliveryBackoff {
         }
 
         public MultiplierRedeliveryBackoff build() {
-            Preconditions.checkArgument(minDelayMs >= 0, "min delay time must be >= 0");
-            Preconditions.checkArgument(maxDelayMs >= minDelayMs, "maxDelayMs must be >= minDelayMs");
-            Preconditions.checkArgument(multiplier > 0, "multiplier must be > 0");
+            checkArgument(minDelayMs >= 0, "min delay time must be >= 0");
+            checkArgument(maxDelayMs >= minDelayMs, "maxDelayMs must be >= minDelayMs");
+            checkArgument(multiplier > 0, "multiplier must be > 0");
             return new MultiplierRedeliveryBackoff(minDelayMs, maxDelayMs, multiplier);
         }
     }

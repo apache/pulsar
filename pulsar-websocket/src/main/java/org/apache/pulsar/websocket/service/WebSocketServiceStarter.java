@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.websocket.admin.WebSocketWebResource.ADMIN_PATH_V1;
 import static org.apache.pulsar.websocket.admin.WebSocketWebResource.ADMIN_PATH_V2;
 import static org.apache.pulsar.websocket.admin.WebSocketWebResource.ATTRIBUTE_PROXY_SERVICE_NAME;
-
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
@@ -93,13 +92,19 @@ public class WebSocketServiceStarter {
         proxyServer.addWebSocketServlet(WebSocketReaderServlet.SERVLET_PATH, new WebSocketReaderServlet(service));
         proxyServer.addWebSocketServlet(WebSocketPingPongServlet.SERVLET_PATH, new WebSocketPingPongServlet(service));
 
-        proxyServer.addWebSocketServlet(WebSocketProducerServlet.SERVLET_PATH_V2, new WebSocketProducerServlet(service));
-        proxyServer.addWebSocketServlet(WebSocketConsumerServlet.SERVLET_PATH_V2, new WebSocketConsumerServlet(service));
-        proxyServer.addWebSocketServlet(WebSocketReaderServlet.SERVLET_PATH_V2, new WebSocketReaderServlet(service));
-        proxyServer.addWebSocketServlet(WebSocketPingPongServlet.SERVLET_PATH_V2, new WebSocketPingPongServlet(service));
+        proxyServer.addWebSocketServlet(WebSocketProducerServlet.SERVLET_PATH_V2,
+                new WebSocketProducerServlet(service));
+        proxyServer.addWebSocketServlet(WebSocketConsumerServlet.SERVLET_PATH_V2,
+                new WebSocketConsumerServlet(service));
+        proxyServer.addWebSocketServlet(WebSocketReaderServlet.SERVLET_PATH_V2,
+                new WebSocketReaderServlet(service));
+        proxyServer.addWebSocketServlet(WebSocketPingPongServlet.SERVLET_PATH_V2,
+                new WebSocketPingPongServlet(service));
 
-        proxyServer.addRestResources(ADMIN_PATH_V1, WebSocketProxyStatsV1.class.getPackage().getName(), ATTRIBUTE_PROXY_SERVICE_NAME, service);
-        proxyServer.addRestResources(ADMIN_PATH_V2, WebSocketProxyStatsV2.class.getPackage().getName(), ATTRIBUTE_PROXY_SERVICE_NAME, service);
+        proxyServer.addRestResources(ADMIN_PATH_V1, WebSocketProxyStatsV1.class.getPackage().getName(),
+                ATTRIBUTE_PROXY_SERVICE_NAME, service);
+        proxyServer.addRestResources(ADMIN_PATH_V2, WebSocketProxyStatsV2.class.getPackage().getName(),
+                ATTRIBUTE_PROXY_SERVICE_NAME, service);
         proxyServer.addRestResources("/", VipStatus.class.getPackage().getName(),
                 VipStatus.ATTRIBUTE_STATUS_FILE_PATH, service.getConfig().getStatusFilePath());
         proxyServer.start();

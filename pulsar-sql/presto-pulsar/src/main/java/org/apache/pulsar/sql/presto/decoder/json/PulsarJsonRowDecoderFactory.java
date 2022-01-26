@@ -25,7 +25,6 @@ import static io.prestosql.spi.type.TimeType.TIME;
 import static io.prestosql.spi.type.VarcharType.createUnboundedVarcharType;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
-
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
 import io.prestosql.decoder.DecoderColumnHandle;
@@ -99,7 +98,8 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
         try {
             columnMetadata = schema.getFields().stream()
                     .map(field ->
-                            new PulsarColumnMetadata(PulsarColumnMetadata.getColumnName(handleKeyValueType, field.name()), parseJsonPrestoType(field.name(), field.schema()),
+                            new PulsarColumnMetadata(PulsarColumnMetadata.getColumnName(handleKeyValueType,
+                                    field.name()), parseJsonPrestoType(field.name(), field.schema()),
                                     field.schema().toString(), null, false, false,
                                     handleKeyValueType, new PulsarColumnMetadata.DecoderExtraInfo(
                                     field.name(), null, null))

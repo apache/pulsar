@@ -240,7 +240,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         Producer<String> producer = pulsarClient
                 .newProducer(Schema.STRING).topic(topicName).enableBatching(false).producerName(producerName).create();
         waitCacheInit(topicName);
-        admin.topics().setDeduplicationSnapshotInterval(topicName, 3);
+        admin.topicPolicies().setDeduplicationSnapshotInterval(topicName, 3);
         admin.namespaces().setDeduplicationSnapshotInterval(myNamespace, 5);
 
         int msgNum = 10;
@@ -264,7 +264,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         assertEquals(position, markDeletedPosition);
 
         //remove topic-level policies, namespace-level should be used, interval becomes 5 seconds
-        admin.topics().removeDeduplicationSnapshotInterval(topicName);
+        admin.topicPolicies().removeDeduplicationSnapshotInterval(topicName);
         producer.newMessage().value("msg").send();
         //zk update time + 5 second interval time
         Awaitility.await()

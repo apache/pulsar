@@ -20,6 +20,9 @@ package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
@@ -31,12 +34,8 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.ExecutionException;
-
 /**
- * minimal abstract StructSchema
+ * minimal abstract StructSchema.
  */
 public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
 
@@ -100,7 +99,7 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
         try {
             SchemaInfo schemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion).get();
             if (schemaInfo == null) {
-                throw new SchemaSerializationException("Unknown version "+ BytesSchemaVersion.of(schemaVersion));
+                throw new SchemaSerializationException("Unknown version " + BytesSchemaVersion.of(schemaVersion));
             }
             return getAbstractStructSchemaAtVersion(schemaVersion, schemaInfo);
         } catch (ExecutionException err) {
@@ -161,9 +160,9 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
 
         @Override
         public String toString() {
-            return "VersionedSchema(type=" + schemaInfo.getType() +
-                    ",schemaVersion="+BytesSchemaVersion.of(schemaVersion) +
-                    ",name="+schemaInfo.getName()
+            return "VersionedSchema(type=" + schemaInfo.getType()
+                    + ",schemaVersion=" + BytesSchemaVersion.of(schemaVersion)
+                    + ",name=" + schemaInfo.getName()
                     + ")";
         }
     }

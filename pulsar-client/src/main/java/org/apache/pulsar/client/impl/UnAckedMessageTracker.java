@@ -18,17 +18,10 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkArgument;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import io.netty.util.concurrent.FastThreadLocal;
-
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.Closeable;
 import java.util.ArrayDeque;
 import java.util.Collections;
@@ -39,6 +32,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class UnAckedMessageTracker implements Closeable {
     private static final Logger log = LoggerFactory.getLogger(UnAckedMessageTracker.class);
@@ -49,7 +47,8 @@ public class UnAckedMessageTracker implements Closeable {
     protected final Lock readLock;
     protected final Lock writeLock;
 
-    public static final UnAckedMessageTrackerDisabled UNACKED_MESSAGE_TRACKER_DISABLED = new UnAckedMessageTrackerDisabled();
+    public static final UnAckedMessageTrackerDisabled UNACKED_MESSAGE_TRACKER_DISABLED =
+            new UnAckedMessageTrackerDisabled();
     protected final long ackTimeoutMillis;
     protected final long tickDurationInMs;
 
@@ -99,7 +98,8 @@ public class UnAckedMessageTracker implements Closeable {
         this.tickDurationInMs = 0;
     }
 
-    protected static final FastThreadLocal<HashSet<MessageId>> TL_MESSAGE_IDS_SET = new FastThreadLocal<HashSet<MessageId>>() {
+    protected static final FastThreadLocal<HashSet<MessageId>> TL_MESSAGE_IDS_SET =
+            new FastThreadLocal<HashSet<MessageId>>() {
         @Override
         protected HashSet<MessageId> initialValue() throws Exception {
             return new HashSet<>();
@@ -110,11 +110,11 @@ public class UnAckedMessageTracker implements Closeable {
                                  ConsumerConfigurationData<?> conf) {
         this.ackTimeoutMillis = conf.getAckTimeoutMillis();
         this.tickDurationInMs = Math.min(conf.getTickDurationMillis(), conf.getAckTimeoutMillis());
-        Preconditions.checkArgument(tickDurationInMs > 0 && ackTimeoutMillis >= tickDurationInMs);
+        checkArgument(tickDurationInMs > 0 && ackTimeoutMillis >= tickDurationInMs);
         ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
         this.readLock = readWriteLock.readLock();
         this.writeLock = readWriteLock.writeLock();
-        if(conf.getAckTimeoutRedeliveryBackoff() == null) {
+        if (conf.getAckTimeoutRedeliveryBackoff() == null) {
             this.messageIdPartitionMap = new ConcurrentHashMap<>();
             this.timePartitions = new ArrayDeque<>();
 
@@ -161,7 +161,8 @@ public class UnAckedMessageTracker implements Closeable {
     public static void addChunkedMessageIdsAndRemoveFromSequenceMap(MessageId messageId, Set<MessageId> messageIds,
                                                                     ConsumerBase<?> consumerBase) {
         if (messageId instanceof MessageIdImpl) {
-            MessageIdImpl[] chunkedMsgIds = consumerBase.unAckedChunkedMessageIdSequenceMap.get((MessageIdImpl) messageId);
+            MessageIdImpl[] chunkedMsgIds = consumerBase.unAckedChunkedMessageIdSequenceMap
+                    .get((MessageIdImpl) messageId);
             if (chunkedMsgIds != null && chunkedMsgIds.length > 0) {
                 Collections.addAll(messageIds, chunkedMsgIds);
             }
@@ -244,7 +245,7 @@ public class UnAckedMessageTracker implements Closeable {
                         exist.remove(messageId);
                     }
                     iterator.remove();
-                    removed ++;
+                    removed++;
                 }
             }
             return removed;

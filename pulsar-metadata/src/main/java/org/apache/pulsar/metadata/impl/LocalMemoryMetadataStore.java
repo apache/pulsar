@@ -23,6 +23,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -64,6 +65,9 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
 
     private static final Map<String, NavigableMap<String, Value>> STATIC_MAPS = new MapMaker()
             .weakValues().makeMap();
+    // Manage all instances to facilitate registration to the same listener
+    private static final Map<String, Set<AbstractMetadataStore>> STATIC_INSTANCE = new MapMaker()
+            .weakValues().makeMap();
     private static final Map<String, AtomicLong> STATIC_ID_GEN_MAP = new MapMaker()
             .weakValues().makeMap();
 
@@ -84,6 +88,17 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
             // Use a reference from a shared data set
             String name = uri.getHost();
             map = STATIC_MAPS.computeIfAbsent(name, __ -> new TreeMap<>());
+            STATIC_INSTANCE.compute(name, (key, value) -> {
+                if (value == null) {
+                    value = new HashSet<>();
+                }
+                value.forEach(v -> {
+                    registerListener(v);
+                    v.registerListener(this);
+                });
+                value.add(this);
+                return value;
+            });
             sequentialIdGenerator = STATIC_ID_GEN_MAP.computeIfAbsent(name, __ -> new AtomicLong());
             log.info("Created LocalMemoryDataStore for '{}'", name);
         }
@@ -153,21 +168,24 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
 
             long now = System.currentTimeMillis();
 
+            CompletableFuture<Stat> future = new CompletableFuture<>();
             if (hasVersion && expectedVersion == -1) {
                 Value newValue = new Value(0, data, now, now, options.contains(CreateOption.Ephemeral));
                 Value existingValue = map.putIfAbsent(path, newValue);
                 if (existingValue != null) {
-                    return FutureUtils.exception(new BadVersionException(""));
+                    execute(() -> future.completeExceptionally(new BadVersionException("")), future);
                 } else {
                     receivedNotification(new Notification(NotificationType.Created, path));
                     notifyParentChildrenChanged(path);
-                    return FutureUtils.value(new Stat(path, 0, now, now, newValue.isEphemeral(), true));
+                    String finalPath = path;
+                    execute(() -> future.complete(new Stat(finalPath, 0, now, now, newValue.isEphemeral(),
+                            true)), future);
                 }
             } else {
                 Value existingValue = map.get(path);
                 long existingVersion = existingValue != null ? existingValue.version : -1;
                 if (hasVersion && expectedVersion != existingVersion) {
-                    return FutureUtils.exception(new BadVersionException(""));
+                    execute(() -> future.completeExceptionally(new BadVersionException("")), future);
                 } else {
                     long newVersion = existingValue != null ? existingValue.version + 1 : 0;
                     long createdTimestamp = existingValue != null ? existingValue.createdTimestamp : now;
@@ -181,12 +199,13 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
                     if (type == NotificationType.Created) {
                         notifyParentChildrenChanged(path);
                     }
-                    return FutureUtils
-                            .value(new Stat(path, newValue.version, newValue.createdTimestamp,
-                                    newValue.modifiedTimestamp,
-                                    false, true));
+                    String finalPath = path;
+                    execute(() -> future.complete(new Stat(finalPath, newValue.version, newValue.createdTimestamp,
+                            newValue.modifiedTimestamp,
+                            false, true)), future);
                 }
             }
+            return future;
         }
     }
 
@@ -196,18 +215,20 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
         synchronized (map) {
+            CompletableFuture<Void> future = new CompletableFuture<>();
             Value value = map.get(path);
             if (value == null) {
-                return FutureUtils.exception(new NotFoundException(""));
+                execute(() -> future.completeExceptionally(new NotFoundException("")), future);
             } else if (optExpectedVersion.isPresent() && optExpectedVersion.get() != value.version) {
-                return FutureUtils.exception(new BadVersionException(""));
+                execute(() -> future.completeExceptionally(new BadVersionException("")), future);
             } else {
                 map.remove(path);
                 receivedNotification(new Notification(NotificationType.Deleted, path));
 
                 notifyParentChildrenChanged(path);
-                return FutureUtils.value(null);
+                execute(() -> future.complete(null), future);
             }
+            return future;
         }
     }
 }

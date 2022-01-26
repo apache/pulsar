@@ -104,7 +104,8 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
     // Map of key name and encrypted gcm key, metadata pair which is sent with encrypted message
     private ConcurrentHashMap<String, EncryptionKeyInfo> encryptedDataKeyMap;
 
-    static final SecureRandom SECURERANDOM;
+
+    private static final SecureRandom secureRandom;
     static {
         SecureRandom rand = null;
         try {
@@ -113,10 +114,10 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             rand = new SecureRandom();
         }
 
-        SECURERANDOM = rand;
+        secureRandom = rand;
 
         // Initial seed
-        SECURERANDOM.nextBytes(new byte[IV_LEN]);
+        secureRandom.nextBytes(new byte[IV_LEN]);
 
         // Add provider only if it's not in the JVM
         if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
@@ -152,12 +153,12 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             keyGenerator = KeyGenerator.getInstance("AES");
             int aesKeyLength = Cipher.getMaxAllowedKeyLength("AES");
             if (aesKeyLength <= 128) {
-                log.warn(
-                        "{} AES Cryptographic strength is limited to {} bits. Consider installing JCE Unlimited S"
-                                + "trength Jurisdiction Policy Files.", logCtx, aesKeyLength);
-                keyGenerator.init(aesKeyLength, SECURERANDOM);
+                log.warn("{} AES Cryptographic strength is limited to {} bits. "
+                        + "Consider installing JCE Unlimited Strength Jurisdiction Policy Files.",
+                        logCtx, aesKeyLength);
+                keyGenerator.init(aesKeyLength, secureRandom);
             } else {
-                keyGenerator.init(256, SECURERANDOM);
+                keyGenerator.init(256, secureRandom);
             }
 
         } catch (NoSuchAlgorithmException | NoSuchProviderException | NoSuchPaddingException e) {
@@ -418,7 +419,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
 
         // Create gcm param
         // TODO: Replace random with counter and periodic refreshing based on timer/counter value
-        SECURERANDOM.nextBytes(iv);
+        secureRandom.nextBytes(iv);
         GCMParameterSpec gcmParam = new GCMParameterSpec(tagLen, iv);
 
         // Update message metadata with encryption param

@@ -65,8 +65,8 @@ public class MemoryLimitController {
 
     public void releaseMemory(long size) {
         long newUsage = currentUsage.addAndGet(-size);
-        if (newUsage + size > memoryLimit &&
-                newUsage <= memoryLimit) {
+        if (newUsage + size > memoryLimit
+                && newUsage <= memoryLimit) {
             // We just crossed the limit. Now we have more space
             mutex.lock();
             try {
