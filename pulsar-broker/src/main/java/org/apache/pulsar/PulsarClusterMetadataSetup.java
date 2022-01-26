@@ -234,7 +234,8 @@ public class PulsarClusterMetadataSetup {
             ServerConfiguration bkConf = new ServerConfiguration();
             bkConf.setMetadataServiceUri("metadata-store:zk:" + arguments.zookeeper);
             bkConf.setZkTimeout(arguments.zkSessionTimeoutMillis);
-            if (!localStore.exists(BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH).get() // only format if /ledgers doesn't exist
+            // only format if /ledgers doesn't exist
+            if (!localStore.exists(BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH).get()
                 && !BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
                 throw new IOException("Failed to initialize BookKeeper metadata");
             }
