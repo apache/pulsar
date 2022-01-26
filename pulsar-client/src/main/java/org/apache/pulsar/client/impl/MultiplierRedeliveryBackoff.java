@@ -28,15 +28,14 @@ public class MultiplierRedeliveryBackoff implements RedeliveryBackoff {
 
     private final long minDelayMs;
     private final long maxDelayMs;
-    private final int multiplier;
+    private final double multiplier;
     private final int maxMultiplierPow;
 
-    private MultiplierRedeliveryBackoff(long minDelayMs, long maxDelayMs, int multiplier) {
+    private MultiplierRedeliveryBackoff(long minDelayMs, long maxDelayMs, double multiplier) {
         this.minDelayMs = minDelayMs;
         this.maxDelayMs = maxDelayMs;
         this.multiplier = multiplier;
-        maxMultiplierPow = multiplier == 1 ? -1 :
-                (int) (Math.log((double) maxDelayMs / minDelayMs) / Math.log(multiplier)) + 1;
+        maxMultiplierPow = (int) (Math.log((double) maxDelayMs / minDelayMs) / Math.log(multiplier)) + 1;
     }
 
     public static MultiplierRedeliveryBackoff.MultiplierRedeliveryBackoffBuilder builder() {
@@ -56,10 +55,10 @@ public class MultiplierRedeliveryBackoff implements RedeliveryBackoff {
         if (redeliveryCount <= 0 || minDelayMs <= 0) {
             return this.minDelayMs;
         }
-        if (maxMultiplierPow != -1 && redeliveryCount > maxMultiplierPow) {
+        if (redeliveryCount > maxMultiplierPow) {
             return this.maxDelayMs;
         }
-        return Math.min(minDelayMs * (int) Math.pow(multiplier, redeliveryCount), this.maxDelayMs);
+        return Math.min((long) (minDelayMs * Math.pow(multiplier, redeliveryCount)), this.maxDelayMs);
     }
 
     /**
@@ -68,7 +67,7 @@ public class MultiplierRedeliveryBackoff implements RedeliveryBackoff {
     public static class MultiplierRedeliveryBackoffBuilder {
         private long minDelayMs = 1000 * 10;
         private long maxDelayMs = 1000 * 60 * 10;
-        private int multiplier = 2;
+        private double multiplier = 2.0;
 
         public MultiplierRedeliveryBackoffBuilder minDelayMs(long minDelayMs) {
             this.minDelayMs = minDelayMs;
@@ -80,7 +79,7 @@ public class MultiplierRedeliveryBackoff implements RedeliveryBackoff {
             return this;
         }
 
-        public MultiplierRedeliveryBackoffBuilder multiplier(int multiplier) {
+        public MultiplierRedeliveryBackoffBuilder multiplier(double multiplier) {
             this.multiplier = multiplier;
             return this;
         }
@@ -88,7 +87,7 @@ public class MultiplierRedeliveryBackoff implements RedeliveryBackoff {
         public MultiplierRedeliveryBackoff build() {
             checkArgument(minDelayMs >= 0, "min delay time must be >= 0");
             checkArgument(maxDelayMs >= minDelayMs, "maxDelayMs must be >= minDelayMs");
-            checkArgument(multiplier > 0, "multiplier must be > 0");
+            checkArgument(multiplier > 1, "multiplier must be > 1");
             return new MultiplierRedeliveryBackoff(minDelayMs, maxDelayMs, multiplier);
         }
     }
