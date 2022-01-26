@@ -22,13 +22,11 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
-
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
-
-import lombok.Getter;
-import lombok.Setter;
 
 @Getter
 @Setter
@@ -67,8 +65,12 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     )
     private String globalZookeeperServers;
 
+    @Deprecated
     @FieldContext(doc = "Connection string of configuration store servers")
     private String configurationStoreServers;
+
+    @FieldContext(doc = "Connection string of configuration metadata store servers")
+    private String configurationMetadataStoreUrl;
 
     @FieldContext(doc = "ZooKeeper session timeout in milliseconds")
     private long zooKeeperSessionTimeoutMillis = 30000;
@@ -133,7 +135,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "When this parameter is not empty, unauthenticated users perform as anonymousUserRole")
     private String anonymousUserRole = null;
 
-    /***** --- TLS --- ****/
+    /* --- TLS --- */
     @Deprecated
     private boolean tlsEnabled = false;
 

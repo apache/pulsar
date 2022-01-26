@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.base.Preconditions;
-import net.jcip.annotations.NotThreadSafe;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.Messages;
-
+import static com.google.common.base.Preconditions.checkArgument;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import net.jcip.annotations.NotThreadSafe;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Messages;
 
 @NotThreadSafe
 public class MessagesImpl<T> implements Messages<T> {
@@ -60,8 +59,8 @@ public class MessagesImpl<T> implements Messages<T> {
         if (message == null) {
             return;
         }
-        Preconditions.checkArgument(canAdd(message), "No more space to add messages.");
-        currentNumberOfMessages ++;
+        checkArgument(canAdd(message), "No more space to add messages.");
+        currentNumberOfMessages++;
         currentSizeOfMessages += message.size();
         messageList.add(message);
     }

@@ -20,11 +20,11 @@ package org.apache.pulsar.client.impl;
 
 import java.util.Map;
 import org.apache.pulsar.client.impl.conf.DefaultCryptoKeyReaderConfigurationData;
- 
+
 public class DefaultCryptoKeyReaderBuilder implements Cloneable {
 
     private DefaultCryptoKeyReaderConfigurationData conf;
- 
+
     DefaultCryptoKeyReaderBuilder() {
         this(new DefaultCryptoKeyReaderConfigurationData());
     }

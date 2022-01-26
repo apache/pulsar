@@ -235,4 +235,50 @@ public class FileListingThreadTests extends AbstractFileTests {
             cleanUp();
         }
     }
+
+    @Test
+    public final void processedFileFilterTest() throws IOException {
+
+        String processedFileSuffix = ".file_process_done";
+        Map<String, Object> map = new HashMap<String, Object> ();
+        map.put("inputDirectory", directory.toString());
+        map.put("keepFile", Boolean.FALSE);
+        map.put("processedFileSuffix", processedFileSuffix);
+
+        try {
+            generateFiles(5, 1, directory.toString(), ".txt");
+            generateFiles(1, 1, directory.toString(), processedFileSuffix);
+            listingThread = new FileListingThread(FileSourceConfig.load(map), workQueue, inProcess, recentlyProcessed);
+            executor.execute(listingThread);
+            Thread.sleep(2000);
+            verify(workQueue, times(5)).offer(any(File.class));
+        } catch (InterruptedException | ExecutionException e) {
+            fail("Unable to generate files" + e.getLocalizedMessage());
+        } finally {
+            cleanUp();
+        }
+    }
+
+    @Test
+    public final void processedFileFilterTest2() throws IOException {
+
+        String processedFileSuffix = ".file_process_done";
+        Map<String, Object> map = new HashMap<String, Object> ();
+        map.put("inputDirectory", directory.toString());
+        map.put("keepFile", Boolean.TRUE);
+        map.put("processedFileSuffix", processedFileSuffix);
+
+        try {
+            generateFiles(5, 1, directory.toString(), ".txt");
+            generateFiles(1, 1, directory.toString(), processedFileSuffix);
+            listingThread = new FileListingThread(FileSourceConfig.load(map), workQueue, inProcess, recentlyProcessed);
+            executor.execute(listingThread);
+            Thread.sleep(2000);
+            verify(workQueue, times(6)).offer(any(File.class));
+        } catch (InterruptedException | ExecutionException e) {
+            fail("Unable to generate files" + e.getLocalizedMessage());
+        } finally {
+            cleanUp();
+        }
+    }
 }
