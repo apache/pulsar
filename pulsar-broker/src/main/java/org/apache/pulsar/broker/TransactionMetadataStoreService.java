@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -84,6 +85,7 @@ public class TransactionMetadataStoreService {
     // one connect request open the transactionMetaStore the other request will add to the queue, when the open op
     // finished the request will be poll and complete the future
     private final ConcurrentLongHashMap<ConcurrentLinkedDeque<CompletableFuture<Void>>> pendingConnectRequests;
+    private final ExecutorService internalPinnedExecutor;
 
     private static final long HANDLE_PENDING_CONNECT_TIME_OUT = 30000L;
 
@@ -98,6 +100,7 @@ public class TransactionMetadataStoreService {
         this.transactionOpRetryTimer = timer;
         this.tcLoadSemaphores = new ConcurrentLongHashMap<>();
         this.pendingConnectRequests = new ConcurrentLongHashMap<>();
+        this.internalPinnedExecutor = pulsarService.getTransactionReplayExecutor();
     }
 
     @Deprecated
@@ -152,80 +155,85 @@ public class TransactionMetadataStoreService {
     }
 
     public CompletableFuture<Void> handleTcClientConnect(TransactionCoordinatorID tcId) {
-        if (stores.get(tcId) != null) {
-            return CompletableFuture.completedFuture(null);
-        } else {
-            return pulsarService.getBrokerService().checkTopicNsOwnership(TopicName
-                    .TRANSACTION_COORDINATOR_ASSIGN.getPartition((int) tcId.getId()).toString()).thenCompose(v -> {
-                        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-                final Semaphore tcLoadSemaphore = this.tcLoadSemaphores
-                        .computeIfAbsent(tcId.getId(), (id) -> new Semaphore(1));
-                Deque<CompletableFuture<Void>> deque = pendingConnectRequests
-                        .computeIfAbsent(tcId.getId(), (id) -> new ConcurrentLinkedDeque<>());
-                if (tcLoadSemaphore.tryAcquire()) {
-                    // when tcLoadSemaphore.release(), this command will acquire semaphore, so we should jude the store
-                    // exist again.
-                    if (stores.get(tcId) != null) {
-                        return CompletableFuture.completedFuture(null);
-                    }
-
-                    openTransactionMetadataStore(tcId).thenAccept((store) -> {
-                        stores.put(tcId, store);
-                        LOG.info("Added new transaction meta store {}", tcId);
-                        long endTime = System.currentTimeMillis() + HANDLE_PENDING_CONNECT_TIME_OUT;
-                        while (true) {
-                            // prevent thread in a busy loop.
-                            if (System.currentTimeMillis() < endTime) {
-                                CompletableFuture<Void> future = deque.poll();
-                                if (future != null) {
-                                    // complete queue request future
-                                    future.complete(null);
-                                } else {
-                                    break;
-                                }
-                            } else {
-                                deque.clear();
-                                break;
-                            }
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        internalPinnedExecutor.execute(() -> {
+            if (stores.get(tcId) != null) {
+                completableFuture.complete(null);
+            } else {
+                pulsarService.getBrokerService().checkTopicNsOwnership(TopicName
+                        .TRANSACTION_COORDINATOR_ASSIGN.getPartition((int) tcId.getId()).toString())
+                        .thenRun(() -> internalPinnedExecutor.execute(() -> {
+                    final Semaphore tcLoadSemaphore = this.tcLoadSemaphores
+                            .computeIfAbsent(tcId.getId(), (id) -> new Semaphore(1));
+                    Deque<CompletableFuture<Void>> deque = pendingConnectRequests
+                            .computeIfAbsent(tcId.getId(), (id) -> new ConcurrentLinkedDeque<>());
+                    if (tcLoadSemaphore.tryAcquire()) {
+                        // when tcLoadSemaphore.release(), this command will acquire semaphore, so we should jude the store
+                        // exist again.
+                        if (stores.get(tcId) != null) {
+                            completableFuture.complete(null);
                         }
 
-                        completableFuture.complete(null);
-                        tcLoadSemaphore.release();
-                    }).exceptionally(e -> {
-                        completableFuture.completeExceptionally(e.getCause());
-                        // release before handle request queue, in order to client reconnect infinite loop
-                        tcLoadSemaphore.release();
-                        long endTime = System.currentTimeMillis() + HANDLE_PENDING_CONNECT_TIME_OUT;
-                        while (true) {
-                            // prevent thread in a busy loop.
-                            if (System.currentTimeMillis() < endTime) {
-                                CompletableFuture<Void> future = deque.poll();
-                                if (future != null) {
-                                    // this means that this tc client connection connect fail
-                                    future.completeExceptionally(e);
+                        openTransactionMetadataStore(tcId).thenAccept((store) -> internalPinnedExecutor.execute(() -> {
+                            stores.put(tcId, store);
+                            LOG.info("Added new transaction meta store {}", tcId);
+                            long endTime = System.currentTimeMillis() + HANDLE_PENDING_CONNECT_TIME_OUT;
+                            while (true) {
+                                // prevent thread in a busy loop.
+                                if (System.currentTimeMillis() < endTime) {
+                                    CompletableFuture<Void> future = deque.poll();
+                                    if (future != null) {
+                                        // complete queue request future
+                                        future.complete(null);
+                                    } else {
+                                        break;
+                                    }
                                 } else {
+                                    deque.clear();
                                     break;
                                 }
-                            } else {
-                                deque.clear();
-                                break;
                             }
+
+                            completableFuture.complete(null);
+                            tcLoadSemaphore.release();
+                        })).exceptionally(e -> { internalPinnedExecutor.execute(() -> {
+                                        completableFuture.completeExceptionally(e.getCause());
+                                        // release before handle request queue,
+                                        //in order to client reconnect infinite loop
+                                        tcLoadSemaphore.release();
+                                        long endTime = System.currentTimeMillis() + HANDLE_PENDING_CONNECT_TIME_OUT;
+                                        while (true) {
+                                            // prevent thread in a busy loop.
+                                            if (System.currentTimeMillis() < endTime) {
+                                                CompletableFuture<Void> future = deque.poll();
+                                                if (future != null) {
+                                                    // this means that this tc client connection connect fail
+                                                    future.completeExceptionally(e);
+                                                } else {
+                                                    break;
+                                                }
+                                            } else {
+                                                deque.clear();
+                                                break;
+                                            }
+                                        }
+                                        LOG.error("Add transaction metadata store with id {} error", tcId.getId(), e);;
+                                    });
+                                    return null;
+                                });
+                    } else {
+                        // only one command can open transaction metadata store,
+                        // other will be added to the deque, when the op of openTransactionMetadataStore finished
+                        // then handle the requests witch in the queue
+                        deque.add(completableFuture);
+                        if (LOG.isDebugEnabled()) {
+                            LOG.debug("Handle tc client connect added into pending queue! tcId : {}", tcId.toString());
                         }
-                        LOG.error("Add transaction metadata store with id {} error", tcId.getId(), e);
-                        return null;
-                    });
-                } else {
-                    // only one command can open transaction metadata store,
-                    // other will be added to the deque, when the op of openTransactionMetadataStore finished
-                    // then handle the requests witch in the queue
-                    deque.add(completableFuture);
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("Handle tc client connect added into pending queue! tcId : {}", tcId.toString());
                     }
-                }
-                return completableFuture;
-            });
-        }
+                }));
+            }
+        });
+        return completableFuture;
     }
 
     public CompletableFuture<TransactionMetadataStore> openTransactionMetadataStore(TransactionCoordinatorID tcId) {
