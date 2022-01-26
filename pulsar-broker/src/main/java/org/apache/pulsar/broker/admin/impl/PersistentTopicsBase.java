@@ -1875,7 +1875,7 @@ public class PersistentTopicsBase extends AdminResource {
             // validate ownership and redirect if current broker is not owner
             validateTopicOperationAsync(topicName, TopicOperation.EXPIRE_MESSAGES)
                 .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
-                .thenAccept(__ -> getTopicReferenceAsync(topicName).thenAccept(t -> {
+                .thenCompose(__ -> getTopicReferenceAsync(topicName).thenAccept(t -> {
                     if (t == null) {
                         resumeAsyncResponseExceptionally(asyncResponse, new RestException(Status.NOT_FOUND,
                                 "Topic not found"));
@@ -3450,7 +3450,7 @@ public class PersistentTopicsBase extends AdminResource {
             try {
                 validateTopicOperationAsync(topicName, TopicOperation.EXPIRE_MESSAGES)
                     .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
-                    .thenAccept(__ -> getTopicReferenceAsync(topicName).thenAccept(t -> {
+                    .thenCompose(__ -> getTopicReferenceAsync(topicName).thenAccept(t -> {
                         if (t == null) {
                             resultFuture.completeExceptionally(new RestException(Status.NOT_FOUND, "Topic not found"));
                             return;
@@ -3494,9 +3494,6 @@ public class PersistentTopicsBase extends AdminResource {
                                 ));
                                 return;
                             }
-                        } catch (NullPointerException npe) {
-                            resultFuture.completeExceptionally(new RestException(Status.NOT_FOUND, "Subscription not "
-                                    + "found"));
                         } catch (Exception exception) {
                             resultFuture.completeExceptionally(exception);
                         }
