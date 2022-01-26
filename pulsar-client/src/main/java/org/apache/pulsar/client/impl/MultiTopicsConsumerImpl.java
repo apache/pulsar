@@ -152,13 +152,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         this.paused = conf.isStartPaused();
 
         if (conf.getAckTimeoutMillis() != 0) {
-
-            if (conf.getTickDurationMillis() > 0) {
-                this.unAckedMessageTracker = new UnAckedTopicMessageTracker(
-                        client, this, conf.getAckTimeoutMillis(), conf.getTickDurationMillis());
+            if (conf.getAckTimeoutRedeliveryBackoff() != null) {
+                this.unAckedMessageTracker = new UnAckedTopicMessageRedeliveryTracker(client, this, conf);
             } else {
-                this.unAckedMessageTracker = new UnAckedTopicMessageTracker(
-                        client, this, conf.getAckTimeoutMillis());
+                this.unAckedMessageTracker = new UnAckedTopicMessageTracker(client, this, conf);
             }
         } else {
             this.unAckedMessageTracker = UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED;

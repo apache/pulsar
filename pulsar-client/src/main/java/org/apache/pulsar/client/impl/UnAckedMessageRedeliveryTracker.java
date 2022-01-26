@@ -21,11 +21,11 @@ package org.apache.pulsar.client.impl;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import java.util.ArrayDeque;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RedeliveryBackoff;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -114,7 +114,7 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
                 log.info("[{}] {} messages will be re-delivered", consumerBase, messageIds.size());
                 Iterator<MessageId> iterator = messageIds.iterator();
                 while (iterator.hasNext()) {
-                    MessageId messageId= iterator.next();
+                    MessageId messageId = iterator.next();
                     ackTimeoutMessages.remove(messageId);
                 }
             }
@@ -182,7 +182,8 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
         UnackMessageIdWrapper messageIdWrapper = UnackMessageIdWrapper.valueOf(messageId);
         try {
             boolean removed = false;
-            ConcurrentOpenHashSet<UnackMessageIdWrapper> exist = redeliveryMessageIdPartitionMap.remove(messageIdWrapper);
+            ConcurrentOpenHashSet<UnackMessageIdWrapper> exist =
+                    redeliveryMessageIdPartitionMap.remove(messageIdWrapper);
             if (exist != null) {
                 removed = exist.remove(messageIdWrapper);
             }
@@ -213,7 +214,8 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
                 UnackMessageIdWrapper messageIdWrapper = iterator.next();
                 MessageId messageId = messageIdWrapper.getMessageId();
                 if (messageId.compareTo(msgId) <= 0) {
-                    ConcurrentOpenHashSet<UnackMessageIdWrapper> exist = redeliveryMessageIdPartitionMap.get(messageIdWrapper);
+                    ConcurrentOpenHashSet<UnackMessageIdWrapper> exist =
+                            redeliveryMessageIdPartitionMap.get(messageIdWrapper);
                     if (exist != null) {
                         exist.remove(messageIdWrapper);
                     }

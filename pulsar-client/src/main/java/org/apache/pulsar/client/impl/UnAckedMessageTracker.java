@@ -33,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,8 +49,8 @@ public class UnAckedMessageTracker implements Closeable {
 
     public static final UnAckedMessageTrackerDisabled UNACKED_MESSAGE_TRACKER_DISABLED =
             new UnAckedMessageTrackerDisabled();
-    private final long ackTimeoutMillis;
-    private final long tickDurationInMs;
+    protected final long ackTimeoutMillis;
+    protected final long tickDurationInMs;
 
     private static class UnAckedMessageTrackerDisabled extends UnAckedMessageTracker {
         @Override
@@ -97,12 +98,7 @@ public class UnAckedMessageTracker implements Closeable {
         this.tickDurationInMs = 0;
     }
 
-
-    public UnAckedMessageTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase, long ackTimeoutMillis) {
-        this(client, consumerBase, ackTimeoutMillis, ackTimeoutMillis);
-    }
-
-    private static final FastThreadLocal<HashSet<MessageId>> TL_MESSAGE_IDS_SET =
+    protected static final FastThreadLocal<HashSet<MessageId>> TL_MESSAGE_IDS_SET =
             new FastThreadLocal<HashSet<MessageId>>() {
         @Override
         protected HashSet<MessageId> initialValue() throws Exception {
@@ -110,23 +106,17 @@ public class UnAckedMessageTracker implements Closeable {
         }
     };
 
-    public UnAckedMessageTracker(PulsarClientImpl client,
-                                 ConsumerBase<?> consumerBase,
-                                 long ackTimeoutMillis,
-                                 long tickDurationInMs) {
+    public UnAckedMessageTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase,
+                                 ConsumerConfigurationData<?> conf) {
+        this.ackTimeoutMillis = conf.getAckTimeoutMillis();
+        this.tickDurationInMs = Math.min(conf.getTickDurationMillis(), conf.getAckTimeoutMillis());
         checkArgument(tickDurationInMs > 0 && ackTimeoutMillis >= tickDurationInMs);
-        this.ackTimeoutMillis = ackTimeoutMillis;
-        this.tickDurationInMs = tickDurationInMs;
         ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
         this.readLock = readWriteLock.readLock();
         this.writeLock = readWriteLock.writeLock();
-        this.messageIdPartitionMap = new ConcurrentHashMap<>();
-        this.timePartitions = new ArrayDeque<>();
-
-        int blankPartitions = (int) Math.ceil((double) this.ackTimeoutMillis / this.tickDurationInMs);
-        for (int i = 0; i < blankPartitions + 1; i++) {
-            timePartitions.add(new ConcurrentOpenHashSet<>(16, 1));
-        }
+        if (conf.getAckTimeoutRedeliveryBackoff() == null) {
+            this.messageIdPartitionMap = new ConcurrentHashMap<>();
+            this.timePartitions = new ArrayDeque<>();
 
             int blankPartitions = (int) Math.ceil((double) this.ackTimeoutMillis / this.tickDurationInMs);
             for (int i = 0; i < blankPartitions + 1; i++) {

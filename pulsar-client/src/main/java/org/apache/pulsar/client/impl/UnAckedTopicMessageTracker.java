@@ -25,13 +25,9 @@ import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 
 public class UnAckedTopicMessageTracker extends UnAckedMessageTracker {
 
-    public UnAckedTopicMessageTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase, long ackTimeoutMillis) {
-        super(client, consumerBase, ackTimeoutMillis);
-    }
-
-    public UnAckedTopicMessageTracker(
-            PulsarClientImpl client, ConsumerBase<?> consumerBase, long ackTimeoutMillis, long tickDurationMillis) {
-        super(client, consumerBase, ackTimeoutMillis, tickDurationMillis);
+    public UnAckedTopicMessageTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase,
+                                      ConsumerConfigurationData<?> conf) {
+        super(client, consumerBase, conf);
     }
 
     public int removeTopicMessages(String topicName) {
