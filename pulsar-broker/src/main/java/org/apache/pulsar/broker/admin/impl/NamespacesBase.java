@@ -1801,14 +1801,14 @@ public abstract class NamespacesBase extends AdminResource {
                                                 clientAppId(), fieldName,
                                                 namespaceName, jsonMapper().writeValueAsString(value));
                                     } catch (JsonProcessingException ex) {
-                                        log.error("[{}] Failed to serialize value while update {} configuration" +
-                                                    " for namespace {}", clientAppId(), fieldName , namespaceName, ex);
+                                        log.error("[{}] Failed to serialize value while update {} configuration"
+                                                + " for namespace {}", clientAppId(), fieldName , namespaceName, ex);
                                         throw new RestException(ex);
                                     }
                                 });
                     } catch (Exception ex) {
-                        log.error("[{}] Failed to reflect invoke field set while update {} configuration for " +
-                                        "namespace {}", clientAppId(), fieldName
+                        log.error("[{}] Failed to reflect invoke field set while update {} configuration for "
+                                        + "namespace {}", clientAppId(), fieldName
                                 , namespaceName, ex);
                         return FutureUtil.failedFuture(new RestException(ex));
                     }
@@ -2774,7 +2774,7 @@ public abstract class NamespacesBase extends AdminResource {
                         return resourceGroupResources().getResourceGroupAsync(rgName)
                                 .thenAccept(resourceGroup -> {
                                     // check resource group exists.
-                                    if(!resourceGroup.isPresent()) {
+                                    if (!resourceGroup.isPresent()) {
                                         throw new RestException(Status.PRECONDITION_FAILED,
                                                 "ResourceGroup does not exist");
                                     }
