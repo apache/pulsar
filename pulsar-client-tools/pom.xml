@@ -110,6 +110,7 @@
         <executions>
           <execution>
             <id>modernizer</id>
+            <phase>verify</phase>
             <goals>
               <goal>modernizer</goal>
             </goals>
@@ -133,6 +134,20 @@
                 <copy file="${basedir}/pom.xml" tofile="${basedir}/src/test/resources/dummy.nar"/>
               </target>
             </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>checkstyle</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
           </execution>
         </executions>
       </plugin>

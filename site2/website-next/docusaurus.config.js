@@ -1,5 +1,5 @@
-const lightCodeTheme = require("prism-react-renderer/themes/github");
-const darkCodeTheme = require("prism-react-renderer/themes/dracula");
+// const lightCodeTheme = require("prism-react-renderer/themes/github");
+// const darkCodeTheme = require("prism-react-renderer/themes/dracula");
 
 const linkifyRegex = require("./plugins/remark-linkify-regex");
 
@@ -329,4 +329,8 @@ module.exports = {
     ],
     "./postcss-tailwind-loader",
   ],
+  // clientModules: [
+  //   require.resolve("./mySiteGlobalJs.js"),
+  //   require.resolve("./mySiteGlobalCss.css"),
+  // ],
 };

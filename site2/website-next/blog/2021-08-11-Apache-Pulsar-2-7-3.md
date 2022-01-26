@@ -7,8 +7,6 @@ title: Apache Pulsar 2.7.3
 
 The Apache Pulsar community releases version 2.7.3! 34 contributors provided improvements and bug fixes that delivered 79 commits.
 
-<!--truncate-->
-
 ## Highlights
 
 - Cursor reads adhere to the dispatch byte rate limiter setting and no longer cause unexpected results. [PR-11249](https://github.com/apache/pulsar/pull/11249)
@@ -138,5 +136,4 @@ If you are interested in learning more about Pulsar 2.7.3, you can [download 2.7
 The first-ever Pulsar Virtual Summit Europe 2021 will take place in October. [Register now](https://hopin.com/events/pulsar-summit-europe-2021) and help us make it an even bigger success by spreading the word on social!
 
 For more information about the Apache Pulsar project and the progress, visit
-the [Pulsar website](https://pulsar.apache.org), follow the project on Twitter
-[@apache_pulsar](https://twitter.com/apache_pulsar), and join [Pulsar Slack](https://apache-pulsar.herokuapp.com/)!
+the [Pulsar website](https://pulsar.apache.org), follow the project on Twitter [@apache_pulsar](https://twitter.com/apache_pulsar), and join [Pulsar Slack](https://apache-pulsar.herokuapp.com/)!

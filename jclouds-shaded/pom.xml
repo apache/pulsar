@@ -34,6 +34,7 @@
   <name>Apache Pulsar :: Jclouds shaded</name>
 
   <dependencies>
+
     <dependency>
       <groupId>org.apache.jclouds</groupId>
       <artifactId>jclouds-allblobstore</artifactId>
@@ -122,6 +123,15 @@
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.PluginXmlResourceTransformer"/>
               </transformers>
+              <filters>
+              <filter>
+                <artifact>org.apache.jclouds:jclouds-core</artifact>
+                <excludes>
+                  <!-- jclouds-core is a mixed uber jar containing a gson vulnerable version-->
+                  <exclude>lib/gson*jar</exclude>
+                </excludes>
+              </filter>
+            </filters>
             </configuration>
           </execution>
         </executions>

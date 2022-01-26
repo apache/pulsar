@@ -8,13 +8,12 @@ We are glad to publish Apache Pulsar 2.4.0. This is the result of a huge
 effort from the community, with over 460 commits and a long list of new features, 
 general improvements and bug fixes.
 
-<!--truncate-->
-
 Check out the <b>[release notes](/release-notes/#2.4.0)</b> for a detailed list of 
 the changes, with links to the relevant pull requests, discussions and documentation.
 
 Regarding new features introduced, I just want to highlight here a tiny subset of them:
 
+<!--truncate-->
 
 ### Delayed message delivery
 
@@ -24,13 +23,17 @@ available after a delay time.
 The Java code for a client using delayed messages delivery looks as follows:
 
 ```java
+
 producer.newMessage().value("delayed message").deliverAfter(10, TimeUnit.SECONDS).send()
+
 ```
 
-> Note:
->
-> 1. Messages are only delayed on shared subscriptions, other subscriptions will deliver immediately.
-> 2. Delayed messages are sent individually even if you enable message batching on producer.
+:::note
+
+1. Messages are only delayed on shared subscriptions, other subscriptions will deliver immediately.
+2. Delayed messages are sent individually even if you enable message batching on producer.
+
+:::
 
 ### Go Functions
 
@@ -39,6 +42,7 @@ use Go to write Pulsar Functions, the following is an example of
 a Pulsar Function written in Go.
 
 ```go
+
 import (
     "fmt"
     "context"
@@ -54,6 +58,7 @@ func HandleRequest(ctx context.Context, in []byte) error {
 func main() {
     pf.Start(HandleRequest)
 }
+
 ```
 
 ### Key_Shared subscription
@@ -67,11 +72,13 @@ for Key_Shared.
 The following is an example to use `Key_shared` subscription:
 
 ```java
+
 client.newConsumer()
         .topic("topic")
         .subscriptionType(SubscriptionType.Key_Shared)
         .subscriptionName("sub-1")
         .subscribe();
+
 ```
 
 ### Schema versioning
@@ -95,11 +102,13 @@ for replicated subscription.
 The following is an example to use replicated subscription:
 
 ```java
+
 Consumer<String> consumer = client.newConsumer(Schema.STRING)
             .topic("my-topic")
             .subscriptionName("my-subscription")
             .replicateSubscriptionState(true)
             .subscribe();
+
 ```
 
 ### New IO connectors

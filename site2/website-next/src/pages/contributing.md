@@ -4,9 +4,6 @@ title: Contributing
 description: Learn how to contribute to Pulsar
 hide_table_of_contents: true
 ---
-
-# Contributing
-
 The Apache Pulsar community welcomes contributions from anyone with a passion for distributed systems! Pulsar has many different opportunities for contributions --
 write new examples/tutorials, add new user-facing libraries, write new Pulsar IO connectors, or participate on the documentation effort.
 
@@ -293,8 +290,10 @@ To update your company logo, follow these steps:
 	logo_white: true
 	}
 	```
-	>Note
-	>The `logo_white` parameter is set to `true` only when your company logo is in white color. Otherwise, you only need to add `name`, `url` and `logo`.
+
+	:::note
+	The `logo_white` parameter is set to `true` only when your company logo is in white color. Otherwise, you only need to add `name`, `url` and `logo`.
+	:::
 
 3. Commit the changes in your account’s repo, publish the branch and create pull request.
 4. Update comments, if any. If no more comment, your pull request will be approved and merged by reviewers.

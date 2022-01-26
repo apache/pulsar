@@ -45,6 +45,10 @@ function broker_group_2() {
   $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='schema,utils,functions-worker,broker-io,broker-discovery,broker-compaction,broker-naming,websocket,other'
 }
 
+function broker_group_3() {
+  $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='broker-admin'
+}
+
 function broker_client_api() {
   $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='broker-api'
 }
@@ -153,6 +157,10 @@ case $TEST_GROUP in
 
   BROKER_GROUP_2)
     broker_group_2
+    ;;
+
+  BROKER_GROUP_3)
+    broker_group_3
     ;;
 
   BROKER_CLIENT_API)

@@ -6,12 +6,11 @@ title: Apache Pulsar 2.5.2
 
 We are proud to publish Apache Pulsar 2.5.2. This is the result of a huge effort from the community, with over 56 commits, general improvements and bug fixes.
 
-<!--truncate-->
-
 For detailed changes related to 2.5.2 release, refer to the <b>[release notes](/release-notes/#2.5.2)</b> and the <b>[PR list for Pulsar 2.5.2](https://github.com/apache/pulsar/pulls?q=is:pr%20label:release/2.5.2%20is:closed)</b>.
 
 The following highlights some improved features and fixed bugs in this release.
 
+<!--truncate-->
 
 ## Implement AutoTopicCreation by namespace level override
 
@@ -97,7 +96,9 @@ If messages are sent to a partitioned topic, the `partition` field of the messag
 In previous releases, Pulsar Functions does not support the Async mode, such as the user passed in a Function in the following format:
 
 ```
+
 Function<I, CompletableFuture<O>>
+
 ```
 
 This kind of function is useful if the Pulsar Functions use RPCs to call external systems. Therefore, in Pulsar 2.5.2, we introduce Async mode support for Pulsar Functions.

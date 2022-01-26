@@ -37,7 +37,7 @@ public interface PublisherStats {
     /** Average message size published by this publisher. */
     double getAverageMsgSize();
 
-    /** total chunked message count received. **/
+    /** The total rate of chunked messages published by this publisher. **/
     double getChunkedMessageRate();
 
     /** Id of this publisher. */

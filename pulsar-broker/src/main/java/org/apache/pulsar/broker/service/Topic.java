@@ -33,6 +33,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
@@ -96,6 +97,17 @@ public interface Topic {
         }
 
         default boolean isMarkerMessage() {
+            return false;
+        }
+
+        default void setProperty(String propertyName, Object value) {
+        }
+
+        default Object getProperty(String propertyName) {
+            return null;
+        }
+
+        default boolean isChunked() {
             return false;
         }
     }
@@ -202,7 +214,7 @@ public interface Topic {
 
     CompletableFuture<Void> onPoliciesUpdate(Policies data);
 
-    boolean isBacklogQuotaExceeded(String producerName, BacklogQuota.BacklogQuotaType backlogQuotaType);
+    CompletableFuture<Void> checkBacklogQuotaExceeded(String producerName, BacklogQuotaType backlogQuotaType);
 
     boolean isEncryptionRequired();
 
@@ -210,7 +222,7 @@ public interface Topic {
 
     boolean isReplicated();
 
-    BacklogQuota getBacklogQuota(BacklogQuota.BacklogQuotaType backlogQuotaType);
+    BacklogQuota getBacklogQuota(BacklogQuotaType backlogQuotaType);
 
     void updateRates(NamespaceStats nsStats, NamespaceBundleStats currentBundleStats,
             StatsOutputStream topicStatsStream, ClusterReplicationMetrics clusterReplicationMetrics,
@@ -220,7 +232,12 @@ public interface Topic {
 
     ConcurrentOpenHashMap<String, ? extends Replicator> getReplicators();
 
-    TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize);
+    TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
+                            boolean getEarliestTimeInBacklog);
+
+    CompletableFuture<? extends TopicStatsImpl> asyncGetStats(boolean getPreciseBacklog,
+                                                              boolean subscriptionBacklogSize,
+                                                              boolean getEarliestTimeInBacklog);
 
     CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata);
 
@@ -262,9 +279,15 @@ public interface Topic {
         return Optional.empty();
     }
 
+    default Optional<DispatchRateLimiter> getBrokerDispatchRateLimiter() {
+        return Optional.empty();
+    }
+
     default boolean isSystemTopic() {
         return false;
     }
+
+    boolean isPersistent();
 
     /* ------ Transaction related ------ */
 
@@ -293,5 +316,11 @@ public interface Topic {
      * @return
      */
     CompletableFuture<Void> truncate();
+
+    /**
+     * Get BrokerService.
+     * @return
+     */
+    BrokerService getBrokerService();
 
 }

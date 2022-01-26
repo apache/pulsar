@@ -78,8 +78,7 @@ public class FutureUtil {
     }
 
     /**
-     * If the future is cancelled or times out, the cancel action will be
-     * invoked
+     * If the future is cancelled or times out, the cancel action will be invoked.
      *
      * The action is executed once if the future completes with
      * {@link java.util.concurrent.CancellationException} or {@link TimeoutException}
@@ -98,14 +97,6 @@ public class FutureUtil {
         CompletableFuture<T> future = new CompletableFuture<>();
         future.completeExceptionally(t);
         return future;
-    }
-
-    public static Throwable unwrapCompletionException(Throwable t) {
-        if (t instanceof CompletionException) {
-            return unwrapCompletionException(t.getCause());
-        } else {
-            return t;
-        }
     }
 
     /**
@@ -172,6 +163,16 @@ public class FutureUtil {
         @Override
         public synchronized Throwable fillInStackTrace() {
             return this;
+        }
+    }
+
+    public static Throwable unwrapCompletionException(Throwable ex) {
+        if (ex instanceof CompletionException) {
+            return ex.getCause();
+        } else if (ex instanceof ExecutionException) {
+            return ex.getCause();
+        } else {
+            return ex;
         }
     }
 

@@ -46,8 +46,8 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 
 /**
- * A {@link DatabaseHistory} implementation that records schema changes as normal pulsar messages on the specified topic,
- * and that recovers the history by establishing a Kafka Consumer re-processing all messages on that topic.
+ * A {@link DatabaseHistory} implementation that records schema changes as normal pulsar messages on the specified
+ * topic, and that recovers the history by establishing a Kafka Consumer re-processing all messages on that topic.
  */
 @Slf4j
 @ThreadSafe
@@ -77,7 +77,7 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
         .withDescription("Pulsar client builder")
         .withValidation(Field::isOptional);
 
-    public static Field.Set ALL_FIELDS = Field.setOf(
+    public static final Field.Set ALL_FIELDS = Field.setOf(
         TOPIC,
         SERVICE_URL,
         CLIENT_BUILDER,
@@ -103,14 +103,15 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
         }
         this.topicName = config.getString(TOPIC);
 
-        if (config.getString(CLIENT_BUILDER) == null && config.getString(SERVICE_URL) == null) {
+        String clientBuilderBase64Encoded = config.getString(CLIENT_BUILDER);
+        if (isBlank(clientBuilderBase64Encoded) && isBlank(config.getString(SERVICE_URL))) {
             throw new IllegalArgumentException("Neither Pulsar Service URL nor ClientBuilder provided.");
         }
-        String clientBuilderBase64Encoded = config.getString(CLIENT_BUILDER);
         this.clientBuilder = PulsarClient.builder();
-        if (null != clientBuilderBase64Encoded) {
+        if (!isBlank(clientBuilderBase64Encoded)) {
             // deserialize the client builder to the same classloader
-            this.clientBuilder = (ClientBuilder) SerDeUtils.deserialize(clientBuilderBase64Encoded, this.clientBuilder.getClass().getClassLoader());
+            this.clientBuilder = (ClientBuilder) SerDeUtils.deserialize(clientBuilderBase64Encoded,
+                    this.clientBuilder.getClass().getClassLoader());
         } else {
             this.clientBuilder.serviceUrl(config.getString(SERVICE_URL));
         }
@@ -171,8 +172,8 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
     @Override
     protected void storeRecord(HistoryRecord record) throws DatabaseHistoryException {
         if (this.producer == null) {
-            throw new IllegalStateException("No producer is available. Ensure that 'start()'" +
-                " is called before storing database history records.");
+            throw new IllegalStateException("No producer is available. Ensure that 'start()'"
+                    + " is called before storing database history records.");
         }
         if (log.isTraceEnabled()) {
             log.trace("Storing record into database history: {}", record);
@@ -229,9 +230,9 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
                             if (log.isTraceEnabled()) {
                                 log.trace("Recovering database history: {}", recordObj);
                             }
-                            if (recordObj == null || !recordObj.isValid()) {
-                                log.warn("Skipping invalid database history record '{}'. " +
-                                        "This is often not an issue, but if it happens repeatedly please check the '{}' topic.",
+                            if (!recordObj.isValid()) {
+                                log.warn("Skipping invalid database history record '{}'. This is often not an issue,"
+                                                + " but if it happens repeatedly please check the '{}' topic.",
                                     recordObj, topicName);
                             } else {
                                 records.accept(recordObj);

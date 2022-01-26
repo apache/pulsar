@@ -1,13 +1,10 @@
 ---
+slug: /
 id: standalone
 title: Setting up a local standalone cluster
-sidebar_label: Run Pulsar locally
+sidebar_label: "Run Pulsar locally"
 original_id: standalone
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 For the purposes of local development and testing, you can run Pulsar in standalone mode on your own machine. Standalone mode includes a Pulsar broker as well as the necessary ZooKeeper and BookKeeper components running inside of a single Java Virtual Machine (JVM) process.
 
@@ -27,24 +24,24 @@ To get started running Pulsar, download a binary tarball release in one of the f
 
 * by clicking the link below and downloading the release from an Apache mirror:
 
-  * <a href="https://archive.apache.org/dist/pulsar/pulsar-2.2.0/apache-pulsar-2.2.0-bin.tar.gz" download>Pulsar 2.2.0 binary release</a>
+  * <a href="pulsar:binary_release_url" download>Pulsar @pulsar:version@ binary release</a>
 
-* from the Pulsar [downloads page](/download)
+* from the Pulsar [downloads page](pulsar:download_page_url)
 * from the Pulsar [releases page](https://github.com/apache/pulsar/releases/latest)
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell
-
-  $ wget https://archive.apache.org/dist/pulsar/pulsar-2.2.0/apache-pulsar-2.2.0-bin.tar.gz
-
+  
+  $ wget pulsar:binary_release_url
+  
   ```
 
 Once the tarball is downloaded, untar it and `cd` into the resulting directory:
 
 ```bash
 
-$ tar xvfz apache-pulsar-2.2.0-bin.tar.gz
-$ cd apache-pulsar-2.2.0
+$ tar xvfz apache-pulsar-@pulsar:version@-bin.tar.gz
+$ cd apache-pulsar-@pulsar:version@
 
 ```
 
@@ -76,16 +73,16 @@ If you would like to enable those `builtin` connectors, you can download the con
 
 * by clicking the link below and downloading the release from an Apache mirror:
 
-  * <a href="https://archive.apache.org/dist/pulsar/pulsar-2.2.0/apache-pulsar-io-connectors-2.2.0-bin.tar.gz" download>Pulsar IO Connectors 2.2.0 release</a>
+  * <a href="pulsar:connector_release_url" download>Pulsar IO Connectors @pulsar:version@ release</a>
 
-* from the Pulsar [downloads page](/download)
+* from the Pulsar [downloads page](pulsar:download_page_url)
 * from the Pulsar [releases page](https://github.com/apache/pulsar/releases/latest)
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell
-
-  $ wget https://archive.apache.org/dist/pulsar/pulsar-2.2.0/apache-pulsar-io-connectors-2.2.0-bin.tar.gz
-
+  
+  $ wget pulsar:connector_release_url
+  
   ```
 
 Once the tarball is downloaded, in the pulsar directory, untar the io-connectors package and copy the connectors as `connectors`
@@ -93,20 +90,20 @@ in the pulsar directory:
 
 ```bash
 
-$ tar xvfz /path/to/apache-pulsar-io-connectors-2.2.0-bin.tar.gz
+$ tar xvfz /path/to/apache-pulsar-io-connectors-@pulsar:version@-bin.tar.gz
 
-// you will find a directory named `apache-pulsar-io-connectors-2.2.0` in the pulsar directory
+// you will find a directory named `apache-pulsar-io-connectors-@pulsar:version@` in the pulsar directory
 // then copy the connectors
 
-$ cd apache-pulsar-io-connectors-2.2.0/connectors connectors
+$ cd apache-pulsar-io-connectors-@pulsar:version@/connectors connectors
 
 $ ls connectors
-pulsar-io-aerospike-2.2.0.nar
-pulsar-io-cassandra-2.2.0.nar
-pulsar-io-kafka-2.2.0.nar
-pulsar-io-kinesis-2.2.0.nar
-pulsar-io-rabbitmq-2.2.0.nar
-pulsar-io-twitter-2.2.0.nar
+pulsar-io-aerospike-@pulsar:version@.nar
+pulsar-io-cassandra-@pulsar:version@.nar
+pulsar-io-kafka-@pulsar:version@.nar
+pulsar-io-kinesis-@pulsar:version@.nar
+pulsar-io-rabbitmq-@pulsar:version@.nar
+pulsar-io-twitter-@pulsar:version@.nar
 ...
 
 ```
@@ -130,16 +127,16 @@ one of the following ways:
 
 * by clicking the link below and downloading the release from an Apache mirror:
 
-  * <a href="https://archive.apache.org/dist/pulsar/pulsar-2.2.0/apache-pulsar-offloaders-2.2.0-bin.tar.gz" download>Pulsar Tiered Storage Offloaders 2.2.0 release</a>
+  * <a href="pulsar:offloader_release_url" download>Pulsar Tiered Storage Offloaders @pulsar:version@ release</a>
 
-* from the Pulsar [downloads page](/download)
+* from the Pulsar [downloads page](pulsar:download_page_url)
 * from the Pulsar [releases page](https://github.com/apache/pulsar/releases/latest)
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell
-
-  $ wget https://archive.apache.org/dist/pulsar/pulsar-2.2.0/apache-pulsar-offloaders-2.2.0-bin.tar.gz
-
+  
+  $ wget pulsar:offloader_release_url
+  
   ```
 
 Once the tarball is downloaded, in the pulsar directory, untar the offloaders package and copy the offloaders as `offloaders`
@@ -147,15 +144,15 @@ in the pulsar directory:
 
 ```bash
 
-$ tar xvfz apache-pulsar-offloaders-2.2.0-bin.tar.gz
+$ tar xvfz apache-pulsar-offloaders-@pulsar:version@-bin.tar.gz
 
-// you will find a directory named `apache-pulsar-offloaders-2.2.0` in the pulsar directory
+// you will find a directory named `apache-pulsar-offloaders-@pulsar:version@` in the pulsar directory
 // then copy the offloaders
 
-$ mv apache-pulsar-offloaders-2.2.0/offloaders offloaders
+$ mv apache-pulsar-offloaders-@pulsar:version@/offloaders offloaders
 
 $ ls offloaders
-tiered-storage-jcloud-2.2.0.nar
+tiered-storage-jcloud-@pulsar:version@.nar
 
 ```
 
@@ -223,6 +220,7 @@ $ bin/pulsar-client produce my-topic --messages "hello-pulsar"
 If the message has been successfully published to the topic, you should see a confirmation like this in the `pulsar-client` logs:
 
 ```
+
 13:09:39.356 [main] INFO  org.apache.pulsar.client.cli.PulsarClientTool - 1 messages successfully produced
 
 ```
@@ -272,3 +270,4 @@ if (result != ResultOk) {
 }
 
 ```
+

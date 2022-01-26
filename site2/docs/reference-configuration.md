@@ -153,8 +153,8 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |webServicePort|  Port to use to server HTTP request  |8080|
 |webServicePortTls| Port to use to server HTTPS request |8443|
 |webSocketServiceEnabled| Enable the WebSocket API service in broker  |false|
-|webSocketNumIoThreads|The number of IO threads in Pulsar Client used in WebSocket proxy.|8|
-|webSocketConnectionsPerBroker|The number of connections per Broker in Pulsar Client used in WebSocket proxy.|8|
+|webSocketNumIoThreads|The number of IO threads in Pulsar Client used in WebSocket proxy.|Runtime.getRuntime().availableProcessors()|
+|webSocketConnectionsPerBroker|The number of connections per Broker in Pulsar Client used in WebSocket proxy.|Runtime.getRuntime().availableProcessors()|
 |webSocketSessionIdleTimeoutMillis|Time in milliseconds that idle WebSocket session times out.|300000|
 |webSocketMaxTextFrameSize|The maximum size of a text message during parsing in WebSocket proxy.|1048576|
 |exposeTopicLevelMetricsInPrometheus|Whether to enable topic level metrics.|true|
@@ -168,6 +168,15 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |brokerDeduplicationMaxNumberOfProducers| The maximum number of producers for which information will be stored for deduplication purposes.  |10000|
 |brokerDeduplicationEntriesInterval|  The number of entries after which a deduplication informational snapshot is taken. A larger interval will lead to fewer snapshots being taken, though this would also lengthen the topic recovery time (the time required for entries published after the snapshot to be replayed). |1000|
 |brokerDeduplicationProducerInactivityTimeoutMinutes| The time of inactivity (in minutes) after which the broker will discard deduplication information related to a disconnected producer. |360|
+|brokerDeduplicationSnapshotFrequencyInSeconds| How often is the thread pool scheduled to check whether a snapshot needs to be taken. The value of `0` means it is disabled. |120| 
+|dispatchThrottlingRateInMsg| Dispatch throttling-limit of messages for a broker (per second). 0 means the dispatch throttling-limit is disabled. |0|
+|dispatchThrottlingRateInByte| Dispatch throttling-limit of bytes for a broker (per second). 0 means the dispatch throttling-limit is disabled. |0|
+|dispatchThrottlingRatePerTopicInMsg| Dispatch throttling-limit of messages for every topic (per second). 0 means the dispatch throttling-limit is disabled. |0|
+|dispatchThrottlingRatePerTopicInByte| Dispatch throttling-limit of bytes for every topic (per second). 0 means the dispatch throttling-limit is disabled. |0|
+|dispatchThrottlingOnBatchMessageEnabled|Apply dispatch rate limiting on batch message instead individual messages with in batch message. (Default is disabled). | false|
+|dispatchThrottlingRateRelativeToPublishRate| Enable dispatch rate-limiting relative to publish rate. | false |
+|dispatchThrottlingRatePerSubscriptionInMsg| Dispatch throttling-limit of messages for a subscription. 0 means the dispatch throttling-limit is disabled. |0|
+|dispatchThrottlingRatePerSubscriptionInByte|Dispatch throttling-limit of bytes for a subscription. 0 means the dispatch throttling-limit is disabled.|0|
 |dispatchThrottlingRatePerReplicatorInMsg| The default messages per second dispatch throttling-limit for every replicator in replication. The value of `0` means disabling replication message dispatch-throttling| 0 |
 |dispatchThrottlingRatePerReplicatorInByte| The default bytes per second dispatch throttling-limit for every replicator in replication. The value of `0` means disabling replication message-byte dispatch-throttling| 0 | 
 |zooKeeperSessionTimeoutMillis| Zookeeper session timeout in milliseconds |30000|
@@ -353,6 +362,8 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 | managedLedgerInfoCompressionType | Compression type of managed ledger information. <br><br>Available options are `NONE`, `LZ4`, `ZLIB`, `ZSTD`, and `SNAPPY`). <br><br>If this value is `NONE` or invalid, the `managedLedgerInfo` is not compressed. <br><br>**Note** that after enabling this configuration, if you want to degrade a broker, you need to change the value to `NONE` and make sure all ledger metadata is saved without compression. | None |
 | additionalServlets | Additional servlet name. <br><br>If you have multiple additional servlets, separate them by commas. <br><br>For example, additionalServlet_1, additionalServlet_2 | N/A |
 | additionalServletDirectory | Location of broker additional servlet NAR directory | ./brokerAdditionalServlet |
+| brokerEntryMetadataInterceptors | Set broker entry metadata interceptors.<br /><br />Multiple interceptors should be separated by commas. <br /><br />Available values:<li>org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor</li><li>org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor</li> <br /><br />Example<br />brokerEntryMetadataInterceptors=org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor, org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor|N/A |
+| enableExposingBrokerEntryMetadataToClient|Whether to expose broker entry metadata to client or not.<br /><br />Available values:<li>true</li><li>false</li><br />Example<br />enableExposingBrokerEntryMetadataToClient=true  | false |
 
 ## Client
 
@@ -481,12 +492,16 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 | brokerPublisherThrottlingMaxByteRate | Maximum rate (in 1 second) of bytes allowed to publish for a broker if the  byte rate limiting is enabled. When the value is set to 0, the byte rate limiting is disabled. | 0 |
 |subscribeThrottlingRatePerConsumer|Too many subscribe requests from a consumer can cause broker rewinding consumer cursors and loading data from bookies, hence causing high network bandwidth usage. When the positive value is set, broker will throttle the subscribe requests for one consumer. Otherwise, the throttling will be disabled. By default, throttling is disabled.|0|
 |subscribeRatePeriodPerConsumerInSecond|Rate period for {subscribeThrottlingRatePerConsumer}. By default, it is 30s.|30|
+|dispatchThrottlingRateInMsg| Dispatch throttling-limit of messages for a broker (per second). 0 means the dispatch throttling-limit is disabled. |0|
+|dispatchThrottlingRateInByte| Dispatch throttling-limit of bytes for a broker (per second). 0 means the dispatch throttling-limit is disabled. |0|
 | dispatchThrottlingRatePerTopicInMsg | Default messages (per second) dispatch throttling-limit for every topic. When the value is set to 0, default message dispatch throttling-limit is disabled. |0 |
 | dispatchThrottlingRatePerTopicInByte | Default byte (per second) dispatch throttling-limit for every topic. When the value is set to 0, default byte dispatch throttling-limit is disabled. | 0|
 | dispatchThrottlingOnBatchMessageEnabled |Apply dispatch rate limiting on batch message instead individual messages with in batch message. (Default is disabled). | false|
 | dispatchThrottlingRateRelativeToPublishRate | Enable dispatch rate-limiting relative to publish rate. | false |
 |dispatchThrottlingRatePerSubscriptionInMsg|The defaulted number of message dispatching throttling-limit for a subscription. The value of 0 disables message dispatch-throttling.|0|
 |dispatchThrottlingRatePerSubscriptionInByte|The default number of message-bytes dispatching throttling-limit for a subscription. The value of 0 disables message-byte dispatch-throttling.|0|
+|dispatchThrottlingRatePerReplicatorInMsg| Dispatch throttling-limit of messages for every replicator in replication (per second). 0 means the dispatch throttling-limit in replication is disabled. |0|
+|dispatchThrottlingRatePerReplicatorInByte| Dispatch throttling-limit of bytes for every replicator in replication (per second). 0 means the dispatch throttling-limit is disabled. |0|
 | dispatchThrottlingOnNonBacklogConsumerEnabled | Enable dispatch-throttling for both caught up consumers as well as consumers who have backlogs. | true |
 |dispatcherMaxReadBatchSize|The maximum number of entries to read from BookKeeper. By default, it is 100 entries.|100|
 |dispatcherMaxReadSizeBytes|The maximum size in bytes of entries to read from BookKeeper. By default, it is 5MB.|5242880|
@@ -590,8 +605,8 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |managedLedgerDefaultWriteQuorum|   |1|
 |managedLedgerDefaultAckQuorum|   |1|
 | managedLedgerDigestType | Default type of checksum to use when writing to BookKeeper. | CRC32C |
-| managedLedgerNumWorkerThreads | Number of threads to be used for managed ledger tasks dispatching. | 8 |
-| managedLedgerNumSchedulerThreads | Number of threads to be used for managed ledger scheduled tasks. | 8 |
+| managedLedgerNumWorkerThreads | Number of threads to be used for managed ledger tasks dispatching. | Runtime.getRuntime().availableProcessors() |
+| managedLedgerNumSchedulerThreads | Number of threads to be used for managed ledger scheduled tasks. | Runtime.getRuntime().availableProcessors() |
 |managedLedgerCacheSizeMB|    |N/A|
 |managedLedgerCacheCopyEntries| Whether to copy the entry payloads when inserting in cache.| false|
 |managedLedgerCacheEvictionWatermark|   |0.9|
@@ -636,6 +651,8 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |loadBalancerNamespaceBundleMaxBandwidthMbytes|   |100|
 |loadBalancerNamespaceMaximumBundles|   |128|
 | loadBalancerBrokerThresholdShedderPercentage | The broker resource usage threshold. When the broker resource usage is greater than the pulsar cluster average resource usage, the threshold shedder is triggered to offload bundles from the broker. It only takes effect in the ThresholdShedder strategy. | 10 |
+| loadBalancerMsgRateDifferenceShedderThreshold | Message-rate percentage threshold between highest and least loaded brokers for uniform load shedding. | 50 |
+| loadBalancerMsgThroughputMultiplierDifferenceShedderThreshold | Message-throughput threshold between highest and least loaded brokers for uniform load shedding. | 4 |
 | loadBalancerHistoryResourcePercentage | The history usage when calculating new resource usage. It only takes effect in the ThresholdShedder strategy. | 0.9 |
 | loadBalancerBandwithInResourceWeight | The BandWithIn usage weight when calculating new resource usage. It only takes effect in the ThresholdShedder strategy. | 1.0 |
 | loadBalancerBandwithOutResourceWeight | The BandWithOut usage weight when calculating new resource usage. It only takes effect in the ThresholdShedder strategy. | 1.0 |

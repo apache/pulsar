@@ -38,8 +38,8 @@ report details insights and use cases on how organizations are deploying Pulsar 
 
 The report also reveals Pulsar’s top-used features, its most popular applications, and how
 it is delivering scalable, reliable, real-time streaming solutions for organizations. In
-this quotation from Qiang Fei, Tech Lead for Tencent, we see how
-[one organization is leveraging Pulsar to improve their offering](https://streamnative.io/whitepaper/case-studay-apache-pulsar-tencent-billing/):
+
+this quotation from Qiang Fei, Tech Lead for Tencent, we see how [one organization is leveraging Pulsar to improve their offering](https://streamnative.io/whitepaper/case-studay-apache-pulsar-tencent-billing/):
 
 > Pulsar provides us with a highly consistent and highly reliable distributed message queue that
 > fits well in our financial use cases. Multi-tenant and storage separation architecture design

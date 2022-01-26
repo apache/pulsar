@@ -23,14 +23,12 @@ import java.io.Serializable;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
+import lombok.Data;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.ReaderListener;
-
-import lombok.Data;
 
 @Data
 public class ReaderConfigurationData<T> implements Serializable, Cloneable {

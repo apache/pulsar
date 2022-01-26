@@ -118,7 +118,7 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         consumerProperties.put("readCompacted","true");
         sinkConfig.setInputSpecs(Collections.singletonMap(sourceTopic, ConsumerConfig.builder().consumerProperties(consumerProperties).build()));
         String jarFilePathUrl = getPulsarIODataGeneratorNar().toURI().toString();
-        admin.sink().createSinkWithUrl(sinkConfig, jarFilePathUrl);
+        admin.sinks().createSinkWithUrl(sinkConfig, jarFilePathUrl);
 
         // 5 Sink should only read compacted value，so we will only receive compacted messages
         Awaitility.await().ignoreExceptions().untilAsserted(() -> {

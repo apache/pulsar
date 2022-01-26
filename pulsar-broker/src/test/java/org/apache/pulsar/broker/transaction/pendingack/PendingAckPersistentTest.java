@@ -57,6 +57,7 @@ import org.testng.annotations.Test;
  * Test for consuming transaction messages.
  */
 @Slf4j
+@Test(groups = "broker")
 public class PendingAckPersistentTest extends TransactionTestBase {
 
     private static final String PENDING_ACK_REPLAY_TOPIC = NAMESPACE1 + "/pending-ack-replay";
@@ -133,7 +134,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         }
 
         txn.abort().get();
-        // commit this txn , normalAckMessageIds are in pending ack state
+        // commit this txn, normalAckMessageIds are in pending ack state
         commitTxn.commit().get();
         // abort this txn, pendingAckMessageIds are delete from pending ack state
         abortTxn.abort().get();

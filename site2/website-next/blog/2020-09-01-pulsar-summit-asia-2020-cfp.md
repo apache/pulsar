@@ -8,7 +8,6 @@ title: Pulsar Summit Asia 2020 CFP is now open
 The Pulsar Summit is an annual conference dedicated to the Apache Pulsar community. The summit brings together an international audience of CTOs/CIOs, developers, data architects, data scientists, Apache Pulsar committers/contributors, and the messaging and streaming community. Together, they share experiences, ideas, and insights on Pulsar and its growing community, and receive hands-on training sessions led by Pulsar experts.
 
 <!--truncate-->
-
 After a very successful Pulsar Summit Virtual Conference in June, we have decided to present our Pulsar Summit Asia 2020 in the same way on November 28-29, 2020. The two-day conference will be free to attend! Are you interested in presenting? Suggested topics include Pulsar use cases, operations, technology deep dive, and ecosystem. CFP and registration are now open!
 
 ![](/img/pulsar-summit-asia-2020.png)

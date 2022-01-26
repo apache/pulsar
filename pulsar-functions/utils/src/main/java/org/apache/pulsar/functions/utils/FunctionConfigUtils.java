@@ -117,7 +117,7 @@ public class FunctionConfigUtils {
                                     .setIsRegexPattern(false)
                                     .build());
                 } catch (JsonProcessingException e) {
-                    throw new IllegalArgumentException(String.format("Incorrect custom schema inputs ,Topic %s ", topicName));
+                    throw new IllegalArgumentException(String.format("Incorrect custom schema inputs,Topic %s ", topicName));
                 }
             });
         }
@@ -212,7 +212,7 @@ public class FunctionConfigUtils {
                     sinkSpecBuilder.putAllConsumerProperties(consumerConfig.getConsumerProperties());
                 }
             } catch (JsonProcessingException e) {
-                throw new IllegalArgumentException(String.format("Incorrect custom schema outputs ,Topic %s ", functionConfig.getOutput()));
+                throw new IllegalArgumentException(String.format("Incorrect custom schema outputs,Topic %s ", functionConfig.getOutput()));
             }
         }
         if (typeArgs != null) {

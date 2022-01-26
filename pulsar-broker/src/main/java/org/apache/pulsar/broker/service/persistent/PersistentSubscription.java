@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
@@ -48,6 +49,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
@@ -69,7 +71,6 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
-import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.api.proto.TxnAction;
@@ -158,7 +159,7 @@ public class PersistentSubscription implements Subscription {
         this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor, this);
         this.setReplicated(replicated);
-        this.subscriptionProperties = subscriptionProperties == null
+        this.subscriptionProperties = MapUtils.isEmpty(subscriptionProperties)
                 ? new HashMap<>() : Collections.unmodifiableMap(subscriptionProperties);
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
                 && !checkTopicIsEventsNames(TopicName.get(topicName))) {
@@ -269,10 +270,9 @@ public class PersistentSubscription implements Subscription {
                             break;
                         case Key_Shared:
                             KeySharedMeta ksm = consumer.getKeySharedMeta();
-                            KeySharedMode keySharedMode = ksm.getKeySharedMode();
                             if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared
-                                    || ((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher).getKeySharedMode()
-                                    != keySharedMode) {
+                                    || !((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher)
+                                            .hasSameKeySharedPolicy(ksm)) {
                                 previousDispatcher = dispatcher;
                                 dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
                                         topic.getBrokerService().getPulsar().getConfiguration(), ksm);
@@ -508,11 +508,11 @@ public class PersistentSubscription implements Subscription {
     public CompletableFuture<Void> transactionIndividualAcknowledge(
             TxnID txnId,
             List<MutablePair<PositionImpl, Integer>> positions) {
-        return pendingAckHandle.individualAcknowledgeMessage(txnId, positions, false);
+        return pendingAckHandle.individualAcknowledgeMessage(txnId, positions);
     }
 
     public CompletableFuture<Void> transactionCumulativeAcknowledge(TxnID txnId, List<PositionImpl> positions) {
-        return pendingAckHandle.cumulativeAcknowledgeMessage(txnId, positions, false);
+        return pendingAckHandle.cumulativeAcknowledgeMessage(txnId, positions);
     }
 
     private final MarkDeleteCallback markDeleteCallback = new MarkDeleteCallback() {
@@ -1021,7 +1021,8 @@ public class PersistentSubscription implements Subscription {
         return cursor.getEstimatedSizeSinceMarkDeletePosition();
     }
 
-    public SubscriptionStatsImpl getStats(Boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
+    public SubscriptionStatsImpl getStats(Boolean getPreciseBacklog, boolean subscriptionBacklogSize,
+                                          boolean getEarliestTimeInBacklog) {
         SubscriptionStatsImpl subStats = new SubscriptionStatsImpl();
         subStats.lastExpireTimestamp = lastExpireTimestamp;
         subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
@@ -1073,6 +1074,17 @@ public class PersistentSubscription implements Subscription {
         if (subscriptionBacklogSize) {
             subStats.backlogSize = ((ManagedLedgerImpl) topic.getManagedLedger())
                     .getEstimatedBacklogSize((PositionImpl) cursor.getMarkDeletedPosition());
+        }
+        if (getEarliestTimeInBacklog && subStats.msgBacklog > 0) {
+            ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) cursor.getManagedLedger());
+            PositionImpl markDeletedPosition = (PositionImpl) cursor.getMarkDeletedPosition();
+            long result = 0;
+            try {
+                result = managedLedger.getEarliestMessagePublishTimeOfPos(markDeletedPosition).get();
+            } catch (InterruptedException | ExecutionException e) {
+                result = -1;
+            }
+            subStats.earliestMsgPublishTimeInBacklog = result;
         }
         subStats.msgBacklogNoDelayed = subStats.msgBacklog - subStats.msgDelayed;
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
@@ -1186,14 +1198,14 @@ public class PersistentSubscription implements Subscription {
     public CompletableFuture<Void> endTxn(long txnidMostBits, long txnidLeastBits, int txnAction, long lowWaterMark) {
         TxnID txnID = new TxnID(txnidMostBits, txnidLeastBits);
         if (TxnAction.COMMIT.getValue() == txnAction) {
-            return pendingAckHandle.commitTxn(txnID, Collections.emptyMap(), lowWaterMark, false);
+            return pendingAckHandle.commitTxn(txnID, Collections.emptyMap(), lowWaterMark);
         } else if (TxnAction.ABORT.getValue() == txnAction) {
             Consumer redeliverConsumer = null;
             if (getDispatcher() instanceof PersistentDispatcherSingleActiveConsumer) {
                 redeliverConsumer = ((PersistentDispatcherSingleActiveConsumer)
                         getDispatcher()).getActiveConsumer();
             }
-            return pendingAckHandle.abortTxn(txnID, redeliverConsumer, lowWaterMark, false);
+            return pendingAckHandle.abortTxn(txnID, redeliverConsumer, lowWaterMark);
         } else {
             return FutureUtil.failedFuture(new NotAllowedException("Unsupported txnAction " + txnAction));
         }
@@ -1230,6 +1242,10 @@ public class PersistentSubscription implements Subscription {
         } else {
             return FutureUtil.failedFuture(new NotAllowedException("Pending ack handle don't use managedLedger!"));
         }
+    }
+
+    public boolean checkIfPendingAckStoreInit() {
+        return this.pendingAckHandle.checkIfPendingAckStoreInit();
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);

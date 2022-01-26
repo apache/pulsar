@@ -18,10 +18,14 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
@@ -29,14 +33,10 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.bookkeeper.util.SafeRunnable;
 
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-
-import static com.google.common.base.Preconditions.checkArgument;
 
 /**
  * Handles the life-cycle of an addEntry() operation.
@@ -63,9 +63,10 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
     @SuppressWarnings("unused")
     ByteBuf data;
     private int dataLength;
+    private ManagedLedgerInterceptor.PayloadProcessorHandle payloadProcessorHandle = null;
 
-    private static final AtomicReferenceFieldUpdater<OpAddEntry, OpAddEntry.State> STATE_UPDATER = AtomicReferenceFieldUpdater
-            .newUpdater(OpAddEntry.class, OpAddEntry.State.class, "state");
+    private static final AtomicReferenceFieldUpdater<OpAddEntry, OpAddEntry.State> STATE_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(OpAddEntry.class, OpAddEntry.State.class, "state");
     volatile State state;
 
     enum State {
@@ -75,7 +76,8 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         CLOSED
     }
 
-    public static OpAddEntry createNoRetainBuffer(ManagedLedgerImpl ml, ByteBuf data, AddEntryCallback callback, Object ctx) {
+    public static OpAddEntry createNoRetainBuffer(ManagedLedgerImpl ml, ByteBuf data, AddEntryCallback callback,
+                                                  Object ctx) {
         OpAddEntry op = createOpAddEntryNoRetainBuffer(ml, data, callback, ctx);
         if (log.isDebugEnabled()) {
             log.debug("Created new OpAddEntry {}", op);
@@ -83,7 +85,8 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         return op;
     }
 
-    public static OpAddEntry createNoRetainBuffer(ManagedLedgerImpl ml, ByteBuf data, int numberOfMessages, AddEntryCallback callback, Object ctx) {
+    public static OpAddEntry createNoRetainBuffer(ManagedLedgerImpl ml, ByteBuf data, int numberOfMessages,
+                                                  AddEntryCallback callback, Object ctx) {
         OpAddEntry op = createOpAddEntryNoRetainBuffer(ml, data, callback, ctx);
         op.numberOfMessages = numberOfMessages;
         if (log.isDebugEnabled()) {
@@ -92,7 +95,8 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         return op;
     }
 
-    private static OpAddEntry createOpAddEntryNoRetainBuffer(ManagedLedgerImpl ml, ByteBuf data, AddEntryCallback callback, Object ctx) {
+    private static OpAddEntry createOpAddEntryNoRetainBuffer(ManagedLedgerImpl ml, ByteBuf data,
+                                                             AddEntryCallback callback, Object ctx) {
         OpAddEntry op = RECYCLER.get();
         op.ml = ml;
         op.ledger = null;
@@ -105,6 +109,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         op.entryId = -1;
         op.startTime = System.nanoTime();
         op.state = State.OPEN;
+        op.payloadProcessorHandle = null;
         ml.mbean.addAddEntrySample(op.dataLength);
         return op;
     }
@@ -125,6 +130,13 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
             // internally asyncAddEntry() will take the ownership of the buffer and release it at the end
             addOpCount = ManagedLedgerImpl.ADD_OP_COUNT_UPDATER.incrementAndGet(ml);
             lastInitTime = System.nanoTime();
+            if (ml.getManagedLedgerInterceptor() != null) {
+                payloadProcessorHandle = ml.getManagedLedgerInterceptor().processPayloadBeforeLedgerWrite(this,
+                        duplicateBuffer);
+                if (payloadProcessorHandle != null) {
+                    duplicateBuffer = payloadProcessorHandle.getProcessedPayload();
+                }
+            }
             ledger.asyncAddEntry(duplicateBuffer, this, addOpCount);
         } else {
             log.warn("[{}] initiate with unexpected state {}, expect OPEN state.", ml.getName(), state);
@@ -137,6 +149,9 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
             ReferenceCountUtil.release(data);
             cb.addFailed(e, ctx);
             ml.mbean.recordAddEntryError();
+            if (payloadProcessorHandle != null) {
+                payloadProcessorHandle.release();
+            }
         }
     }
 
@@ -144,7 +159,8 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
     public void addComplete(int rc, final LedgerHandle lh, long entryId, Object ctx) {
 
         if (!STATE_UPDATER.compareAndSet(OpAddEntry.this, State.INITIATED, State.COMPLETED)) {
-            log.warn("[{}] The add op is terminal legacy callback for entry {}-{} adding.", ml.getName(), lh.getId(), entryId);
+            log.warn("[{}] The add op is terminal legacy callback for entry {}-{} adding.", ml.getName(), lh.getId(),
+                    entryId);
             OpAddEntry.this.recycle();
             return;
         }
@@ -177,6 +193,9 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
     // Called in executor hashed on managed ledger name, once the add operation is complete
     @Override
     public void safeRun() {
+        if (payloadProcessorHandle != null) {
+            payloadProcessorHandle.release();
+        }
         // Remove this entry from the head of the pending queue
         OpAddEntry firstInQueue = ml.pendingAddEntries.poll();
         if (firstInQueue == null) {
@@ -253,7 +272,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
     }
 
     /**
-     * Checks if add-operation is completed
+     * Checks if add-operation is completed.
      *
      * @return true if task is not already completed else returns false.
      */
@@ -308,6 +327,10 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         return numberOfMessages;
     }
 
+    public Object getCtx() {
+        return ctx;
+    }
+
     public void setNumberOfMessages(int numberOfMessages) {
         this.numberOfMessages = numberOfMessages;
     }
@@ -343,6 +366,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         entryId = -1;
         startTime = -1;
         lastInitTime = -1;
+        payloadProcessorHandle = null;
         recyclerHandle.recycle(this);
     }
 
@@ -350,12 +374,12 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
     public String toString() {
         ManagedLedgerImpl ml = this.ml;
         LedgerHandle ledger = this.ledger;
-        return "OpAddEntry{" +
-                "mlName=" + ml != null ? ml.getName() : "null" +
-                ", ledgerId=" + ledger != null ? String.valueOf(ledger.getId()) : "null" +
-                ", entryId=" + entryId +
-                ", startTime=" + startTime +
-                ", dataLength=" + dataLength +
-                '}';
+        return "OpAddEntry{"
+                + "mlName=" + ml != null ? ml.getName() : "null"
+                + ", ledgerId=" + ledger != null ? String.valueOf(ledger.getId()) : "null"
+                + ", entryId=" + entryId
+                + ", startTime=" + startTime
+                + ", dataLength=" + dataLength
+                + '}';
     }
 }

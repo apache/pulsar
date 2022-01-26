@@ -20,7 +20,6 @@ package org.apache.pulsar.io.file;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
@@ -31,7 +30,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
-
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
@@ -64,7 +62,7 @@ public class FileSourceConfig implements Serializable {
     /**
      * Only files whose names match the given regular expression will be picked up.
      */
-    private String fileFilter = "[^\\.].*";
+    private String fileFilter = "[^.].*";
 
     /**
      * When 'recurse' property is true, then only sub-directories whose
@@ -111,6 +109,12 @@ public class FileSourceConfig implements Serializable {
      * from multiple files being "intermingled" in the target topic.
      */
     private Integer numWorkers = 1;
+
+    /**
+     * If set, do not delete but only rename file that has been processed.
+     * This config only work when 'keepFile' property is false.
+     */
+    private String processedFileSuffix;
 
     public static FileSourceConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
@@ -164,6 +168,11 @@ public class FileSourceConfig implements Serializable {
 
         if (numWorkers != null && numWorkers <= 0) {
             throw new IllegalArgumentException("The property numWorkers must be greater than zero");
+        }
+
+        if (processedFileSuffix != null && keepFile) {
+            throw new IllegalArgumentException(
+                    "The property keepFile must be false if the property processedFileSuffix is set");
         }
     }
 }

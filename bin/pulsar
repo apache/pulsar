@@ -278,9 +278,9 @@ OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 
 if [ $COMMAND == "bookie" ]; then
   # Pass BOOKIE_EXTRA_OPTS option defined in bkenv.sh
-  OPTS="$OPTS $BOOKIE_EXTRA_OPTS"
+  OPTS="$OPTS $BOOKIE_MEM $BOOKIE_GC $BOOKIE_GC_LOG $BOOKIE_EXTRA_OPTS"
 else
-  OPTS="$OPTS $PULSAR_EXTRA_OPTS $PULSAR_MEM $PULSAR_GC"
+  OPTS="$OPTS $PULSAR_MEM $PULSAR_GC $PULSAR_GC_LOG $PULSAR_EXTRA_OPTS"
 fi
 
 # log directory & file
@@ -314,6 +314,10 @@ OPTS="$OPTS -Dpulsar.functions.log.conf=${FUNCTIONS_LOG_CONF}"
 ZK_OPTS=" -Dzookeeper.4lw.commands.whitelist=* -Dzookeeper.snapshot.trust.empty=true -Dzookeeper.tcpKeepAlive=true -Dzookeeper.clientTcpKeepAlive=true"
 
 LOG4J2_SHUTDOWN_HOOK_DISABLED="-Dlog4j.shutdownHookEnabled=false"
+
+# Adding pulsar metadata as a recognized provider
+BK_METADATA_OPTIONS="-Dbookkeeper.metadata.bookie.drivers=org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver -Dbookkeeper.metadata.client.drivers=org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver"
+OPTS="$OPTS $BK_METADATA_OPTIONS"
 
 #Change to PULSAR_HOME to support relative paths
 cd "$PULSAR_HOME"

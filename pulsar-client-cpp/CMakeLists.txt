@@ -58,6 +58,9 @@ MESSAGE(STATUS "BUILD_TESTS:  " ${BUILD_TESTS})
 option(BUILD_PYTHON_WRAPPER "Build Pulsar Python wrapper" ON)
 MESSAGE(STATUS "BUILD_PYTHON_WRAPPER:  " ${BUILD_PYTHON_WRAPPER})
 
+option(BUILD_WIRESHARK "Build Pulsar Wireshark dissector" OFF)
+MESSAGE(STATUS "BUILD_WIRESHARK:  " ${BUILD_WIRESHARK})
+
 option(BUILD_PERF_TOOLS "Build Pulsar CLI perf producer/consumer" OFF)
 MESSAGE(STATUS "BUILD_PERF_TOOLS:  " ${BUILD_PERF_TOOLS})
 
@@ -334,6 +337,7 @@ file(MAKE_DIRECTORY ${AUTOGEN_DIR})
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_BINARY_DIR}/include
   ${AUTOGEN_DIR}
   ${Boost_INCLUDE_DIR}
   ${OPENSSL_INCLUDE_DIR}
@@ -429,6 +433,10 @@ if (BUILD_PYTHON_WRAPPER)
     add_subdirectory(python)
 endif ()
 
+if (BUILD_WIRESHARK)
+    add_subdirectory(wireshark)
+endif()
+
 # `make format` option
 if (NOT APPLE AND NOT WIN32)
     set(CLANG_FORMAT_VERSION "5.0")
@@ -445,7 +453,9 @@ add_custom_target(format python ${BUILD_SUPPORT_DIR}/run_clang_format.py
         ${CMAKE_SOURCE_DIR}/perf
         ${CMAKE_SOURCE_DIR}/examples
         ${CMAKE_SOURCE_DIR}/tests
-        ${CMAKE_SOURCE_DIR}/include)
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/python/src
+        ${CMAKE_SOURCE_DIR}/wireshark)
 
 # `make check-format` option (for CI test)
 add_custom_target(check-format python ${BUILD_SUPPORT_DIR}/run_clang_format.py
@@ -456,4 +466,6 @@ add_custom_target(check-format python ${BUILD_SUPPORT_DIR}/run_clang_format.py
         ${CMAKE_SOURCE_DIR}/perf
         ${CMAKE_SOURCE_DIR}/examples
         ${CMAKE_SOURCE_DIR}/tests
-        ${CMAKE_SOURCE_DIR}/include)
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/python/src
+        ${CMAKE_SOURCE_DIR}/wireshark)

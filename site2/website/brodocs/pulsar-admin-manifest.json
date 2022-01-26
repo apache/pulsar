@@ -2,6 +2,7 @@
   "docs": [
     { "filename": "broker-stats.md" },
     { "filename": "brokers.md" },
+    { "filename": "bookies.md" },
     { "filename": "clusters.md" },
     { "filename": "functions-worker.md" },
     { "filename": "functions.md" },
@@ -16,6 +17,7 @@
     { "filename": "sources.md" },
     { "filename": "tenants.md" },
     { "filename": "topics.md" },
+    { "filename": "topicPolicies.md" },
     { "filename": "transactions.md" }
   ],
   "title": "Docs",

@@ -73,6 +73,10 @@ bin/pulsar-admin namespaces set-bookie-affinity-group public/default \
 --primary-group group-bookie1
 ```
 
+> **Note**
+> 
+> Do not set a bookie rack name to slash (`/`) or an empty string (`""`) if you use Pulsar earlier than 2.7.5, 2.8.3, and 2.9.2. For the bookie rack name restrictions, see [pulsar-admin bookies set-bookie-rack](https://pulsar.apache.org/tools/pulsar-admin/).
+
 <!--REST API-->
 
 [POST /admin/v2/namespaces/{tenant}/{namespace}/persistence/bookieAffinity](https://pulsar.apache.org/admin-rest-api/?version=master&apiversion=v2#operation/setBookieAffinityGroup)

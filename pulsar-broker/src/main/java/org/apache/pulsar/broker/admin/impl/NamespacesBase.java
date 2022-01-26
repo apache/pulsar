@@ -320,6 +320,8 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(ignore -> namespaceResources().deletePoliciesAsync(namespaceName))
                 // clear z-node of local policies
                 .thenCompose(ignore -> getLocalPolicies().deleteLocalPoliciesAsync(namespaceName))
+                // clear /loadbalance/bundle-data
+                .thenCompose(ignore -> namespaceResources().deleteBundleDataAsync(namespaceName))
                 .whenComplete((ignore, ex) -> {
                     if (ex != null) {
                         log.warn("[{}] Failed to remove namespace or managed-ledger for {}",
@@ -417,7 +419,8 @@ public abstract class NamespacesBase extends AdminResource {
         }
 
         // remove from owned namespace map and ephemeral node from ZK
-        final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        final List<CompletableFuture<Void>> topicFutures = Lists.newArrayList();
+        final List<CompletableFuture<Void>> bundleFutures = Lists.newArrayList();
         try {
             // firstly remove all topics including system topics
             if (!topics.isEmpty()) {
@@ -431,12 +434,12 @@ public abstract class NamespacesBase extends AdminResource {
                             String partitionedTopic = topicName.getPartitionedTopicName();
                             if (!partitionedTopics.contains(partitionedTopic)) {
                                 // Distinguish partitioned topic to avoid duplicate deletion of the same schema
-                                futures.add(pulsar().getAdminClient().topics().deletePartitionedTopicAsync(
+                                topicFutures.add(pulsar().getAdminClient().topics().deletePartitionedTopicAsync(
                                         partitionedTopic, true, true));
                                 partitionedTopics.add(partitionedTopic);
                             }
                         } else {
-                            futures.add(pulsar().getAdminClient().topics().deleteAsync(
+                            topicFutures.add(pulsar().getAdminClient().topics().deleteAsync(
                                     topic, true, true));
                             nonPartitionedTopics.add(topic);
                         }
@@ -457,14 +460,35 @@ public abstract class NamespacesBase extends AdminResource {
                                     + "and non-partitioned-topics:{} in namespace:{}.",
                             partitionedTopics, nonPartitionedTopics, namespaceName);
                 }
+
+                final CompletableFuture<Throwable> topicFutureEx =
+                        FutureUtil.waitForAll(topicFutures).handle((result, exception) -> {
+                            if (exception != null) {
+                                if (exception.getCause() instanceof PulsarAdminException) {
+                                    asyncResponse
+                                            .resume(new RestException((PulsarAdminException) exception.getCause()));
+                                } else {
+                                    log.error("[{}] Failed to remove forcefully owned namespace {}",
+                                            clientAppId(), namespaceName, exception);
+                                    asyncResponse.resume(new RestException(exception.getCause()));
+                                }
+                                return exception;
+                            }
+
+                            return null;
+                        });
+                if (topicFutureEx.join() != null) {
+                    return;
+                }
             }
+
             // forcefully delete namespace bundles
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
                     .getBundles(namespaceName);
             for (NamespaceBundle bundle : bundles.getBundles()) {
                 // check if the bundle is owned by any broker, if not then we do not need to delete the bundle
                 if (pulsar().getNamespaceService().getOwner(bundle).isPresent()) {
-                    futures.add(pulsar().getAdminClient().namespaces()
+                    bundleFutures.add(pulsar().getAdminClient().namespaces()
                             .deleteNamespaceBundleAsync(namespaceName.toString(), bundle.getBundleRange(), true));
                 }
             }
@@ -474,7 +498,7 @@ public abstract class NamespacesBase extends AdminResource {
             return;
         }
 
-        FutureUtil.waitForAll(futures).handle((result, exception) -> {
+        FutureUtil.waitForAll(bundleFutures).handle((result, exception) -> {
             if (exception != null) {
                 if (exception.getCause() instanceof PulsarAdminException) {
                     asyncResponse.resume(new RestException((PulsarAdminException) exception.getCause()));
@@ -997,12 +1021,9 @@ public abstract class NamespacesBase extends AdminResource {
             final BookieAffinityGroupData bookkeeperAffinityGroup = getLocalPolicies().getLocalPolicies(namespaceName)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                             "Namespace local-policies does not exist")).bookieAffinityGroup;
-            if (bookkeeperAffinityGroup == null) {
-                throw new RestException(Status.NOT_FOUND, "bookie-affinity group does not exist");
-            }
             return bookkeeperAffinityGroup;
         } catch (NotFoundException e) {
-            log.warn("[{}] Failed to update local-policy configuration for namespace {}: does not exist",
+            log.warn("[{}] Failed to get local-policy configuration for namespace {}: does not exist",
                     clientAppId(), namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace policies does not exist");
         } catch (RestException re) {
@@ -1209,13 +1230,7 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
-        PublishRate publishRate = policies.publishMaxMessageRate.get(pulsar().getConfiguration().getClusterName());
-        if (publishRate != null) {
-            return publishRate;
-        } else {
-            throw new RestException(Status.NOT_FOUND,
-                    "Publish-rate is not configured for cluster " + pulsar().getConfiguration().getClusterName());
-        }
+        return policies.publishMaxMessageRate.get(pulsar().getConfiguration().getClusterName());
     }
 
     @SuppressWarnings("deprecation")
@@ -1873,7 +1888,7 @@ public abstract class NamespacesBase extends AdminResource {
             return namespaces.stream().filter(ns -> {
                 Optional<LocalPolicies> policies;
                 try {
-                    policies = getLocalPolicies().getLocalPolicies(namespaceName);
+                    policies = getLocalPolicies().getLocalPolicies(NamespaceName.get(ns));
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
@@ -2327,15 +2342,8 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
                 PolicyOperation.READ);
         Policies policies = getNamespacePolicies(namespaceName);
-        SchemaCompatibilityStrategy schemaCompatibilityStrategy = policies.schema_compatibility_strategy;
-        if (schemaCompatibilityStrategy == SchemaCompatibilityStrategy.UNDEFINED) {
-            schemaCompatibilityStrategy = pulsar().getConfig().getSchemaCompatibilityStrategy();
-            if (schemaCompatibilityStrategy == SchemaCompatibilityStrategy.UNDEFINED) {
-                schemaCompatibilityStrategy = SchemaCompatibilityStrategy
-                        .fromAutoUpdatePolicy(policies.schema_auto_update_compatibility_strategy);
-            }
-        }
-        return schemaCompatibilityStrategy;
+
+        return policies.schema_compatibility_strategy;
     }
 
     @Deprecated
@@ -2389,6 +2397,9 @@ public abstract class NamespacesBase extends AdminResource {
     protected boolean internalGetIsAllowAutoUpdateSchema() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
                 PolicyOperation.READ);
+        if (getNamespacePolicies(namespaceName).is_allow_auto_update_schema == null) {
+            return pulsar().getConfig().isAllowAutoUpdateSchemaEnabled();
+        }
         return getNamespacePolicies(namespaceName).is_allow_auto_update_schema;
     }
 

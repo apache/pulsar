@@ -18,16 +18,17 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
@@ -46,10 +47,6 @@ import org.apache.pulsar.client.api.interceptor.ProducerInterceptorWrapper;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
-
-import lombok.NonNull;
-
-import static com.google.common.base.Preconditions.checkArgument;
 
 @Getter(AccessLevel.PUBLIC)
 public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
@@ -70,7 +67,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
 
     /**
-     * Allow to override schema in builder implementation
+     * Allow to override schema in builder implementation.
      * @return
      */
     public ProducerBuilder<T> schema(Schema<T> schema) {
@@ -104,13 +101,13 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
         try {
             setMessageRoutingMode();
-        } catch(PulsarClientException pce) {
+        } catch (PulsarClientException pce) {
             return FutureUtil.failedFuture(pce);
         }
 
-        return interceptorList == null || interceptorList.size() == 0 ?
-                client.createProducerAsync(conf, schema, null) :
-                client.createProducerAsync(conf, schema, new ProducerInterceptors(interceptorList));
+        return interceptorList == null || interceptorList.size() == 0
+                ? client.createProducerAsync(conf, schema, null)
+                : client.createProducerAsync(conf, schema, new ProducerInterceptors(interceptorList));
     }
 
     @Override
@@ -145,6 +142,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         return this;
     }
 
+    @Deprecated
     @Override
     public ProducerBuilder<T> maxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions) {
         conf.setMaxPendingMessagesAcrossPartitions(maxPendingMessagesAcrossPartitions);
@@ -329,16 +327,16 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
 
     private void setMessageRoutingMode() throws PulsarClientException {
-        if(conf.getMessageRoutingMode() == null && conf.getCustomMessageRouter() == null) {
+        if (conf.getMessageRoutingMode() == null && conf.getCustomMessageRouter() == null) {
             messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
-        } else if(conf.getMessageRoutingMode() == null && conf.getCustomMessageRouter() != null) {
+        } else if (conf.getMessageRoutingMode() == null && conf.getCustomMessageRouter() != null) {
             messageRoutingMode(MessageRoutingMode.CustomPartition);
-        } else if((conf.getMessageRoutingMode() == MessageRoutingMode.CustomPartition
+        } else if ((conf.getMessageRoutingMode() == MessageRoutingMode.CustomPartition
                 && conf.getCustomMessageRouter() == null)
                 || (conf.getMessageRoutingMode() != MessageRoutingMode.CustomPartition
                 && conf.getCustomMessageRouter() != null)) {
-            throw new PulsarClientException("When 'messageRouter' is set, 'messageRoutingMode' " +
-                    "should be set as " + MessageRoutingMode.CustomPartition);
+            throw new PulsarClientException("When 'messageRouter' is set, 'messageRoutingMode' "
+                    + "should be set as " + MessageRoutingMode.CustomPartition);
         }
     }
 

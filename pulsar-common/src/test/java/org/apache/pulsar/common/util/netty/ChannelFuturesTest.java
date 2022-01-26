@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.util.netty;
 
 import static org.mockito.Mockito.when;
-import static org.mockito.MockitoAnnotations.initMocks;
 
 import io.netty.channel.Channel;
 import io.netty.channel.DefaultChannelPromise;
@@ -30,6 +29,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.testng.Assert;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeMethod;
@@ -62,7 +62,7 @@ public class ChannelFuturesTest {
 
     @BeforeMethod
     public void setup() {
-        initMocks(this);
+        MockitoAnnotations.openMocks(this);
         when(channel.eventLoop()).thenReturn(eventLoop);
 
         channelFuture = new DefaultChannelPromise(channel);

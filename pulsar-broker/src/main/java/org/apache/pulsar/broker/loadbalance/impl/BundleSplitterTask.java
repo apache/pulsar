@@ -84,7 +84,8 @@ public class BundleSplitterTask implements BundleSplitStrategy {
                     totalMessageRate = longTermData.totalMsgRate();
                     totalMessageThroughput = longTermData.totalMsgThroughput();
                 }
-                if (stats.topics > maxBundleTopics || stats.consumerCount + stats.producerCount > maxBundleSessions
+                if (stats.topics > maxBundleTopics || (maxBundleSessions > 0 && (stats.consumerCount
+                        + stats.producerCount > maxBundleSessions))
                         || totalMessageRate > maxBundleMsgRate || totalMessageThroughput > maxBundleBandwidth) {
                     final String namespace = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
                     try {

@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.stats.prometheus;
 
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.io.EOFException;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
@@ -70,6 +71,7 @@ public class PrometheusMetricsServlet extends HttpServlet {
         AsyncContext context = request.startAsync();
         context.setTimeout(metricsServletTimeoutMs);
         executor.execute(safeRun(() -> {
+            long start = System.currentTimeMillis();
             HttpServletResponse res = (HttpServletResponse) context.getResponse();
             try {
                 res.setStatus(HttpStatus.OK_200);
@@ -77,12 +79,29 @@ public class PrometheusMetricsServlet extends HttpServlet {
                 PrometheusMetricsGenerator.generate(pulsar, shouldExportTopicMetrics, shouldExportConsumerMetrics,
                         shouldExportProducerMetrics, splitTopicAndPartitionLabel, res.getOutputStream(),
                         metricsProviders);
-                context.complete();
-
             } catch (Exception e) {
-                log.error("Failed to generate prometheus stats", e);
+                long end = System.currentTimeMillis();
+                long time = end - start;
+                if (e instanceof EOFException) {
+                    // NO STACKTRACE
+                    log.error("Failed to send metrics, "
+                            + "likely the client or this server closed "
+                            + "the connection due to a timeout ({} ms elapsed): {}", time, e + "");
+                } else {
+                    log.error("Failed to generate prometheus stats, {} ms elapsed", time, e);
+                }
                 res.setStatus(HttpStatus.INTERNAL_SERVER_ERROR_500);
-                context.complete();
+            } finally {
+                long end = System.currentTimeMillis();
+                long time = end - start;
+                try {
+                    context.complete();
+                } catch (IllegalStateException e) {
+                    // this happens when metricsServletTimeoutMs expires
+                    // java.lang.IllegalStateException: AsyncContext completed and/or Request lifecycle recycled
+                    log.error("Failed to generate prometheus stats, "
+                            + "this is likely due to metricsServletTimeoutMs: {} ms elapsed: {}", time, e + "");
+                }
             }
         }));
     }

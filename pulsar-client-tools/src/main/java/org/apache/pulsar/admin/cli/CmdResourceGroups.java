@@ -21,11 +21,10 @@ package org.apache.pulsar.admin.cli;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
+import java.util.function.Supplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
-
-import java.util.function.Supplier;
 
 @Parameters(commandDescription = "Operations about ResourceGroups")
 public class CmdResourceGroups extends CmdBase {
@@ -54,21 +53,25 @@ public class CmdResourceGroups extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "--msg-publish-rate",
-                "-mp" }, description = "message-publish-rate (default -1 will be overwrite if not passed)", required = false)
-        private int publishRateInMsgs = -1;
+                "-mp" }, description = "message-publish-rate "
+                + "(default -1 will be overwrite if not passed)", required = false)
+        private Integer publishRateInMsgs;
 
         @Parameter(names = { "--byte-publish-rate",
-                "-bp" }, description = "byte-publish-rate (default -1 will be overwrite if not passed)", required = false)
-        private long publishRateInBytes = -1;
+                "-bp" }, description = "byte-publish-rate "
+                + "(default -1 will be overwrite if not passed)", required = false)
+        private Long publishRateInBytes;
 
 
         @Parameter(names = { "--msg-dispatch-rate",
-                "-md" }, description = "message-dispatch-rate (default -1 will be overwrite if not passed)", required = false)
-        private int dispatchRateInMsgs = -1;
+                "-md" }, description = "message-dispatch-rate "
+                + "(default -1 will be overwrite if not passed)", required = false)
+        private Integer dispatchRateInMsgs;
 
         @Parameter(names = { "--byte-dispatch-rate",
-                "-bd" }, description = "byte-dispatch-rate (default -1 will be overwrite if not passed)", required = false)
-        private long dispatchRateInBytes = -1;
+                "-bd" }, description = "byte-dispatch-rate "
+                + "(default -1 will be overwrite if not passed)", required = false)
+        private Long dispatchRateInBytes;
 
         @Override
         void run() throws PulsarAdminException {
@@ -89,21 +92,21 @@ public class CmdResourceGroups extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "--msg-publish-rate",
-                "-mp" }, description = "message-publish-rate (default -1 will be overwrite if not passed)", required = false)
-        private int publishRateInMsgs = -1;
+                "-mp" }, description = "message-publish-rate ", required = false)
+        private Integer publishRateInMsgs;
 
         @Parameter(names = { "--byte-publish-rate",
-                "-bp" }, description = "byte-publish-rate (default -1 will be overwrite if not passed)", required = false)
-        private long publishRateInBytes = -1;
+                "-bp" }, description = "byte-publish-rate ", required = false)
+        private Long publishRateInBytes;
 
 
         @Parameter(names = { "--msg-dispatch-rate",
-                "-md" }, description = "message-dispatch-rate (default -1 will be overwrite if not passed)", required = false)
-        private int dispatchRateInMsgs = -1;
+                "-md" }, description = "message-dispatch-rate ", required = false)
+        private Integer dispatchRateInMsgs;
 
         @Parameter(names = { "--byte-dispatch-rate",
-                "-bd" }, description = "byte-dispatch-rate (default -1 will be overwrite if not passed)", required = false)
-        private long dispatchRateInBytes = -1;
+                "-bd" }, description = "byte-dispatch-rate ", required = false)
+        private Long dispatchRateInBytes;
 
         @Override
         void run() throws PulsarAdminException {

@@ -18,7 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
-import com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkArgument;
 import io.netty.buffer.ByteBuf;
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -60,11 +60,11 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
     static class GroupedReader {
         @Override
         public String toString() {
-            return "GroupedReader{" +
-                    "ledgerId=" + ledgerId +
-                    ", firstEntry=" + firstEntry +
-                    ", lastEntry=" + lastEntry +
-                    '}';
+            return "GroupedReader{"
+                    + "ledgerId=" + ledgerId
+                    + ", firstEntry=" + firstEntry
+                    + ", lastEntry=" + lastEntry
+                    + '}';
         }
 
         public final long ledgerId;
@@ -222,12 +222,12 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
             }
         }
 
-        Preconditions.checkArgument(firstEntry > lastEntry);
+        checkArgument(firstEntry > lastEntry);
         for (int i = 0; i < groupedReaders.size() - 1; i++) {
             final GroupedReader readerI = groupedReaders.get(i);
             final GroupedReader readerII = groupedReaders.get(i + 1);
-            Preconditions.checkArgument(readerI.ledgerId == readerII.ledgerId);
-            Preconditions.checkArgument(readerI.firstEntry >= readerII.lastEntry);
+            checkArgument(readerI.ledgerId == readerII.ledgerId);
+            checkArgument(readerI.firstEntry >= readerII.lastEntry);
         }
         return groupedReaders;
     }

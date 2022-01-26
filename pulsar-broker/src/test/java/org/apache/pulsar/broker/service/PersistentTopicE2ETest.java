@@ -1547,9 +1547,9 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertNotNull(map);
         assertEquals((long) map.get("brk_connection_created_total_count"), 2);
         assertEquals((long) map.get("brk_active_connections"), 0);
-        assertEquals((long) map.get("brk_connection_closed_total_count") , 2);
+        assertEquals((long) map.get("brk_connection_closed_total_count"), 2);
         assertEquals((long) map.get("brk_connection_create_success_count"), 1);
-        assertEquals((long) map.get("brk_connection_create_fail_count") , 1);
+        assertEquals((long) map.get("brk_connection_create_fail_count"), 1);
     }
 
     @Test

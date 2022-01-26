@@ -1,0 +1,590 @@
+{
+  "version-2.8.2/docsSidebar": [
+    {
+      "type": "category",
+      "label": "Get Started",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.2/standalone"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/standalone-docker"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/kubernetes-helm"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Concepts and Architecture",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.2/concepts-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/concepts-messaging"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/concepts-architecture-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/concepts-clients"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/concepts-replication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/concepts-multi-tenancy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/concepts-authentication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/concepts-topic-compaction"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/concepts-proxy-sni-routing"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/concepts-multiple-advertised-listeners"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar Schema",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.2/schema-get-started"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/schema-understand"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/schema-evolution-compatibility"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/schema-manage"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar Functions",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.2/functions-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/functions-runtime"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/functions-worker"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/functions-develop"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/functions-package"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/functions-debug"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/functions-deploy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/functions-cli"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/window-functions-context"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar IO",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.2/io-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/io-quickstart"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/io-use"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/io-debug"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/io-connectors"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/io-cdc"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/io-develop"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/io-cli"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar SQL",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.2/sql-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/sql-getting-started"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/sql-deployment-configurations"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/sql-rest-api"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Tiered Storage",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.2/tiered-storage-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/tiered-storage-aws"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/tiered-storage-gcs"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/tiered-storage-filesystem"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/tiered-storage-azure"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/tiered-storage-aliyun"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Transactions",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.2/txn-why"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/txn-what"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/txn-how"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/txn-use"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/txn-monitor"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Kubernetes (Helm)",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.2/helm-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/helm-prepare"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/helm-install"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/helm-deploy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/helm-upgrade"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/helm-tools"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Deployment",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.2/deploy-aws"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/deploy-kubernetes"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/deploy-bare-metal"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/deploy-bare-metal-multi-cluster"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/deploy-dcos"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/deploy-docker"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/deploy-monitoring"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Administration",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.2/administration-zk-bk"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/administration-geo"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/administration-pulsar-manager"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/administration-stats"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/administration-load-balance"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/administration-proxy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/administration-upgrade"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/administration-isolation"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Security",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.2/security-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/security-tls-transport"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/security-tls-authentication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/security-tls-keystore"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/security-jwt"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/security-athenz"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/security-kerberos"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/security-oauth2"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/security-authorization"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/security-encryption"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/security-extending"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/security-bouncy-castle"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Performance",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.2/performance-pulsar-perf"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Client Libraries",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.2/client-libraries"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/client-libraries-java"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/client-libraries-go"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/client-libraries-python"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/client-libraries-cpp"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/client-libraries-node"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/client-libraries-websocket"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/client-libraries-dotnet"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Admin API",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.2/admin-api-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/admin-api-clusters"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/admin-api-tenants"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/admin-api-brokers"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/admin-api-namespaces"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/admin-api-permissions"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/admin-api-topics"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/admin-api-functions"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/admin-api-packages"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Adaptors",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.2/adaptors-kafka"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/adaptors-spark"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/adaptors-storm"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Cookbooks",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.2/cookbooks-compaction"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/cookbooks-deduplication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/cookbooks-non-persistent"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/cookbooks-retention-expiry"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/cookbooks-encryption"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/cookbooks-message-queue"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/cookbooks-bookkeepermetadata"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Development",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.2/develop-tools"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/develop-binary-protocol"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/develop-schema"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/develop-load-manager"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Reference",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.2/reference-terminology"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/reference-cli-tools"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/reference-configuration"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.2/reference-metrics"
+        }
+      ]
+    }
+  ]
+}

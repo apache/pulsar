@@ -20,13 +20,14 @@ package org.apache.pulsar.proxy.socket.client;
 
 import static java.util.Base64.getEncoder;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
 import org.HdrHistogram.Recorder;
 import org.eclipse.jetty.websocket.api.RemoteEndpoint;
 import org.eclipse.jetty.websocket.api.Session;
@@ -34,11 +35,6 @@ import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
-
-import com.google.gson.Gson;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonObject;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.matches;
 import static org.mockito.ArgumentMatchers.same;
@@ -33,23 +34,20 @@ import static org.testng.Assert.assertNull;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertSame;
 import static org.testng.AssertJUnit.assertTrue;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
-
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
 import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
-import java.util.function.Supplier;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-
+import java.util.function.Supplier;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
@@ -115,9 +113,9 @@ public class PersistentDispatcherFailoverConsumerTest {
     @BeforeMethod
     public void setup() throws Exception {
         executor = OrderedExecutor.newBuilder().numThreads(1).name("persistent-dispatcher-failover-test").build();
-        ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
+        ServiceConfiguration svcConfig = spy(ServiceConfiguration.class);
         svcConfig.setBrokerShutdownTimeoutMs(0L);
-        pulsar = spy(new PulsarService(svcConfig));
+        pulsar = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
         doReturn(svcConfig).when(pulsar).getConfiguration();
 
         mlFactoryMock = mock(ManagedLedgerFactory.class);
@@ -134,7 +132,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         PulsarResources pulsarResources = new PulsarResources(store, store);
         doReturn(pulsarResources).when(pulsar).getPulsarResources();
 
-        brokerService = spy(new BrokerService(pulsar, eventLoopGroup));
+        brokerService = spyWithClassAndConstructorArgs(BrokerService.class, pulsar, eventLoopGroup);
         doReturn(brokerService).when(pulsar).getBrokerService();
 
         consumerChanges = new LinkedBlockingQueue<>();
@@ -160,7 +158,7 @@ public class PersistentDispatcherFailoverConsumerTest {
             return null;
         }).when(channelCtx).writeAndFlush(any(), any());
 
-        serverCnx = spy(new ServerCnx(pulsar));
+        serverCnx = spyWithClassAndConstructorArgs(ServerCnx.class, pulsar);
         doReturn(true).when(serverCnx).isActive();
         doReturn(true).when(serverCnx).isWritable();
         doReturn(new InetSocketAddress("localhost", 1234)).when(serverCnx).clientAddress();
@@ -169,7 +167,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         doReturn(new PulsarCommandSenderImpl(null, serverCnx))
                 .when(serverCnx).getCommandSender();
 
-        serverCnxWithOldVersion = spy(new ServerCnx(pulsar));
+        serverCnxWithOldVersion = spyWithClassAndConstructorArgs(ServerCnx.class, pulsar);
         doReturn(true).when(serverCnxWithOldVersion).isActive();
         doReturn(true).when(serverCnxWithOldVersion).isWritable();
         doReturn(new InetSocketAddress("localhost", 1234))
@@ -501,15 +499,15 @@ public class PersistentDispatcherFailoverConsumerTest {
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
-        Consumer consumer1 = createConsumer(0, 2, false, 1);
-        Consumer consumer2 = createConsumer(0, 2, false, 2);
-        Consumer consumer3 = createConsumer(0, 2, false, 3);
-        Consumer consumer4 = createConsumer(1, 2, false, 4);
-        Consumer consumer5 = createConsumer(1, 1, false, 5);
-        Consumer consumer6 = createConsumer(1, 2, false, 6);
-        Consumer consumer7 = createConsumer(2, 1, false, 7);
-        Consumer consumer8 = createConsumer(2, 1, false, 8);
-        Consumer consumer9 = createConsumer(2, 1, false, 9);
+        Consumer consumer1 = createConsumer(topic, 0, 2, false, 1);
+        Consumer consumer2 = createConsumer(topic, 0, 2, false, 2);
+        Consumer consumer3 = createConsumer(topic, 0, 2, false, 3);
+        Consumer consumer4 = createConsumer(topic, 1, 2, false, 4);
+        Consumer consumer5 = createConsumer(topic, 1, 1, false, 5);
+        Consumer consumer6 = createConsumer(topic, 1, 2, false, 6);
+        Consumer consumer7 = createConsumer(topic, 2, 1, false, 7);
+        Consumer consumer8 = createConsumer(topic, 2, 1, false, 8);
+        Consumer consumer9 = createConsumer(topic, 2, 1, false, 9);
         dispatcher.addConsumer(consumer1);
         dispatcher.addConsumer(consumer2);
         dispatcher.addConsumer(consumer3);
@@ -533,7 +531,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         Assert.assertEquals(getNextConsumer(dispatcher), consumer7);
         Assert.assertEquals(getNextConsumer(dispatcher), consumer8);
         // in between add upper priority consumer with more permits
-        Consumer consumer10 = createConsumer(0, 2, false, 10);
+        Consumer consumer10 = createConsumer(topic, 0, 2, false, 10);
         dispatcher.addConsumer(consumer10);
         Assert.assertEquals(getNextConsumer(dispatcher), consumer10);
         Assert.assertEquals(getNextConsumer(dispatcher), consumer10);
@@ -545,12 +543,12 @@ public class PersistentDispatcherFailoverConsumerTest {
     public void testFewBlockedConsumerSamePriority() throws Exception{
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
-        Consumer consumer1 = createConsumer(0, 2, false, 1);
-        Consumer consumer2 = createConsumer(0, 2, false, 2);
-        Consumer consumer3 = createConsumer(0, 2, false, 3);
-        Consumer consumer4 = createConsumer(0, 2, false, 4);
-        Consumer consumer5 = createConsumer(0, 1, true, 5);
-        Consumer consumer6 = createConsumer(0, 2, true, 6);
+        Consumer consumer1 = createConsumer(topic, 0, 2, false, 1);
+        Consumer consumer2 = createConsumer(topic, 0, 2, false, 2);
+        Consumer consumer3 = createConsumer(topic, 0, 2, false, 3);
+        Consumer consumer4 = createConsumer(topic, 0, 2, false, 4);
+        Consumer consumer5 = createConsumer(topic, 0, 1, true, 5);
+        Consumer consumer6 = createConsumer(topic, 0, 2, true, 6);
         dispatcher.addConsumer(consumer1);
         dispatcher.addConsumer(consumer2);
         dispatcher.addConsumer(consumer3);
@@ -572,18 +570,18 @@ public class PersistentDispatcherFailoverConsumerTest {
     public void testFewBlockedConsumerDifferentPriority() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
-        Consumer consumer1 = createConsumer(0, 2, false, 1);
-        Consumer consumer2 = createConsumer(0, 2, false, 2);
-        Consumer consumer3 = createConsumer(0, 2, false, 3);
-        Consumer consumer4 = createConsumer(0, 2, false, 4);
-        Consumer consumer5 = createConsumer(0, 1, true, 5);
-        Consumer consumer6 = createConsumer(0, 2, true, 6);
-        Consumer consumer7 = createConsumer(1, 2, false, 7);
-        Consumer consumer8 = createConsumer(1, 10, true, 8);
-        Consumer consumer9 = createConsumer(1, 2, false, 9);
-        Consumer consumer10 = createConsumer(2, 2, false, 10);
-        Consumer consumer11 = createConsumer(2, 10, true, 11);
-        Consumer consumer12 = createConsumer(2, 2, false, 12);
+        Consumer consumer1 = createConsumer(topic, 0, 2, false, 1);
+        Consumer consumer2 = createConsumer(topic, 0, 2, false, 2);
+        Consumer consumer3 = createConsumer(topic, 0, 2, false, 3);
+        Consumer consumer4 = createConsumer(topic, 0, 2, false, 4);
+        Consumer consumer5 = createConsumer(topic, 0, 1, true, 5);
+        Consumer consumer6 = createConsumer(topic, 0, 2, true, 6);
+        Consumer consumer7 = createConsumer(topic, 1, 2, false, 7);
+        Consumer consumer8 = createConsumer(topic, 1, 10, true, 8);
+        Consumer consumer9 = createConsumer(topic, 1, 2, false, 9);
+        Consumer consumer10 = createConsumer(topic, 2, 2, false, 10);
+        Consumer consumer11 = createConsumer(topic, 2, 10, true, 11);
+        Consumer consumer12 = createConsumer(topic, 2, 2, false, 12);
         dispatcher.addConsumer(consumer1);
         dispatcher.addConsumer(consumer2);
         dispatcher.addConsumer(consumer3);
@@ -611,8 +609,8 @@ public class PersistentDispatcherFailoverConsumerTest {
         Assert.assertEquals(getNextConsumer(dispatcher), consumer10);
         Assert.assertEquals(getNextConsumer(dispatcher), consumer12);
         // add consumer with lower priority again
-        Consumer consumer13 = createConsumer(0, 2, false, 13);
-        Consumer consumer14 = createConsumer(0, 2, true, 14);
+        Consumer consumer13 = createConsumer(topic, 0, 2, false, 13);
+        Consumer consumer14 = createConsumer(topic, 0, 2, true, 14);
         dispatcher.addConsumer(consumer13);
         dispatcher.addConsumer(consumer14);
         Assert.assertEquals(getNextConsumer(dispatcher), consumer13);
@@ -626,13 +624,13 @@ public class PersistentDispatcherFailoverConsumerTest {
     public void testFewBlockedConsumerDifferentPriority2() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
-        Consumer consumer1 = createConsumer(0, 2, true, 1);
-        Consumer consumer2 = createConsumer(0, 2, true, 2);
-        Consumer consumer3 = createConsumer(0, 2, true, 3);
-        Consumer consumer4 = createConsumer(1, 2, false, 4);
-        Consumer consumer5 = createConsumer(1, 1, false, 5);
-        Consumer consumer6 = createConsumer(2, 1, false, 6);
-        Consumer consumer7 = createConsumer(2, 2, true, 7);
+        Consumer consumer1 = createConsumer(topic, 0, 2, true, 1);
+        Consumer consumer2 = createConsumer(topic, 0, 2, true, 2);
+        Consumer consumer3 = createConsumer(topic, 0, 2, true, 3);
+        Consumer consumer4 = createConsumer(topic, 1, 2, false, 4);
+        Consumer consumer5 = createConsumer(topic, 1, 1, false, 5);
+        Consumer consumer6 = createConsumer(topic, 2, 1, false, 6);
+        Consumer consumer7 = createConsumer(topic, 2, 2, true, 7);
         dispatcher.addConsumer(consumer1);
         dispatcher.addConsumer(consumer2);
         dispatcher.addConsumer(consumer3);
@@ -662,9 +660,10 @@ public class PersistentDispatcherFailoverConsumerTest {
         return null;
     }
 
-    private Consumer createConsumer(int priority, int permit, boolean blocked, int id) throws Exception {
+    private Consumer createConsumer(PersistentTopic topic, int priority, int permit, boolean blocked, int id) throws Exception {
+        PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
         Consumer consumer =
-                new Consumer(null, SubType.Shared, "test-topic", id, priority, ""+id, 5000,
+                new Consumer(sub, SubType.Shared, "test-topic", id, priority, ""+id, 5000,
                         serverCnx, "appId", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null, MessageId.latest);
         try {
             consumer.flowPermits(permit);

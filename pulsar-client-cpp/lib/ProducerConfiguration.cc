@@ -251,4 +251,11 @@ ProducerConfiguration& ProducerConfiguration::setProperties(
     return *this;
 }
 
+ProducerConfiguration& ProducerConfiguration::setChunkingEnabled(bool chunkingEnabled) {
+    impl_->chunkingEnabled = chunkingEnabled;
+    return *this;
+}
+
+bool ProducerConfiguration::isChunkingEnabled() const { return impl_->chunkingEnabled; }
+
 }  // namespace pulsar

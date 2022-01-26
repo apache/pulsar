@@ -752,7 +752,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         doReturn(CompletableFuture.completedFuture(topicNames)).when(nss)
                 .getListOfPersistentTopics(NamespaceName.get("my-property/my-ns"));
 
-        // 7. call recheckTopics to unsubscribe topic 1,3 , verify topics number: 2=6-1-3
+        // 7. call recheckTopics to unsubscribe topic 1,3, verify topics number: 2=6-1-3
         log.debug("recheck topics change");
         PatternMultiTopicsConsumerImpl<byte[]> consumer1 = ((PatternMultiTopicsConsumerImpl<byte[]>) consumer);
         consumer1.run(consumer1.getRecheckPatternTimeout());

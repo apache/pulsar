@@ -6,7 +6,6 @@ hide_table_of_contents: true
 ---
 
 # Coding Guide
-
 The guidelines help to encourage consistency and best practices among people working on _Apache Pulsar_ code base. You should observe the guidelines unless there is compelling reason to ignore them. We use checkstyle to enforce coding style, refer to our [checkstyle rules](https://github.com/apache/pulsar/blob/master/buildtools/src/main/resources/pulsar/checkstyle.xml) for all enforced checkstyle rules.
 
 ## Java

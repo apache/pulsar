@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -1066,6 +1067,43 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         assertNotNull(keySharedMode);
         assertEquals(keySharedMode, KeySharedMode.STICKY);
         consumer1.close();
+    }
+
+    @Test
+    public void testAllowOutOfOrderDeliveryChangedAfterAllConsumerDisconnected() throws Exception {
+        final String topicName = "persistent://public/default/change-allow-ooo-delivery-" + UUID.randomUUID();
+        final String subName = "my-sub";
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .keySharedPolicy(KeySharedPolicy.autoSplitHashRange().setAllowOutOfOrderDelivery(true))
+                .subscribe();
+
+        CompletableFuture<Optional<Topic>> future = pulsar.getBrokerService().getTopicIfExists(topicName);
+        assertTrue(future.isDone());
+        assertTrue(future.get().isPresent());
+        Topic topic = future.get().get();
+        PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
+                (PersistentStickyKeyDispatcherMultipleConsumers) topic.getSubscription(subName).getDispatcher();
+        assertTrue(dispatcher.isAllowOutOfOrderDelivery());
+        consumer.close();
+
+        consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .keySharedPolicy(KeySharedPolicy.autoSplitHashRange().setAllowOutOfOrderDelivery(false))
+                .subscribe();
+
+        future = pulsar.getBrokerService().getTopicIfExists(topicName);
+        assertTrue(future.isDone());
+        assertTrue(future.get().isPresent());
+        topic = future.get().get();
+        dispatcher = (PersistentStickyKeyDispatcherMultipleConsumers) topic.getSubscription(subName).getDispatcher();
+        assertFalse(dispatcher.isAllowOutOfOrderDelivery());
+        consumer.close();
     }
 
     private KeySharedMode getKeySharedModeOfSubscription(Topic topic, String subscription) {

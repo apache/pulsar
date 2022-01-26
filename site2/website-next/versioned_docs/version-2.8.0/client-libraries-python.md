@@ -5,11 +5,11 @@ sidebar_label: "Python"
 original_id: client-libraries-python
 ---
 
-Pulsar Python client library is a wrapper over the existing [C++ client library](client-libraries-cpp) and exposes all of the [same features](/api/cpp/2.8.0-SNAPSHOT/2.8.0-SNAPSHOT). You can find the code in the [`python` subdirectory](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) of the C++ client code.
+Pulsar Python client library is a wrapper over the existing [C++ client library](client-libraries-cpp) and exposes all of the [same features](/api/cpp). You can find the code in the [`python` subdirectory](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) of the C++ client code.
 
 All the methods in producer, consumer, and reader of a Python client are thread-safe.
 
-[pdoc](https://github.com/BurntSushi/pdoc)-generated API docs for the Python client are available [here](/api/python/2.8.0-SNAPSHOT/2.8.0-SNAPSHOT).
+[pdoc](https://github.com/BurntSushi/pdoc)-generated API docs for the Python client are available [here](/api/python).
 
 ## Install
 
@@ -21,7 +21,7 @@ To install the `pulsar-client` library as a pre-built package using the [pip](ht
 
 ```shell
 
-$ pip install pulsar-client==2.8.0
+$ pip install pulsar-client==@pulsar:version_number@
 
 ```
 
@@ -30,16 +30,14 @@ $ pip install pulsar-client==2.8.0
 To support aspects like pulsar functions or Avro serialization, additional optional components can be installed alongside the  `pulsar-client` library
 
 ```shell
-
 # avro serialization
-$ pip install pulsar-client=='2.8.0[avro]'
+$ pip install pulsar-client[avro]=='{{pulsar:version_number}}'
 
 # functions runtime
-$ pip install pulsar-client=='2.8.0[functions]'
+$ pip install pulsar-client[functions]=='{{pulsar:version_number}}'
 
 # all optional components
-$ pip install pulsar-client=='2.8.0[all]'
-
+$ pip install pulsar-client[all]=='{{pulsar:version_number}}'
 ```
 
 Installation via PyPi is available for the following Python versions:
@@ -65,7 +63,7 @@ $ sudo python setup.py install
 
 ## API Reference
 
-The complete Python API reference is available at [api/python](/api/python/2.8.0-SNAPSHOT/2.8.0-SNAPSHOT).
+The complete Python API reference is available at [api/python](/api/python).
 
 ## Examples
 

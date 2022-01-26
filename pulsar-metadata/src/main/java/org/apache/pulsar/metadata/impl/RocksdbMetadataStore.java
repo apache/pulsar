@@ -31,9 +31,11 @@ import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -87,6 +89,29 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
 
     enum State {
         RUNNING, CLOSED
+    }
+
+    private int referenceCount = 1;
+
+    private static final Map<String, RocksdbMetadataStore> instancesCache = new ConcurrentHashMap<>();
+
+    public static RocksdbMetadataStore get(String metadataStoreUri, MetadataStoreConfig conf)
+            throws MetadataStoreException {
+        RocksdbMetadataStore store = instancesCache.get(metadataStoreUri);
+        if (store != null) {
+            synchronized (store) {
+                if (store.referenceCount > 0) {
+                    // Reuse the same store instance
+                    store.referenceCount++;
+                    return store;
+                }
+            }
+        }
+
+        // Create a new store instance
+        store = new RocksdbMetadataStore(metadataStoreUri, conf);
+        instancesCache.put(metadataStoreUri, store);
+        return store;
     }
 
     @Data
@@ -172,13 +197,16 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         return ByteBuffer.wrap(bytes).getLong();
     }
 
+    private final String metadataUrl;
+
     /**
      * @param metadataURL         format "rocksdb://{storePath}"
      * @param metadataStoreConfig
      * @throws MetadataStoreException
      */
-    public RocksdbMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig)
+    private RocksdbMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig)
             throws MetadataStoreException {
+        this.metadataUrl = metadataURL;
         try {
             RocksDB.loadLibrary();
         } catch (Throwable t) {
@@ -309,7 +337,15 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    public void close() throws MetadataStoreException {
+    public synchronized void close() throws MetadataStoreException {
+        referenceCount--;
+        if (referenceCount > 0) {
+            // We close it only when the last reference is closed;
+            return;
+        }
+
+        instancesCache.remove(this.metadataUrl, this);
+
         if (state == State.CLOSED) {
             //already closed.
             return;
@@ -333,7 +369,9 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
 
     @Override
     public CompletableFuture<Optional<GetResult>> storeGet(String path) {
-        log.info("getChildrenFromStore.path={},instanceId={}", path, instanceId);
+        if (log.isDebugEnabled()) {
+            log.debug("getFromStore.path={},instanceId={}", path, instanceId);
+        }
         try {
             dbStateLock.readLock().lock();
             if (state == State.CLOSED) {
@@ -366,7 +404,9 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
 
     @Override
     protected CompletableFuture<List<String>> getChildrenFromStore(String path) {
-        log.info("getChildrenFromStore.path={},instanceId={}", path, instanceId);
+        if (log.isDebugEnabled()) {
+            log.debug("getChildrenFromStore.path={},instanceId={}", path, instanceId);
+        }
         try {
             dbStateLock.readLock().lock();
             if (state == State.CLOSED) {
@@ -409,7 +449,9 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
 
     @Override
     protected CompletableFuture<Boolean> existsFromStore(String path) {
-        log.info("existsFromStore.path={},instanceId={}", path, instanceId);
+        if (log.isDebugEnabled()) {
+            log.debug("existsFromStore.path={},instanceId={}", path, instanceId);
+        }
         try {
             dbStateLock.readLock().lock();
             if (state == State.CLOSED) {
@@ -432,7 +474,9 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
 
     @Override
     protected CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion) {
-        log.info("storeDelete.path={},instanceId={}", path, instanceId);
+        if (log.isDebugEnabled()) {
+            log.debug("storeDelete.path={},instanceId={}", path, instanceId);
+        }
         try {
             dbStateLock.readLock().lock();
             if (state == State.CLOSED) {
@@ -466,7 +510,9 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     @Override
     protected CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> expectedVersion,
                                                EnumSet<CreateOption> options) {
-        log.info("storePut.path={},instanceId={}", path, instanceId);
+        if (log.isDebugEnabled()) {
+            log.debug("storePut.path={},instanceId={}", path, instanceId);
+        }
         try {
             dbStateLock.readLock().lock();
             if (state == State.CLOSED) {
@@ -477,8 +523,8 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
                 byte[] oldValueData = transaction.getForUpdate(optionDontCache, pathBytes, false);
                 MetaValue metaValue = MetaValue.parse(oldValueData);
                 if (expectedVersion.isPresent()) {
-                    if (metaValue == null && expectedVersion.get() != -1 ||
-                            metaValue != null && !expectedVersion.get().equals(metaValue.getVersion())) {
+                    if (metaValue == null && expectedVersion.get() != -1
+                            || metaValue != null && !expectedVersion.get().equals(metaValue.getVersion())) {
                         throw new MetadataStoreException.BadVersionException(
                                 String.format("Version mismatch, actual=%s, expect=%s",
                                         metaValue == null ? null : metaValue.getVersion(), expectedVersion.get()));

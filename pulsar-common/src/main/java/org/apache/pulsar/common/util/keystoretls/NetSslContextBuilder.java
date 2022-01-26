@@ -18,11 +18,9 @@
  */
 package org.apache.pulsar.common.util.keystoretls;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLException;
 import org.apache.pulsar.common.util.FileModifiedTimeUpdater;
 import org.apache.pulsar.common.util.SslContextAutoRefreshBuilder;
 
@@ -70,7 +68,7 @@ public class NetSslContextBuilder extends SslContextAutoRefreshBuilder<SSLContex
 
     @Override
     public synchronized SSLContext update()
-            throws SSLException, FileNotFoundException, GeneralSecurityException, IOException {
+            throws GeneralSecurityException, IOException {
         this.sslContext = KeyStoreSSLContext.createServerSslContext(tlsProvider,
                 tlsKeyStoreType, tlsKeyStore.getFileName(), tlsKeyStorePassword,
                 tlsAllowInsecureConnection,
