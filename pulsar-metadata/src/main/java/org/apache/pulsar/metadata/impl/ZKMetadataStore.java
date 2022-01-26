@@ -82,7 +82,8 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
             this.metadataURL = metadataURL;
             this.metadataStoreConfig = metadataStoreConfig;
             isZkManaged = true;
-            zkc = PulsarZooKeeperClient.newBuilder().connectString(metadataURL)
+            final String connectString = metadataURL.replace("zk:", "");
+            zkc = PulsarZooKeeperClient.newBuilder().connectString(connectString)
                     .connectRetryPolicy(new BoundExponentialBackoffRetryPolicy(100, 60_000, Integer.MAX_VALUE))
                     .allowReadOnlyMode(metadataStoreConfig.isAllowReadOnlyOperations())
                     .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis())
@@ -507,7 +508,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         int chrootIndex = metadataURL.indexOf("/");
         if (chrootIndex > 0) {
             String chrootPath = metadataURL.substring(chrootIndex);
-            String zkConnectForChrootCreation = metadataURL.substring(0, chrootIndex);
+            String zkConnectForChrootCreation = metadataURL.substring(0, chrootIndex).replace("zk:", "");
             try (ZooKeeper chrootZk = PulsarZooKeeperClient.newBuilder()
                     .connectString(zkConnectForChrootCreation)
                     .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis())

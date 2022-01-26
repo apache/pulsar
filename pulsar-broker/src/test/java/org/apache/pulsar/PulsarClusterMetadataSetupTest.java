@@ -24,6 +24,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.Field;
 import java.util.Arrays;
+
+import org.apache.bookkeeper.client.BookKeeperAdmin;
+import org.apache.bookkeeper.conf.ServerConfiguration;
+import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver;
 import org.testng.annotations.Test;
 
 public class PulsarClusterMetadataSetupTest {
@@ -58,5 +62,13 @@ public class PulsarClusterMetadataSetupTest {
         } finally {
             System.setOut(oldStream);
         }
+    }
+
+    @Test
+    public void testToDelete() throws Exception {
+        System.setProperty("bookkeeper.metadata.bookie.drivers", PulsarMetadataBookieDriver.class.getName());
+        ServerConfiguration conf = new ServerConfiguration();
+        conf.setMetadataServiceUri("metadata-store:zk:myzk/ledgers");
+        BookKeeperAdmin.format(conf, false, false);
     }
 }

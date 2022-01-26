@@ -2586,7 +2586,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 suffix = metadataStoreUrl;
             } else {
                 // Fallback to old setting
-                suffix = new ClientConfiguration().setZkServers(zookeeperServers).getMetadataServiceUriUnchecked();
+                suffix = "zk:" + zookeeperServers + new ClientConfiguration().getZkLedgersRootPath();
             }
             return "metadata-store:" + suffix;
         }

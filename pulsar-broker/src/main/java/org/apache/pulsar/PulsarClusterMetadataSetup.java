@@ -231,7 +231,7 @@ public class PulsarClusterMetadataSetup {
         // Format BookKeeper ledger storage metadata
         if (arguments.existingBkMetadataServiceUri == null && arguments.bookieMetadataServiceUri == null) {
             ServerConfiguration bkConf = new ServerConfiguration();
-            bkConf.setMetadataServiceUri("metadata-store:" + arguments.zookeeper);
+            bkConf.setMetadataServiceUri("metadata-store:zk:" + arguments.zookeeper);
             bkConf.setZkTimeout(arguments.zkSessionTimeoutMillis);
             if (!localStore.exists("/ledgers").get() // only format if /ledgers doesn't exist
                 && !BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
@@ -247,8 +247,7 @@ public class PulsarClusterMetadataSetup {
                 uriStr = arguments.bookieMetadataServiceUri;
             } else {
                 final ServerConfiguration metadataResolver = new ServerConfiguration();
-                metadataResolver.setZkServers(arguments.zookeeper);
-                uriStr = metadataResolver.getMetadataServiceUriUnchecked();
+                uriStr = "metadata-store:zk:" + arguments.zookeeper + metadataResolver.getZkLedgersRootPath();
             }
 
             log.info("initialDlogNamespaceMetadata uriStr" + uriStr + " " + arguments.configurationStore);
