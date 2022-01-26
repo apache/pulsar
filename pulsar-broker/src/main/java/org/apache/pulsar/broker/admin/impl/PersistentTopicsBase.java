@@ -232,23 +232,6 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected void validateAdminAndClientPermission() {
-        try {
-            validateAdminAccessForTenant(topicName.getTenant());
-        } catch (Exception ve) {
-            try {
-                checkAuthorization(pulsar(), topicName, clientAppId(), clientAuthData());
-            } catch (RestException re) {
-                throw re;
-            } catch (Exception e) {
-                // unknown error marked as internal server error
-                log.warn("Unexpected error while authorizing request. topic={}, role={}. Error: {}",
-                        topicName, clientAppId(), e.getMessage(), e);
-                throw new RestException(e);
-            }
-        }
-    }
-
     protected void validateCreateTopic(TopicName topicName) {
         if (isTransactionInternalName(topicName)) {
             log.warn("Forbidden to create transaction internal topic: {}", topicName);
@@ -2585,16 +2568,6 @@ public class PersistentTopicsBase extends AdminResource {
             log.error("[{}] Failed to examine message at position {} from {} due to {}", clientAppId(), messagePosition,
                     topicName, exception);
             throw new RestException(exception);
-        }
-    }
-
-    private void verifyReadOperation(boolean authoritative) {
-        if (topicName.isGlobal()) {
-            validateGlobalNamespaceOwnership(namespaceName);
-        }
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
-        if (partitionMetadata.partitions > 0) {
-            throw new RestException(Status.METHOD_NOT_ALLOWED, "Peek messages on a partitioned topic is not allowed");
         }
     }
 
