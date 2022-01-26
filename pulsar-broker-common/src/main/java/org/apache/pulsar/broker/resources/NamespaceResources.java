@@ -76,6 +76,10 @@ public class NamespaceResources extends BaseResources<Policies> {
         return super.exists(POLICIES_READONLY_FLAG_PATH);
     }
 
+    public CompletableFuture<Boolean> getPoliciesReadOnlyAsync() {
+        return super.existsAsync(POLICIES_READONLY_FLAG_PATH);
+    }
+
     public void createPolicies(NamespaceName ns, Policies policies) throws MetadataStoreException{
         create(joinPath(BASE_POLICIES_PATH, ns.toString()), policies);
     }

@@ -117,32 +117,6 @@ public abstract class AdminResource extends PulsarWebResource {
         return super.isLeaderBroker();
     }
 
-    /**
-     * Checks whether the broker is allowed to do read-write operations based on the existence of a node in
-     * configuration metadata-store.
-     *
-     * @throws WebApplicationException
-     *             if broker has a read only access if broker is not connected to the configuration metadata-store
-     */
-    public void validatePoliciesReadOnlyAccess() {
-        boolean arePoliciesReadOnly = true;
-
-        try {
-            arePoliciesReadOnly = pulsar().getPulsarResources().getNamespaceResources().getPoliciesReadOnly();
-        } catch (Exception e) {
-            log.warn("Unable to check if policies are read-only", e);
-            throw new RestException(e);
-        }
-
-        if (arePoliciesReadOnly) {
-            log.debug("Policies are read-only. Broker cannot do read-write operations");
-            throw new RestException(Status.FORBIDDEN, "Broker is forbidden to do read-write operations");
-        } else {
-            // Do nothing, just log the message.
-            log.debug("Broker is allowed to make read-write operations");
-        }
-    }
-
     protected CompletableFuture<Void> tryCreatePartitionsAsync(int numPartitions) {
         if (!topicName.isPersistent()) {
             return CompletableFuture.completedFuture(null);

@@ -22,6 +22,7 @@ package org.apache.pulsar.broker.admin.impl;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.defaultBundle;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
@@ -47,6 +48,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.mutable.MutableObject;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -101,9 +103,8 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@Slf4j
 public abstract class NamespacesBase extends AdminResource {
 
     protected List<String> internalGetTenantNamespaces(String tenant) {
@@ -1782,6 +1783,37 @@ public abstract class NamespacesBase extends AdminResource {
         internalSetPolicies("inactive_topic_policies", inactiveTopicPolicies);
     }
 
+    protected CompletableFuture<Void> internalSetPoliciesAsync(String fieldName, Object value) {
+        return namespaceResources().getPoliciesAsync(namespaceName)
+                .thenCompose(policiesOptional -> {
+                    Policies policies = policiesOptional.orElseThrow(() -> new RestException(Status.NOT_FOUND,
+                            "Namespace policies does not exist"));
+                    try {
+                        Field field = Policies.class.getDeclaredField(fieldName);
+                        field.setAccessible(true);
+                        field.set(policies, value);
+                        return namespaceResources()
+                                .setPoliciesAsync(namespaceName, p -> policies)
+                                .thenAccept(__ -> {
+                                    try {
+                                        log.info("[{}] Successfully updated {} configuration: namespace={}, value={}",
+                                                clientAppId(), fieldName,
+                                                namespaceName, jsonMapper().writeValueAsString(value));
+                                    } catch (JsonProcessingException ex) {
+                                        log.error("[{}] Failed to serialize value while update {} configuration" +
+                                                    " for namespace {}", clientAppId(), fieldName , namespaceName, ex);
+                                        throw new RestException(ex);
+                                    }
+                                });
+                    } catch (Exception ex) {
+                        log.error("[{}] Failed to reflect invoke field set while update {} configuration for " +
+                                        "namespace {}", clientAppId(), fieldName
+                                , namespaceName, ex);
+                        return FutureUtil.failedFuture(new RestException(ex));
+                    }
+                });
+    }
+
     protected void internalSetPolicies(String fieldName, Object value) {
         try {
             Policies policies = namespaceResources().getPolicies(namespaceName)
@@ -2720,25 +2752,55 @@ public abstract class NamespacesBase extends AdminResource {
        }
    }
 
-    protected void internalSetNamespaceResourceGroup(String rgName) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.RESOURCEGROUP, PolicyOperation.WRITE);
-        validatePoliciesReadOnlyAccess();
 
-        if (rgName != null) {
-            // check resourcegroup exists.
-            try {
-                if (!resourceGroupResources().resourceGroupExists(rgName)) {
-                    throw new RestException(Status.PRECONDITION_FAILED, "ResourceGroup does not exist");
-                }
-            } catch (Exception e) {
-                log.error("[{}] Invalid ResourceGroup {}: {}", clientAppId(), rgName, e);
-                throw new RestException(e);
-            }
-        }
-
-        internalSetPolicies("resource_group_name", rgName);
+    protected void internalGetNamespaceResourceGroup(AsyncResponse asyncResponse, String tenant, String namespace) {
+        validateNamespacePolicyOperationAsync(NamespaceName.get(tenant, namespace),
+                PolicyName.RESOURCEGROUP, PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName)
+                        .thenAccept(policies -> asyncResponse.resume(policies.resource_group_name)))
+                .exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    if (realCause instanceof WebApplicationException) {
+                        log.info("[{}] Successfully to get namespace resource group {}/{}",
+                                clientAppId(), tenant, namespace);
+                        asyncResponse.resume(realCause);
+                    } else {
+                        log.error("[{}] Fail to get namespace resource group {}/{}", clientAppId(), tenant, namespace);
+                        asyncResponse.resume(new RestException(realCause));
+                    }
+                    return null;
+                });
     }
 
-
-    private static final Logger log = LoggerFactory.getLogger(NamespacesBase.class);
+    protected void internalSetNamespaceResourceGroup(AsyncResponse asyncResponse, String rgName) {
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RESOURCEGROUP, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> {
+                    if (rgName != null) {
+                        return resourceGroupResources().getResourceGroupAsync(rgName)
+                                .thenAccept(resourceGroup -> {
+                                    // check resource group exists.
+                                    if(!resourceGroup.isPresent()) {
+                                        throw new RestException(Status.PRECONDITION_FAILED,
+                                                "ResourceGroup does not exist");
+                                    }
+                                });
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                }).thenCompose(__ -> internalSetPoliciesAsync("resource_group_name", rgName))
+                .thenAccept(__ -> {
+                    log.info("[{}] Successfully to set namespace resource group {}", clientAppId(), rgName);
+                    asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    if (realCause instanceof WebApplicationException) {
+                        asyncResponse.resume(realCause);
+                    } else {
+                        log.error("[{}] Fail to set namespace resource group {}", clientAppId(), rgName);
+                        asyncResponse.resume(new RestException(realCause));
+                    }
+                    return null;
+                });
+    }
 }

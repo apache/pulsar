@@ -35,6 +35,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -906,26 +907,33 @@ public abstract class PulsarWebResource {
         return CompletableFuture.completedFuture(null);
     }
 
+    public CompletableFuture<Void> validateNamespacePolicyOperationAsync(NamespaceName namespaceName,
+                                                      PolicyName policy,
+                                                      PolicyOperation operation) {
+        if (pulsar().getConfiguration().isAuthenticationEnabled()
+                && pulsar().getBrokerService().isAuthorizationEnabled()) {
+            if (!isClientAuthenticated(clientAppId())) {
+                return FutureUtil.failedFuture(
+                    new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request"));
+            }
+            return pulsar().getBrokerService().getAuthorizationService()
+                    .allowNamespacePolicyOperationAsync(namespaceName, policy, operation,
+                            originalPrincipal(), clientAppId(), clientAuthData())
+                    .thenAccept(isAuthorized -> {
+                        if (!isAuthorized) {
+                            throw new RestException(Status.FORBIDDEN,
+                                    String.format("Unauthorized to validateNamespacePolicyOperation for"
+                                                    + " operation [%s] on namespace [%s] on policy [%s]",
+                                            operation.toString(), namespaceName, policy.toString()));
+                        }
+                    });
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
     public void validateNamespacePolicyOperation(NamespaceName namespaceName,
                                                  PolicyName policy,
                                                  PolicyOperation operation) {
-        if (pulsar().getConfiguration().isAuthenticationEnabled()
-            && pulsar().getBrokerService().isAuthorizationEnabled()) {
-            if (!isClientAuthenticated(clientAppId())) {
-                throw new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request");
-            }
-
-            boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
-                    .allowNamespacePolicyOperation(namespaceName, policy, operation,
-                        originalPrincipal(), clientAppId(), clientAuthData());
-
-            if (!isAuthorized) {
-                throw new RestException(Status.FORBIDDEN,
-                        String.format("Unauthorized to validateNamespacePolicyOperation for"
-                                        + " operation [%s] on namespace [%s] on policy [%s]",
-                                operation.toString(), namespaceName, policy.toString()));
-            }
-        }
     }
 
     protected PulsarResources getPulsarResources() {
@@ -972,15 +980,40 @@ public abstract class PulsarWebResource {
         return ObjectMapperFactory.getThreadLocal();
     }
 
+    public CompletableFuture<Void> validatePoliciesReadOnlyAccessAsync() {
+        return pulsar().getPulsarResources()
+                .getNamespaceResources().getPoliciesReadOnlyAsync()
+                .thenAccept(arePoliciesReadOnly -> {
+                    if (arePoliciesReadOnly) {
+                        log.warn("Policies are read-only. Broker cannot do read-write operations");
+                        throw new RestException(Status.FORBIDDEN, "Broker is forbidden to do read-write operations");
+                    } else {
+                        if (log.isDebugEnabled()) {
+                            // Do nothing, just log the message.
+                            log.debug("Broker is allowed to make read-write operations");
+                        }
+                    }
+                });
+    }
+
+    /**
+     * Checks whether the broker is allowed to do read-write operations based on the existence of a node in
+     * configuration metadata-store.
+     *
+     * @throws WebApplicationException
+     *             if broker has a read only access if broker is not connected to the configuration metadata-store
+     */
     public void validatePoliciesReadOnlyAccess() {
         try {
-            if (namespaceResources().getPoliciesReadOnly()) {
-                log.debug("Policies are read-only. Broker cannot do read-write operations");
-                throw new RestException(Status.FORBIDDEN, "Broker is forbidden to do read-write operations");
+            validatePoliciesReadOnlyAccessAsync()
+                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException ex) {
+            Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+            if (realCause instanceof WebApplicationException) {
+                throw (WebApplicationException) realCause;
+            } else {
+                throw new RestException(realCause);
             }
-        } catch (Exception e) {
-            log.warn("Unable to fetch read-only policy config ", e);
-            throw new RestException(e);
         }
     }
 

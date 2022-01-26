@@ -42,6 +42,7 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.admin.impl.NamespacesBase;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -70,13 +71,12 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Path("/namespaces")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Api(value = "/namespaces", description = "Namespaces admin apis", tags = "namespaces")
+@Slf4j
 public class Namespaces extends NamespacesBase {
 
     @GET
@@ -1914,14 +1914,12 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get the resourcegroup attached to the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
-    public String getNamespaceResourceGroup(@PathParam("tenant") String tenant,
+    public void getNamespaceResourceGroup(
+                                      @Suspended AsyncResponse asyncResponse,
+                                      @PathParam("tenant") String tenant,
                                       @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        validateNamespacePolicyOperation(NamespaceName.get(tenant, namespace), PolicyName.RESOURCEGROUP,
-                PolicyOperation.READ);
-
-        Policies policies = getNamespacePolicies(namespaceName);
-        return policies.resource_group_name;
+        internalGetNamespaceResourceGroup(asyncResponse, tenant, namespace);
     }
 
     @POST
@@ -1930,10 +1928,11 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Invalid resourcegroup") })
-    public void setNamespaceResourceGroup(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+    public void setNamespaceResourceGroup(@Suspended AsyncResponse asyncResponse,
+                                          @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
                                           @PathParam("resourcegroup") String rgName) {
         validateNamespaceName(tenant, namespace);
-        internalSetNamespaceResourceGroup(rgName);
+        internalSetNamespaceResourceGroup(asyncResponse, rgName);
     }
 
     @DELETE
@@ -1942,11 +1941,10 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Invalid resourcegroup")})
-    public void removeNamespaceResourceGroup(@PathParam("tenant") String tenant,
-                                          @PathParam("namespace") String namespace) {
+    public void removeNamespaceResourceGroup(@Suspended AsyncResponse asyncResponse,
+                                             @PathParam("tenant") String tenant,
+                                             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        internalSetNamespaceResourceGroup(null);
+        internalSetNamespaceResourceGroup(asyncResponse, null);
     }
-
-    private static final Logger log = LoggerFactory.getLogger(Namespaces.class);
 }
