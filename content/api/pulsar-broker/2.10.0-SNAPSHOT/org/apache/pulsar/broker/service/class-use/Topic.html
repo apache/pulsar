@@ -253,25 +253,33 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.util.Optional&lt;<a href="../Topic.html" title="interface in org.apache.pulsar.broker.service">Topic</a>&gt;&gt;</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">BrokerService.</span><code><span class="memberNameLink"><a href="../BrokerService.html#getTopicIfExists(java.lang.String)">getTopicIfExists</a></span>&#8203;(java.lang.String&nbsp;topic)</code></th>
+<th class="colSecond" scope="row"><span class="typeNameLabel">BrokerService.</span><code><span class="memberNameLink"><a href="../BrokerService.html#getTopic(java.lang.String,boolean,java.util.Map)">getTopic</a></span>&#8203;(java.lang.String&nbsp;topic,
+        boolean&nbsp;createIfMissing,
+        java.util.Map&lt;java.lang.String,&#8203;java.lang.String&gt;&nbsp;properties)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="altColor">
+<td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.util.Optional&lt;<a href="../Topic.html" title="interface in org.apache.pulsar.broker.service">Topic</a>&gt;&gt;</code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">BrokerService.</span><code><span class="memberNameLink"><a href="../BrokerService.html#getTopicIfExists(java.lang.String)">getTopicIfExists</a></span>&#8203;(java.lang.String&nbsp;topic)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
 <td class="colFirst"><code>java.util.Optional&lt;<a href="../Topic.html" title="interface in org.apache.pulsar.broker.service">Topic</a>&gt;</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">BrokerService.</span><code><span class="memberNameLink"><a href="../BrokerService.html#getTopicReference(java.lang.String)">getTopicReference</a></span>&#8203;(java.lang.String&nbsp;topic)</code></th>
 <td class="colLast">
 <div class="block">Get a reference to a topic that is currently loaded in the broker.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap&lt;java.lang.String,&#8203;java.util.concurrent.CompletableFuture&lt;java.util.Optional&lt;<a href="../Topic.html" title="interface in org.apache.pulsar.broker.service">Topic</a>&gt;&gt;&gt;</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">BrokerService.</span><code><span class="memberNameLink"><a href="../BrokerService.html#getTopics()">getTopics</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>protected java.util.concurrent.CompletableFuture&lt;java.util.Optional&lt;<a href="../Topic.html" title="interface in org.apache.pulsar.broker.service">Topic</a>&gt;&gt;</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">BrokerService.</span><code><span class="memberNameLink"><a href="../BrokerService.html#loadOrCreatePersistentTopic(java.lang.String,boolean)">loadOrCreatePersistentTopic</a></span>&#8203;(java.lang.String&nbsp;topic,
-                           boolean&nbsp;createIfMissing)</code></th>
+<th class="colSecond" scope="row"><span class="typeNameLabel">BrokerService.</span><code><span class="memberNameLink"><a href="../BrokerService.html#loadOrCreatePersistentTopic(java.lang.String,boolean,java.util.Map)">loadOrCreatePersistentTopic</a></span>&#8203;(java.lang.String&nbsp;topic,
+                           boolean&nbsp;createIfMissing,
+                           java.util.Map&lt;java.lang.String,&#8203;java.lang.String&gt;&nbsp;properties)</code></th>
 <td class="colLast">
 <div class="block">It creates a topic async and returns CompletableFuture.</div>
 </td>

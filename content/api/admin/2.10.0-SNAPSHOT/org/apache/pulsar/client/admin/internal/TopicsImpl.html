@@ -225,31 +225,36 @@ implements org.apache.pulsar.client.admin.Topics</pre>
 </tr>
 <tr id="i4" class="altColor">
 <td class="colFirst"><code>void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#createNonPartitionedTopic(java.lang.String)">createNonPartitionedTopic</a></span>&#8203;(java.lang.String&nbsp;topic)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#createNonPartitionedTopic(java.lang.String,java.util.Map)">createNonPartitionedTopic</a></span>&#8203;(java.lang.String&nbsp;topic,
+                         java.util.Map&lt;java.lang.String,&#8203;java.lang.String&gt;&nbsp;metadata)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i5" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#createNonPartitionedTopicAsync(java.lang.String)">createNonPartitionedTopicAsync</a></span>&#8203;(java.lang.String&nbsp;topic)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#createNonPartitionedTopicAsync(java.lang.String,java.util.Map)">createNonPartitionedTopicAsync</a></span>&#8203;(java.lang.String&nbsp;topic,
+                              java.util.Map&lt;java.lang.String,&#8203;java.lang.String&gt;&nbsp;properties)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i6" class="altColor">
 <td class="colFirst"><code>void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#createPartitionedTopic(java.lang.String,int)">createPartitionedTopic</a></span>&#8203;(java.lang.String&nbsp;topic,
-                      int&nbsp;numPartitions)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#createPartitionedTopic(java.lang.String,int,java.util.Map)">createPartitionedTopic</a></span>&#8203;(java.lang.String&nbsp;topic,
+                      int&nbsp;numPartitions,
+                      java.util.Map&lt;java.lang.String,&#8203;java.lang.String&gt;&nbsp;metadata)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i7" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#createPartitionedTopicAsync(java.lang.String,int)">createPartitionedTopicAsync</a></span>&#8203;(java.lang.String&nbsp;topic,
-                           int&nbsp;numPartitions)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#createPartitionedTopicAsync(java.lang.String,int,boolean,java.util.Map)">createPartitionedTopicAsync</a></span>&#8203;(java.lang.String&nbsp;topic,
+                           int&nbsp;numPartitions,
+                           boolean&nbsp;createLocalTopicOnly,
+                           java.util.Map&lt;java.lang.String,&#8203;java.lang.String&gt;&nbsp;properties)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i8" class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#createPartitionedTopicAsync(java.lang.String,int,boolean)">createPartitionedTopicAsync</a></span>&#8203;(java.lang.String&nbsp;topic,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#createPartitionedTopicAsync(java.lang.String,int,java.util.Map)">createPartitionedTopicAsync</a></span>&#8203;(java.lang.String&nbsp;topic,
                            int&nbsp;numPartitions,
-                           boolean&nbsp;createLocalTopicOnly)</code></th>
+                           java.util.Map&lt;java.lang.String,&#8203;java.lang.String&gt;&nbsp;properties)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i9" class="rowColor">
@@ -1824,7 +1829,7 @@ implements org.apache.pulsar.client.admin.Topics</pre>
 <!--   -->
 </a>
 <h3>Methods inherited from interface&nbsp;org.apache.pulsar.client.admin.Topics</h3>
-<code>delete, deleteAsync, deletePartitionedTopic, deletePartitionedTopicAsync, getPartitionedStats, getPartitionedStatsAsync, getStats, getStats, getStats, getStats, getStatsAsync, removeBacklogQuota, setBacklogQuota</code></li>
+<code>createNonPartitionedTopic, createNonPartitionedTopicAsync, createPartitionedTopic, createPartitionedTopicAsync, delete, deleteAsync, deletePartitionedTopic, deletePartitionedTopicAsync, getPartitionedStats, getPartitionedStatsAsync, getStats, getStats, getStats, getStats, getStatsAsync, removeBacklogQuota, setBacklogQuota</code></li>
 </ul>
 </li>
 </ul>
@@ -2076,14 +2081,15 @@ implements org.apache.pulsar.client.admin.Topics</pre>
 </dl>
 </li>
 </ul>
-<a id="createPartitionedTopic(java.lang.String,int)">
+<a id="createPartitionedTopic(java.lang.String,int,java.util.Map)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>createPartitionedTopic</h4>
 <pre class="methodSignature">public&nbsp;void&nbsp;createPartitionedTopic&#8203;(java.lang.String&nbsp;topic,
-                                   int&nbsp;numPartitions)
+                                   int&nbsp;numPartitions,
+                                   java.util.Map&lt;java.lang.String,&#8203;java.lang.String&gt;&nbsp;metadata)
                             throws org.apache.pulsar.client.admin.PulsarAdminException</pre>
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
@@ -2093,13 +2099,14 @@ implements org.apache.pulsar.client.admin.Topics</pre>
 </dl>
 </li>
 </ul>
-<a id="createNonPartitionedTopic(java.lang.String)">
+<a id="createNonPartitionedTopic(java.lang.String,java.util.Map)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>createNonPartitionedTopic</h4>
-<pre class="methodSignature">public&nbsp;void&nbsp;createNonPartitionedTopic&#8203;(java.lang.String&nbsp;topic)
+<pre class="methodSignature">public&nbsp;void&nbsp;createNonPartitionedTopic&#8203;(java.lang.String&nbsp;topic,
+                                      java.util.Map&lt;java.lang.String,&#8203;java.lang.String&gt;&nbsp;metadata)
                                throws org.apache.pulsar.client.admin.PulsarAdminException</pre>
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
@@ -2125,34 +2132,21 @@ implements org.apache.pulsar.client.admin.Topics</pre>
 </dl>
 </li>
 </ul>
-<a id="createNonPartitionedTopicAsync(java.lang.String)">
+<a id="createNonPartitionedTopicAsync(java.lang.String,java.util.Map)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>createNonPartitionedTopicAsync</h4>
-<pre class="methodSignature">public&nbsp;java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;createNonPartitionedTopicAsync&#8203;(java.lang.String&nbsp;topic)</pre>
+<pre class="methodSignature">public&nbsp;java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;createNonPartitionedTopicAsync&#8203;(java.lang.String&nbsp;topic,
+                                                                                             java.util.Map&lt;java.lang.String,&#8203;java.lang.String&gt;&nbsp;properties)</pre>
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
 <dd><code>createNonPartitionedTopicAsync</code>&nbsp;in interface&nbsp;<code>org.apache.pulsar.client.admin.Topics</code></dd>
 </dl>
 </li>
 </ul>
-<a id="createPartitionedTopicAsync(java.lang.String,int)">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>createPartitionedTopicAsync</h4>
-<pre class="methodSignature">public&nbsp;java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;createPartitionedTopicAsync&#8203;(java.lang.String&nbsp;topic,
-                                                                                          int&nbsp;numPartitions)</pre>
-<dl>
-<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
-<dd><code>createPartitionedTopicAsync</code>&nbsp;in interface&nbsp;<code>org.apache.pulsar.client.admin.Topics</code></dd>
-</dl>
-</li>
-</ul>
-<a id="createPartitionedTopicAsync(java.lang.String,int,boolean)">
+<a id="createPartitionedTopicAsync(java.lang.String,int,java.util.Map)">
 <!--   -->
 </a>
 <ul class="blockList">
@@ -2160,7 +2154,23 @@ implements org.apache.pulsar.client.admin.Topics</pre>
 <h4>createPartitionedTopicAsync</h4>
 <pre class="methodSignature">public&nbsp;java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;createPartitionedTopicAsync&#8203;(java.lang.String&nbsp;topic,
                                                                                           int&nbsp;numPartitions,
-                                                                                          boolean&nbsp;createLocalTopicOnly)</pre>
+                                                                                          java.util.Map&lt;java.lang.String,&#8203;java.lang.String&gt;&nbsp;properties)</pre>
+<dl>
+<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
+<dd><code>createPartitionedTopicAsync</code>&nbsp;in interface&nbsp;<code>org.apache.pulsar.client.admin.Topics</code></dd>
+</dl>
+</li>
+</ul>
+<a id="createPartitionedTopicAsync(java.lang.String,int,boolean,java.util.Map)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>createPartitionedTopicAsync</h4>
+<pre class="methodSignature">public&nbsp;java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;createPartitionedTopicAsync&#8203;(java.lang.String&nbsp;topic,
+                                                                                          int&nbsp;numPartitions,
+                                                                                          boolean&nbsp;createLocalTopicOnly,
+                                                                                          java.util.Map&lt;java.lang.String,&#8203;java.lang.String&gt;&nbsp;properties)</pre>
 </li>
 </ul>
 <a id="createMissedPartitionsAsync(java.lang.String)">

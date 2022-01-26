@@ -250,69 +250,75 @@ implements <a href="../Topic.html" title="interface in org.apache.pulsar.broker.
 </td>
 </tr>
 <tr id="i4" class="altColor">
-<td class="colFirst"><code>void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#checkDeduplicationSnapshot()">checkDeduplicationSnapshot</a></span>()</code></th>
+<td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#checkBacklogQuotaExceeded(java.lang.String,org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType)">checkBacklogQuotaExceeded</a></span>&#8203;(java.lang.String&nbsp;producerName,
+                         org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType&nbsp;backlogQuotaType)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i5" class="rowColor">
 <td class="colFirst"><code>void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#checkGC()">checkGC</a></span>()</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#checkDeduplicationSnapshot()">checkDeduplicationSnapshot</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i6" class="altColor">
+<td class="colFirst"><code>void</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#checkGC()">checkGC</a></span>()</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#checkIfTransactionBufferRecoverCompletely(boolean)">checkIfTransactionBufferRecoverCompletely</a></span>&#8203;(boolean&nbsp;isTxnEnabled)</code></th>
 <td class="colLast">
 <div class="block">Wait TransactionBuffer Recovers completely.</div>
 </td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#checkInactiveSubscriptions()">checkInactiveSubscriptions</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#checkMessageDeduplicationInfo()">checkMessageDeduplicationInfo</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#checkMessageExpiry()">checkMessageExpiry</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i10" class="altColor">
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#checkReplication()">checkReplication</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i11" class="rowColor">
+<tr id="i12" class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#close(boolean)">close</a></span>&#8203;(boolean&nbsp;closeWithoutWaitingClientDisconnect)</code></th>
 <td class="colLast">
 <div class="block">Close this topic - close all producers and subscriptions associated with this topic.</div>
 </td>
 </tr>
-<tr id="i12" class="altColor">
+<tr id="i13" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;<a href="../Subscription.html" title="interface in org.apache.pulsar.broker.service">Subscription</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#createSubscription(java.lang.String,org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition,boolean)">createSubscription</a></span>&#8203;(java.lang.String&nbsp;subscriptionName,
                   org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition&nbsp;initialPosition,
                   boolean&nbsp;replicateSubscriptionState)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i13" class="rowColor">
+<tr id="i14" class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#delete()">delete</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i14" class="altColor">
+<tr id="i15" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#deleteForcefully()">deleteForcefully</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Forcefully close all producers/consumers/replicators and deletes the topic.</div>
 </td>
 </tr>
-<tr id="i15" class="rowColor">
+<tr id="i16" class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#endTxn(org.apache.pulsar.client.api.transaction.TxnID,int,long)">endTxn</a></span>&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnID,
       int&nbsp;txnAction,
@@ -321,82 +327,76 @@ implements <a href="../Topic.html" title="interface in org.apache.pulsar.broker.
 <div class="block">End the transaction in this topic.</div>
 </td>
 </tr>
-<tr id="i16" class="altColor">
+<tr id="i17" class="rowColor">
 <td class="colFirst"><code>org.apache.pulsar.common.policies.data.BacklogQuota</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getBacklogQuota(org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType)">getBacklogQuota</a></span>&#8203;(org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType&nbsp;backlogQuotaType)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i17" class="rowColor">
+<tr id="i18" class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;org.apache.pulsar.common.policies.data.PersistentTopicInternalStats&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getInternalStats(boolean)">getInternalStats</a></span>&#8203;(boolean&nbsp;includeLedgerMetadata)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i18" class="altColor">
+<tr id="i19" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;org.apache.pulsar.client.api.MessageId&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getLastMessageId()">getLastMessageId</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i19" class="rowColor">
+<tr id="i20" class="altColor">
 <td class="colFirst"><code>org.apache.bookkeeper.mledger.Position</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getLastPosition()">getLastPosition</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i20" class="altColor">
+<tr id="i21" class="rowColor">
 <td class="colFirst"><code>int</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getNumberOfConsumers()">getNumberOfConsumers</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i21" class="rowColor">
+<tr id="i22" class="altColor">
 <td class="colFirst"><code>int</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getNumberOfSameAddressConsumers(java.lang.String)">getNumberOfSameAddressConsumers</a></span>&#8203;(java.lang.String&nbsp;clientAddress)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i22" class="altColor">
+<tr id="i23" class="rowColor">
 <td class="colFirst"><code><a href="../Replicator.html" title="interface in org.apache.pulsar.broker.service">Replicator</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPersistentReplicator(java.lang.String)">getPersistentReplicator</a></span>&#8203;(java.lang.String&nbsp;remoteCluster)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i23" class="rowColor">
+<tr id="i24" class="altColor">
 <td class="colFirst"><code>org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap&lt;java.lang.String,&#8203;<a href="NonPersistentReplicator.html" title="class in org.apache.pulsar.broker.service.nonpersistent">NonPersistentReplicator</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getReplicators()">getReplicators</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i24" class="altColor">
+<tr id="i25" class="rowColor">
 <td class="colFirst"><code>org.apache.pulsar.common.policies.data.stats.NonPersistentTopicStatsImpl</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getStats(boolean,boolean,boolean)">getStats</a></span>&#8203;(boolean&nbsp;getPreciseBacklog,
         boolean&nbsp;subscriptionBacklogSize,
         boolean&nbsp;getEarliestTimeInBacklog)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i25" class="rowColor">
+<tr id="i26" class="altColor">
 <td class="colFirst"><code><a href="../Subscription.html" title="interface in org.apache.pulsar.broker.service">Subscription</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getSubscription(java.lang.String)">getSubscription</a></span>&#8203;(java.lang.String&nbsp;subscription)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i26" class="altColor">
+<tr id="i27" class="rowColor">
 <td class="colFirst"><code>org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap&lt;java.lang.String,&#8203;<a href="NonPersistentSubscription.html" title="class in org.apache.pulsar.broker.service.nonpersistent">NonPersistentSubscription</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getSubscriptions()">getSubscriptions</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i27" class="rowColor">
+<tr id="i28" class="altColor">
 <td class="colFirst"><code>protected java.util.concurrent.CompletableFuture&lt;java.lang.Long&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#incrementTopicEpoch(java.util.Optional)">incrementTopicEpoch</a></span>&#8203;(java.util.Optional&lt;java.lang.Long&gt;&nbsp;currentEpoch)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i28" class="altColor">
+<tr id="i29" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#initialize()">initialize</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i29" class="rowColor">
-<td class="colFirst"><code>boolean</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isActive()">isActive</a></span>()</code></th>
-<td class="colLast">&nbsp;</td>
-</tr>
 <tr id="i30" class="altColor">
 <td class="colFirst"><code>boolean</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isBacklogQuotaExceeded(java.lang.String,org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType)">isBacklogQuotaExceeded</a></span>&#8203;(java.lang.String&nbsp;producerName,
-                      org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType&nbsp;backlogQuotaType)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isActive()">isActive</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i31" class="rowColor">
@@ -507,7 +507,7 @@ implements <a href="../Topic.html" title="interface in org.apache.pulsar.broker.
 <!--   -->
 </a>
 <h3>Methods inherited from class&nbsp;org.apache.pulsar.broker.service.<a href="../AbstractTopic.html" title="class in org.apache.pulsar.broker.service">AbstractTopic</a></h3>
-<code><a href="../AbstractTopic.html#addConsumerToSubscription(org.apache.pulsar.broker.service.Subscription,org.apache.pulsar.broker.service.Consumer)">addConsumerToSubscription</a>, <a href="../AbstractTopic.html#addProducer(org.apache.pulsar.broker.service.Producer,java.util.concurrent.CompletableFuture)">addProducer</a>, <a href="../AbstractTopic.html#addSchema(org.apache.pulsar.common.protocol.schema.SchemaData)">addSchema</a>, <a href="../AbstractTopic.html#checkSchemaCompatibleForConsumer(org.apache.pulsar.common.protocol.schema.SchemaData)">checkSchemaCompatibleForConsumer</a>, <a href="../AbstractTopic.html#checkTopicFenced()">checkTopicFenced</a>, <a href="../AbstractTopic.html#checkTopicPublishThrottlingRate()">checkTopicPublishThrottlingRate</a>, <a href="../AbstractTopic.html#currentUsageCount()">currentUsageCount</a>, <a href="../AbstractTopic.html#decrementUsageCount()">decrementUsageCount</a>, <a href="../AbstractTopic.html#deletePartitionedTopicMetadataWhileInactive()">deletePartitionedTopicMetadataWhileInactive</a>, <a href="../AbstractTopic.html#deleteSchema()">deleteSchema</a>, <a href="../AbstractTopic.html#deleteTopicPolicies()">deleteTopicPolicies</a>, <a href="../AbstractTopic.html#disableCnxAutoRead()">disableCnxAutoRead</a>, <a href="../AbstractTopic.html#disableProducerRead()">disableProducerRead</a>, <a href="../AbstractTopic.html#enableCnxAutoRead()">enableCnxAutoRead</a>, <a href="../AbstractTopic.html#enableProducerReadForPublishBufferLimiting()">enableProducerReadForPublishBufferLimiting</a>, <a href="../AbstractTopic.html#enableProducerReadForPublishRateLimiting()">enableProducerReadForPublishRateLimiting</a>, <a href="../AbstractTopic.html#getBrokerPublishRateLimiter()">getBrokerPublishRateLimiter</a>, <a href="../AbstractTopic.html#getBrokerService()">getBrokerService</a>, <a href="../AbstractTopic.html#getBytesInCounter()">getBytesInCounter</a>, <a href="../AbstractTopic.html#getBytesOutCounter()">getBytesOutCounter</a>, <a href="../AbstractTopic.html#getHierarchyTopicPolicies()">getHierarchyTopicPolicies</a>, <a href="../AbstractTopic.html#getInactiveTopicPolicies()">getInactiveTopicPolicies</a>, <a href="../AbstractTopic.html#getMsgInCounter()">getMsgInCounter</a>, <a href="../AbstractTopic.html#getMsgOutCounter()">getMsgOutCounter</a>, <a href="../AbstractTopic.html#getName()">getName</a>, <a href="../AbstractTopic.html#getNumberOfSameAddressConsumers(java.lang.String,java.util.List)">getNumberOfSameAddressConsumers</a>, <a href="../AbstractTopic.html#getNumberOfSameAddressProducers(java.lang.String)">getNumberOfSameAddressProducers</a>, <a href="../AbstractTopic.html#getProducers()">getProducers</a>, <a href="../AbstractTopic.html#getReplicatorPrefix()">getReplicatorPrefix</a>, <a href="../AbstractTopic.html#getSchemaValidationEnforced()">getSchemaValidationEnforced</a>, <a href="../AbstractTopic.html#getTopicPolicies()">getTopicPolicies</a>, <a href="../AbstractTopic.html#getTopicPublishRateLimiter()">getTopicPublishRateLimiter</a>, <a href="../AbstractTopic.html#getWaitingProducersCount()">getWaitingProducersCount</a>, <a href="../AbstractTopic.html#handleConsumerAdded(java.lang.String,java.lang.String)">handleConsumerAdded</a>, <a href="../AbstractTopic.html#handleProducerRemoved(org.apache.pulsar.broker.service.Producer)">handleProducerRemoved</a>, <a href="../AbstractTopic.html#hasLocalProducers()">hasLocalProducers</a>, <a href="../AbstractTopic.html#hasSchema()">hasSchema</a>, <a href="../AbstractTopic.html#incrementPublishCount(int,long)">incrementPublishCount</a>, <a href="../AbstractTopic.html#incrementTopicEpochIfNeeded(org.apache.pulsar.broker.service.Producer,java.util.concurrent.CompletableFuture)">incrementTopicEpochIfNeeded</a>, <a href="../AbstractTopic.html#internalAddProducer(org.apache.pulsar.broker.service.Producer)">internalAddProducer</a>, <a href="../AbstractTopic.html#isBrokerPublishRateExceeded()">isBrokerPublishRateExceeded</a>, <a href="../AbstractTopic.html#isConsumersExceededOnTopic()">isConsumersExceededOnTopic</a>, <a href="../AbstractTopic.html#isDeleteWhileInactive()">isDeleteWhileInactive</a>, <a href="../AbstractTopic.html#isEncryptionRequired()">isEncryptionRequired</a>, <a href="../AbstractTopic.html#isExceedMaximumMessageSize(int,org.apache.pulsar.broker.service.Topic.PublishContext)">isExceedMaximumMessageSize</a>, <a href="../AbstractTopic.html#isProducersExceeded()">isProducersExceeded</a>, <a href="../AbstractTopic.html#isPublishRateExceeded()">isPublishRateExceeded</a>, <a href="../AbstractTopic.html#isResourceGroupPublishRateExceeded(int,int)">isResourceGroupPublishRateExceeded</a>, <a href="../AbstractTopic.html#isResourceGroupRateLimitingEnabled()">isResourceGroupRateLimitingEnabled</a>, <a href="../AbstractTopic.html#isSameAddressConsumersExceededOnTopic(org.apache.pulsar.broker.service.Consumer)">isSameAddressConsumersExceededOnTopic</a>, <a href="../AbstractTopic.html#isSameAddressProducersExceeded(org.apache.pulsar.broker.service.Producer)">isSameAddressProducersExceeded</a>, <a href="../AbstractTopic.html#isTopicPublishRateExceeded(int,int)">isTopicPublishRateExceeded</a>, <a href="../AbstractTopic.html#markBatchMessagePublished()">markBatchMessagePublished</a>, <a href="../AbstractTopic.html#recordAddLatency(long,java.util.concurrent.TimeUnit)">recordAddLatency</a>, <a href="../AbstractTopic.html#registerTopicPolicyListener()">registerTopicPolicyListener</a>, <a href="../AbstractTopic.html#resetBrokerPublishCountAndEnableReadIfRequired(boolean)">resetBrokerPublishCountAndEnableReadIfRequired</a>, <a href="../AbstractTopic.html#resetTopicPublishCountAndEnableReadIfRequired()">resetTopicPublishCountAndEnableReadIfRequired</a>, <a href="../AbstractTopic.html#setSchemaCompatibilityStrategy(org.apache.pulsar.common.policies.data.Policies)">setSchemaCompatibilityStrategy</a>, <a href="../AbstractTopic.html#toString()">toString</a>, <a href="../AbstractTopic.html#unregisterTopicPolicyListener()">unregisterTopicPolicyListener</a>, <a href="../AbstractTopic.html#updateBrokerSubscriptionTypesEnabled()">updateBrokerSubscriptionTypesEnabled</a>, <a href="../AbstractTopic.html#updateMaxPublishRate(org.apache.pulsar.common.policies.data.Policies)">updateMaxPublishRate</a>, <a href="../AbstractTopic.html#updatePublishDispatcher(org.apache.pulsar.common.policies.data.PublishRate)">updatePublishDispatcher</a>, <a href="../AbstractTopic.html#updateTopicPolicy(org.apache.pulsar.common.policies.data.TopicPolicies)">updateTopicPolicy</a>, <a href="../AbstractTopic.html#updateTopicPolicyByNamespacePolicy(org.apache.pulsar.common.policies.data.Policies)">updateTopicPolicyByNamespacePolicy</a></code></li>
+<code><a href="../AbstractTopic.html#addConsumerToSubscription(org.apache.pulsar.broker.service.Subscription,org.apache.pulsar.broker.service.Consumer)">addConsumerToSubscription</a>, <a href="../AbstractTopic.html#addProducer(org.apache.pulsar.broker.service.Producer,java.util.concurrent.CompletableFuture)">addProducer</a>, <a href="../AbstractTopic.html#addSchema(org.apache.pulsar.common.protocol.schema.SchemaData)">addSchema</a>, <a href="../AbstractTopic.html#checkSchemaCompatibleForConsumer(org.apache.pulsar.common.protocol.schema.SchemaData)">checkSchemaCompatibleForConsumer</a>, <a href="../AbstractTopic.html#checkTopicFenced()">checkTopicFenced</a>, <a href="../AbstractTopic.html#checkTopicPublishThrottlingRate()">checkTopicPublishThrottlingRate</a>, <a href="../AbstractTopic.html#currentUsageCount()">currentUsageCount</a>, <a href="../AbstractTopic.html#decrementUsageCount()">decrementUsageCount</a>, <a href="../AbstractTopic.html#deletePartitionedTopicMetadataWhileInactive()">deletePartitionedTopicMetadataWhileInactive</a>, <a href="../AbstractTopic.html#deleteSchema()">deleteSchema</a>, <a href="../AbstractTopic.html#deleteTopicPolicies()">deleteTopicPolicies</a>, <a href="../AbstractTopic.html#disableCnxAutoRead()">disableCnxAutoRead</a>, <a href="../AbstractTopic.html#disableProducerRead()">disableProducerRead</a>, <a href="../AbstractTopic.html#enableCnxAutoRead()">enableCnxAutoRead</a>, <a href="../AbstractTopic.html#enableProducerReadForPublishBufferLimiting()">enableProducerReadForPublishBufferLimiting</a>, <a href="../AbstractTopic.html#enableProducerReadForPublishRateLimiting()">enableProducerReadForPublishRateLimiting</a>, <a href="../AbstractTopic.html#getActiveConsumer(org.apache.pulsar.broker.service.Subscription)">getActiveConsumer</a>, <a href="../AbstractTopic.html#getBrokerPublishRateLimiter()">getBrokerPublishRateLimiter</a>, <a href="../AbstractTopic.html#getBrokerService()">getBrokerService</a>, <a href="../AbstractTopic.html#getBytesInCounter()">getBytesInCounter</a>, <a href="../AbstractTopic.html#getBytesOutCounter()">getBytesOutCounter</a>, <a href="../AbstractTopic.html#getHierarchyTopicPolicies()">getHierarchyTopicPolicies</a>, <a href="../AbstractTopic.html#getInactiveTopicPolicies()">getInactiveTopicPolicies</a>, <a href="../AbstractTopic.html#getMsgInCounter()">getMsgInCounter</a>, <a href="../AbstractTopic.html#getMsgOutCounter()">getMsgOutCounter</a>, <a href="../AbstractTopic.html#getName()">getName</a>, <a href="../AbstractTopic.html#getNumberOfSameAddressConsumers(java.lang.String,java.util.List)">getNumberOfSameAddressConsumers</a>, <a href="../AbstractTopic.html#getNumberOfSameAddressProducers(java.lang.String)">getNumberOfSameAddressProducers</a>, <a href="../AbstractTopic.html#getProducers()">getProducers</a>, <a href="../AbstractTopic.html#getReplicatorPrefix()">getReplicatorPrefix</a>, <a href="../AbstractTopic.html#getSchemaValidationEnforced()">getSchemaValidationEnforced</a>, <a href="../AbstractTopic.html#getTopicPolicies()">getTopicPolicies</a>, <a href="../AbstractTopic.html#getTopicPublishRateLimiter()">getTopicPublishRateLimiter</a>, <a href="../AbstractTopic.html#getWaitingProducersCount()">getWaitingProducersCount</a>, <a href="../AbstractTopic.html#handleConsumerAdded(java.lang.String,java.lang.String)">handleConsumerAdded</a>, <a href="../AbstractTopic.html#handleProducerRemoved(org.apache.pulsar.broker.service.Producer)">handleProducerRemoved</a>, <a href="../AbstractTopic.html#hasLocalProducers()">hasLocalProducers</a>, <a href="../AbstractTopic.html#hasSchema()">hasSchema</a>, <a href="../AbstractTopic.html#incrementPublishCount(int,long)">incrementPublishCount</a>, <a href="../AbstractTopic.html#incrementTopicEpochIfNeeded(org.apache.pulsar.broker.service.Producer,java.util.concurrent.CompletableFuture)">incrementTopicEpochIfNeeded</a>, <a href="../AbstractTopic.html#internalAddProducer(org.apache.pulsar.broker.service.Producer)">internalAddProducer</a>, <a href="../AbstractTopic.html#isBrokerPublishRateExceeded()">isBrokerPublishRateExceeded</a>, <a href="../AbstractTopic.html#isConsumersExceededOnTopic()">isConsumersExceededOnTopic</a>, <a href="../AbstractTopic.html#isDeleteWhileInactive()">isDeleteWhileInactive</a>, <a href="../AbstractTopic.html#isEncryptionRequired()">isEncryptionRequired</a>, <a href="../AbstractTopic.html#isExceedMaximumMessageSize(int,org.apache.pulsar.broker.service.Topic.PublishContext)">isExceedMaximumMessageSize</a>, <a href="../AbstractTopic.html#isProducersExceeded()">isProducersExceeded</a>, <a href="../AbstractTopic.html#isPublishRateExceeded()">isPublishRateExceeded</a>, <a href="../AbstractTopic.html#isResourceGroupPublishRateExceeded(int,int)">isResourceGroupPublishRateExceeded</a>, <a href="../AbstractTopic.html#isResourceGroupRateLimitingEnabled()">isResourceGroupRateLimitingEnabled</a>, <a href="../AbstractTopic.html#isSameAddressConsumersExceededOnTopic(org.apache.pulsar.broker.service.Consumer)">isSameAddressConsumersExceededOnTopic</a>, <a href="../AbstractTopic.html#isSameAddressProducersExceeded(org.apache.pulsar.broker.service.Producer)">isSameAddressProducersExceeded</a>, <a href="../AbstractTopic.html#isTopicPublishRateExceeded(int,int)">isTopicPublishRateExceeded</a>, <a href="../AbstractTopic.html#markBatchMessagePublished()">markBatchMessagePublished</a>, <a href="../AbstractTopic.html#recordAddLatency(long,java.util.concurrent.TimeUnit)">recordAddLatency</a>, <a href="../AbstractTopic.html#registerTopicPolicyListener()">registerTopicPolicyListener</a>, <a href="../AbstractTopic.html#resetBrokerPublishCountAndEnableReadIfRequired(boolean)">resetBrokerPublishCountAndEnableReadIfRequired</a>, <a href="../AbstractTopic.html#resetTopicPublishCountAndEnableReadIfRequired()">resetTopicPublishCountAndEnableReadIfRequired</a>, <a href="../AbstractTopic.html#setSchemaCompatibilityStrategy(org.apache.pulsar.common.policies.data.Policies)">setSchemaCompatibilityStrategy</a>, <a href="../AbstractTopic.html#toString()">toString</a>, <a href="../AbstractTopic.html#unregisterTopicPolicyListener()">unregisterTopicPolicyListener</a>, <a href="../AbstractTopic.html#updateBrokerSubscriptionTypesEnabled()">updateBrokerSubscriptionTypesEnabled</a>, <a href="../AbstractTopic.html#updateMaxPublishRate(org.apache.pulsar.common.policies.data.Policies)">updateMaxPublishRate</a>, <a href="../AbstractTopic.html#updatePublishDispatcher(org.apache.pulsar.common.policies.data.PublishRate)">updatePublishDispatcher</a>, <a href="../AbstractTopic.html#updateTopicPolicy(org.apache.pulsar.common.policies.data.TopicPolicies)">updateTopicPolicy</a>, <a href="../AbstractTopic.html#updateTopicPolicyByNamespacePolicy(org.apache.pulsar.common.policies.data.Policies)">updateTopicPolicyByNamespacePolicy</a></code></li>
 </ul>
 <ul class="blockList">
 <li class="blockList"><a id="methods.inherited.from.class.java.lang.Object">
@@ -1047,17 +1047,17 @@ implements <a href="../Topic.html" title="interface in org.apache.pulsar.broker.
 </dl>
 </li>
 </ul>
-<a id="isBacklogQuotaExceeded(java.lang.String,org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType)">
+<a id="checkBacklogQuotaExceeded(java.lang.String,org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
-<h4>isBacklogQuotaExceeded</h4>
-<pre class="methodSignature">public&nbsp;boolean&nbsp;isBacklogQuotaExceeded&#8203;(java.lang.String&nbsp;producerName,
-                                      org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType&nbsp;backlogQuotaType)</pre>
+<h4>checkBacklogQuotaExceeded</h4>
+<pre class="methodSignature">public&nbsp;java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;checkBacklogQuotaExceeded&#8203;(java.lang.String&nbsp;producerName,
+                                                                                        org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType&nbsp;backlogQuotaType)</pre>
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
-<dd><code><a href="../Topic.html#isBacklogQuotaExceeded(java.lang.String,org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType)">isBacklogQuotaExceeded</a></code>&nbsp;in interface&nbsp;<code><a href="../Topic.html" title="interface in org.apache.pulsar.broker.service">Topic</a></code></dd>
+<dd><code><a href="../Topic.html#checkBacklogQuotaExceeded(java.lang.String,org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType)">checkBacklogQuotaExceeded</a></code>&nbsp;in interface&nbsp;<code><a href="../Topic.html" title="interface in org.apache.pulsar.broker.service">Topic</a></code></dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>quota exceeded status for blocking producer creation</dd>
 </dl>

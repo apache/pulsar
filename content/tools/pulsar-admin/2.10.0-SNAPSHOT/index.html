@@ -378,7 +378,7 @@
 </tr>
 <tr>
 <td><code>-r, --rack</code></td>
-<td>Bookie rack name</td>
+<td>Bookie rack name. If you set a bookie rack name to slash (/) or an empty string (&quot;&quot;): if you use Pulsar earlier than 2.7.5, 2.8.3, and 2.9.2, an an exception is thrown; if you use Pulsar later than 2.7.5, 2.8.3, and 2.9.2, it falls back to /default-rack or /default-region/default-rack.</td>
 <td>null</td>
 </tr>
 <tr>
@@ -7767,6 +7767,11 @@
 <td>Number of partitions for the topic</td>
 <td>0</td>
 </tr>
+<tr>
+<td><code>--metadata, -m</code></td>
+<td>key value pair properties(a=a,b=b,c=c)</td>
+<td>null</td>
+</tr>
 </tbody>
 </table>
 <h2 id="-em-create-missed-partitions-em-"><em>create-missed-partitions</em></h2>
@@ -7781,6 +7786,23 @@
 <hr>
 <pre class="code-block example"><code class="lang-shell">$ pulsar-<span class="hljs-keyword">admin</span> topics <span class="hljs-keyword">create</span> <span class="hljs-keyword">options</span>
 </code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--metadata, -m</code></td>
+<td>key value pair properties(a=a,b=b,c=c)</td>
+<td>null</td>
+</tr>
+</tbody>
+</table>
 <h2 id="-em-update-partitioned-topic-em-"><em>update-partitioned-topic</em></h2>
 <p>Update existing non-global partitioned topic. New updating number of partitions must be greater than existing number of partitions.</p>
 <h3 id="usage">Usage</h3>

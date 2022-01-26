@@ -93,6 +93,10 @@
 <p>For more information about the command <code>pulsar-admin namespaces set-bookie-affinity-group options</code>, see <a href="https://pulsar.apache.org/tools/pulsar-admin/">here</a>.</p>
 <p><strong>Example</strong></p>
 <pre><code class="hljs css language-shell">bin/pulsar-admin bookies set-bookie-rack \<br />--bookie 127.0.0.1:3181 \<br />--hostname 127.0.0.1:3181 \<br />--group group-bookie1 \<br />--rack rack1<br /><br />bin/pulsar-admin namespaces set-bookie-affinity-group public/default \<br />--primary-group group-bookie1<br /></code></pre>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>Do not set a bookie rack name to slash (<code>/</code>) or an empty string (<code>&quot;&quot;</code>) if you use Pulsar earlier than 2.7.5, 2.8.3, and 2.9.2. For the bookie rack name restrictions, see <a href="https://pulsar.apache.org/tools/pulsar-admin/">pulsar-admin bookies set-bookie-rack</a>.</p>
+</blockquote>
 </span></div></div><div id="tab-group-2390-content-2392" class="tab-pane" data-group="group_2390" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api/?version=master&amp;apiversion=v2#operation/setBookieAffinityGroup">POST /admin/v2/namespaces/{tenant}/{namespace}/persistence/bookieAffinity</a></p>
 </span></div></div><div id="tab-group-2390-content-2393" class="tab-pane" data-group="group_2390" tabindex="-1"><div><span><p>For how to set bookie affinity group for a namespace using Java admin API, see <a href="https://github.com/apache/pulsar/blob/master/pulsar-client-admin/src/main/java/org/apache/pulsar/client/admin/internal/NamespacesImpl.java#L1164">here</a>.</p>
 </span></div></div></div></div>

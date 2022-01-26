@@ -861,6 +861,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/service/BrokerServiceException.TooManyRequestsException.html" title="class in org.apache.pulsar.broker.service"><span class="typeNameLink">BrokerServiceException.TooManyRequestsException</span></a> - Exception in <a href="org/apache/pulsar/broker/service/package-summary.html">org.apache.pulsar.broker.service</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/broker/service/BrokerServiceException.TopicBacklogQuotaExceededException.html" title="class in org.apache.pulsar.broker.service"><span class="typeNameLink">BrokerServiceException.TopicBacklogQuotaExceededException</span></a> - Exception in <a href="org/apache/pulsar/broker/service/package-summary.html">org.apache.pulsar.broker.service</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/service/BrokerServiceException.TopicBusyException.html" title="class in org.apache.pulsar.broker.service"><span class="typeNameLink">BrokerServiceException.TopicBusyException</span></a> - Exception in <a href="org/apache/pulsar/broker/service/package-summary.html">org.apache.pulsar.broker.service</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/service/BrokerServiceException.TopicClosedException.html" title="class in org.apache.pulsar.broker.service"><span class="typeNameLink">BrokerServiceException.TopicClosedException</span></a> - Exception in <a href="org/apache/pulsar/broker/service/package-summary.html">org.apache.pulsar.broker.service</a></dt>
@@ -1137,6 +1139,12 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/AdminResource.html#checkBacklogQuota(org.apache.pulsar.common.policies.data.BacklogQuota,org.apache.pulsar.common.policies.data.RetentionPolicies)">checkBacklogQuota(BacklogQuota, RetentionPolicies)</a></span> - Method in class org.apache.pulsar.broker.admin.<a href="org/apache/pulsar/broker/admin/AdminResource.html" title="class in org.apache.pulsar.broker.admin">AdminResource</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/nonpersistent/NonPersistentTopic.html#checkBacklogQuotaExceeded(java.lang.String,org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType)">checkBacklogQuotaExceeded(String, BacklogQuota.BacklogQuotaType)</a></span> - Method in class org.apache.pulsar.broker.service.nonpersistent.<a href="org/apache/pulsar/broker/service/nonpersistent/NonPersistentTopic.html" title="class in org.apache.pulsar.broker.service.nonpersistent">NonPersistentTopic</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/PersistentTopic.html#checkBacklogQuotaExceeded(java.lang.String,org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType)">checkBacklogQuotaExceeded(String, BacklogQuota.BacklogQuotaType)</a></span> - Method in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/PersistentTopic.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentTopic</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/Topic.html#checkBacklogQuotaExceeded(java.lang.String,org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType)">checkBacklogQuotaExceeded(String, BacklogQuota.BacklogQuotaType)</a></span> - Method in interface org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/Topic.html" title="interface in org.apache.pulsar.broker.service">Topic</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/BrokerService.html#checkBrokerPublishThrottlingRate()">checkBrokerPublishThrottlingRate()</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/BrokerService.html#checkCompaction()">checkCompaction()</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a></dt>
@@ -1332,6 +1340,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">Check the status of deduplication.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/PersistentTopic.html#checkSubscriptionTypesEnable(org.apache.pulsar.common.api.proto.CommandSubscribe.SubType)">checkSubscriptionTypesEnable(CommandSubscribe.SubType)</a></span> - Method in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/PersistentTopic.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentTopic</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/PersistentTopic.html#checkTimeBacklogExceeded()">checkTimeBacklogExceeded()</a></span> - Method in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/PersistentTopic.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentTopic</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/SystemTopic.html#checkTimeBacklogExceeded()">checkTimeBacklogExceeded()</a></span> - Method in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/SystemTopic.html" title="class in org.apache.pulsar.broker.service.persistent">SystemTopic</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/namespace/NamespaceService.html#checkTopicExists(org.apache.pulsar.common.naming.TopicName)">checkTopicExists(TopicName)</a></span> - Method in class org.apache.pulsar.broker.namespace.<a href="org/apache/pulsar/broker/namespace/NamespaceService.html" title="class in org.apache.pulsar.broker.namespace">NamespaceService</a></dt>
 <dd>&nbsp;</dd>
@@ -2225,7 +2237,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/Namespaces.html#createNamespace(java.lang.String,java.lang.String,org.apache.pulsar.common.policies.data.Policies)">createNamespace(String, String, Policies)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/Namespaces.html" title="class in org.apache.pulsar.broker.admin.v2">Namespaces</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html#createNonPartitionedTopic(java.lang.String,java.lang.String,java.lang.String,boolean)">createNonPartitionedTopic(String, String, String, boolean)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v2">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html#createNonPartitionedTopic(java.lang.String,java.lang.String,java.lang.String,boolean,java.util.Map)">createNonPartitionedTopic(String, String, String, boolean, Map&lt;String, String&gt;)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v2">PersistentTopics</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v1/PersistentTopics.html#createNonPartitionedTopic(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean)">createNonPartitionedTopic(String, String, String, String, boolean)</a></span> - Method in class org.apache.pulsar.broker.admin.v1.<a href="org/apache/pulsar/broker/admin/v1/PersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v1">PersistentTopics</a></dt>
 <dd>&nbsp;</dd>
@@ -2238,6 +2250,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v1/NonPersistentTopics.html#createPartitionedTopic(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,java.lang.String,int,boolean)">createPartitionedTopic(AsyncResponse, String, String, String, String, int, boolean)</a></span> - Method in class org.apache.pulsar.broker.admin.v1.<a href="org/apache/pulsar/broker/admin/v1/NonPersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v1">NonPersistentTopics</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v1/PersistentTopics.html#createPartitionedTopic(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,java.lang.String,int,boolean)">createPartitionedTopic(AsyncResponse, String, String, String, String, int, boolean)</a></span> - Method in class org.apache.pulsar.broker.admin.v1.<a href="org/apache/pulsar/broker/admin/v1/PersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v1">PersistentTopics</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v3/PersistentTopics.html#createPartitionedTopic(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,org.apache.pulsar.common.partition.PartitionedTopicMetadata,boolean)">createPartitionedTopic(AsyncResponse, String, String, String, PartitionedTopicMetadata, boolean)</a></span> - Method in class org.apache.pulsar.broker.admin.v3.<a href="org/apache/pulsar/broker/admin/v3/PersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v3">PersistentTopics</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/SystemTopicBaseTxnBufferSnapshotService.html#createReader(org.apache.pulsar.common.naming.TopicName)">createReader(TopicName)</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/SystemTopicBaseTxnBufferSnapshotService.html" title="class in org.apache.pulsar.broker.service">SystemTopicBaseTxnBufferSnapshotService</a></dt>
 <dd>&nbsp;</dd>
@@ -3268,6 +3282,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/BrokersBase.html#getActiveBrokers(java.lang.String)">getActiveBrokers(String)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/BrokersBase.html" title="class in org.apache.pulsar.broker.admin.impl">BrokersBase</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/AbstractDispatcherSingleActiveConsumer.html#getActiveConsumer()">getActiveConsumer()</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/AbstractDispatcherSingleActiveConsumer.html" title="class in org.apache.pulsar.broker.service">AbstractDispatcherSingleActiveConsumer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/AbstractTopic.html#getActiveConsumer(org.apache.pulsar.broker.service.Subscription)">getActiveConsumer(Subscription)</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/AbstractTopic.html" title="class in org.apache.pulsar.broker.service">AbstractTopic</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/impl/PulsarServiceRequest.html#getActiveSubscribers()">getActiveSubscribers()</a></span> - Method in class org.apache.pulsar.broker.loadbalance.impl.<a href="org/apache/pulsar/broker/loadbalance/impl/PulsarServiceRequest.html" title="class in org.apache.pulsar.broker.loadbalance.impl">PulsarServiceRequest</a></dt>
 <dd>&nbsp;</dd>
@@ -5612,6 +5628,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/BrokerService.html#getTopic(java.lang.String,boolean)">getTopic(String, boolean)</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/BrokerService.html#getTopic(java.lang.String,boolean,java.util.Map)">getTopic(String, boolean, Map&lt;String, String&gt;)</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/Producer.html#getTopicEpoch()">getTopicEpoch()</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/BrokerService.html#getTopicIfExists(java.lang.String)">getTopicIfExists(String)</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a></dt>
@@ -6724,11 +6742,13 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/NamespacesBase.html#internalCreateNamespace(org.apache.pulsar.common.policies.data.Policies)">internalCreateNamespace(Policies)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/NamespacesBase.html" title="class in org.apache.pulsar.broker.admin.impl">NamespacesBase</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalCreateNonPartitionedTopic(boolean)">internalCreateNonPartitionedTopic(boolean)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html" title="class in org.apache.pulsar.broker.admin.impl">PersistentTopicsBase</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalCreateNonPartitionedTopic(boolean,java.util.Map)">internalCreateNonPartitionedTopic(boolean, Map&lt;String, String&gt;)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html" title="class in org.apache.pulsar.broker.admin.impl">PersistentTopicsBase</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/ResourceGroupsBase.html#internalCreateOrUpdateResourceGroup(java.lang.String,org.apache.pulsar.common.policies.data.ResourceGroup)">internalCreateOrUpdateResourceGroup(String, ResourceGroup)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/ResourceGroupsBase.html" title="class in org.apache.pulsar.broker.admin.impl">ResourceGroupsBase</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/AdminResource.html#internalCreatePartitionedTopic(javax.ws.rs.container.AsyncResponse,int,boolean)">internalCreatePartitionedTopic(AsyncResponse, int, boolean)</a></span> - Method in class org.apache.pulsar.broker.admin.<a href="org/apache/pulsar/broker/admin/AdminResource.html" title="class in org.apache.pulsar.broker.admin">AdminResource</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/AdminResource.html#internalCreatePartitionedTopic(javax.ws.rs.container.AsyncResponse,int,boolean,java.util.Map)">internalCreatePartitionedTopic(AsyncResponse, int, boolean, Map&lt;String, String&gt;)</a></span> - Method in class org.apache.pulsar.broker.admin.<a href="org/apache/pulsar/broker/admin/AdminResource.html" title="class in org.apache.pulsar.broker.admin">AdminResource</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/ResourceGroupsBase.html#internalCreateResourceGroup(java.lang.String,org.apache.pulsar.common.policies.data.ResourceGroup)">internalCreateResourceGroup(String, ResourceGroup)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/ResourceGroupsBase.html" title="class in org.apache.pulsar.broker.admin.impl">ResourceGroupsBase</a></dt>
 <dd>&nbsp;</dd>
@@ -7311,12 +7331,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/BrokerService.html#isAuthorizationEnabled()">isAuthorizationEnabled()</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/nonpersistent/NonPersistentTopic.html#isBacklogQuotaExceeded(java.lang.String,org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType)">isBacklogQuotaExceeded(String, BacklogQuota.BacklogQuotaType)</a></span> - Method in class org.apache.pulsar.broker.service.nonpersistent.<a href="org/apache/pulsar/broker/service/nonpersistent/NonPersistentTopic.html" title="class in org.apache.pulsar.broker.service.nonpersistent">NonPersistentTopic</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/PersistentTopic.html#isBacklogQuotaExceeded(java.lang.String,org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType)">isBacklogQuotaExceeded(String, BacklogQuota.BacklogQuotaType)</a></span> - Method in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/PersistentTopic.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentTopic</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/Topic.html#isBacklogQuotaExceeded(java.lang.String,org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType)">isBacklogQuotaExceeded(String, BacklogQuota.BacklogQuotaType)</a></span> - Method in interface org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/Topic.html" title="interface in org.apache.pulsar.broker.service">Topic</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/ServerCnx.html#isBatchMessageCompatibleVersion()">isBatchMessageCompatibleVersion()</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/ServerCnx.html" title="class in org.apache.pulsar.broker.service">ServerCnx</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/TransportCnx.html#isBatchMessageCompatibleVersion()">isBatchMessageCompatibleVersion()</a></span> - Method in interface org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/TransportCnx.html" title="interface in org.apache.pulsar.broker.service">TransportCnx</a></dt>
@@ -7651,10 +7665,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/PersistentTopic.html#isTerminated()">isTerminated()</a></span> - Method in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/PersistentTopic.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentTopic</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/PersistentTopic.html#isTimeBacklogExceeded()">isTimeBacklogExceeded()</a></span> - Method in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/PersistentTopic.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentTopic</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/SystemTopic.html#isTimeBacklogExceeded()">isTimeBacklogExceeded()</a></span> - Method in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/SystemTopic.html" title="class in org.apache.pulsar.broker.service.persistent">SystemTopic</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/BrokerService.html#isTopicNsOwnedByBroker(org.apache.pulsar.common.naming.TopicName)">isTopicNsOwnedByBroker(TopicName)</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/AbstractTopic.html#isTopicPublishRateExceeded(int,int)">isTopicPublishRateExceeded(int, int)</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/AbstractTopic.html" title="class in org.apache.pulsar.broker.service">AbstractTopic</a></dt>
@@ -7843,7 +7853,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Load all the topics contained in a namespace.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/BrokerService.html#loadOrCreatePersistentTopic(java.lang.String,boolean)">loadOrCreatePersistentTopic(String, boolean)</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/BrokerService.html#loadOrCreatePersistentTopic(java.lang.String,boolean,java.util.Map)">loadOrCreatePersistentTopic(String, boolean, Map&lt;String, String&gt;)</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a></dt>
 <dd>
 <div class="block">It creates a topic async and returns CompletableFuture.</div>
 </dd>
@@ -9453,9 +9463,13 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v2"><span class="typeNameLink">PersistentTopics</span></a> - Class in <a href="org/apache/pulsar/broker/admin/v2/package-summary.html">org.apache.pulsar.broker.admin.v2</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/broker/admin/v3/PersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v3"><span class="typeNameLink">PersistentTopics</span></a> - Class in <a href="org/apache/pulsar/broker/admin/v3/package-summary.html">org.apache.pulsar.broker.admin.v3</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v1/PersistentTopics.html#%3Cinit%3E()">PersistentTopics()</a></span> - Constructor for class org.apache.pulsar.broker.admin.v1.<a href="org/apache/pulsar/broker/admin/v1/PersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v1">PersistentTopics</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html#%3Cinit%3E()">PersistentTopics()</a></span> - Constructor for class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v2">PersistentTopics</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v3/PersistentTopics.html#%3Cinit%3E()">PersistentTopics()</a></span> - Constructor for class org.apache.pulsar.broker.admin.v3.<a href="org/apache/pulsar/broker/admin/v3/PersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v3">PersistentTopics</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html" title="class in org.apache.pulsar.broker.admin.impl"><span class="typeNameLink">PersistentTopicsBase</span></a> - Class in <a href="org/apache/pulsar/broker/admin/impl/package-summary.html">org.apache.pulsar.broker.admin.impl</a></dt>
 <dd>&nbsp;</dd>
@@ -12340,6 +12354,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/naming/NamespaceBundleSplitAlgorithm.html#TOPIC_COUNT_EQUALLY_DIVIDE_ALGO">TOPIC_COUNT_EQUALLY_DIVIDE_ALGO</a></span> - Static variable in interface org.apache.pulsar.common.naming.<a href="org/apache/pulsar/common/naming/NamespaceBundleSplitAlgorithm.html" title="interface in org.apache.pulsar.common.naming">NamespaceBundleSplitAlgorithm</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/service/Topic.PublishContext.html" title="interface in org.apache.pulsar.broker.service"><span class="typeNameLink">Topic.PublishContext</span></a> - Interface in <a href="org/apache/pulsar/broker/service/package-summary.html">org.apache.pulsar.broker.service</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/BrokerServiceException.TopicBacklogQuotaExceededException.html#%3Cinit%3E(org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy)">TopicBacklogQuotaExceededException(BacklogQuota.RetentionPolicy)</a></span> - Constructor for exception org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/BrokerServiceException.TopicBacklogQuotaExceededException.html" title="class in org.apache.pulsar.broker.service">BrokerServiceException.TopicBacklogQuotaExceededException</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/BrokerServiceException.TopicBusyException.html#%3Cinit%3E(java.lang.String)">TopicBusyException(String)</a></span> - Constructor for exception org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/BrokerServiceException.TopicBusyException.html" title="class in org.apache.pulsar.broker.service">BrokerServiceException.TopicBusyException</a></dt>
 <dd>&nbsp;</dd>
