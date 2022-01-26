@@ -952,10 +952,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         );
 
         // Make sure the consumer future is put into the consumers map first to avoid the same consumer
-        //ID using different consumer futures, and only remove the consumer future from the map if subscribe failed .
+        // epoch using different consumer futures, and only remove the consumer future from the map
+        // if subscribe failed .
         CompletableFuture<Consumer> consumerFuture = new CompletableFuture<>();
-        CompletableFuture<Consumer> existingConsumerFuture = consumers.putIfAbsent(consumerId,
-                consumerFuture);
+        CompletableFuture<Consumer> existingConsumerFuture =
+                consumers.putIfAbsent(consumerId, consumerFuture);
         isAuthorizedFuture.thenApply(isAuthorized -> {
             if (isAuthorized) {
                 if (log.isDebugEnabled()) {
@@ -968,7 +969,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     Metadata.validateMetadata(metadata);
                 } catch (IllegalArgumentException iae) {
                     final String msg = iae.getMessage();
-                    consumers.remove(consumerId, existingConsumerFuture);
+                    consumers.remove(consumerId, consumerFuture);
                     commandSender.sendErrorResponse(requestId, ServerError.MetadataError, msg);
                     return null;
                 }
@@ -1108,13 +1109,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             } else {
                 String msg = "Client is not authorized to subscribe";
                 log.warn("[{}] {} with role {}", remoteAddress, msg, getPrincipal());
-                consumers.remove(consumerId, existingConsumerFuture);
+                consumers.remove(consumerId, consumerFuture);
                 ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
             }
             return null;
         }).exceptionally(ex -> {
             logAuthException(remoteAddress, "subscribe", getPrincipal(), Optional.of(topicName), ex);
-            consumers.remove(consumerId, existingConsumerFuture);
+            consumers.remove(consumerId, consumerFuture);
             commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, ex.getMessage());
             return null;
         });
