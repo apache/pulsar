@@ -1040,10 +1040,9 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <tbody>
 <tr class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">PendingAckHandle.</span><code><span class="memberNameLink"><a href="../../transaction/pendingack/PendingAckHandle.html#abortTxn(org.apache.pulsar.client.api.transaction.TxnID,org.apache.pulsar.broker.service.Consumer,long,boolean)">abortTxn</a></span>&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnId,
+<th class="colSecond" scope="row"><span class="typeNameLabel">PendingAckHandle.</span><code><span class="memberNameLink"><a href="../../transaction/pendingack/PendingAckHandle.html#abortTxn(org.apache.pulsar.client.api.transaction.TxnID,org.apache.pulsar.broker.service.Consumer,long)">abortTxn</a></span>&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnId,
         <a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
-        long&nbsp;lowWaterMark,
-        boolean&nbsp;isInCacheRequest)</code></th>
+        long&nbsp;lowWaterMark)</code></th>
 <td class="colLast">
 <div class="block">Abort a transaction.</div>
 </td>
@@ -1067,18 +1066,24 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <tbody>
 <tr class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">PendingAckHandleDisabled.</span><code><span class="memberNameLink"><a href="../../transaction/pendingack/impl/PendingAckHandleDisabled.html#abortTxn(org.apache.pulsar.client.api.transaction.TxnID,org.apache.pulsar.broker.service.Consumer,long,boolean)">abortTxn</a></span>&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnId,
+<th class="colSecond" scope="row"><span class="typeNameLabel">PendingAckHandleDisabled.</span><code><span class="memberNameLink"><a href="../../transaction/pendingack/impl/PendingAckHandleDisabled.html#abortTxn(org.apache.pulsar.client.api.transaction.TxnID,org.apache.pulsar.broker.service.Consumer,long)">abortTxn</a></span>&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnId,
         <a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
-        long&nbsp;lowWaterMark,
-        boolean&nbsp;isInCacheRequest)</code></th>
+        long&nbsp;lowWaterMark)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">PendingAckHandleImpl.</span><code><span class="memberNameLink"><a href="../../transaction/pendingack/impl/PendingAckHandleImpl.html#abortTxn(org.apache.pulsar.client.api.transaction.TxnID,org.apache.pulsar.broker.service.Consumer,long,boolean)">abortTxn</a></span>&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnId,
+<th class="colSecond" scope="row"><span class="typeNameLabel">PendingAckHandleImpl.</span><code><span class="memberNameLink"><a href="../../transaction/pendingack/impl/PendingAckHandleImpl.html#abortTxn(org.apache.pulsar.client.api.transaction.TxnID,org.apache.pulsar.broker.service.Consumer,long)">abortTxn</a></span>&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnId,
         <a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
-        long&nbsp;lowWaterMark,
-        boolean&nbsp;isInCacheRequest)</code></th>
+        long&nbsp;lowWaterMark)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">PendingAckHandleImpl.</span><code><span class="memberNameLink"><a href="../../transaction/pendingack/impl/PendingAckHandleImpl.html#internalAbortTxn(org.apache.pulsar.client.api.transaction.TxnID,org.apache.pulsar.broker.service.Consumer,long,java.util.concurrent.CompletableFuture)">internalAbortTxn</a></span>&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnId,
+                <a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+                long&nbsp;lowWaterMark,
+                java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;abortFuture)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </tbody>

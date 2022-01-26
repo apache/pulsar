@@ -151,10 +151,9 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr id="i0" class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#abortTxn(org.apache.pulsar.client.api.transaction.TxnID,org.apache.pulsar.broker.service.Consumer,long,boolean)">abortTxn</a></span>&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnId,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#abortTxn(org.apache.pulsar.client.api.transaction.TxnID,org.apache.pulsar.broker.service.Consumer,long)">abortTxn</a></span>&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnId,
         <a href="../../service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
-        long&nbsp;lowWaterMark,
-        boolean&nbsp;isInCacheRequest)</code></th>
+        long&nbsp;lowWaterMark)</code></th>
 <td class="colLast">
 <div class="block">Abort a transaction.</div>
 </td>
@@ -189,19 +188,17 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr id="i5" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#commitTxn(org.apache.pulsar.client.api.transaction.TxnID,java.util.Map,long,boolean)">commitTxn</a></span>&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnID,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#commitTxn(org.apache.pulsar.client.api.transaction.TxnID,java.util.Map,long)">commitTxn</a></span>&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnID,
          java.util.Map&lt;java.lang.String,&#8203;java.lang.Long&gt;&nbsp;properties,
-         long&nbsp;lowWaterMark,
-         boolean&nbsp;isInCacheRequest)</code></th>
+         long&nbsp;lowWaterMark)</code></th>
 <td class="colLast">
 <div class="block">Commit a transaction.</div>
 </td>
 </tr>
 <tr id="i6" class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#cumulativeAcknowledgeMessage(org.apache.pulsar.client.api.transaction.TxnID,java.util.List,boolean)">cumulativeAcknowledgeMessage</a></span>&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnID,
-                            java.util.List&lt;org.apache.bookkeeper.mledger.impl.PositionImpl&gt;&nbsp;positions,
-                            boolean&nbsp;isInCacheRequest)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#cumulativeAcknowledgeMessage(org.apache.pulsar.client.api.transaction.TxnID,java.util.List)">cumulativeAcknowledgeMessage</a></span>&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnID,
+                            java.util.List&lt;org.apache.bookkeeper.mledger.impl.PositionImpl&gt;&nbsp;positions)</code></th>
 <td class="colLast">
 <div class="block">Acknowledge message(s) for an ongoing transaction.</div>
 </td>
@@ -222,9 +219,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr id="i9" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#individualAcknowledgeMessage(org.apache.pulsar.client.api.transaction.TxnID,java.util.List,boolean)">individualAcknowledgeMessage</a></span>&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnID,
-                            java.util.List&lt;org.apache.commons.lang3.tuple.MutablePair&lt;org.apache.bookkeeper.mledger.impl.PositionImpl,&#8203;java.lang.Integer&gt;&gt;&nbsp;positions,
-                            boolean&nbsp;isInCacheRequest)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#individualAcknowledgeMessage(org.apache.pulsar.client.api.transaction.TxnID,java.util.List)">individualAcknowledgeMessage</a></span>&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnID,
+                            java.util.List&lt;org.apache.commons.lang3.tuple.MutablePair&lt;org.apache.bookkeeper.mledger.impl.PositionImpl,&#8203;java.lang.Integer&gt;&gt;&nbsp;positions)</code></th>
 <td class="colLast">
 <div class="block">Acknowledge message(s) for an ongoing transaction.</div>
 </td>
@@ -260,15 +256,14 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <!--   -->
 </a>
 <h3>Method Detail</h3>
-<a id="individualAcknowledgeMessage(org.apache.pulsar.client.api.transaction.TxnID,java.util.List,boolean)">
+<a id="individualAcknowledgeMessage(org.apache.pulsar.client.api.transaction.TxnID,java.util.List)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>individualAcknowledgeMessage</h4>
 <pre class="methodSignature">java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;individualAcknowledgeMessage&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnID,
-                                                                                    java.util.List&lt;org.apache.commons.lang3.tuple.MutablePair&lt;org.apache.bookkeeper.mledger.impl.PositionImpl,&#8203;java.lang.Integer&gt;&gt;&nbsp;positions,
-                                                                                    boolean&nbsp;isInCacheRequest)</pre>
+                                                                                    java.util.List&lt;org.apache.commons.lang3.tuple.MutablePair&lt;org.apache.bookkeeper.mledger.impl.PositionImpl,&#8203;java.lang.Integer&gt;&gt;&nbsp;positions)</pre>
 <div class="block">Acknowledge message(s) for an ongoing transaction.
  <p>
  It can be of <code>CommandAck.AckType.Individual</code>. Single messages acked by ongoing transaction will be put
@@ -282,7 +277,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>txnID</code> - <code>TxnID</code> TransactionID of an ongoing transaction trying to sck message.</dd>
 <dd><code>positions</code> - <code>MutablePair</code> the pair of positions and these batch size.</dd>
-<dd><code>isInCacheRequest</code> - <code>Boolean</code> the boolean of the request in cache whether or not.</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>the future of this operation.</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
@@ -292,15 +286,14 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dl>
 </li>
 </ul>
-<a id="cumulativeAcknowledgeMessage(org.apache.pulsar.client.api.transaction.TxnID,java.util.List,boolean)">
+<a id="cumulativeAcknowledgeMessage(org.apache.pulsar.client.api.transaction.TxnID,java.util.List)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>cumulativeAcknowledgeMessage</h4>
 <pre class="methodSignature">java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;cumulativeAcknowledgeMessage&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnID,
-                                                                                    java.util.List&lt;org.apache.bookkeeper.mledger.impl.PositionImpl&gt;&nbsp;positions,
-                                                                                    boolean&nbsp;isInCacheRequest)</pre>
+                                                                                    java.util.List&lt;org.apache.bookkeeper.mledger.impl.PositionImpl&gt;&nbsp;positions)</pre>
 <div class="block">Acknowledge message(s) for an ongoing transaction.
  <p>
  It can be of <code>CommandAck.AckType.Cumulative</code>. Single messages acked by ongoing transaction will be put in
@@ -318,7 +311,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>txnID</code> - <code>TxnID</code> TransactionID of an ongoing transaction trying to sck message.</dd>
 <dd><code>positions</code> - <code>MutablePair</code> the pair of positions and these batch size.</dd>
-<dd><code>isInCacheRequest</code> - <code>Boolean</code> the boolean of the request in cache whether or not.</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>the future of this operation.</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
@@ -328,7 +320,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dl>
 </li>
 </ul>
-<a id="commitTxn(org.apache.pulsar.client.api.transaction.TxnID,java.util.Map,long,boolean)">
+<a id="commitTxn(org.apache.pulsar.client.api.transaction.TxnID,java.util.Map,long)">
 <!--   -->
 </a>
 <ul class="blockList">
@@ -336,8 +328,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <h4>commitTxn</h4>
 <pre class="methodSignature">java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;commitTxn&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnID,
                                                                  java.util.Map&lt;java.lang.String,&#8203;java.lang.Long&gt;&nbsp;properties,
-                                                                 long&nbsp;lowWaterMark,
-                                                                 boolean&nbsp;isInCacheRequest)</pre>
+                                                                 long&nbsp;lowWaterMark)</pre>
 <div class="block">Commit a transaction.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -345,13 +336,12 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd><code>properties</code> - Additional user-defined properties that can be
                    associated with a particular cursor position.</dd>
 <dd><code>lowWaterMark</code> - the low water mark of this transaction</dd>
-<dd><code>isInCacheRequest</code> - <code>Boolean</code> the boolean of the request in cache whether or not.</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>the future of this operation.</dd>
 </dl>
 </li>
 </ul>
-<a id="abortTxn(org.apache.pulsar.client.api.transaction.TxnID,org.apache.pulsar.broker.service.Consumer,long,boolean)">
+<a id="abortTxn(org.apache.pulsar.client.api.transaction.TxnID,org.apache.pulsar.broker.service.Consumer,long)">
 <!--   -->
 </a>
 <ul class="blockList">
@@ -359,15 +349,13 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <h4>abortTxn</h4>
 <pre class="methodSignature">java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;abortTxn&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnId,
                                                                 <a href="../../service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
-                                                                long&nbsp;lowWaterMark,
-                                                                boolean&nbsp;isInCacheRequest)</pre>
+                                                                long&nbsp;lowWaterMark)</pre>
 <div class="block">Abort a transaction.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>txnId</code> - <code>TxnID</code> to identify the transaction.</dd>
 <dd><code>consumer</code> - <a href="../../service/Consumer.html" title="class in org.apache.pulsar.broker.service"><code>Consumer</code></a> which aborting transaction.</dd>
 <dd><code>lowWaterMark</code> - the low water mark of this transaction</dd>
-<dd><code>isInCacheRequest</code> - <code>Boolean</code> the boolean of the request in cache whether or not.</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>the future of this operation.</dd>
 </dl>

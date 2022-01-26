@@ -858,7 +858,7 @@ extends java.lang.Cloneable</pre>
  (sometime due to broker-restart or publish time, producer might fail to publish entire large message
  so, consumer will not be able to consume and ack those messages. So, those messages can
  be only discared by msg ttl) Or configure
- <code>ConsumerBuilder#expireTimeOfIncompleteChunkedMessage()</code>
+ <a href="ConsumerBuilder.html#expireTimeOfIncompleteChunkedMessage(long,java.util.concurrent.TimeUnit)"><code>ConsumerBuilder.expireTimeOfIncompleteChunkedMessage(long, java.util.concurrent.TimeUnit)</code></a>
  5. Consumer configuration: consumer should also configure receiverQueueSize and maxPendingChunkedMessage
  </pre></div>
 <dl>

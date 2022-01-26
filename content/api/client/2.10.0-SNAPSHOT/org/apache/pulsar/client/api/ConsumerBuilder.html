@@ -288,7 +288,7 @@ extends java.lang.Cloneable</pre>
                                     java.util.concurrent.TimeUnit&nbsp;unit)</code></th>
 <td class="colLast">
 <div class="block">If producer fails to publish all the chunks of a message then consumer can expire incomplete chunks if consumer
- won't be able to receive all chunks in expire times (default 1 hour).</div>
+ won't be able to receive all chunks in expire times (default 1 minute).</div>
 </td>
 </tr>
 <tr id="i18" class="altColor">
@@ -1597,7 +1597,7 @@ extends java.lang.Cloneable</pre>
 <pre class="methodSignature"><a href="ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;expireTimeOfIncompleteChunkedMessage&#8203;(long&nbsp;duration,
                                                         java.util.concurrent.TimeUnit&nbsp;unit)</pre>
 <div class="block">If producer fails to publish all the chunks of a message then consumer can expire incomplete chunks if consumer
- won't be able to receive all chunks in expire times (default 1 hour).</div>
+ won't be able to receive all chunks in expire times (default 1 minute).</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>duration</code> - </dd>
