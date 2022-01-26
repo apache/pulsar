@@ -104,25 +104,35 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     }
 
     private void checkPublishRateLimitedTimes(boolean preciseRateLimit) throws Exception {
-        conf.setBrokerPublisherThrottlingTickTimeMillis(1000);
-        conf.setBrokerPublisherThrottlingMaxMessageRate(10);
-        conf.setBrokerPublisherThrottlingMaxByteRate(10);
-        conf.setStatsUpdateFrequencyInSecs(5);
-        conf.setStatsUpdateInitialDelayInSecs(1);
+        if (preciseRateLimit) {
+            conf.setBrokerPublisherThrottlingTickTimeMillis(10000000);
+            conf.setMaxPublishRatePerTopicInMessages(1);
+            conf.setMaxPublishRatePerTopicInBytes(1);
+            conf.setBrokerPublisherThrottlingMaxMessageRate(100000);
+            conf.setBrokerPublisherThrottlingMaxByteRate(10000000);
+        } else {
+            conf.setBrokerPublisherThrottlingTickTimeMillis(1);
+            conf.setBrokerPublisherThrottlingMaxMessageRate(1);
+            conf.setBrokerPublisherThrottlingMaxByteRate(1);
+        }
+        conf.setStatsUpdateFrequencyInSecs(100000000);
         conf.setPreciseTopicPublishRateLimiterEnable(preciseRateLimit);
         setup();
         String ns1 = "prop/ns-abc1" + UUID.randomUUID();
         admin.namespaces().createNamespace(ns1, 1);
         String topicName = "persistent://" + ns1 + "/metrics" + UUID.randomUUID();
         String topicName2 = "persistent://" + ns1 + "/metrics" + UUID.randomUUID();
+        String topicName3 = "persistent://" + ns1 + "/metrics" + UUID.randomUUID();
         // Use another connection
         @Cleanup
         PulsarClient client2 = newPulsarClient(lookupUrl.toString(), 0);
 
         Producer<byte[]> producer = pulsarClient.newProducer().producerName("my-pub").enableBatching(false)
                 .topic(topicName).create();
-        Producer<byte[]> producer2 = client2.newProducer().producerName("my-pub-2").enableBatching(false)
+        Producer<byte[]> producer2 = pulsarClient.newProducer().producerName("my-pub-2").enableBatching(false)
                 .topic(topicName2).create();
+        Producer<byte[]> producer3 = client2.newProducer().producerName("my-pub-2").enableBatching(false)
+                .topic(topicName3).create();
         producer.sendAsync(new byte[11]);
 
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
@@ -131,7 +141,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         field.setAccessible(true);
         Awaitility.await().untilAsserted(() -> {
             long value = (long) field.get(persistentTopic);
-            assertTrue(value >= 2);
+            assertEquals(value, 1);
         });
         @Cleanup
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
@@ -142,16 +152,28 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         metrics.get("pulsar_publish_rate_limit_times").forEach(item -> {
             if (ns1.equals(item.tags.get("namespace"))) {
                 if (item.tags.get("topic").equals(topicName)) {
-                    assertTrue(item.value >= 2);
+                    assertEquals(item.value, 1);
                     return;
                 } else if (item.tags.get("topic").equals(topicName2)) {
-                    assertTrue(item.value >= 2);
+                    assertEquals(item.value, 1);
+                    return;
+                } else if (item.tags.get("topic").equals(topicName3)) {
+                    //When using precise rate limiting, we only trigger the rate limiting of the topic,
+                    // so if the topic is not using the same connection, the rate limiting times will be 0
+                    //When using asynchronous rate limiting, we will trigger the broker-level rate limiting,
+                    // and all connections will be limited at this time.
+                    if (preciseRateLimit) {
+                        assertEquals(item.value, 0);
+                    } else {
+                        assertEquals(item.value, 1);
+                    }
                     return;
                 }
                 fail("should not fail");
             }
         });
         // Stats updater will reset the stats
+        pulsar.getBrokerService().updateRates();
         Awaitility.await().untilAsserted(() -> {
             long value = (long) field.get(persistentTopic);
             assertEquals(value, 0);
@@ -171,6 +193,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         producer.close();
         producer2.close();
+        producer3.close();
     }
 
     @Test
