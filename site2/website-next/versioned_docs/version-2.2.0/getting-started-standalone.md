@@ -1,13 +1,10 @@
 ---
+slug: /
 id: standalone
 title: Setting up a local standalone cluster
-sidebar_label: Run Pulsar locally
+sidebar_label: "Run Pulsar locally"
 original_id: standalone
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 For the purposes of local development and testing, you can run Pulsar in standalone mode on your own machine. Standalone mode includes a Pulsar broker as well as the necessary ZooKeeper and BookKeeper components running inside of a single Java Virtual Machine (JVM) process.
 
@@ -34,9 +31,9 @@ To get started running Pulsar, download a binary tarball release in one of the f
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell
-
+  
   $ wget pulsar:binary_release_url
-
+  
   ```
 
 Once the tarball is downloaded, untar it and `cd` into the resulting directory:
@@ -83,9 +80,9 @@ If you would like to enable those `builtin` connectors, you can download the con
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell
-
+  
   $ wget pulsar:connector_release_url
-
+  
   ```
 
 Once the tarball is downloaded, in the pulsar directory, untar the io-connectors package and copy the connectors as `connectors`
@@ -137,9 +134,9 @@ one of the following ways:
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell
-
+  
   $ wget pulsar:offloader_release_url
-
+  
   ```
 
 Once the tarball is downloaded, in the pulsar directory, untar the offloaders package and copy the offloaders as `offloaders`
@@ -223,6 +220,7 @@ $ bin/pulsar-client produce my-topic --messages "hello-pulsar"
 If the message has been successfully published to the topic, you should see a confirmation like this in the `pulsar-client` logs:
 
 ```
+
 13:09:39.356 [main] INFO  org.apache.pulsar.client.cli.PulsarClientTool - 1 messages successfully produced
 
 ```
@@ -272,3 +270,4 @@ if (result != ResultOk) {
 }
 
 ```
+

@@ -98,7 +98,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
                 try {
                     builder.cryptoFailureAction(ConsumerCryptoFailureAction.valueOf(action));
                 } catch (Exception e) {
-                    log.warn("Failed to configure cryptoFailureAction {} , {}", action, e.getMessage());
+                    log.warn("Failed to configure cryptoFailureAction {}, {}", action, e.getMessage());
                 }
             }
 
@@ -122,9 +122,10 @@ public class ReaderHandler extends AbstractWebSocketHandler {
         }
     }
 
-	private void receiveMessage() {
+    private void receiveMessage() {
         if (log.isDebugEnabled()) {
-            log.debug("[{}:{}] [{}] [{}] Receive next message", request.getRemoteAddr(), request.getRemotePort(), topic, subscription);
+            log.debug("[{}:{}] [{}] [{}] Receive next message",
+                    request.getRemoteAddr(), request.getRemotePort(), topic, subscription);
         }
 
         reader.readNextAsync().thenAccept(msg -> {

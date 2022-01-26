@@ -391,6 +391,7 @@ Options
 |`-p`, `--properties`|Properties to add. If you want to add multiple properties, use the comma as the separator, e.g. `k1=v1,k2=v2`.| |
 |`-ekn`, `--encryption-key-name`|The public key name to encrypt payload.| |
 |`-ekv`, `--encryption-key-value`|The URI of public key to encrypt payload. For example, `file:///path/to/public.key` or `data:application/x-pem-file;base64,*****`.| |
+|`-dr`, `--disable-replication`|Disable geo-replication for messages|false|
 
 
 ### `consume`

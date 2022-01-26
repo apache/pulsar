@@ -132,6 +132,7 @@ brokerClientTlsTrustStorePassword=clientpw
 NOTE: it is important to restrict access to the store files via filesystem permissions.
 
 If you have configured TLS on the broker, to disable non-TLS ports, you can set the values of the following configurations to empty as below.
+
 ```
 brokerServicePort=
 webServicePort=
@@ -143,6 +144,7 @@ brokerClientTlsEnabled=true // Set this to true
 brokerClientTlsEnabledWithKeyStore=true  // Set this to true
 brokerClientTlsTrustStore= // Set this to your desired value
 brokerClientTlsTrustStorePassword= // Set this to your desired value
+```
 
 Optional settings that may worth consider:
 

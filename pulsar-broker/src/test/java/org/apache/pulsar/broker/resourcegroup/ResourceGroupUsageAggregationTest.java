@@ -104,9 +104,9 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
             }
         };
 
-        rgConfig.setPublishRateInBytes(1500);
+        rgConfig.setPublishRateInBytes(1500L);
         rgConfig.setPublishRateInMsgs(100);
-        rgConfig.setDispatchRateInBytes(4000);
+        rgConfig.setDispatchRateInBytes(4000L);
         rgConfig.setPublishRateInMsgs(500);
         rgs.resourceGroupCreate(activeRgName, rgConfig, ruP, ruC);
 

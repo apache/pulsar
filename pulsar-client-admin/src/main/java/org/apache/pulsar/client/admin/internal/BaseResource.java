@@ -297,6 +297,8 @@ public abstract class BaseResource {
           throw new PulsarAdminException(e);
         } catch (TimeoutException e) {
           throw new PulsarAdminException.TimeoutException(e);
+        } catch (Exception e) {
+            throw getApiException(e);
         }
     }
 }

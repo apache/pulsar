@@ -22,6 +22,7 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
+import com.google.gson.Gson;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -30,7 +31,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-
 import org.apache.pulsar.broker.TimeAverageBrokerData;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
@@ -43,8 +43,6 @@ import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.gson.Gson;
 
 /**
  * Monitors brokers and prints to the console information about their system resource usages, their topic and bundle
@@ -121,7 +119,8 @@ public class BrokerMonitor {
     // Helper method to initialize rows which hold message data.
     private static void initMessageRow(final Object[] row, final double messageRateIn, final double messageRateOut,
             final double messageThroughputIn, final double messageThroughputOut) {
-        initRow(row, messageRateIn, messageRateOut, messageRateIn + messageRateOut, messageThroughputIn / 1024,
+        initRow(row, messageRateIn, messageRateOut, messageRateIn + messageRateOut,
+                messageThroughputIn / 1024,
                 messageThroughputOut / 1024, (messageThroughputIn + messageThroughputOut) / 1024);
     }
 
@@ -169,9 +168,11 @@ public class BrokerMonitor {
                     final String timeAveragePath = ModularLoadManagerImpl.TIME_AVERAGE_BROKER_ZPATH + "/" + broker;
                     try {
                         final TimeAverageBrokerData timeAverageData = gson.fromJson(
-                                new String(zkClient.getData(timeAveragePath, false, null)), TimeAverageBrokerData.class);
-                        longTermMessageRate = timeAverageData.getLongTermMsgRateIn() + timeAverageData.getLongTermMsgRateOut();
-                    } catch ( Exception x ) {
+                                new String(zkClient.getData(timeAveragePath, false, null)),
+                                TimeAverageBrokerData.class);
+                        longTermMessageRate = timeAverageData.getLongTermMsgRateIn()
+                                + timeAverageData.getLongTermMsgRateOut();
+                    } catch (Exception x) {
                         throw new RuntimeException(x);
                     }
                     messageThroughput = (localData.getMsgThroughputIn() + localData.getMsgThroughputOut()) / 1024;
@@ -218,9 +219,8 @@ public class BrokerMonitor {
 
         /**
          * Creates a watch for a newly acquired broker so that its data is printed whenever it is updated.
-         * 
-         * @param event
-         *            The watched event.
+         *
+         * @param event The watched event.
          */
         public synchronized void process(final WatchedEvent event) {
             try {
@@ -275,9 +275,8 @@ public class BrokerMonitor {
 
         /**
          * Print the local and historical broker data in a tabular format, and put this back as a watcher.
-         * 
-         * @param event
-         *            The watched event.
+         *
+         * @param event The watched event.
          */
         public synchronized void process(final WatchedEvent event) {
             try {
@@ -429,8 +428,8 @@ public class BrokerMonitor {
     }
 
     // JCommander arguments class.
-    @Parameters(commandDescription = "Monitors brokers and prints to the console information about their system resource usages," +
-            "\ntheir topic and bundle counts, their message rates, and other metrics.")
+    @Parameters(commandDescription = "Monitors brokers and prints to the console information about their system "
+            + "resource usages, \ntheir topic and bundle counts, their message rates, and other metrics.")
     private static class Arguments {
         @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
         boolean help;
@@ -441,9 +440,8 @@ public class BrokerMonitor {
 
     /**
      * Create a broker monitor from the given ZooKeeper client.
-     * 
-     * @param zkClient
-     *            Client to create this from.
+     *
+     * @param zkClient Client to create this from.
      */
     public BrokerMonitor(final ZooKeeper zkClient) {
         loadData = new ConcurrentHashMap<>();
@@ -468,9 +466,8 @@ public class BrokerMonitor {
 
     /**
      * Run a monitor from command line arguments.
-     * 
-     * @param args
-     *            Arguments for the monitor.
+     *
+     * @param args Arguments for the monitor.
      */
     public static void main(String[] args) throws Exception {
         final Arguments arguments = new Arguments();

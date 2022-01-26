@@ -20,18 +20,15 @@ package org.apache.pulsar.io.hdfs2.sink;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
-
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
-
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.io.hdfs2.AbstractHdfsConfig;
 

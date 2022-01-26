@@ -19,17 +19,16 @@
 package org.apache.pulsar.io.common;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.common.util.Reflections;
-import org.apache.pulsar.io.core.SinkContext;
-import org.apache.pulsar.io.core.SourceContext;
-import org.apache.pulsar.io.core.annotations.FieldDoc;
-
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.util.Reflections;
+import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.io.core.SourceContext;
+import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @Slf4j
 public class IOConfigUtils {
@@ -42,7 +41,8 @@ public class IOConfigUtils {
     }
 
 
-    private static <T> T loadWithSecrets(Map<String, Object> map, Class<T> clazz, Function<String, String> secretsGetter) {
+    private static <T> T loadWithSecrets(Map<String, Object> map, Class<T> clazz,
+                                         Function<String, String> secretsGetter) {
         Map<String, Object> configs = new HashMap<>(map);
 
         for (Field field : Reflections.getAllFields(clazz)) {

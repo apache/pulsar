@@ -26,11 +26,9 @@ import java.beans.PropertyDescriptor;
 import java.io.FileInputStream;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.Properties;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 
 @Test(groups = "broker")
 public class WebSocketProxyConfigurationTest {
@@ -41,7 +39,6 @@ public class WebSocketProxyConfigurationTest {
             final WebSocketProxyConfiguration javaConfig = PulsarConfigurationLoader.create(new Properties(), WebSocketProxyConfiguration.class);
             final WebSocketProxyConfiguration fileConfig = PulsarConfigurationLoader.create(stream, WebSocketProxyConfiguration.class);
             List<String> toSkip = Arrays.asList("properties", "class");
-            int counter = 0;
             for (PropertyDescriptor pd : Introspector.getBeanInfo(WebSocketProxyConfiguration.class).getPropertyDescriptors()) {
                 if (pd.getReadMethod() == null || toSkip.contains(pd.getName())) {
                     continue;
@@ -49,11 +46,9 @@ public class WebSocketProxyConfigurationTest {
                 final String key = pd.getName();
                 final Object javaValue = pd.getReadMethod().invoke(javaConfig);
                 final Object fileValue = pd.getReadMethod().invoke(fileConfig);
-                assertTrue(Objects.equals(javaValue, fileValue), "property '"
-                        + key + "' conf/websocket.conf default value doesn't match java default value\nConf: "+ fileValue + "\nJava: " + javaValue);
-                counter++;
+                assertEquals(fileValue, javaValue, "property '"
+                        + key + "' conf/websocket.conf default value doesn't match java default value\nConf: " + fileValue + "\nJava: " + javaValue);
             }
-            assertEquals(36, counter);
         }
     }
 

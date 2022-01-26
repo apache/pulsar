@@ -194,6 +194,10 @@ OPTS="$OPTS -Dbk.log.level=error"
 OPTS="$OPTS -Dpulsar.log.dir=$BOOKIE_LOG_DIR"
 OPTS="$OPTS -Dpulsar.log.file=$BOOKIE_LOG_FILE"
 
+# Adding pulsar metadata as a recognized provider
+BK_METADATA_OPTIONS="-Dbookkeeper.metadata.bookie.drivers=org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver -Dbookkeeper.metadata.client.drivers=org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver"
+OPTS="$OPTS $BK_METADATA_OPTIONS"
+
 #Change to BK_HOME to support relative paths
 cd "$BK_HOME"
 if [ $COMMAND == "bookie" ]; then

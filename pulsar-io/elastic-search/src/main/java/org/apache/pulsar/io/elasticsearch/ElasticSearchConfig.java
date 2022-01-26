@@ -57,9 +57,9 @@ public class ElasticSearchConfig implements Serializable {
     @FieldDoc(
         required = false,
         defaultValue = "_doc",
-        help = "The type name that the connector writes messages to, with the default value set to _doc." +
-                " This value should be set explicitly to a valid type name other than _doc for Elasticsearch version before 6.2," +
-                " and left to the default value otherwise."
+        help = "The type name that the connector writes messages to, with the default value set to _doc."
+                + " This value should be set explicitly to a valid type name other than _doc for Elasticsearch version before 6.2,"
+                + " and left to the default value otherwise."
     )
     private String typeName = "_doc";
 
@@ -280,7 +280,8 @@ public class ElasticSearchConfig implements Serializable {
                 throw new IllegalArgumentException("indexName start with an invalid character.");
             }
             if (indexName.equals(".") || indexName.equals("..")) {
-                throw new IllegalArgumentException("indexName cannot be . or ..");            }
+                throw new IllegalArgumentException("indexName cannot be . or ..");
+            }
             if (indexName.getBytes(StandardCharsets.UTF_8).length > 255) {
                 throw new IllegalArgumentException("indexName cannot be longer than 255 bytes.");
             }

@@ -262,6 +262,16 @@ required plugins.
   * Use the "core-modules" profile if working on the Pulsar core modules since the source code for those modules can be compiled in IntelliJ.
   * Sometimes it might help to mark a specific project ignored in IntelliJ Maven UI by right-clicking the project name and select **Ignore Projects** from the menu.
   * Currently, it is not always possible to run unit tests directly from the IDE because of the compilation issues. As a workaround, individual test classes can be run by using the `mvn test -Dtest=TestClassName` command.
+    
+* The above steps have all been performed, but a test still won't run.
+  * In this case, try the following steps:
+    1. Close IntelliJ.
+    2. Run `mvn clean install -DskipTests` on the command line.
+    3. Reopen IntelliJ.
+  * If that still doesn't work:
+    1. Verify Maven is using a supported version. Currently, the supported version of Maven is specified in the 
+       <requireMavenVersion> section of the main pom.xml file.
+    2. Try "restart and clear caches" in IntelliJ and repeat the above steps to reload projects and generate sources.
 
 ### Eclipse
 

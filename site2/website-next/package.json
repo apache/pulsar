@@ -4,8 +4,9 @@
   "private": true,
   "scripts": {
     "docusaurus": "docusaurus",
-    "start": "docusaurus start",
-    "build": "node scripts/replace.js && docusaurus build",
+    "start": "NODE_OPTIONS=--max_old_space_size=20480 docusaurus start",
+    "build": "NODE_OPTIONS=--max_old_space_size=20480 node scripts/replace.js && docusaurus build",
+    "preview": "npm run build && git checkout . && sh scripts/docker.sh",
     "swizzle": "docusaurus swizzle",
     "deploy": "docusaurus deploy",
     "clear": "docusaurus clear",
@@ -15,17 +16,16 @@
     "crowdin": "crowdin",
     "upload": "CROWDIN_PERSONAL_TOKEN=20a2c29bfe39397f7ae63ce318c04c96 crowdin upload",
     "download": "CROWDIN_PERSONAL_TOKEN=20a2c29bfe39397f7ae63ce318c04c96 crowdin download"
-
   },
   "dependencies": {
-    "@crowdin/cli": "3.7.2",
-    "@docusaurus/core": "2.0.0-beta.13",
-    "@docusaurus/plugin-client-redirects": "^2.0.0-beta.13",
-    "@docusaurus/preset-classic": "2.0.0-beta.13",
+    "@crowdin/cli": "3.7.4",
+    "@docusaurus/core": "2.0.0-beta.14",
+    "@docusaurus/plugin-client-redirects": "^2.0.0-beta.14",
+    "@docusaurus/preset-classic": "2.0.0-beta.14",
     "@emotion/react": "^11.7.1",
     "@emotion/styled": "^11.6.0",
     "@mdx-js/react": "^1.6.22",
-    "@mui/material": "^5.2.3",
+    "@mui/material": "^5.2.5",
     "@svgr/webpack": "^6.1.2",
     "clsx": "^1.1.1",
     "file-loader": "^6.2.0",
@@ -35,7 +35,8 @@
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "react-markdown": "^7.1.1",
-    "react-svg": "^14.1.4",
+    "react-md-file": "^2.0.0",
+    "react-svg": "^14.1.5",
     "remark-linkify-regex": "^1.0.0",
     "replace-in-file": "^6.3.2",
     "url-loader": "^4.1.1"
@@ -58,7 +59,7 @@
     "postcss-cli": "^9.1.0",
     "postcss-import": "^14.0.2",
     "postcss-nested": "^5.0.6",
-    "postcss-preset-env": "^7.0.1",
-    "tailwindcss": "^3.0.1"
+    "postcss-preset-env": "^7.1.0",
+    "tailwindcss": "^3.0.7"
   }
 }

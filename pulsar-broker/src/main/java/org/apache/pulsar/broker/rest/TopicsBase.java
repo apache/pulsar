@@ -756,7 +756,8 @@ public class TopicsBase extends PersistentTopicsBase {
             }
 
             boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
-                    .canProduce(topicName, originalPrincipal(), clientAuthData());
+                    .canProduce(topicName, originalPrincipal() == null ? clientAppId() : originalPrincipal(),
+                            clientAuthData());
             if (!isAuthorized) {
                 throw new RestException(Status.UNAUTHORIZED, String.format("Unauthorized to produce to topic %s"
                                         + " with clientAppId [%s] and authdata %s", topicName.toString(),

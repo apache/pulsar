@@ -93,7 +93,7 @@ void ProducerStatsImpl::messageSent(const Message& msg) {
     totalBytesSent_ += msg.getLength();
 }
 
-void ProducerStatsImpl::messageReceived(Result& res, boost::posix_time::ptime& publishTime) {
+void ProducerStatsImpl::messageReceived(Result res, const boost::posix_time::ptime& publishTime) {
     boost::posix_time::ptime currentTime = boost::posix_time::microsec_clock::universal_time();
     double diffInMicros = (currentTime - publishTime).total_microseconds();
     Lock lock(mutex_);

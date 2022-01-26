@@ -71,14 +71,22 @@ public interface TopicPoliciesService {
     TopicPolicies getTopicPoliciesIfExists(TopicName topicName);
 
     /**
+     * Get global policies for a topic async.
+     * @param topicName topic name
+     * @return future of the topic policies
+     */
+    TopicPolicies getTopicPolicies(TopicName topicName, boolean isGlobal) throws TopicPoliciesCacheNotInitException;
+
+    /**
      * When getting TopicPolicies, if the initialization has not been completed,
      * we will go back off and try again until time out.
      * @param topicName topic name
      * @param backoff back off policy
+     * @param isGlobal is global policies
      * @return CompletableFuture<Optional<TopicPolicies>>
      */
     default CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsyncWithRetry(TopicName topicName,
-              final Backoff backoff, ScheduledExecutorService scheduledExecutorService) {
+              final Backoff backoff, ScheduledExecutorService scheduledExecutorService, boolean isGlobal) {
         CompletableFuture<Optional<TopicPolicies>> response = new CompletableFuture<>();
         Backoff usedBackoff = backoff == null ? new BackoffBuilder()
                 .setInitialTime(500, TimeUnit.MILLISECONDS)
@@ -87,11 +95,13 @@ public interface TopicPoliciesService {
                 .create() : backoff;
         try {
             RetryUtil.retryAsynchronously(() -> {
+                CompletableFuture<Optional<TopicPolicies>> future = new CompletableFuture<>();
                 try {
-                    return Optional.ofNullable(getTopicPolicies(topicName));
+                    future.complete(Optional.ofNullable(getTopicPolicies(topicName, isGlobal)));
                 } catch (BrokerServiceException.TopicPoliciesCacheNotInitException exception) {
-                    throw new RuntimeException(exception);
+                    future.completeExceptionally(exception);
                 }
+                return future;
             }, usedBackoff, scheduledExecutorService, response);
         } catch (Exception e) {
             response.completeExceptionally(e);
@@ -143,6 +153,12 @@ public interface TopicPoliciesService {
 
         @Override
         public TopicPolicies getTopicPolicies(TopicName topicName) throws TopicPoliciesCacheNotInitException {
+            return null;
+        }
+
+        @Override
+        public TopicPolicies getTopicPolicies(TopicName topicName, boolean isGlobal)
+                throws TopicPoliciesCacheNotInitException {
             return null;
         }
 

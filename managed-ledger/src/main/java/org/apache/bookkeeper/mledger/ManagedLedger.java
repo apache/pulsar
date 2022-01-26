@@ -129,7 +129,8 @@ public interface ManagedLedger {
      * @return the Position at which the entry has been inserted
      * @throws ManagedLedgerException
      */
-    Position addEntry(byte[] data, int numberOfMessages, int offset, int length) throws InterruptedException, ManagedLedgerException;
+    Position addEntry(byte[] data, int numberOfMessages, int offset, int length) throws InterruptedException,
+            ManagedLedgerException;
 
     /**
      * Append a new entry asynchronously.
@@ -165,7 +166,8 @@ public interface ManagedLedger {
      * @param ctx
      *            opaque context
      */
-    void asyncAddEntry(byte[] data, int numberOfMessages, int offset, int length, AddEntryCallback callback, Object ctx);
+    void asyncAddEntry(byte[] data, int numberOfMessages, int offset, int length, AddEntryCallback callback,
+                       Object ctx);
 
 
     /**
@@ -222,7 +224,8 @@ public interface ManagedLedger {
      * @return the ManagedCursor
      * @throws ManagedLedgerException
      */
-    ManagedCursor openCursor(String name, InitialPosition initialPosition) throws InterruptedException, ManagedLedgerException;
+    ManagedCursor openCursor(String name, InitialPosition initialPosition) throws InterruptedException,
+            ManagedLedgerException;
 
     /**
      * Open a ManagedCursor in this ManagedLedger.
@@ -240,7 +243,8 @@ public interface ManagedLedger {
      * @return the ManagedCursor
      * @throws ManagedLedgerException
      */
-    ManagedCursor openCursor(String name, InitialPosition initialPosition, Map<String, Long> properties) throws InterruptedException, ManagedLedgerException;
+    ManagedCursor openCursor(String name, InitialPosition initialPosition, Map<String, Long> properties)
+            throws InterruptedException, ManagedLedgerException;
 
     /**
      * Creates a new cursor whose metadata is not backed by durable storage. A caller can treat the non-durable cursor
@@ -259,7 +263,8 @@ public interface ManagedLedger {
      */
     ManagedCursor newNonDurableCursor(Position startCursorPosition) throws ManagedLedgerException;
     ManagedCursor newNonDurableCursor(Position startPosition, String subscriptionName) throws ManagedLedgerException;
-    ManagedCursor newNonDurableCursor(Position startPosition, String subscriptionName, InitialPosition initialPosition) throws ManagedLedgerException;
+    ManagedCursor newNonDurableCursor(Position startPosition, String subscriptionName, InitialPosition initialPosition,
+                                      boolean isReadCompacted) throws ManagedLedgerException;
 
     /**
      * Delete a ManagedCursor asynchronously.
@@ -330,10 +335,11 @@ public interface ManagedLedger {
      * @param ctx
      *            opaque context
      */
-    void asyncOpenCursor(String name, InitialPosition initialPosition, Map<String, Long> properties, OpenCursorCallback callback, Object ctx);
+    void asyncOpenCursor(String name, InitialPosition initialPosition, Map<String, Long> properties,
+                         OpenCursorCallback callback, Object ctx);
 
     /**
-     * Get a list of all the cursors reading from this ManagedLedger
+     * Get a list of all the cursors reading from this ManagedLedger.
      *
      * @return a list of cursors
      */
@@ -396,7 +402,7 @@ public interface ManagedLedger {
     CompletableFuture<Long> getEarliestMessagePublishTimeInBacklog();
 
     /**
-     * Return the size of all ledgers offloaded to 2nd tier storage
+     * Return the size of all ledgers offloaded to 2nd tier storage.
      */
     long getOffloadedSize();
 
@@ -534,7 +540,7 @@ public interface ManagedLedger {
     Position getLastConfirmedEntry();
 
     /**
-     * Signaling managed ledger that we can resume after BK write failure
+     * Signaling managed ledger that we can resume after BK write failure.
      */
     void readyToCreateNewLedger();
 
@@ -563,7 +569,7 @@ public interface ManagedLedger {
      * @param callback a callback which will be supplied with the newest properties in managedLedger.
      * @param ctx      a context object which will be passed to the callback on completion.
      **/
-    void asyncSetProperty(String key, String value, final AsyncCallbacks.UpdatePropertiesCallback callback, Object ctx);
+    void asyncSetProperty(String key, String value, AsyncCallbacks.UpdatePropertiesCallback callback, Object ctx);
 
     /**
      * Delete the property by key.
@@ -581,7 +587,7 @@ public interface ManagedLedger {
      * @param callback a callback which will be supplied with the newest properties in managedLedger.
      * @param ctx      a context object which will be passed to the callback on completion.
      */
-    void asyncDeleteProperty(String key, final AsyncCallbacks.UpdatePropertiesCallback callback, Object ctx);
+    void asyncDeleteProperty(String key, AsyncCallbacks.UpdatePropertiesCallback callback, Object ctx);
 
     /**
      * Update managed-ledger's properties.
@@ -599,17 +605,17 @@ public interface ManagedLedger {
      * @param callback   a callback which will be supplied with the newest properties in managedLedger.
      * @param ctx        a context object which will be passed to the callback on completion.
      */
-    void asyncSetProperties(Map<String, String> properties, final AsyncCallbacks.UpdatePropertiesCallback callback,
+    void asyncSetProperties(Map<String, String> properties, AsyncCallbacks.UpdatePropertiesCallback callback,
         Object ctx);
 
     /**
-     * Trim consumed ledgers in background
+     * Trim consumed ledgers in background.
      * @param promise
      */
     void trimConsumedLedgersInBackground(CompletableFuture<?> promise);
 
     /**
-     * Roll current ledger if it is full
+     * Roll current ledger if it is full.
      */
     @Deprecated
     void rollCurrentLedgerIfFull();
@@ -637,7 +643,7 @@ public interface ManagedLedger {
     CompletableFuture<Void> asyncTruncate();
 
     /**
-     * Get managed ledger internal stats
+     * Get managed ledger internal stats.
      *
      * @param includeLedgerMetadata the flag to control managed ledger internal stats include ledger metadata
      * @return the future of managed ledger internal stats

@@ -26,12 +26,20 @@ import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.*;
+import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.avro.specific.SpecificDatumWriter;
 import org.testng.annotations.Test;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
+import java.util.TimeZone;
+import java.util.UUID;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
@@ -49,6 +57,8 @@ public class JsonConverterTests {
                 .name("d").type().doubleType().doubleDefault(10.0)
                 .name("f").type().floatType().floatDefault(10.0f)
                 .name("s").type().stringType().stringDefault("titi")
+                .name("fi").type().fixed("fi").size(3).fixedDefault(new byte[]{1,2,3})
+                .name("en").type().enumeration("en").symbols("a","b","c").enumDefault("b")
                 .name("array").type().optional().array().items(SchemaBuilder.builder().stringType())
                 .name("map").type().optional().map().values(SchemaBuilder.builder().intType())
                 .endRecord();
@@ -61,6 +71,8 @@ public class JsonConverterTests {
         genericRecord.put("d", 10.0);
         genericRecord.put("f", 10.0f);
         genericRecord.put("s", "toto");
+        genericRecord.put("fi", GenericData.get().createFixed(null, new byte[]{'a','b','c'}, schema.getField("fi").schema()));
+        genericRecord.put("en", GenericData.get().createEnum("b", schema.getField("en").schema()));
         genericRecord.put("array", new String[] {"toto"});
         genericRecord.put("map", ImmutableMap.of("a",10));
         JsonNode jsonNode = JsonConverter.toJson(genericRecord);
@@ -69,6 +81,8 @@ public class JsonConverterTests {
         assertEquals(jsonNode.get("i").asInt(), 1);
         assertEquals(jsonNode.get("b").asBoolean(), true);
         assertEquals(jsonNode.get("bb").binaryValue(), "10".getBytes(StandardCharsets.UTF_8));
+        assertEquals(jsonNode.get("fi").binaryValue(), "abc".getBytes(StandardCharsets.UTF_8));
+        assertEquals(jsonNode.get("en").textValue(), "b");
         assertEquals(jsonNode.get("d").asDouble(), 10.0);
         assertEquals(jsonNode.get("f").numberValue(), 10.0f);
         assertEquals(jsonNode.get("s").asText(), "toto");
@@ -80,8 +94,7 @@ public class JsonConverterTests {
     }
 
     @Test
-    public void testLogicalTypesToJson() {
-        Schema decimalType = LogicalTypes.decimal(3,3).addToSchema(Schema.create(Schema.Type.BYTES));
+    public void testLogicalTypesToJson() throws IOException {
         Schema dateType = LogicalTypes.date().addToSchema(Schema.create(Schema.Type.INT));
         Schema timestampMillisType = LogicalTypes.timestampMillis().addToSchema(Schema.create(Schema.Type.LONG));
         Schema timestampMicrosType = LogicalTypes.timestampMicros().addToSchema(Schema.create(Schema.Type.LONG));
@@ -90,7 +103,6 @@ public class JsonConverterTests {
         Schema uuidType = LogicalTypes.uuid().addToSchema(Schema.create(Schema.Type.STRING));
         Schema schema = SchemaBuilder.record("record")
                 .fields()
-                .name("amount").type(decimalType).noDefault()
                 .name("mydate").type(dateType).noDefault()
                 .name("tsmillis").type(timestampMillisType).noDefault()
                 .name("tsmicros").type(timestampMicrosType).noDefault()
@@ -100,24 +112,40 @@ public class JsonConverterTests {
                 .endRecord();
 
         final long MILLIS_PER_DAY = 24 * 60 * 60 * 1000;
-        BigDecimal myDecimal = new BigDecimal("10.34");
+        BigDecimal myDecimal = new BigDecimal("100.003");
         UUID myUuid = UUID.randomUUID();
         Calendar calendar = new GregorianCalendar(TimeZone.getTimeZone("Europe/Copenhagen"));
         GenericRecord genericRecord = new GenericData.Record(schema);
-        genericRecord.put("amount", myDecimal);
         genericRecord.put("mydate", (int)calendar.toInstant().getEpochSecond());
         genericRecord.put("tsmillis", calendar.getTimeInMillis());
         genericRecord.put("tsmicros", calendar.getTimeInMillis() * 1000);
         genericRecord.put("timemillis", (int)(calendar.getTimeInMillis() % MILLIS_PER_DAY));
         genericRecord.put("timemicros", (calendar.getTimeInMillis() %MILLIS_PER_DAY) * 1000);
         genericRecord.put("myuuid", myUuid.toString());
-        JsonNode jsonNode = JsonConverter.toJson(genericRecord);
-        assertEquals(new BigDecimal(jsonNode.get("amount").asText()), myDecimal);
+
+        GenericRecord genericRecord2 = deserialize(serialize(genericRecord, schema), schema);
+        JsonNode jsonNode = JsonConverter.toJson(genericRecord2);
         assertEquals(jsonNode.get("mydate").asInt(), calendar.toInstant().getEpochSecond());
         assertEquals(jsonNode.get("tsmillis").asInt(), (int)calendar.getTimeInMillis());
         assertEquals(jsonNode.get("tsmicros").asLong(), calendar.getTimeInMillis() * 1000);
         assertEquals(jsonNode.get("timemillis").asInt(), (int)(calendar.getTimeInMillis() % MILLIS_PER_DAY));
         assertEquals(jsonNode.get("timemicros").asLong(), (calendar.getTimeInMillis() %MILLIS_PER_DAY) * 1000);
         assertEquals(UUID.fromString(jsonNode.get("myuuid").asText()), myUuid);
+    }
+
+    public static byte[] serialize(GenericRecord record, Schema schema) throws IOException {
+        SpecificDatumWriter<GenericRecord> datumWriter = new SpecificDatumWriter<>(schema);
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        BinaryEncoder binaryEncoder = new EncoderFactory().binaryEncoder(byteArrayOutputStream, null);
+        datumWriter.write(record, binaryEncoder);
+        binaryEncoder.flush();
+        return byteArrayOutputStream.toByteArray();
+    }
+
+    public static GenericRecord  deserialize(byte[] recordBytes, Schema schema) throws IOException {
+        DatumReader<GenericRecord> datumReader = new SpecificDatumReader<>(schema);
+        ByteArrayInputStream stream = new ByteArrayInputStream(recordBytes);
+        BinaryDecoder binaryDecoder = new DecoderFactory().binaryDecoder(stream, null);
+        return datumReader.read(null, binaryDecoder);
     }
 }

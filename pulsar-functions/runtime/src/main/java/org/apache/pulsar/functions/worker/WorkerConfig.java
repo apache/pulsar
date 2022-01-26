@@ -181,6 +181,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         category = CATEGORY_FUNCTIONS,
         doc = "The path to the location to locate builtin functions"
     )
+    private Boolean uploadBuiltinSinksSources = true;
+    @FieldContext(
+            category = CATEGORY_FUNCTIONS,
+            doc = "Should the builtin sources/sinks be uploaded for the externally managed runtimes?"
+    )
     private String functionsDirectory = "./functions";
     @FieldContext(
         category = CATEGORY_FUNC_METADATA_MNG,
@@ -599,9 +604,10 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     }
 
     public byte[] getTlsTrustChainBytes() {
-        if (StringUtils.isNotEmpty(getTlsTrustCertsFilePath()) && Files.exists(Paths.get(getTlsTrustCertsFilePath()))) {
+        if (StringUtils.isNotEmpty(getBrokerClientTrustCertsFilePath())
+                && Files.exists(Paths.get(getBrokerClientTrustCertsFilePath()))) {
             try {
-                return Files.readAllBytes(Paths.get(getTlsTrustCertsFilePath()));
+                return Files.readAllBytes(Paths.get(getBrokerClientTrustCertsFilePath()));
             } catch (IOException e) {
                 throw new IllegalStateException("Failed to read CA bytes", e);
             }
