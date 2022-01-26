@@ -250,6 +250,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         assertNull(msg4);
 
         Awaitility.await().untilAsserted(() -> assertTrue(consumer.hasReachedEndOfTopic()));
+        Awaitility.await().untilAsserted(() -> assertFalse(consumer.isConnected()));
     }
 
     @Test(timeOut = 20000)
@@ -289,6 +290,7 @@ public class TopicTerminationTest extends BrokerTestBase {
 
         assertTrue(latch.await(3, TimeUnit.SECONDS));
         assertTrue(consumer.hasReachedEndOfTopic());
+        assertFalse(consumer.isConnected());
     }
 
     @Test(timeOut = 20000)
@@ -320,6 +322,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         assertNull(msg4);
 
         Awaitility.await().untilAsserted(() -> assertTrue(reader.hasReachedEndOfTopic()));
+        Awaitility.await().untilAsserted(() -> assertFalse(reader.isConnected()));
     }
 
     @Test(timeOut = 20000)
@@ -350,12 +353,13 @@ public class TopicTerminationTest extends BrokerTestBase {
         MessageId msgId3 = producer.send("test-msg-3".getBytes());
 
         Awaitility.await().untilAsserted(() -> assertFalse(reader.hasReachedEndOfTopic()));
-
+        Awaitility.await().untilAsserted(() -> assertTrue(reader.isConnected()));
         MessageId lastMessageId = admin.topics().terminateTopicAsync(topicName).get();
         assertEquals(lastMessageId, msgId3);
 
         assertTrue(latch.await(3, TimeUnit.SECONDS));
         assertTrue(reader.hasReachedEndOfTopic());
+        assertFalse(reader.isConnected());
     }
 
     @Test(timeOut = 20000)
@@ -374,6 +378,7 @@ public class TopicTerminationTest extends BrokerTestBase {
                 .subscriptionName("my-sub").subscribe();
 
         Awaitility.await().untilAsserted(() -> assertTrue(consumer.hasReachedEndOfTopic()));
+        Awaitility.await().untilAsserted(() -> assertFalse(consumer.isConnected()));
     }
 
     @Test(timeOut = 20000)
@@ -388,5 +393,6 @@ public class TopicTerminationTest extends BrokerTestBase {
                 .subscriptionName("my-sub").subscribe();
 
         Awaitility.await().untilAsserted(() -> assertTrue(consumer.hasReachedEndOfTopic()));
+        Awaitility.await().untilAsserted(() -> assertFalse(consumer.isConnected()));
     }
 }

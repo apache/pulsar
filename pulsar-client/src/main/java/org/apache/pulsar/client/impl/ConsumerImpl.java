@@ -2338,11 +2338,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     void setTerminated() {
         log.info("[{}] [{}] [{}] Consumer has reached the end of topic", subscription, topic, consumerName);
         hasReachedEndOfTopic = true;
+        closeAsync();
         if (listener != null) {
             // Propagate notification to listener
             listener.reachedEndOfTopic(this);
         }
-        closeAsync();
     }
 
     @Override
