@@ -668,7 +668,7 @@ public class BatchMessageTest extends BrokerTestBase {
      *
      * @throws Exception
      */
-    @Test(dataProvider = "containerBuilder", timeOut = 3000)
+    @Test(dataProvider = "containerBuilder")
     public void testConcurrentBatchMessageAck(BatcherBuilder builder) throws Exception {
         int numMsgs = 10;
         final String topicName = "persistent://prop/ns-abc/testConcurrentAck-" + UUID.randomUUID();
