@@ -194,7 +194,7 @@ But this is not flexible enough. A better way is to use the **redelivery backoff
 If you want to use `Negative Redelivery Backoff`, you can use the following API.
 
 ```java
-consumer.negativeAckRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
+consumer.negativeAckRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
         .minDelayMs(1000)
         .maxDelayMs(60 * 1000)
         .build())
@@ -210,7 +210,7 @@ of times the messages is retried.
 If you want to use redelivery backoff, you can use the following API.
 ```java
 consumer.ackTimeout(10, TimeUnit.SECOND)
-        .ackTimeoutRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
+        .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
         .minDelayMs(1000)
         .maxDelayMs(60000)
         .multiplier(2).build())
