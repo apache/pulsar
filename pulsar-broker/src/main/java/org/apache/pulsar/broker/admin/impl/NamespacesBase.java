@@ -40,6 +40,7 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -1816,22 +1817,15 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected void internalSetPolicies(String fieldName, Object value) {
         try {
-            Policies policies = namespaceResources().getPolicies(namespaceName)
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND,
-                    "Namespace policies does not exist"));
-            Field field = Policies.class.getDeclaredField(fieldName);
-            field.setAccessible(true);
-            field.set(policies, value);
-            namespaceResources().setPolicies(namespaceName, p -> policies);
-            log.info("[{}] Successfully updated {} configuration: namespace={}, value={}", clientAppId(), fieldName,
-                    namespaceName, jsonMapper().writeValueAsString(value));
-
-        } catch (RestException pfe) {
-            throw pfe;
-        } catch (Exception e) {
-            log.error("[{}] Failed to update {} configuration for namespace {}", clientAppId(), fieldName
-                    , namespaceName, e);
-            throw new RestException(e);
+            internalSetPoliciesAsync(fieldName, value)
+                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException ex) {
+            Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+            if (realCause instanceof WebApplicationException) {
+                throw (WebApplicationException) realCause;
+            } else {
+                throw new RestException(realCause);
+            }
         }
     }
 
