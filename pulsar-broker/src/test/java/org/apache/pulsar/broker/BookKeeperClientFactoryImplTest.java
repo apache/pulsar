@@ -179,13 +179,39 @@ public class BookKeeperClientFactoryImplTest {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setZookeeperServers("localhost:2181");
         try {
-            String defaultUri = "metadata-store:localhost:2181";
-            assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
-                    .getMetadataServiceUri(), defaultUri);
-            String expectedUri = "zk+hierarchical://localhost:2181/chroot/ledgers";
-            conf.setBookkeeperMetadataServiceUri(expectedUri);
-            assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
-                    .getMetadataServiceUri(), expectedUri);
+            { // default - old configurations - only zkServers
+                // metadata-store: because the metadata is handled by org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver
+                // zk: because is the default implementation.
+                // localhost:2181: keep the same server
+                // /ledgers: because it's the default chroot path for BookKeeper if you don't specify another one
+                final String expectedUri = "metadata-store:zk:localhost:2181/ledgers";
+                assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                        .getMetadataServiceUri(), expectedUri);
+
+            }
+            {  // metadataServiceUri configuration - no chroot
+                String uri = "metadata-store:localhost:2181";
+                conf.setBookkeeperMetadataServiceUri(uri);
+                // metadata-store: because the metadata is handled by org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver
+                // <null>: it will default to "zk"
+                // localhost:2181: keep the same server
+                final String expectedUri = "metadata-store:localhost:2181";
+                assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                        .getMetadataServiceUri(), expectedUri);
+
+            }
+            {  // metadataServiceUri configuration - chroot
+                String uri = "metadata-store:localhost:2181/chroot/ledger";
+                conf.setBookkeeperMetadataServiceUri(uri);
+                // metadata-store: because the metadata is handled by org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver
+                // <null>:  it will default to "zk"
+                // localhost:2181: keep the same server
+                // /ledgers: because it's the default chroot path for BookKeeper if you don't specify another one
+                final String expectedUri = "metadata-store:localhost:2181/chroot/ledger";
+                assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                        .getMetadataServiceUri(), expectedUri);
+
+            }
         } catch (ConfigurationException e) {
             e.printStackTrace();
             fail("Get metadata service uri should be successful", e);
