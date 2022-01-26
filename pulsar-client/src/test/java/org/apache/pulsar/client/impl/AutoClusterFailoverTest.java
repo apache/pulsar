@@ -28,12 +28,14 @@ import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.awaitility.Awaitility;
-import org.junit.Assert;
-import org.junit.Test;
 import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
+@Test(groups = "broker-impl")
 public class AutoClusterFailoverTest {
     @Test
     public void testBuildAutoClusterFailoverInstance() throws PulsarClientException {
@@ -86,15 +88,11 @@ public class AutoClusterFailoverTest {
                 .failoverDelay(failoverDelay, TimeUnit.SECONDS)
                 .switchBackDelay(switchBackDelay, TimeUnit.SECONDS)
                 .checkInterval(checkInterval, TimeUnit.MILLISECONDS)
-                .primaryTlsTrustCertsFilePath(primaryTlsTrustCertsFilePath)
                 .secondaryTlsTrustCertsFilePath(secondaryTlsTrustCertsFilePaths)
-                .primaryAuthentication(primaryAuthentication)
                 .secondaryAuthentication(secondaryAuthentications)
                 .build();
 
         AutoClusterFailover autoClusterFailover1 = (AutoClusterFailover) provider1;
-        Assert.assertEquals(primaryTlsTrustCertsFilePath, autoClusterFailover1.getPrimaryTlsTrustCertsFilePath());
-        Assert.assertEquals(primaryAuthentication, autoClusterFailover1.getPrimaryAuthentication());
         Assert.assertEquals(secondaryTlsTrustCertsFilePath,
                 autoClusterFailover1.getSecondaryTlsTrustCertsFilePaths().get(secondary));
         Assert.assertEquals(secondaryAuthentication, autoClusterFailover1.getSecondaryAuthentications().get(secondary));
@@ -104,9 +102,12 @@ public class AutoClusterFailoverTest {
     public void testAutoClusterFailoverSwitchWithoutAuthentication() {
         String primary = "pulsar://localhost:6650";
         String secondary = "pulsar://localhost:6651";
-        long failoverDelay = 0;
-        long switchBackDelay = 0;
+        long failoverDelay = 1;
+        long switchBackDelay = 1;
         long checkInterval = 1_000;
+
+        ClientConfigurationData configurationData = new ClientConfigurationData();
+
         ServiceUrlProvider provider = AutoClusterFailover.builder()
                 .primary(primary)
                 .secondary(Collections.singletonList(secondary))
@@ -116,9 +117,10 @@ public class AutoClusterFailoverTest {
                 .build();
 
         AutoClusterFailover autoClusterFailover = Mockito.spy((AutoClusterFailover) provider);
-        PulsarClient pulsarClient = PowerMockito.mock(PulsarClientImpl.class);
+        PulsarClientImpl pulsarClient = PowerMockito.mock(PulsarClientImpl.class);
         Mockito.doReturn(false).when(autoClusterFailover).probeAvailable(primary);
         Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(secondary);
+        Mockito.doReturn(configurationData).when(pulsarClient).getConfiguration();
 
         autoClusterFailover.initialize(pulsarClient);
 
@@ -135,8 +137,8 @@ public class AutoClusterFailoverTest {
     public void testAutoClusterFailoverSwitchWithAuthentication() throws IOException {
         String primary = "pulsar+ssl://localhost:6651";
         String secondary = "pulsar+ssl://localhost:6661";
-        long failoverDelay = 0;
-        long switchBackDelay = 0;
+        long failoverDelay = 1;
+        long switchBackDelay = 1;
         long checkInterval = 1_000;
         String primaryTlsTrustCertsFilePath = "primary/path";
         String secondaryTlsTrustCertsFilePath = "primary/path";
@@ -156,22 +158,25 @@ public class AutoClusterFailoverTest {
         Map<String, Authentication> secondaryAuthentications = new HashMap<>();
         secondaryAuthentications.put(secondary, secondaryAuthentication);
 
+        ClientConfigurationData configurationData = new ClientConfigurationData();
+        configurationData.setTlsTrustCertsFilePath(primaryTlsTrustCertsFilePath);
+        configurationData.setAuthentication(primaryAuthentication);
+
         ServiceUrlProvider provider = AutoClusterFailover.builder()
                 .primary(primary)
                 .secondary(Collections.singletonList(secondary))
                 .checkInterval(checkInterval, TimeUnit.MILLISECONDS)
                 .failoverDelay(failoverDelay, TimeUnit.SECONDS)
                 .switchBackDelay(switchBackDelay, TimeUnit.SECONDS)
-                .primaryTlsTrustCertsFilePath(primaryTlsTrustCertsFilePath)
                 .secondaryTlsTrustCertsFilePath(secondaryTlsTrustCertsFilePaths)
-                .primaryAuthentication(primaryAuthentication)
                 .secondaryAuthentication(secondaryAuthentications)
                 .build();
 
         AutoClusterFailover autoClusterFailover = Mockito.spy((AutoClusterFailover) provider);
-        PulsarClient pulsarClient = PowerMockito.mock(PulsarClientImpl.class);
+        PulsarClientImpl pulsarClient = PowerMockito.mock(PulsarClientImpl.class);
         Mockito.doReturn(false).when(autoClusterFailover).probeAvailable(primary);
         Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(secondary);
+        Mockito.doReturn(configurationData).when(pulsarClient).getConfiguration();
 
         autoClusterFailover.initialize(pulsarClient);
 
@@ -193,8 +198,8 @@ public class AutoClusterFailoverTest {
     public void testAutoClusterFailoverSwitchTlsTrustStore() throws IOException {
         String primary = "pulsar+ssl://localhost:6651";
         String secondary = "pulsar+ssl://localhost:6661";
-        long failoverDelay = 0;
-        long switchBackDelay = 0;
+        long failoverDelay = 1;
+        long switchBackDelay = 1;
         long checkInterval = 1_000;
         String primaryTlsTrustStorePath = "primary/path";
         String secondaryTlsTrustStorePath = "secondary/path";
@@ -206,22 +211,25 @@ public class AutoClusterFailoverTest {
         Map<String, String> secondaryTlsTrustStorePasswords = new HashMap<>();
         secondaryTlsTrustStorePasswords.put(secondary, secondaryTlsTrustStorePassword);
 
+        ClientConfigurationData configurationData = new ClientConfigurationData();
+        configurationData.setTlsTrustStorePath(primaryTlsTrustStorePath);
+        configurationData.setTlsTrustStorePassword(primaryTlsTrustStorePassword);
+
         ServiceUrlProvider provider = AutoClusterFailover.builder()
                 .primary(primary)
                 .secondary(Collections.singletonList(secondary))
                 .failoverDelay(failoverDelay, TimeUnit.SECONDS)
                 .switchBackDelay(switchBackDelay, TimeUnit.SECONDS)
                 .checkInterval(checkInterval, TimeUnit.MILLISECONDS)
-                .primaryTlsTrustStorePath(primaryTlsTrustStorePath)
-                .primaryTlsTrustStorePassword(primaryTlsTrustStorePassword)
                 .secondaryTlsTrustStorePath(secondaryTlsTrustStorePaths)
                 .secondaryTlsTrustStorePassword(secondaryTlsTrustStorePasswords)
                 .build();
 
         AutoClusterFailover autoClusterFailover = Mockito.spy((AutoClusterFailover) provider);
-        PulsarClient pulsarClient = PowerMockito.mock(PulsarClientImpl.class);
+        PulsarClientImpl pulsarClient = PowerMockito.mock(PulsarClientImpl.class);
         Mockito.doReturn(false).when(autoClusterFailover).probeAvailable(primary);
         Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(secondary);
+        Mockito.doReturn(configurationData).when(pulsarClient).getConfiguration();
 
         autoClusterFailover.initialize(pulsarClient);
 

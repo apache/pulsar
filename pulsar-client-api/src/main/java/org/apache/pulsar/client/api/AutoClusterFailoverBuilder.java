@@ -25,7 +25,7 @@ import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
- * {@link AutoClusterFailoverBuilder} is used to configure and create instance of {@link ServiceUrlProvider}
+ * {@link AutoClusterFailoverBuilder} is used to configure and create instance of {@link ServiceUrlProvider}.
  *
  * @since 2.10.0
  */
@@ -34,7 +34,7 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 public interface AutoClusterFailoverBuilder {
 
     @SuppressWarnings("checkstyle:javadoctype")
-    enum SecondaryChoosePolicy {
+    enum FailoverPolicy {
         ORDER
     }
     /**
@@ -58,15 +58,7 @@ public interface AutoClusterFailoverBuilder {
      * @param policy
      * @return
      */
-    AutoClusterFailoverBuilder secondaryChoosePolicy(SecondaryChoosePolicy policy);
-
-    /**
-     * Set primary authentication.
-     *
-     * @param authentication
-     * @return
-     */
-    AutoClusterFailoverBuilder primaryAuthentication(Authentication authentication);
+    AutoClusterFailoverBuilder failoverPolicy(FailoverPolicy policy);
 
     /**
      * Set secondary authentication.
@@ -77,14 +69,6 @@ public interface AutoClusterFailoverBuilder {
     AutoClusterFailoverBuilder secondaryAuthentication(Map<String, Authentication> authentication);
 
     /**
-     * Set primary tlsTrustCertsFilePath.
-     *
-     * @param tlsTrustCertsFilePath
-     * @return
-     */
-    AutoClusterFailoverBuilder primaryTlsTrustCertsFilePath(String tlsTrustCertsFilePath);
-
-    /**
      * Set secondary tlsTrustCertsFilePath.
      *
      * @param tlsTrustCertsFilePath
@@ -93,28 +77,12 @@ public interface AutoClusterFailoverBuilder {
     AutoClusterFailoverBuilder secondaryTlsTrustCertsFilePath(Map<String, String> tlsTrustCertsFilePath);
 
     /**
-     * Set primary tlsTrustStorePath.
-     *
-     * @param tlsTrustStorePath
-     * @return
-     */
-    AutoClusterFailoverBuilder primaryTlsTrustStorePath(String tlsTrustStorePath);
-
-    /**
      * Set secondary tlsTrustStorePath.
      *
      * @param tlsTrustStorePath
      * @return
      */
     AutoClusterFailoverBuilder secondaryTlsTrustStorePath(Map<String, String> tlsTrustStorePath);
-
-    /**
-     * Set primary tlsTrustStorePassword.
-     *
-     * @param tlsTrustStorePassword
-     * @return
-     */
-    AutoClusterFailoverBuilder primaryTlsTrustStorePassword(String tlsTrustStorePassword);
 
     /**
      * Set secondary tlsTrustStorePassword.

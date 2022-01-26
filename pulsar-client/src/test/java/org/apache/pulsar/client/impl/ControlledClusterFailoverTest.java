@@ -19,34 +19,47 @@
 package org.apache.pulsar.client.impl;
 
 import java.io.IOException;
-import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.awaitility.Awaitility;
-import org.junit.Assert;
-import org.junit.Test;
 import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
+@Test(groups = "broker-impl")
 public class ControlledClusterFailoverTest {
     @Test
     public void testBuildControlledClusterFailoverInstance() throws IOException {
         String defaultServiceUrl = "pulsar://localhost:6650";
         String urlProvider = "http://localhost:8080";
+        String keyA = "key-a";
+        String valueA = "value-a";
+        String keyB = "key-b";
+        String valueB = "value-b";
 
+        Map<String, String> header = new HashMap<>();
+        header.put(keyA, valueA);
+        header.put(keyB, valueB);
         ServiceUrlProvider provider = ControlledClusterFailover.builder()
-                .defaultServiceUrl(defaultServiceUrl)
-                .urlProvider(urlProvider)
-                .build();
+            .defaultServiceUrl(defaultServiceUrl)
+            .urlProvider(urlProvider)
+            .urlProviderHeader(header)
+            .build();
 
         ControlledClusterFailover controlledClusterFailover = (ControlledClusterFailover) provider;
+        HttpUriRequest request = controlledClusterFailover.getRequest();
 
         Assert.assertTrue(provider instanceof ControlledClusterFailover);
         Assert.assertEquals(defaultServiceUrl, provider.getServiceUrl());
         Assert.assertEquals(defaultServiceUrl, controlledClusterFailover.getCurrentPulsarServiceUrl());
-        Assert.assertTrue(new URL(urlProvider).equals(controlledClusterFailover.getPulsarUrlProvider()));
+        Assert.assertEquals(urlProvider, request.getURI().toString());
+        Assert.assertEquals(request.getFirstHeader(keyA).getValue(), valueA);
+        Assert.assertEquals(request.getFirstHeader(keyB).getValue(), valueB);
     }
 
     @Test
@@ -67,13 +80,13 @@ public class ControlledClusterFailoverTest {
         controlledConfiguration.setAuthParamsString(authParamsString);
 
         ServiceUrlProvider provider = ControlledClusterFailover.builder()
-                .defaultServiceUrl(defaultServiceUrl)
-                .urlProvider(urlProvider)
-                .checkInterval(interval, TimeUnit.MILLISECONDS)
-                .build();
+            .defaultServiceUrl(defaultServiceUrl)
+            .urlProvider(urlProvider)
+            .checkInterval(interval, TimeUnit.MILLISECONDS)
+            .build();
 
         ControlledClusterFailover controlledClusterFailover = Mockito.spy((ControlledClusterFailover) provider);
-        PulsarClient pulsarClient = PowerMockito.mock(PulsarClientImpl.class);
+        PulsarClientImpl pulsarClient = PowerMockito.mock(PulsarClientImpl.class);
 
         controlledClusterFailover.initialize(pulsarClient);
 

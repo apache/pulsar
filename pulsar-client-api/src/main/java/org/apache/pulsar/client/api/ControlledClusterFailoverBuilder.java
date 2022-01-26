@@ -19,12 +19,13 @@
 package org.apache.pulsar.client.api;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
- * {@link ControlledClusterFailoverBuilder} is used to configure and create instance of {@link ServiceUrlProvider}
+ * {@link ControlledClusterFailoverBuilder} is used to configure and create instance of {@link ServiceUrlProvider}.
  *
  * @since 2.10.0
  */
@@ -46,6 +47,13 @@ public interface ControlledClusterFailoverBuilder {
      * @return
      */
     ControlledClusterFailoverBuilder urlProvider(String urlProvider);
+
+    /**
+     * Set the service url provider header to authenticate provider service.
+     * @param header
+     * @return
+     */
+    ControlledClusterFailoverBuilder urlProviderHeader(Map<String, String> header);
 
     /**
      * Set the probe check interval.

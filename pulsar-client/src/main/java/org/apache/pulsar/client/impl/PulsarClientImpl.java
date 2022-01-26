@@ -865,7 +865,6 @@ public class PulsarClientImpl implements PulsarClient {
         cnxPool.closeAllConnections();
     }
 
-    @Override
     public void updateAuthentication(Authentication authentication) throws IOException {
         log.info("Updating authentication to {}", authentication);
         if (conf.getAuthentication() != null) {
@@ -875,13 +874,11 @@ public class PulsarClientImpl implements PulsarClient {
         conf.getAuthentication().start();
     }
 
-    @Override
     public void updateTlsTrustCertsFilePath(String tlsTrustCertsFilePath) {
         log.info("Updating tlsTrustCertsFilePath to {}", tlsTrustCertsFilePath);
         conf.setTlsTrustCertsFilePath(tlsTrustCertsFilePath);
     }
 
-    @Override
     public void updateTlsTrustStorePathAndPassword(String tlsTrustStorePath, String tlsTrustStorePassword) {
         log.info("Updating tlsTrustStorePath to {}, tlsTrustStorePassword to *****", tlsTrustStorePath);
         conf.setTlsTrustStorePath(tlsTrustStorePath);

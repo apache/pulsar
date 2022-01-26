@@ -24,10 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
-import java.net.URLConnection;
-import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -35,7 +32,14 @@ import java.util.concurrent.TimeUnit;
 import lombok.Data;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.IOUtils;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpHeaders;
+import org.apache.http.client.ResponseHandler;
+import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.client.methods.RequestBuilder;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ControlledClusterFailoverBuilder;
@@ -46,25 +50,50 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 @Slf4j
 public class ControlledClusterFailover implements ServiceUrlProvider {
-    private PulsarClient pulsarClient;
+    private PulsarClientImpl pulsarClient;
     private volatile String currentPulsarServiceUrl;
     private volatile ControlledConfiguration currentControlledConfiguration;
-    private final URL pulsarUrlProvider;
     private final ScheduledExecutorService executor;
-    private long interval;
+    private final long interval;
     private ObjectMapper objectMapper = null;
+    private final CloseableHttpClient httpClient;
+    private final HttpUriRequest request;
+    private final ResponseHandler<String> responseHandler;
 
-    private ControlledClusterFailover(String defaultServiceUrl, String urlProvider, long interval) throws IOException {
-        this.currentPulsarServiceUrl = defaultServiceUrl;
-        this.pulsarUrlProvider = new URL(urlProvider);
-        this.interval = interval;
+    private ControlledClusterFailover(ControlledClusterFailoverBuilderImpl builder) throws IOException {
+        this.currentPulsarServiceUrl = builder.defaultServiceUrl;
+        this.interval = builder.interval;
         this.executor = Executors.newSingleThreadScheduledExecutor(
                 new DefaultThreadFactory("pulsar-service-provider"));
+        this.httpClient = HttpClients.custom().build();
+
+        RequestBuilder requestBuilder = RequestBuilder.get()
+            .setUri(builder.urlProvider)
+            .setHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+
+        if (builder.header != null && !builder.header.isEmpty()) {
+            builder.header.forEach(requestBuilder::setHeader);
+        }
+        this.request = requestBuilder.build();
+        responseHandler = httpResponse -> {
+            int status = httpResponse.getStatusLine().getStatusCode();
+            if (status >= 200 && status < 300) {
+                HttpEntity entity = httpResponse.getEntity();
+                return entity != null ? EntityUtils.toString(entity) : null;
+            } else {
+                log.warn("Unexpected response status: {}", status);
+                return null;
+            }
+        };
+    }
+
+    public HttpUriRequest getRequest() {
+        return this.request;
     }
 
     @Override
     public void initialize(PulsarClient client) {
-        this.pulsarClient = client;
+        this.pulsarClient = (PulsarClientImpl) client;
 
         // start to check service url every 30 seconds
         this.executor.scheduleAtFixedRate(catchingAndLoggingThrowables(() -> {
@@ -110,26 +139,14 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
         return this.currentPulsarServiceUrl;
     }
 
-    public URL getPulsarUrlProvider() {
-        return this.pulsarUrlProvider;
-    }
-
     protected ControlledConfiguration fetchControlledConfiguration() throws IOException {
         // call the service to get service URL
-        InputStream inputStream = null;
         try {
-            URLConnection conn = pulsarUrlProvider.openConnection();
-            inputStream = conn.getInputStream();
-            String jsonStr = new String(IOUtils.toByteArray(inputStream), StandardCharsets.UTF_8);
-            ObjectMapper objectMapper = getObjectMapper();
-            return objectMapper.readValue(jsonStr, ControlledConfiguration.class);
+            String jsonStr = httpClient.execute(request, responseHandler);
+            return getObjectMapper().readValue(jsonStr, ControlledConfiguration.class);
         } catch (IOException e) {
             log.warn("Failed to fetch controlled configuration. ", e);
             return null;
-        } finally {
-            if (inputStream != null) {
-                inputStream.close();
-            }
         }
     }
 
@@ -157,27 +174,6 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
                 return null;
             }
         }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (obj instanceof ControlledConfiguration) {
-                ControlledConfiguration other = (ControlledConfiguration) obj;
-                return Objects.equals(serviceUrl, other.serviceUrl)
-                        && Objects.equals(tlsTrustCertsFilePath, other.tlsTrustCertsFilePath)
-                        && Objects.equals(authPluginClassName, other.authPluginClassName)
-                        && Objects.equals(authParamsString, other.authParamsString);
-            }
-
-            return false;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(serviceUrl,
-                    tlsTrustCertsFilePath,
-                    authPluginClassName,
-                    authParamsString);
-        }
     }
 
     @Override
@@ -188,11 +184,19 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
     @Override
     public void close() {
         this.executor.shutdown();
+        if (httpClient != null) {
+            try {
+                httpClient.close();
+            } catch (IOException e) {
+                log.error("Failed to close http client.");
+            }
+        }
     }
 
     public static class ControlledClusterFailoverBuilderImpl implements ControlledClusterFailoverBuilder {
         private String defaultServiceUrl;
         private String urlProvider;
+        private Map<String, String> header = null;
         private long interval = 30_000;
 
         @Override
@@ -208,6 +212,12 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
         }
 
         @Override
+        public ControlledClusterFailoverBuilder urlProviderHeader(Map<String, String> header) {
+            this.header = header;
+            return this;
+        }
+
+        @Override
         public ControlledClusterFailoverBuilder checkInterval(long interval, @NonNull TimeUnit timeUnit) {
             this.interval = timeUnit.toMillis(interval);
             return this;
@@ -217,9 +227,9 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
         public ServiceUrlProvider build() throws IOException {
             Objects.requireNonNull(defaultServiceUrl, "default service url shouldn't be null");
             Objects.requireNonNull(urlProvider, "urlProvider shouldn't be null");
-            checkArgument(interval >= 0, "checkInterval should >= 0");
+            checkArgument(interval > 0, "checkInterval should > 0");
 
-            return new ControlledClusterFailover(defaultServiceUrl, urlProvider, interval);
+            return new ControlledClusterFailover(this);
         }
 
         public static void checkArgument(boolean expression, @Nullable Object errorMessage) {

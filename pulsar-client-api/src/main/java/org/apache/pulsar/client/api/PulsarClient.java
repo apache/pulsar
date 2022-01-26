@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.api;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.transaction.TransactionBuilder;
@@ -256,31 +255,6 @@ public interface PulsarClient extends Closeable {
      *             in case the serviceUrl is not valid
      */
     void updateServiceUrl(String serviceUrl) throws PulsarClientException;
-
-    /**
-     * Update the authentication this client is using.
-     *
-     * @param authentication
-     *
-     * @throws IOException
-     */
-    void updateAuthentication(Authentication authentication)
-            throws IOException;
-
-    /**
-     * Update the tlsTrustCertsFilePath this client is using.
-     *
-     * @param tlsTrustCertsFilePath
-     */
-    void updateTlsTrustCertsFilePath(String tlsTrustCertsFilePath);
-
-    /**
-     * Update the tlsTrustStorePath and tlsTrustStorePassword this client is using.
-     *
-     * @param tlsTrustStorePath
-     * @param tlsTrustStorePassword
-     */
-    void updateTlsTrustStorePathAndPassword(String tlsTrustStorePath, String tlsTrustStorePassword);
 
     /**
      * Get the list of partitions for a given topic.
