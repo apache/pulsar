@@ -43,7 +43,7 @@ public class LedgerOffloaderMetrics extends AbstractMetrics {
     private Map<String, Double> tempAggregatedMetricsMap;
     private boolean isTopicLevel;
     private String topicName;
-    private String nameSpace;
+    private String namespace;
     private final double periodInSeconds;
 
     protected static final double[] WRITE_TO_STORAGE_BUCKETS_MS =
@@ -75,11 +75,11 @@ public class LedgerOffloaderMetrics extends AbstractMetrics {
     //when the offload metrics was collected
     private static long collectedUtc = System.currentTimeMillis();
 
-    public LedgerOffloaderMetrics(PulsarService pulsar, boolean isTopicLevel, String nameSpace, String topicName) {
+    public LedgerOffloaderMetrics(PulsarService pulsar, boolean isTopicLevel, String namespace, String topicName) {
         super(pulsar);
         this.metricsCollection = Lists.newArrayList();
         this.isTopicLevel = isTopicLevel;
-        this.nameSpace = nameSpace;
+        this.namespace = namespace;
         this.topicName = topicName;
         this.tempAggregatedMetricsMap = Maps.newHashMap();
         this.periodInSeconds = (System.currentTimeMillis() - collectedUtc) / 1000D;
@@ -182,11 +182,11 @@ public class LedgerOffloaderMetrics extends AbstractMetrics {
         tempAggregatedMetricsMap.clear();
 
         Map<String, String> dimensionMap = new HashMap<>(2);
-        dimensionMap.put("namespace", nameSpace);
+        dimensionMap.put("namespace", namespace);
 
         Metrics metrics = createMetrics(dimensionMap);
 
-        pulsar.getBrokerService().getMultiLayerTopicMap().get(nameSpace).forEach((bundle, topicsMap) -> {
+        pulsar.getBrokerService().getMultiLayerTopicMap().get(namespace).forEach((bundle, topicsMap) -> {
             topicsMap.forEach((topicName, topic) -> {
                 aggregate(tempAggregatedMetricsMap, topicName);
             });

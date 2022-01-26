@@ -137,7 +137,6 @@ public class LedgerOffloaderMetricsTest  extends BrokerTestBase {
 
 
         String metricsStr = convertByteBufToString(buf);
-//        System.out.println(metricsStr);
         Multimap<String, PrometheusMetricsTest.Metric> metrics = PrometheusMetricsTest.parseMetrics(metricsStr);
         String []metricName = new String[]{"pulsar_ledgeroffloader_writeError",
                 "pulsar_ledgeroffloader_offloadError", "pulsar_ledgeroffloader_readOffloadError",

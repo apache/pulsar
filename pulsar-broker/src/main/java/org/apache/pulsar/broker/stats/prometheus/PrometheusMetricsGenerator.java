@@ -41,6 +41,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.pulsar.PulsarVersion;
@@ -178,12 +180,18 @@ public class PrometheusMetricsGenerator {
                 bundlesMap.forEach((bundle, topicsMap) -> {
                     topicsMap.forEach((topicName, topic) -> {
                         if (topic instanceof PersistentTopic) {
-                            try {
-                                List<Metrics> metrics =
-                                        new LedgerOffloaderMetrics(pulsar, true, namespace, topicName).generate();
-                                metricList.addAll(metrics);
-                            } catch (Exception ex) {
-                                log.error("generate ledger offloader topic level metrics error", ex);
+                            //check offlaoder
+                            PersistentTopic persistentTopic = (PersistentTopic) topic;
+                            LedgerOffloader offloader =
+                                    persistentTopic.getManagedLedger().getConfig().getLedgerOffloader();
+                            if (!(offloader instanceof NullLedgerOffloader)) {
+                                try {
+                                    List<Metrics> metrics =
+                                            new LedgerOffloaderMetrics(pulsar, true, namespace, topicName).generate();
+                                    metricList.addAll(metrics);
+                                } catch (Exception ex) {
+                                    log.error("generate ledger offloader topic level metrics error", ex);
+                                }
                             }
                         }
                     });

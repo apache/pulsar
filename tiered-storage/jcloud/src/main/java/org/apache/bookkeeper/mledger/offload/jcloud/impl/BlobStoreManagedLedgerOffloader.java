@@ -274,8 +274,10 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
                 long startUploadTime = System.nanoTime();
                 writeBlobStore.putBlob(config.getBucket(), blob);
-                this.mxBean.recordWriteToStorageLatency(extraMetadata.get(MANAGED_LEDGER_NAME),
-                        System.nanoTime() - startUploadTime, TimeUnit.NANOSECONDS);
+                long cost = System.nanoTime() - startUploadTime;
+                String topicName = extraMetadata.get(MANAGED_LEDGER_NAME);
+                this.mxBean.recordOffloadTime(topicName, cost, TimeUnit.MILLISECONDS);
+                this.mxBean.recordWriteToStorageLatency(topicName, cost, TimeUnit.NANOSECONDS);
                 promise.complete(null);
             } catch (Throwable t) {
                 try {
