@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map.Entry;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
-
 
 public class UnAckedTopicMessageRedeliveryTracker extends UnAckedMessageRedeliveryTracker {
 
@@ -35,17 +35,16 @@ public class UnAckedTopicMessageRedeliveryTracker extends UnAckedMessageRedelive
         writeLock.lock();
         try {
             int removed = 0;
-            Iterator<UnackMessageIdWrapper> iterator = redeliveryMessageIdPartitionMap.keySet().iterator();
+            Iterator<Entry<UnackMessageIdWrapper, HashSet<UnackMessageIdWrapper>>> iterator =
+                    redeliveryMessageIdPartitionMap.entrySet().iterator();
             while (iterator.hasNext()) {
-                UnackMessageIdWrapper messageIdWrapper = iterator.next();
+                Entry<UnackMessageIdWrapper, HashSet<UnackMessageIdWrapper>> entry = iterator.next();
+                UnackMessageIdWrapper messageIdWrapper = entry.getKey();
                 MessageId messageId = messageIdWrapper.getMessageId();
                 if (messageId instanceof TopicMessageIdImpl
                         && ((TopicMessageIdImpl) messageId).getTopicPartitionName().contains(topicName)) {
-                    ConcurrentOpenHashSet<UnackMessageIdWrapper> exist = redeliveryMessageIdPartitionMap
-                            .get(messageIdWrapper);
-                    if (exist != null) {
-                        exist.remove(messageIdWrapper);
-                    }
+                    HashSet<UnackMessageIdWrapper> exist = redeliveryMessageIdPartitionMap.get(messageIdWrapper);
+                    entry.getValue().remove(messageIdWrapper);
                     iterator.remove();
                     messageIdWrapper.recycle();
                     removed++;

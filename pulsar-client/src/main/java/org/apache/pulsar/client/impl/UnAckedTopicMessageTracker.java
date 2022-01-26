@@ -18,10 +18,11 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map.Entry;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 
 public class UnAckedTopicMessageTracker extends UnAckedMessageTracker {
 
@@ -34,15 +35,13 @@ public class UnAckedTopicMessageTracker extends UnAckedMessageTracker {
         writeLock.lock();
         try {
             int removed = 0;
-            Iterator<MessageId> iterator = messageIdPartitionMap.keySet().iterator();
+            Iterator<Entry<MessageId, HashSet<MessageId>>> iterator = messageIdPartitionMap.entrySet().iterator();
             while (iterator.hasNext()) {
-                MessageId messageId = iterator.next();
+                Entry<MessageId, HashSet<MessageId>> entry = iterator.next();
+                MessageId messageId = entry.getKey();
                 if (messageId instanceof TopicMessageIdImpl
                         && ((TopicMessageIdImpl) messageId).getTopicPartitionName().contains(topicName)) {
-                    ConcurrentOpenHashSet<MessageId> exist = messageIdPartitionMap.get(messageId);
-                    if (exist != null) {
-                        exist.remove(messageId);
-                    }
+                    entry.getValue().remove(messageId);
                     iterator.remove();
                     removed++;
                 }

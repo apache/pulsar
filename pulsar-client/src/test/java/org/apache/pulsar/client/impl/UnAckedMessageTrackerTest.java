@@ -30,11 +30,11 @@ import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
+import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.testng.annotations.Test;
 
 public class UnAckedMessageTrackerTest  {
@@ -63,7 +63,7 @@ public class UnAckedMessageTrackerTest  {
         assertFalse(tracker.add(mid));
         assertEquals(tracker.size(), 1);
 
-        ConcurrentOpenHashSet<MessageId> headPartition = tracker.timePartitions.removeFirst();
+        HashSet<MessageId> headPartition = tracker.timePartitions.removeFirst();
         headPartition.clear();
         tracker.timePartitions.addLast(headPartition);
 

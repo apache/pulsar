@@ -25,24 +25,24 @@ import io.netty.util.concurrent.FastThreadLocal;
 import java.io.Closeable;
 import java.util.ArrayDeque;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map.Entry;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class UnAckedMessageTracker implements Closeable {
     private static final Logger log = LoggerFactory.getLogger(UnAckedMessageTracker.class);
 
-    protected final ConcurrentHashMap<MessageId, ConcurrentOpenHashSet<MessageId>> messageIdPartitionMap;
-    protected final ArrayDeque<ConcurrentOpenHashSet<MessageId>> timePartitions;
+    protected final HashMap<MessageId, HashSet<MessageId>> messageIdPartitionMap;
+    protected final ArrayDeque<HashSet<MessageId>> timePartitions;
 
     protected final Lock readLock;
     protected final Lock writeLock;
@@ -115,12 +115,12 @@ public class UnAckedMessageTracker implements Closeable {
         this.readLock = readWriteLock.readLock();
         this.writeLock = readWriteLock.writeLock();
         if (conf.getAckTimeoutRedeliveryBackoff() == null) {
-            this.messageIdPartitionMap = new ConcurrentHashMap<>();
+            this.messageIdPartitionMap = new HashMap<>();
             this.timePartitions = new ArrayDeque<>();
 
             int blankPartitions = (int) Math.ceil((double) this.ackTimeoutMillis / this.tickDurationInMs);
             for (int i = 0; i < blankPartitions + 1; i++) {
-                timePartitions.add(new ConcurrentOpenHashSet<>(16, 1));
+                timePartitions.add(new HashSet<>(16, 1));
             }
             timeout = client.timer().newTimeout(new TimerTask() {
                 @Override
@@ -130,7 +130,7 @@ public class UnAckedMessageTracker implements Closeable {
 
                     writeLock.lock();
                     try {
-                        ConcurrentOpenHashSet<MessageId> headPartition = timePartitions.removeFirst();
+                        HashSet<MessageId> headPartition = timePartitions.removeFirst();
                         if (!headPartition.isEmpty()) {
                             log.info("[{}] {} messages will be re-delivered", consumerBase, headPartition.size());
                             headPartition.forEach(messageId -> {
@@ -183,9 +183,8 @@ public class UnAckedMessageTracker implements Closeable {
     public boolean add(MessageId messageId) {
         writeLock.lock();
         try {
-            ConcurrentOpenHashSet<MessageId> partition = timePartitions.peekLast();
-            ConcurrentOpenHashSet<MessageId> previousPartition = messageIdPartitionMap.putIfAbsent(messageId,
-                    partition);
+            HashSet<MessageId> partition = timePartitions.peekLast();
+            HashSet<MessageId> previousPartition = messageIdPartitionMap.putIfAbsent(messageId, partition);
             if (previousPartition == null) {
                 return partition.add(messageId);
             } else {
@@ -213,7 +212,7 @@ public class UnAckedMessageTracker implements Closeable {
         writeLock.lock();
         try {
             boolean removed = false;
-            ConcurrentOpenHashSet<MessageId> exist = messageIdPartitionMap.remove(messageId);
+            HashSet<MessageId> exist = messageIdPartitionMap.remove(messageId);
             if (exist != null) {
                 removed = exist.remove(messageId);
             }
@@ -236,14 +235,12 @@ public class UnAckedMessageTracker implements Closeable {
         writeLock.lock();
         try {
             int removed = 0;
-            Iterator<MessageId> iterator = messageIdPartitionMap.keySet().iterator();
+            Iterator<Entry<MessageId, HashSet<MessageId>>> iterator = messageIdPartitionMap.entrySet().iterator();
             while (iterator.hasNext()) {
-                MessageId messageId = iterator.next();
+                Entry<MessageId, HashSet<MessageId>> entry = iterator.next();
+                MessageId messageId = entry.getKey();
                 if (messageId.compareTo(msgId) <= 0) {
-                    ConcurrentOpenHashSet<MessageId> exist = messageIdPartitionMap.get(messageId);
-                    if (exist != null) {
-                        exist.remove(messageId);
-                    }
+                    entry.getValue().remove(messageId);
                     iterator.remove();
                     removed++;
                 }

@@ -22,14 +22,14 @@ import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import java.util.ArrayDeque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map.Entry;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RedeliveryBackoff;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,12 +37,10 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
 
     private static final Logger log = LoggerFactory.getLogger(UnAckedMessageRedeliveryTracker.class);
 
-    protected final ConcurrentHashMap<UnackMessageIdWrapper, ConcurrentOpenHashSet<UnackMessageIdWrapper>>
-            redeliveryMessageIdPartitionMap;
-    protected final ArrayDeque<ConcurrentOpenHashSet<UnackMessageIdWrapper>> redeliveryTimePartitions;
+    protected final HashMap<UnackMessageIdWrapper, HashSet<UnackMessageIdWrapper>> redeliveryMessageIdPartitionMap;
+    protected final ArrayDeque<HashSet<UnackMessageIdWrapper>> redeliveryTimePartitions;
 
     protected final HashMap<MessageId, Long> ackTimeoutMessages;
-
     private final RedeliveryBackoff ackTimeoutRedeliveryBackoff;
 
     public UnAckedMessageRedeliveryTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase,
@@ -50,12 +48,12 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
         super(client, consumerBase, conf);
         this.ackTimeoutRedeliveryBackoff = conf.getAckTimeoutRedeliveryBackoff();
         this.ackTimeoutMessages = new HashMap<MessageId, Long>();
-        this.redeliveryMessageIdPartitionMap = new ConcurrentHashMap<>();
+        this.redeliveryMessageIdPartitionMap = new HashMap<>();
         this.redeliveryTimePartitions = new ArrayDeque<>();
 
         int blankPartitions = (int) Math.ceil((double) this.ackTimeoutMillis / this.tickDurationInMs);
         for (int i = 0; i < blankPartitions + 1; i++) {
-            redeliveryTimePartitions.add(new ConcurrentOpenHashSet<>(16, 1));
+            redeliveryTimePartitions.add(new HashSet<>(16, 1));
         }
 
         timeout = client.timer().newTimeout(new TimerTask() {
@@ -63,7 +61,7 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
             public void run(Timeout t) throws Exception {
                 writeLock.lock();
                 try {
-                    ConcurrentOpenHashSet<UnackMessageIdWrapper> headPartition = redeliveryTimePartitions.removeFirst();
+                    HashSet<UnackMessageIdWrapper> headPartition = redeliveryTimePartitions.removeFirst();
                     if (!headPartition.isEmpty()) {
                         headPartition.forEach(unackMessageIdWrapper -> {
                             addAckTimeoutMessages(unackMessageIdWrapper);
@@ -162,8 +160,8 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
         writeLock.lock();
         try {
             UnackMessageIdWrapper messageIdWrapper = UnackMessageIdWrapper.valueOf(messageId, redeliveryCount);
-            ConcurrentOpenHashSet<UnackMessageIdWrapper> partition = redeliveryTimePartitions.peekLast();
-            ConcurrentOpenHashSet<UnackMessageIdWrapper> previousPartition = redeliveryMessageIdPartitionMap
+            HashSet<UnackMessageIdWrapper> partition = redeliveryTimePartitions.peekLast();
+            HashSet<UnackMessageIdWrapper> previousPartition = redeliveryMessageIdPartitionMap
                     .putIfAbsent(messageIdWrapper, partition);
             if (previousPartition == null) {
                 return partition.add(messageIdWrapper);
@@ -182,7 +180,7 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
         UnackMessageIdWrapper messageIdWrapper = UnackMessageIdWrapper.valueOf(messageId);
         try {
             boolean removed = false;
-            ConcurrentOpenHashSet<UnackMessageIdWrapper> exist =
+            HashSet<UnackMessageIdWrapper> exist =
                     redeliveryMessageIdPartitionMap.remove(messageIdWrapper);
             if (exist != null) {
                 removed = exist.remove(messageIdWrapper);
@@ -209,16 +207,13 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
         writeLock.lock();
         try {
             int removed = 0;
-            Iterator<UnackMessageIdWrapper> iterator = redeliveryMessageIdPartitionMap.keySet().iterator();
+            Iterator<Entry<UnackMessageIdWrapper, HashSet<UnackMessageIdWrapper>>> iterator =
+                    redeliveryMessageIdPartitionMap.entrySet().iterator();
             while (iterator.hasNext()) {
-                UnackMessageIdWrapper messageIdWrapper = iterator.next();
-                MessageId messageId = messageIdWrapper.getMessageId();
-                if (messageId.compareTo(msgId) <= 0) {
-                    ConcurrentOpenHashSet<UnackMessageIdWrapper> exist =
-                            redeliveryMessageIdPartitionMap.get(messageIdWrapper);
-                    if (exist != null) {
-                        exist.remove(messageIdWrapper);
-                    }
+                Entry<UnackMessageIdWrapper, HashSet<UnackMessageIdWrapper>> entry = iterator.next();
+                UnackMessageIdWrapper messageIdWrapper = entry.getKey();
+                if (messageIdWrapper.getMessageId().compareTo(msgId) <= 0) {
+                    entry.getValue().remove(messageIdWrapper);
                     iterator.remove();
                     messageIdWrapper.recycle();
                     removed++;
