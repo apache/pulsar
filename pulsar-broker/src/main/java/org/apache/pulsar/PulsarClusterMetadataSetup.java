@@ -30,6 +30,7 @@ import org.apache.bookkeeper.common.net.ServiceURI;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.stream.storage.api.cluster.ClusterInitializer;
 import org.apache.bookkeeper.stream.storage.impl.cluster.ZkClusterInitializer;
+import org.apache.bookkeeper.util.BookKeeperConstants;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
@@ -233,7 +234,8 @@ public class PulsarClusterMetadataSetup {
             ServerConfiguration bkConf = new ServerConfiguration();
             bkConf.setMetadataServiceUri("metadata-store:zk:" + arguments.zookeeper);
             bkConf.setZkTimeout(arguments.zkSessionTimeoutMillis);
-            if (!localStore.exists("/ledgers").get() // only format if /ledgers doesn't exist
+            System.out.println("ok faccio format!" + bkConf.getMetadataServiceUriUnchecked());
+            if (!localStore.exists(BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH).get() // only format if /ledgers doesn't exist
                 && !BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
                 throw new IOException("Failed to initialize BookKeeper metadata");
             }
@@ -246,11 +248,9 @@ public class PulsarClusterMetadataSetup {
             } else if (arguments.bookieMetadataServiceUri != null) {
                 uriStr = arguments.bookieMetadataServiceUri;
             } else {
-                final ServerConfiguration metadataResolver = new ServerConfiguration();
-                uriStr = "metadata-store:zk:" + arguments.zookeeper + metadataResolver.getZkLedgersRootPath();
+                uriStr = "zk+null://" + arguments.zookeeper + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH;
             }
 
-            log.info("initialDlogNamespaceMetadata uriStr" + uriStr + " " + arguments.configurationStore);
             // initial distributed log metadata
             initialDlogNamespaceMetadata(arguments.configurationStore, uriStr);
 

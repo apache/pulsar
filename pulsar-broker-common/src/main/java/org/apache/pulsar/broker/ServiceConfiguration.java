@@ -36,6 +36,7 @@ import lombok.Setter;
 import lombok.ToString;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.bookkeeper.util.BookKeeperConstants;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.Category;
@@ -2586,7 +2587,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 suffix = metadataStoreUrl;
             } else {
                 // Fallback to old setting
-                suffix = "zk:" + zookeeperServers + new ClientConfiguration().getZkLedgersRootPath();
+                suffix = "zk:" + zookeeperServers + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH;
             }
             return "metadata-store:" + suffix;
         }

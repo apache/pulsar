@@ -22,6 +22,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.conf.AbstractConfiguration;
 import org.apache.bookkeeper.discover.RegistrationClient;
 import org.apache.bookkeeper.discover.RegistrationManager;
@@ -30,10 +31,12 @@ import org.apache.bookkeeper.meta.LedgerManagerFactory;
 import org.apache.bookkeeper.meta.LegacyHierarchicalLedgerManagerFactory;
 import org.apache.bookkeeper.meta.exceptions.Code;
 import org.apache.bookkeeper.meta.exceptions.MetadataException;
+import org.apache.bookkeeper.util.BookKeeperConstants;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
+@Slf4j
 public abstract class AbstractMetadataDriver implements Closeable {
 
     protected static final String METADATA_STORE_SCHEME = "metadata-store";
@@ -125,6 +128,6 @@ public abstract class AbstractMetadataDriver implements Closeable {
         }
         URI metadataServiceUri = URI.create(metadataServiceUriStr);
         String path = metadataServiceUri.getPath();
-        return path == null ? "/ledgers" : path;
+        return path == null ? BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH : path;
     }
 }
