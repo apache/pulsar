@@ -3454,13 +3454,12 @@ public class PersistentTopicsBase extends AdminResource {
             future = CompletableFuture.completedFuture(null);
         }
 
-        future.thenAccept(__ -> {
-            validateTopicOperationAsync(topicName, TopicOperation.EXPIRE_MESSAGES)
-                    .thenCompose(unused -> validateTopicOwnershipAsync(topicName, authoritative))
-                    .thenAccept(unused -> {
-                        log.info("[{}][{}] received expire messages on subscription {} to position {}", clientAppId(),
-                                topicName, subName, messageId);
-                        getPartitionedTopicMetadataAsync(topicName, authoritative, false)
+        future.thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.EXPIRE_MESSAGES))
+                .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
+                .thenCompose(__ -> {
+                    log.info("[{}][{}] received expire messages on subscription {} to position {}", clientAppId(),
+                            topicName, subName, messageId);
+                    return getPartitionedTopicMetadataAsync(topicName, authoritative, false)
                             .thenAccept(partitionMetadata -> {
                                 if (!topicName.isPartitioned() && partitionMetadata.partitions > 0) {
                                     String msg = "Expire message at position is not supported for partitioned-topic";
@@ -3477,26 +3476,11 @@ public class PersistentTopicsBase extends AdminResource {
                                     internalExpireMessagesNonPartitionedTopicByPosition(asyncResponse, subName,
                                             messageId, isExcluded, batchIndex);
                                 }
-                            }).exceptionally(ex -> {
-                            Throwable cause = ex.getCause();
-                            log.error("[{}] Failed to expire messages up to {} on subscription {} to position "
-                                    + "{}", clientAppId(), topicName, subName, messageId, cause);
-                            resumeAsyncResponseExceptionally(asyncResponse, cause);
-                            return null;
-                        });
-                            }
-                    ).exceptionally(ex -> {
-                        Throwable cause = ex.getCause();
-                        log.error("[{}] Failed to expire messages up to {} on subscription {} to position {}",
-                                clientAppId(), topicName, subName, messageId, cause);
-                        resumeAsyncResponseExceptionally(asyncResponse, cause);
-                        return null;
-                    });
-                }
-        ).exceptionally(ex -> {
+                            });
+                }).exceptionally(ex -> {
             Throwable cause = ex.getCause();
-            log.error("[{}] Failed to validate the global namespace ownership while expire messages up to {} on "
-                      + "subscription {} to position {}", clientAppId(), topicName, messageId, cause);
+            log.error("[{}] Failed to expire messages up to {} on subscription {} to position {}",
+                    clientAppId(), topicName, subName, messageId, cause);
             resumeAsyncResponseExceptionally(asyncResponse, cause);
             return null;
         });
