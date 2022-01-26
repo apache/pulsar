@@ -107,7 +107,7 @@ The following examples show how to use the Netty source connector with TCP and H
    ```bash
    
    $ ./bin/pulsar-admin sources localrun \
-   --archive pulsar-io-@pulsar:version@.nar \
+   --archive pulsar-io-2.7.0.nar \
    --tenant public \
    --namespace default \
    --name netty \
@@ -204,7 +204,7 @@ The following examples show how to use the Netty source connector with TCP and H
    ```bash
    
    $ ./bin/pulsar-admin sources localrun \
-   --archive pulsar-io-@pulsar:version@.nar \
+   --archive pulsar-io-2.7.0.nar \
    --tenant public \
    --namespace default \
    --name netty \

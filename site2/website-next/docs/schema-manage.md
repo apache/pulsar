@@ -230,7 +230,7 @@ Here are examples of the `schema-definition-file` for a JSON schema.
 </TabItem>
 <TabItem value="REST API">
 
-Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/uploadSchem?version=@pulsar:version_number@a}
+Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/uploadSchem?version=2.8.0a}
 
 The post payload is in JSON format.
 
@@ -319,7 +319,7 @@ $ pulsar-admin schemas get <topic-name>
 </TabItem>
 <TabItem value="REST API">
 
-Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/getSchem?version=@pulsar:version_number@a}
+Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/getSchem?version=2.8.0a}
 
 Here is an example of a response, which is returned in JSON format.
 
@@ -398,7 +398,7 @@ $ pulsar-admin schemas get <topic-name> --version=<version>
 </TabItem>
 <TabItem value="REST API">
 
-Send a `GET` request to a schema endpoint: {@inject: endpoint|GET|/admin/v2/schemas/:tenant/:namespace/:topic/schema/:version|operation/getSchem?version=@pulsar:version_number@a}
+Send a `GET` request to a schema endpoint: {@inject: endpoint|GET|/admin/v2/schemas/:tenant/:namespace/:topic/schema/:version|operation/getSchem?version=2.8.0a}
 
 Here is an example of a response, which is returned in JSON format.
 
@@ -505,7 +505,7 @@ $ pulsar-admin schemas delete <topic-name>
 </TabItem>
 <TabItem value="REST API">
 
-Send a `DELETE` request to a schema endpoint: {@inject: endpoint|DELETE|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/deleteSchema?version=@pulsar:version_number@} 
+Send a `DELETE` request to a schema endpoint: {@inject: endpoint|DELETE|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/deleteSchema?version=2.8.0} 
 
 Here is an example of a response, which is returned in JSON format.
 
@@ -658,12 +658,12 @@ pulsar-admin namespaces set-schema-compatibility-strategy options
 </TabItem>
 <TabItem value="REST API">
 
-Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace|operation/schemaCompatibilityStrategy?version=@pulsar:version_number@}
+Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace|operation/schemaCompatibilityStrategy?version=2.8.0}
 
 </TabItem>
 <TabItem value="Java">
 
-Use the [`setSchemaCompatibilityStrategy`](https://pulsar.apache.org/api/admin/)method.
+Use the [`setSchemaCompatibilityStrategy`](https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/2.8.0-SNAPSHOT/)method.
 
 ```java
 

@@ -40,15 +40,15 @@ To get started running Pulsar, download a binary tarball release in one of the f
 
 * by clicking the link below and downloading the release from an Apache mirror:
 
-  * <a href="pulsar:binary_release_url" download>Pulsar @pulsar:version@ binary release</a>
+  * <a href="https://archive.apache.org/dist/pulsar/pulsar-2.6.0/apache-pulsar-2.6.0-bin.tar.gz" download>Pulsar 2.6.0 binary release</a>
 
-* from the Pulsar [downloads page](pulsar:download_page_url)
+* from the Pulsar [downloads page](/download)
 * from the Pulsar [releases page](https://github.com/apache/pulsar/releases/latest)
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell
   
-  $ wget 'https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-@pulsar:version@/apache-pulsar-@pulsar:version@-bin.tar.gz' -O apache-pulsar-@pulsar:version@-bin.tar.gz
+  $ wget 'https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-2.6.0/apache-pulsar-2.6.0-bin.tar.gz' -O apache-pulsar-2.6.0-bin.tar.gz
   
   ```
 
@@ -56,8 +56,8 @@ Once you download the tarball, untar it and `cd` into the resulting directory:
 
 ```bash
 
-$ tar xvfz apache-pulsar-@pulsar:version@-bin.tar.gz
-$ cd apache-pulsar-@pulsar:version@
+$ tar xvfz apache-pulsar-2.6.0-bin.tar.gz
+$ cd apache-pulsar-2.6.0
 
 ```
 

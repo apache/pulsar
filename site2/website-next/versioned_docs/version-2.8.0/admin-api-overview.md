@@ -30,7 +30,7 @@ You can interact with the admin interface via:
 
 ## Admin setup
 
-Each of the three admin interfaces (the `pulsar-admin` CLI tool, the {@inject: rest:REST:/} API, and the [Java admin API](/api/admin)) requires some special setup if you have enabled authentication in your Pulsar instance.
+Each of the three admin interfaces (the `pulsar-admin` CLI tool, the {@inject: rest:REST:/} API, and the [Java admin API](/api/admin/2.8.0-SNAPSHOT/2.8.0-SNAPSHOT)) requires some special setup if you have enabled authentication in your Pulsar instance.
 
 <Tabs 
   defaultValue="pulsar-admin"

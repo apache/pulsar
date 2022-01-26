@@ -31,7 +31,7 @@ $ pulsar-admin namespaces create test-tenant/test-namespace
 
 #### REST API
 
-{@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace|operation/createNamespace?version=@pulsar:version_number@}
+{@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace|operation/createNamespace?version=2.6.0}
 
 #### Java
 
@@ -78,7 +78,7 @@ $ pulsar-admin namespaces policies test-tenant/test-namespace
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace|operation/getPolicies?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace|operation/getPolicies?version=2.6.0}
 
 #### Java
 
@@ -106,7 +106,7 @@ test-tenant/ns2
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant|operation/getTenantNamespaces?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant|operation/getTenantNamespaces?version=2.6.0}
 
 #### Java
 
@@ -132,7 +132,7 @@ $ pulsar-admin namespaces delete test-tenant/ns1
 
 #### REST
 
-{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace|operation/deleteNamespace?version=@pulsar:version_number@}
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace|operation/deleteNamespace?version=2.6.0}
 
 #### Java
 
@@ -159,7 +159,7 @@ $ pulsar-admin namespaces set-clusters test-tenant/ns1 \
 
 ```
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/replication|operation/setNamespaceReplicationClusters?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/replication|operation/setNamespaceReplicationClusters?version=2.6.0}
 
 ```
 
@@ -193,7 +193,7 @@ cl2
 
 ```
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/replication|operation/getNamespaceReplicationClusters?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/replication|operation/getNamespaceReplicationClusters?version=2.6.0}
 
 ```
 
@@ -235,7 +235,7 @@ N/A
 
 ```
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/setBacklogQuota?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/setBacklogQuota?version=2.6.0}
 
 ```
 
@@ -274,7 +274,7 @@ $ pulsar-admin namespaces get-backlog-quotas test-tenant/ns1
 
 ```
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/backlogQuotaMap|operation/getBacklogQuotaMap?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/backlogQuotaMap|operation/getBacklogQuotaMap?version=2.6.0}
 
 ```
 
@@ -308,7 +308,7 @@ N/A
 
 ```
 
-{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/removeBacklogQuota?version=@pulsar:version_number@}
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/removeBacklogQuota?version=2.6.0}
 
 ```
 
@@ -350,7 +350,7 @@ N/A
 
 ```
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/persistence|operation/setPersistence?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/persistence|operation/setPersistence?version=2.6.0}
 
 ```
 
@@ -389,7 +389,7 @@ $ pulsar-admin namespaces get-persistence test-tenant/ns1
 
 ```
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/persistence|operation/getPersistence?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/persistence|operation/getPersistence?version=2.6.0}
 
 ```
 
@@ -423,7 +423,7 @@ N/A
 
 ```
 
-{@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace/{bundle}/unload|operation/unloadNamespaceBundle?version=@pulsar:version_number@}
+{@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace/{bundle}/unload|operation/unloadNamespaceBundle?version=2.6.0}
 
 ```
 
@@ -457,7 +457,7 @@ N/A
 
 ```
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/setNamespaceMessageTTL?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/setNamespaceMessageTTL?version=2.6.0}
 
 ```
 
@@ -491,7 +491,7 @@ $ pulsar-admin namespaces get-message-ttl test-tenant/ns1
 
 ```
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/getNamespaceMessageTTL?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/getNamespaceMessageTTL?version=2.6.0}
 
 ```
 
@@ -525,7 +525,7 @@ N/A
 
 ```
 
-{@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace/{bundle}/split|operation/splitNamespaceBundle?version=@pulsar:version_number@}
+{@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace/{bundle}/split|operation/splitNamespaceBundle?version=2.6.0}
 
 ```
 
@@ -559,7 +559,7 @@ N/A
 
 ```
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/clearBacklog|operation/clearNamespaceBacklogForSubscription?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/clearBacklog|operation/clearNamespaceBacklogForSubscription?version=2.6.0}
 
 ```
 
@@ -593,7 +593,7 @@ N/A
 
 ```
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/{bundle}/clearBacklog|operation/clearNamespaceBundleBacklogForSubscription?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/{bundle}/clearBacklog|operation/clearNamespaceBundleBacklogForSubscription?version=2.6.0}
 
 ```
 
@@ -627,7 +627,7 @@ N/A
 
 ```
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/retention|operation/setRetention?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/retention|operation/setRetention?version=2.6.0}
 
 ```
 
@@ -664,7 +664,7 @@ $ pulsar-admin namespaces get-retention test-tenant/ns1
 
 ```
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/retention|operation/getRetention?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/retention|operation/getRetention?version=2.6.0}
 
 ```
 
@@ -698,7 +698,7 @@ $ pulsar-admin namespaces set-dispatch-rate test-tenant/ns1 \
 
 ```
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/dispatchRate|operation/setDispatchRate?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/dispatchRate|operation/setDispatchRate?version=2.6.0}
 
 ```
 
@@ -736,7 +736,7 @@ $ pulsar-admin namespaces get-dispatch-rate test-tenant/ns1
 
 ```
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/dispatchRate|operation/getDispatchRate?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/dispatchRate|operation/getDispatchRate?version=2.6.0}
 
 ```
 
@@ -770,7 +770,7 @@ $ pulsar-admin namespaces set-subscription-dispatch-rate test-tenant/ns1 \
 
 ```
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/subscriptionDispatchRate|operation/setDispatchRate?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/subscriptionDispatchRate|operation/setDispatchRate?version=2.6.0}
 
 ```
 
@@ -808,7 +808,7 @@ $ pulsar-admin namespaces get-subscription-dispatch-rate test-tenant/ns1
 
 ```
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/subscriptionDispatchRate|operation/getDispatchRate?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/subscriptionDispatchRate|operation/getDispatchRate?version=2.6.0}
 
 ```
 
@@ -842,7 +842,7 @@ $ pulsar-admin namespaces set-replicator-dispatch-rate test-tenant/ns1 \
 
 ```
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/replicatorDispatchRate|operation/setDispatchRate?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/replicatorDispatchRate|operation/setDispatchRate?version=2.6.0}
 
 ```
 
@@ -880,7 +880,7 @@ $ pulsar-admin namespaces get-replicator-dispatch-rate test-tenant/ns1
 
 ```
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/replicatorDispatchRate|operation/getDispatchRate?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/replicatorDispatchRate|operation/getDispatchRate?version=2.6.0}
 
 ```
 
@@ -916,7 +916,7 @@ $ pulsar-admin namespaces unload my-tenant/my-ns
 
 ```
 
-{@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace/unload|operation/unloadNamespace?version=@pulsar:version_number@}
+{@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace/unload|operation/unloadNamespace?version=2.6.0}
 
 ```
 

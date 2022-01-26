@@ -20,7 +20,7 @@ If you're using Maven, add this to your `pom.xml`:
 ```xml
 
 <!-- in your <properties> block -->
-<pulsar.version>@pulsar:version@</pulsar.version>
+<pulsar.version>2.6.1</pulsar.version>
 
 <!-- in your <dependencies> block -->
 <dependency>
@@ -37,7 +37,7 @@ If you're using Gradle, add this to your `build.gradle` file:
 
 ```groovy
 
-def pulsarVersion = "@pulsar:version@"
+def pulsarVersion = "2.6.1"
 
 dependencies {
     compile group: 'org.apache.pulsar', name: 'pulsar-spark', version: pulsarVersion

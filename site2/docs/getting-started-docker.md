@@ -4,6 +4,8 @@ title: Set up a standalone Pulsar in Docker
 sidebar_label: Run Pulsar in Docker
 ---
 
+Test asdf
+
 For local development and testing, you can run Pulsar in standalone mode on your own machine within a Docker container. 
 
 If you have not installed Docker, download the [Community edition](https://www.docker.com/community-edition) and follow the instructions for your OS.
@@ -22,6 +24,8 @@ time the container is restarted. For details on the volumes you can use `docker 
  * For Docker on Windows make sure to configure it to use Linux containers
 
 If you start Pulsar successfully, you will see `INFO`-level log messages like this:
+
+test
 
 ```
 08:18:30.970 [main] INFO  org.apache.pulsar.broker.web.WebService - HTTP Service started at http://0.0.0.0:8080

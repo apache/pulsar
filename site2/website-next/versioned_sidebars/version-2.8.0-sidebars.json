@@ -6,6 +6,10 @@
       "items": [
         {
           "type": "doc",
+          "id": "version-2.8.0/doc-portal"
+        },
+        {
+          "type": "doc",
           "id": "version-2.8.0/standalone"
         },
         {

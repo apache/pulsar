@@ -16,7 +16,7 @@ import TabItem from '@theme/TabItem';
 > 
 > - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
 > 
-> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/).
+> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/2.8.0-SNAPSHOT/).
 
 Tenants, like namespaces, can be managed using the [admin API](admin-api-overview). There are currently two configurable aspects of tenants:
 
@@ -47,7 +47,7 @@ my-tenant-2
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/tenants|operation/getTenants?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/tenants|operation/getTenants?version=2.8.0}
 
 </TabItem>
 <TabItem value="JAVA">
@@ -94,7 +94,7 @@ $ pulsar-admin tenants create my-tenant \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|POST|/admin/v2/tenants/:tenant|operation/createTenant?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/tenants/:tenant|operation/createTenant?version=2.8.0}
 
 </TabItem>
 <TabItem value="JAVA">
@@ -139,7 +139,7 @@ $ pulsar-admin tenants get my-tenant
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/tenants/:cluster|operation/getTenant?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/tenants/:cluster|operation/getTenant?version=2.8.0}
 
 </TabItem>
 <TabItem value="JAVA">
@@ -174,7 +174,7 @@ $ pulsar-admin tenants delete my-tenant
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|DELETE|/admin/v2/tenants/:cluster|operation/deleteTenant?version=@pulsar:version_number@}
+{@inject: endpoint|DELETE|/admin/v2/tenants/:cluster|operation/deleteTenant?version=2.8.0}
 
 </TabItem>
 <TabItem value="JAVA">
@@ -209,7 +209,7 @@ $ pulsar-admin tenants update my-tenant
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|DELETE|/admin/v2/tenants/:cluster|operation/updateTenant?version=@pulsar:version_number@}
+{@inject: endpoint|DELETE|/admin/v2/tenants/:cluster|operation/updateTenant?version=2.8.0}
 
 </TabItem>
 <TabItem value="JAVA">

@@ -58,7 +58,7 @@ partitioned topic first then create the partitioned topic.
 
 #### REST API
 
-{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/partitions|operation/createPartitionedTopic?version=@pulsar:version_number@}
+{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/partitions|operation/createPartitionedTopic?version=2.6.0}
 
 #### Java
 
@@ -91,7 +91,7 @@ $ bin/pulsar-admin topics create-missed-partitions \
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic|operation/createMissedPartitions?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic|operation/createMissedPartitions?version=2.6.0}
 
 #### Java
 
@@ -128,7 +128,7 @@ $ pulsar-admin topics get-partitioned-topic-metadata \
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/partitions|operation/getPartitionedMetadata?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/partitions|operation/getPartitionedMetadata?version=2.6.0}
 
 #### Java
 
@@ -163,7 +163,7 @@ $ pulsar-admin topics update-partitioned-topic \
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:cluster/:namespace/:destination/partitions|operation/updatePartitionedTopic?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:cluster/:namespace/:destination/partitions|operation/updatePartitionedTopic?version=2.6.0}
 
 #### Java
 
@@ -188,7 +188,7 @@ $ bin/pulsar-admin topics delete-partitioned-topic \
 
 #### REST API
 
-{@inject: endpoint|DELETE|/admin/v2/:schema/:topic/:namespace/:destination/partitions|operation/deletePartitionedTopic?version=@pulsar:version_number@}
+{@inject: endpoint|DELETE|/admin/v2/:schema/:topic/:namespace/:destination/partitions|operation/deletePartitionedTopic?version=2.6.0}
 
 #### Java
 
@@ -214,7 +214,7 @@ persistent://tenant/namespace/topic2
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getPartitionedTopicList?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getPartitionedTopicList?version=2.6.0}
 
 #### Java
 
@@ -308,7 +308,7 @@ $ pulsar-admin topics partitioned-stats \
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/partitioned-stats|operation/getPartitionedStats?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/partitioned-stats|operation/getPartitionedStats?version=2.6.0}
 
 #### Java
 
@@ -399,7 +399,7 @@ $ pulsar-admin topics stats-internal \
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/internalStats|operation/getInternalStats?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/internalStats|operation/getInternalStats?version=2.6.0}
 
 #### Java
 

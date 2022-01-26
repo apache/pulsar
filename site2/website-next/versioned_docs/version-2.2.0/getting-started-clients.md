@@ -24,7 +24,7 @@ There are also two independent sets of Javadoc API docs available:
 
 Library | Purpose
 :-------|:-------
-[`org.apache.pulsar.client.api`](/api/client) | The [Pulsar Java client](client-libraries-java) for producing and consuming messages on Pulsar topics [`org.apache.pulsar.client.admin`](/api/admin) | The Java client for the [Pulsar admin interface](admin-api-overview)
+[`org.apache.pulsar.client.api`](/api/client/2.2.0/2.2.0) | The [Pulsar Java client](client-libraries-java) for producing and consuming messages on Pulsar topics [`org.apache.pulsar.client.admin`](/api/admin/2.2.0/2.2.0) | The Java client for the [Pulsar admin interface](admin-api-overview)
 
 
 ## Go client
@@ -36,13 +36,13 @@ For a tutorial on using the Pulsar Go client, see [The Pulsar Go client](client-
 
 For a tutorial on using the Pulsar Python client, see [The Pulsar Python client](client-libraries-python).
 
-There are also [pdoc](https://github.com/BurntSushi/pdoc)-generated API docs for the Python client [here](/api/python).
+There are also [pdoc](https://github.com/BurntSushi/pdoc)-generated API docs for the Python client [here](/api/python/2.2.0/2.2.0).
 
 ## C++ client
 
 For a tutorial on using the Pulsar C++ clent, see [The Pulsar C++ client](client-libraries-cpp).
 
-There are also [Doxygen](http://www.stack.nl/~dimitri/doxygen/)-generated API docs for the C++ client [here](/api/cpp).
+There are also [Doxygen](http://www.stack.nl/~dimitri/doxygen/)-generated API docs for the C++ client [here](/api/cpp/2.2.0/2.2.0).
 
 ## Feature Matrix
 

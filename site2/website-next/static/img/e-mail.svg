@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="127px" height="127px" viewBox="0 0 127 127" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>e-mail</title>
+    <defs>
+        <filter x="-11.0%" y="-11.0%" width="122.0%" height="122.0%" filterUnits="objectBoundingBox" id="filter-1">
+            <feOffset dx="0" dy="2" in="SourceAlpha" result="shadowOffsetOuter1"></feOffset>
+            <feGaussianBlur stdDeviation="2" in="shadowOffsetOuter1" result="shadowBlurOuter1"></feGaussianBlur>
+            <feColorMatrix values="0 0 0 0 0.0941176471   0 0 0 0 0.560784314   0 0 0 0 1  0 0 0 0.5 0" type="matrix" in="shadowBlurOuter1" result="shadowMatrixOuter1"></feColorMatrix>
+            <feMerge>
+                <feMergeNode in="shadowMatrixOuter1"></feMergeNode>
+                <feMergeNode in="SourceGraphic"></feMergeNode>
+            </feMerge>
+        </filter>
+    </defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="e-mail" filter="url(#filter-1)" transform="translate(9.000000, 9.000000)">
+            <circle id="Oval" fill="#FFFFFF" fill-rule="nonzero" cx="54.5" cy="54.5" r="54.5"></circle>
+            <path d="M97,80 L97,46.8075 C97,44.855 95.925,42.725 94.3125,41.4825 L60.9875,11.6625 C57.0458333,8.1125 50.9541667,8.1125 47.0125,11.6625 L13.6875,41.4825 C12.075,42.725 11,44.6775 11,46.8075 L11,80 L97,80 Z" id="Path" stroke="#2A5082" fill="#E6F1FF" fill-rule="nonzero"></path>
+            <rect id="Rectangle" stroke="#2A5082" fill="#FFFFFF" fill-rule="nonzero" x="23" y="22" width="61" height="57"></rect>
+            <path d="M95.2083333,50 C91.2666667,53.2 69.7666667,70.8 67.6166667,72.0444444 C65.1083333,73.4666667 59.9125,74.8888889 54,74.8888889 C48.0875,74.8888889 42.8916667,73.4666667 40.3833333,72.0444444 C38.2333333,70.8 16.7333333,53.2 12.7916667,50 L11,50 L11,92.6666667 C11,95.6888889 13.3291667,98 16.375,98 L54,98 L91.625,98 C94.6708333,98 97,95.6888889 97,92.6666667 L97,50 L95.2083333,50 Z" id="Path" stroke="#2A5082" fill="#188FFF" fill-rule="nonzero"></path>
+            <line x1="37" y1="70" x2="18" y2="91" id="Path" stroke="#2A5082"></line>
+            <line x1="70" y1="70" x2="90" y2="91" id="Path" stroke="#2A5082"></line>
+            <line x1="36" y1="39" x2="70" y2="39" id="Path" stroke="#2A5082"></line>
+            <line x1="36" y1="46" x2="70" y2="46" id="Path" stroke="#2A5082"></line>
+            <line x1="36" y1="54" x2="59" y2="54" id="Path" stroke="#2A5082"></line>
+        </g>
+    </g>
+</svg>

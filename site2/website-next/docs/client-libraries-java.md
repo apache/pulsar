@@ -4,7 +4,7 @@ title: Pulsar Java client
 sidebar_label: "Java"
 ---
 
-You can use a Pulsar Java client to create the Java [producer](#producer), [consumer](#consumer), and [readers](#reader) of messages and to perform [administrative tasks](admin-api-overview). The current Java client version is **@pulsar:version@**.
+You can use a Pulsar Java client to create the Java [producer](#producer), [consumer](#consumer), and [readers](#reader) of messages and to perform [administrative tasks](admin-api-overview). The current Java client version is **2.8.0**.
 
 All the methods in [producer](#producer), [consumer](#consumer), and [reader](#reader) of a Java client are thread-safe.
 
@@ -12,15 +12,15 @@ Javadoc for the Pulsar client is divided into two domains by package as follows.
 
 Package | Description | Maven Artifact
 :-------|:------------|:--------------
-[`org.apache.pulsar.client.api`](/api/client) | The producer and consumer API | [org.apache.pulsar:pulsar-client:@pulsar:version@](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C@pulsar:version@%7Cjar)
-[`org.apache.pulsar.client.admin`](/api/admin) | The Java [admin API](admin-api-overview) | [org.apache.pulsar:pulsar-client-admin:@pulsar:version@](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-admin%7C@pulsar:version@%7Cjar)
-`org.apache.pulsar.client.all` |Include both `pulsar-client` and `pulsar-client-admin`<br /> Both `pulsar-client` and `pulsar-client-admin` are shaded packages and they shade dependencies independently. Consequently, the applications using both `pulsar-client` and `pulsar-client-admin` have redundant shaded classes. It would be troublesome if you introduce new dependencies but forget to update shading rules. <br /> In this case, you can use `pulsar-client-all`, which shades dependencies only one time and reduces the size of dependencies.  |[org.apache.pulsar:pulsar-client-all:@pulsar:version@](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-all%7C@pulsar:version@%7Cjar)
+[`org.apache.pulsar.client.api`](/api/client/2.8.0-SNAPSHOT/2.8.0-SNAPSHOT) | The producer and consumer API | [org.apache.pulsar:pulsar-client:2.8.0](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C2.8.0%7Cjar)
+[`org.apache.pulsar.client.admin`](/api/admin/2.8.0-SNAPSHOT/2.8.0-SNAPSHOT) | The Java [admin API](admin-api-overview) | [org.apache.pulsar:pulsar-client-admin:2.8.0](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-admin%7C2.8.0%7Cjar)
+`org.apache.pulsar.client.all` |Include both `pulsar-client` and `pulsar-client-admin`<br /> Both `pulsar-client` and `pulsar-client-admin` are shaded packages and they shade dependencies independently. Consequently, the applications using both `pulsar-client` and `pulsar-client-admin` have redundant shaded classes. It would be troublesome if you introduce new dependencies but forget to update shading rules. <br /> In this case, you can use `pulsar-client-all`, which shades dependencies only one time and reduces the size of dependencies.  |[org.apache.pulsar:pulsar-client-all:2.8.0](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-all%7C2.8.0%7Cjar)
 
 This document focuses only on the client API for producing and consuming messages on Pulsar topics. For how to use the Java admin client, see [Pulsar admin interface](admin-api-overview).
 
 ## Installation
 
-The latest version of the Pulsar Java client library is available via [Maven Central](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C@pulsar:version@%7Cjar). To use the latest version, add the `pulsar-client` library to your build configuration.
+The latest version of the Pulsar Java client library is available via [Maven Central](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C2.8.0%7Cjar). To use the latest version, add the `pulsar-client` library to your build configuration.
 
 ### Maven
 
@@ -29,7 +29,7 @@ If you use Maven, add the following information to the `pom.xml` file.
 ```xml
 
 <!-- in your <properties> block -->
-<pulsar.version>@pulsar:version@</pulsar.version>
+<pulsar.version>2.8.0</pulsar.version>
 
 <!-- in your <dependencies> block -->
 <dependency>
@@ -46,7 +46,7 @@ If you use Gradle, add the following information to the `build.gradle` file.
 
 ```groovy
 
-def pulsarVersion = '@pulsar:version@'
+def pulsarVersion = '2.8.0'
 
 dependencies {
     compile group: 'org.apache.pulsar', name: 'pulsar-client', version: pulsarVersion

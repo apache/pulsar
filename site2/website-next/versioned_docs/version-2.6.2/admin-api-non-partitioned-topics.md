@@ -55,7 +55,7 @@ number of partition larger then that numeric value in this case 11(partition ind
 
 #### REST API
 
-{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic|operation/createNonPartitionedTopic?version=@pulsar:version_number@}
+{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic|operation/createNonPartitionedTopic?version=2.6.2}
 
 #### Java
 
@@ -81,7 +81,7 @@ $ bin/pulsar-admin topics delete \
 
 #### REST API
 
-{@inject: endpoint|DELETE|/admin/v2/:schema/:tenant/:namespace/:topic|operation/deleteTopic?version=@pulsar:version_number@}
+{@inject: endpoint|DELETE|/admin/v2/:schema/:tenant/:namespace/:topic|operation/deleteTopic?version=2.6.2}
 
 #### Java
 
@@ -107,7 +107,7 @@ persistent://tenant/namespace/topic2
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getList?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getList?version=2.6.2}
 
 #### Java
 
@@ -166,7 +166,7 @@ $ pulsar-admin topics stats \
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/stats|operation/getStats?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/stats|operation/getStats?version=2.6.2}
 
 #### Java
 

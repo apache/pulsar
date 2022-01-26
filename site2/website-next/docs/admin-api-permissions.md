@@ -16,7 +16,7 @@ import TabItem from '@theme/TabItem';
 > 
 > - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
 > 
-> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/).
+> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/2.8.0-SNAPSHOT/).
 
 Permissions in Pulsar are managed at the [namespace](reference-terminology.md#namespace) level
 (that is, within [tenants](reference-terminology.md#tenant) and [clusters](reference-terminology.md#cluster)).
@@ -82,7 +82,7 @@ Roles `my.1.role`, `my.2.role`, `my.foo.role`, `my.bar.role`, etc. **cannot** pr
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/permissions/:role|operation/grantPermissionOnNamespace?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/permissions/:role|operation/grantPermissionOnNamespace?version=2.8.0}
 
 </TabItem>
 <TabItem value="Java">
@@ -123,7 +123,7 @@ $ pulsar-admin namespaces permissions test-tenant/ns1
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/permissions|operation/getPermissions?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/permissions|operation/getPermissions?version=2.8.0}
 
 </TabItem>
 <TabItem value="Java">
@@ -159,7 +159,7 @@ $ pulsar-admin namespaces revoke-permission test-tenant/ns1 \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/permissions/:role|operation/revokePermissionsOnNamespace?version=@pulsar:version_number@}
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/permissions/:role|operation/revokePermissionsOnNamespace?version=2.8.0}
 
 </TabItem>
 <TabItem value="Java">

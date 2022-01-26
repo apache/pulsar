@@ -1,20 +1,17 @@
-import React from "react";
-import clsx from "clsx";
-import SineWaves from "sine-waves";
+import React, { useState } from "react";
 import Layout from "@theme/Layout";
-import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
-import styles from "./index.module.css";
-import HomepageFeatures from "../components/HomepageFeatures";
-import SubHeroBlock from "../components/SubHeroBlock";
-import PromoCallout from "../components/promoCallout";
-import PillButton from "../components/PillButton";
-import Svg from "../components/Svg";
-import { docUrl, githubUrl } from "../utils/index";
-import Stack from "@mui/material/Stack";
-import Button from "@mui/material/Button";
+import ResourceCards from "../components/ResourceCards";
+import TabsUnstyled from '@mui/base/TabsUnstyled';
+import TabsListUnstyled from '@mui/base/TabsListUnstyled';
+import TabPanelUnstyled from '@mui/base/TabPanelUnstyled';
+import TabUnstyled from '@mui/base/TabUnstyled';
+import resObj from '../../data/resources.js';
 
-export default function Home() {
-  const { siteConfig } = useDocusaurusContext();
+// this file contains the resource data needed to fill the cards.
+export default function Resources() {
+  // This is the search field state.
+  // state is set to an empty string by default but changes onChange of the search field
+  const [searchString, setSearch] = useState('');
   return (
     <Layout
       title={`Resources`}
@@ -22,9 +19,31 @@ export default function Home() {
     >    
       <div className="page-wrap tailwind">
         <section className="hero">
-            <div className="inner text--center">
+          <div className="inner text--left">
+            <div className="row">
+              <div className="col col--8">
                 <h1>Resources</h1>
+                <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+
+              </div>
             </div>
+          </div>
+        </section>
+        <section className="main-content waves-bg py-12 mb-24">
+          
+          <TabsUnstyled defaultValue={0} className="tabs tabs--resources block my-24 relative z-5">
+            <TabsListUnstyled className="block text--center tabs-bar py-8 px-4">
+              <TabUnstyled className="mx-2">Articles</TabUnstyled>
+              <TabUnstyled className="mx-2">Presentations</TabUnstyled>
+            </TabsListUnstyled>
+            <form className="relative z10 text--center">
+              <label className="block mb-4">Search by keyword, presenter, forum, or tag: </label>
+              <input type="text" className="ml-2 px-2" name="search" value={searchString} onChange={e => setSearch(e.target.value)} />
+              <div className="inline-block px-4 cursor-pointer ml-4 underline underline-offset-1 text-sm font-light" onClick={e => setSearch('')} >Clear Search</div>
+            </form>
+            <TabPanelUnstyled value={0}><ResourceCards search={searchString} type="Article" resources={resObj.articles} /></TabPanelUnstyled>
+            <TabPanelUnstyled value={1}><ResourceCards search={searchString} type="Presentation" resources={resObj.presentations} /></TabPanelUnstyled>
+          </TabsUnstyled>
         </section>
       </div>
     </Layout>

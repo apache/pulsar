@@ -44,7 +44,7 @@ $ pulsar-admin clusters create cluster-1 \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|PUT|/admin/v2/clusters/:cluster|operation/createCluster?version=@pulsar:version_number@}
+{@inject: endpoint|PUT|/admin/v2/clusters/:cluster|operation/createCluster?version=2.7.3}
 
 </TabItem>
 <TabItem value="JAVA">
@@ -128,7 +128,7 @@ $ pulsar-admin clusters get cluster-1
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/clusters/:cluster|operation/getCluster?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/clusters/:cluster|operation/getCluster?version=2.7.3}
 
 </TabItem>
 <TabItem value="JAVA">
@@ -165,7 +165,7 @@ $ pulsar-admin clusters update cluster-1 \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|POST|/admin/v2/clusters/:cluster|operation/updateCluster?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/clusters/:cluster|operation/updateCluster?version=2.7.3}
 
 </TabItem>
 <TabItem value="JAVA">
@@ -206,7 +206,7 @@ $ pulsar-admin clusters delete cluster-1
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|DELETE|/admin/v2/clusters/:cluster|operation/deleteCluster?version=@pulsar:version_number@}
+{@inject: endpoint|DELETE|/admin/v2/clusters/:cluster|operation/deleteCluster?version=2.7.3}
 
 </TabItem>
 <TabItem value="JAVA">
@@ -243,7 +243,7 @@ cluster-2
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/clusters|operation/getClusters?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/clusters|operation/getClusters?version=2.7.3}
 
 </TabItem>
 <TabItem value="JAVA">
@@ -278,7 +278,7 @@ $ pulsar-admin update-peer-clusters cluster-1 --peer-clusters cluster-2
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|POST|/admin/v2/clusters/:cluster/peers|operation/setPeerClusterNames?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/clusters/:cluster/peers|operation/setPeerClusterNames?version=2.7.3}
 
 </TabItem>
 <TabItem value="JAVA">

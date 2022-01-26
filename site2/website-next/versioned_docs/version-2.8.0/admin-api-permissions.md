@@ -73,7 +73,7 @@ Roles `my.1.role`, `my.2.role`, `my.foo.role`, `my.bar.role`, etc. **cannot** pr
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/permissions/:role|operation/grantPermissionOnNamespace?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/permissions/:role|operation/grantPermissionOnNamespace?version=2.8.0}
 
 </TabItem>
 <TabItem value="Java">
@@ -114,7 +114,7 @@ $ pulsar-admin namespaces permissions test-tenant/ns1
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/permissions|operation/getPermissions?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/permissions|operation/getPermissions?version=2.8.0}
 
 </TabItem>
 <TabItem value="Java">
@@ -150,7 +150,7 @@ $ pulsar-admin namespaces revoke-permission test-tenant/ns1 \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/permissions/:role|operation/revokePermissionsOnNamespace?version=@pulsar:version_number@}
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/permissions/:role|operation/revokePermissionsOnNamespace?version=2.8.0}
 
 </TabItem>
 <TabItem value="Java">

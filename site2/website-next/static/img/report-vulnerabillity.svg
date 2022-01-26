@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="130px" height="116px" viewBox="0 0 130 116" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>alarm</title>
+    <defs>
+        <filter x="-11.4%" y="-13.0%" width="122.7%" height="125.6%" filterUnits="objectBoundingBox" id="filter-1">
+            <feOffset dx="0" dy="2" in="SourceAlpha" result="shadowOffsetOuter1"></feOffset>
+            <feGaussianBlur stdDeviation="2" in="shadowOffsetOuter1" result="shadowBlurOuter1"></feGaussianBlur>
+            <feColorMatrix values="0 0 0 0 0.0941176471   0 0 0 0 0.560784314   0 0 0 0 1  0 0 0 0.5 0" type="matrix" in="shadowBlurOuter1" result="shadowMatrixOuter1"></feColorMatrix>
+            <feMerge>
+                <feMergeNode in="shadowMatrixOuter1"></feMergeNode>
+                <feMergeNode in="SourceGraphic"></feMergeNode>
+            </feMerge>
+        </filter>
+    </defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="alarm" filter="url(#filter-1)" transform="translate(10.000000, 10.000000)">
+            <line x1="21" y1="76" x2="17" y2="78" id="Path" stroke="#2B5183"></line>
+            <line x1="29" y1="83" x2="27" y2="87" id="Path" stroke="#2B5183"></line>
+            <line x1="38.9" y1="89" x2="37.1" y2="93" id="Path" stroke="#2B5183"></line>
+            <line x1="50.4" y1="92" x2="49.6" y2="96" id="Path" stroke="#2B5183"></line>
+            <line x1="60.8" y1="92" x2="61.2" y2="96" id="Path" stroke="#2B5183"></line>
+            <line x1="71.2" y1="89" x2="72.8" y2="93" id="Path" stroke="#2B5183"></line>
+            <line x1="82" y1="84" x2="84" y2="88" id="Path" stroke="#2B5183"></line>
+            <line x1="88" y1="76" x2="92" y2="78" id="Path" stroke="#2B5183"></line>
+            <circle id="Oval" fill="#FFFFFF" fill-rule="nonzero" cx="55.5" cy="52.5" r="35.5"></circle>
+            <path d="M97,69 C99.6666667,66 101,62.25 101,58.5 C101,54.5625 99.4444444,50.8125 97,48" id="Path" stroke="#2B5183"></path>
+            <path d="M103,38 C107.472222,43.3857143 110,50.2571429 110,57.5 C110,64.7428571 107.472222,71.6142857 103.194444,77" id="Path" stroke="#2B5183"></path>
+            <path d="M13,69 C10.3333333,66 9,62.25 9,58.5 C9,54.5625 10.5555556,50.8125 13,48" id="Path" stroke="#2B5183"></path>
+            <path d="M7,38 C2.52777778,43.3857143 0,50.2571429 0,57.5 C0,64.7428571 2.52777778,71.6142857 6.80555556,77" id="Path" stroke="#2B5183"></path>
+            <circle id="Oval" stroke="#2A5082" fill="#FFFFFF" fill-rule="nonzero" cx="55" cy="66" r="12"></circle>
+            <circle id="Oval" stroke="#2A5082" cx="54.5" cy="6.5" r="6.5"></circle>
+            <path d="M55.0940171,9 C57.3504274,9 61.4871795,9.37333333 66,11.6133333 C69.1965812,13.1066667 77.4700855,18.1466667 79.5384615,35.32 C80.8547009,46.7066667 83.2991453,50.44 85.5555556,53.8 C86.4957265,55.2933333 87.4358974,56.4133333 88,58.4666667 C81.982906,62.5733333 66.9401709,65 55.0940171,65 L55.0940171,65 L55.0940171,65 C43.2478632,65 28.2051282,62.5733333 22,58.4666667 C22.7521368,56.4133333 23.5042735,55.2933333 24.4444444,53.8 C26.7008547,50.44 29.1452991,46.8933333 30.4615385,35.32 C32.5299145,18.1466667 40.8034188,13.1066667 44,11.6133333 C48.7008547,9.37333333 52.8376068,9 55.0940171,9 L55.0940171,9 Z" id="Path" stroke="#2A5082" fill="#188FFF" fill-rule="nonzero"></path>
+            <path d="M38.3,37 C38.1,38.875 37.9,40.5416667 37.7,42" id="Path" stroke="#2A5082"></path>
+            <path d="M51,16 C45.8382353,17.5813953 40.1029412,21.9302326 38,33" id="Path" stroke="#2A5082"></path>
+        </g>
+    </g>
+</svg>

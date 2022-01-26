@@ -13,7 +13,7 @@ All the methods in producer, consumer, and reader of a C++ client are thread-saf
 
 Pulsar C++ client is supported on **Linux** and **MacOS** platforms.
 
-[Doxygen](http://www.doxygen.nl/)-generated API docs for the C++ client are available [here](/api/cpp).
+[Doxygen](http://www.doxygen.nl/)-generated API docs for the C++ client are available [here](/api/cpp/2.8.0-SNAPSHOT/2.8.0-SNAPSHOT).
 
 ## System requirements
 
@@ -133,9 +133,9 @@ The `libpulsarwithdeps.a` does not include library openssl related libraries `li
 
 | Link | Crypto files |
 |------|--------------|
-| [client](@pulsar:dist_rpm:client@) | [asc](@pulsar:dist_rpm:client@.asc), [sha512](@pulsar:dist_rpm:client@.sha512) |
-| [client-debuginfo](@pulsar:dist_rpm:client-debuginfo@) | [asc](@pulsar:dist_rpm:client-debuginfo@.asc),  [sha512](@pulsar:dist_rpm:client-debuginfo@.sha512) |
-| [client-devel](@pulsar:dist_rpm:client-devel@) | [asc](@pulsar:dist_rpm:client-devel@.asc),  [sha512](@pulsar:dist_rpm:client-devel@.sha512) |
+| [client](https://archive.apache.org/dist/pulsar/pulsar-2.8.0/RPMS/apache-pulsar-client-2.8.0-1.x86_64.rpm) | [asc](https://archive.apache.org/dist/pulsar/pulsar-2.8.0/RPMS/apache-pulsar-client-2.8.0-1.x86_64.rpm.asc), [sha512](https://archive.apache.org/dist/pulsar/pulsar-2.8.0/RPMS/apache-pulsar-client-2.8.0-1.x86_64.rpm.sha512) |
+| [client-debuginfo](https://archive.apache.org/dist/pulsar/pulsar-2.8.0/RPMS/apache-pulsar-client-debuginfo-2.8.0-1.x86_64.rpm) | [asc](https://archive.apache.org/dist/pulsar/pulsar-2.8.0/RPMS/apache-pulsar-client-debuginfo-2.8.0-1.x86_64.rpm.asc),  [sha512](https://archive.apache.org/dist/pulsar/pulsar-2.8.0/RPMS/apache-pulsar-client-debuginfo-2.8.0-1.x86_64.rpm.sha512) |
+| [client-devel](https://archive.apache.org/dist/pulsar/pulsar-2.8.0/RPMS/apache-pulsar-client-devel-2.8.0-1.x86_64.rpm) | [asc](https://archive.apache.org/dist/pulsar/pulsar-2.8.0/RPMS/apache-pulsar-client-devel-2.8.0-1.x86_64.rpm.asc),  [sha512](https://archive.apache.org/dist/pulsar/pulsar-2.8.0/RPMS/apache-pulsar-client-devel-2.8.0-1.x86_64.rpm.sha512) |
 
 2. Install the package using the following command.
 
@@ -153,8 +153,8 @@ After you install RPM successfully, Pulsar libraries are in the `/usr/lib` direc
 
 | Link | Crypto files |
 |------|--------------|
-| [client](@pulsar:deb:client@) | [asc](@pulsar:dist_deb:client@.asc), [sha512](@pulsar:dist_deb:client@.sha512) |
-| [client-devel](@pulsar:deb:client-devel@) | [asc](@pulsar:dist_deb:client-devel@.asc),  [sha512](@pulsar:dist_deb:client-devel@.sha512) |
+| [client](https://archive.apache.org/dist/pulsar/pulsar-2.8.0/DEB/apache-pulsar-client.deb) | [asc](https://archive.apache.org/dist/pulsar/pulsar-2.8.0/DEB/apache-pulsar-client.deb.asc), [sha512](https://archive.apache.org/dist/pulsar/pulsar-2.8.0/DEB/apache-pulsar-client.deb.sha512) |
+| [client-devel](https://archive.apache.org/dist/pulsar/pulsar-2.8.0/DEB/apache-pulsar-client-dev.deb) | [asc](https://archive.apache.org/dist/pulsar/pulsar-2.8.0/DEB/apache-pulsar-client-dev.deb.asc),  [sha512](https://archive.apache.org/dist/pulsar/pulsar-2.8.0/DEB/apache-pulsar-client-dev.deb.sha512) |
 
 2. Install the package using the following command.
 

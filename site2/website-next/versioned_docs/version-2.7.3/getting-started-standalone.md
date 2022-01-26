@@ -29,9 +29,9 @@ By default, Pulsar allocates 2G JVM heap memory to start. It can be changed in `
 
 To get started with Pulsar, download a binary tarball release in one of the following ways:
 
-* download from the Apache mirror (<a href="pulsar:binary_release_url" download>Pulsar @pulsar:version@ binary release</a>)
+* download from the Apache mirror (<a href="https://archive.apache.org/dist/pulsar/pulsar-2.7.3/apache-pulsar-2.7.3-bin.tar.gz" download>Pulsar 2.7.3 binary release</a>)
 
-* download from the Pulsar [downloads page](pulsar:download_page_url)  
+* download from the Pulsar [downloads page](/download)  
   
 * download from the Pulsar [releases page](https://github.com/apache/pulsar/releases/latest)
   
@@ -39,7 +39,7 @@ To get started with Pulsar, download a binary tarball release in one of the foll
 
   ```shell
   
-  $ wget pulsar:binary_release_url
+  $ wget https://archive.apache.org/dist/pulsar/pulsar-2.7.3/apache-pulsar-2.7.3-bin.tar.gz
   
   ```
 
@@ -47,8 +47,8 @@ After you download the tarball, untar it and use the `cd` command to navigate to
 
 ```bash
 
-$ tar xvfz apache-pulsar-@pulsar:version@-bin.tar.gz
-$ cd apache-pulsar-@pulsar:version@
+$ tar xvfz apache-pulsar-2.7.3-bin.tar.gz
+$ cd apache-pulsar-2.7.3
 
 ```
 
@@ -86,9 +86,9 @@ Otherwise, skip this step and perform the next step [Start Pulsar standalone](#s
 Since `2.1.0-incubating` release, Pulsar releases a separate binary distribution, containing all the `builtin` connectors.
 To enable those `builtin` connectors, you can download the connectors tarball release in one of the following ways:
 
-* download from the Apache mirror <a href="pulsar:connector_release_url" download>Pulsar IO Connectors @pulsar:version@ release</a>
+* download from the Apache mirror <a href="https://archive.apache.org/dist/pulsar/pulsar-2.7.3/connectors" download>Pulsar IO Connectors 2.7.3 release</a>
 
-* download from the Pulsar [downloads page](pulsar:download_page_url)
+* download from the Pulsar [downloads page](/download)
 
 * download from the Pulsar [releases page](https://github.com/apache/pulsar/releases/latest)
 
@@ -96,20 +96,20 @@ To enable those `builtin` connectors, you can download the connectors tarball re
 
   ```shell
   
-  $ wget pulsar:connector_release_url/{connector}-@pulsar:version@.nar
+  $ wget https://archive.apache.org/dist/pulsar/pulsar-2.7.3/connectors/{connector}-2.7.3.nar
   
   ```
 
 After you download the nar file, copy the file to the `connectors` directory in the pulsar directory. 
-For example, if you download the `pulsar-io-aerospike-@pulsar:version@.nar` connector file, enter the following commands:
+For example, if you download the `pulsar-io-aerospike-2.7.3.nar` connector file, enter the following commands:
 
 ```bash
 
 $ mkdir connectors
-$ mv pulsar-io-aerospike-@pulsar:version@.nar connectors
+$ mv pulsar-io-aerospike-2.7.3.nar connectors
 
 $ ls connectors
-pulsar-io-aerospike-@pulsar:version@.nar
+pulsar-io-aerospike-2.7.3.nar
 ...
 
 ```
@@ -134,9 +134,9 @@ To enable tiered storage feature, follow the instructions below; otherwise skip 
 
 To get started with [tiered storage offloaders](concepts-tiered-storage), you need to download the offloaders tarball release on every broker node in one of the following ways:
 
-* download from the Apache mirror <a href="pulsar:offloader_release_url" download>Pulsar Tiered Storage Offloaders @pulsar:version@ release</a>
+* download from the Apache mirror <a href="https://archive.apache.org/dist/pulsar/pulsar-2.7.3/apache-pulsar-offloaders-2.7.3-bin.tar.gz" download>Pulsar Tiered Storage Offloaders 2.7.3 release</a>
 
-* download from the Pulsar [downloads page](pulsar:download_page_url)
+* download from the Pulsar [downloads page](/download)
 
 * download from the Pulsar [releases page](https://github.com/apache/pulsar/releases/latest)
 
@@ -144,7 +144,7 @@ To get started with [tiered storage offloaders](concepts-tiered-storage), you ne
 
   ```shell
   
-  $ wget pulsar:offloader_release_url
+  $ wget https://archive.apache.org/dist/pulsar/pulsar-2.7.3/apache-pulsar-offloaders-2.7.3-bin.tar.gz
   
   ```
 
@@ -153,15 +153,15 @@ in the pulsar directory:
 
 ```bash
 
-$ tar xvfz apache-pulsar-offloaders-@pulsar:version@-bin.tar.gz
+$ tar xvfz apache-pulsar-offloaders-2.7.3-bin.tar.gz
 
-// you will find a directory named `apache-pulsar-offloaders-@pulsar:version@` in the pulsar directory
+// you will find a directory named `apache-pulsar-offloaders-2.7.3` in the pulsar directory
 // then copy the offloaders
 
-$ mv apache-pulsar-offloaders-@pulsar:version@/offloaders offloaders
+$ mv apache-pulsar-offloaders-2.7.3/offloaders offloaders
 
 $ ls offloaders
-tiered-storage-jcloud-@pulsar:version@.nar
+tiered-storage-jcloud-2.7.3.nar
 
 ```
 

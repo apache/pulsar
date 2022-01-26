@@ -41,11 +41,11 @@ You can interact with the admin interface via the following methods.
   
   > **Important**
   > 
-  > For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/).
+  > For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/2.7.0-SNAPSHOT/2.7.0-SNAPSHOT/).
 
 ## Admin setup
 
-Each of Pulsar's three admin interfaces---the [`pulsar-admin`](reference-pulsar-admin) CLI tool, the [Java admin API](/api/admin), and the {@inject: rest:REST:/} API ---requires some special setup if you have [authentication](security-overview.md#authentication-providers) enabled in your Pulsar [instance](reference-terminology.md#instance).
+Each of Pulsar's three admin interfaces---the [`pulsar-admin`](reference-pulsar-admin) CLI tool, the [Java admin API](/api/admin/2.7.0-SNAPSHOT/2.7.0-SNAPSHOT), and the {@inject: rest:REST:/} API ---requires some special setup if you have [authentication](security-overview.md#authentication-providers) enabled in your Pulsar [instance](reference-terminology.md#instance).
 
 <Tabs 
   defaultValue="pulsar-admin"

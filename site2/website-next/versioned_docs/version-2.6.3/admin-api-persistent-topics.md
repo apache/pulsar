@@ -34,7 +34,7 @@ $ pulsar-admin topics list \
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getList?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getList?version=2.6.3}
 
 #### Java
 
@@ -63,7 +63,7 @@ $ pulsar-admin topics grant-permission \
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/permissions/:role|operation/grantPermissionsOnTopic?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/permissions/:role|operation/grantPermissionsOnTopic?version=2.6.3}
 
 #### Java
 
@@ -98,7 +98,7 @@ $ pulsar-admin topics permissions \
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/permissions|operation/getPermissionsOnTopic?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/permissions|operation/getPermissionsOnTopic?version=2.6.3}
 
 #### Java
 
@@ -134,7 +134,7 @@ $ pulsar-admin topics revoke-permission \
 
 #### REST API
 
-{@inject: endpoint|DELETE|/admin/v2/:schema/:tenant/:namespace/:topic/permissions/:role|operation/revokePermissionsOnTopic?version=@pulsar:version_number@}
+{@inject: endpoint|DELETE|/admin/v2/:schema/:tenant/:namespace/:topic/permissions/:role|operation/revokePermissionsOnTopic?version=2.6.3}
 
 #### Java
 
@@ -163,7 +163,7 @@ $ pulsar-admin topics delete \
 
 #### REST API
 
-{@inject: endpoint|DELETE|/admin/v2/:schema/:tenant/:namespace/:topic|operation/deleteTopic?version=@pulsar:version_number@}
+{@inject: endpoint|DELETE|/admin/v2/:schema/:tenant/:namespace/:topic|operation/deleteTopic?version=2.6.3}
 
 #### Java
 
@@ -191,7 +191,7 @@ $ pulsar-admin topics unload \
 
 #### REST API
 
-{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/unload|operation/unloadTopic?version=@pulsar:version_number@}
+{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/unload|operation/unloadTopic?version=2.6.3}
 
 #### Java
 
@@ -348,7 +348,7 @@ $ pulsar-admin topics stats \
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/stats|operation/getStats?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/stats|operation/getStats?version=2.6.3}
 
 #### Java
 
@@ -469,7 +469,7 @@ $ pulsar-admin topics stats-internal \
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/internalStats|operation/getInternalStats?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/internalStats|operation/getInternalStats?version=2.6.3}
 
 #### Java
 
@@ -500,7 +500,7 @@ msg-payload
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition|operation/peekNthMessage?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition|operation/peekNthMessage?version=2.6.3}
 
 #### Java
 
@@ -528,7 +528,7 @@ $ ./bin/pulsar-admin topics get-message-by-id \
 ```
 
 #### REST API
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/ledger/:ledgerId/entry/:entryId|operation/getMessageById?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/ledger/:ledgerId/entry/:entryId|operation/getMessageById?version=2.6.3}
 
 #### Java
 
@@ -557,7 +557,7 @@ $ pulsar-admin topics skip \
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/skip/:numMessages|operation/skipMessages?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/skip/:numMessages|operation/skipMessages?version=2.6.3}
 
 #### Java
 
@@ -586,7 +586,7 @@ $ pulsar-admin topics skip-all \
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/skip_all|operation/skipAllMessages?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/skip_all|operation/skipAllMessages?version=2.6.3}
 
 [More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:topic/subscription/:subName/skip_all)
 
@@ -616,7 +616,7 @@ $ pulsar-admin topics reset-cursor \
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/resetcursor/:timestamp|operation/resetCursor?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/resetcursor/:timestamp|operation/resetCursor?version=2.6.3}
 
 #### Java
 
@@ -646,7 +646,7 @@ $ pulsar-admin topics lookup \
 
 #### REST API
 
-{@inject: endpoint|GET|/lookup/v2/topic/persistent/:tenant:namespace/:topic|/?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/lookup/v2/topic/persistent/:tenant:namespace/:topic|/?version=2.6.3}
 
 #### Java
 
@@ -674,7 +674,7 @@ $ pulsar-admin topics bundle-range \
 
 #### REST API
 
-{@inject: endpoint|GET|/lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic/bundle|/?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic/bundle|/?version=2.6.3}
 
 #### Java
 
@@ -702,7 +702,7 @@ $ pulsar-admin topics subscriptions \
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscriptions|operation/getSubscriptions?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscriptions|operation/getSubscriptions?version=2.6.3}
 
 #### Java
 
@@ -729,7 +729,7 @@ $ pulsar-admin topics unsubscribe \
 
 #### REST API
 
-{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/:topic/subscription/:subscription|operation/deleteSubscription?version=@pulsar:version_number@}
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/:topic/subscription/:subscription|operation/deleteSubscription?version=2.6.3}
 
 #### Java
 

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, componentDidMount } from "react";
 import clsx from "clsx";
 import SineWaves from "sine-waves";
 import Layout from "@theme/Layout";
@@ -78,12 +78,9 @@ var startWaves = function(){
     }
   });
 };
-var intId = setInterval(function(){
-  if(document.getElementById('waves')){
-      startWaves();
-      clearInterval(intId);
-  }
-}, 500);
+var cascade = function(){
+  
+}
 
 export default function Home() {
   const { siteConfig } = useDocusaurusContext();
@@ -103,7 +100,29 @@ export default function Home() {
       company: 'Travers + Todd',
       content: "Enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Pulsar covers all of our use cases for Kafka, RabbitMQ, and SQS. This lets us focus on building expertise and tooling around a single unified system",
     }
-  ]
+  ];
+  useEffect((d) => {
+    startWaves();
+
+    var observer = new IntersectionObserver(function(entries) {
+      if(entries[0].isIntersecting === true){
+        const featureWrap = document.getElementById('home-features');
+        const features = featureWrap.querySelectorAll('.icon-feature');
+        features.forEach((d, i) => {
+          setTimeout(function(){
+            d.classList.add('shown');
+          }, i * 100);
+        });
+      }
+    }, { threshold: [.2] });
+    observer.observe(document.querySelector("#home-features"));
+
+    const pulsingWaves = document.getElementById('waves-wrapper');
+    setTimeout(() => {
+      pulsingWaves.classList.add('show-waves');
+    }, 50);
+  });
+
   return (
     <Layout
       title={`Hello from ${siteConfig.title}`}
@@ -112,18 +131,18 @@ export default function Home() {
       <div className="page-wrap tailwind">
         <section className="home-hero pt-24">
           <div className="inner">
-            <div className="float66">
+            <div className="md:float-left md:w-2/3">
               <h1>Real-time, Continuous Data Feeds</h1>
-              <p>The most scalable cloud-native distributed messaging and streaming platform</p>
+              <p>Apache Pulsar is a distributed, open source pub-sub messaging and streaming platform for real-time workloads, managing hundreds of billions of events per day.</p>
             </div>
           </div>
         </section>
         <div id="waves-wrapper">
           <canvas id="waves"></canvas>
         </div>
-        <div className="home-ctas">
+        <div className="home-ctas relative z-5">
           <div className="inner">
-          <Stack spacing={2} direction="row">
+         
             <PillButton
               variant=""
               target=""
@@ -134,33 +153,32 @@ export default function Home() {
               target="_blank"
               href={githubUrl()}
             ><GitHubIcon className="btn-icon"></GitHubIcon>  Github</PillButton>
-          </Stack>
           </div>
         </div>
         
         <PromoCallout 
-          url="https://www.google.com" 
+          url="/blog" 
           linkText="Read the Blog" 
           text="Check out the latest blog post!"
         />
         <SubHeroBlock 
           heading="What is Apache Pulsar?" 
-          content="Apache Pulsar is a cloud-native, multi-tenant, high-performance solution for server-to-server messaging and queuing built on the publisher-subscribe (pub-sub) pattern. Pulsar combines the best features of a traditional messaging system like RabbitMQ with those of a pub-sub system like Apache Kafka -- scaling up or down dynamically without downtime. It’s used by thousands of companies for high-performance data pipelines, microservices, instant messaging, data integrations, and more."
+          content="Apache Pulsar is a cloud-native, multi-tenant, high-performance solution for server-to-server messaging and queuing built on the publisher-subscribe (pub-sub) pattern. Pulsar combines the best features of a traditional messaging system like RabbitMQ with those of a pub-sub system like Apache Kafka -- scaling up or down dynamically without downtime. It's used by thousands of companies for high-performance data pipelines, microservices, instant messaging, data integrations, and more."
         />
       
         <section className="waves-bg home-features py-48 mb-24">
           <div className="mt-8 inner relative z-5">
             <h2 className="text--center">Pulsar Features</h2>
-            <HomepageFeatures />
+            <HomepageFeatures id="home-features" />
           </div>
-          <div className="home-quotes pb-24 mb-24">
+          <div className="home-quotes pb-24">
             <SubHeroBlock 
             className="test"
             heading="Pulsar Users" 
             content="Run in production at Yahoo! scale with millions of messages per second across millions of topics, Pulsar is now used by thousands of companies for real-time workloads."/>
             <HomeQuotes quotes={quotesArr} />
             <p className="text--center">
-              <a href="/case-studies" class="secondary-cta">Read Case Studies</a>
+              <a href="/case-studies" className="secondary-cta">Read Case Studies</a>
             </p>
           </div>
           <div className="final-cta relative z-5 py-12">

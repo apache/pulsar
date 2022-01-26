@@ -138,7 +138,7 @@ Here is an example of using the Kafka source connector with the configuration fi
 
    ```bash
    
-   $ docker pull apachepulsar/pulsar:@pulsar:version@
+   $ docker pull apachepulsar/pulsar:2.8.0
    
    $ docker run -d -it --network kafka-pulsar -p 6650:6650 -p 8080:8080 -v $PWD/data:/pulsar/data --name pulsar-kafka-standalone apachepulsar/pulsar:2.4.0 bin/pulsar standalone
    
@@ -179,7 +179,7 @@ Here is an example of using the Kafka source connector with the configuration fi
 
    ```bash
    
-   $ docker cp pulsar-io-kafka-@pulsar:version@.nar pulsar-kafka-standalone:/pulsar
+   $ docker cp pulsar-io-kafka-2.8.0.nar pulsar-kafka-standalone:/pulsar
    $ docker cp kafkaSourceConfig.yaml pulsar-kafka-standalone:/pulsar/conf
    $ docker cp pulsar-client.py pulsar-kafka-standalone:/pulsar/
    $ docker cp kafka-producer.py pulsar-kafka-standalone:/pulsar/
@@ -193,7 +193,7 @@ Here is an example of using the Kafka source connector with the configuration fi
    $ docker exec -it pulsar-kafka-standalone /bin/bash
 
    $ ./bin/pulsar-admin source localrun \
-   --archive ./pulsar-io-kafka-@pulsar:version@.nar \
+   --archive ./pulsar-io-kafka-2.8.0.nar \
    --classname org.apache.pulsar.io.kafka.KafkaBytesSource \
    --tenant public \
    --namespace default \

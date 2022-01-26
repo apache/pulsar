@@ -43,7 +43,7 @@ Or you can use [dep](https://github.com/golang/dep) for managing the dependencie
 
 ```bash
 
-$ dep ensure -add github.com/apache/pulsar/pulsar-client-go/pulsar@v@pulsar:version@
+$ dep ensure -add github.com/apache/pulsar/pulsar-client-go/pulsar@v2.6.4
 
 ```
 

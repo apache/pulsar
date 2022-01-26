@@ -93,7 +93,7 @@ This example shows how to write records to a Redis database using the Pulsar Red
    
    ```
 
-   Make sure the NAR file is available at `connectors/pulsar-io-redis-@pulsar:version@.nar`.
+   Make sure the NAR file is available at `connectors/pulsar-io-redis-2.8.0.nar`.
    
 3. Start the Pulsar Redis connector in local run mode using one of the following methods.
 
@@ -102,7 +102,7 @@ This example shows how to write records to a Redis database using the Pulsar Red
        ```bash
        
        $ bin/pulsar-admin sinks localrun \
-       --archive connectors/pulsar-io-redis-@pulsar:version@.nar \
+       --archive connectors/pulsar-io-redis-2.8.0.nar \
        --tenant public \
        --namespace default \
        --name my-redis-sink \
@@ -116,7 +116,7 @@ This example shows how to write records to a Redis database using the Pulsar Red
        ```bash
        
        $ bin/pulsar-admin sinks localrun \
-       --archive connectors/pulsar-io-redis-@pulsar:version@.nar \
+       --archive connectors/pulsar-io-redis-2.8.0.nar \
        --tenant public \
        --namespace default \
        --name my-redis-sink \

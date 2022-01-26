@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="60px" height="59px" viewBox="0 0 60 59" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>24h_support</title>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="24h_support" transform="translate(0.500000, 0.000000)">
+            <path d="M52.5,28.9 C52.5,16.2 42.1,5.9 29.4,5.9 C28.5,5.9 27.5,6 26.5,6.1 L26.5,2 L18.4,9.2 L26.5,16.4 L26.5,12 C27.5,11.8 28.5,11.7 29.4,11.7 C38.9,11.7 46.6,19.4 46.6,28.9 C46.6,38.4 39,46.1 29.5,46.1 C20,46.1 12.3,38.4 12.3,28.9 C12.3,23.8 14.5,19.3 18,16.1 L14.1,11.7 C9.4,16 6.5,22.1 6.5,28.9 C6.5,41.6 16.8,51.9 29.5,51.9 C42.2,51.9 52.5,41.7 52.5,28.9 Z" id="Path" stroke="#2A5082" fill="#188FFF" fill-rule="nonzero"></path>
+            <g id="Group">
+                <path d="M29.5,58.5 C13.2,58.5 0,45.3 0,29" id="Path" stroke="#2B5183"></path>
+                <path d="M34.9,0 C48.6,2.6 59,14.6 59,29" id="Path"></path>
+                <path d="M38.5,37.3 C33.6,42.2 25.7,42.2 20.8,37.3" id="Path" stroke="#2B5183"></path>
+                <path d="M57.5,39.8 C55,46.2 50.4,51.6 44.5,55" id="Path" stroke="#2B5183"></path>
+            </g>
+        </g>
+    </g>
+</svg>

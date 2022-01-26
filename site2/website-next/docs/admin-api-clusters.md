@@ -16,7 +16,7 @@ import TabItem from '@theme/TabItem';
 > 
 > - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
 > 
-> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/).
+> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/2.8.0-SNAPSHOT/).
 
 Pulsar clusters consist of one or more Pulsar [brokers](reference-terminology.md#broker), one or more [BookKeeper](reference-terminology.md#bookkeeper)
 servers (aka [bookies](reference-terminology.md#bookie)), and a [ZooKeeper](https://zookeeper.apache.org) cluster that provides configuration and coordination management.
@@ -53,7 +53,7 @@ $ pulsar-admin clusters create cluster-1 \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|PUT|/admin/v2/clusters/:cluster|operation/createCluster?version=@pulsar:version_number@}
+{@inject: endpoint|PUT|/admin/v2/clusters/:cluster|operation/createCluster?version=2.8.0}
 
 </TabItem>
 <TabItem value="JAVA">
@@ -137,7 +137,7 @@ $ pulsar-admin clusters get cluster-1
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/clusters/:cluster|operation/getCluster?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/clusters/:cluster|operation/getCluster?version=2.8.0}
 
 </TabItem>
 <TabItem value="JAVA">
@@ -174,7 +174,7 @@ $ pulsar-admin clusters update cluster-1 \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|POST|/admin/v2/clusters/:cluster|operation/updateCluster?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/clusters/:cluster|operation/updateCluster?version=2.8.0}
 
 </TabItem>
 <TabItem value="JAVA">
@@ -215,7 +215,7 @@ $ pulsar-admin clusters delete cluster-1
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|DELETE|/admin/v2/clusters/:cluster|operation/deleteCluster?version=@pulsar:version_number@}
+{@inject: endpoint|DELETE|/admin/v2/clusters/:cluster|operation/deleteCluster?version=2.8.0}
 
 </TabItem>
 <TabItem value="JAVA">
@@ -252,7 +252,7 @@ cluster-2
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/clusters|operation/getClusters?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/clusters|operation/getClusters?version=2.8.0}
 
 </TabItem>
 <TabItem value="JAVA">
@@ -287,7 +287,7 @@ $ pulsar-admin update-peer-clusters cluster-1 --peer-clusters cluster-2
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|POST|/admin/v2/clusters/:cluster/peers|operation/setPeerClusterNames?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/clusters/:cluster/peers|operation/setPeerClusterNames?version=2.8.0}
 
 </TabItem>
 <TabItem value="JAVA">

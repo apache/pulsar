@@ -12,7 +12,7 @@ const FeatureList = (language) => [
   },
   {
     title: "Serverless functions",
-    Svg: require("../../static/img/Technology-Solution.svg").default,
+    Svg: require("../../static/img/proven-in-production.svg").default,
     content:"Write serverless functions with developer-friendly APIs to natively process data immediately upon arrival. No need to run your own stream processing engine",
   },
   {
@@ -55,7 +55,7 @@ const FeatureList = (language) => [
 function Feature({ Svg, title, content }) {
   return (
     <div className="col col--4 mb-24 icon-feature">
-      <div className="text--left feature-image mb-4">
+      <div className="text--left feature-image mb-4 padding-horiz--md">
         <Svg className={styles.featureSvg} alt={title} />
       </div>
       <div className="text--left padding-horiz--md">
@@ -68,7 +68,7 @@ function Feature({ Svg, title, content }) {
 
 export default function HomepageFeatures(props) {
   return (
-    <section className={styles.features}>
+    <section id="home-features" className={styles.features}>
       <div className="container">
         <div className="row">
           {FeatureList(props.language || "").map((props, idx) => (

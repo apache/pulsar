@@ -26,7 +26,7 @@ The easiest way to use the dashboard is to run it inside a [Docker](https://www.
 $ SERVICE_URL=http://broker.example.com:8080/
 $ docker run -p 80:80 \
   -e SERVICE_URL=$SERVICE_URL \
-  apachepulsar/pulsar-dashboard:@pulsar:version@
+  apachepulsar/pulsar-dashboard:2.6.4
 
 ```
 

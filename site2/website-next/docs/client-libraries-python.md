@@ -4,11 +4,11 @@ title: Pulsar Python client
 sidebar_label: "Python"
 ---
 
-Pulsar Python client library is a wrapper over the existing [C++ client library](client-libraries-cpp) and exposes all of the [same features](/api/cpp). You can find the code in the [Python directory](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) of the C++ client code.
+Pulsar Python client library is a wrapper over the existing [C++ client library](client-libraries-cpp) and exposes all of the [same features](/api/cpp/2.8.0-SNAPSHOT/2.8.0-SNAPSHOT). You can find the code in the [Python directory](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) of the C++ client code.
 
 All the methods in producer, consumer, and reader of a Python client are thread-safe.
 
-[pdoc](https://github.com/BurntSushi/pdoc)-generated API docs for the Python client are available [here](/api/python).
+[pdoc](https://github.com/BurntSushi/pdoc)-generated API docs for the Python client are available [here](/api/python/2.8.0-SNAPSHOT/2.8.0-SNAPSHOT).
 
 ## Install
 
@@ -20,7 +20,7 @@ To install the `pulsar-client` library as a pre-built package using the [pip](ht
 
 ```shell
 
-$ pip install pulsar-client==@pulsar:version_number@
+$ pip install pulsar-client==2.8.0
 
 ```
 
@@ -30,13 +30,13 @@ If you install the client libraries on Linux to support services like Pulsar fun
 ```shell
 
 # avro serialization
-$ pip install pulsar-client=='@pulsar:version_number@[avro]'
+$ pip install pulsar-client=='2.8.0[avro]'
 
 # functions runtime
-$ pip install pulsar-client=='@pulsar:version_number@[functions]'
+$ pip install pulsar-client=='2.8.0[functions]'
 
 # all optional components
-$ pip install pulsar-client=='@pulsar:version_number@[all]'
+$ pip install pulsar-client=='2.8.0[all]'
 
 ```
 
@@ -63,7 +63,7 @@ $ sudo python setup.py install
 
 ## API Reference
 
-The complete Python API reference is available at [api/python](/api/python).
+The complete Python API reference is available at [api/python](/api/python/2.8.0-SNAPSHOT/2.8.0-SNAPSHOT).
 
 ## Examples
 

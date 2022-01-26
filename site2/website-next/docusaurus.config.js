@@ -120,15 +120,15 @@ module.exports = {
           items: [
             {
               label: 'Pulsar Basics',
-              href: '/pulsar-basics',
+              to: 'pulsar-basics',
             },
             {
               label: 'Quickstart',
-              href: '/quickstart'
+              to: 'quickstart'
             },
             {
               label: 'Ecosystem',
-              href: '/ecosystem'
+              to: 'ecosystem'
             }
             // ... more items
           ],
@@ -144,14 +144,14 @@ module.exports = {
           label: 'Community',
           position: 'right',
           items: [
-            { to: "/community#welcom", label: "Welcome" },
-            { to: "/community#discussions", label: "Dicussions"},
-            { to: "/community#governance", label: "Governance"},
-            { to: "/community#community", label: "Meet the Community"},
-            { to: "/community#contribute", label: "Contribute"},
-            { to: "/community#coding-guide", label: "Coding Guide"},
-            { to: "/community#wiki", label: "Wiki"},
-            { to: "/community#issue-tracking", label: "Issue Tracking"},
+            { to: "community#welcome", label: "Welcome" },
+            { to: "community#discussions", label: "Dicussions"},
+            { to: "community#governance", label: "Governance"},
+            { to: "community#community", label: "Meet the Community"},
+            { to: "community#contribute", label: "Contribute"},
+            { to: "community#coding-guide", label: "Coding Guide"},
+            { to: "community#wiki", label: "Wiki"},
+            { to: "community#issue-tracking", label: "Issue Tracking"},
 
           ]
         },
@@ -160,10 +160,10 @@ module.exports = {
           label: 'Learn',
           position: 'right',
           items: [
-            { to: "/blog", label: "Blog" },
-            { to: "/case-studies", label: "Case Studies"},
-            { to: "/resources", label: "Resources"},
-            { to: "/events", label: "Events"},
+            { to: "blog", label: "Blog" },
+            { to: "case-studies", label: "Case Studies"},
+            { to: "resources", label: "Resources"},
+            { to: "events", label: "Events"},
 
           ]
         },
@@ -233,7 +233,41 @@ module.exports = {
       style: "dark",
       links: [
         {
-          title: 'test.', //Column title
+          title: 'Apache Foundation.', //Column title
+	          items: [
+              { //Embedded HTML
+	              html: `
+	              <img src="/img/Apache_Feather_Logo.svg" alt="" width="20">
+	              `,
+	            },
+	            {
+	              label: "Foundation",
+                href: "http://www.apache.org/",
+	            },
+	            {
+	              label: "Events",
+                href: "https://www.apache.org/events/current-event.html",
+	            },
+	            {
+	              label: "License",
+                href: "https://www.apache.org/licenses/",
+	            },
+	            {
+	              label: "Thanks",
+                href: "https://www.apache.org/foundation/thanks",
+	            },
+	            {
+	              label: "Security",
+                href: "https://www.apache.org/security",
+	            },
+	            {
+	              label: "Sponsorship",
+                href: "https://www.apache.org/foundation/sponsorship",
+	            },
+	          ],
+        },
+        {
+          title: ' ', //Column title
 	          items: [
 	            { //Embedded HTML
 	              html: `
@@ -241,7 +275,7 @@ module.exports = {
 	              `,
 	            },
 	          ],
-        }
+        },
       ],
       copyright: `<p>Apache Pulsar is available under the Apache License, version 2.0.</p>
       <p>Inc.Copyright © ${new Date().getFullYear()} The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</p>`,
@@ -274,8 +308,11 @@ module.exports = {
         },
         blog: {
           showReadingTime: true,
+          blogTitle: 'Blog',
           // Please change this to your repo.
           editUrl: `${githubUrl}/edit/master/site2/website-next`,
+          blogDescription: 'Featuring the latest news related to Apache Pulsar',
+          postsPerPage: 10,
         },
         theme: {
           customCss: require.resolve("./src/css/custom.css"),

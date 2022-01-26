@@ -44,7 +44,7 @@ If you already have a Presto cluster, you can copy the Presto Pulsar connector p
 
 ```bash
 
-$ wget pulsar:binary_release_url
+$ wget https://archive.apache.org/dist/pulsar/pulsar-2.7.1/apache-pulsar-2.7.1-bin.tar.gz
 
 ```
 

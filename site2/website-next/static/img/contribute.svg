@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="108px" height="136px" viewBox="0 0 108 136" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>expansion</title>
+    <defs>
+        <filter x="-13.6%" y="-10.7%" width="128.5%" height="120.9%" filterUnits="objectBoundingBox" id="filter-1">
+            <feOffset dx="0" dy="2" in="SourceAlpha" result="shadowOffsetOuter1"></feOffset>
+            <feGaussianBlur stdDeviation="2" in="shadowOffsetOuter1" result="shadowBlurOuter1"></feGaussianBlur>
+            <feColorMatrix values="0 0 0 0 0.0941176471   0 0 0 0 0.560784314   0 0 0 0 1  0 0 0 0.5 0" type="matrix" in="shadowBlurOuter1" result="shadowMatrixOuter1"></feColorMatrix>
+            <feMerge>
+                <feMergeNode in="shadowMatrixOuter1"></feMergeNode>
+                <feMergeNode in="SourceGraphic"></feMergeNode>
+            </feMerge>
+        </filter>
+    </defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="expansion" filter="url(#filter-1)" transform="translate(9.000000, 10.000000)">
+            <circle id="Oval" fill="#FFFFFF" fill-rule="nonzero" cx="42" cy="59" r="42"></circle>
+            <polygon id="Path" stroke="#2A5082" fill="#188FFF" fill-rule="nonzero" points="72.4255319 45 72.4255319 33.75 88 33.75 57.5927052 0 57.4072948 0 27 33.75 40.9057751 33.75 40.9057751 45"></polygon>
+            <rect id="Rectangle" fill="#FFFFFF" fill-rule="nonzero" x="41" y="89" width="32" height="11"></rect>
+            <polyline id="Path" stroke="#2A5082" points="61.7058824 100 73 100 73 89 41 89 41 100 57.9411765 100"></polyline>
+            <rect id="Rectangle" stroke="#2A5082" fill="#FFFFFF" fill-rule="nonzero" x="41" y="71" width="32" height="11"></rect>
+            <rect id="Rectangle" stroke="#2A5082" fill="#188FFF" fill-rule="nonzero" x="41" y="52" width="32" height="11"></rect>
+            <g id="Group" transform="translate(84.000000, 65.000000)" stroke="#2B5183">
+                <line x1="1" y1="0" x2="1" y2="18.3333333" id="Path"></line>
+                <line x1="1" y1="22" x2="1" y2="25.6666667" id="Path"></line>
+                <line x1="1" y1="29.3333333" x2="1" y2="33" id="Path"></line>
+            </g>
+            <g id="Group" transform="translate(18.000000, 80.000000)" stroke="#2B5183">
+                <polyline id="Path" points="1 0 1 11.9166667 1 18.3333333"></polyline>
+                <line x1="1" y1="22" x2="1" y2="25.6666667" id="Path"></line>
+                <polyline id="Path" points="1 29.3333333 1 32.0833333 1 33"></polyline>
+            </g>
+            <line x1="30" y1="50" x2="30" y2="69" id="Path" stroke="#2B5183"></line>
+            <g id="Group" transform="translate(62.000000, 100.000000)" stroke="#2A5082">
+                <line x1="1" y1="0" x2="1" y2="9.44444444" id="Path"></line>
+                <line x1="1" y1="13.2222222" x2="1" y2="17" id="Path"></line>
+            </g>
+            <line x1="50" y1="95" x2="50" y2="114" id="Path" stroke="#2A5082"></line>
+            <line x1="30" y1="72" x2="30" y2="76" id="Path" stroke="#2B5183"></line>
+        </g>
+    </g>
+</svg>

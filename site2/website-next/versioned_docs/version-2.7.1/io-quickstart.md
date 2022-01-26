@@ -623,7 +623,7 @@ This example creates a sink connector and specifies the desired information.
 ```bash
 
 $ bin/pulsar-admin sinks create \
---archive ./connectors/pulsar-io-jdbc-postgres-@pulsar:version@.nar \
+--archive ./connectors/pulsar-io-jdbc-postgres-2.7.1.nar \
 --inputs pulsar-postgres-jdbc-sink-topic \
 --name pulsar-postgres-jdbc-sink \
 --sink-config-file ./connectors/pulsar-postgres-jdbc-sink.yaml \
@@ -639,7 +639,7 @@ This sink connector runs as a Pulsar Function and writes the messages produced i
 
  Flag | Description | This example 
  ---|---|---|
- `--archive` | The path to the archive file for the sink. | _pulsar-io-jdbc-postgres-@pulsar:version@.nar_ |
+ `--archive` | The path to the archive file for the sink. | _pulsar-io-jdbc-postgres-2.7.1.nar_ |
  `--inputs` | The input topic(s) of the sink. <br /><br /> Multiple topics can be specified as a comma-separated list.||
  `--name` | The name of the sink. | _pulsar-postgres-jdbc-sink_ |
  `--sink-config-file` | The path to a YAML config file specifying the configuration of the sink. | _pulsar-postgres-jdbc-sink.yaml_ |

@@ -194,7 +194,7 @@ $ bin/pulsar-admin topics stats persistent://my-tenant/my-namespace/my-topic
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/stats|operation/getStats?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/stats|operation/getStats?version=2.8.0}
 
 </TabItem>
 

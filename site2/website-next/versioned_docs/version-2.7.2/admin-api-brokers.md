@@ -50,7 +50,7 @@ broker1.use.org.com:8080
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/brokers/:cluster|operation/getActiveBrokers?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/brokers/:cluster|operation/getActiveBrokers?version=2.7.2}
 
 </TabItem>
 <TabItem value="JAVA">
@@ -96,7 +96,7 @@ $ pulsar-admin brokers namespaces use \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/brokers/:cluster/:broker/ownedNamespaces|operation/getOwnedNamespaes?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/brokers/:cluster/:broker/ownedNamespaces|operation/getOwnedNamespaes?version=2.7.2}
 
 </TabItem>
 <TabItem value="JAVA">
@@ -138,7 +138,7 @@ $ pulsar-admin brokers update-dynamic-config --config brokerShutdownTimeoutMs --
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|POST|/admin/v2/brokers/configuration/:configName/:configValue|operation/updateDynamicConfiguration?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/brokers/configuration/:configName/:configValue|operation/updateDynamicConfiguration?version=2.7.2}
 
 </TabItem>
 <TabItem value="JAVA">
@@ -171,7 +171,7 @@ brokerShutdownTimeoutMs
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/brokers/configuration|operation/getDynamicConfigurationName?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/brokers/configuration|operation/getDynamicConfigurationName?version=2.7.2}
 
 </TabItem>
 <TabItem value="JAVA">
@@ -205,7 +205,7 @@ brokerShutdownTimeoutMs:100
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/brokers/configuration/values|operation/getAllDynamicConfigurations?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/brokers/configuration/values|operation/getAllDynamicConfigurations?version=2.7.2}
 
 </TabItem>
 <TabItem value="JAVA">
