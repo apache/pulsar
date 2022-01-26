@@ -45,6 +45,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -734,7 +735,7 @@ public class TransactionTest extends TransactionTestBase {
     @Test
     public void testRetryExceptionOfEndTxn() throws Exception{
         Transaction transaction = pulsarClient.newTransaction()
-                .withTransactionTimeout(5, TimeUnit.SECONDS)
+                .withTransactionTimeout(10, TimeUnit.SECONDS)
                 .build()
                 .get();
         Class<TransactionMetadataStoreState> transactionMetadataStoreStateClass = TransactionMetadataStoreState.class;
@@ -749,7 +750,12 @@ public class TransactionTest extends TransactionTestBase {
                         e.printStackTrace();
                     }
                 }));
-        transaction.commit();
+        CompletableFuture<Void> completableFuture =  transaction.commit();
+        try {
+            completableFuture.get(5, TimeUnit.SECONDS);
+            fail();
+        } catch (TimeoutException ignored) {
+        }
         getPulsarServiceList().get(0).getTransactionMetadataStoreService().getStores()
                 .values()
                 .stream()
@@ -762,6 +768,6 @@ public class TransactionTest extends TransactionTestBase {
                         e.printStackTrace();
                     }
                 }));
-
+        completableFuture.get(5, TimeUnit.SECONDS);
     }
 }
