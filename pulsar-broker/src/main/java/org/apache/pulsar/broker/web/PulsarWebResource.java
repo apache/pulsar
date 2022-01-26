@@ -934,6 +934,17 @@ public abstract class PulsarWebResource {
     public void validateNamespacePolicyOperation(NamespaceName namespaceName,
                                                  PolicyName policy,
                                                  PolicyOperation operation) {
+        try {
+            validateNamespacePolicyOperationAsync(namespaceName, policy, operation)
+                    .get(namespaceResources().getOperationTimeoutSec(), SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException ex) {
+            Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+            if (realCause instanceof WebApplicationException) {
+                throw (WebApplicationException) realCause;
+            } else {
+                throw new RestException(realCause);
+            }
+        }
     }
 
     protected PulsarResources getPulsarResources() {
