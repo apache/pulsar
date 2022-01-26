@@ -23,6 +23,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.google.common.base.Joiner;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -275,7 +276,30 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     @Override
     public CompletableFuture<Void> grantPermissionAsync(TopicName topicName, Set<AuthAction> actions,
             String role, String authDataJson) {
-        return grantPermissionAsync(topicName.getNamespaceObject(), actions, role, authDataJson);
+        try {
+            validatePoliciesReadOnlyAccess();
+        } catch (Exception e) {
+            return FutureUtil.failedFuture(e);
+        }
+
+        String topicUri = topicName.toString();
+        CompletableFuture<Void> future = pulsarResources.getNamespaceResources()
+                .setPoliciesAsync(topicName.getNamespaceObject(), policies -> {
+                    policies.auth_policies.getTopicAuthentication()
+                            .computeIfAbsent(topicUri, __ -> new HashMap<>())
+                            .put(role, actions);
+                    return policies;
+                }).thenRun(() -> {
+                    log.info("[{}] Successfully granted access for role {}: {} - topic {}", role, role, actions,
+                            topicUri);
+                });
+
+        future.exceptionally(ex -> {
+            log.error("[{}] Failed to set permissions for role {} on topic {}", role, role, topicName, ex);
+            return null;
+        });
+
+        return future;
     }
 
     @Override
@@ -287,6 +311,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             validatePoliciesReadOnlyAccess();
         } catch (Exception e) {
             result.completeExceptionally(e);
+            return result;
         }
 
         try {

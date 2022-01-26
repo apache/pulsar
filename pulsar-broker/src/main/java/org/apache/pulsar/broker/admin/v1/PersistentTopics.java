@@ -201,7 +201,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         validateNamespaceName(tenant, cluster, namespace);
         validateTopicName(tenant, cluster, namespace, encodedTopic);
         validateGlobalNamespaceOwnership();
-        internalCreateNonPartitionedTopic(authoritative);
+        internalCreateNonPartitionedTopic(authoritative, null);
     }
 
     /**

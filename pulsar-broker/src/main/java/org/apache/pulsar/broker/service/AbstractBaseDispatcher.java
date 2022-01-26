@@ -35,6 +35,7 @@ import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
@@ -268,6 +269,26 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
     public void resetCloseFuture() {
         // noop
+    }
+
+    protected abstract void reScheduleRead();
+
+    protected boolean reachDispatchRateLimit(DispatchRateLimiter dispatchRateLimiter) {
+        if (dispatchRateLimiter.isDispatchRateLimitingEnabled()) {
+            if (!dispatchRateLimiter.hasMessageDispatchPermit()) {
+                reScheduleRead();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    protected Pair<Integer, Long> updateMessagesToRead(DispatchRateLimiter dispatchRateLimiter,
+                                                       int messagesToRead, long bytesToRead) {
+        // update messagesToRead according to available dispatch rate limit.
+        return computeReadLimits(messagesToRead,
+                (int) dispatchRateLimiter.getAvailableDispatchRateLimitOnMsg(),
+                bytesToRead, dispatchRateLimiter.getAvailableDispatchRateLimitOnByte());
     }
 
     protected static Pair<Integer, Long> computeReadLimits(int messagesToRead, int availablePermitsOnMsg,

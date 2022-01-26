@@ -169,6 +169,14 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |brokerDeduplicationEntriesInterval|  The number of entries after which a deduplication informational snapshot is taken. A larger interval will lead to fewer snapshots being taken, though this would also lengthen the topic recovery time (the time required for entries published after the snapshot to be replayed). |1000|
 |brokerDeduplicationProducerInactivityTimeoutMinutes| The time of inactivity (in minutes) after which the broker will discard deduplication information related to a disconnected producer. |360|
 |brokerDeduplicationSnapshotFrequencyInSeconds| How often is the thread pool scheduled to check whether a snapshot needs to be taken. The value of `0` means it is disabled. |120| 
+|dispatchThrottlingRateInMsg| Dispatch throttling-limit of messages for a broker (per second). 0 means the dispatch throttling-limit is disabled. |0|
+|dispatchThrottlingRateInByte| Dispatch throttling-limit of bytes for a broker (per second). 0 means the dispatch throttling-limit is disabled. |0|
+|dispatchThrottlingRatePerTopicInMsg| Dispatch throttling-limit of messages for every topic (per second). 0 means the dispatch throttling-limit is disabled. |0|
+|dispatchThrottlingRatePerTopicInByte| Dispatch throttling-limit of bytes for every topic (per second). 0 means the dispatch throttling-limit is disabled. |0|
+|dispatchThrottlingOnBatchMessageEnabled|Apply dispatch rate limiting on batch message instead individual messages with in batch message. (Default is disabled). | false|
+|dispatchThrottlingRateRelativeToPublishRate| Enable dispatch rate-limiting relative to publish rate. | false |
+|dispatchThrottlingRatePerSubscriptionInMsg| Dispatch throttling-limit of messages for a subscription. 0 means the dispatch throttling-limit is disabled. |0|
+|dispatchThrottlingRatePerSubscriptionInByte|Dispatch throttling-limit of bytes for a subscription. 0 means the dispatch throttling-limit is disabled.|0|
 |dispatchThrottlingRatePerReplicatorInMsg| The default messages per second dispatch throttling-limit for every replicator in replication. The value of `0` means disabling replication message dispatch-throttling| 0 |
 |dispatchThrottlingRatePerReplicatorInByte| The default bytes per second dispatch throttling-limit for every replicator in replication. The value of `0` means disabling replication message-byte dispatch-throttling| 0 | 
 |zooKeeperSessionTimeoutMillis| Zookeeper session timeout in milliseconds |30000|
@@ -484,12 +492,16 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 | brokerPublisherThrottlingMaxByteRate | Maximum rate (in 1 second) of bytes allowed to publish for a broker if the  byte rate limiting is enabled. When the value is set to 0, the byte rate limiting is disabled. | 0 |
 |subscribeThrottlingRatePerConsumer|Too many subscribe requests from a consumer can cause broker rewinding consumer cursors and loading data from bookies, hence causing high network bandwidth usage. When the positive value is set, broker will throttle the subscribe requests for one consumer. Otherwise, the throttling will be disabled. By default, throttling is disabled.|0|
 |subscribeRatePeriodPerConsumerInSecond|Rate period for {subscribeThrottlingRatePerConsumer}. By default, it is 30s.|30|
+|dispatchThrottlingRateInMsg| Dispatch throttling-limit of messages for a broker (per second). 0 means the dispatch throttling-limit is disabled. |0|
+|dispatchThrottlingRateInByte| Dispatch throttling-limit of bytes for a broker (per second). 0 means the dispatch throttling-limit is disabled. |0|
 | dispatchThrottlingRatePerTopicInMsg | Default messages (per second) dispatch throttling-limit for every topic. When the value is set to 0, default message dispatch throttling-limit is disabled. |0 |
 | dispatchThrottlingRatePerTopicInByte | Default byte (per second) dispatch throttling-limit for every topic. When the value is set to 0, default byte dispatch throttling-limit is disabled. | 0|
 | dispatchThrottlingOnBatchMessageEnabled |Apply dispatch rate limiting on batch message instead individual messages with in batch message. (Default is disabled). | false|
 | dispatchThrottlingRateRelativeToPublishRate | Enable dispatch rate-limiting relative to publish rate. | false |
 |dispatchThrottlingRatePerSubscriptionInMsg|The defaulted number of message dispatching throttling-limit for a subscription. The value of 0 disables message dispatch-throttling.|0|
 |dispatchThrottlingRatePerSubscriptionInByte|The default number of message-bytes dispatching throttling-limit for a subscription. The value of 0 disables message-byte dispatch-throttling.|0|
+|dispatchThrottlingRatePerReplicatorInMsg| Dispatch throttling-limit of messages for every replicator in replication (per second). 0 means the dispatch throttling-limit in replication is disabled. |0|
+|dispatchThrottlingRatePerReplicatorInByte| Dispatch throttling-limit of bytes for every replicator in replication (per second). 0 means the dispatch throttling-limit is disabled. |0|
 | dispatchThrottlingOnNonBacklogConsumerEnabled | Enable dispatch-throttling for both caught up consumers as well as consumers who have backlogs. | true |
 |dispatcherMaxReadBatchSize|The maximum number of entries to read from BookKeeper. By default, it is 100 entries.|100|
 |dispatcherMaxReadSizeBytes|The maximum size in bytes of entries to read from BookKeeper. By default, it is 5MB.|5242880|

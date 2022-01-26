@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import java.lang.reflect.Field;
 import org.apache.avro.Schema;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.commons.lang3.StringUtils;
@@ -25,10 +27,6 @@ import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-
-import java.lang.reflect.Field;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * This is a base schema implementation for Avro Based `Struct` types.

@@ -82,7 +82,7 @@ class ProducerStatsImpl : public std::enable_shared_from_this<ProducerStatsImpl>
 
     void messageSent(const Message&);
 
-    void messageReceived(Result&, boost::posix_time::ptime&);
+    void messageReceived(Result, const boost::posix_time::ptime&);
 
     ~ProducerStatsImpl();
 

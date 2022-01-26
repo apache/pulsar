@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.client.util.TypeCheckUtil.checkType;
-
 import java.nio.ByteBuffer;
 import java.util.Base64;
 import java.util.List;
@@ -28,7 +27,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -46,11 +44,11 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     private static final ByteBuffer EMPTY_CONTENT = ByteBuffer.allocate(0);
 
-    private transient final ProducerBase<?> producer;
-    private transient final MessageMetadata msgMetadata = new MessageMetadata();
-    private transient final Schema<T> schema;
+    private final transient ProducerBase<?> producer;
+    private final transient MessageMetadata msgMetadata = new MessageMetadata();
+    private final transient Schema<T> schema;
     private transient ByteBuffer content;
-    private transient final TransactionImpl txn;
+    private final transient TransactionImpl txn;
 
     public TypedMessageBuilderImpl(ProducerBase<?> producer, Schema<T> schema) {
         this(producer, schema, null);
@@ -81,7 +79,8 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
             CompletableFuture<MessageId> sendFuture = sendAsync();
 
             if (!sendFuture.isDone()) {
-                // the send request wasn't completed yet (e.g. not failing at enqueuing), then attempt to triggerFlush it out
+                // the send request wasn't completed yet (e.g. not failing at enqueuing), then attempt to triggerFlush
+                // it out
                 producer.triggerFlush();
             }
 

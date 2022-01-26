@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.prestosql.decoder.FieldValueProviders.bytesValueProvider;
 import static io.prestosql.decoder.FieldValueProviders.longValueProvider;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
@@ -364,8 +363,8 @@ public class PulsarRecordCursor implements RecordCursor {
         public void run() {
 
             if (outstandingReadsRequests.get() > 0) {
-                if (!cursor.hasMoreEntries() ||
-                        (((PositionImpl) cursor.getReadPosition()).compareTo(pulsarSplit.getEndPosition()) >= 0
+                if (!cursor.hasMoreEntries()
+                        || (((PositionImpl) cursor.getReadPosition()).compareTo(pulsarSplit.getEndPosition()) >= 0
                                 && chunkedMessagesMap.isEmpty())) {
                     isDone = true;
 

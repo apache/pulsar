@@ -28,8 +28,6 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.util.HashedWheelTimer;
-import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
@@ -75,7 +73,6 @@ public class ProxyService implements Closeable {
 
     private final ProxyConfiguration proxyConfig;
     private final Authentication proxyClientAuthentication;
-    private final Timer timer;
     private String serviceUrl;
     private String serviceUrlTls;
     private final AuthenticationService authenticationService;
@@ -137,8 +134,6 @@ public class ProxyService implements Closeable {
                         AuthenticationService authenticationService) throws Exception {
         requireNonNull(proxyConfig);
         this.proxyConfig = proxyConfig;
-        this.timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-timer",
-                Thread.currentThread().isDaemon()), 1, TimeUnit.MILLISECONDS);
         this.clientCnxs = Sets.newConcurrentHashSet();
         this.topicStats = new ConcurrentHashMap<>();
 
@@ -342,9 +337,6 @@ public class ProxyService implements Closeable {
         for (EventLoopGroup group : extensionsWorkerGroups) {
             group.shutdownGracefully();
         }
-        if (timer != null) {
-            timer.stop();
-        }
     }
 
     public String getServiceUrl() {
@@ -357,10 +349,6 @@ public class ProxyService implements Closeable {
 
     public ProxyConfiguration getConfiguration() {
         return proxyConfig;
-    }
-
-    public Timer getTimer() {
-        return timer;
     }
 
     public AuthenticationService getAuthenticationService() {

@@ -19,10 +19,9 @@
 package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
+import java.util.Objects;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
-
-import java.util.Objects;
 
 public abstract class AbstractSchema<T> implements Schema<T> {
 
@@ -64,7 +63,7 @@ public abstract class AbstractSchema<T> implements Schema<T> {
         // ignore version by default (most of the primitive schema implementations ignore schema version)
         return decode(byteBuf);
     }
-    
+
     @Override
     public Schema<T> clone() {
         return this;
