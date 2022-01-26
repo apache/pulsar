@@ -291,7 +291,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                 }).whenComplete((__, throwable) -> {
                     if (throwable != null) {
                         log.error("[{}] Failed to set permissions for role {} on topic {}", role, role, topicName,
-                                throwable.getCause());
+                                throwable);
                     } else {
                         log.info("[{}] Successfully granted access for role {}: {} - topic {}", role, role, actions,
                                 topicUri);
@@ -315,7 +315,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                 }).whenComplete((__, throwable) -> {
                     if (throwable != null) {
                         log.error("[{}] Failed to set permissions for role {} namespace {}", role, role, namespaceName,
-                                throwable.getCause());
+                                throwable);
                     } else {
                         log.info("[{}] Successfully granted access for role {}: {} - namespace {}", role, role, actions,
                                 namespaceName);
@@ -363,7 +363,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                 }).whenComplete((__, throwable) -> {
                     if (throwable != null) {
                         log.error("[{}] Failed to get permissions for role {} on namespace {}", subscriptionName, roles,
-                                namespace, throwable.getCause());
+                                namespace, throwable);
                     } else {
                         log.info("[{}] Successfully granted access for role {} for sub = {}", namespace,
                                 subscriptionName, roles);
