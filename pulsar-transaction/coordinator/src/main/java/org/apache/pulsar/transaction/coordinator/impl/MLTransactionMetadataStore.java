@@ -74,7 +74,8 @@ public class MLTransactionMetadataStore
                                       MLTransactionLogImpl mlTransactionLog,
                                       TransactionTimeoutTracker timeoutTracker,
                                       TransactionRecoverTracker recoverTracker,
-                                      MLTransactionSequenceIdGenerator sequenceIdGenerator) {
+                                      MLTransactionSequenceIdGenerator sequenceIdGenerator,
+                                      CompletableFuture<TransactionMetadataStore> completableFuture) {
         super(State.None);
         this.sequenceIdGenerator = sequenceIdGenerator;
         this.tcID = tcID;
@@ -103,6 +104,7 @@ public class MLTransactionMetadataStore
                     recoverTracker.handleCommittingAndAbortingTransaction();
                     timeoutTracker.start();
                 }
+                completableFuture.complete(MLTransactionMetadataStore.this);
             }
 
             @Override

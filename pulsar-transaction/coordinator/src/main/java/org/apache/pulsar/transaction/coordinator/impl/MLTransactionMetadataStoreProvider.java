@@ -48,8 +48,10 @@ public class MLTransactionMetadataStoreProvider implements TransactionMetadataSt
                 managedLedgerFactory, managedLedgerConfig);
 
         // MLTransactionLogInterceptor will init sequenceId and update the sequenceId to managedLedger properties.
-        return txnLog.initialize().thenApply(__ ->
+        CompletableFuture<TransactionMetadataStore> completableFuture = new CompletableFuture<>();
+        txnLog.initialize().thenApply(__ ->
                 new MLTransactionMetadataStore(transactionCoordinatorId, txnLog, timeoutTracker,
-                        recoverTracker, mlTransactionSequenceIdGenerator));
+                        recoverTracker, mlTransactionSequenceIdGenerator, completableFuture));
+        return completableFuture;
     }
 }
