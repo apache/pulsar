@@ -473,22 +473,23 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         CompletableFuture<Void> commitFuture = new CompletableFuture<>();
         internalPinnedExecutor.execute(() -> {
             if (!checkIfReady()) {
-                if (state == State.Initializing) {
-                    addCommitTxnRequest(txnID, properties, lowWaterMark, commitFuture);
-                    return;
-                } else if (state == State.None) {
-                    addCommitTxnRequest(txnID, properties, lowWaterMark, commitFuture);
-                    initPendingAckStore();
-                    return;
-                } else {
-                    if (state == State.Error) {
-                        commitFuture.completeExceptionally(
-                                new ServiceUnitNotReadyException("PendingAckHandle not replay error!"));
-                    } else {
-                        commitFuture.completeExceptionally(
-                                new ServiceUnitNotReadyException("PendingAckHandle have been closed!"));
-                    }
-                    return;
+                switch (state) {
+                    case Initializing:
+                        addCommitTxnRequest(txnID, properties, lowWaterMark, commitFuture);
+                        return;
+                    case None:
+                        addCommitTxnRequest(txnID, properties, lowWaterMark, commitFuture);
+                        initPendingAckStore();
+                        return;
+                    case Error:
+                        if (state == State.Error) {
+                            commitFuture.completeExceptionally(
+                                    new ServiceUnitNotReadyException("PendingAckHandle not replay error!"));
+                        } else {
+                            commitFuture.completeExceptionally(
+                                    new ServiceUnitNotReadyException("PendingAckHandle have been closed!"));
+                        }
+                        return;
                 }
             }
             internalCommitTxn(txnID, properties, lowWaterMark, commitFuture);
@@ -567,22 +568,23 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         CompletableFuture<Void> abortFuture = new CompletableFuture<>();
         internalPinnedExecutor.execute(() -> {
             if (!checkIfReady()) {
-                if (state == State.Initializing) {
-                    addAbortTxnRequest(txnId, consumer, lowWaterMark, abortFuture);
-                    return;
-                } else if (state == State.None) {
-                    addAbortTxnRequest(txnId, consumer, lowWaterMark, abortFuture);
-                    initPendingAckStore();
-                    return;
-                } else {
-                    if (state == State.Error) {
-                        abortFuture.completeExceptionally(
-                                new ServiceUnitNotReadyException("PendingAckHandle not replay error!"));
-                    } else {
-                        abortFuture.completeExceptionally(
-                                new ServiceUnitNotReadyException("PendingAckHandle have been closed!"));
-                    }
-                    return;
+                switch (state) {
+                    case Initializing:
+                        addAbortTxnRequest(txnId, consumer, lowWaterMark, abortFuture);
+                        return;
+                    case None:
+                        addAbortTxnRequest(txnId, consumer, lowWaterMark, abortFuture);
+                        initPendingAckStore();
+                        return;
+                    default:
+                        if (state == State.Error) {
+                            abortFuture.completeExceptionally(
+                                    new ServiceUnitNotReadyException("PendingAckHandle not replay error!"));
+                        } else {
+                            abortFuture.completeExceptionally(
+                                    new ServiceUnitNotReadyException("PendingAckHandle have been closed!"));
+                        }
+                        return;
                 }
             }
             internalAbortTxn(txnId, consumer, lowWaterMark, abortFuture);
