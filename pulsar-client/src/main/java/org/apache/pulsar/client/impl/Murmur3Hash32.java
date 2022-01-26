@@ -25,10 +25,10 @@ package org.apache.pulsar.client.impl;
 
 import java.nio.charset.StandardCharsets;
 
-public class Murmur3_32Hash implements Hash {
-    private static final Murmur3_32Hash instance = new Murmur3_32Hash();
+public class Murmur3Hash32 implements Hash {
+    private static final Murmur3Hash32 instance = new Murmur3Hash32();
 
-    private Murmur3_32Hash(){ }
+    private Murmur3Hash32(){ }
 
     public static Hash getInstance() {
         return instance;

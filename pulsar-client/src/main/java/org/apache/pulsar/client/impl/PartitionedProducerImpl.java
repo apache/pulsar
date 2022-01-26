@@ -70,8 +70,9 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     TopicsPartitionChangedListener topicsPartitionChangedListener;
     CompletableFuture<Void> partitionsAutoUpdateFuture = null;
 
-    public PartitionedProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf, int numPartitions,
-            CompletableFuture<Producer<T>> producerCreatedFuture, Schema<T> schema, ProducerInterceptors interceptors) {
+    public PartitionedProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
+                                   int numPartitions, CompletableFuture<Producer<T>> producerCreatedFuture,
+                                   Schema<T> schema, ProducerInterceptors interceptors) {
         super(client, topic, conf, producerCreatedFuture, schema, interceptors);
         this.producers = new ConcurrentOpenHashMap<>();
         this.topicMetadata = new TopicMetadataImpl(numPartitions);
@@ -84,8 +85,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         conf.setMaxPendingMessages(maxPendingMessages);
 
         final List<Integer> indexList;
-        if (conf.isLazyStartPartitionedProducers() &&
-                conf.getAccessMode() == ProducerAccessMode.Shared) {
+        if (conf.isLazyStartPartitionedProducers()
+                && conf.getAccessMode() == ProducerAccessMode.Shared) {
             // try to create producer at least one partition
             indexList = Collections.singletonList(routerPolicy
                     .choosePartition(((TypedMessageBuilderImpl<T>) newMessage()).getMessage(), topicMetadata));
@@ -101,7 +102,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         if (conf.isAutoUpdatePartitions()) {
             topicsPartitionChangedListener = new TopicsPartitionChangedListener();
             partitionsAutoUpdateTimeout = client.timer()
-                .newTimeout(partitionsAutoUpdateTimerTask, conf.getAutoUpdatePartitionsIntervalSeconds(), TimeUnit.SECONDS);
+                .newTimeout(partitionsAutoUpdateTimerTask,
+                        conf.getAutoUpdatePartitionsIntervalSeconds(), TimeUnit.SECONDS);
         }
     }
 
@@ -193,7 +195,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     @Override
     CompletableFuture<MessageId> internalSendWithTxnAsync(Message<?> message, Transaction txn) {
         CompletableFuture<MessageId> completableFuture = new CompletableFuture<>();
-        if (txn != null && !((TransactionImpl)txn).checkIfOpen(completableFuture)) {
+        if (txn != null && !((TransactionImpl) txn).checkIfOpen(completableFuture)) {
             return completableFuture;
         }
         int partition = routerPolicy.choosePartition(message, topicMetadata);
@@ -230,11 +232,14 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                 break; // Ok
             case Closing:
             case Closed:
-                return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Producer already closed"));
+                return FutureUtil.failedFuture(
+                        new PulsarClientException.AlreadyClosedException("Producer already closed"));
             case ProducerFenced:
-                return FutureUtil.failedFuture(new PulsarClientException.ProducerFencedException("Producer was fenced"));
+                return FutureUtil.failedFuture(
+                        new PulsarClientException.ProducerFencedException("Producer was fenced"));
             case Terminated:
-                return FutureUtil.failedFuture(new PulsarClientException.TopicTerminatedException("Topic was terminated"));
+                return FutureUtil.failedFuture(
+                        new PulsarClientException.TopicTerminatedException("Topic was terminated"));
             case Failed:
             case Uninitialized:
                 return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
@@ -263,7 +268,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     @Override
     public long getLastDisconnectedTimestamp() {
         long lastDisconnectedTimestamp = 0;
-        Optional<ProducerImpl<T>> p = producers.values().stream().max(Comparator.comparingLong(ProducerImpl::getLastDisconnectedTimestamp));
+        Optional<ProducerImpl<T>> p = producers.values().stream()
+                .max(Comparator.comparingLong(ProducerImpl::getLastDisconnectedTimestamp));
         if (p.isPresent()) {
             lastDisconnectedTimestamp = p.get().getLastDisconnectedTimestamp();
         }
@@ -426,14 +432,17 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
 
                 // if last auto update not completed yet, do nothing.
                 if (partitionsAutoUpdateFuture == null || partitionsAutoUpdateFuture.isDone()) {
-                    partitionsAutoUpdateFuture = topicsPartitionChangedListener.onTopicsExtended(ImmutableList.of(topic));
+                    partitionsAutoUpdateFuture =
+                            topicsPartitionChangedListener.onTopicsExtended(ImmutableList.of(topic));
                 }
             } catch (Throwable th) {
-                log.warn("Encountered error in partition auto update timer task for partition producer. Another task will be scheduled.", th);
+                log.warn("Encountered error in partition auto update timer task for partition producer."
+                        + " Another task will be scheduled.", th);
             } finally {
                 // schedule the next re-check task
                 partitionsAutoUpdateTimeout = client.timer()
-                        .newTimeout(partitionsAutoUpdateTimerTask, conf.getAutoUpdatePartitionsIntervalSeconds(), TimeUnit.SECONDS);
+                        .newTimeout(partitionsAutoUpdateTimerTask,
+                                conf.getAutoUpdatePartitionsIntervalSeconds(), TimeUnit.SECONDS);
             }
         }
     };

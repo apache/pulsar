@@ -141,16 +141,6 @@
         </dependency>
     </dependencies>
 
-    <dependencyManagement>
-      <dependencies>
-        <dependency>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava</artifactId>
-          <version>21.0</version>
-        </dependency>
-      </dependencies>
-    </dependencyManagement>
-
     <build>
         <plugins>
             <plugin>

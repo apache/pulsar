@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import java.util.Optional;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 

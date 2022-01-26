@@ -65,8 +65,12 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     )
     private String globalZookeeperServers;
 
+    @Deprecated
     @FieldContext(doc = "Connection string of configuration store servers")
     private String configurationStoreServers;
+
+    @FieldContext(doc = "Connection string of configuration metadata store servers")
+    private String configurationMetadataStoreUrl;
 
     @FieldContext(doc = "ZooKeeper session timeout in milliseconds")
     private long zooKeeperSessionTimeoutMillis = 30000;

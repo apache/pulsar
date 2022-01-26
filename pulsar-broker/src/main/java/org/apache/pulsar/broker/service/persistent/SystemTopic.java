@@ -42,8 +42,8 @@ public class SystemTopic extends PersistentTopic {
     }
 
     @Override
-    public boolean isTimeBacklogExceeded() {
-        return false;
+    public CompletableFuture<Boolean> checkTimeBacklogExceeded() {
+        return CompletableFuture.completedFuture(false);
     }
 
     @Override

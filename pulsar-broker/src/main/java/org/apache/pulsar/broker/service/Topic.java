@@ -33,6 +33,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
@@ -213,7 +214,7 @@ public interface Topic {
 
     CompletableFuture<Void> onPoliciesUpdate(Policies data);
 
-    boolean isBacklogQuotaExceeded(String producerName, BacklogQuota.BacklogQuotaType backlogQuotaType);
+    CompletableFuture<Void> checkBacklogQuotaExceeded(String producerName, BacklogQuotaType backlogQuotaType);
 
     boolean isEncryptionRequired();
 
@@ -221,7 +222,7 @@ public interface Topic {
 
     boolean isReplicated();
 
-    BacklogQuota getBacklogQuota(BacklogQuota.BacklogQuotaType backlogQuotaType);
+    BacklogQuota getBacklogQuota(BacklogQuotaType backlogQuotaType);
 
     void updateRates(NamespaceStats nsStats, NamespaceBundleStats currentBundleStats,
             StatsOutputStream topicStatsStream, ClusterReplicationMetrics clusterReplicationMetrics,
