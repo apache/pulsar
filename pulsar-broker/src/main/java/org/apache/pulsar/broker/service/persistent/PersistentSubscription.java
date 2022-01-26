@@ -508,11 +508,11 @@ public class PersistentSubscription implements Subscription {
     public CompletableFuture<Void> transactionIndividualAcknowledge(
             TxnID txnId,
             List<MutablePair<PositionImpl, Integer>> positions) {
-        return pendingAckHandle.individualAcknowledgeMessage(txnId, positions, false);
+        return pendingAckHandle.individualAcknowledgeMessage(txnId, positions);
     }
 
     public CompletableFuture<Void> transactionCumulativeAcknowledge(TxnID txnId, List<PositionImpl> positions) {
-        return pendingAckHandle.cumulativeAcknowledgeMessage(txnId, positions, false);
+        return pendingAckHandle.cumulativeAcknowledgeMessage(txnId, positions);
     }
 
     private final MarkDeleteCallback markDeleteCallback = new MarkDeleteCallback() {
@@ -1198,14 +1198,14 @@ public class PersistentSubscription implements Subscription {
     public CompletableFuture<Void> endTxn(long txnidMostBits, long txnidLeastBits, int txnAction, long lowWaterMark) {
         TxnID txnID = new TxnID(txnidMostBits, txnidLeastBits);
         if (TxnAction.COMMIT.getValue() == txnAction) {
-            return pendingAckHandle.commitTxn(txnID, Collections.emptyMap(), lowWaterMark, false);
+            return pendingAckHandle.commitTxn(txnID, Collections.emptyMap(), lowWaterMark);
         } else if (TxnAction.ABORT.getValue() == txnAction) {
             Consumer redeliverConsumer = null;
             if (getDispatcher() instanceof PersistentDispatcherSingleActiveConsumer) {
                 redeliverConsumer = ((PersistentDispatcherSingleActiveConsumer)
                         getDispatcher()).getActiveConsumer();
             }
-            return pendingAckHandle.abortTxn(txnID, redeliverConsumer, lowWaterMark, false);
+            return pendingAckHandle.abortTxn(txnID, redeliverConsumer, lowWaterMark);
         } else {
             return FutureUtil.failedFuture(new NotAllowedException("Unsupported txnAction " + txnAction));
         }
