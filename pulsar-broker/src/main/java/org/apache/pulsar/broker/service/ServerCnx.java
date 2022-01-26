@@ -2478,7 +2478,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     producer.getTopic().isTopicPublishRateExceeded(numMessages, msgSize);
             if (isPreciseTopicPublishRateExceeded) {
                 producer.getTopic().disableCnxAutoRead();
-                recordRateLimitMetrics(producers.values());
                 return;
             }
             isPublishRateExceeded = producer.getTopic().isBrokerPublishRateExceeded();
@@ -2488,7 +2487,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                   producer.getTopic().isResourceGroupPublishRateExceeded(numMessages, msgSize);
                 if (resourceGroupPublishRateExceeded) {
                     producer.getTopic().disableCnxAutoRead();
-                    recordRateLimitMetrics(producers.values());
                     return;
                 }
             }
@@ -2514,7 +2512,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     cnx.disableCnxAutoRead();
                     cnx.autoReadDisabledPublishBufferLimiting = true;
                     pausedConnections.increment();
-                    recordRateLimitMetrics(cnx.producers.values());
                 }
             });
 
@@ -2577,6 +2574,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     public void disableCnxAutoRead() {
         if (ctx != null && ctx.channel().config().isAutoRead()) {
             ctx.channel().config().setAutoRead(false);
+            recordRateLimitMetrics(producers.values());
         }
     }
 

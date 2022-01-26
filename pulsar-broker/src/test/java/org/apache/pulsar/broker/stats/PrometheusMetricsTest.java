@@ -114,8 +114,15 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         String ns1 = "prop/ns-abc1" + UUID.randomUUID();
         admin.namespaces().createNamespace(ns1, 1);
         String topicName = "persistent://" + ns1 + "/metrics" + UUID.randomUUID();
+        String topicName2 = "persistent://" + ns1 + "/metrics" + UUID.randomUUID();
+        // Use another connection
+        @Cleanup
+        PulsarClient client2 = newPulsarClient(lookupUrl.toString(), 0);
+
         Producer<byte[]> producer = pulsarClient.newProducer().producerName("my-pub").enableBatching(false)
                 .topic(topicName).create();
+        Producer<byte[]> producer2 = client2.newProducer().producerName("my-pub-2").enableBatching(false)
+                .topic(topicName2).create();
         producer.sendAsync(new byte[11]);
 
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
@@ -124,7 +131,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         field.setAccessible(true);
         Awaitility.await().untilAsserted(() -> {
             long value = (long) field.get(persistentTopic);
-            assertEquals(value, 1);
+            assertTrue(value >= 2);
         });
         @Cleanup
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
@@ -134,7 +141,14 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertTrue(metrics.containsKey("pulsar_publish_rate_limit_times"));
         metrics.get("pulsar_publish_rate_limit_times").forEach(item -> {
             if (ns1.equals(item.tags.get("namespace"))) {
-                assertEquals(item.value, 1);
+                if (item.tags.get("topic").equals(topicName)) {
+                    assertTrue(item.value >= 2);
+                    return;
+                } else if (item.tags.get("topic").equals(topicName2)) {
+                    assertTrue(item.value >= 2);
+                    return;
+                }
+                fail("should not fail");
             }
         });
         // Stats updater will reset the stats
@@ -155,6 +169,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             }
         });
 
+        producer.close();
+        producer2.close();
     }
 
     @Test
