@@ -734,7 +734,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * If producer fails to publish all the chunks of a message then consumer can expire incomplete chunks if consumer
-     * won't be able to receive all chunks in expire times (default 1 hour).
+     * won't be able to receive all chunks in expire times (default 1 minute).
      *
      * @param duration
      * @param unit
