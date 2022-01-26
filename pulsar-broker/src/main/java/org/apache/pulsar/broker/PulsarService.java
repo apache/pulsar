@@ -258,7 +258,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private PulsarResources pulsarResources;
 
     private TransactionPendingAckStoreProvider transactionPendingAckStoreProvider;
-    private final ScheduledExecutorService transactionReplayExecutor;
+    private final ExecutorProvider transactionExecutorProvider;
 
     public enum State {
         Init, Started, Closing, Closed
@@ -314,11 +314,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 new DefaultThreadFactory("zk-cache-callback"));
 
         if (config.isTransactionCoordinatorEnabled()) {
-            this.transactionReplayExecutor = Executors.newScheduledThreadPool(
-                    config.getNumTransactionReplayThreadPoolSize(),
-                    new DefaultThreadFactory("transaction-replay"));
+            this.transactionExecutorProvider = new ExecutorProvider(this.getConfiguration()
+                    .getNumTransactionReplayThreadPoolSize(), "pulsar-transaction-executor");
         } else {
-            this.transactionReplayExecutor = null;
+            this.transactionExecutorProvider = null;
         }
 
         this.ioEventLoopGroup = EventLoopUtil.newEventLoopGroup(config.getNumIOThreads(), config.isEnableBusyWait(),
@@ -494,8 +493,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 configurationMetadataStore.close();
             }
 
-            if (transactionReplayExecutor != null) {
-                transactionReplayExecutor.shutdown();
+            if (transactionExecutorProvider != null) {
+                transactionExecutorProvider.shutdownNow();
             }
 
             ioEventLoopGroup.shutdownGracefully();
@@ -1246,8 +1245,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return cacheExecutor;
     }
 
-    public ScheduledExecutorService getTransactionReplayExecutor() {
-        return transactionReplayExecutor;
+    public ExecutorProvider getTransactionExecutorProvider() {
+        return transactionExecutorProvider;
     }
 
     public ScheduledExecutorService getLoadManagerExecutor() {
