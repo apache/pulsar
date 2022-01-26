@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.client.util.MathUtils.signSafeMod;
-
 import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.TopicMetadata;

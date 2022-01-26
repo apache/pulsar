@@ -19,15 +19,13 @@
 package org.apache.pulsar.client.impl.schema;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaDefinitionBuilder;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.api.schema.SchemaWriter;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Builder to build {@link org.apache.pulsar.client.api.schema.GenericRecord}.
@@ -38,12 +36,12 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
     public static final String JSR310_CONVERSION_ENABLED = "__jsr310ConversionEnabled";
 
     /**
-     * the schema definition class
+     * the schema definition class.
      */
     private  Class<T> clazz;
 
     /**
-     * The flag of schema type always allow null
+     * The flag of schema type always allow null.
      *
      * If it's true, will make all of the pojo field generate schema
      * define default can be null,false default can't be null, but it's
@@ -60,17 +58,17 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
     private boolean jsr310ConversionEnabled = false;
 
     /**
-     * The schema info properties
+     * The schema info properties.
      */
     private Map<String, String> properties = new HashMap<>();
 
     /**
-     * The json schema definition
+     * The json schema definition.
      */
     private String jsonDef;
 
     /**
-     * The flag of message decode whether by schema version
+     * The flag of message decode whether by schema version.
      */
     private boolean supportSchemaVersioning = false;
 
@@ -115,7 +113,7 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
     }
 
     @Override
-    public SchemaDefinitionBuilder<T> withProperties(Map<String,String> properties) {
+    public SchemaDefinitionBuilder<T> withProperties(Map<String, String> properties) {
         this.properties = properties;
         if (properties.containsKey(ALWAYS_ALLOW_NULL)) {
             alwaysAllowNull = Boolean.parseBoolean(properties.get(ALWAYS_ALLOW_NULL));
@@ -128,7 +126,7 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
 
     @Override
     public SchemaDefinitionBuilder<T> withSchemaReader(SchemaReader<T> reader) {
-        this.reader=reader;
+        this.reader = reader;
         return this;
     }
 

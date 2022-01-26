@@ -23,7 +23,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
-
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 
 public class AuthenticationDataToken implements AuthenticationDataProvider {

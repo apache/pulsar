@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl.schema.reader;
 
+import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.getJsr310ConversionEnabledFromSchemaInfo;
+import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.parseAvroSchema;
 import org.apache.avro.Schema;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.impl.schema.SchemaUtils;
@@ -25,10 +27,6 @@ import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-
-import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.getJsr310ConversionEnabledFromSchemaInfo;
-import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.parseAvroSchema;
 
 /**
  * A multi version avro reader.
