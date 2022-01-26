@@ -1808,7 +1808,7 @@ public class PersistentTopicsBase extends AdminResource {
         } else {
             future = CompletableFuture.completedFuture(null);
         }
-        future.thenAccept(__ ->
+        future.thenCompose(__ ->
             getPartitionedTopicMetadataAsync(topicName, authoritative, false)
                 .thenAccept(partitionMetadata -> {
                     if (topicName.isPartitioned()) {
@@ -1868,7 +1868,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     private void internalExpireMessagesForAllSubscriptionsForNonPartitionedTopic(AsyncResponse asyncResponse,
                                                                                  PartitionedTopicMetadata
-                                                                                         partitionMetadata,
+                                                                                 partitionMetadata,
                                                                                  int expireTimeInSeconds,
                                                                                  boolean authoritative) {
         try {
@@ -1918,13 +1918,7 @@ public class PersistentTopicsBase extends AdminResource {
                         return null;
                     });
 
-                }).exceptionally(e -> {
-                        Throwable throwable = e.getCause();
-                        log.error("[{}] Failed to expire messages for all subscription up to {} on {}", clientAppId()
-                                , expireTimeInSeconds, topicName, throwable);
-                        asyncResponse.resume(new RestException(throwable));
-                        return null;
-                    })
+                        })
                 ).exceptionally(e -> {
                         Throwable throwable = e.getCause();
                         log.error("[{}] Failed to expire messages for all subscription up to {} on {}", clientAppId(),
@@ -3341,102 +3335,69 @@ public class PersistentTopicsBase extends AdminResource {
         } else {
             future = CompletableFuture.completedFuture(null);
         }
-        future.thenAccept(__ ->
+        future.thenCompose(__ ->
             // If the topic name is a partition name, no need to get partition topic metadata again
             getPartitionedTopicMetadataAsync(topicName, authoritative, false)
-                    .thenAccept(partitionMetadata -> {
+                    .thenCompose(partitionMetadata -> {
                         if (topicName.isPartitioned()) {
-                            internalExpireMessagesByTimestampForSinglePartitionAsync(partitionMetadata, subName,
+                            return internalExpireMessagesByTimestampForSinglePartitionAsync(partitionMetadata, subName,
                                     expireTimeInSeconds, authoritative)
-                                    .thenAccept(unused -> asyncResponse.resume(Response.noContent().build()))
-                                    .exceptionally(e -> {
-                                        Throwable cause = e.getCause();
-                                        log.error("[{}] Failed to expire messages up to {} on {}", clientAppId(),
-                                                expireTimeInSeconds, topicName, cause);
-                                        resumeAsyncResponseExceptionally(asyncResponse, cause);
-                                        return null;
-                                    });
+                                    .thenAccept(unused -> asyncResponse.resume(Response.noContent().build()));
                         } else {
                             if (partitionMetadata.partitions > 0) {
-                                final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+                                return CompletableFuture.completedFuture(null).thenAccept(unused -> {
+                                    final List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
-                                // expire messages for each partition topic
-                                for (int i = 0; i < partitionMetadata.partitions; i++) {
-                                    TopicName topicNamePartition = topicName.getPartition(i);
-                                    try {
-                                        futures.add(pulsar()
-                                                .getAdminClient()
-                                                .topics()
-                                                .expireMessagesAsync(topicNamePartition.toString(),
-                                                        subName, expireTimeInSeconds));
-                                    } catch (Exception e) {
-                                        log.error("[{}] Failed to expire messages up to {} on {}", clientAppId(),
-                                                expireTimeInSeconds, topicNamePartition, e);
-                                        asyncResponse.resume(new RestException(e));
-                                        return;
-                                    }
-                                }
-
-                                FutureUtil.waitForAll(futures).handle((result, exception) -> {
-                                    if (exception != null) {
-                                        Throwable t = exception.getCause();
-                                        if (t instanceof NotFoundException) {
-                                            asyncResponse.resume(new RestException(Status.NOT_FOUND,
-                                                    "Subscription not found"));
-                                            return null;
-                                        } else {
-                                            log.error("[{}] Failed to expire messages up to {} on {}",
-                                                    clientAppId(), expireTimeInSeconds,
-                                                    topicName, t);
-                                            asyncResponse.resume(new RestException(t));
-                                            return null;
+                                    // expire messages for each partition topic
+                                    for (int i = 0; i < partitionMetadata.partitions; i++) {
+                                        TopicName topicNamePartition = topicName.getPartition(i);
+                                        try {
+                                            futures.add(pulsar()
+                                                    .getAdminClient()
+                                                    .topics()
+                                                    .expireMessagesAsync(topicNamePartition.toString(),
+                                                            subName, expireTimeInSeconds));
+                                        } catch (Exception e) {
+                                            log.error("[{}] Failed to expire messages up to {} on {}", clientAppId(),
+                                                    expireTimeInSeconds, topicNamePartition, e);
+                                            asyncResponse.resume(new RestException(e));
+                                            return;
                                         }
                                     }
-                                    asyncResponse.resume(Response.noContent().build());
-                                    return null;
+
+                                    FutureUtil.waitForAll(futures).handle((result, exception) -> {
+                                        if (exception != null) {
+                                            Throwable t = exception.getCause();
+                                            if (t instanceof NotFoundException) {
+                                                asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                                        "Subscription not found"));
+                                                return null;
+                                            } else {
+                                                log.error("[{}] Failed to expire messages up to {} on {}",
+                                                        clientAppId(), expireTimeInSeconds,
+                                                        topicName, t);
+                                                asyncResponse.resume(new RestException(t));
+                                                return null;
+                                            }
+                                        }
+                                        asyncResponse.resume(Response.noContent().build());
+                                        return null;
+                                    });
                                 });
                             } else {
-                                internalExpireMessagesByTimestampForSinglePartitionAsync(partitionMetadata, subName,
-                                        expireTimeInSeconds, authoritative)
-                                        .thenAccept(unused -> asyncResponse.resume(Response.noContent().build()))
-                                        .exceptionally(e -> {
-                                            Throwable cause = e.getCause();
-                                            log.error("[{}] Failed to expire messages up to {} on {}", clientAppId(),
-                                                    expireTimeInSeconds, topicName, cause);
-                                            resumeAsyncResponseExceptionally(asyncResponse, cause);
-                                            return null;
-                                        });
+                                return internalExpireMessagesByTimestampForSinglePartitionAsync(partitionMetadata,
+                                        subName, expireTimeInSeconds, authoritative)
+                                        .thenAccept(unused -> asyncResponse.resume(Response.noContent().build()));
                             }
                         }
-                    }).exceptionally(e -> {
-                        Throwable cause = e.getCause();
-                        log.error("[{}] Failed to expire messages up to {} on {}", clientAppId(), expireTimeInSeconds,
-                                topicName, cause);
-                        resumeAsyncResponseExceptionally(asyncResponse, cause);
-                        return null;
-                    })).exceptionally(e -> {
-                        Throwable cause = e.getCause();
-                        log.error("[{}] Failed to validate global namespace ownership to expire messages up to {} on {}"
-                                , clientAppId(), expireTimeInSeconds, topicName, cause);
-                        resumeAsyncResponseExceptionally(asyncResponse, cause);
-                        return null;
-                    });
-    }
-
-    // this method used in internalExpireMessagesForAllSubscriptionsForNonPartitionedTopic,
-    private void internalExpireMessagesByTimestampForSinglePartition(String subName, int expireTimeInSeconds,
-            boolean authoritative) {
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
-        try {
-            internalExpireMessagesByTimestampForSinglePartitionAsync(partitionMetadata, subName, expireTimeInSeconds,
-                    authoritative).join();
-        } catch (CompletionException ce) {
-            if (ce.getCause() instanceof WebApplicationException) {
-                throw (WebApplicationException) ce.getCause();
-            } else {
-                throw new RestException(ce.getCause());
-            }
-        }
+                    })
+        ).exceptionally(e -> {
+            Throwable cause = e.getCause();
+            log.error("[{}] Failed to expire messages up to {} on {}", clientAppId(), expireTimeInSeconds, topicName,
+                    cause);
+            resumeAsyncResponseExceptionally(asyncResponse, cause);
+            return null;
+        });
     }
 
     private CompletableFuture<Void> internalExpireMessagesByTimestampForSinglePartitionAsync(
@@ -3461,54 +3422,48 @@ public class PersistentTopicsBase extends AdminResource {
                             return;
                         }
                         PersistentTopic topic = (PersistentTopic) t;
-                        try {
-                            boolean issued;
-                            if (subName.startsWith(topic.getReplicatorPrefix())) {
-                                String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
-                                PersistentReplicator repl = (PersistentReplicator) topic
-                                        .getPersistentReplicator(remoteCluster);
-                                checkNotNull(repl);
-                                issued = repl.expireMessages(expireTimeInSeconds);
-                            } else {
-                                PersistentSubscription sub = topic.getSubscription(subName);
-                                checkNotNull(sub);
-                                issued = sub.expireMessages(expireTimeInSeconds);
-                            }
-                            if (issued) {
-                                log.info("[{}] Message expire started up to {} on {} {}", clientAppId(),
-                                        expireTimeInSeconds, topicName, subName);
-                                resultFuture.complete(__);
-                            } else {
-                                if (log.isDebugEnabled()) {
-                                    log.debug("Expire message by timestamp not issued on topic {} for subscription {} "
-                                            + "due to ongoing message expiration not finished or subscription almost"
-                                            + " catch up. If it's performed on a partitioned topic operation might "
-                                            + "succeeded on other partitions, please check stats of individual "
-                                            + "partition.", topicName, subName);
-                                }
-                                resultFuture.completeExceptionally(new RestException(Status.CONFLICT, "Expire message "
-                                        + "by timestamp not issued on topic " + topicName + " for subscription "
-                                        + subName + " due to ongoing message expiration not finished or subscription "
-                                        + "almost catch  up. If it's performed on a partitioned topic operation might"
-                                        + " succeeded on other partitions, please check stats of individual partition."
-                                ));
-                                return;
-                            }
-                        } catch (Exception exception) {
-                            resultFuture.completeExceptionally(exception);
+
+                        boolean issued;
+                        if (subName.startsWith(topic.getReplicatorPrefix())) {
+                            String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
+                            PersistentReplicator repl = (PersistentReplicator) topic
+                                    .getPersistentReplicator(remoteCluster);
+                            checkNotNull(repl);
+                            issued = repl.expireMessages(expireTimeInSeconds);
+                        } else {
+                            PersistentSubscription sub = topic.getSubscription(subName);
+                            checkNotNull(sub);
+                            issued = sub.expireMessages(expireTimeInSeconds);
                         }
-                        }).exceptionally(e -> {
-                                resultFuture.completeExceptionally(e);
-                                return null;
-                        })
+                        if (issued) {
+                            log.info("[{}] Message expire started up to {} on {} {}", clientAppId(),
+                                    expireTimeInSeconds, topicName, subName);
+                            resultFuture.complete(__);
+                        } else {
+                            if (log.isDebugEnabled()) {
+                                log.debug("Expire message by timestamp not issued on topic {} for subscription {} "
+                                        + "due to ongoing message expiration not finished or subscription almost"
+                                        + " catch up. If it's performed on a partitioned topic operation might "
+                                        + "succeeded on other partitions, please check stats of individual "
+                                        + "partition.", topicName, subName);
+                            }
+                            resultFuture.completeExceptionally(new RestException(Status.CONFLICT, "Expire message "
+                                    + "by timestamp not issued on topic " + topicName + " for subscription "
+                                    + subName + " due to ongoing message expiration not finished or subscription "
+                                    + "almost catch  up. If it's performed on a partitioned topic operation might"
+                                    + " succeeded on other partitions, please check stats of individual partition."
+                            ));
+                            return;
+                        }
+                    })
                     ).exceptionally(e -> {
-                        resultFuture.completeExceptionally(e);
-                        return null;
-                    });
-                } catch (Exception e) {
                     resultFuture.completeExceptionally(e);
                     return null;
-                }
+                });
+            } catch (Exception e) {
+                resultFuture.completeExceptionally(e);
+                return null;
+            }
             return resultFuture;
         }
     }
