@@ -125,6 +125,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     private LongAdder bytesInCounter = new LongAdder();
     private LongAdder msgInCounter = new LongAdder();
 
+    private static final AtomicLongFieldUpdater<AbstractTopic> RATE_LIMITED_UPDATER =
+            AtomicLongFieldUpdater.newUpdater(AbstractTopic.class, "publishRateLimitedTimes");
+    protected volatile long publishRateLimitedTimes = 0;
+
     protected volatile Optional<Long> topicEpoch = Optional.empty();
     private volatile boolean hasExclusiveProducer;
     // pointer to the exclusive producer
@@ -645,6 +649,11 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         addEntryLatencyStatsUsec.addValue(unit.toMicros(latency));
 
         PUBLISH_LATENCY.observe(latency, unit);
+    }
+
+    @Override
+    public long increasePublishLimitedTimes() {
+        return RATE_LIMITED_UPDATER.incrementAndGet(this);
     }
 
     protected void setSchemaCompatibilityStrategy(Policies policies) {

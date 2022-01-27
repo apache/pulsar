@@ -76,6 +76,9 @@ public class TopicStatsImpl implements TopicStats {
     /** Get estimated total unconsumed or backlog size in bytes. */
     public long backlogSize;
 
+    /** The number of times the publishing rate limit was triggered. */
+    public long publishRateLimitedTimes;
+
     /** Get the publish time of the earliest message over all the backlogs. */
     public long earliestMsgPublishTimeInBacklogs;
 
@@ -163,6 +166,7 @@ public class TopicStatsImpl implements TopicStats {
         this.lastOffloadLedgerId = 0;
         this.lastOffloadFailureTimeStamp = 0;
         this.lastOffloadSuccessTimeStamp = 0;
+        this.publishRateLimitedTimes = 0L;
         this.compaction.reset();
     }
 
@@ -185,6 +189,7 @@ public class TopicStatsImpl implements TopicStats {
         this.averageMsgSize = newAverageMsgSize;
         this.storageSize += stats.storageSize;
         this.backlogSize += stats.backlogSize;
+        this.publishRateLimitedTimes += stats.publishRateLimitedTimes;
         this.offloadedStorageSize += stats.offloadedStorageSize;
         this.nonContiguousDeletedMessagesRanges += stats.nonContiguousDeletedMessagesRanges;
         this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;

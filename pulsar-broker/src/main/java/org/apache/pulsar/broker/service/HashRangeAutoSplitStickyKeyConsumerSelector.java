@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -159,9 +158,5 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
             return false;
         }
         return (num & num - 1) == 0;
-    }
-
-    Map<Integer, Consumer> getRangeConsumer() {
-        return Collections.unmodifiableMap(rangeMap);
     }
 }
