@@ -9,7 +9,7 @@ Pulsar provides an easy option for applications that are currently written using
 
 ## Using the Pulsar Kafka compatibility wrapper
 
-In an existing application, change the regular Kafka client dependency and replace it with the Pulsar Kafka wrapper. Remove the following dependency in `pom.xml`:
+In an  application, change the regular Kafka client dependency and replace it with the Pulsar Kafka wrapper. Remove the following dependency in `pom.xml`:
 
 ```xml
 <dependency>
