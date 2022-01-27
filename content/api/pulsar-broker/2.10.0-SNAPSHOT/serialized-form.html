@@ -1285,25 +1285,29 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </li>
 </ul>
 </li>
-<li class="blockList"><a id="org.apache.pulsar.client.impl.NegativeAckRedeliveryExponentialBackoff">
+<li class="blockList"><a id="org.apache.pulsar.client.impl.MultiplierRedeliveryBackoff">
 <!--   -->
 </a>
-<h3>Class org.apache.pulsar.client.impl.NegativeAckRedeliveryExponentialBackoff extends java.lang.Object implements Serializable</h3>
+<h3>Class org.apache.pulsar.client.impl.MultiplierRedeliveryBackoff extends java.lang.Object implements Serializable</h3>
 <ul class="blockList">
 <li class="blockList">
 <h3>Serialized Fields</h3>
 <ul class="blockList">
 <li class="blockList">
-<h4>maxBitShift</h4>
-<pre>int maxBitShift</pre>
+<h4>maxDelayMs</h4>
+<pre>long maxDelayMs</pre>
 </li>
 <li class="blockList">
-<h4>maxNackTimeMs</h4>
-<pre>long maxNackTimeMs</pre>
+<h4>maxMultiplierPow</h4>
+<pre>int maxMultiplierPow</pre>
+</li>
+<li class="blockList">
+<h4>minDelayMs</h4>
+<pre>long minDelayMs</pre>
 </li>
 <li class="blockListLast">
-<h4>minNackTimeMs</h4>
-<pre>long minNackTimeMs</pre>
+<h4>multiplier</h4>
+<pre>double multiplier</pre>
 </li>
 </ul>
 </li>

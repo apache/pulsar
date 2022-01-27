@@ -138,7 +138,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <pre>public class <span class="typeNameLabel">UniformLoadShedder</span>
 extends java.lang.Object
 implements <a href="../LoadSheddingStrategy.html" title="interface in org.apache.pulsar.broker.loadbalance">LoadSheddingStrategy</a></pre>
-<div class="block">This strategy tends to distribute load uniformly across all brokers. This strategy checks laod difference between
+<div class="block">This strategy tends to distribute load uniformly across all brokers. This strategy checks load difference between
  broker with highest load and broker with lowest load. If the difference is higher than configured thresholds
  <code>ServiceConfiguration.getLoadBalancerMsgRateDifferenceShedderThreshold()</code> and
  <code>ServiceConfiguration.getLoadBalancerMsgRateDifferenceShedderThreshold()</code> then it finds out bundles which can

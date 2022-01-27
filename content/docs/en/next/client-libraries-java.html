@@ -354,7 +354,8 @@ Consumer consumer = client.newConsumer()
 <tr><td><code>deadLetterPolicy</code></td><td>DeadLetterPolicy</td><td>Dead letter policy for consumers.<br /><br />By default, some messages are probably redelivered many times, even to the extent that it never stops.<br /><br />By using the dead letter mechanism, messages have the max redelivery count. <strong>When exceeding the maximum number of redeliveries, messages are sent to the Dead Letter Topic and acknowledged automatically</strong>.<br /><br />You can enable the dead letter mechanism by setting <code>deadLetterPolicy</code>.<br /><br /><strong>Example</strong><br /><br /><code>client.newConsumer()<br />.deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10).build())<br />.subscribe();</code><br /><br />Default dead letter topic name is <code>{TopicName}-{Subscription}-DLQ</code>.<br /><br />To set a custom dead letter topic name:<br /><code>client.newConsumer()<br />.deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10)<br />.deadLetterTopic(&quot;your-topic-name&quot;).build())<br />.subscribe();</code><br /><br />When specifying the dead letter policy while not specifying <code>ackTimeoutMillis</code>, you can set the ack timeout to 30000 millisecond.</td><td>None</td></tr>
 <tr><td><code>autoUpdatePartitions</code></td><td>boolean</td><td>If <code>autoUpdatePartitions</code> is enabled, a consumer subscribes to partition increasement automatically.<br /><br /><strong>Note</strong>: this is only for partitioned consumers.</td><td>true</td></tr>
 <tr><td><code>replicateSubscriptionState</code></td><td>boolean</td><td>If <code>replicateSubscriptionState</code> is enabled, a subscription state is replicated to geo-replicated clusters.</td><td>false</td></tr>
-<tr><td><code>negativeAckRedeliveryBackoff</code></td><td>NegativeAckRedeliveryBackoff</td><td>Interface for custom message is negativeAcked policy. You can specify <code>NegativeAckRedeliveryBackoff</code> for a consumer.</td><td><code>NegativeAckRedeliveryExponentialBackoff</code></td></tr>
+<tr><td><code>negativeAckRedeliveryBackoff</code></td><td>RedeliveryBackoff</td><td>Interface for custom message is negativeAcked policy. You can specify <code>RedeliveryBackoff</code> for a consumer.</td><td><code>MultiplierRedeliveryBackoff</code></td></tr>
+<tr><td><code>ackTimeoutRedeliveryBackoff</code></td><td>RedeliveryBackoff</td><td>Interface for custom message is ackTimeout policy. You can specify <code>RedeliveryBackoff</code> for a consumer.</td><td><code>MultiplierRedeliveryBackoff</code></td></tr>
 </tbody>
 </table>
 <p>You can configure parameters if you do not want to use the default configuration. For a full list, see the Javadoc for the <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ConsumerBuilder">ConsumerBuilder</a>
@@ -406,21 +407,51 @@ consumer.acknowledge(messages)
 </code></pre>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="negative-acknowledgment-redelivery-backoff"></a><a href="#negative-acknowledgment-redelivery-backoff" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Negative acknowledgment redelivery backoff</h3>
-<p>The <code>NegativeAckRedeliveryBackoff</code> introduces a redelivery backoff mechanism. You can achieve redelivery with different delays by setting <code>redeliveryCount</code> of messages.</p>
+<p>The <code>RedeliveryBackoff</code> introduces a redelivery backoff mechanism. You can achieve redelivery with different delays by setting <code>redeliveryCount</code> of messages.</p>
 <pre><code class="hljs css language-java">Consumer consumer =  client.newConsumer()
         .topic(<span class="hljs-string">"my-topic"</span>)
         .subscriptionName(<span class="hljs-string">"my-subscription"</span>)
-        .negativeAckRedeliveryBackoff(NegativeAckRedeliveryExponentialBackoff.builder()
-                .minNackTimeMs(<span class="hljs-number">1000</span>)
-                .maxNackTimeMs(<span class="hljs-number">60</span> * <span class="hljs-number">1000</span>)
+        .negativeAckRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+                .minDelayMs(<span class="hljs-number">1000</span>)
+                .maxDelayMs(<span class="hljs-number">60</span> * <span class="hljs-number">1000</span>)
                 .build())
         .subscribe();
 </code></pre>
+<h3><a class="anchor" aria-hidden="true" id="acknowledgement-timeout-redelivery-backoff"></a><a href="#acknowledgement-timeout-redelivery-backoff" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Acknowledgement timeout redelivery backoff</h3>
+<p>The <code>RedeliveryBackoff</code> introduces a redelivery backoff mechanism. You can redeliver messages with different delays by setting the number
+of times the messages is retried.</p>
+<pre><code class="hljs css language-java">Consumer consumer =  client.newConsumer()
+        .topic(<span class="hljs-string">"my-topic"</span>)
+        .subscriptionName(<span class="hljs-string">"my-subscription"</span>)
+        .ackTimeout(<span class="hljs-number">10</span>, TimeUnit.SECOND)
+        .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+                .minDelayMs(<span class="hljs-number">1000</span>)
+                .maxDelayMs(<span class="hljs-number">60000</span>)
+                .multiplier(<span class="hljs-number">2</span>)
+                .build())
+        .subscribe();
+</code></pre>
+<p>The message redelivery behavior should be as follows.</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Redelivery count</th><th style="text-align:left">Redelivery delay</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left">1</td><td style="text-align:left">10 + 1 seconds</td></tr>
+<tr><td style="text-align:left">2</td><td style="text-align:left">10 + 2 seconds</td></tr>
+<tr><td style="text-align:left">3</td><td style="text-align:left">10 + 4 seconds</td></tr>
+<tr><td style="text-align:left">4</td><td style="text-align:left">10 + 8 seconds</td></tr>
+<tr><td style="text-align:left">5</td><td style="text-align:left">10 + 16 seconds</td></tr>
+<tr><td style="text-align:left">6</td><td style="text-align:left">10 + 32 seconds</td></tr>
+<tr><td style="text-align:left">7</td><td style="text-align:left">10 + 60 seconds</td></tr>
+<tr><td style="text-align:left">8</td><td style="text-align:left">10 + 60 seconds</td></tr>
+</tbody>
+</table>
 <blockquote>
 <p><strong>Note</strong></p>
 <ul>
 <li>The <code>negativeAckRedeliveryBackoff</code> does not work with <code>consumer.negativeAcknowledge(MessageId messageId)</code> because you are not able to get the redelivery count from the message ID.</li>
-<li>If a consumer crashes, it triggers the redelivery of unacked messages. In this case, <code>NegativeAckRedeliveryBackoff</code> does not take effect and the messages might get redelivered earlier than the delay time from the backoff.</li>
+<li>If a consumer crashes, it triggers the redelivery of unacked messages. In this case, <code>RedeliveryBackoff</code> does not take effect and the messages might get redelivered earlier than the delay time from the backoff.</li>
 </ul>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="multi-topic-subscriptions"></a><a href="#multi-topic-subscriptions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Multi-topic subscriptions</h3>
@@ -856,7 +887,7 @@ PulsarClient client = PulsarClient.builder()
     .authentication(auth)
     .build();
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/en/next/client-libraries"><span class="arrow-prev">← </span><span>Overview</span></a><a class="docs-next button" href="/docs/en/next/client-libraries-go"><span>Go</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#installation">Installation</a><ul class="toc-headings"><li><a href="#maven">Maven</a></li><li><a href="#gradle">Gradle</a></li></ul></li><li><a href="#connection-urls">Connection URLs</a></li><li><a href="#client">Client</a><ul class="toc-headings"><li><a href="#default-broker-urls-for-standalone-clusters">Default broker URLs for standalone clusters</a></li><li><a href="#client-memory-allocator-configuration">Client memory allocator configuration</a></li></ul></li><li><a href="#producer">Producer</a><ul class="toc-headings"><li><a href="#configure-producer">Configure producer</a></li><li><a href="#message-routing">Message routing</a></li><li><a href="#async-send">Async send</a></li><li><a href="#configure-messages">Configure messages</a></li></ul></li><li><a href="#consumer">Consumer</a><ul class="toc-headings"><li><a href="#configure-consumer">Configure consumer</a></li><li><a href="#async-receive">Async receive</a></li><li><a href="#batch-receive">Batch receive</a></li><li><a href="#negative-acknowledgment-redelivery-backoff">Negative acknowledgment redelivery backoff</a></li><li><a href="#multi-topic-subscriptions">Multi-topic subscriptions</a></li><li><a href="#subscription-types">Subscription types</a></li></ul></li><li><a href="#reader">Reader</a><ul class="toc-headings"><li><a href="#configure-reader">Configure reader</a></li><li><a href="#sticky-key-range-reader">Sticky key range reader</a></li></ul></li><li><a href="#tableview">TableView</a><ul class="toc-headings"><li><a href="#configure-tableview">Configure TableView</a></li></ul></li><li><a href="#schema">Schema</a><ul class="toc-headings"><li><a href="#avrobasestructschema-example">AvroBaseStructSchema example</a></li><li><a href="#protobufnativeschema-example">ProtobufNativeSchema example</a></li></ul></li><li><a href="#authentication">Authentication</a><ul class="toc-headings"><li><a href="#tls-authentication">TLS Authentication</a></li><li><a href="#athenz">Athenz</a></li><li><a href="#oauth2">Oauth2</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/en/next/client-libraries"><span class="arrow-prev">← </span><span>Overview</span></a><a class="docs-next button" href="/docs/en/next/client-libraries-go"><span>Go</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#installation">Installation</a><ul class="toc-headings"><li><a href="#maven">Maven</a></li><li><a href="#gradle">Gradle</a></li></ul></li><li><a href="#connection-urls">Connection URLs</a></li><li><a href="#client">Client</a><ul class="toc-headings"><li><a href="#default-broker-urls-for-standalone-clusters">Default broker URLs for standalone clusters</a></li><li><a href="#client-memory-allocator-configuration">Client memory allocator configuration</a></li></ul></li><li><a href="#producer">Producer</a><ul class="toc-headings"><li><a href="#configure-producer">Configure producer</a></li><li><a href="#message-routing">Message routing</a></li><li><a href="#async-send">Async send</a></li><li><a href="#configure-messages">Configure messages</a></li></ul></li><li><a href="#consumer">Consumer</a><ul class="toc-headings"><li><a href="#configure-consumer">Configure consumer</a></li><li><a href="#async-receive">Async receive</a></li><li><a href="#batch-receive">Batch receive</a></li><li><a href="#negative-acknowledgment-redelivery-backoff">Negative acknowledgment redelivery backoff</a></li><li><a href="#acknowledgement-timeout-redelivery-backoff">Acknowledgement timeout redelivery backoff</a></li><li><a href="#multi-topic-subscriptions">Multi-topic subscriptions</a></li><li><a href="#subscription-types">Subscription types</a></li></ul></li><li><a href="#reader">Reader</a><ul class="toc-headings"><li><a href="#configure-reader">Configure reader</a></li><li><a href="#sticky-key-range-reader">Sticky key range reader</a></li></ul></li><li><a href="#tableview">TableView</a><ul class="toc-headings"><li><a href="#configure-tableview">Configure TableView</a></li></ul></li><li><a href="#schema">Schema</a><ul class="toc-headings"><li><a href="#avrobasestructschema-example">AvroBaseStructSchema example</a></li><li><a href="#protobufnativeschema-example">ProtobufNativeSchema example</a></li></ul></li><li><a href="#authentication">Authentication</a><ul class="toc-headings"><li><a href="#tls-authentication">TLS Authentication</a></li><li><a href="#athenz">Athenz</a></li><li><a href="#oauth2">Oauth2</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

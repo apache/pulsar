@@ -188,6 +188,11 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Set the timeout for unacked messages, truncated to the nearest millisecond.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#ackTimeoutRedeliveryBackoff(org.apache.pulsar.client.api.RedeliveryBackoff)">ackTimeoutRedeliveryBackoff(RedeliveryBackoff)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
+<dd>
+<div class="block">Notice: the redeliveryBackoff will not work with `consumer.negativeAcknowledge(MessageId messageId)`
+ because we are not able to get the redelivery count from the message ID.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#ackTimeoutTickTime(long,java.util.concurrent.TimeUnit)">ackTimeoutTickTime(long, TimeUnit)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
 <dd>
 <div class="block">Define the granularity of the ack-timeout redelivery.</div>
@@ -2391,15 +2396,10 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Acknowledge the failure to process <a href="org/apache/pulsar/client/api/Messages.html" title="interface in org.apache.pulsar.client.api"><code>Messages</code></a>.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#negativeAckRedeliveryBackoff(org.apache.pulsar.client.api.NegativeAckRedeliveryBackoff)">negativeAckRedeliveryBackoff(NegativeAckRedeliveryBackoff)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#negativeAckRedeliveryBackoff(org.apache.pulsar.client.api.RedeliveryBackoff)">negativeAckRedeliveryBackoff(RedeliveryBackoff)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
 <dd>
 <div class="block">Notice: the negativeAckRedeliveryBackoff will not work with `consumer.negativeAcknowledge(MessageId messageId)`
  because we are not able to get the redelivery count from the message ID.</div>
-</dd>
-<dt><a href="org/apache/pulsar/client/api/NegativeAckRedeliveryBackoff.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">NegativeAckRedeliveryBackoff</span></a> - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
-<dd>
-<div class="block">Interface for custom message is negativeAcked policy, users can specify a <a href="org/apache/pulsar/client/api/NegativeAckRedeliveryBackoff.html" title="interface in org.apache.pulsar.client.api"><code>NegativeAckRedeliveryBackoff</code></a> for
- a consumer.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#negativeAckRedeliveryDelay(long,java.util.concurrent.TimeUnit)">negativeAckRedeliveryDelay(long, TimeUnit)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
 <dd>
@@ -2563,7 +2563,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Create a new transaction asynchronously.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/NegativeAckRedeliveryBackoff.html#next(int)">next(int)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/NegativeAckRedeliveryBackoff.html" title="interface in org.apache.pulsar.client.api">NegativeAckRedeliveryBackoff</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/RedeliveryBackoff.html#next(int)">next(int)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/RedeliveryBackoff.html" title="interface in org.apache.pulsar.client.api">RedeliveryBackoff</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/SubscriptionMode.html#NonDurable">NonDurable</a></span> - org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/SubscriptionMode.html" title="enum in org.apache.pulsar.client.api">SubscriptionMode</a></dt>
 <dd>&nbsp;</dd>
@@ -3215,6 +3215,11 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Consumer.html#redeliverUnacknowledgedMessages()">redeliverUnacknowledgedMessages()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a></dt>
 <dd>
 <div class="block">Redelivers all the unacknowledged messages.</div>
+</dd>
+<dt><a href="org/apache/pulsar/client/api/RedeliveryBackoff.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">RedeliveryBackoff</span></a> - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
+<dd>
+<div class="block">Interface for custom message is negativeAcked policy, users can specify a <a href="org/apache/pulsar/client/api/RedeliveryBackoff.html" title="interface in org.apache.pulsar.client.api"><code>RedeliveryBackoff</code></a> for
+ a consumer.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/api/AuthData.html#REFRESH_AUTH_DATA">REFRESH_AUTH_DATA</a></span> - Static variable in class org.apache.pulsar.common.api.<a href="org/apache/pulsar/common/api/AuthData.html" title="class in org.apache.pulsar.common.api">AuthData</a></dt>
 <dd>&nbsp;</dd>
