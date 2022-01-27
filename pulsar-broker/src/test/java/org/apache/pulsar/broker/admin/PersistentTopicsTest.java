@@ -1196,8 +1196,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Ignore("Timeout is not supported")
-    @Test
+    @Test(enabled = false) // Currently, timeout is not supported.
     public void testResetCursorReturnTimeoutWhenZKTimeout() {
         String topic = "persistent://" + testTenant + "/" + testNamespace + "/" + "topic-2";
         BrokerService brokerService = spy(pulsar.getBrokerService());
