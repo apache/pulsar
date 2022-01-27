@@ -72,11 +72,11 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
                 managedLedgerConfig);
         mlTransactionLog.initialize().join();
-        CompletableFuture<TransactionMetadataStore> completableFuture1 = new CompletableFuture<>();
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
                         new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl(),
-                        mlTransactionSequenceIdGenerator, completableFuture1);
+                        mlTransactionSequenceIdGenerator);
+        transactionMetadataStore.init().get();
         int checkReplayRetryCount = 0;
         while (true) {
             checkReplayRetryCount++;
@@ -148,12 +148,11 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
                 managedLedgerConfig);
         mlTransactionLog.initialize().join();
-        CompletableFuture<TransactionMetadataStore> completableFuture1 = new CompletableFuture<>();
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
                         new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl(),
-                        mlTransactionSequenceIdGenerator, completableFuture1);
-
+                        mlTransactionSequenceIdGenerator);
+        transactionMetadataStore.init().get();
 
         Awaitility.await().until(transactionMetadataStore::checkIfReady);
         TxnID txnID = transactionMetadataStore.newTransaction(20000).get();
@@ -176,11 +175,11 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
                 managedLedgerConfig);
         mlTransactionLog.initialize().join();
-        CompletableFuture<TransactionMetadataStore> completableFuture2 = new CompletableFuture<>();
         transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
                         new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl(),
-                        mlTransactionSequenceIdGenerator, completableFuture2);
+                        mlTransactionSequenceIdGenerator);
+        transactionMetadataStore.init().get();
 
         Awaitility.await().until(transactionMetadataStore::checkIfReady);
         txnID = transactionMetadataStore.newTransaction(100000).get();
@@ -202,12 +201,12 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
                 managedLedgerConfig);
         mlTransactionLog.initialize().join();
-        CompletableFuture<TransactionMetadataStore> completableFuture1 = new CompletableFuture<>();
 
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
                         new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl(),
-                        mlTransactionSequenceIdGenerator, completableFuture1);
+                        mlTransactionSequenceIdGenerator);
+        transactionMetadataStore.init().get();
         int checkReplayRetryCount = 0;
         while (true) {
             if (checkReplayRetryCount > 3) {
@@ -247,12 +246,12 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                 MLTransactionLogImpl txnLog2 = new MLTransactionLogImpl(transactionCoordinatorID, factory,
                         managedLedgerConfig);
                 txnLog2.initialize().join();
-                CompletableFuture<TransactionMetadataStore> completableFuture2 = new CompletableFuture<>();
 
                 MLTransactionMetadataStore transactionMetadataStoreTest =
                         new MLTransactionMetadataStore(transactionCoordinatorID,
                                 txnLog2, new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl(),
-                                mlTransactionSequenceIdGenerator, completableFuture2);
+                                mlTransactionSequenceIdGenerator);
+                transactionMetadataStoreTest.init().get();
 
                 while (true) {
                     if (checkReplayRetryCount > 6) {
@@ -318,11 +317,11 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
                 managedLedgerConfig);
         mlTransactionLog.initialize().join();
-        CompletableFuture<TransactionMetadataStore> completableFuture1 = new CompletableFuture<>();
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
                         new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl(),
-                        mlTransactionSequenceIdGenerator, completableFuture1);
+                        mlTransactionSequenceIdGenerator);
+        transactionMetadataStore.init().get();
         int checkReplayRetryCount = 0;
         while (true) {
             if (checkReplayRetryCount > 3) {
@@ -386,11 +385,11 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
                 managedLedgerConfig);
         mlTransactionLog.initialize().join();
-        CompletableFuture<TransactionMetadataStore> completableFuture1 = new CompletableFuture<>();
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
                         new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl(),
-                        mlTransactionSequenceIdGenerator, completableFuture1);
+                        mlTransactionSequenceIdGenerator);
+        transactionMetadataStore.init().get();
 
         Awaitility.await().until(transactionMetadataStore::checkIfReady);
 
@@ -405,11 +404,11 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
                 managedLedgerConfig);
         mlTransactionLog.initialize().join();
-        CompletableFuture<TransactionMetadataStore> completableFuture2 = new CompletableFuture<>();
         transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
                         new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl(),
-                        mlTransactionSequenceIdGenerator, completableFuture2);
+                        mlTransactionSequenceIdGenerator);
+        transactionMetadataStore.init().get();
 
         Awaitility.await().until(transactionMetadataStore::checkIfReady);
     }
@@ -428,11 +427,11 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
                 managedLedgerConfig);
         mlTransactionLog.initialize().join();
-        CompletableFuture<TransactionMetadataStore> completableFuture1 = new CompletableFuture<>();
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
                         new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl(),
-                        mlTransactionSequenceIdGenerator, completableFuture1);
+                        mlTransactionSequenceIdGenerator);
+        transactionMetadataStore.init().get();
 
         Awaitility.await().until(transactionMetadataStore::checkIfReady);
         transactionMetadataStore.newTransaction(5000).get();

@@ -653,12 +653,11 @@ public class TransactionTest extends TransactionTestBase {
         doNothing().when(transactionRecoverTracker).handleCommittingAndAbortingTransaction();
         TransactionTimeoutTracker timeoutTracker = mock(TransactionTimeoutTracker.class);
         doNothing().when(timeoutTracker).start();
-        CompletableFuture<TransactionMetadataStore> completableFuture1 = new CompletableFuture<>();
         MLTransactionMetadataStore metadataStore1 =
                 new MLTransactionMetadataStore(new TransactionCoordinatorID(1),
                         mlTransactionLog, timeoutTracker, transactionRecoverTracker,
-                        mlTransactionSequenceIdGenerator, completableFuture1);
-        completableFuture1.get();
+                        mlTransactionSequenceIdGenerator);
+        metadataStore1.init().get();
         Awaitility.await().untilAsserted(() ->
                 assertEquals(metadataStore1.getCoordinatorStats().state, "Ready"));
 
@@ -668,12 +667,11 @@ public class TransactionTest extends TransactionTestBase {
             return null;
         }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), any());
 
-        CompletableFuture<TransactionMetadataStore> completableFuture2 = new CompletableFuture<>();
         MLTransactionMetadataStore metadataStore2 =
                 new MLTransactionMetadataStore(new TransactionCoordinatorID(1),
                         mlTransactionLog, timeoutTracker, transactionRecoverTracker,
-                        mlTransactionSequenceIdGenerator, completableFuture2);
-        completableFuture2.get();
+                        mlTransactionSequenceIdGenerator);
+        metadataStore2.init().get();
         Awaitility.await().untilAsserted(() ->
                 assertEquals(metadataStore2.getCoordinatorStats().state, "Ready"));
     }
