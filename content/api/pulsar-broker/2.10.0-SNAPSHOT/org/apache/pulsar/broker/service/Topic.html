@@ -26,7 +26,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6,"i22":6,"i23":6,"i24":18,"i25":6,"i26":18,"i27":6,"i28":6,"i29":6,"i30":6,"i31":6,"i32":6,"i33":6,"i34":6,"i35":6,"i36":6,"i37":6,"i38":6,"i39":6,"i40":6,"i41":6,"i42":6,"i43":6,"i44":6,"i45":6,"i46":6,"i47":6,"i48":18,"i49":6,"i50":6,"i51":6,"i52":6,"i53":6,"i54":6,"i55":6,"i56":6,"i57":6,"i58":38,"i59":6,"i60":6,"i61":6};
+var data = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6,"i22":6,"i23":6,"i24":18,"i25":6,"i26":18,"i27":6,"i28":6,"i29":6,"i30":6,"i31":6,"i32":6,"i33":6,"i34":6,"i35":6,"i36":6,"i37":6,"i38":6,"i39":6,"i40":6,"i41":6,"i42":6,"i43":6,"i44":6,"i45":6,"i46":6,"i47":6,"i48":6,"i49":18,"i50":6,"i51":6,"i52":6,"i53":6,"i54":6,"i55":6,"i56":6,"i57":6,"i58":6,"i59":38,"i60":6,"i61":6,"i62":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],16:["t5","Default Methods"],32:["t6","Deprecated Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -335,141 +335,148 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i27" class="rowColor">
+<td class="colFirst"><code>org.apache.pulsar.common.policies.data.HierarchyTopicPolicies</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getHierarchyTopicPolicies()">getHierarchyTopicPolicies</a></span>()</code></th>
+<td class="colLast">
+<div class="block">Get HierarchyTopicPolicies.</div>
+</td>
+</tr>
+<tr id="i28" class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;org.apache.pulsar.common.policies.data.PersistentTopicInternalStats&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getInternalStats(boolean)">getInternalStats</a></span>&#8203;(boolean&nbsp;includeLedgerMetadata)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i28" class="altColor">
+<tr id="i29" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;org.apache.pulsar.client.api.MessageId&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getLastMessageId()">getLastMessageId</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i29" class="rowColor">
+<tr id="i30" class="altColor">
 <td class="colFirst"><code>org.apache.bookkeeper.mledger.Position</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getLastPosition()">getLastPosition</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i30" class="altColor">
+<tr id="i31" class="rowColor">
 <td class="colFirst"><code>java.lang.String</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getName()">getName</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i31" class="rowColor">
+<tr id="i32" class="altColor">
 <td class="colFirst"><code>java.util.Map&lt;java.lang.String,&#8203;<a href="Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getProducers()">getProducers</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i32" class="altColor">
+<tr id="i33" class="rowColor">
 <td class="colFirst"><code>org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap&lt;java.lang.String,&#8203;? extends <a href="Replicator.html" title="interface in org.apache.pulsar.broker.service">Replicator</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getReplicators()">getReplicators</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i33" class="rowColor">
+<tr id="i34" class="altColor">
 <td class="colFirst"><code>boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getSchemaValidationEnforced()">getSchemaValidationEnforced</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i34" class="altColor">
+<tr id="i35" class="rowColor">
 <td class="colFirst"><code>org.apache.pulsar.common.policies.data.stats.TopicStatsImpl</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getStats(boolean,boolean,boolean)">getStats</a></span>&#8203;(boolean&nbsp;getPreciseBacklog,
         boolean&nbsp;subscriptionBacklogSize,
         boolean&nbsp;getEarliestTimeInBacklog)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i35" class="rowColor">
+<tr id="i36" class="altColor">
 <td class="colFirst"><code><a href="Subscription.html" title="interface in org.apache.pulsar.broker.service">Subscription</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getSubscription(java.lang.String)">getSubscription</a></span>&#8203;(java.lang.String&nbsp;subscription)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i36" class="altColor">
+<tr id="i37" class="rowColor">
 <td class="colFirst"><code>org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap&lt;java.lang.String,&#8203;? extends <a href="Subscription.html" title="interface in org.apache.pulsar.broker.service">Subscription</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getSubscriptions()">getSubscriptions</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i37" class="rowColor">
+<tr id="i38" class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Boolean&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#hasSchema()">hasSchema</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Whether a topic has had a schema defined for it.</div>
 </td>
 </tr>
-<tr id="i38" class="altColor">
+<tr id="i39" class="rowColor">
 <td class="colFirst"><code>long</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#increasePublishLimitedTimes()">increasePublishLimitedTimes</a></span>()</code></th>
 <td class="colLast">
 <div class="block">increase the publishing limited times.</div>
 </td>
 </tr>
-<tr id="i39" class="rowColor">
+<tr id="i40" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#incrementPublishCount(int,long)">incrementPublishCount</a></span>&#8203;(int&nbsp;numOfMessages,
                      long&nbsp;msgSizeInBytes)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i40" class="altColor">
+<tr id="i41" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#initialize()">initialize</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i41" class="rowColor">
+<tr id="i42" class="altColor">
 <td class="colFirst"><code>boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isBrokerPublishRateExceeded()">isBrokerPublishRateExceeded</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i42" class="altColor">
+<tr id="i43" class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isEncryptionRequired()">isEncryptionRequired</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i43" class="rowColor">
+<tr id="i44" class="altColor">
 <td class="colFirst"><code>boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isPersistent()">isPersistent</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i44" class="altColor">
+<tr id="i45" class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isPublishRateExceeded()">isPublishRateExceeded</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i45" class="rowColor">
+<tr id="i46" class="altColor">
 <td class="colFirst"><code>boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isReplicated()">isReplicated</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i46" class="altColor">
+<tr id="i47" class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isResourceGroupPublishRateExceeded(int,int)">isResourceGroupPublishRateExceeded</a></span>&#8203;(int&nbsp;msgSize,
                                   int&nbsp;numMessages)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i47" class="rowColor">
+<tr id="i48" class="altColor">
 <td class="colFirst"><code>boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isResourceGroupRateLimitingEnabled()">isResourceGroupRateLimitingEnabled</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i48" class="altColor">
+<tr id="i49" class="rowColor">
 <td class="colFirst"><code>default boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isSystemTopic()">isSystemTopic</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i49" class="rowColor">
+<tr id="i50" class="altColor">
 <td class="colFirst"><code>boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isTopicPublishRateExceeded(int,int)">isTopicPublishRateExceeded</a></span>&#8203;(int&nbsp;msgSize,
                           int&nbsp;numMessages)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i50" class="altColor">
+<tr id="i51" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#onPoliciesUpdate(org.apache.pulsar.common.policies.data.Policies)">onPoliciesUpdate</a></span>&#8203;(org.apache.pulsar.common.policies.data.Policies&nbsp;data)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i51" class="rowColor">
+<tr id="i52" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#publishMessage(io.netty.buffer.ByteBuf,org.apache.pulsar.broker.service.Topic.PublishContext)">publishMessage</a></span>&#8203;(io.netty.buffer.ByteBuf&nbsp;headersAndPayload,
               <a href="Topic.PublishContext.html" title="interface in org.apache.pulsar.broker.service">Topic.PublishContext</a>&nbsp;callback)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i52" class="altColor">
+<tr id="i53" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#publishTxnMessage(org.apache.pulsar.client.api.transaction.TxnID,io.netty.buffer.ByteBuf,org.apache.pulsar.broker.service.Topic.PublishContext)">publishTxnMessage</a></span>&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnID,
                  io.netty.buffer.ByteBuf&nbsp;headersAndPayload,
@@ -478,7 +485,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">Publish Transaction message to this Topic's TransactionBuffer.</div>
 </td>
 </tr>
-<tr id="i53" class="rowColor">
+<tr id="i54" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#recordAddLatency(long,java.util.concurrent.TimeUnit)">recordAddLatency</a></span>&#8203;(long&nbsp;latency,
                 java.util.concurrent.TimeUnit&nbsp;unit)</code></th>
@@ -486,29 +493,29 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">record add-latency.</div>
 </td>
 </tr>
-<tr id="i54" class="altColor">
+<tr id="i55" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#removeProducer(org.apache.pulsar.broker.service.Producer)">removeProducer</a></span>&#8203;(<a href="Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a>&nbsp;producer)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i55" class="rowColor">
+<tr id="i56" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#resetBrokerPublishCountAndEnableReadIfRequired(boolean)">resetBrokerPublishCountAndEnableReadIfRequired</a></span>&#8203;(boolean&nbsp;doneReset)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i56" class="altColor">
+<tr id="i57" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#resetTopicPublishCountAndEnableReadIfRequired()">resetTopicPublishCountAndEnableReadIfRequired</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i57" class="rowColor">
+<tr id="i58" class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;<a href="Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#subscribe(org.apache.pulsar.broker.service.SubscriptionOption)">subscribe</a></span>&#8203;(<a href="SubscriptionOption.html" title="class in org.apache.pulsar.broker.service">SubscriptionOption</a>&nbsp;option)</code></th>
 <td class="colLast">
 <div class="block">Subscribe a topic.</div>
 </td>
 </tr>
-<tr id="i58" class="altColor">
+<tr id="i59" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;<a href="Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#subscribe(org.apache.pulsar.broker.service.TransportCnx,java.lang.String,long,org.apache.pulsar.common.api.proto.CommandSubscribe.SubType,int,java.lang.String,boolean,org.apache.pulsar.client.api.MessageId,java.util.Map,boolean,org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition,long,boolean,org.apache.pulsar.common.api.proto.KeySharedMeta)">subscribe</a></span>&#8203;(<a href="TransportCnx.html" title="interface in org.apache.pulsar.broker.service">TransportCnx</a>&nbsp;cnx,
          java.lang.String&nbsp;subscriptionName,
@@ -528,19 +535,19 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 </td>
 </tr>
-<tr id="i59" class="rowColor">
+<tr id="i60" class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#truncate()">truncate</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Truncate a topic.</div>
 </td>
 </tr>
-<tr id="i60" class="altColor">
+<tr id="i61" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#unsubscribe(java.lang.String)">unsubscribe</a></span>&#8203;(java.lang.String&nbsp;subName)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i61" class="rowColor">
+<tr id="i62" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#updateRates(org.apache.pulsar.broker.stats.NamespaceStats,org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats,org.apache.pulsar.utils.StatsOutputStream,org.apache.pulsar.broker.stats.ClusterReplicationMetrics,java.lang.String,boolean)">updateRates</a></span>&#8203;(<a href="../stats/NamespaceStats.html" title="class in org.apache.pulsar.broker.stats">NamespaceStats</a>&nbsp;nsStats,
            org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats&nbsp;currentBundleStats,
@@ -1210,11 +1217,24 @@ java.util.concurrent.CompletableFuture&lt;<a href="Consumer.html" title="class i
 <a id="getBrokerService()">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>getBrokerService</h4>
 <pre class="methodSignature"><a href="BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a>&nbsp;getBrokerService()</pre>
 <div class="block">Get BrokerService.</div>
+<dl>
+<dt><span class="returnLabel">Returns:</span></dt>
+</dl>
+</li>
+</ul>
+<a id="getHierarchyTopicPolicies()">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>getHierarchyTopicPolicies</h4>
+<pre class="methodSignature">org.apache.pulsar.common.policies.data.HierarchyTopicPolicies&nbsp;getHierarchyTopicPolicies()</pre>
+<div class="block">Get HierarchyTopicPolicies.</div>
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
 </dl>

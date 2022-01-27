@@ -220,71 +220,66 @@ implements <a href="Topic.html" title="interface in org.apache.pulsar.broker.ser
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="altColor">
-<td class="colFirst"><code>protected int</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#maxUnackedMessagesOnConsumerAppilied">maxUnackedMessagesOnConsumerAppilied</a></span></code></th>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr class="rowColor">
 <td class="colFirst"><code>protected static long</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS">POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS</a></span></code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>protected boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#preciseTopicPublishRateLimitingEnable">preciseTopicPublishRateLimitingEnable</a></span></code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>protected java.util.concurrent.ConcurrentHashMap&lt;java.lang.String,&#8203;<a href="Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#producers">producers</a></span></code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>protected long</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#publishRateLimitedTimes">publishRateLimitedTimes</a></span></code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>protected java.lang.String</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#replicatorPrefix">replicatorPrefix</a></span></code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>protected <a href="../resourcegroup/ResourceGroupPublishLimiter.html" title="class in org.apache.pulsar.broker.resourcegroup">ResourceGroupPublishLimiter</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#resourceGroupPublishLimiter">resourceGroupPublishLimiter</a></span></code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>protected boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#resourceGroupRateLimitingEnabled">resourceGroupRateLimitingEnabled</a></span></code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>protected org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#schemaCompatibilityStrategy">schemaCompatibilityStrategy</a></span></code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>protected boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#schemaValidationEnforced">schemaValidationEnforced</a></span></code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>protected java.lang.String</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#topic">topic</a></span></code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>protected java.util.Optional&lt;java.lang.Long&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#topicEpoch">topicEpoch</a></span></code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>protected org.apache.pulsar.common.policies.data.HierarchyTopicPolicies</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#topicPolicies">topicPolicies</a></span></code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>protected <a href="PublishRateLimiter.html" title="interface in org.apache.pulsar.broker.service">PublishRateLimiter</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#topicPublishRateLimiter">topicPublishRateLimiter</a></span></code></th>
 <td class="colLast">&nbsp;</td>
@@ -451,7 +446,9 @@ implements <a href="Topic.html" title="interface in org.apache.pulsar.broker.ser
 <tr id="i21" class="rowColor">
 <td class="colFirst"><code>org.apache.pulsar.common.policies.data.HierarchyTopicPolicies</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getHierarchyTopicPolicies()">getHierarchyTopicPolicies</a></span>()</code></th>
-<td class="colLast">&nbsp;</td>
+<td class="colLast">
+<div class="block">Get HierarchyTopicPolicies.</div>
+</td>
 </tr>
 <tr id="i22" class="altColor">
 <td class="colFirst"><code>org.apache.pulsar.common.policies.data.InactiveTopicPolicies</code></td>
@@ -901,15 +898,6 @@ implements <a href="Topic.html" title="interface in org.apache.pulsar.broker.ser
 <li class="blockList">
 <h4>schemaValidationEnforced</h4>
 <pre>protected volatile&nbsp;boolean schemaValidationEnforced</pre>
-</li>
-</ul>
-<a id="maxUnackedMessagesOnConsumerAppilied">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>maxUnackedMessagesOnConsumerAppilied</h4>
-<pre>protected volatile&nbsp;int maxUnackedMessagesOnConsumerAppilied</pre>
 </li>
 </ul>
 <a id="topicPublishRateLimiter">
@@ -1790,6 +1778,13 @@ implements <a href="Topic.html" title="interface in org.apache.pulsar.broker.ser
 <li class="blockList">
 <h4>getHierarchyTopicPolicies</h4>
 <pre class="methodSignature">public&nbsp;org.apache.pulsar.common.policies.data.HierarchyTopicPolicies&nbsp;getHierarchyTopicPolicies()</pre>
+<div class="block"><span class="descfrmTypeLabel">Description copied from interface:&nbsp;<code><a href="Topic.html#getHierarchyTopicPolicies()">Topic</a></code></span></div>
+<div class="block">Get HierarchyTopicPolicies.</div>
+<dl>
+<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
+<dd><code><a href="Topic.html#getHierarchyTopicPolicies()">getHierarchyTopicPolicies</a></code>&nbsp;in interface&nbsp;<code><a href="Topic.html" title="interface in org.apache.pulsar.broker.service">Topic</a></code></dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+</dl>
 </li>
 </ul>
 <a id="updateBrokerSubscriptionTypesEnabled()">

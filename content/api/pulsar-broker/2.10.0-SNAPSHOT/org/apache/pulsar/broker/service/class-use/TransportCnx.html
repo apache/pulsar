@@ -209,13 +209,13 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tbody>
 <tr class="altColor">
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../Consumer.html#%3Cinit%3E(org.apache.pulsar.broker.service.Subscription,org.apache.pulsar.common.api.proto.CommandSubscribe.SubType,java.lang.String,long,int,java.lang.String,int,org.apache.pulsar.broker.service.TransportCnx,java.lang.String,java.util.Map,boolean,org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition,org.apache.pulsar.common.api.proto.KeySharedMeta,org.apache.pulsar.client.api.MessageId)">Consumer</a></span>&#8203;(<a href="../Subscription.html" title="interface in org.apache.pulsar.broker.service">Subscription</a>&nbsp;subscription,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../Consumer.html#%3Cinit%3E(org.apache.pulsar.broker.service.Subscription,org.apache.pulsar.common.api.proto.CommandSubscribe.SubType,java.lang.String,long,int,java.lang.String,boolean,org.apache.pulsar.broker.service.TransportCnx,java.lang.String,java.util.Map,boolean,org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition,org.apache.pulsar.common.api.proto.KeySharedMeta,org.apache.pulsar.client.api.MessageId)">Consumer</a></span>&#8203;(<a href="../Subscription.html" title="interface in org.apache.pulsar.broker.service">Subscription</a>&nbsp;subscription,
         org.apache.pulsar.common.api.proto.CommandSubscribe.SubType&nbsp;subType,
         java.lang.String&nbsp;topicName,
         long&nbsp;consumerId,
         int&nbsp;priorityLevel,
         java.lang.String&nbsp;consumerName,
-        int&nbsp;maxUnackedMessages,
+        boolean&nbsp;isDurable,
         <a href="../TransportCnx.html" title="interface in org.apache.pulsar.broker.service">TransportCnx</a>&nbsp;cnx,
         java.lang.String&nbsp;appId,
         java.util.Map&lt;java.lang.String,&#8203;java.lang.String&gt;&nbsp;metadata,
