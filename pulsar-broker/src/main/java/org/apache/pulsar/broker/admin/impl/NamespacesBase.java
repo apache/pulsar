@@ -1810,7 +1810,7 @@ public abstract class NamespacesBase extends AdminResource {
                         log.error("[{}] Failed to reflect invoke field set while update {} configuration for "
                                         + "namespace {}", clientAppId(), fieldName
                                 , namespaceName, ex);
-                        return FutureUtil.failedFuture(new RestException(ex));
+                        throw new RestException(ex);
                     }
                 });
     }
