@@ -626,8 +626,8 @@ public class PulsarClientImpl implements PulsarClient {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Received topic metadata. partitions: {}", topic, metadata.partitions);
             }
-            if (metadata.partitions > 0 &&
-                    MultiTopicsConsumerImpl.isIllegalMultiTopicsMessageId(conf.getStartMessageId())) {
+            if (metadata.partitions > 0
+                    && MultiTopicsConsumerImpl.isIllegalMultiTopicsMessageId(conf.getStartMessageId())) {
                 readerFuture.completeExceptionally(
                         new PulsarClientException("The partitioned topic startMessageId is illegal"));
                 return;
@@ -863,7 +863,7 @@ public class PulsarClientImpl implements PulsarClient {
                 .thenCompose(pair -> cnxPool.getConnection(pair.getLeft(), pair.getRight()));
     }
 
-    /** visible for pulsar-functions **/
+    /** visible for pulsar-functions. **/
     public Timer timer() {
         return timer;
     }
@@ -938,7 +938,8 @@ public class PulsarClientImpl implements PulsarClient {
         lookup.getPartitionedTopicMetadata(topicName).thenAccept(future::complete).exceptionally(e -> {
             remainingTime.addAndGet(-1 * TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime));
             long nextDelay = Math.min(backoff.next(), remainingTime.get());
-            // skip retry scheduler when set lookup throttle in client or server side which will lead to `TooManyRequestsException`
+            // skip retry scheduler when set lookup throttle in client or server side which will lead to
+            // `TooManyRequestsException`
             boolean isLookupThrottling = !PulsarClientException.isRetriableError(e.getCause())
                 || e.getCause() instanceof PulsarClientException.AuthenticationException;
             if (nextDelay <= 0 || isLookupThrottling) {

@@ -104,9 +104,14 @@ public class PulsarClusterMetadataSetup {
                 description = "Global ZooKeeper quorum connection string", required = false, hidden = true)
         private String globalZookeeper;
 
-        @Parameter(names = { "-cs",
-            "--configuration-store" }, description = "Configuration Store connection string", required = true)
+        @Parameter(names = {"-cs",
+                "--configuration-store"}, description = "Configuration Store connection string", hidden = true)
         private String configurationStore;
+
+        @Parameter(names = {"-cms",
+                "--configuration-metadata-store"}, description = "Configuration Metadata Store connection string",
+                hidden = false)
+        private String configurationMetadataStore;
 
         @Parameter(names = {
             "--initial-num-stream-storage-containers"
@@ -196,21 +201,25 @@ public class PulsarClusterMetadataSetup {
             System.exit(1);
         }
 
-        if (arguments.configurationStore == null && arguments.globalZookeeper == null) {
-            System.err.println("Configuration store address argument is required (--configuration-store)");
+        if (arguments.configurationMetadataStore == null && arguments.configurationStore == null
+                && arguments.globalZookeeper == null) {
+            System.err.println(
+                    "Configuration metadata store address argument is required (--configuration-metadata-store)");
             jcommander.usage();
             System.exit(1);
         }
 
-        if (arguments.configurationStore != null && arguments.globalZookeeper != null) {
-            System.err.println("Configuration store argument (--configuration-store) "
-                    + "supersedes the deprecated (--global-zookeeper) argument");
+        if (arguments.configurationMetadataStore != null && (arguments.configurationStore != null
+                || arguments.globalZookeeper != null)) {
+            System.err.println("Configuration metadata store argument (--configuration-metadata-store) "
+                    + "supersedes the deprecated (--global-zookeeper and --configuration-store) argument");
             jcommander.usage();
             System.exit(1);
         }
 
-        if (arguments.configurationStore == null) {
-            arguments.configurationStore = arguments.globalZookeeper;
+        if (arguments.configurationMetadataStore == null) {
+            arguments.configurationMetadataStore = arguments.configurationStore == null ? arguments.globalZookeeper :
+                    arguments.configurationStore;
         }
 
         if (arguments.metadataStoreUrl == null) {
@@ -222,12 +231,12 @@ public class PulsarClusterMetadataSetup {
             System.exit(1);
         }
 
-        log.info("Setting up cluster {} with metadata-store={} configuration-store={}", arguments.cluster,
-                arguments.metadataStoreUrl, arguments.configurationStore);
+        log.info("Setting up cluster {} with metadata-store={} configuration-metadata-store={}", arguments.cluster,
+                arguments.metadataStoreUrl, arguments.configurationMetadataStore);
 
         MetadataStoreExtended localStore =
                 initMetadataStore(arguments.metadataStoreUrl, arguments.zkSessionTimeoutMillis);
-        MetadataStoreExtended configStore = initMetadataStore(arguments.configurationStore,
+        MetadataStoreExtended configStore = initMetadataStore(arguments.configurationMetadataStore,
                 arguments.zkSessionTimeoutMillis);
 
         // Format BookKeeper ledger storage metadata
@@ -256,7 +265,7 @@ public class PulsarClusterMetadataSetup {
             }
 
             // initial distributed log metadata
-            initialDlogNamespaceMetadata(arguments.configurationStore, uriStr);
+            initialDlogNamespaceMetadata(arguments.configurationMetadataStore, uriStr);
 
             ServiceURI bkMetadataServiceUri = ServiceURI.create(uriStr);
             // Format BookKeeper stream storage metadata

@@ -86,8 +86,7 @@ unsigned int PartitionedProducerImpl::getNumPartitionsWithLock() const {
 
 ProducerImplPtr PartitionedProducerImpl::newInternalProducer(unsigned int partition, bool lazy) {
     using namespace std::placeholders;
-    std::string topicPartitionName = topicName_->getTopicPartitionName(partition);
-    auto producer = std::make_shared<ProducerImpl>(client_, topicPartitionName, conf_, partition);
+    auto producer = std::make_shared<ProducerImpl>(client_, *topicName_, conf_, partition);
 
     if (lazy) {
         createLazyPartitionProducer(partition);
@@ -97,7 +96,7 @@ ProducerImplPtr PartitionedProducerImpl::newInternalProducer(unsigned int partit
                       const_cast<PartitionedProducerImpl*>(this)->shared_from_this(), _1, _2, partition));
     }
 
-    LOG_DEBUG("Creating Producer for single Partition - " << topicPartitionName);
+    LOG_DEBUG("Creating Producer for single Partition - " << topicName_ << "-partition-" << partition);
     return producer;
 }
 

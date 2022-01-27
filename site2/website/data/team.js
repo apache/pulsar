@@ -77,6 +77,12 @@ module.exports = {
       roles: 'Committer'
     },
     {
+      name: 'Haiting Jiang',
+      apacheId: 'jianghaiting',
+      org: 'DiDi',
+      roles: 'Committer'
+    },
+    {
       name: 'Hang Chen',
       apacheId: 'chenhang',
       org: 'BIGO Technology',
@@ -152,6 +158,12 @@ module.exports = {
       apacheId: 'massakam',
       org: 'Yahoo Japan Corporation',
       roles: 'Committer, PMC'
+    },
+    {
+      name: 'Marvin Cai',
+      apacheId: 'xxc',
+      org: 'StreamNative',
+      roles: 'Committer'
     },
     {
       name: 'Masakazu Kitajo',
@@ -275,6 +287,12 @@ module.exports = {
       name: 'Yong Zhang',
       apacheId: 'yong',
       org: 'StreamNative',
+      roles: 'Committer'
+    },
+    {
+      name: 'Zhangjian He',
+      apacheId: 'shoothzj',
+      org: 'HuaWei',
       roles: 'Committer'
     }
   ]

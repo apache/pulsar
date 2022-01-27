@@ -571,8 +571,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(category = CATEGORY_POLICIES,
             doc = "On KeyShared subscriptions, with default AUTO_SPLIT mode, use splitting ranges or "
-                    + "consistent hashing to reassign keys to new consumers")
-    private boolean subscriptionKeySharedUseConsistentHashing = false;
+                    + "consistent hashing to reassign keys to new consumers (default is consistent hashing)")
+    private boolean subscriptionKeySharedUseConsistentHashing = true;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -2196,10 +2196,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SCHEMA,
-            doc = "The schema compatibility strategy in broker level. If this config in namespace policy is `UNDEFINED`"
-                    + ", schema compatibility strategy check will use it in broker level."
+            doc = "The schema compatibility strategy in broker level"
     )
-    private SchemaCompatibilityStrategy schemaCompatibilityStrategy = SchemaCompatibilityStrategy.UNDEFINED;
+    private SchemaCompatibilityStrategy schemaCompatibilityStrategy = SchemaCompatibilityStrategy.FULL;
 
     /**** --- WebSocket. --- ****/
     @FieldContext(
@@ -2619,4 +2618,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
         }
     }
 
+    public SchemaCompatibilityStrategy getSchemaCompatibilityStrategy() {
+        if (SchemaCompatibilityStrategy.isUndefined(schemaCompatibilityStrategy)) {
+            return SchemaCompatibilityStrategy.FULL;
+        }
+        return schemaCompatibilityStrategy;
+    }
 }

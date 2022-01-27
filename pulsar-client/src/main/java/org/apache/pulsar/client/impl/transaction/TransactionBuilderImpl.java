@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.client.impl.transaction;
 
-import io.netty.util.Timeout;
-import io.netty.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;

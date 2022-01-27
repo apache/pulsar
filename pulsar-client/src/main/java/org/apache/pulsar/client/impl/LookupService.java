@@ -22,7 +22,6 @@ import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
@@ -45,7 +44,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 public interface LookupService extends AutoCloseable {
 
     /**
-     * Instruct the LookupService to switch to a new service URL for all subsequent requests
+     * Instruct the LookupService to switch to a new service URL for all subsequent requests.
      */
     void updateServiceUrl(String serviceUrl) throws PulsarClientException;
 
@@ -59,44 +58,44 @@ public interface LookupService extends AutoCloseable {
      */
     CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> getBroker(TopicName topicName);
 
-	/**
-	 * Returns {@link PartitionedTopicMetadata} for a given topic.
-	 *
-	 * @param topicName topic-name
-	 * @return
-	 */
-	CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName);
+    /**
+     * Returns {@link PartitionedTopicMetadata} for a given topic.
+     *
+     * @param topicName topic-name
+     * @return
+     */
+    CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName);
 
-	/**
-	 * Returns current SchemaInfo {@link SchemaInfo} for a given topic.
-	 *
-	 * @param topicName topic-name
-	 * @return SchemaInfo
-	 */
-	CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName);
+    /**
+     * Returns current SchemaInfo {@link SchemaInfo} for a given topic.
+     *
+     * @param topicName topic-name
+     * @return SchemaInfo
+     */
+    CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName);
 
-	/**
-	 * Returns specific version SchemaInfo {@link SchemaInfo} for a given topic.
-	 *
-	 * @param topicName topic-name
-	 * @param version schema info version
-	 * @return SchemaInfo
-	 */
-	CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName, byte[] version);
+    /**
+     * Returns specific version SchemaInfo {@link SchemaInfo} for a given topic.
+     *
+     * @param topicName topic-name
+     * @param version schema info version
+     * @return SchemaInfo
+     */
+    CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName, byte[] version);
 
-	/**
-	 * Returns broker-service lookup api url.
-	 *
-	 * @return
-	 */
-	String getServiceUrl();
+    /**
+     * Returns broker-service lookup api url.
+     *
+     * @return
+     */
+    String getServiceUrl();
 
-	/**
-	 * Returns all the topics name for a given namespace.
-	 *
-	 * @param namespace : namespace-name
-	 * @return
-	 */
-	CompletableFuture<List<String>> getTopicsUnderNamespace(NamespaceName namespace, Mode mode);
+    /**
+     * Returns all the topics name for a given namespace.
+     *
+     * @param namespace : namespace-name
+     * @return
+     */
+    CompletableFuture<List<String>> getTopicsUnderNamespace(NamespaceName namespace, Mode mode);
 
 }

@@ -104,7 +104,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         this.takeSnapshotIntervalTime = topic.getBrokerService().getPulsar()
                 .getConfiguration().getTransactionBufferSnapshotMinTimeInMillis();
         this.maxReadPosition = (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
-        this.topic.getBrokerService().getPulsar().getTransactionReplayExecutor()
+        this.topic.getBrokerService().getPulsar().getTransactionExecutorProvider().getExecutor(this)
                 .execute(new TopicTransactionBufferRecover(new TopicTransactionBufferRecoverCallBack() {
                     @Override
                     public void recoverComplete() {
@@ -607,7 +607,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
                 closeCursor(managedCursor);
                 callBack.recoverComplete();
-            }, topic.getBrokerService().getPulsar().getTransactionReplayExecutor()).exceptionally(e -> {
+            }, topic.getBrokerService().getPulsar().getTransactionExecutorProvider().getExecutor(this))
+                    .exceptionally(e -> {
                 callBack.recoverExceptionally(new Exception(e));
                 log.error("[{}]Transaction buffer new snapshot reader fail!", topic.getName(), e);
                 return null;
