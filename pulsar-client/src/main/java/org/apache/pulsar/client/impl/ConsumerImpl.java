@@ -351,7 +351,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         topic, subscription));
             }
 
-            if(StringUtils.isNotBlank(conf.getDeadLetterPolicy().getInitSubscriptionName())) {
+            if (StringUtils.isNotBlank(conf.getDeadLetterPolicy().getInitSubscriptionName())) {
                 this.deadLetterPolicy.setInitSubscriptionName(conf.getDeadLetterPolicy().getInitSubscriptionName());
             }
 
