@@ -190,7 +190,7 @@ All the topic metrics are labelled with the following labels:
 | pulsar_consumers_count | Gauge | The number of active consumers of the topic connected to this broker. |
 | pulsar_rate_in | Gauge | The total message rate of the topic coming into this broker (messages/second). |
 | pulsar_rate_out | Gauge | The total message rate of the topic going out from this broker (messages/second). |
-| pulsar_publish_rate_limit_times | Gauge | The number of times the publish rate limit is triggered in one minute. |
+| pulsar_publish_rate_limit_times | Gauge | The number of times the publish rate limit is triggered. |
 | pulsar_throughput_in | Gauge | The total throughput of the topic coming into this broker (bytes/second). |
 | pulsar_throughput_out | Gauge | The total throughput of the topic going out from this broker (bytes/second). |
 | pulsar_storage_size | Gauge | The total storage size of the topics in this topic owned by this broker (bytes). |
