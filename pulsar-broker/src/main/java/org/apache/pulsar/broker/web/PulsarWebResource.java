@@ -1070,12 +1070,11 @@ public abstract class PulsarWebResource {
                                                                TopicOperation operation, String subscription) {
         if (pulsar().getConfiguration().isAuthenticationEnabled()
                 && pulsar().getBrokerService().isAuthorizationEnabled()) {
-            AuthenticationDataHttps authData = clientAuthData();
-            if (!isClientAuthenticated(clientAppId()) || authData == null) {
-                return FutureUtil.failedFuture(new RestException(Status.UNAUTHORIZED,
-                        "Need to authenticate to perform the request"));
+            if (!isClientAuthenticated(clientAppId())) {
+                return FutureUtil.failedFuture(
+                        new RestException(Status.UNAUTHORIZED, "Need to authenticate to perform the request"));
             }
-
+            AuthenticationDataHttps authData = clientAuthData();
             authData.setSubscription(subscription);
             return pulsar().getBrokerService().getAuthorizationService()
                     .allowTopicOperationAsync(topicName, operation, originalPrincipal(), clientAppId(), authData)
