@@ -206,9 +206,9 @@ But this is not flexible enough. A better way is to use the **redelivery backoff
 Use the following API to enable `Negative Redelivery Backoff`.
 
 ```java
-consumer.negativeAckRedeliveryBackoff(NegativeAckRedeliveryExponentialBackoff.builder()
-        .minNackTimeMs(1000)
-        .maxNackTimeMs(60 * 1000)
+consumer.negativeAckRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+        .minDelayMs(1000)
+        .maxDelayMs(60 * 1000)
         .build())
 ```
 
@@ -217,6 +217,31 @@ consumer.negativeAckRedeliveryBackoff(NegativeAckRedeliveryExponentialBackoff.bu
 The acknowledgement timeout mechanism allows you to set a time range during which the client tracks the unacknowledged messages. After this acknowledgement timeout (`ackTimeout`) period, the client sends `redeliver unacknowledged messages` request to the broker, thus the broker resends the unacknowledged messages to the consumer.
 
 You can configure the acknowledgement timeout mechanism to redeliver the message if it is not acknowledged after `ackTimeout` or to execute a timer task to check the acknowledgement timeout messages during every `ackTimeoutTickTime` period.
+
+You can also use the redelivery backoff mechanism, redeliver messages with different delays by setting the number 
+of times the messages is retried.
+
+If you want to use redelivery backoff, you can use the following API.
+```java
+consumer.ackTimeout(10, TimeUnit.SECOND)
+        .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+        .minDelayMs(1000)
+        .maxDelayMs(60000)
+        .multiplier(2).build())
+```
+
+The message redelivery behavior should be as follows.
+
+Redelivery count | Redelivery delay
+:--------------------|:-----------
+1 | 10 + 1 seconds
+2 | 10 + 2 seconds
+3 | 10 + 4 seconds
+4 | 10 + 8 seconds
+5 | 10 + 16 seconds
+6 | 10 + 32 seconds
+7 | 10 + 60 seconds
+8 | 10 + 60 seconds
 
 > **Note**  
 > - If batching is enabled, all messages in one batch are redelivered to the consumer.  
