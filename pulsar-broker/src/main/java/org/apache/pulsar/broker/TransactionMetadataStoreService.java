@@ -100,7 +100,7 @@ public class TransactionMetadataStoreService {
         this.transactionOpRetryTimer = timer;
         this.tcLoadSemaphores = new ConcurrentLongHashMap<>();
         this.pendingConnectRequests = new ConcurrentLongHashMap<>();
-        this.internalPinnedExecutor = pulsarService.getTransactionReplayExecutor();
+        this.internalPinnedExecutor = pulsarService.getTransactionExecutorProvider().getExecutor(this);
     }
 
     @Deprecated
