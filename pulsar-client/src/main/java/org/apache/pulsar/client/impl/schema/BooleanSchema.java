@@ -55,7 +55,7 @@ public class BooleanSchema extends AbstractSchema<Boolean> {
         if (null == message) {
             return null;
         } else {
-            return new byte[]{(byte)(message ? 1 : 0)};
+            return new byte[]{(byte) (message ? 1 : 0)};
         }
     }
 

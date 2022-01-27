@@ -26,6 +26,7 @@ The configuration of the File source connector has the following properties.
 | `ignoreHiddenFiles` |Boolean| false | true| Whether the hidden files should be ignored or not. |
 | `pollingInterval`|Long | false | 10000L | Indicates how long to wait before performing a directory listing. |
 | `numWorkers` | Integer | false | 1 | The number of worker threads that process files.<br><br> This allows you to process a larger number of files concurrently. <br><br>However, setting this to a value greater than 1 makes the data from multiple files mixed in the target topic. |
+| `processedFileSuffix` | String | false | NULL | If set, do not delete but only rename file that has been processed. <br><br>  This config only work when 'keepFile' property is false. |
 
 ### Example
 
@@ -47,7 +48,8 @@ Before using the File source connector, you need to create a configuration file 
           "maximumSize": 5000000,
           "ignoreHiddenFiles": true,
           "pollingInterval": 5000,
-          "numWorkers": 1
+          "numWorkers": 1,
+          "processedFileSuffix": ".processed_done"
        }
     }
     ```
@@ -68,6 +70,7 @@ Before using the File source connector, you need to create a configuration file 
         ignoreHiddenFiles: true
         pollingInterval: 5000
         numWorkers: 1
+        processedFileSuffix: ".processed_done"
     ```
 
 ## Usage

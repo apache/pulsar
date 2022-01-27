@@ -55,14 +55,14 @@ class PULSAR_PUBLIC TopicName : public ServiceUnitId {
     std::string getNamespacePortion();
     std::string getLocalName();
     std::string getEncodedLocalName();
-    std::string toString();
+    std::string toString() const;
     bool isPersistent() const;
     NamespaceNamePtr getNamespaceName();
     int getPartitionIndex() const noexcept { return partition_; }
     static std::shared_ptr<TopicName> get(const std::string& topicName);
     bool operator==(const TopicName& other);
     static std::string getEncodedName(const std::string& nameBeforeEncoding);
-    const std::string getTopicPartitionName(unsigned int partition);
+    std::string getTopicPartitionName(unsigned int partition) const;
     static int getPartitionIndex(const std::string& topic);
 
    private:

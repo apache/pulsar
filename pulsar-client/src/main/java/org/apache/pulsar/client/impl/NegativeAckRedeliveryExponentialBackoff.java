@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkArgument;
 import org.apache.pulsar.client.api.NegativeAckRedeliveryBackoff;
 
 /**
- * NegativeAckRedeliveryExponentialBackoff
+ * NegativeAckRedeliveryExponentialBackoff.
  */
 public class NegativeAckRedeliveryExponentialBackoff implements NegativeAckRedeliveryBackoff {
 
@@ -85,8 +85,8 @@ public class NegativeAckRedeliveryExponentialBackoff implements NegativeAckRedel
         }
 
         public NegativeAckRedeliveryExponentialBackoff build() {
-            Preconditions.checkArgument(minNackTimeMs >= 0, "min nack time must be >= 0");
-            Preconditions.checkArgument(maxNackTimeMs >= minNackTimeMs,
+            checkArgument(minNackTimeMs >= 0, "min nack time must be >= 0");
+            checkArgument(maxNackTimeMs >= minNackTimeMs,
                     "max nack time must be >= minNackTimeMs");
             return new NegativeAckRedeliveryExponentialBackoff(minNackTimeMs, maxNackTimeMs);
         }

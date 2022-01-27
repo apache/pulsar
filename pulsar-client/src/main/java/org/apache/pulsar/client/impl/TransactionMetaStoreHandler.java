@@ -25,7 +25,14 @@ import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -42,18 +49,12 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Handler for transaction meta store.
  */
-public class TransactionMetaStoreHandler extends HandlerState implements ConnectionHandler.Connection, Closeable, TimerTask {
+public class TransactionMetaStoreHandler extends HandlerState
+        implements ConnectionHandler.Connection, Closeable, TimerTask {
 
     private static final Logger LOG = LoggerFactory.getLogger(TransactionMetaStoreHandler.class);
 
@@ -90,7 +91,8 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         this.timeoutQueue = new ConcurrentLinkedQueue<>();
         this.blockIfReachMaxPendingOps = true;
         this.semaphore = new Semaphore(1000);
-        this.requestTimeout = pulsarClient.timer().newTimeout(this, pulsarClient.getConfiguration().getOperationTimeoutMs(), TimeUnit.MILLISECONDS);
+        this.requestTimeout = pulsarClient.timer().newTimeout(this,
+                pulsarClient.getConfiguration().getOperationTimeoutMs(), TimeUnit.MILLISECONDS);
         this.connectionHandler = new ConnectionHandler(
             this,
             new BackoffBuilder()
@@ -178,8 +180,8 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                 OpBase<?> op = pendingRequests.remove(k);
                 if (op != null && !op.callback.isDone()) {
                     op.callback.completeExceptionally(new PulsarClientException.AlreadyClosedException(
-                            "Could not get response from transaction meta store when " +
-                                    "the transaction meta store has already close."));
+                            "Could not get response from transaction meta store when "
+                                    + "the transaction meta store has already close."));
                     onResponse(op);
                 }
             });
@@ -406,8 +408,8 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                         requestId, error);
                 if (checkIfNeedRetryByError(error, message, op)) {
                     if (LOG.isDebugEnabled()) {
-                        LOG.debug("Get a response for {} request {} error TransactionCoordinatorNotFound and try it again",
-                                BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(), requestId);
+                        LOG.debug("Get a response for {} request {} error TransactionCoordinatorNotFound and try it"
+                                        + " again", BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(), requestId);
                     }
                     pendingRequests.put(requestId, op);
                     timer.newTimeout(timeout -> {
@@ -532,7 +534,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         return false;
     }
 
-    private static abstract class OpBase<T> {
+    private abstract static class OpBase<T> {
         protected ByteBuf cmd;
         protected CompletableFuture<T> callback;
         protected Backoff backoff;

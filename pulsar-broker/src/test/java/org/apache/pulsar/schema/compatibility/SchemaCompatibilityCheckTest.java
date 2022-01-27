@@ -240,7 +240,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         );
 
         assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(namespaceName.toString()),
-                SchemaCompatibilityStrategy.FULL);
+                SchemaCompatibilityStrategy.UNDEFINED);
 
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
         admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
@@ -320,7 +320,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         );
 
         assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(namespaceName.toString()),
-                SchemaCompatibilityStrategy.FULL);
+                SchemaCompatibilityStrategy.UNDEFINED);
 
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
         admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
@@ -399,7 +399,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         );
 
         assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(namespaceName.toString()),
-                SchemaCompatibilityStrategy.FULL);
+                SchemaCompatibilityStrategy.UNDEFINED);
         byte[] changeSchemaBytes = (new String(Schema.AVRO(Schemas.PersonOne.class)
                 .getSchemaInfo().getSchema(), UTF_8) + "/n   /n   /n").getBytes();
         SchemaInfo schemaInfo = SchemaInfo.builder().type(SchemaType.AVRO).schema(changeSchemaBytes).build();

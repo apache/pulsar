@@ -18,23 +18,20 @@
  */
 package org.apache.pulsar.client.impl;
 
-import java.io.IOException;
-import java.text.DecimalFormat;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.LongAdder;
-
-import org.apache.pulsar.client.api.ProducerStats;
-import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.yahoo.sketches.quantiles.DoublesSketch;
-
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
+import java.io.IOException;
+import java.text.DecimalFormat;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.LongAdder;
+import org.apache.pulsar.client.api.ProducerStats;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
 
@@ -55,7 +52,7 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
     private final LongAdder totalAcksReceived;
     private static final DecimalFormat DEC = new DecimalFormat("0.000");
     private static final DecimalFormat THROUGHPUT_FORMAT = new DecimalFormat("0.00");
-    private transient final DoublesSketch ds;
+    private final transient DoublesSketch ds;
 
     private volatile double sendMsgsRate;
     private volatile double sendBytesRate;
@@ -99,7 +96,8 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
 
         try {
             log.info("Starting Pulsar producer perf with config: {}", w.writeValueAsString(conf));
-            log.info("Pulsar client config: {}", w.withoutAttribute("authentication").writeValueAsString(pulsarClient.getConfiguration()));
+            log.info("Pulsar client config: {}",
+                    w.withoutAttribute("authentication").writeValueAsString(pulsarClient.getConfiguration()));
         } catch (IOException e) {
             log.error("Failed to dump config info", e);
         }
