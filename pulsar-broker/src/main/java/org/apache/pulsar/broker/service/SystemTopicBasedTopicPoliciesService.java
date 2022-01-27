@@ -249,7 +249,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     private void prepareInitPoliciesCache(NamespaceName namespace, CompletableFuture<Void> result) {
         if (policyCacheInitMap.putIfAbsent(namespace, false) == null) {
             CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
-                    creatSystemTopicClientWithRetry(namespace);
+                    createSystemTopicClientWithRetry(namespace);
             readerCaches.put(namespace, readerCompletableFuture);
             readerCompletableFuture.whenComplete((reader, ex) -> {
                 if (ex != null) {
@@ -265,7 +265,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         }
     }
 
-    protected CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> creatSystemTopicClientWithRetry(
+    protected CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> createSystemTopicClientWithRetry(
             NamespaceName namespace) {
         CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> result = new CompletableFuture<>();
         try {
@@ -277,13 +277,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         SystemTopicClient<PulsarEvent> systemTopicClient = namespaceEventsSystemTopicFactory
                 .createTopicPoliciesSystemTopicClient(namespace);
         Backoff backoff = new Backoff(1, TimeUnit.SECONDS, 3, TimeUnit.SECONDS, 10, TimeUnit.SECONDS);
-        RetryUtil.retryAsynchronously(() -> {
-            try {
-                return systemTopicClient.newReader();
-            } catch (PulsarClientException e) {
-                throw new RuntimeException(e);
-            }
-        }, backoff, pulsarService.getExecutor(), result);
+        RetryUtil.retryAsynchronously(systemTopicClient::newReaderAsync, backoff, pulsarService.getExecutor(), result);
         return result;
     }
 

@@ -149,9 +149,9 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
           new org.apache.pulsar.common.policies.data.ResourceGroup();
         final String rgName = "testRG";
         final String randomRgName = "Something";
-        rgConfig.setPublishRateInBytes(15000);
+        rgConfig.setPublishRateInBytes(15000L);
         rgConfig.setPublishRateInMsgs(100);
-        rgConfig.setDispatchRateInBytes(40000);
+        rgConfig.setDispatchRateInBytes(40000L);
         rgConfig.setDispatchRateInMsgs(500);
 
         int initialNumQuotaCalculations = numAnonymousQuotaCalculations;
@@ -179,11 +179,11 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
 
         PerMonitoringClassFields monClassFields;
         monClassFields = retRG.monitoringClassFields[ResourceGroupMonitoringClass.Publish.ordinal()];
-        Assert.assertEquals(monClassFields.configValuesPerPeriod.bytes, rgConfig.getPublishRateInBytes());
-        Assert.assertEquals(monClassFields.configValuesPerPeriod.messages, rgConfig.getPublishRateInMsgs());
+        Assert.assertEquals(monClassFields.configValuesPerPeriod.bytes, rgConfig.getPublishRateInBytes().longValue());
+        Assert.assertEquals(monClassFields.configValuesPerPeriod.messages, rgConfig.getPublishRateInMsgs().intValue());
         monClassFields = retRG.monitoringClassFields[ResourceGroupMonitoringClass.Dispatch.ordinal()];
-        Assert.assertEquals(monClassFields.configValuesPerPeriod.bytes, rgConfig.getDispatchRateInBytes());
-        Assert.assertEquals(monClassFields.configValuesPerPeriod.messages, rgConfig.getDispatchRateInMsgs());
+        Assert.assertEquals(monClassFields.configValuesPerPeriod.bytes, rgConfig.getDispatchRateInBytes().longValue());
+        Assert.assertEquals(monClassFields.configValuesPerPeriod.messages, rgConfig.getDispatchRateInMsgs().intValue());
 
         Assert.assertThrows(PulsarAdminException.class, () -> rgs.resourceGroupDelete(randomRgName));
 
@@ -238,8 +238,8 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         int numQuotaCalcsDuringTest = numAnonymousQuotaCalculations - initialNumQuotaCalculations;
         if (numQuotaCalcsDuringTest == 0) {
             // Quota calculations were not done yet during this test; we expect to see the default "initial" setting.
-            Assert.assertEquals(publishQuota.messages, rgConfig.getPublishRateInMsgs());
-            Assert.assertEquals(publishQuota.bytes, rgConfig.getPublishRateInBytes());
+            Assert.assertEquals(publishQuota.messages, rgConfig.getPublishRateInMsgs().intValue());
+            Assert.assertEquals(publishQuota.bytes, rgConfig.getPublishRateInBytes().longValue());
         }
 
         // Calculate the quota synchronously to avoid waiting for a periodic call within ResourceGroupService.

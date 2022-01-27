@@ -36,7 +36,7 @@ public interface ServiceNameResolver {
     InetSocketAddress resolveHost();
 
     /**
-     * Resolve pulsar service url
+     * Resolve pulsar service url.
      * @return
      */
     URI resolveHostUri();

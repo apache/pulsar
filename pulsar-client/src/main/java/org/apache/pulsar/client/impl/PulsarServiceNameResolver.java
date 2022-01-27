@@ -19,8 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkState;
-
-import io.netty.util.internal.PlatformDependent;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -106,6 +104,8 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
     }
 
     private static int randomIndex(int numAddresses) {
-        return numAddresses == 1 ? 0 : PlatformDependent.threadLocalRandom().nextInt(numAddresses);
+        return numAddresses == 1
+                ?
+                0 : io.netty.util.internal.PlatformDependent.threadLocalRandom().nextInt(numAddresses);
     }
 }

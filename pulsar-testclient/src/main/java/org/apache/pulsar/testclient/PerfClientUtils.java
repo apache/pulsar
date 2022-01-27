@@ -18,16 +18,15 @@
  */
 package org.apache.pulsar.testclient;
 
-import io.netty.util.internal.PlatformDependent;
-import lombok.experimental.UtilityClass;
-import org.apache.commons.io.FileUtils;
-import org.slf4j.Logger;
 import java.lang.management.ManagementFactory;
 import java.util.Objects;
 import java.util.function.Consumer;
+import lombok.experimental.UtilityClass;
+import org.apache.commons.io.FileUtils;
+import org.slf4j.Logger;
 
 /**
- * Utility for test clients
+ * Utility for test clients.
  */
 @UtilityClass
 public class PerfClientUtils {
@@ -49,8 +48,10 @@ public class PerfClientUtils {
      */
     public static void printJVMInformation(Logger log) {
         log.info("JVM args {}", ManagementFactory.getRuntimeMXBean().getInputArguments());
-        log.info("Netty max memory (PlatformDependent.maxDirectMemory()) {}", FileUtils.byteCountToDisplaySize(PlatformDependent.maxDirectMemory()));
-        log.info("JVM max heap memory (Runtime.getRuntime().maxMemory()) {}", FileUtils.byteCountToDisplaySize(Runtime.getRuntime().maxMemory()));
+        log.info("Netty max memory (PlatformDependent.maxDirectMemory()) {}",
+                FileUtils.byteCountToDisplaySize(io.netty.util.internal.PlatformDependent.maxDirectMemory()));
+        log.info("JVM max heap memory (Runtime.getRuntime().maxMemory()) {}",
+                FileUtils.byteCountToDisplaySize(Runtime.getRuntime().maxMemory()));
     }
 
 

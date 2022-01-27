@@ -33,7 +33,9 @@ import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 @Getter
 public class HierarchyTopicPolicies {
     final PolicyHierarchyValue<List<String>> replicationClusters;
+    final PolicyHierarchyValue<RetentionPolicies> retentionPolicies;
     final PolicyHierarchyValue<Boolean> deduplicationEnabled;
+    final PolicyHierarchyValue<Integer> deduplicationSnapshotIntervalSeconds;
     final PolicyHierarchyValue<InactiveTopicPolicies> inactiveTopicPolicies;
     final PolicyHierarchyValue<EnumSet<SubType>> subscriptionTypesEnabled;
     final PolicyHierarchyValue<Integer> maxSubscriptionsPerTopic;
@@ -50,7 +52,9 @@ public class HierarchyTopicPolicies {
 
     public HierarchyTopicPolicies() {
         replicationClusters = new PolicyHierarchyValue<>();
+        retentionPolicies = new PolicyHierarchyValue<>();
         deduplicationEnabled = new PolicyHierarchyValue<>();
+        deduplicationSnapshotIntervalSeconds = new PolicyHierarchyValue<>();
         inactiveTopicPolicies = new PolicyHierarchyValue<>();
         subscriptionTypesEnabled = new PolicyHierarchyValue<>();
         maxSubscriptionsPerTopic = new PolicyHierarchyValue<>();

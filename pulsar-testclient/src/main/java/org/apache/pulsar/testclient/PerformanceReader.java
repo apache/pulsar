@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.testclient;
 
-import org.HdrHistogram.Histogram;
-import org.HdrHistogram.Recorder;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.beust.jcommander.JCommander;
@@ -37,6 +35,8 @@ import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
+import org.HdrHistogram.Histogram;
+import org.HdrHistogram.Recorder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -74,21 +74,24 @@ public class PerformanceReader {
         @Parameter(description = "persistent://prop/ns/my-topic", required = true)
         public List<String> topic;
 
-        @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics", validateWith = PositiveNumberParameterValidator.class)
+        @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics",
+                validateWith = PositiveNumberParameterValidator.class)
         public int numTopics = 1;
 
         @Parameter(names = { "-r", "--rate" }, description = "Simulate a slow message reader (rate in msg/s)")
         public double rate = 0;
 
         @Parameter(names = { "-m",
-                "--start-message-id" }, description = "Start message id. This can be either 'earliest', 'latest' or a specific message id by using 'lid:eid'")
+                "--start-message-id" }, description = "Start message id. This can be either 'earliest', "
+                + "'latest' or a specific message id by using 'lid:eid'")
         public String startMessageId = "earliest";
 
         @Parameter(names = { "-q", "--receiver-queue-size" }, description = "Size of the receiver queue")
         public int receiverQueueSize = 1000;
 
         @Parameter(names = {"-n",
-                "--num-messages"}, description = "Number of messages to consume in total. If <= 0, it will keep consuming")
+                "--num-messages"}, description = "Number of messages to consume in total. If <= 0, "
+                + "it will keep consuming")
         public long numMessages = 0;
 
         @Parameter(names = { "-c",
@@ -96,7 +99,8 @@ public class PerformanceReader {
         public int maxConnections = 100;
 
         @Parameter(names = { "-i",
-                "--stats-interval-seconds" }, description = "Statistics Interval Seconds. If 0, statistics will be disabled")
+                "--stats-interval-seconds" },
+                description = "Statistics Interval Seconds. If 0, statistics will be disabled")
         public long statsIntervalSeconds = 0;
 
         @Parameter(names = { "-u", "--service-url" }, description = "Pulsar Service URL")
@@ -110,9 +114,9 @@ public class PerformanceReader {
 
         @Parameter(
             names = { "--auth-params" },
-            description = "Authentication parameters, whose format is determined by the implementation " +
-                "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" " +
-                "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
+            description = "Authentication parameters, whose format is determined by the implementation "
+                    + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
+                    + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
         public String authParams;
 
         @Parameter(names = {
@@ -131,8 +135,8 @@ public class PerformanceReader {
                 "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep consuming")
         public long testTime = 0;
 
-        @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be " +
-                "used for handling connections to brokers, default is 1 thread")
+        @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be "
+                + "used for handling connections to brokers, default is 1 thread")
         public int ioThreads = 1;
 
         @Parameter(names = {"-lt", "--num-listener-threads"}, description = "Set the number of threads"
@@ -225,12 +229,14 @@ public class PerformanceReader {
         ReaderListener<byte[]> listener = (reader, msg) -> {
             if (arguments.testTime > 0) {
                 if (System.nanoTime() > testEndTime) {
-                    log.info("------------- DONE (reached the maximum duration: [{} seconds] of consumption) --------------", arguments.testTime);
+                    log.info("------------- DONE (reached the maximum duration: [{} seconds] of consumption) "
+                            + "--------------", arguments.testTime);
                     PerfClientUtils.exit(0);
                 }
             }
             if (arguments.numMessages > 0 && totalMessagesReceived.sum() >= arguments.numMessages) {
-                log.info("------------- DONE (reached the maximum number: [{}] of consumption) --------------", arguments.numMessages);
+                log.info("------------- DONE (reached the maximum number: [{}] of consumption) --------------",
+                        arguments.numMessages);
                 PerfClientUtils.exit(0);
             }
             messagesReceived.increment();
@@ -324,7 +330,8 @@ public class PerformanceReader {
 
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);
             log.info(
-                    "Read throughput: {} msg --- {}  msg/s -- {} Mbit/s --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
+                    "Read throughput: {} msg --- {}  msg/s -- {} Mbit/s --- Latency: mean: {} ms - med: {} - 95pct: {} "
+                            + "- 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
                     intFormat.format(total),
                     dec.format(rate), dec.format(throughput), dec.format(reportHistogram.getMean()),
                     reportHistogram.getValueAtPercentile(50), reportHistogram.getValueAtPercentile(95),
@@ -353,7 +360,8 @@ public class PerformanceReader {
         Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
 
         log.info(
-                "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - 99.999pct: {} - Max: {}",
+                "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} "
+                        + "- 99.99pct: {} - 99.999pct: {} - Max: {}",
                 dec.format(reportHistogram.getMean()), reportHistogram.getValueAtPercentile(50),
                 reportHistogram.getValueAtPercentile(95), reportHistogram.getValueAtPercentile(99),
                 reportHistogram.getValueAtPercentile(99.9), reportHistogram.getValueAtPercentile(99.99),
