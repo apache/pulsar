@@ -344,7 +344,26 @@ public interface Topics {
      *            Number of partitions to create of the topic
      * @throws PulsarAdminException
      */
-    void createPartitionedTopic(String topic, int numPartitions) throws PulsarAdminException;
+    default void createPartitionedTopic(String topic, int numPartitions) throws PulsarAdminException {
+        createPartitionedTopic(topic, numPartitions, null);
+    }
+
+    /**
+     * Create a partitioned topic.
+     * <p/>
+     * Create a partitioned topic. It needs to be called before creating a producer for a partitioned topic.
+     * <p/>
+     *
+     * @param topic
+     *            Topic name
+     * @param numPartitions
+     *            Number of partitions to create of the topic
+     * @param properties
+     *            topic properties
+     * @throws PulsarAdminException
+     */
+    void createPartitionedTopic(String topic, int numPartitions, Map<String, String> properties)
+            throws PulsarAdminException;
 
     /**
      * Create a partitioned topic asynchronously.
@@ -359,7 +378,27 @@ public interface Topics {
      *            Number of partitions to create of the topic
      * @return a future that can be used to track when the partitioned topic is created
      */
-    CompletableFuture<Void> createPartitionedTopicAsync(String topic, int numPartitions);
+    default CompletableFuture<Void> createPartitionedTopicAsync(String topic, int numPartitions) {
+        return createPartitionedTopicAsync(topic, numPartitions, null);
+    }
+
+    /**
+     * Create a partitioned topic asynchronously.
+     * <p/>
+     * Create a partitioned topic asynchronously. It needs to be called before creating a producer for a partitioned
+     * topic.
+     * <p/>
+     *
+     * @param topic
+     *            Topic name
+     * @param numPartitions
+     *            Number of partitions to create of the topic
+     * @param properties
+     *            Topic properties
+     * @return a future that can be used to track when the partitioned topic is created
+     */
+    CompletableFuture<Void> createPartitionedTopicAsync(String topic, int numPartitions,
+                                                        Map<String, String> properties);
 
     /**
      * Create a non-partitioned topic.
@@ -370,14 +409,38 @@ public interface Topics {
      * @param topic Topic name
      * @throws PulsarAdminException
      */
-    void createNonPartitionedTopic(String topic) throws PulsarAdminException;
+    default void createNonPartitionedTopic(String topic) throws PulsarAdminException {
+        createNonPartitionedTopic(topic, null);
+    }
+
+    /**
+     * Create a non-partitioned topic.
+     * <p/>
+     * Create a non-partitioned topic.
+     * <p/>
+     *
+     * @param topic Topic name
+     * @param properties Topic properties
+     * @throws PulsarAdminException
+     */
+    void createNonPartitionedTopic(String topic, Map<String, String> properties) throws PulsarAdminException;
 
     /**
      * Create a non-partitioned topic asynchronously.
      *
      * @param topic Topic name
      */
-    CompletableFuture<Void> createNonPartitionedTopicAsync(String topic);
+    default CompletableFuture<Void> createNonPartitionedTopicAsync(String topic) {
+        return createNonPartitionedTopicAsync(topic, null);
+    }
+
+    /**
+     * Create a non-partitioned topic asynchronously.
+     *
+     * @param topic Topic name
+     * @param properties Topic properties
+     */
+    CompletableFuture<Void> createNonPartitionedTopicAsync(String topic, Map<String, String> properties);
 
     /**
      * Create missed partitions for partitioned topic.

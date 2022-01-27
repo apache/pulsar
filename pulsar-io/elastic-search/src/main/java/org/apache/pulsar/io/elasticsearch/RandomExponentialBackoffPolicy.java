@@ -20,8 +20,8 @@ package org.apache.pulsar.io.elasticsearch;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-import org.elasticsearch.action.bulk.BackoffPolicy;
-import org.elasticsearch.common.unit.TimeValue;
+import org.opensearch.action.bulk.BackoffPolicy;
+import org.opensearch.common.unit.TimeValue;
 
 public class RandomExponentialBackoffPolicy extends BackoffPolicy {
     private final RandomExponentialRetry randomExponentialRetry;

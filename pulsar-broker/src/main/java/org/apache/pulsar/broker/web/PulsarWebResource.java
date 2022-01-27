@@ -867,22 +867,43 @@ public abstract class PulsarWebResource {
     }
 
     public void validateNamespaceOperation(NamespaceName namespaceName, NamespaceOperation operation) {
+        try {
+            int timeout = pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds();
+            validateNamespaceOperationAsync(namespaceName, operation).get(timeout, SECONDS);
+        } catch (InterruptedException | TimeoutException e) {
+            throw new RestException(e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof WebApplicationException){
+                throw (WebApplicationException) cause;
+            } else {
+                throw new RestException(cause);
+            }
+        }
+    }
+
+
+    public CompletableFuture<Void> validateNamespaceOperationAsync(NamespaceName namespaceName,
+                                                              NamespaceOperation operation) {
         if (pulsar().getConfiguration().isAuthenticationEnabled()
             && pulsar().getBrokerService().isAuthorizationEnabled()) {
             if (!isClientAuthenticated(clientAppId())) {
-                throw new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request");
+                return FutureUtil.failedFuture(
+                        new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request"));
             }
 
-            boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
-                    .allowNamespaceOperation(namespaceName, operation, originalPrincipal(),
-                        clientAppId(), clientAuthData());
-
-            if (!isAuthorized) {
-                throw new RestException(Status.FORBIDDEN,
-                        String.format("Unauthorized to validateNamespaceOperation for"
-                                + " operation [%s] on namespace [%s]", operation.toString(), namespaceName));
-            }
+            return pulsar().getBrokerService().getAuthorizationService()
+                    .allowNamespaceOperationAsync(namespaceName, operation, originalPrincipal(),
+                             clientAppId(), clientAuthData())
+                    .thenAccept(isAuthorized -> {
+                        if (!isAuthorized) {
+                            throw new RestException(Status.FORBIDDEN,
+                                    String.format("Unauthorized to validateNamespaceOperation for"
+                                        + " operation [%s] on namespace [%s]", operation.toString(), namespaceName));
+                        }
+                    });
         }
+        return CompletableFuture.completedFuture(null);
     }
 
     public void validateNamespacePolicyOperation(NamespaceName namespaceName,
@@ -1053,7 +1074,7 @@ public abstract class PulsarWebResource {
         try {
             validateTopicOperationAsync(topicName, operation, subscription).get();
         } catch (InterruptedException | ExecutionException e) {
-            Throwable cause = e.getCause();
+            Throwable cause = FutureUtil.unwrapCompletionException(e);
             if (cause instanceof WebApplicationException){
                 throw (WebApplicationException) cause;
             } else {
@@ -1070,12 +1091,11 @@ public abstract class PulsarWebResource {
                                                                TopicOperation operation, String subscription) {
         if (pulsar().getConfiguration().isAuthenticationEnabled()
                 && pulsar().getBrokerService().isAuthorizationEnabled()) {
-            AuthenticationDataHttps authData = clientAuthData();
-            if (!isClientAuthenticated(clientAppId()) || authData == null) {
-                return FutureUtil.failedFuture(new RestException(Status.UNAUTHORIZED,
-                        "Need to authenticate to perform the request"));
+            if (!isClientAuthenticated(clientAppId())) {
+                return FutureUtil.failedFuture(
+                        new RestException(Status.UNAUTHORIZED, "Need to authenticate to perform the request"));
             }
-
+            AuthenticationDataHttps authData = clientAuthData();
             authData.setSubscription(subscription);
             return pulsar().getBrokerService().getAuthorizationService()
                     .allowTopicOperationAsync(topicName, operation, originalPrincipal(), clientAppId(), authData)

@@ -26,8 +26,9 @@ import java.io.IOException;
 public class SecretsSerializer extends JsonSerializer<Object> {
 
     @Override
-    public void serialize(final Object value, final JsonGenerator jsonGenerator, final SerializerProvider serializerProvider)
-            throws IOException {
+    public void serialize(final Object value,
+                          final JsonGenerator jsonGenerator,
+                          final SerializerProvider serializerProvider) throws IOException {
         if (value == null) {
             serializerProvider.defaultSerializeNull(jsonGenerator);
             return;

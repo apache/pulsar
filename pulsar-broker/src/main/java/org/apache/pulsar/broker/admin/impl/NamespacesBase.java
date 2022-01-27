@@ -2342,15 +2342,8 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
                 PolicyOperation.READ);
         Policies policies = getNamespacePolicies(namespaceName);
-        SchemaCompatibilityStrategy schemaCompatibilityStrategy = policies.schema_compatibility_strategy;
-        if (schemaCompatibilityStrategy == SchemaCompatibilityStrategy.UNDEFINED) {
-            schemaCompatibilityStrategy = pulsar().getConfig().getSchemaCompatibilityStrategy();
-            if (schemaCompatibilityStrategy == SchemaCompatibilityStrategy.UNDEFINED) {
-                schemaCompatibilityStrategy = SchemaCompatibilityStrategy
-                        .fromAutoUpdatePolicy(policies.schema_auto_update_compatibility_strategy);
-            }
-        }
-        return schemaCompatibilityStrategy;
+
+        return policies.schema_compatibility_strategy;
     }
 
     @Deprecated
@@ -2404,6 +2397,9 @@ public abstract class NamespacesBase extends AdminResource {
     protected boolean internalGetIsAllowAutoUpdateSchema() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
                 PolicyOperation.READ);
+        if (getNamespacePolicies(namespaceName).is_allow_auto_update_schema == null) {
+            return pulsar().getConfig().isAllowAutoUpdateSchemaEnabled();
+        }
         return getNamespacePolicies(namespaceName).is_allow_auto_update_schema;
     }
 
