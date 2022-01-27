@@ -2936,23 +2936,22 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalRemoveReplicationClusters() {
-        validateTopicPolicyOperation(topicName, PolicyName.REPLICATION, PolicyOperation.WRITE);
-        validatePoliciesReadOnlyAccess();
-
-        return getTopicPoliciesAsyncWithRetry(topicName).thenCompose(op -> {
-                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
-                    topicPolicies.setReplicationClusters(null);
-                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
-                            .thenRun(() -> {
-                                log.info("[{}] Successfully set replication clusters for namespace={}, "
-                                                + "topic={}, clusters={}",
-                                        clientAppId(),
-                                        namespaceName,
-                                        topicName.getLocalName(),
-                                        topicPolicies.getReplicationClusters());
-                            });
-                }
-        );
+        return validateTopicPolicyOperationAsync(topicName, PolicyName.REPLICATION, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName).thenCompose(op -> {
+                            TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                            topicPolicies.setReplicationClusters(null);
+                            return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
+                                    .thenRun(() -> {
+                                        log.info("[{}] Successfully set replication clusters for namespace={}, "
+                                                        + "topic={}, clusters={}",
+                                                clientAppId(),
+                                                namespaceName,
+                                                topicName.getLocalName(),
+                                                topicPolicies.getReplicationClusters());
+                                    });
+                        })
+                );
     }
 
     protected CompletableFuture<Boolean> internalGetDeduplication(boolean applied, boolean isGlobal) {
