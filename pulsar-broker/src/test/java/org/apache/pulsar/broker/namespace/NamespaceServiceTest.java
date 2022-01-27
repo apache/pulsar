@@ -658,7 +658,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
     }
 
     @Test
-    public void testModularLoadManagerRemoveInactivebundleFromLoadData() throws Exception {
+    public void testModularLoadManagerRemoveInactiveBundleFromLoadData() throws Exception {
         final String BUNDLE_DATA_PATH = "/loadbalance/bundle-data";
         final String namespace = "pulsar/test/ns1";
         final String topic1 = "persistent://" + namespace + "/topic1";
