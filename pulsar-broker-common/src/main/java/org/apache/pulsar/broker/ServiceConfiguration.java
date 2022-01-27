@@ -2586,6 +2586,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 suffix = metadataStoreUrl;
             } else {
                 // Fallback to old setting
+                // Note: chroot is not settable by using 'zookeeperServers' config.
                 suffix = "zk:" + zookeeperServers + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH;
             }
             return "metadata-store:" + suffix;

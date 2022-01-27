@@ -52,6 +52,7 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver;
 import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.asynchttpclient.uri.Uri;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -232,10 +233,11 @@ public class PulsarClusterMetadataSetup {
         // Format BookKeeper ledger storage metadata
         if (arguments.existingBkMetadataServiceUri == null && arguments.bookieMetadataServiceUri == null) {
             ServerConfiguration bkConf = new ServerConfiguration();
-            bkConf.setMetadataServiceUri("metadata-store:zk:" + arguments.zookeeper);
+            bkConf.setMetadataServiceUri("metadata-store:zk:" + arguments.zookeeper + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH);
+            final String ledgersPath = Uri.create("zk://" + arguments.zookeeper + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH).getPath();
             bkConf.setZkTimeout(arguments.zkSessionTimeoutMillis);
             // only format if /ledgers doesn't exist
-            if (!localStore.exists(BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH).get()
+            if (!localStore.exists(ledgersPath).get()
                 && !BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
                 throw new IOException("Failed to initialize BookKeeper metadata");
             }
