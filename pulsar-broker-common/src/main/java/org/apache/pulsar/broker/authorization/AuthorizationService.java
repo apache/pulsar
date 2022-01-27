@@ -37,6 +37,7 @@ import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.slf4j.Logger;
@@ -492,8 +493,11 @@ public class AuthorizationService {
                                                                      String originalRole,
                                                                      String role,
                                                                      AuthenticationDataSource authData) {
-
-        validateOriginalPrincipal(conf.getProxyRoles(), role, originalRole);
+        try {
+            validateOriginalPrincipal(conf.getProxyRoles(), role, originalRole);
+        } catch (RestException e) {
+            return FutureUtil.failedFuture(e);
+        }
         if (isProxyRole(role)) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowTopicPolicyOperationAsync(
                     topicName, policy, operation, role, authData);

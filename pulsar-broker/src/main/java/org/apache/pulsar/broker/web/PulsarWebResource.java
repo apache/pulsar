@@ -1069,27 +1069,22 @@ public abstract class PulsarWebResource {
                         new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request"));
             }
             final CompletableFuture<Void> resultFuture = new CompletableFuture<>();
-            try {
-                pulsar().getBrokerService().getAuthorizationService()
-                        .allowTopicPolicyOperationAsync(topicName, policy, operation, originalPrincipal(),
-                                clientAppId(), clientAuthData())
-                        .thenAccept(isAuthorized -> {
-                            if (!isAuthorized) {
-                                RestException restException = new RestException(Status.FORBIDDEN, String.format(
-                                        "Unauthorized to validateTopicPolicyOperation for operation [%s] on topic [%s] "
-                                        + "on policy [%s]", operation.toString(), topicName, policy.toString()));
-                                resultFuture.completeExceptionally(restException);
-                            } else {
-                                resultFuture.complete(null);
-                            }
-                        }).exceptionally(e -> {
-                    resultFuture.completeExceptionally(e);
-                    return null;
-                });
-            } catch (Exception e) {
-                resultFuture.completeExceptionally(e);
+            pulsar().getBrokerService().getAuthorizationService()
+                    .allowTopicPolicyOperationAsync(topicName, policy, operation, originalPrincipal(),
+                            clientAppId(), clientAuthData())
+                    .thenAccept(isAuthorized -> {
+                        if (!isAuthorized) {
+                            RestException restException = new RestException(Status.FORBIDDEN, String.format(
+                                    "Unauthorized to validateTopicPolicyOperation for operation [%s] on topic [%s] "
+                                            + "on policy [%s]", operation.toString(), topicName, policy.toString()));
+                            resultFuture.completeExceptionally(restException);
+                        } else {
+                            resultFuture.complete(null);
+                        }
+                    }).exceptionally(e -> {
+                resultFuture.completeExceptionally(FutureUtil.unwrapCompletionException(e));
                 return null;
-            }
+            });
             return resultFuture;
         } else {
             return CompletableFuture.completedFuture(null);
