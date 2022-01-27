@@ -168,8 +168,8 @@ public class TransactionMetadataStoreService {
                     Deque<CompletableFuture<Void>> deque = pendingConnectRequests
                             .computeIfAbsent(tcId.getId(), (id) -> new ConcurrentLinkedDeque<>());
                     if (tcLoadSemaphore.tryAcquire()) {
-                        // when tcLoadSemaphore.release(), this command will acquire semaphore, so we should jude the store
-                        // exist again.
+                        // when tcLoadSemaphore.release(), this command will acquire semaphore,
+                        // so we should jude the store exist again.
                         if (stores.get(tcId) != null) {
                             completableFuture.complete(null);
                         }
@@ -196,7 +196,8 @@ public class TransactionMetadataStoreService {
 
                             completableFuture.complete(null);
                             tcLoadSemaphore.release();
-                        })).exceptionally(e -> { internalPinnedExecutor.execute(() -> {
+                        })).exceptionally(e -> {
+                            internalPinnedExecutor.execute(() -> {
                                         completableFuture.completeExceptionally(e.getCause());
                                         // release before handle request queue,
                                         //in order to client reconnect infinite loop
@@ -217,7 +218,7 @@ public class TransactionMetadataStoreService {
                                                 break;
                                             }
                                         }
-                                        LOG.error("Add transaction metadata store with id {} error", tcId.getId(), e);;
+                                        LOG.error("Add transaction metadata store with id {} error", tcId.getId(), e);
                                     });
                                     return null;
                                 });
