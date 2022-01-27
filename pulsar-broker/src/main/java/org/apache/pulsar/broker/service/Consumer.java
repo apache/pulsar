@@ -104,7 +104,7 @@ public class Consumer {
 
     private final ConsumerStatsImpl stats;
 
-    private final boolean maxUnackedMessagesEnabled;
+    private final boolean isDurable;
     private static final AtomicIntegerFieldUpdater<Consumer> UNACKED_MESSAGES_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(Consumer.class, "unackedMessages");
     private volatile int unackedMessages = 0;
@@ -132,7 +132,7 @@ public class Consumer {
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
-                    boolean maxUnackedMessagesEnabled, TransportCnx cnx, String appId,
+                    boolean isDurable, TransportCnx cnx, String appId,
                     Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition,
                     KeySharedMeta keySharedMeta, MessageId startMessageId) {
 
@@ -144,7 +144,7 @@ public class Consumer {
         this.priorityLevel = priorityLevel;
         this.readCompacted = readCompacted;
         this.consumerName = consumerName;
-        this.maxUnackedMessagesEnabled = maxUnackedMessagesEnabled;
+        this.isDurable = isDurable;
         this.subscriptionInitialPosition = subscriptionInitialPosition;
         this.keySharedMeta = keySharedMeta;
         this.cnx = cnx;
@@ -937,7 +937,8 @@ public class Consumer {
     }
 
     public int getMaxUnackedMessages() {
-        if (maxUnackedMessagesEnabled && subscription != null) {
+        //Unacked messages check is disabled for non-durable subscriptions.
+        if (isDurable && subscription != null) {
             return subscription.getTopic().getHierarchyTopicPolicies().getMaxUnackedMessagesOnConsumer().get();
         } else {
             return 0;
