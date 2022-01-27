@@ -124,7 +124,7 @@ All the BookKeeper client metric are labelled with the following label:
 
 | Name | Type | Description |
 |---|---|---|
-| bookkeeper_server_BOOKIE_QUARANTINE_count | Counter | The number of bookie clients to be quarantined. |
+| pulsar_managedLedger_client_bookkeeper_client_BOOKIE_QUARANTINE | Counter | The number of bookie clients to be quarantined.<br /><br />If you want to expose this metric, set `bookkeeperClientExposeStatsToPrometheus` to `true` in the `broker.conf` file.|
 
 ### Namespace metrics
 
