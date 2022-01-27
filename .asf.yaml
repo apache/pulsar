@@ -41,3 +41,79 @@ github:
     merge:   false
     # disable rebase button:
     rebase:  false
+  protected_branches:
+    master:
+      required_status_checks:
+        # strict means "Require branches to be up to date before merging".
+        strict: false
+        # Contexts are the names of checks that must pass. These names are
+        # found in the "name:" field of ./github/workflows/*.yaml files
+        # Note: here is the list of intentionally excluded contexts:
+        # - CI - OWASP Dependency Check
+        contexts:
+          - CI - Build - MacOS
+          - CI - Cancel duplicate workflows
+          - CI - CPP, Python Tests
+          - CI - CPP build on CentOS 7
+          - CI - CPP build on Windows
+          - Auto Labeling
+          - CI - Go Functions style check
+          - CI - Go Functions Tests
+          - CI - Integration - Backwards Compatibility
+          - CI - Integration - Cli
+          - CI - Integration - Function & IO
+          - CI - Integration - Messaging
+          - CI - Integration - Process
+          - CI - Integration - Pulsar-IO Sinks and Sources
+          - CI - Integration - Pulsar-IO Oracle Source
+          - CI - Integration - Schema
+          - CI - Integration - Sql
+          - CI - Integration - Standalone
+          - CI - Integration - Thread
+          - CI - Integration - Tiered FileSystem
+          - CI - Integration - Tiered JCloud
+          - CI - Integration - Transaction
+          - CI - Misc
+          - CI - Maven Dependency Cache Update
+          - CI - Pulsar Website build
+          - Pulsar Bot
+          - CI - Python - Build 3.9 client
+          - CI - Shade - Test
+          - CI - Unit
+          - CI - Unit - Brokers - Broker Group
+          - CI - Unit - Brokers - Client Api
+          - CI - Unit - Brokers - Client Impl
+          - CI - Unit - Broker - JDK8
+          - CI - Unit - Brokers - Other
+          - CI - Unit - Proxy
+
+      required_pull_request_reviews:
+        dismiss_stale_reviews: true
+        require_code_owner_reviews: true
+        required_approving_review_count: 1
+
+      # squash or rebase must be allowed in the repo for this setting to be set to true.
+      required_linear_history: true
+
+      required_signatures: false
+
+    # The following branch protections only ensure that force pushes are not allowed
+    asf-site: {}
+    branch-1.15: {}
+    branch-1.16: {}
+    branch-1.17: {}
+    branch-1.18: {}
+    branch-1.19: {}
+    branch-1.20: {}
+    branch-1.21: {}
+    branch-1.22: {}
+    branch-2.0: {}
+    branch-2.1: {}
+    branch-2.2: {}
+    branch-2.3: {}
+    branch-2.4: {}
+    branch-2.5: {}
+    branch-2.6: {}
+    branch-2.7: {}
+    branch-2.8: {}
+    branch-2.9: {}
