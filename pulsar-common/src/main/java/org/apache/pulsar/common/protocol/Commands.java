@@ -22,6 +22,7 @@ import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.resumeChecksum;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
@@ -802,7 +803,7 @@ public class Commands {
 
         topicEpoch.ifPresent(producer::setTopicEpoch);
 
-        if (initialSubscriptionName != null) {
+        if (!Strings.isNullOrEmpty(initialSubscriptionName)) {
             producer.setInitialSubscriptionName(initialSubscriptionName);
         }
 

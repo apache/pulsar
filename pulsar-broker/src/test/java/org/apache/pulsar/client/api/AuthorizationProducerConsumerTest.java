@@ -569,10 +569,11 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         PulsarClient pulsarClientInvalidRole = PulsarClient.builder().serviceUrl(lookupUrl)
                 .authentication(authenticationInvalidRole).build();
 
-        pulsarClientInvalidRole.newProducer()
+        Producer<byte[]> invalidRoleProducer = pulsarClientInvalidRole.newProducer()
                 .topic(topic)
                 .initialSubscriptionName(initialSubscriptionName)
                 .create();
+        invalidRoleProducer.close();
 
         Assert.assertFalse(admin.topics().getSubscriptions(topic).contains(initialSubscriptionName));
 
@@ -580,10 +581,11 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         PulsarClient pulsarClientProducerRole = PulsarClient.builder().serviceUrl(lookupUrl)
                 .authentication(authenticationProducerRole).build();
 
-        pulsarClientProducerRole.newProducer()
+        Producer<byte[]> producer = pulsarClientProducerRole.newProducer()
                 .topic(topic)
                 .initialSubscriptionName(initialSubscriptionName)
                 .create();
+        producer.close();
 
         Assert.assertTrue(admin.topics().getSubscriptions(topic).contains(initialSubscriptionName));
 

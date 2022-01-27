@@ -353,8 +353,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             if(StringUtils.isNotBlank(conf.getDeadLetterPolicy().getInitSubscriptionName())) {
                 this.deadLetterPolicy.setInitSubscriptionName(conf.getDeadLetterPolicy().getInitSubscriptionName());
-            } else {
-                this.deadLetterPolicy.setInitSubscriptionName(conf.getSubscriptionName());
             }
 
         } else {
@@ -1873,20 +1871,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             createProducerLock.writeLock().lock();
             try {
                 if (deadLetterProducer == null) {
-                    // We first need to create the initial subscription for this DLQ topic.
-                    // Otherwise, when we do not set the retention, it may lead to data loss.
-                    // The default initial subscription name is the subscription name of the current consumer.
-                    CompletableFuture<Consumer<byte[]>> deadLetterConsumer =
-                            client.newConsumer(Schema.AUTO_PRODUCE_BYTES(schema))
-                                    .topic(this.deadLetterPolicy.getDeadLetterTopic())
-                                    .subscriptionName(this.deadLetterPolicy.getInitSubscriptionName())
-                                    .subscribeAsync();
-                    deadLetterProducer = deadLetterConsumer.thenComposeAsync(Consumer::closeAsync)
-                            .thenComposeAsync(ignored ->
-                            client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
-                                    .topic(this.deadLetterPolicy.getDeadLetterTopic())
-                                    .blockIfQueueFull(false)
-                                    .createAsync());
+                    deadLetterProducer = client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
+                            .topic(this.deadLetterPolicy.getDeadLetterTopic())
+                            .blockIfQueueFull(false)
+                            .initialSubscriptionName(this.deadLetterPolicy.getInitSubscriptionName())
+                            .createAsync();
                 }
             } finally {
                 createProducerLock.writeLock().unlock();
