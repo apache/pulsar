@@ -1871,16 +1871,15 @@ public class PersistentTopicsBase extends AdminResource {
                                                                                  partitionMetadata,
                                                                                  int expireTimeInSeconds,
                                                                                  boolean authoritative) {
-        try {
-            // validate ownership and redirect if current broker is not owner
-            validateTopicOperationAsync(topicName, TopicOperation.EXPIRE_MESSAGES)
+        // validate ownership and redirect if current broker is not owner
+        validateTopicOperationAsync(topicName, TopicOperation.EXPIRE_MESSAGES)
                 .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
                 .thenCompose(__ -> getTopicReferenceAsync(topicName).thenAccept(t -> {
-                    if (t == null) {
-                        resumeAsyncResponseExceptionally(asyncResponse, new RestException(Status.NOT_FOUND,
-                                "Topic not found"));
-                        return;
-                    }
+                     if (t == null) {
+                         resumeAsyncResponseExceptionally(asyncResponse, new RestException(Status.NOT_FOUND,
+                                 "Topic not found"));
+                         return;
+                     }
                     if (!(t instanceof PersistentTopic)) {
                         resumeAsyncResponseExceptionally(asyncResponse, new RestException(Status.METHOD_NOT_ALLOWED,
                                 "Expire messages for all subscriptions on a non-persistent topic is not allowed"));
@@ -1908,7 +1907,7 @@ public class PersistentTopicsBase extends AdminResource {
 
                     FutureUtil.waitForAll(futures).handle((result, exception) -> {
                         if (exception != null) {
-                            Throwable throwable = exception.getCause();
+                            Throwable throwable = FutureUtil.unwrapCompletionException(exception);
                             log.error("[{}] Failed to expire messages for all subscription up to {} on {}",
                                     clientAppId(), expireTimeInSeconds, topicName, throwable);
                             asyncResponse.resume(new RestException(throwable));
@@ -1917,20 +1916,14 @@ public class PersistentTopicsBase extends AdminResource {
                         asyncResponse.resume(Response.noContent().build());
                         return null;
                     });
-
                         })
                 ).exceptionally(e -> {
-                        Throwable throwable = e.getCause();
-                        log.error("[{}] Failed to expire messages for all subscription up to {} on {}", clientAppId(),
-                                expireTimeInSeconds, topicName, throwable);
-                        asyncResponse.resume(new RestException(throwable));
-                        return null;
-                    });
-            } catch (Exception e) {
-                log.error("[{}] Failed to expire messages for all subscription up to {} on {}", clientAppId(),
-                        expireTimeInSeconds, topicName, e);
-                asyncResponse.resume(new RestException(e));
-            }
+            Throwable throwable = FutureUtil.unwrapCompletionException(e);
+            log.error("[{}] Failed to expire messages for all subscription up to {} on {}", clientAppId(),
+                    expireTimeInSeconds, topicName, throwable);
+            asyncResponse.resume(new RestException(throwable));
+            return null;
+        });
     }
 
     protected void internalResetCursor(AsyncResponse asyncResponse, String subName, long timestamp,
@@ -3391,8 +3384,8 @@ public class PersistentTopicsBase extends AdminResource {
                             }
                         }
                     })
-        ).exceptionally(e -> {
-            Throwable cause = e.getCause();
+        ).exceptionally(ex -> {
+            Throwable cause = FutureUtil.unwrapCompletionException(ex);
             log.error("[{}] Failed to expire messages up to {} on {}", clientAppId(), expireTimeInSeconds, topicName,
                     cause);
             resumeAsyncResponseExceptionally(asyncResponse, cause);
@@ -3408,14 +3401,13 @@ public class PersistentTopicsBase extends AdminResource {
             return FutureUtil.failedFuture(new IllegalStateException(msg));
         } else {
             final CompletableFuture<Void> resultFuture = new CompletableFuture<>();
-            try {
-                validateTopicOperationAsync(topicName, TopicOperation.EXPIRE_MESSAGES)
+            validateTopicOperationAsync(topicName, TopicOperation.EXPIRE_MESSAGES)
                     .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
                     .thenCompose(__ -> getTopicReferenceAsync(topicName).thenAccept(t -> {
-                        if (t == null) {
-                            resultFuture.completeExceptionally(new RestException(Status.NOT_FOUND, "Topic not found"));
-                            return;
-                        }
+                         if (t == null) {
+                             resultFuture.completeExceptionally(new RestException(Status.NOT_FOUND, "Topic not found"));
+                             return;
+                         }
                         if (!(t instanceof PersistentTopic)) {
                             resultFuture.completeExceptionally(new RestException(Status.METHOD_NOT_ALLOWED,
                                     "Expire messages on a non-persistent topic is not allowed"));
@@ -3455,15 +3447,11 @@ public class PersistentTopicsBase extends AdminResource {
                             ));
                             return;
                         }
-                    })
+                            })
                     ).exceptionally(e -> {
-                    resultFuture.completeExceptionally(e);
-                    return null;
-                });
-            } catch (Exception e) {
-                resultFuture.completeExceptionally(e);
+                resultFuture.completeExceptionally(FutureUtil.unwrapCompletionException(e));
                 return null;
-            }
+            });
             return resultFuture;
         }
     }
