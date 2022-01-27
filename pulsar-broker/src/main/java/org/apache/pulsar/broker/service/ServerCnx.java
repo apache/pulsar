@@ -1141,6 +1141,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final Optional<Long> topicEpoch = cmdProducer.hasTopicEpoch()
                 ? Optional.of(cmdProducer.getTopicEpoch()) : Optional.empty();
         final boolean isTxnEnabled = cmdProducer.isTxnEnabled();
+        final String initialSubscriptionName =
+                cmdProducer.hasInitialSubscriptionName() ? cmdProducer.getInitialSubscriptionName() : null;
 
         TopicName topicName = validateTopicName(cmdProducer.getTopic(), requestId, cmdProducer);
         if (topicName == null) {
@@ -1236,7 +1238,30 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     });
 
                     schemaVersionFuture.thenAccept(schemaVersion -> {
-                        topic.checkIfTransactionBufferRecoverCompletely(isTxnEnabled).thenAccept(future -> {
+                        topic.checkIfTransactionBufferRecoverCompletely(isTxnEnabled).thenCompose(future -> {
+                            if (Strings.isNullOrEmpty(initialSubscriptionName) ||
+                                    topic.getSubscriptions().containsKey(initialSubscriptionName) ||
+                                    !topic.isPersistent()) {
+                                return CompletableFuture.completedFuture(null);
+                            }
+                            return isTopicOperationAllowed(
+                                    topicName, TopicOperation.SUBSCRIBE
+                            ).thenCompose(canSubscribe -> {
+                                if (!canSubscribe) {
+                                    log.warn(
+                                            "[{}] Could not create the initial subscription {} for topic {}. Client "
+                                                    + "is not authorized to subscribe with role {}",
+                                            remoteAddress, initialSubscriptionName, topicName, getPrincipal());
+                                    return CompletableFuture.completedFuture(null);
+                                }
+                                return topic.createSubscription(initialSubscriptionName, InitialPosition.Earliest,
+                                        false);
+                            }).exceptionally(exception -> {
+                                log.warn("[{}] Failed to create the initial subscription {}, topic: {}", remoteAddress,
+                                        initialSubscriptionName, topicName);
+                                return null;
+                            });
+                        }).thenAccept(future -> {
                             buildProducerAndAddTopic(topic, producerId, producerName, requestId, isEncrypted,
                                     metadata, schemaVersion, epoch, userProvidedProducerName, topicName,
                                     producerAccessMode, topicEpoch, producerFuture);

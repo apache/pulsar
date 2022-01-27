@@ -329,6 +329,12 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         return this;
     }
 
+    @Override
+    public ProducerBuilder<T> initialSubscriptionName(String initialSubscriptionName) {
+        conf.setInitialSubscriptionName(initialSubscriptionName);
+        return this;
+    }
+
     private void setMessageRoutingMode() throws PulsarClientException {
         if(conf.getMessageRoutingMode() == null && conf.getCustomMessageRouter() == null) {
             messageRoutingMode(MessageRoutingMode.RoundRobinPartition);

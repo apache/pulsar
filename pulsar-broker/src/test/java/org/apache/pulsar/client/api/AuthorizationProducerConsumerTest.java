@@ -538,6 +538,58 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
+    @Test
+    public void testPermissionForProducerCreateInitialSubscription() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
+        setup();
+
+        String lookupUrl = pulsar.getBrokerServiceUrl();
+
+        final String invalidRole = "invalid-role";
+        final String producerRole = "producer-role";
+        final String topic = "persistent://my-property/my-ns/my-topic";
+        final String initialSubscriptionName = "init-sub";
+        Authentication adminAuthentication = new ClientAuthentication("superUser");
+        Authentication authenticationInvalidRole = new ClientAuthentication(invalidRole);
+        Authentication authenticationProducerRole = new ClientAuthentication(producerRole);
+        @Cleanup
+        PulsarAdmin admin =
+                PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).authentication(adminAuthentication).build();
+
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.tenants().createTenant("my-property",
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
+        admin.topics().grantPermission(topic, invalidRole, Collections.singleton(AuthAction.produce));
+        admin.topics().grantPermission(topic, producerRole, Sets.newHashSet(AuthAction.produce, AuthAction.consume));
+
+        @Cleanup
+        PulsarClient pulsarClientInvalidRole = PulsarClient.builder().serviceUrl(lookupUrl)
+                .authentication(authenticationInvalidRole).build();
+
+        pulsarClientInvalidRole.newProducer()
+                .topic(topic)
+                .initialSubscriptionName(initialSubscriptionName)
+                .create();
+
+        Assert.assertFalse(admin.topics().getSubscriptions(topic).contains(initialSubscriptionName));
+
+        @Cleanup
+        PulsarClient pulsarClientProducerRole = PulsarClient.builder().serviceUrl(lookupUrl)
+                .authentication(authenticationProducerRole).build();
+
+        pulsarClientProducerRole.newProducer()
+                .topic(topic)
+                .initialSubscriptionName(initialSubscriptionName)
+                .create();
+
+        Assert.assertTrue(admin.topics().getSubscriptions(topic).contains(initialSubscriptionName));
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+
     public static class ClientAuthentication implements Authentication {
         String user;
 

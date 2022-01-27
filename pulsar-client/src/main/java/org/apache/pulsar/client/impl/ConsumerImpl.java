@@ -357,8 +357,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 this.deadLetterPolicy.setInitSubscriptionName(conf.getSubscriptionName());
             }
 
-            this.deadLetterPolicy.setInitSubscriptionType(conf.getDeadLetterPolicy().getInitSubscriptionType());
-
         } else {
             deadLetterPolicy = null;
             possibleSendToDeadLetterTopicMessages = null;

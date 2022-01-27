@@ -763,9 +763,19 @@ public class Commands {
     }
 
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
-          boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo,
-          long epoch, boolean userProvidedProducerName,
-          ProducerAccessMode accessMode, Optional<Long> topicEpoch, boolean isTxnEnabled) {
+                                      boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo,
+                                      long epoch, boolean userProvidedProducerName,
+                                      ProducerAccessMode accessMode, Optional<Long> topicEpoch, boolean isTxnEnabled) {
+        return newProducer(topic, producerId, requestId, producerName, encrypted, metadata, schemaInfo, epoch,
+                userProvidedProducerName, accessMode, topicEpoch, isTxnEnabled, null);
+
+    }
+
+    public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
+                                      boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo,
+                                      long epoch, boolean userProvidedProducerName,
+                                      ProducerAccessMode accessMode, Optional<Long> topicEpoch, boolean isTxnEnabled,
+                                      String initialSubscriptionName) {
         BaseCommand cmd = localCmd(Type.PRODUCER);
         CommandProducer producer = cmd.setProducer()
                 .setTopic(topic)
@@ -791,6 +801,11 @@ public class Commands {
         }
 
         topicEpoch.ifPresent(producer::setTopicEpoch);
+
+        if (initialSubscriptionName != null) {
+            producer.setInitialSubscriptionName(initialSubscriptionName);
+        }
+
         return serializeWithSize(cmd);
     }
 

@@ -54,10 +54,4 @@ public class DeadLetterPolicy {
      * The default value is the subscription name of the consumer.
      */
     private String initSubscriptionName;
-
-    /**
-     * Name of the initial subscription type of the dead letter topic.
-     * The default value is `Exclusive`.
-     */
-    private SubscriptionType initSubscriptionType;
 }

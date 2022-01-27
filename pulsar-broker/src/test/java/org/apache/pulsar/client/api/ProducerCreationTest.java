@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -92,5 +93,52 @@ public class ProducerCreationTest extends ProducerConsumerBase {
         Thread.sleep(3000);
         Assert.assertEquals(producer.getConnectionHandler().getEpoch(), 1);
         Assert.assertTrue(producer.isConnected());
+    }
+
+    @Test(dataProvider = "topicDomainProvider")
+    public void testInitialSubscriptionCreation(TopicDomain domain) throws PulsarClientException, PulsarAdminException {
+        final String initialSubscriptionName = "init-sub";
+        final TopicName topic = TopicName.get(domain.value(), "public", "default", "testInitialSubscriptionCreation");
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic.toString())
+                .initialSubscriptionName(initialSubscriptionName)
+                .create();
+
+        Assert.assertNotNull(producer);
+
+        // Initial subscription will only be created if the topic is persistent
+        Assert.assertEquals(topic.isPersistent(),
+                admin.topics().getSubscriptions(topic.toString()).contains(initialSubscriptionName));
+
+        // Existing subscription should not fail the producer creation.
+        Producer<byte[]> otherProducer = pulsarClient.newProducer()
+                .topic(topic.toString())
+                .initialSubscriptionName(initialSubscriptionName)
+                .create();
+
+        Assert.assertEquals(topic.isPersistent(),
+                admin.topics().getSubscriptions(topic.toString()).contains(initialSubscriptionName));
+    }
+
+    @Test
+    public void testCreateInitialSubscriptionOnPartitionedTopic() throws PulsarAdminException, PulsarClientException {
+        final TopicName topic =
+                TopicName.get("persistent", "public", "default", "testCreateInitialSubscriptionOnPartitionedTopic");
+        final String initialSubscriptionName = "init-sub";
+        admin.topics().createPartitionedTopic(topic.toString(), 10);
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic.toString())
+                .initialSubscriptionName(initialSubscriptionName)
+                .create();
+
+        Assert.assertTrue(admin.topics().getSubscriptions(topic.toString()).contains(initialSubscriptionName));
+
+        // Existing subscription should not fail the producer creation.
+        Producer<byte[]> otherProducer = pulsarClient.newProducer()
+                .topic(topic.toString())
+                .initialSubscriptionName(initialSubscriptionName)
+                .create();
+
+        Assert.assertTrue(admin.topics().getSubscriptions(topic.toString()).contains(initialSubscriptionName));
     }
 }
