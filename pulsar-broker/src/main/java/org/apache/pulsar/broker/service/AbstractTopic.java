@@ -360,6 +360,14 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         return subscription.addConsumer(consumer);
     }
 
+    protected Consumer getActiveConsumer(Subscription subscription) {
+        Dispatcher dispatcher = subscription.getDispatcher();
+        if (dispatcher instanceof AbstractDispatcherSingleActiveConsumer) {
+            return ((AbstractDispatcherSingleActiveConsumer) dispatcher).getActiveConsumer();
+        }
+        return null;
+    }
+
     @Override
     public void disableCnxAutoRead() {
         producers.values().forEach(producer -> producer.getCnx().disableCnxAutoRead());
@@ -643,17 +651,19 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         if (SystemTopicClient.isSystemTopic(TopicName.get(this.topic))) {
             schemaCompatibilityStrategy =
                     brokerService.pulsar().getConfig().getSystemTopicSchemaCompatibilityStrategy();
-        } else if (policies.schema_compatibility_strategy == SchemaCompatibilityStrategy.UNDEFINED) {
-            schemaCompatibilityStrategy = brokerService.pulsar()
-                    .getConfig().getSchemaCompatibilityStrategy();
-            if (schemaCompatibilityStrategy == SchemaCompatibilityStrategy.UNDEFINED) {
-                schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
-                        policies.schema_auto_update_compatibility_strategy);
+            return;
+        }
+
+        schemaCompatibilityStrategy = policies.schema_compatibility_strategy;
+        if (SchemaCompatibilityStrategy.isUndefined(schemaCompatibilityStrategy)) {
+            schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
+                    policies.schema_auto_update_compatibility_strategy);
+            if (SchemaCompatibilityStrategy.isUndefined(schemaCompatibilityStrategy)) {
+                schemaCompatibilityStrategy = brokerService.pulsar().getConfig().getSchemaCompatibilityStrategy();
             }
-        } else {
-            schemaCompatibilityStrategy = policies.schema_compatibility_strategy;
         }
     }
+
     private static final Summary PUBLISH_LATENCY = Summary.build("pulsar_broker_publish_latency", "-")
             .quantile(0.0)
             .quantile(0.50)

@@ -19,10 +19,8 @@
 package org.apache.pulsar.client.impl.conf;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Sets;
-
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Set;
@@ -31,7 +29,6 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -114,7 +111,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private boolean autoAckOldestChunkedMessageOnQueueFull = false;
 
-    private long expireTimeOfIncompleteChunkedMessageMillis = 60 * 1000;
+    private long expireTimeOfIncompleteChunkedMessageMillis = TimeUnit.MINUTES.toMillis(1);
 
     @JsonIgnore
     private CryptoKeyReader cryptoKeyReader = null;
@@ -154,7 +151,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private boolean batchIndexAckEnabled = false;
 
     private boolean ackReceiptEnabled = false;
-    
+
     private boolean poolMessages = false;
 
     @JsonIgnore

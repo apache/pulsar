@@ -33,7 +33,7 @@ public abstract class MessageRouterBase implements MessageRouter {
             break;
         case Murmur3_32Hash:
         default:
-            this.hash = Murmur3_32Hash.getInstance();
+            this.hash = Murmur3Hash32.getInstance();
         }
     }
 }

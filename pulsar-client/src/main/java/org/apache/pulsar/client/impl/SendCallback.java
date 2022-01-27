@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.pulsar.client.api.MessageId;
 
 /**
@@ -28,8 +27,8 @@ import org.apache.pulsar.client.api.MessageId;
 public interface SendCallback {
 
     /**
-     * invoked when send operation completes
-     * 
+     * invoked when send operation completes.
+     *
      * @param e
      */
     void sendComplete(Exception e);
@@ -50,7 +49,7 @@ public interface SendCallback {
     SendCallback getNextSendCallback();
 
     /**
-     * Return next message in chain
+     * Return next message in chain.
      *
      * @return next message in chain
      */

@@ -141,7 +141,7 @@ public class PartitionedProducerImplTest {
     @Test
     public void testPartialPartitionWithKey() {
         final MessageRouter router = new PartialRoundRobinMessageRouterImpl(3);
-        final Hash hash = Murmur3_32Hash.getInstance();
+        final Hash hash = Murmur3Hash32.getInstance();
         final List<Integer> expectedHashList = Lists.newArrayList();
         final List<Integer> actualHashList = Lists.newArrayList();
 

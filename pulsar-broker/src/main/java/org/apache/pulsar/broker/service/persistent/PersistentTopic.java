@@ -88,6 +88,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedExcepti
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionNotFoundException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicBacklogQuotaExceededException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicFencedException;
@@ -800,6 +801,16 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 if (ex.getCause() instanceof ConsumerBusyException) {
                     log.warn("[{}][{}] Consumer {} {} already connected", topic, subscriptionName, consumerId,
                             consumerName);
+                    Consumer consumer = null;
+                    try {
+                        consumer = subscriptionFuture.isDone() ? getActiveConsumer(subscriptionFuture.get()) : null;
+                        // cleanup consumer if connection is already closed
+                        if (consumer != null && !consumer.cnx().isActive()) {
+                            consumer.close();
+                        }
+                    } catch (Exception be) {
+                        log.error("Failed to clean up consumer on closed connection {}, {}", consumer, be.getMessage());
+                    }
                 } else if (ex.getCause() instanceof SubscriptionBusyException) {
                     log.warn("[{}][{}] {}", topic, subscriptionName, ex.getMessage());
                 } else {
@@ -2470,24 +2481,33 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      * @return quota exceeded status for blocking producer creation
      */
     @Override
-    public boolean isBacklogQuotaExceeded(String producerName, BacklogQuota.BacklogQuotaType backlogQuotaType) {
+    public CompletableFuture<Void> checkBacklogQuotaExceeded(String producerName, BacklogQuotaType backlogQuotaType) {
         BacklogQuota backlogQuota = getBacklogQuota(backlogQuotaType);
-
         if (backlogQuota != null) {
             BacklogQuota.RetentionPolicy retentionPolicy = backlogQuota.getPolicy();
-
             if ((retentionPolicy == BacklogQuota.RetentionPolicy.producer_request_hold
                     || retentionPolicy == BacklogQuota.RetentionPolicy.producer_exception)) {
-                if (backlogQuotaType == BacklogQuota.BacklogQuotaType.destination_storage && isSizeBacklogExceeded()
-                || backlogQuotaType == BacklogQuota.BacklogQuotaType.message_age && isTimeBacklogExceeded()){
-                    log.info("[{}] Backlog quota exceeded. Cannot create producer [{}]", this.getName(), producerName);
-                    return true;
+                if (backlogQuotaType == BacklogQuotaType.destination_storage && isSizeBacklogExceeded()) {
+                    log.info("[{}] Size backlog quota exceeded. Cannot create producer [{}]", this.getName(),
+                            producerName);
+                    return FutureUtil.failedFuture(new TopicBacklogQuotaExceededException(retentionPolicy));
+                }
+                if (backlogQuotaType == BacklogQuotaType.message_age) {
+                    return checkTimeBacklogExceeded().thenCompose(isExceeded -> {
+                        if (isExceeded) {
+                            log.info("[{}] Time backlog quota exceeded. Cannot create producer [{}]", this.getName(),
+                                    producerName);
+                            return FutureUtil.failedFuture(new TopicBacklogQuotaExceededException(retentionPolicy));
+                        } else {
+                            return CompletableFuture.completedFuture(null);
+                        }
+                    });
                 }
             } else {
-                return false;
+                return CompletableFuture.completedFuture(null);
             }
         }
-        return false;
+        return CompletableFuture.completedFuture(null);
     }
 
     /**
@@ -2514,18 +2534,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     /**
      * @return determine if backlog quota enforcement needs to be done for topic based on time limit
      */
-    public boolean isTimeBacklogExceeded() {
+    public CompletableFuture<Boolean> checkTimeBacklogExceeded() {
         TopicName topicName = TopicName.get(getName());
-        CompletableFuture<Boolean> future = new CompletableFuture<>();
         int backlogQuotaLimitInSecond = getBacklogQuota(BacklogQuotaType.message_age).getLimitTime();
 
         // If backlog quota by time is not set and we have no durable cursor.
         if (backlogQuotaLimitInSecond <= 0
                 || ((ManagedCursorContainer) ledger.getCursors()).getSlowestReaderPosition() == null) {
-            return false;
+            return CompletableFuture.completedFuture(false);
         }
 
         if (brokerService.pulsar().getConfiguration().isPreciseTimeBasedBacklogQuotaCheck()) {
+            CompletableFuture<Boolean> future = new CompletableFuture<>();
             // Check if first unconsumed message(first message after mark delete position)
             // for slowest cursor's has expired.
             PositionImpl position = ((ManagedLedgerImpl) ledger).getNextValidPosition(((ManagedCursorContainer)
@@ -2558,13 +2578,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             future.complete(false);
                         }
                     }, null);
-
-            try {
-                return future.get();
-            } catch (Exception e) {
-                log.error("[{}][{}] Error reading entry for precise time based backlog check", topicName, e);
-                return false;
-            }
+            return future;
         } else {
             Long ledgerId = ((ManagedCursorContainer) ledger.getCursors()).getSlowestReaderPosition().getLedgerId();
             try {
@@ -2578,13 +2592,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                         + "slowest cursor currently on {}", backlogQuotaLimitInSecond * 1000,
                                 ((ManagedLedgerImpl) ledger).getClock().millis() - ledgerInfo.getTimestamp());
                     }
-                    return true;
+                    return CompletableFuture.completedFuture(true);
                 } else {
-                    return false;
+                    return CompletableFuture.completedFuture(false);
                 }
             } catch (Exception e) {
                 log.error("[{}][{}] Error reading entry for precise time based backlog check", topicName, e);
-                return false;
+                return CompletableFuture.completedFuture(false);
             }
         }
     }

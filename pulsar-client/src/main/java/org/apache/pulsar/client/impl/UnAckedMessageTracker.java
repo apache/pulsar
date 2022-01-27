@@ -18,16 +18,10 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkArgument;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import io.netty.util.concurrent.FastThreadLocal;
-
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.Closeable;
 import java.util.ArrayDeque;
 import java.util.Collections;
@@ -38,6 +32,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class UnAckedMessageTracker implements Closeable {
     private static final Logger log = LoggerFactory.getLogger(UnAckedMessageTracker.class);
@@ -48,7 +46,8 @@ public class UnAckedMessageTracker implements Closeable {
     protected final Lock readLock;
     protected final Lock writeLock;
 
-    public static final UnAckedMessageTrackerDisabled UNACKED_MESSAGE_TRACKER_DISABLED = new UnAckedMessageTrackerDisabled();
+    public static final UnAckedMessageTrackerDisabled UNACKED_MESSAGE_TRACKER_DISABLED =
+            new UnAckedMessageTrackerDisabled();
     private final long ackTimeoutMillis;
     private final long tickDurationInMs;
 
@@ -97,15 +96,19 @@ public class UnAckedMessageTracker implements Closeable {
         this(client, consumerBase, ackTimeoutMillis, ackTimeoutMillis);
     }
 
-    private static final FastThreadLocal<HashSet<MessageId>> TL_MESSAGE_IDS_SET = new FastThreadLocal<HashSet<MessageId>>() {
+    private static final FastThreadLocal<HashSet<MessageId>> TL_MESSAGE_IDS_SET =
+            new FastThreadLocal<HashSet<MessageId>>() {
         @Override
         protected HashSet<MessageId> initialValue() throws Exception {
             return new HashSet<>();
         }
     };
 
-    public UnAckedMessageTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase, long ackTimeoutMillis, long tickDurationInMs) {
-        Preconditions.checkArgument(tickDurationInMs > 0 && ackTimeoutMillis >= tickDurationInMs);
+    public UnAckedMessageTracker(PulsarClientImpl client,
+                                 ConsumerBase<?> consumerBase,
+                                 long ackTimeoutMillis,
+                                 long tickDurationInMs) {
+        checkArgument(tickDurationInMs > 0 && ackTimeoutMillis >= tickDurationInMs);
         this.ackTimeoutMillis = ackTimeoutMillis;
         this.tickDurationInMs = tickDurationInMs;
         ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
@@ -114,7 +117,7 @@ public class UnAckedMessageTracker implements Closeable {
         this.messageIdPartitionMap = new ConcurrentHashMap<>();
         this.timePartitions = new ArrayDeque<>();
 
-        int blankPartitions = (int)Math.ceil((double)this.ackTimeoutMillis / this.tickDurationInMs);
+        int blankPartitions = (int) Math.ceil((double) this.ackTimeoutMillis / this.tickDurationInMs);
         for (int i = 0; i < blankPartitions + 1; i++) {
             timePartitions.add(new ConcurrentOpenHashSet<>(16, 1));
         }
@@ -154,7 +157,8 @@ public class UnAckedMessageTracker implements Closeable {
     public static void addChunkedMessageIdsAndRemoveFromSequenceMap(MessageId messageId, Set<MessageId> messageIds,
                                                                     ConsumerBase<?> consumerBase) {
         if (messageId instanceof MessageIdImpl) {
-            MessageIdImpl[] chunkedMsgIds = consumerBase.unAckedChunkedMessageIdSequenceMap.get((MessageIdImpl) messageId);
+            MessageIdImpl[] chunkedMsgIds = consumerBase.unAckedChunkedMessageIdSequenceMap
+                    .get((MessageIdImpl) messageId);
             if (chunkedMsgIds != null && chunkedMsgIds.length > 0) {
                 Collections.addAll(messageIds, chunkedMsgIds);
             }
@@ -233,7 +237,7 @@ public class UnAckedMessageTracker implements Closeable {
                         exist.remove(messageId);
                     }
                     iterator.remove();
-                    removed ++;
+                    removed++;
                 }
             }
             return removed;
