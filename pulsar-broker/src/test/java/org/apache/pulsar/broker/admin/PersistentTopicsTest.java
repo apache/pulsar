@@ -94,6 +94,7 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Ignore;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
 
@@ -1195,6 +1196,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Ignore("Timeout is not supported")
     @Test
     public void testResetCursorReturnTimeoutWhenZKTimeout() {
         String topic = "persistent://" + testTenant + "/" + testNamespace + "/" + "topic-2";
