@@ -50,7 +50,7 @@ public class PulsarMetadataStateStoreImplTest {
 
     @BeforeMethod
     public void setup() throws Exception {
-        this.store = MetadataStoreFactory.create("memory://local", MetadataStoreConfig.builder().build());
+        this.store = MetadataStoreFactory.create("memory:local", MetadataStoreConfig.builder().build());
         this.countersCache = store.getMetadataCache(Long.class);
         this.stateContext = new PulsarMetadataStateStoreImpl(store, "/prefix", TENANT, NS, NAME);
     }

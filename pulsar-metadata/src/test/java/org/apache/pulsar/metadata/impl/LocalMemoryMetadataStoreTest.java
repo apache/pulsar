@@ -35,11 +35,11 @@ public class LocalMemoryMetadataStoreTest {
     @Test
     public void testPrivateInstance() throws Exception {
         @Cleanup
-        MetadataStore store1 = MetadataStoreFactory.create("memory://local",
+        MetadataStore store1 = MetadataStoreFactory.create("memory:local",
                 MetadataStoreConfig.builder().build());
 
         @Cleanup
-        MetadataStore store2 = MetadataStoreFactory.create("memory://local",
+        MetadataStore store2 = MetadataStoreFactory.create("memory:local",
                 MetadataStoreConfig.builder().build());
 
         store1.put("/test", "value".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
@@ -50,7 +50,7 @@ public class LocalMemoryMetadataStoreTest {
 
     @Test
     public void testSharedInstance() throws Exception {
-        String url = "memory://" + UUID.randomUUID();
+        String url = "memory:" + UUID.randomUUID();
 
         @Cleanup
         MetadataStore store1 = MetadataStoreFactory.create(url,
