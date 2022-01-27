@@ -20,15 +20,6 @@
 package org.apache.pulsar.client.impl;
 
 import io.netty.util.Timeout;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.TableView;
-import org.apache.pulsar.common.util.FutureUtil;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -43,6 +34,14 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TableView;
+import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
 public class TableViewImpl<T> implements TableView<T> {
@@ -101,7 +100,7 @@ public class TableViewImpl<T> implements TableView<T> {
 
     private void checkForPartitionsChanges(Timeout timeout) {
         if (timeout.isCancelled()) {
-            return ;
+            return;
         }
 
         start().whenComplete((tw, ex) -> {

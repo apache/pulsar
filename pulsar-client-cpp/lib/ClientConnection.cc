@@ -37,6 +37,7 @@
 #include "ProducerImpl.h"
 #include "ConsumerImpl.h"
 #include "checksum/ChecksumProvider.h"
+#include "MessageIdUtil.h"
 
 DECLARE_LOG_OBJECT()
 
@@ -1072,7 +1073,7 @@ void ClientConnection::handleIncomingCommand() {
                         PendingGetLastMessageIdRequestsMap::iterator it =
                             pendingGetLastMessageIdRequests_.find(error.request_id());
                         if (it != pendingGetLastMessageIdRequests_.end()) {
-                            Promise<Result, MessageId> getLastMessageIdPromise = it->second;
+                            auto getLastMessageIdPromise = it->second;
                             pendingGetLastMessageIdRequests_.erase(it);
                             lock.unlock();
 
@@ -1191,15 +1192,18 @@ void ClientConnection::handleIncomingCommand() {
                         pendingGetLastMessageIdRequests_.find(getLastMessageIdResponse.request_id());
 
                     if (it != pendingGetLastMessageIdRequests_.end()) {
-                        Promise<Result, MessageId> getLastMessageIdPromise = it->second;
+                        auto getLastMessageIdPromise = it->second;
                         pendingGetLastMessageIdRequests_.erase(it);
                         lock.unlock();
 
-                        MessageIdData messageIdData = getLastMessageIdResponse.last_message_id();
-                        MessageId messageId = MessageId(messageIdData.partition(), messageIdData.ledgerid(),
-                                                        messageIdData.entryid(), messageIdData.batch_index());
-
-                        getLastMessageIdPromise.setValue(messageId);
+                        if (getLastMessageIdResponse.has_consumer_mark_delete_position()) {
+                            getLastMessageIdPromise.setValue(
+                                {toMessageId(getLastMessageIdResponse.last_message_id()),
+                                 toMessageId(getLastMessageIdResponse.consumer_mark_delete_position())});
+                        } else {
+                            getLastMessageIdPromise.setValue(
+                                {toMessageId(getLastMessageIdResponse.last_message_id())});
+                        }
                     } else {
                         lock.unlock();
                         LOG_WARN(
@@ -1366,8 +1370,9 @@ void ClientConnection::sendMessage(const OpSendMsg& opSend) {
 }
 
 void ClientConnection::sendMessageInternal(const OpSendMsg& opSend) {
-    PairSharedBuffer buffer = Commands::newSend(outgoingBuffer_, outgoingCmd_, opSend.producerId_,
-                                                opSend.sequenceId_, getChecksumType(), opSend.msg_);
+    PairSharedBuffer buffer =
+        Commands::newSend(outgoingBuffer_, outgoingCmd_, opSend.producerId_, opSend.sequenceId_,
+                          getChecksumType(), opSend.metadata_, opSend.payload_);
 
     asyncWrite(buffer, customAllocWriteHandler(std::bind(&ClientConnection::handleSendPair,
                                                          shared_from_this(), std::placeholders::_1)));
@@ -1408,8 +1413,9 @@ void ClientConnection::sendPendingCommands() {
             assert(any.type() == typeid(OpSendMsg));
 
             const OpSendMsg& op = boost::any_cast<const OpSendMsg&>(any);
-            PairSharedBuffer buffer = Commands::newSend(outgoingBuffer_, outgoingCmd_, op.producerId_,
-                                                        op.sequenceId_, getChecksumType(), op.msg_);
+            PairSharedBuffer buffer =
+                Commands::newSend(outgoingBuffer_, outgoingCmd_, op.producerId_, op.sequenceId_,
+                                  getChecksumType(), op.metadata_, op.payload_);
 
             asyncWrite(buffer, customAllocWriteHandler(std::bind(&ClientConnection::handleSendPair,
                                                                  shared_from_this(), std::placeholders::_1)));
@@ -1608,9 +1614,10 @@ Commands::ChecksumType ClientConnection::getChecksumType() const {
     return getServerProtocolVersion() >= proto::v6 ? Commands::Crc32c : Commands::None;
 }
 
-Future<Result, MessageId> ClientConnection::newGetLastMessageId(uint64_t consumerId, uint64_t requestId) {
+Future<Result, GetLastMessageIdResponse> ClientConnection::newGetLastMessageId(uint64_t consumerId,
+                                                                               uint64_t requestId) {
     Lock lock(mutex_);
-    Promise<Result, MessageId> promise;
+    Promise<Result, GetLastMessageIdResponse> promise;
     if (isClosed()) {
         lock.unlock();
         LOG_ERROR(cnxString_ << " Client is not connected to the broker");
