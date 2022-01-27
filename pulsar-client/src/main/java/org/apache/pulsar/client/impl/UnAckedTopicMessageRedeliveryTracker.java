@@ -24,10 +24,10 @@ import java.util.Map.Entry;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 
-public class UnAckedTopicMessageTracker extends UnAckedMessageTracker {
+public class UnAckedTopicMessageRedeliveryTracker extends UnAckedMessageRedeliveryTracker {
 
-    public UnAckedTopicMessageTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase,
-                                      ConsumerConfigurationData<?> conf) {
+    public UnAckedTopicMessageRedeliveryTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase,
+                                                ConsumerConfigurationData<?> conf) {
         super(client, consumerBase, conf);
     }
 
@@ -35,13 +35,27 @@ public class UnAckedTopicMessageTracker extends UnAckedMessageTracker {
         writeLock.lock();
         try {
             int removed = 0;
-            Iterator<Entry<MessageId, HashSet<MessageId>>> iterator = messageIdPartitionMap.entrySet().iterator();
+            Iterator<Entry<UnackMessageIdWrapper, HashSet<UnackMessageIdWrapper>>> iterator =
+                    redeliveryMessageIdPartitionMap.entrySet().iterator();
             while (iterator.hasNext()) {
-                Entry<MessageId, HashSet<MessageId>> entry = iterator.next();
-                MessageId messageId = entry.getKey();
+                Entry<UnackMessageIdWrapper, HashSet<UnackMessageIdWrapper>> entry = iterator.next();
+                UnackMessageIdWrapper messageIdWrapper = entry.getKey();
+                MessageId messageId = messageIdWrapper.getMessageId();
                 if (messageId instanceof TopicMessageIdImpl
                         && ((TopicMessageIdImpl) messageId).getTopicPartitionName().contains(topicName)) {
-                    entry.getValue().remove(messageId);
+                    HashSet<UnackMessageIdWrapper> exist = redeliveryMessageIdPartitionMap.get(messageIdWrapper);
+                    entry.getValue().remove(messageIdWrapper);
+                    iterator.remove();
+                    messageIdWrapper.recycle();
+                    removed++;
+                }
+            }
+
+            Iterator<MessageId> iteratorAckTimeOut = ackTimeoutMessages.keySet().iterator();
+            while (iterator.hasNext()) {
+                MessageId messageId = iteratorAckTimeOut.next();
+                if (messageId instanceof TopicMessageIdImpl
+                        && ((TopicMessageIdImpl) messageId).getTopicPartitionName().contains(topicName)) {
                     iterator.remove();
                     removed++;
                 }
