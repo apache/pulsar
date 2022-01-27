@@ -60,6 +60,7 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.admin.v1.Namespaces;
 import org.apache.pulsar.broker.admin.v1.PersistentTopics;
@@ -85,18 +86,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.BundlesData;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
-import org.apache.pulsar.common.policies.data.PersistencePolicies;
-import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.PolicyName;
-import org.apache.pulsar.common.policies.data.PolicyOperation;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.SubscribeRate;
-import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.*;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 import org.apache.zookeeper.KeeperException.Code;
@@ -1746,6 +1736,28 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         } catch (PulsarAdminException e) {
             assertTrue(e.getCause() instanceof BadRequestException);
             assertTrue(e.getMessage().startsWith("Invalid retention policy"));
+        }
+    }
+
+    @Test
+    public void testNamespaceResourceGroup() {
+        String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
+        ResourceGroup testResourceGroup = new ResourceGroup();
+        testResourceGroup.setDispatchRateInBytes(10000L);
+        testResourceGroup.setDispatchRateInMsgs(100);
+        testResourceGroup.setPublishRateInMsgs(100);
+        testResourceGroup.setPublishRateInBytes(10000L);
+        final String resourceGroupName = "test-resource-group";
+        try {
+            admin.resourcegroups().createResourceGroup(resourceGroupName, testResourceGroup);
+            admin.namespaces().createNamespace(namespace);
+            admin.namespaces().setNamespaceResourceGroup(namespace, resourceGroupName);
+            String namespaceResourceGroup = admin.namespaces().getNamespaceResourceGroup(namespace);
+            assertEquals(namespaceResourceGroup, resourceGroupName);
+            admin.namespaces().removeNamespaceResourceGroup(namespace);
+            assertTrue(StringUtils.isBlank(admin.namespaces().getNamespaceResourceGroup(namespace)));
+        } catch (PulsarAdminException e) {
+            fail();
         }
     }
 }
