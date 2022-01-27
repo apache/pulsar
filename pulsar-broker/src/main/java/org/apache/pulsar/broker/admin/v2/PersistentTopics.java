@@ -64,6 +64,7 @@ import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -3564,6 +3565,116 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalGetReplicatedSubscriptionStatus(asyncResponse, decode(encodedSubName), authoritative);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/schemaCompatibilityStrategy")
+    @ApiOperation(value = "Get schema compatibility strategy on a topic")
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
+            @ApiResponse(code = 404, message = "Topic does not exist")})
+    public void getSchemaCompatibilityStrategy(
+            @Suspended AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the cluster", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("applied") boolean applied,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+
+        preValidation(authoritative)
+                .thenCompose(__-> internalGetSchemaCompatibilityStrategy(applied))
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("getSchemaCompatibilityStrategy", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @PUT
+    @Path("/{tenant}/{namespace}/{topic}/schemaCompatibilityStrategy")
+    @ApiOperation(value = "Get schema compatibility strategy on a topic")
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
+            @ApiResponse(code = 404, message = "Topic does not exist")})
+    public void setSchemaCompatibilityStrategy(
+            @Suspended AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @ApiParam(value = "Strategy used to check the compatibility of new schema")
+                    SchemaCompatibilityStrategy strategy) {
+        validateTopicName(tenant, namespace, encodedTopic);
+
+        preValidation(authoritative)
+                .thenCompose(__ -> internalSetSchemaCompatibilityStrategy(strategy))
+                .thenRun(() -> {
+                    log.info(
+                            "[{}] Successfully set topic schema compatibility strategy: tenant={}, namespace={}, "
+                                    + "topic={}, shemaCompatibilityStrategy = {}",
+                            clientAppId(),
+                            tenant,
+                            namespace,
+                            topicName.getLocalName(),
+                            strategy);
+                    asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(ex -> {
+                    handleTopicPolicyException("setSchemaCompatibilityStrategy", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/schemaCompatibilityStrategy")
+    @ApiOperation(value = "Remove schema compatibility strategy on a topic")
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
+            @ApiResponse(code = 404, message = "Topic does not exist")})
+    public void removeSchemaCompatibilityStrategy(
+            @Suspended AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @ApiParam(value = "Strategy used to check the compatibility of new schema")
+                    SchemaCompatibilityStrategy strategy) {
+        validateTopicName(tenant, namespace, encodedTopic);
+
+        preValidation(authoritative)
+                .thenCompose(__ -> internalSetSchemaCompatibilityStrategy(null))
+                .thenRun(() -> {
+                    log.info(
+                            "[{}] Successfully remove topic schema compatibility strategy: tenant={}, namespace={}, "
+                                    + "topic={}",
+                            clientAppId(),
+                            tenant,
+                            namespace,
+                            topicName.getLocalName());
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("removeSchemaCompatibilityStrategy", ex, asyncResponse);
+                    return null;
+                });
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentTopics.class);

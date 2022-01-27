@@ -70,6 +70,7 @@ public class TopicPolicies {
     private Integer maxMessageSize;
     private Integer maxSubscriptionsPerTopic;
     private DispatchRateImpl replicatorDispatchRate;
+    private SchemaCompatibilityStrategy schemaCompatibilityStrategy;
 
     public boolean isGlobalPolicies() {
         return isGlobal != null && isGlobal;

@@ -122,6 +122,7 @@ import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicOperation;
@@ -4804,5 +4805,31 @@ public class PersistentTopicsBase extends AdminResource {
                     topicName, subName, e);
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }
+    }
+
+    protected CompletableFuture<SchemaCompatibilityStrategy> internalGetSchemaCompatibilityStrategy(boolean applied) {
+        if (applied) {
+            return getSchemaCompatibilityStrategyAsync();
+        }
+        return validateTopicOperationAsync(topicName, TopicOperation.GET_SCHEMA_COMPATIBILITY_STRATEGY)
+                .thenCompose(n -> getTopicPoliciesAsyncWithRetry(topicName).thenApply(op -> {
+                    if (!op.isPresent()) {
+                        return null;
+                    }
+                    SchemaCompatibilityStrategy strategy = op.get().getSchemaCompatibilityStrategy();
+                    return SchemaCompatibilityStrategy.isUndefined(strategy) ? null : strategy;
+                }));
+    }
+
+    protected CompletableFuture<Void> internalSetSchemaCompatibilityStrategy(SchemaCompatibilityStrategy strategy) {
+        validateTopicOperation(topicName, TopicOperation.SET_SCHEMA_COMPATIBILITY_STRATEGY);
+
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setSchemaCompatibilityStrategy(
+                            strategy == SchemaCompatibilityStrategy.UNDEFINED ? null : strategy);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                });
     }
 }

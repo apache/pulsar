@@ -321,7 +321,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                     this.isEncryptionRequired = policies.encryption_required;
 
-                    setSchemaCompatibilityStrategy(policies);
                     isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
 
                     schemaValidationEnforced = policies.schema_validation_enforced;
@@ -2409,7 +2408,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         isEncryptionRequired = data.encryption_required;
 
-        setSchemaCompatibilityStrategy(data);
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
 
         schemaValidationEnforced = data.schema_validation_enforced;
