@@ -85,16 +85,16 @@ public class AuthorizationService {
      *
      * Grant authorization-action permission on a namespace to the given client.
      *
+     * NOTE: used to complete with {@link IllegalArgumentException} when namespace not found or with
+     * {@link IllegalStateException} when failed to grant permission.
+     *
      * @param namespace
      * @param actions
      * @param role
      * @param authDataJson
      *            additional authdata in json for targeted authorization provider
-     * @return
-     * @throws IllegalArgumentException
-     *             when namespace not found
-     * @throws IllegalStateException
-     *             when failed to grant permission
+     * @completesWith null when the permissions are updated successfully.
+     * @completesWith {@link MetadataStoreException} when the MetadataStore is not updated.
      */
     public CompletableFuture<Void> grantPermissionAsync(NamespaceName namespace, Set<AuthAction> actions, String role,
                                                         String authDataJson) {

@@ -39,6 +39,7 @@ public class HierarchyTopicPolicies {
     final PolicyHierarchyValue<InactiveTopicPolicies> inactiveTopicPolicies;
     final PolicyHierarchyValue<EnumSet<SubType>> subscriptionTypesEnabled;
     final PolicyHierarchyValue<Integer> maxSubscriptionsPerTopic;
+    final PolicyHierarchyValue<Integer> maxUnackedMessagesOnConsumer;
     final PolicyHierarchyValue<Integer> maxProducersPerTopic;
     final Map<BacklogQuotaType, PolicyHierarchyValue<BacklogQuota>> backLogQuotaMap;
     final PolicyHierarchyValue<Integer> topicMaxMessageSize;
@@ -58,6 +59,7 @@ public class HierarchyTopicPolicies {
         inactiveTopicPolicies = new PolicyHierarchyValue<>();
         subscriptionTypesEnabled = new PolicyHierarchyValue<>();
         maxSubscriptionsPerTopic = new PolicyHierarchyValue<>();
+        maxUnackedMessagesOnConsumer = new PolicyHierarchyValue<>();
         maxProducersPerTopic = new PolicyHierarchyValue<>();
         maxConsumerPerTopic = new PolicyHierarchyValue<>();
         maxConsumersPerSubscription = new PolicyHierarchyValue<>();
