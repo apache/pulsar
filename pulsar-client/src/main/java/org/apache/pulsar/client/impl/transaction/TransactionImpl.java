@@ -164,25 +164,19 @@ public class TransactionImpl implements Transaction , TimerTask {
         return checkIfOpenOrCommitting().thenCompose((value) -> {
             CompletableFuture<Void> commitFuture = new CompletableFuture<>();
             this.state = State.COMMITTING;
-            allOpComplete().whenComplete((v, e) -> {
-                if (e != null) {
-                    abort().whenComplete((vx, ex) -> commitFuture.completeExceptionally(e));
-                } else {
-                    tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits))
-                            .whenComplete((vx, ex) -> {
-                                if (ex != null) {
-                                    if (ex instanceof TransactionNotFoundException
-                                            || ex instanceof InvalidTxnStatusException) {
-                                        this.state = State.ERROR;
-                                    }
-                                    commitFuture.completeExceptionally(ex);
-                                } else {
-                                    this.state = State.COMMITTED;
-                                    commitFuture.complete(vx);
-                                }
-                            });
-                }
-            });
+            tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits))
+                    .whenComplete((vx, ex) -> {
+                        if (ex != null) {
+                            if (ex instanceof TransactionNotFoundException
+                                    || ex instanceof InvalidTxnStatusException) {
+                                this.state = State.ERROR;
+                            }
+                            commitFuture.completeExceptionally(ex);
+                        } else {
+                            this.state = State.COMMITTED;
+                            commitFuture.complete(vx);
+                        }
+                    });
             return commitFuture;
         });
     }
