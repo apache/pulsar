@@ -178,7 +178,7 @@ Message entries written to bookies are always synced to disk before returning an
 
 You can configure BookKeeper bookies using the [`conf/bookkeeper.conf`](reference-configuration.md#bookkeeper) configuration file. When you configure each bookie, ensure that the [`zkServers`](reference-configuration.md#bookkeeper-zkServers) parameter is set to the connection string for local ZooKeeper of the Pulsar cluster.
 
-  The minimum configuration changes required in `conf/bookkeeper.conf` are as follows:
+The minimum configuration changes required in `conf/bookkeeper.conf` are as follows:
 
 > **Note**  
 > The configuration of journalDirectory and ledgerDirectories needs to be considered clearly, and it is very troublesome to change later.
